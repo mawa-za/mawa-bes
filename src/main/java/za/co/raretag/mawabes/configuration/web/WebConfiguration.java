@@ -6,9 +6,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.*;
 import za.co.raretag.mawabes.configuration.spring.TenantRequestInterceptor;
 
-@Configuration
-@EnableWebMvc
-@ComponentScan(basePackages = "za.co.raretag.mawabes.api")
+//@Configuration
+//@EnableWebMvc
+//@ComponentScan(basePackages = "za.co.raretag.mawabes.api")
 public class WebConfiguration implements WebMvcConfigurer {
 
     @Autowired
