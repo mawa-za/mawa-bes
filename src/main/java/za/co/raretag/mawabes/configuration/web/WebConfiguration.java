@@ -1,14 +1,15 @@
 package za.co.raretag.mawabes.configuration.web;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.*;
 import za.co.raretag.mawabes.configuration.spring.TenantRequestInterceptor;
 
-//@Configuration
-//@EnableWebMvc
-//@ComponentScan(basePackages = "za.co.raretag.mawabes.api")
+@Configuration
+@EnableWebMvc
+@ComponentScan(basePackages = "za.co.raretag.mawabes")
 public class WebConfiguration implements WebMvcConfigurer {
 
     @Autowired
@@ -16,7 +17,8 @@ public class WebConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**");
+        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns("/authenticate");
+
     }
 
     @Override

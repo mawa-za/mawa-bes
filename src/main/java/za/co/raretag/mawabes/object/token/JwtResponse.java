@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.model;
+package za.co.raretag.mawabes.object.token;
 
 
 import java.io.Serializable;

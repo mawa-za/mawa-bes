@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.application;
+package za.co.raretag.mawabes.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;

@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import za.co.raretag.mawabes.configuration.context.TenantContext;
+import za.co.raretag.mawabes.security.model.JwtClaim;
 
 @Component
 public class JwtTokenUtil implements Serializable {
@@ -22,8 +24,25 @@ public class JwtTokenUtil implements Serializable {
 
     public static final long JWT_TOKEN_VALIDITY = 5*60*60;
 
-    @Value("${jwt.secret}")
+    private int jwtExpirationInMs;
+    private int refreshExpirationDateInMs;
+
     private String secret;
+
+    @Value("${jwt.secret}")
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+    @Value("${jwt.expirationDateInMs}")
+    public void setJwtExpirationInMs(int jwtExpirationInMs) {
+        this.jwtExpirationInMs = jwtExpirationInMs;
+    }
+
+    @Value("${jwt.refreshExpirationDateInMs}")
+    public void setRefreshExpirationDateInMs(int refreshExpirationDateInMs) {
+        this.refreshExpirationDateInMs = refreshExpirationDateInMs;
+    }
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
@@ -62,9 +81,23 @@ public class JwtTokenUtil implements Serializable {
     }
 
     private String doGenerateToken(Map<String, Object> claims, String subject) {
+        claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationInMs))
+                .signWith(SignatureAlgorithm.HS512, secret).compact();
+    }
 
-        return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY*1000)).signWith(SignatureAlgorithm.HS512, secret).compact();
+    public String doGenerateRefreshToken(Map<String, Object> claims, String subject) {
+        claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshExpirationDateInMs))
+                .signWith(SignatureAlgorithm.HS512, secret).compact();
     }
 
     public Boolean canTokenBeRefreshed(String token) {

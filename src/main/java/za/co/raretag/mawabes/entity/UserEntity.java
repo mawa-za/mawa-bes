@@ -1,7 +1,14 @@
-package za.co.raretag.mawabes.object.user;
+package za.co.raretag.mawabes.entity;
 
-public class UserDTO {
+import javax.persistence.*;
+
+@Entity
+@Table(name = "user")
+public class UserEntity {
+    @Id
+    @Column
     private String username;
+    @Column
     private String password;
 
     public String getUsername() {

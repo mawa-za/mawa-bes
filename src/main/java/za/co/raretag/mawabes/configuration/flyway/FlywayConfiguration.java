@@ -16,12 +16,13 @@ import static za.co.raretag.mawabes.configuration.hibernate.SchemaMultiTenantCon
 @Component
 public class FlywayConfiguration {
 
+//    @Autowired
+//    TenantService tenantService;
     private static final String DB_MIGRATION_TENANTS = "db/migration/all";
     private static final String DB_MIGRATION_SPECIFIC_FOR_TENANT = "db/migration/%s";
 
     @PostConstruct
     Boolean tenantSchemaFlyway() {
-
 //        migrateTenants("default");
         return true;
     }
@@ -37,9 +38,19 @@ public class FlywayConfiguration {
                 .migrate();
     }
 
+    private void updateTenants(String tenantId) {
+        Pair<String, BasicDataSource> data = dataSource(tenantId);
+        Flyway.configure()
+                .locations(DB_MIGRATION_TENANTS, String.format(DB_MIGRATION_SPECIFIC_FOR_TENANT, tenantId))
+                .baselineOnMigrate(true)
+                .dataSource(data.getSecond())
+                .schemas(data.getFirst())
+                .load()
+                .migrate();
+    }
+
     public Pair<String, BasicDataSource> dataSource(String tenantId) {
         try {
-
             Properties properties = new Properties();
             properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
             BasicDataSource dataSource = new BasicDataSource();

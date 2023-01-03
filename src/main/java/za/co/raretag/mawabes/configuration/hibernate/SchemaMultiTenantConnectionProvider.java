@@ -8,15 +8,10 @@ import za.co.raretag.mawabes.configuration.context.TenantContext;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 @SuppressWarnings("serial")
 public class SchemaMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
-    //public static final String HIBERNATE_PROPERTIES_PATH = "/application.properties";
-
     public static final String HIBERNATE_PROPERTIES_PATH = "/hibernate-%s.properties";
     private final Map<String, ConnectionProvider> connectionProviderMap;
 
@@ -47,7 +42,7 @@ public class SchemaMultiTenantConnectionProvider extends AbstractMultiTenantConn
                     connectionProviderMap.put(tenantIdentifier, connectionProvider);
                     return connectionProvider;
                 })
-                .orElseThrow(() -> new ConnectionProviderException("Cannot create new connection provider for tenant: "+tenantIdentifier));
+                .orElseThrow(() -> new ConnectionProviderException("Cannot create new connection provider for tenant: " + tenantIdentifier));
     }
 
     private ConnectionProvider createConnectionProvider(String tenantIdentifier) {
@@ -58,12 +53,16 @@ public class SchemaMultiTenantConnectionProvider extends AbstractMultiTenantConn
     }
 
     private Properties getHibernatePropertiesForTenantId(String tenantId) {
+//        List<TenantPropertyEntity> tenantProperties = tenantService.getTenantProperties(tenantId);
         try {
             Properties properties = new Properties();
+//            for (TenantPropertyEntity propertyEntity : tenantProperties) {
+//                properties.put(propertyEntity.getProperty(), propertyEntity.getValue());
+//            }
             properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
             return properties;
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot open hibernate properties: "+ HIBERNATE_PROPERTIES_PATH);
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot open hibernate properties: " + HIBERNATE_PROPERTIES_PATH);
         }
     }
 
