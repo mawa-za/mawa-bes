@@ -4,8 +4,9 @@ import za.co.raretag.mawabes.entity.TenantEntity;
 import za.co.raretag.mawabes.entity.TenantPropertyEntity;
 
 import java.util.List;
+import java.util.Properties;
 
 public interface TenantDAO {
     List<TenantEntity> getAll();
-    List<TenantPropertyEntity> getTenantProperties(String tenant);
+    Properties getTenantProperties(String tenant);
 }

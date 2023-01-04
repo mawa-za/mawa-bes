@@ -4,6 +4,8 @@ import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import za.co.raretag.mawabes.configuration.context.TenantContext;
 
 import java.util.Optional;

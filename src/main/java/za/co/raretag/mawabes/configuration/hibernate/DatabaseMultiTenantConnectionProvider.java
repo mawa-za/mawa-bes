@@ -3,19 +3,21 @@ package za.co.raretag.mawabes.configuration.hibernate;
 import org.hibernate.engine.jdbc.connections.internal.DriverManagerConnectionProviderImpl;
 import org.hibernate.engine.jdbc.connections.spi.AbstractMultiTenantConnectionProvider;
 import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import za.co.raretag.mawabes.configuration.context.TenantContext;
+import za.co.raretag.mawabes.service.TenantService;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.*;
-
-@SuppressWarnings("serial")
-public class SchemaMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
+@Component
+public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
+    @Autowired
+    TenantService tenantService;
     public static final String HIBERNATE_PROPERTIES_PATH = "/hibernate-%s.properties";
     private final Map<String, ConnectionProvider> connectionProviderMap;
 
-    public SchemaMultiTenantConnectionProvider() {
+    public DatabaseMultiTenantConnectionProvider() {
         this.connectionProviderMap = new HashMap<String, ConnectionProvider>();
     }
 
@@ -53,16 +55,17 @@ public class SchemaMultiTenantConnectionProvider extends AbstractMultiTenantConn
     }
 
     private Properties getHibernatePropertiesForTenantId(String tenantId) {
-//        List<TenantPropertyEntity> tenantProperties = tenantService.getTenantProperties(tenantId);
         try {
-            Properties properties = new Properties();
-//            for (TenantPropertyEntity propertyEntity : tenantProperties) {
-//                properties.put(propertyEntity.getProperty(), propertyEntity.getValue());
-//            }
-            properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
-            return properties;
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot open hibernate properties: " + HIBERNATE_PROPERTIES_PATH);
+            return tenantService.getTenantProperties(tenantId);
+        } catch (NullPointerException ex) {
+            try{
+                Properties properties = new Properties();
+                properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
+                return properties;
+            }catch (IOException e){
+                throw new RuntimeException("Cannot open hibernate properties: " + HIBERNATE_PROPERTIES_PATH);
+            }
+
         }
     }
 
