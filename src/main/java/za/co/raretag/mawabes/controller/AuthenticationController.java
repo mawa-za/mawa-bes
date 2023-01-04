@@ -3,7 +3,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.jsonwebtoken.impl.DefaultClaims;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +18,15 @@ import za.co.raretag.mawabes.configuration.jwt.JwtTokenUtil;
 import za.co.raretag.mawabes.object.token.JwtRequest;
 import za.co.raretag.mawabes.object.token.JwtResponse;
 import za.co.raretag.mawabes.service.JwtUserDetailsService;
+import za.co.raretag.mawabes.service.UserService;
 
 
 @RestController
 @CrossOrigin
-public class JwtAuthenticationController {
+public class AuthenticationController {
+
+    @Autowired
+    UserService userService;
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
@@ -34,11 +38,9 @@ public class JwtAuthenticationController {
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestHeader HttpHeaders headers, @RequestBody JwtRequest authenticationRequest) throws Exception {
 
-        String tenantID = headers.getFirst("X-TenantID");
-
-        TenantContext.setCurrentTenant(tenantID);
-
         authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
+
+        userService.authenticate(authenticationRequest);
 
         final UserDetails userDetails = userDetailsService
                 .loadUserByUsername(authenticationRequest.getUsername());

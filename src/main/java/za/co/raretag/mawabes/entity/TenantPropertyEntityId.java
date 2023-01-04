@@ -9,6 +9,9 @@ public class TenantPropertyEntityId implements Serializable {
     private String tenant;
     private String property;
 
+    public TenantPropertyEntityId() {
+    }
+
     public TenantPropertyEntityId(String tenant, String property) {
         this.tenant = tenant;
         this.property = property;

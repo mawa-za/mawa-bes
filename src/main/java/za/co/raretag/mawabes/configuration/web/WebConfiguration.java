@@ -9,7 +9,6 @@ import za.co.raretag.mawabes.configuration.spring.TenantRequestInterceptor;
 
 @Configuration
 @EnableWebMvc
-@ComponentScan(basePackages = "za.co.raretag.mawabes")
 public class WebConfiguration implements WebMvcConfigurer {
 
     @Autowired
@@ -17,7 +16,8 @@ public class WebConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns("/authenticate");
+//        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns("/authenticate");
+        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**");
 
     }
 
