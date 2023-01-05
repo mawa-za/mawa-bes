@@ -2,7 +2,7 @@ package za.co.raretag.mawabes.service;
 
 import org.springframework.stereotype.Service;
 import za.co.raretag.mawabes.entity.PartnerEntity;
-import za.co.raretag.mawabes.model.PartnerDao;
+import za.co.raretag.mawabes.dao.PartnerDao;
 @Service
 public class PartnerService implements PartnerDao {
     @Override

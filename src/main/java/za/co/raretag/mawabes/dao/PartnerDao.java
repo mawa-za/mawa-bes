@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.model;
+package za.co.raretag.mawabes.dao;
 
 import za.co.raretag.mawabes.entity.PartnerEntity;
 

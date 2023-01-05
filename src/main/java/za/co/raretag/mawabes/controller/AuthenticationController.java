@@ -14,8 +14,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.raretag.mawabes.configuration.jwt.JwtTokenUtil;
-import za.co.raretag.mawabes.model.JwtRequest;
-import za.co.raretag.mawabes.model.JwtResponse;
+import za.co.raretag.mawabes.dto.JwtRequest;
+import za.co.raretag.mawabes.dto.JwtResponse;
 import za.co.raretag.mawabes.service.JwtUserDetailsService;
 import za.co.raretag.mawabes.service.UserService;
 
