@@ -12,14 +12,14 @@ import java.util.Optional;
 public class JwtDecoder {
     private static final String AUTHORIZATION = "Authorization";
     private static final String JWT_TOKEN_LABEL = "token";
-
+    private static final String TOKEN_PREFIX = "Bearer";
     private final String jwtToken;
 
     public JwtDecoder(HttpServletRequest request) {
         this.jwtToken = Optional.ofNullable(request)
                 .map(req -> req.getHeader(AUTHORIZATION))
-                .filter(headerWithToken -> headerWithToken.contains(JWT_TOKEN_LABEL))
-                .map(headerWithToken -> headerWithToken.substring(headerWithToken.indexOf(JWT_TOKEN_LABEL)+JWT_TOKEN_LABEL.length()+1))
+                .filter(headerWithToken -> headerWithToken.contains(TOKEN_PREFIX))
+                .map(headerWithToken -> headerWithToken.substring(headerWithToken.indexOf(TOKEN_PREFIX)+TOKEN_PREFIX.length()+1))
                 .map(token -> token.trim())
                 .orElseThrow(() -> {
                     return new CredentialsException("Missing Authentication Token");

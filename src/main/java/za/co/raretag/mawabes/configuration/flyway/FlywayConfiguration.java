@@ -6,7 +6,6 @@ import org.hibernate.cfg.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
-import za.co.raretag.mawabes.entity.TenantEntity;
 import za.co.raretag.mawabes.service.TenantService;
 
 import javax.annotation.PostConstruct;
@@ -22,9 +21,9 @@ public class FlywayConfiguration {
 
     @PostConstruct
     Boolean tenantSchemaFlyway() {
-       for(TenantEntity tenant : tenantService.getAll()){
-//           updateTenantDB(tenant.getId());
-       }
+//       for(TenantEntity tenant : tenantService.getAll()){
+////           updateTenantDB(tenant.getId());
+//       }
         return true;
     }
 

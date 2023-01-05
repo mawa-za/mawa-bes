@@ -2,9 +2,8 @@ package za.co.raretag.mawabes.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import za.co.raretag.mawabes.entity.UserEntity;
+import za.co.raretag.mawabes.entity.PartnerEntity;
 
 @Repository
-public interface UserRepository  extends JpaRepository<UserEntity,String>{
-
+public interface PartnerRepository extends JpaRepository<PartnerEntity, String> {
 }

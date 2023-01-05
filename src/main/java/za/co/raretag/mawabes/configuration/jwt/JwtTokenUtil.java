@@ -84,6 +84,7 @@ public class JwtTokenUtil implements Serializable {
         claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
         return Jwts.builder()
                 .setClaims(claims)
+                .setAudience(TenantContext.getCurrentTenant())
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationInMs))
@@ -94,6 +95,7 @@ public class JwtTokenUtil implements Serializable {
         claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
         return Jwts.builder()
                 .setClaims(claims)
+                .setAudience(TenantContext.getCurrentTenant())
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + refreshExpirationDateInMs))

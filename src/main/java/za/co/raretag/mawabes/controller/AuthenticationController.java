@@ -13,10 +13,9 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import za.co.raretag.mawabes.configuration.context.TenantContext;
 import za.co.raretag.mawabes.configuration.jwt.JwtTokenUtil;
-import za.co.raretag.mawabes.object.token.JwtRequest;
-import za.co.raretag.mawabes.object.token.JwtResponse;
+import za.co.raretag.mawabes.model.JwtRequest;
+import za.co.raretag.mawabes.model.JwtResponse;
 import za.co.raretag.mawabes.service.JwtUserDetailsService;
 import za.co.raretag.mawabes.service.UserService;
 
