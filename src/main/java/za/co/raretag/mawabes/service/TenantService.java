@@ -2,10 +2,9 @@ package za.co.raretag.mawabes.service;
 
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import za.co.raretag.mawabes.model.JwtRequest;
-import za.co.raretag.mawabes.model.TenantDao;
+import za.co.raretag.mawabes.dto.JwtRequest;
+import za.co.raretag.mawabes.dao.TenantDao;
 
 
 import java.io.*;

@@ -1,10 +1,9 @@
 package za.co.raretag.mawabes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import za.co.raretag.mawabes.entity.TransactionEntity;
-import za.co.raretag.mawabes.model.TransactionDao;
+import za.co.raretag.mawabes.dao.TransactionDao;
 import za.co.raretag.mawabes.repository.TransactionRepository;
 
 @Service

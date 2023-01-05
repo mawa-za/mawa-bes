@@ -1,5 +1,6 @@
-package za.co.raretag.mawabes.model;
+package za.co.raretag.mawabes.dao;
 
+import za.co.raretag.mawabes.dto.JwtRequest;
 import za.co.raretag.mawabes.entity.UserEntity;
 import za.co.raretag.mawabes.entity.UserRoleEntity;
 
