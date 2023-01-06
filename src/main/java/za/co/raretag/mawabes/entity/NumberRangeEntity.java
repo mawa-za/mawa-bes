@@ -5,6 +5,8 @@ import java.io.Serializable;
 import java.util.Date;
 import javax.persistence.*;
 import javax.xml.bind.annotation.XmlRootElement;
+@Entity
+@Table(name = "number_range")
 public class NumberRangeEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

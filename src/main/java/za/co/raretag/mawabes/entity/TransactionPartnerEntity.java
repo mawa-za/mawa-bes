@@ -1,12 +1,10 @@
 package za.co.raretag.mawabes.entity;
 
-import javax.persistence.Column;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
-
+@Entity
+@Table(name = "transaction_partner")
 public class TransactionPartnerEntity implements Serializable {
 
 
