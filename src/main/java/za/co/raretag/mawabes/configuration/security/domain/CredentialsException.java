@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.security.domain;
+package za.co.raretag.mawabes.configuration.security.domain;
 
 @SuppressWarnings("serial")
 public class CredentialsException extends RuntimeException{

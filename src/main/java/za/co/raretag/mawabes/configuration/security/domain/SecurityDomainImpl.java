@@ -1,8 +1,8 @@
-package za.co.raretag.mawabes.security.domain;
+package za.co.raretag.mawabes.configuration.security.domain;
 
 
 import org.springframework.stereotype.Component;
-import za.co.raretag.mawabes.security.model.JwtClaim;
+import za.co.raretag.mawabes.configuration.security.model.JwtClaim;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Optional;
