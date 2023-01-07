@@ -1,6 +1,7 @@
 package za.co.raretag.mawabes.controller;
 
-import com.google.gson.Gson;
+
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.raretag.mawabes.dto.WorkcenterDto;

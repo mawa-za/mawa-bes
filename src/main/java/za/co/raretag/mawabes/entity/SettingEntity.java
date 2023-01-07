@@ -1,14 +1,9 @@
 package za.co.raretag.mawabes.entity;
 
+import jakarta.persistence.*;
+
 import java.io.Serializable;
-        import javax.persistence.Column;
-        import javax.persistence.EmbeddedId;
-        import javax.persistence.Entity;
-        import javax.persistence.NamedQueries;
-        import javax.persistence.NamedQuery;
-        import javax.persistence.Table;
-        import javax.validation.constraints.Size;
-        import javax.xml.bind.annotation.XmlRootElement;
+
 
 /**
  *

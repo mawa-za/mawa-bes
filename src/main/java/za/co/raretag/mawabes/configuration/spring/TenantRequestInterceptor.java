@@ -1,13 +1,12 @@
 package za.co.raretag.mawabes.configuration.spring;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import za.co.raretag.mawabes.configuration.context.TenantContext;
-import za.co.raretag.mawabes.security.domain.SecurityDomain;
+import za.co.raretag.mawabes.configuration.security.domain.SecurityDomain;
 
 import java.util.Optional;
 import java.util.function.Predicate;

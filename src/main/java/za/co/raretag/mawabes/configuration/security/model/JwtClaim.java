@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.security.model;
+package za.co.raretag.mawabes.configuration.security.model;
 
 public enum JwtClaim {
 
