@@ -1,6 +1,6 @@
 package za.co.raretag.mawabes.service;
 
-import com.google.gson.Gson;
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.raretag.mawabes.dto.JwtRequest;

@@ -10,5 +10,7 @@ import java.util.List;
 public interface UserDao {
     boolean authenticate(JwtRequest jwtRequest) throws DoesNotExist;
     boolean create(UserEntity userEntity);
+    UserEntity getUserById(String id);
+    List<UserEntity> getAll();
     List<UserRoleEntity> getRoles(String user);
 }

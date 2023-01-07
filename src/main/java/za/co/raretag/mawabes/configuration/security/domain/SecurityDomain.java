@@ -1,6 +1,6 @@
 package za.co.raretag.mawabes.configuration.security.domain;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 public interface SecurityDomain {
 

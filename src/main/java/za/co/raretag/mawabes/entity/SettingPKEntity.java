@@ -1,10 +1,8 @@
 package za.co.raretag.mawabes.entity;
 
+import jakarta.persistence.*;
 import java.io.Serializable;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
-import javax.validation.constraints.NotNull;
+
 
 /**
  *
@@ -14,11 +12,9 @@ import javax.validation.constraints.NotNull;
 public class SettingPKEntity implements Serializable {
 
     @Basic(optional = false)
-    @NotNull
     @Column(name = "setting", length = 20)
     private String setting;
     @Basic(optional = false)
-    @NotNull
     @Column(name = "attribute", length = 60)
     private String attribute;
 

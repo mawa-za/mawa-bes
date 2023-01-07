@@ -3,7 +3,7 @@ package za.co.raretag.mawabes.configuration.security.domain;
 
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import za.co.raretag.mawabes.configuration.security.model.JwtClaim;
 
 import java.text.ParseException;
