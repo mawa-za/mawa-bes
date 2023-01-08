@@ -1,5 +1,6 @@
 package za.co.raretag.mawabes.configuration.flyway;
 
+import jakarta.annotation.PostConstruct;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.flywaydb.core.Flyway;
 import org.hibernate.cfg.Environment;
@@ -8,8 +9,6 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import za.co.raretag.mawabes.service.TenantService;
 
-import javax.annotation.PostConstruct;
-import java.io.IOException;
 import java.util.Properties;
 @Component
 public class FlywayConfiguration {
