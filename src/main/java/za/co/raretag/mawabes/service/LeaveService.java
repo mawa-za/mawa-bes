@@ -1,6 +1,7 @@
 package za.co.raretag.mawabes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import za.co.raretag.mawabes.dao.LeaveDao;
 import za.co.raretag.mawabes.dto.LogLeaveRequestDto;
 import za.co.raretag.mawabes.dto.OrderHeaderDto;
@@ -11,7 +12,7 @@ import za.co.raretag.mawabes.utils.Status;
 import za.co.raretag.mawabes.utils.StatusReason;
 
 import java.util.Calendar;
-
+@Service
 public class LeaveService implements LeaveDao {
     @Autowired
     TransactionRepository transactionRepository;
