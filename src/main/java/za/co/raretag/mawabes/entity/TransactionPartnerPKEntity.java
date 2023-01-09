@@ -1,22 +1,22 @@
 package za.co.raretag.mawabes.entity;
 
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.validation.constraints.NotNull;
+
+import jakarta.persistence.*;
+
 import java.io.Serializable;
 
 public class TransactionPartnerPKEntity implements Serializable {
 
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "transaction_id", length = 20)
     private String transactionId;
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "partner_function", length = 20)
     private String partnerFunction;
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "partner_no", length = 20)
     private String partnerNo;
 

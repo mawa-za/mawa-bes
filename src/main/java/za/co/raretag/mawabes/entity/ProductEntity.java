@@ -1,7 +1,8 @@
 package za.co.raretag.mawabes.entity;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
+
+import jakarta.persistence.*;
+
 import java.io.Serializable;
 import java.util.Date;
 @Entity
@@ -11,7 +12,7 @@ public class ProductEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "id", length = 60)
     private String id;
     @Column(name = "description", length = 60)
