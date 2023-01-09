@@ -16,6 +16,8 @@ import java.util.Calendar;
 public class LeaveService implements LeaveDao {
     @Autowired
     TransactionRepository transactionRepository;
+    @Autowired
+    TransactionService transactionService;
     @Override
     public String request(LogLeaveRequestDto logLeaveDto) {
 
@@ -38,8 +40,8 @@ public class LeaveService implements LeaveDao {
             transactionEntity.setSubType(type);
             transactionEntity.setStatus(Status.PENDING);
             transactionEntity.setStatusReason(StatusReason.AWAITING_APPROVAL);
-//            requestNr =      transactionRepository.save(orderHeader);
-            ;
+            requestNr =      transactionService.create(transactionEntity);
+
 
         }
 

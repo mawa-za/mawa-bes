@@ -1,6 +1,8 @@
 package za.co.raretag.mawabes.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
+
+
 import java.io.Serializable;
 import java.util.Date;
 @Entity
@@ -137,6 +139,6 @@ public class TransactionPartnerEntity implements Serializable {
 
     @Override
     public String toString() {
-        return "za.raretag.mawa.entities.TransactionPartner[ transactionPartnerPK=" + transactionPartnerPK + " ]";
+        return "za.raretag.mawa.entities.TransactionPartnerEntity[ transactionPartnerPK=" + transactionPartnerPK + " ]";
     }
 }
