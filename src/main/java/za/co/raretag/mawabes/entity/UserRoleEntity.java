@@ -1,16 +1,9 @@
 package za.co.raretag.mawabes.entity;
 
+import jakarta.persistence.*;
+
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Column;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
@@ -18,7 +11,6 @@ import javax.xml.bind.annotation.XmlRootElement;
  */
 @Entity
 @Table(name = "user_role")
-@XmlRootElement
 public class UserRoleEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

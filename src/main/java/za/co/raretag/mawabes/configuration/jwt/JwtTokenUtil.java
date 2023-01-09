@@ -15,7 +15,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import za.co.raretag.mawabes.configuration.context.TenantContext;
-import za.co.raretag.mawabes.security.model.JwtClaim;
+import za.co.raretag.mawabes.configuration.security.model.JwtClaim;
 
 @Component
 public class JwtTokenUtil implements Serializable {
