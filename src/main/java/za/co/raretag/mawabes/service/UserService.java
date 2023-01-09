@@ -1,5 +1,6 @@
 package za.co.raretag.mawabes.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import za.co.raretag.mawabes.dao.UserDao;
 import za.co.raretag.mawabes.exception.DoesNotExist;
 import za.co.raretag.mawabes.repository.UserRepository;
 
+import javax.swing.text.html.parser.Entity;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,8 +26,9 @@ public class UserService implements UserDao {
     UserRepository userRepository;
     @Autowired
     EncryptionService encryptionService;
-
     private String secret;
+    public static final String ADMIN_USER = "admin";
+    public static final String DEFAULT_ADMIN_PASSWORD = "admin";
 
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
@@ -80,11 +83,28 @@ public class UserService implements UserDao {
         try {
             UserEntity userEntity = userRepository.getById(id);
             return entityToDto(userEntity);
+        } catch (EntityNotFoundException ex) {
+            UserDto userDto = null;
+            if (id.equals(ADMIN_USER)) {
+                userDto = entityToDto(createAdminUser());
+            }
+            return userDto;
         } catch (Exception ex) {
             return null;
         }
     }
 
+    private UserEntity createAdminUser() {
+        UserEntity userEntity = new UserEntity();
+        try {
+            userEntity.setId(ADMIN_USER);
+            userEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
+            userEntity = userRepository.save(userEntity);
+        } catch (Exception ex) {
+           System.out.println(ex.getMessage());
+        }
+        return userEntity;
+    }
     @Override
     public List<UserDto> getAll() {
         List<UserDto> userDtoList = new ArrayList<>();
@@ -111,6 +131,7 @@ public class UserService implements UserDao {
     private UserDto entityToDto(UserEntity userEntity) {
         UserDto userDto = new UserDto();
         userDto.setId(userEntity.getId());
+        userDto.setPassword(userEntity.getPassword().toString());
         return userDto;
     }
 
