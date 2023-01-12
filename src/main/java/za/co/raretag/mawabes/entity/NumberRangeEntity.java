@@ -1,10 +1,11 @@
 package za.co.raretag.mawabes.entity;
 
+import jakarta.persistence.*;
+
 import java.io.Serializable;
 
 import java.util.Date;
-import javax.persistence.*;
-import javax.xml.bind.annotation.XmlRootElement;
+
 @Entity
 @Table(name = "number_range")
 public class NumberRangeEntity implements Serializable {
