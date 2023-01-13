@@ -2,18 +2,18 @@ package za.co.raretag.mawabes.entity;
 
 import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
-import org.jetbrains.annotations.NotNull;
+
 
 import java.io.Serializable;
 
 public class TransactionDatePKEntity implements Serializable {
 
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "transaction", length = 20)
     private String transaction;
     @Basic(optional = false)
-    @NotNull
+
     @Column(name = "type", length = 20)
     private String type;
 
