@@ -99,7 +99,7 @@ public class UserService implements UserDao {
         try {
             userEntity.setId(ADMIN_USER);
             userEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
-            userEntity = userRepository.save(userEntity);
+            userRepository.save(userEntity);
         } catch (Exception ex) {
            System.out.println(ex.getMessage());
         }
