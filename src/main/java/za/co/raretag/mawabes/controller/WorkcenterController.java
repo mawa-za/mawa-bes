@@ -18,7 +18,7 @@ import java.util.List;
 public class WorkcenterController {
     Gson gson = new Gson();
     @RequestMapping(value = "/workcenter", method = RequestMethod.GET)
-    public ResponseEntity<?> getWorkcenters() throws Exception {
+    public ResponseEntity<?> getWorkcenters() {
         List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
         workcenterDtoList.add(new WorkcenterDto("Customer","Customers","Search"));
         workcenterDtoList.add(new WorkcenterDto("Organisation","Organisations","Search"));
@@ -27,11 +27,6 @@ public class WorkcenterController {
         workcenterDtoList.add(new WorkcenterDto("LeaveApproval","Leave Approvals","Search"));
         workcenterDtoList.add(new WorkcenterDto("Employee","Employees","Search"));
         return ResponseEntity.ok(gson.toJson(workcenterDtoList));
-//        ClassLoader classLoader = getClass().getClassLoader();
-//        InputStream inputStream = classLoader.getResourceAsStream("workcenters.json");
-//        String data = readFromInputStream(inputStream);
-
-
     }
 
     private String readFromInputStream(InputStream inputStream)

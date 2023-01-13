@@ -2,13 +2,14 @@ package za.co.raretag.mawabes.entity;
 
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
 @Entity
+@Data
 @Table(name = "user")
 public class UserEntity implements Serializable {
-
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)

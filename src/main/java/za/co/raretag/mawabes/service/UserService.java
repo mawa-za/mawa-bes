@@ -1,10 +1,14 @@
 package za.co.raretag.mawabes.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import za.co.raretag.mawabes.dto.UserCreateDto;
+import za.co.raretag.mawabes.dto.UserDto;
+import za.co.raretag.mawabes.dto.UserUpdateDto;
 import za.co.raretag.mawabes.entity.UserEntity;
 import za.co.raretag.mawabes.entity.UserRoleEntity;
 import za.co.raretag.mawabes.dto.JwtRequest;
@@ -12,6 +16,8 @@ import za.co.raretag.mawabes.dao.UserDao;
 import za.co.raretag.mawabes.exception.DoesNotExist;
 import za.co.raretag.mawabes.repository.UserRepository;
 
+import javax.swing.text.html.parser.Entity;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -20,8 +26,9 @@ public class UserService implements UserDao {
     UserRepository userRepository;
     @Autowired
     EncryptionService encryptionService;
-
     private String secret;
+    public static final String ADMIN_USER = "admin";
+    public static final String DEFAULT_ADMIN_PASSWORD = "admin";
 
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
@@ -29,12 +36,12 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public boolean authenticate(JwtRequest jwtRequest) throws DoesNotExist {
+    public boolean authenticate(UserDto userDto) throws DoesNotExist {
         boolean authenticated = false;
-        UserEntity userEntity = userRepository.getById(jwtRequest.getUsername());
+        UserEntity userEntity = userRepository.getById(userDto.getId());
         if (userEntity != null) {
             String storedPassword = new String(userEntity.getPassword());
-            String enteredPassword = jwtRequest.getPassword();
+            String enteredPassword = userDto.getPassword();
             authenticated = validatePassword(enteredPassword, storedPassword);
         } else {
             throw new DoesNotExist();
@@ -43,32 +50,73 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public boolean create(UserEntity userEntity) {
-        String pass = userEntity.getPassword().toString();
-        userEntity.setPassword(encryptionService.encrypt(pass, secret).getBytes());
-        return false;
+    public UserDto create(UserCreateDto userCreateDto) {
+        UserEntity userEntity = new UserEntity();
+        userEntity.setId(userCreateDto.getId());
+        userEntity.setEmail(userCreateDto.getEmail());
+        userEntity.setUserType(userCreateDto.getUserType());
+        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+        return entityToDto(userRepository.save(userEntity));
     }
 
     @Override
-    public UserEntity getUserById(String id) {
+    public UserDto update(UserUpdateDto userUpdateDto) {
+        UserEntity userEntity = userRepository.getById(userUpdateDto.getId());
+        userEntity.setId(userUpdateDto.getId());
+        return entityToDto(userRepository.save(userEntity));
+    }
+
+    @Override
+    public UserDto updatePassword(UserUpdateDto userUpdateDto) {
         try {
-            UserEntity user = userRepository.getById(id);
-            return user;
+            UserEntity userEntity = userRepository.getById(userUpdateDto.getId());
+            userEntity.setPassword(encryptionService.encrypt(userUpdateDto.getPassword(), secret).getBytes());
+            return entityToDto(userRepository.save(userEntity));
+        } catch (Exception ex) {
+            return null;
+        }
+
+    }
+
+    @Override
+    public UserDto getUserById(String id) {
+        try {
+            UserEntity userEntity = userRepository.getById(id);
+            return entityToDto(userEntity);
+        } catch (EntityNotFoundException ex) {
+            UserDto userDto = null;
+            if (id.equals(ADMIN_USER)) {
+                userDto = entityToDto(createAdminUser());
+            }
+            return userDto;
         } catch (Exception ex) {
             return null;
         }
     }
 
-    @Override
-    public List<UserEntity> getAll() {
+    private UserEntity createAdminUser() {
+        UserEntity userEntity = new UserEntity();
         try {
-
+            userEntity.setId(ADMIN_USER);
+            userEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
+            userRepository.save(userEntity);
+        } catch (Exception ex) {
+           System.out.println(ex.getMessage());
+        }
+        return userEntity;
+    }
+    @Override
+    public List<UserDto> getAll() {
+        List<UserDto> userDtoList = new ArrayList<>();
+        try {
             List<UserEntity> userEntities = userRepository.findAll();
-            return userEntities;
+            for (UserEntity userEntity : userEntities) {
+                userDtoList.add(entityToDto(userEntity));
+            }
         } catch (Exception ex) {
-            return null;
-        }
 
+        }
+        return userDtoList;
     }
 
     @Override
@@ -78,5 +126,18 @@ public class UserService implements UserDao {
 
     private boolean validatePassword(String enteredPassword, String storedPassword) {
         return encryptionService.encrypt(enteredPassword, secret).equals(storedPassword);
+    }
+
+    private UserDto entityToDto(UserEntity userEntity) {
+        UserDto userDto = new UserDto();
+        userDto.setId(userEntity.getId());
+        userDto.setPassword(userEntity.getPassword().toString());
+        return userDto;
+    }
+
+    private UserEntity dtoToEntity(UserDto userDto) {
+        UserEntity userEntity = new UserEntity();
+        userEntity.setEmail(userDto.getEmail());
+        return userEntity;
     }
 }

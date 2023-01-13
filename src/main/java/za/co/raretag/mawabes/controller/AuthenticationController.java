@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 import za.co.raretag.mawabes.configuration.jwt.JwtTokenUtil;
 import za.co.raretag.mawabes.dto.JwtRequest;
 import za.co.raretag.mawabes.dto.JwtResponse;
+import za.co.raretag.mawabes.dto.UserDto;
+import za.co.raretag.mawabes.dto.UserUpdateDto;
 import za.co.raretag.mawabes.entity.UserEntity;
 import za.co.raretag.mawabes.service.JwtUserDetailsService;
 import za.co.raretag.mawabes.service.UserService;
@@ -39,20 +41,33 @@ public class AuthenticationController {
     private JwtUserDetailsService userDetailsService;
 
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
-    public ResponseEntity<?> createAuthenticationToken(@RequestHeader HttpHeaders headers, @RequestBody JwtRequest authenticationRequest) throws Exception {
+    public ResponseEntity<?> createAuthenticationToken(@RequestHeader HttpHeaders headers, @RequestBody UserDto userDto) throws Exception {
 
-        authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
+        authenticate(userDto.getId(), userDto.getPassword());
 
-        userService.authenticate(authenticationRequest);
-
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
+//        userService.authenticate(userDto);
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(userDto.getId());
 
         final String token = jwtTokenUtil.generateToken(userDetails);
 
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
-    @RequestMapping(value = "/refreshtoken", method = RequestMethod.GET)
+//    @RequestMapping(value = "/resetPassword", method = RequestMethod.POST)
+//    public ResponseEntity<?> resetPassword(@ @RequestBody UserEntity userEntity) throws Exception {
+//        // From the HttpRequest get the claims
+//        DefaultClaims claims = (io.jsonwebtoken.impl.DefaultClaims) request.getAttribute("claims");
+//        Map<String, Object> expectedMap = getMapFromIoJsonwebtokenClaims(claims);
+//        String token = jwtTokenUtil.doGenerateRefreshToken(expectedMap, expectedMap.get("sub").toString());
+//        return ResponseEntity.ok(new JwtResponse(token));
+//    }
+
+    @RequestMapping(value = "/changePassword", method = RequestMethod.GET)
+    public ResponseEntity<?> changePassword(@RequestBody UserUpdateDto userUpdateDto) throws Exception {
+        return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
+    }
+
+    @RequestMapping(value = "/refreshToken", method = RequestMethod.GET)
     public ResponseEntity<?> refreshtoken(HttpServletRequest request) throws Exception {
         // From the HttpRequest get the claims
         DefaultClaims claims = (io.jsonwebtoken.impl.DefaultClaims) request.getAttribute("claims");
