@@ -1,9 +1,11 @@
-package za.co.raretag.mawabes.object.transaction;
+package za.co.raretag.mawabes.dto;
 
-public class TransactionDTO {
+public class OrderQueryDto {
     private String id;
     private String type;
-    private String subtype;
+    private String description;
+    private String idNumber;
+    private String customer;
     private String status;
     private String statusReason;
 
@@ -23,12 +25,28 @@ public class TransactionDTO {
         this.type = type;
     }
 
-    public String getSubtype() {
-        return subtype;
+    public String getDescription() {
+        return description;
     }
 
-    public void setSubtype(String subtype) {
-        this.subtype = subtype;
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getIdNumber() {
+        return idNumber;
+    }
+
+    public void setIdNumber(String idNumber) {
+        this.idNumber = idNumber;
+    }
+
+    public String getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(String customer) {
+        this.customer = customer;
     }
 
     public String getStatus() {

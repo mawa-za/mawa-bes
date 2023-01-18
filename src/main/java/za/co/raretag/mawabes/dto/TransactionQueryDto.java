@@ -1,19 +1,11 @@
-package za.co.raretag.mawabes.object.transaction;
+package za.co.raretag.mawabes.dto;
 
-public class TransactionDTO {
-    private String id;
+public class TransactionQueryDto {
     private String type;
     private String subtype;
     private String status;
-    private String statusReason;
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
+    private String partnerFunction;
+    private String partnerNo;
 
     public String getType() {
         return type;
@@ -39,11 +31,19 @@ public class TransactionDTO {
         this.status = status;
     }
 
-    public String getStatusReason() {
-        return statusReason;
+    public String getPartnerFunction() {
+        return partnerFunction;
     }
 
-    public void setStatusReason(String statusReason) {
-        this.statusReason = statusReason;
+    public void setPartnerFunction(String partnerFunction) {
+        this.partnerFunction = partnerFunction;
+    }
+
+    public String getPartnerNo() {
+        return partnerNo;
+    }
+
+    public void setPartnerNo(String partnerNo) {
+        this.partnerNo = partnerNo;
     }
 }

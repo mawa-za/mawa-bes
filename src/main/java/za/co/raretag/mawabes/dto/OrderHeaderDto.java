@@ -3,6 +3,36 @@ package za.co.raretag.mawabes.dto;
 public class OrderHeaderDto {
 
     private String id;
+    private String type;
+    private String subType;
+    private String description;
+    private String subDescription;
+    private String status;
+    private String statusReason;
+    private String location;
+    private String subStatus;
+    private String validFrom;
+    private String validTo;
+    private String createdBy;
+    private String changedBy;
+
+//    public OrderHeaderDto(String id, String type, String subType, String description,
+//                          String subDescription, String status, String statusReason, String location,
+//                          String subStatus, String validFrom, String validTo, String createdBy, String changedBy) {
+//        this.id = id;
+//        this.type = type;
+//        this.subType = subType;
+//        this.description = description;
+//        this.subDescription = subDescription;
+//        this.status = status;
+//        this.statusReason = statusReason;
+//        this.location = location;
+//        this.subStatus = subStatus;
+//        this.validFrom = validFrom;
+//        this.validTo = validTo;
+//        this.createdBy = createdBy;
+//        this.changedBy = changedBy;
+//    }
 
     public String getId() {
         return id;
@@ -11,7 +41,7 @@ public class OrderHeaderDto {
     public void setId(String id) {
         this.id = id;
     }
-    private String type;
+
     public String getType() {
         return type;
     }
@@ -19,7 +49,6 @@ public class OrderHeaderDto {
     public void setType(String type) {
         this.type = type;
     }
-    private String subType;
 
     public String getSubType() {
         return subType;
@@ -29,8 +58,6 @@ public class OrderHeaderDto {
         this.subType = subType;
     }
 
-    private String description;
-
     public String getDescription() {
         return description;
     }
@@ -38,16 +65,14 @@ public class OrderHeaderDto {
     public void setDescription(String description) {
         this.description = description;
     }
-    private String subDescription;
 
     public String getSubDescription() {
-        return subDescription;
+        return this.subDescription;
     }
 
     public void setSubDescription(String subDescription) {
         this.subDescription = subDescription;
     }
-    private String status;
 
     public String getStatus() {
         return status;
@@ -56,7 +81,6 @@ public class OrderHeaderDto {
     public void setStatus(String status) {
         this.status = status;
     }
-    private String statusReason;
 
     public String getStatusReason() {
         return statusReason;
@@ -65,7 +89,6 @@ public class OrderHeaderDto {
     public void setStatusReason(String statusReason) {
         this.statusReason = statusReason;
     }
-    private String location;
 
     public String getLocation() {
         return location;
@@ -74,7 +97,6 @@ public class OrderHeaderDto {
     public void setLocation(String location) {
         this.location = location;
     }
-    private String subStatus;
 
     public String getSubStatus() {
         return subStatus;
@@ -83,7 +105,6 @@ public class OrderHeaderDto {
     public void setSubStatus(String subStatus) {
         this.subStatus = subStatus;
     }
-    private String validFrom;
 
     public String getValidFrom() {
         return validFrom;
@@ -92,7 +113,6 @@ public class OrderHeaderDto {
     public void setValidFrom(String validFrom) {
         this.validFrom = validFrom;
     }
-    private String validTo;
 
     public String getValidTo() {
         return validTo;
@@ -101,7 +121,6 @@ public class OrderHeaderDto {
     public void setValidTo(String validTo) {
         this.validTo = validTo;
     }
-    private String createdBy;
 
     public String getCreatedBy() {
         return createdBy;
@@ -110,8 +129,6 @@ public class OrderHeaderDto {
     public void setCreatedBy(String createdBy) {
         this.createdBy = createdBy;
     }
-
-    private String changedBy;
 
     public String getChangedBy() {
         return changedBy;
