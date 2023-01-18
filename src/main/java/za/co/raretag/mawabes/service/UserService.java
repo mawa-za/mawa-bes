@@ -1,5 +1,6 @@
 package za.co.raretag.mawabes.service;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,19 +10,25 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.raretag.mawabes.dto.UserCreateDto;
 import za.co.raretag.mawabes.dto.UserDto;
 import za.co.raretag.mawabes.dto.UserUpdateDto;
+import za.co.raretag.mawabes.entity.TestEntity;
 import za.co.raretag.mawabes.entity.UserEntity;
 import za.co.raretag.mawabes.entity.UserRoleEntity;
 import za.co.raretag.mawabes.dto.JwtRequest;
 import za.co.raretag.mawabes.dao.UserDao;
 import za.co.raretag.mawabes.exception.DoesNotExist;
+import za.co.raretag.mawabes.repository.TestRepository;
 import za.co.raretag.mawabes.repository.UserRepository;
 
 import javax.swing.text.html.parser.Entity;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
+@Service
+@Transactional
 public class UserService implements UserDao {
+    @Autowired
+    EntityManager entityManager;
     @Autowired
     UserRepository userRepository;
     @Autowired
@@ -29,6 +36,8 @@ public class UserService implements UserDao {
     private String secret;
     public static final String ADMIN_USER = "admin";
     public static final String DEFAULT_ADMIN_PASSWORD = "admin";
+    @Autowired
+    private TestRepository testRepository;
 
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
@@ -96,7 +105,12 @@ public class UserService implements UserDao {
 
     private UserEntity createAdminUser() {
         UserEntity userEntity = new UserEntity();
+        TestEntity testEntity = new TestEntity();
         try {
+            testEntity.setUsername(ADMIN_USER);
+            testEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
+            testRepository.save(testEntity);
+
             userEntity.setId(ADMIN_USER);
             userEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
             userRepository.save(userEntity);
@@ -131,7 +145,12 @@ public class UserService implements UserDao {
     private UserDto entityToDto(UserEntity userEntity) {
         UserDto userDto = new UserDto();
         userDto.setId(userEntity.getId());
-        userDto.setPassword(userEntity.getPassword().toString());
+        try {
+            userDto.setPassword(new String(userEntity.getPassword(),"UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        userDto.setEmail(userEntity.getEmail());
         return userDto;
     }
 
