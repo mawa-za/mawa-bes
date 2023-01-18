@@ -6,13 +6,16 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
+
 @Entity
-@Table(name = "user")
-public class UserEntity implements Serializable {
+@Data
+@Table(name = "test")
+public class TestEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
     @Column(name = "id")
-    private String id;
+    private Long id;
     @Column(name = "username", length = 100)
     private String username;
     @Column(name = "partner", length = 20)
@@ -39,18 +42,18 @@ public class UserEntity implements Serializable {
     @Column(name = "user_type" , length = 45)
     private String userType;
 
-    public UserEntity() {
+    public TestEntity() {
     }
 
-    public UserEntity(String id) {
+    public TestEntity(Long id) {
         this.id = id;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -152,10 +155,10 @@ public class UserEntity implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof UserEntity)) {
+        if (!(object instanceof TestEntity)) {
             return false;
         }
-        UserEntity other = (UserEntity) object;
+        TestEntity other = (TestEntity) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }

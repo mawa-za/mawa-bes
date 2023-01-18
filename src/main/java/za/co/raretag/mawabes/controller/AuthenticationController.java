@@ -8,6 +8,7 @@ import io.jsonwebtoken.impl.DefaultClaims;
 
 import jakarta.servlet.http.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,6 +23,7 @@ import za.co.raretag.mawabes.dto.JwtResponse;
 import za.co.raretag.mawabes.dto.UserDto;
 import za.co.raretag.mawabes.dto.UserUpdateDto;
 import za.co.raretag.mawabes.entity.UserEntity;
+import za.co.raretag.mawabes.service.EncryptionService;
 import za.co.raretag.mawabes.service.JwtUserDetailsService;
 import za.co.raretag.mawabes.service.UserService;
 
@@ -36,15 +38,18 @@ public class AuthenticationController {
     private AuthenticationManager authenticationManager;
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
-
+    @Autowired
+    EncryptionService encryptionService;
     @Autowired
     private JwtUserDetailsService userDetailsService;
+
+    @Value("${jwt.secret}")
+    private String secret;
 
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestHeader HttpHeaders headers, @RequestBody UserDto userDto) throws Exception {
 
-        authenticate(userDto.getId(), userDto.getPassword());
-
+        authenticate(userDto.getId(),userDto.getPassword());
 //        userService.authenticate(userDto);
         final UserDetails userDetails = userDetailsService.loadUserByUsername(userDto.getId());
 
