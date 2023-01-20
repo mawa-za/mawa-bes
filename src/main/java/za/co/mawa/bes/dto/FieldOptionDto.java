@@ -2,19 +2,30 @@ package za.co.mawa.bes.dto;
 
 import java.util.Date;
 
-public class RoleDto {
-   private String id;
-   private String description;
+public class FieldOptionDto {
+    private String field;
+    private String code;
+    private String description;
+    private Date validFrom;
+    private Date validTo;
 
-   private Date validFrom;
-   private Date validTo;
-
-    public String getId() {
-        return id;
+    public FieldOptionDto() {
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public String getField() {
+        return field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 
     public String getDescription() {
