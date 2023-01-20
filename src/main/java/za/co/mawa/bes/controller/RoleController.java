@@ -17,6 +17,5 @@ public class RoleController {
     @RequestMapping(value = "/role/{id}/workcenter", method = RequestMethod.GET)
     public ResponseEntity<?> getWorkcenters(@PathVariable String id) throws Exception {
         return null;
-
     }
 }
