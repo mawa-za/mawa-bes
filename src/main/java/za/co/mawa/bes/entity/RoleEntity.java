@@ -8,6 +8,8 @@ import java.util.Date;
 import java.util.Objects;
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Entity
+@Table(name = "role")
 public class RoleEntity {
     private static final long serialVersionUID = 1L;
     @Id

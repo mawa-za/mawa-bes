@@ -13,10 +13,8 @@ import java.io.Serializable;
 @Embeddable
 public class UserRolePKEntity implements Serializable {
 
-    @Basic(optional = false)
     @Column(name = "user", length = 200)
     private String user;
-    @Basic(optional = false)
     @Column(name = "role", length = 20)
     private String role;
 

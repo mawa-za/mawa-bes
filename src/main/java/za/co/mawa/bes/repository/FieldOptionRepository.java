@@ -12,6 +12,7 @@ import java.util.List;
 
 @Repository
 public interface FieldOptionRepository extends JpaRepository<FieldOptionEntity, FieldOptionPKEntity> {
-    @Query("SELECT f FROM FieldOptionEntity f WHERE f.field = :field")
+    //    @Query("SELECT f FROM FieldOptionEntity f WHERE f.field = :field")
+    @Query("SELECT f FROM FieldOptionEntity f")
     List<FieldOptionEntity> findFieldOptions(@Param("field") String field);
 }
