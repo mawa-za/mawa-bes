@@ -1,8 +1,9 @@
 package za.co.mawa.bes.dto;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class FieldOptionDto {
+public class FieldOptionDto implements Serializable {
     private String field;
     private String code;
     private String description;

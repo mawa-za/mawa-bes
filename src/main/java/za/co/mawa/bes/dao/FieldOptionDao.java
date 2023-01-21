@@ -1,10 +1,14 @@
 package za.co.mawa.bes.dao;
 
+import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.exception.FieldDoesNotExist;
 
 import java.util.List;
 
 public interface FieldOptionDao {
-    void create(FieldOptionDto fieldOptionDto);
+    void create(FieldOptionDto fieldOptionDto) throws FieldDoesNotExist;
     List<FieldOptionDto> getFieldOptions(String field);
+
+    List<FieldDto> getFields();
 }
