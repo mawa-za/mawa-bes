@@ -2,9 +2,11 @@ package za.co.mawa.bes.controller;
 
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.WorkcenterDto;
+import za.co.mawa.bes.service.WorkcenterService;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,17 +18,12 @@ import java.util.List;
 @RestController
 @CrossOrigin
 public class WorkcenterController {
+    @Autowired
+    WorkcenterService workcenterService;
     Gson gson = new Gson();
     @RequestMapping(value = "/workcenter", method = RequestMethod.GET)
     public ResponseEntity<?> getWorkcenters() {
-        List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
-        workcenterDtoList.add(new WorkcenterDto("Customer","Customers","Search"));
-        workcenterDtoList.add(new WorkcenterDto("Organisation","Organisations","Search"));
-        workcenterDtoList.add(new WorkcenterDto("ServiceRequest","Service Requests","Search"));
-        workcenterDtoList.add(new WorkcenterDto("LeaveRequest","Leave Requests","Search"));
-        workcenterDtoList.add(new WorkcenterDto("LeaveApproval","Leave Approvals","Search"));
-        workcenterDtoList.add(new WorkcenterDto("Employee","Employees","Search"));
-        return ResponseEntity.ok(gson.toJson(workcenterDtoList));
+        return ResponseEntity.ok(gson.toJson(workcenterService.getAll()));
     }
 
     private String readFromInputStream(InputStream inputStream)
