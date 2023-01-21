@@ -7,10 +7,8 @@ import za.co.mawa.bes.dao.RoleDao;
 import za.co.mawa.bes.dto.RoleDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.entity.RoleEntity;
-import za.co.mawa.bes.entity.UserRoleEntity;
-import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.repository.RoleRepository;
-import za.co.mawa.bes.repository.UserRoleRepository;
+import za.co.mawa.bes.repository.RoleWorkcenterRepository;
 
 import java.util.List;
 
@@ -19,6 +17,10 @@ import java.util.List;
 public class RoleService implements RoleDao {
     @Autowired
     RoleRepository roleRepository;
+    @Autowired
+    RoleWorkcenterRepository roleWorkcenterRepository;
+    @Autowired
+    WorkcenterService workcenterService;
 
     @Override
     public void create(RoleDto roleDto) {
@@ -27,7 +29,8 @@ public class RoleService implements RoleDao {
 
     @Override
     public List<WorkcenterDto> getRoleWorkcenters(String role) {
-        return null;
+        roleWorkcenterRepository.findAll();
+        return workcenterService.getAll();
     }
 
     private RoleDto entityToDto(RoleEntity roleEntity) {
