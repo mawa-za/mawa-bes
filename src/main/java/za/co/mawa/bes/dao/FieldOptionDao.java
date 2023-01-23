@@ -11,4 +11,5 @@ public interface FieldOptionDao {
     List<FieldOptionDto> getFieldOptions(String field);
 
     List<FieldDto> getFields();
+    String getFieldOptionDescription(String field, String code);
 }
