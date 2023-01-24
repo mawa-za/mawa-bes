@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.utils;
+package za.co.mawa.bes.utils;
 
 public class RoleType {
     public static String DEPENDENT = "DEPENDENT";

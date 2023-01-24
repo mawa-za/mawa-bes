@@ -11,7 +11,7 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.service.PartnerService;
-import za.co.raretag.mawabes.utils.RoleType;
+import za.co.mawa.bes.utils.RoleType;
 
 import java.util.ArrayList;
 
