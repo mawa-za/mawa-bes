@@ -13,7 +13,6 @@ import za.co.mawa.bes.repository.RoleWorkcenterRepository;
 import java.util.List;
 
 @Service
-@Transactional
 public class RoleService implements RoleDao {
     @Autowired
     RoleRepository roleRepository;
