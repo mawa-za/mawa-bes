@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@Transactional
 public class UserService implements UserDao {
     @Autowired
     EntityManager entityManager;
