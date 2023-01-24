@@ -1,8 +1,9 @@
-package za.co.raretag.mawabes.dao;
+package za.co.mawa.bes.dao;
 
-import za.co.raretag.mawabes.dto.PartnerDto;
+import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
-import za.co.raretag.mawabes.entity.PartnerEntity;
+
 
 import java.util.ArrayList;
 

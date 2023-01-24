@@ -1,10 +1,10 @@
-package za.co.raretag.mawabes.service;
+package za.co.mawa.bes.service;
 
 import org.springframework.stereotype.Service;
-import za.co.raretag.mawabes.dto.PartnerDto;
+import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
-import za.co.raretag.mawabes.entity.PartnerEntity;
-import za.co.raretag.mawabes.dao.PartnerDao;
+import za.co.mawa.bes.dao.PartnerDao;
 
 import java.util.ArrayList;
 

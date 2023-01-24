@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-import za.co.raretag.mawabes.dto.PartnerDto;
+import za.co.mawa.bes.dto.PartnerDto;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
-import za.co.raretag.mawabes.dto.PersonDto;
-import za.co.raretag.mawabes.service.PartnerService;
+import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.service.PartnerService;
 import za.co.raretag.mawabes.utils.RoleType;
 
 import java.util.ArrayList;
