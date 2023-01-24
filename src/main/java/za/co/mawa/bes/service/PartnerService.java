@@ -11,6 +11,7 @@ import za.co.mawa.bes.entity.PartnerRolePKEntity;
 import za.co.mawa.bes.repository.PartnerRelationRepository;
 import za.co.mawa.bes.repository.PartnerRoleRepository;
 import za.co.mawa.bes.repository.RoleRepository;
+import za.co.raretag.mawabes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,5 +68,10 @@ public class PartnerService implements PartnerDao {
             relations.add(relation);
         }
         return relations;
+    }
+
+    @Override
+    public ArrayList<PartnerDto> search(PartnerQueryDto pq) {
+        return null;
     }
 }
