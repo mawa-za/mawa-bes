@@ -13,24 +13,31 @@ public interface TransactionDao {
     TransactionDto getTransaction(String orderId);
 
     //Items
-    ArrayList<MessageDto> addItem(TransactionItemDto transactionItemDto);
-    ArrayList<MessageDto> removeItem(TransactionItemDto transactionItemDto);
+    void addItem(TransactionItemDto transactionItemDto);
+    void removeItem(TransactionItemDto transactionItemDto);
     ArrayList<TransactionItemDto> getItems(String id);
 
     //Amounts
-    ArrayList<MessageDto> addAmount(TransactionAmountDto transactionAmountDto);
-    ArrayList<MessageDto> removeAmount(TransactionAmountDto transactionAmountDto);
+    void addAmount(TransactionAmountDto transactionAmountDto);
+    void removeAmount(TransactionAmountDto transactionAmountDto);
     ArrayList<TransactionAmountDto> getAmounts(String id);
 
     //Partners
-    ArrayList<MessageDto> addPartner(TransactionPartnerDto transactionPartnerDto);
-    ArrayList<MessageDto> removePartner(TransactionPartnerDto transactionPartnerDto);
+    void addPartner(TransactionPartnerDto transactionPartnerDto);
+    void removePartner(TransactionPartnerDto transactionPartnerDto);
     ArrayList<TransactionPartnerDto> getPartners(String id);
 
     //Dates
-    ArrayList<MessageDto> addDate(TransactionDateDto transactionDateDto);
-    ArrayList<MessageDto> removeDate(TransactionDateDto transactionDateDto);
+    void addDate(TransactionDateDto transactionDateDto);
+    void removeDate(TransactionDateDto transactionDateDto);
     ArrayList<TransactionDateDto> getDates(String id);
 
+    //Attachments
+    void addAttachment(TransactionAttachmentDto transactionAttachmentDto);
+    void removeDate(TransactionAttachmentDto transactionAttachmentDto);
+    ArrayList<TransactionAttachmentDto> getAttachments(String id);
 
+    void addLink(TransactionLinkDto transactionLinkDto);
+    void removeLink(TransactionLinkDto transactionLinkDto);
+    ArrayList<TransactionLinkDto> getLinks(String id);
 }

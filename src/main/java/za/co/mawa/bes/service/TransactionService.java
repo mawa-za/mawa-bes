@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.TransactionPartnerEntity;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.TransactionDateRepository;
 import za.co.mawa.bes.repository.TransactionPartnerRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
@@ -21,26 +22,23 @@ import java.util.Optional;
 
 @Service
 public class TransactionService implements TransactionDao {
-
     @Autowired
-    NumberRangeService numberRange;
+    NumberRangeService numberRangeService;
     @Autowired
     TransactionRepository transactionRepository;
     @Autowired
     TransactionDateRepository transactionDateRepository;
     @Autowired
     TransactionPartnerRepository transactionPartnerRepository;
-
     @Autowired
-    JwtUserDetailsService jwtUserDetailsService;
-
+    UserService userService;
     @Override
     public String create(TransactionDto transactionDto) {
         TransactionEntity transactionEntity = new TransactionEntity();
-        String txnNo = null;
+        String id = null;
         try {
-            txnNo = numberRange.generateNumber(transactionEntity.getType());
-            transactionEntity.setId(txnNo);
+            id = numberRangeService.generateNumber(transactionEntity.getType());
+            transactionEntity.setId(id);
             if (transactionDto.getStatus() == null) {
                 transactionEntity.setStatus(Status.NEW);
             }
@@ -48,18 +46,18 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setSubType(transactionDto.getSubType());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            transactionEntity.setCreatedBy(UserContext.getCurrentUser());
+            transactionEntity.setCreatedBy(userService.getCurrentUser());
             transactionRepository.save(transactionEntity);
 
             TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(txnNo);
+            creationDate.setTransaction(id);
             creationDate.setType(DateType.CREATED);
-
             addDate(creationDate);
-        } catch (Exception ex) {
-            return null;
+
+        } catch (NumberRangeObjectNotFound ex) {
+            throw new RuntimeException();
         }
-        return txnNo;
+        return id;
     }
 
     @Override
@@ -68,7 +66,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public ArrayList<MessageDto> addDate(TransactionDateDto transactionDateDto) {
+    public void addDate(TransactionDateDto transactionDateDto) {
         TransactionDatePKEntity txnDatePK = new TransactionDatePKEntity();
         txnDatePK.setTransaction(transactionDateDto.getTransaction());
         txnDatePK.setType(transactionDateDto.getType());
@@ -82,24 +80,54 @@ public class TransactionService implements TransactionDao {
         try {
             transactionDateRepository.save(txnDate);
         } catch (Exception ex) {
-            return null;
+
         }
 
-        return null;
     }
 
     @Override
-    public ArrayList<MessageDto> removeDate(TransactionDateDto transactionDateDto) {
+    public void removeDate(TransactionDateDto transactionDateDto) {
         TransactionDatePKEntity transactionDatePKEntity = new TransactionDatePKEntity();
         transactionDatePKEntity.setTransaction(transactionDateDto.getTransaction());
         transactionDatePKEntity.setType(transactionDateDto.getType());
 //        TransactionDateEntity transactionDateEntity = transactionDateRepository.getById(transactionDatePKEntity);
         transactionDateRepository.deleteById(transactionDatePKEntity);
-        return null;
+
     }
 
     @Override
     public ArrayList<TransactionDateDto> getDates(String id) {
+        return null;
+    }
+
+    @Override
+    public void addAttachment(TransactionAttachmentDto transactionAttachmentDto) {
+
+    }
+
+    @Override
+    public void removeDate(TransactionAttachmentDto transactionAttachmentDto) {
+
+    }
+
+
+    @Override
+    public ArrayList<TransactionAttachmentDto> getAttachments(String id) {
+        return null;
+    }
+
+    @Override
+    public void addLink(TransactionLinkDto transactionLinkDto) {
+
+    }
+
+    @Override
+    public void removeLink(TransactionLinkDto transactionLinkDto) {
+
+    }
+
+    @Override
+    public ArrayList<TransactionLinkDto> getLinks(String id) {
         return null;
     }
 
@@ -125,70 +153,6 @@ public class TransactionService implements TransactionDao {
         }
         return partners;
     }
-
-//    @Override
-//    public ArrayList<TransactionDto> getTransactionByApprover(String approver) {
-//        TransactionQueryDto transactionQuery = new TransactionQueryDto();
-//        ArrayList<TransactionDto> orderObjList = new ArrayList();
-//        if (approver != null) {
-//            transactionQuery.setPartnerNo(approver);
-//            transactionQuery.setPartnerFunction(PartnerFunction.ASSIGNED_APPROVER);
-//            ArrayList<TransactionDto> partnerFunctions = search(transactionQuery);
-//
-//            if (!partnerFunctions.isEmpty()) {
-//                for (TransactionDto transactionObj : partnerFunctions) {
-//                    TransactionDto transactionDto = getTransaction(transactionObj.getId());
-//                    TransactionDto orderObj = new TransactionDto();
-//
-//                    if (transactionDto != null) {
-//
-//                        orderObj.setId(transactionDto.getId());
-//
-//                        if (transactionDto.getDescription() != null) {
-//                            orderObj.setDescription(transactionDto.getDescription());
-//                        }
-//
-//                        if (transactionDto.getStatus() != null) {
-//                            orderObj.setStatus(transactionDto.getStatus());
-//                        }
-//
-//                        if (transactionDto.getStatusReason() != null) {
-//                            orderObj.setStatusReason(transactionDto.getStatusReason());
-//                        }
-//
-//                        if (transactionDto.getSubType() != null) {
-//                            orderObj.setSubType(transactionDto.getSubType());
-//                        }
-//
-//                        if (transactionDto.getType() != null) {
-//                            orderObj.setType(transactionDto.getType());
-//                        }
-//
-//                        if (transactionDto.getValidFrom() != null) {
-//                            orderObj.setValidFrom(transactionDto.getValidFrom());
-//                        }
-//
-//                        if (transactionDto.getValidTo() != null) {
-//                            orderObj.setValidTo(transactionDto.getValidTo());
-//                        }
-//
-//                        if (transactionDto.getCreatedBy() != null) {
-//                            orderObj.setCreatedBy(transactionDto.getCreatedBy());
-//                        }
-//
-//                        if (transactionDto.getChangedBy() != null) {
-//                            orderObj.setChangedBy(transactionDto.getChangedBy());
-//                        }
-//
-//                        orderObjList.add(orderObj);
-//                    }
-//                }
-//            }
-//
-//        }
-//
-//        return orderObjList;
-//    }
 
     @Override
     public ArrayList<TransactionDto> search(TransactionQueryDto query) {
@@ -273,13 +237,13 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public ArrayList<MessageDto> addItem(TransactionItemDto transactionItemDto) {
-        return null;
+    public void addItem(TransactionItemDto transactionItemDto) {
+
     }
 
     @Override
-    public ArrayList<MessageDto> removeItem(TransactionItemDto transactionItemDto) {
-        return null;
+    public void removeItem(TransactionItemDto transactionItemDto) {
+
     }
 
     @Override
@@ -288,13 +252,13 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public ArrayList<MessageDto> addAmount(TransactionAmountDto transactionAmountDto) {
-        return null;
+    public void addAmount(TransactionAmountDto transactionAmountDto) {
+
     }
 
     @Override
-    public ArrayList<MessageDto> removeAmount(TransactionAmountDto transactionAmountDto) {
-        return null;
+    public void removeAmount(TransactionAmountDto transactionAmountDto) {
+
     }
 
     @Override
@@ -303,27 +267,12 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public ArrayList<MessageDto> addPartner(TransactionPartnerDto transactionPartnerDto) {
-        return null;
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) {
+
     }
 
     @Override
-    public ArrayList<MessageDto> removePartner(TransactionPartnerDto transactionPartnerDto) {
-        return null;
-    }
+    public void removePartner(TransactionPartnerDto transactionPartnerDto) {
 
-//    private TransactionDto getTransaction(String transacationId){
-//        TransactionDto object = null;
-//        TransactionEntity transaction = transactionRepository.getById(transacationId);
-//        if (transaction != null) {
-//            object = new TransactionDto();
-//            object.setId(transacationId);
-//            object.setSubtype(transaction.getSubType());
-//            object.setType(transaction.getType());
-//            object.setStatus(transaction.getStatus());
-//            object.setStatusReason(transaction.getStatusReason());
-//            object.setSubtype(transaction.getSubStatus());
-//        }
-//        return object;
-//    }
+    }
 }

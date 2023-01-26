@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.TestEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
@@ -142,6 +143,11 @@ public class UserService implements UserDao {
     @Override
     public List<UserRoleEntity> getRoles(String user) {
         return userRoleRepository.findUserRoles(user);
+    }
+
+    @Override
+    public String getCurrentUser() {
+        return UserContext.getCurrentUser();
     }
 
     private boolean validatePassword(String enteredPassword, String storedPassword) {
