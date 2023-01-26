@@ -257,14 +257,17 @@ public class EmploymentService implements EmploymentDao {
     @Override
     public List<EmploymentDto> getByApprover(String approver) {
         List<EmploymentDto> currentEmployment = new ArrayList<>();
-        ArrayList<TransactionDto> orderHeaders = transactionService.getTransactionByApprover(approver);
-        for(TransactionDto orderHeaderObj : orderHeaders){
-            ArrayList<TransactionPartnerDto> orderPartners = transactionService.getPartners(orderHeaderObj.getId());
-            for(TransactionPartnerDto orderPartnerObj : orderPartners){
-                if(orderPartnerObj.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){
-                    EmploymentDto employee = get(orderPartnerObj.getPartner());
-                    if(employee != null){
-                        currentEmployment.add(employee);
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+        transactionQueryDto.setPartnerFunction(PartnerFunction.APPROVER);
+        transactionQueryDto.setPartnerNo(approver);
+        ArrayList<TransactionDto> transactionDtos = transactionService.search(transactionQueryDto);
+        for(TransactionDto transactionDto : transactionDtos){
+            ArrayList<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
+            for(TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos){
+                if(transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){
+                    EmploymentDto employmentDto = get(transactionPartnerDto.getPartner());
+                    if(employmentDto != null){
+                        currentEmployment.add(employmentDto);
                     }
                 }
             }

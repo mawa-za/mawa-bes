@@ -2,6 +2,7 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.TransactionPartnerEntity;
 import za.co.mawa.bes.repository.TransactionDateRepository;
@@ -16,6 +17,7 @@ import za.co.mawa.bes.entity.TransactionEntity;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionService implements TransactionDao {
@@ -28,6 +30,9 @@ public class TransactionService implements TransactionDao {
     TransactionDateRepository transactionDateRepository;
     @Autowired
     TransactionPartnerRepository transactionPartnerRepository;
+
+    @Autowired
+    JwtUserDetailsService jwtUserDetailsService;
 
     @Override
     public String create(TransactionDto transactionDto) {
@@ -43,10 +48,13 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setSubType(transactionDto.getSubType());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            transactionEntity.setCreatedBy(UserContext.getCurrentUser());
             transactionRepository.save(transactionEntity);
+
             TransactionDateDto creationDate = new TransactionDateDto();
             creationDate.setTransaction(txnNo);
             creationDate.setType(DateType.CREATED);
+
             addDate(creationDate);
         } catch (Exception ex) {
             return null;
@@ -61,7 +69,6 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public ArrayList<MessageDto> addDate(TransactionDateDto transactionDateDto) {
-
         TransactionDatePKEntity txnDatePK = new TransactionDatePKEntity();
         txnDatePK.setTransaction(transactionDateDto.getTransaction());
         txnDatePK.setType(transactionDateDto.getType());
@@ -83,6 +90,11 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public ArrayList<MessageDto> removeDate(TransactionDateDto transactionDateDto) {
+        TransactionDatePKEntity transactionDatePKEntity = new TransactionDatePKEntity();
+        transactionDatePKEntity.setTransaction(transactionDateDto.getTransaction());
+        transactionDatePKEntity.setType(transactionDateDto.getType());
+//        TransactionDateEntity transactionDateEntity = transactionDateRepository.getById(transactionDatePKEntity);
+        transactionDateRepository.deleteById(transactionDatePKEntity);
         return null;
     }
 
