@@ -2,9 +2,10 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.TransactionPartnerEntity;
-import za.co.mawa.bes.object.transaction.TransactionDTO;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.TransactionDateRepository;
 import za.co.mawa.bes.repository.TransactionPartnerRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
@@ -17,46 +18,46 @@ import za.co.mawa.bes.entity.TransactionEntity;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionService implements TransactionDao {
-
     @Autowired
-    NumberRangeService numberRange;
+    NumberRangeService numberRangeService;
     @Autowired
     TransactionRepository transactionRepository;
     @Autowired
     TransactionDateRepository transactionDateRepository;
     @Autowired
     TransactionPartnerRepository transactionPartnerRepository;
-
+    @Autowired
+    UserService userService;
     @Override
-    public String create(TransactionEntity transactionEntity) {
-
-        String txnNo = null;
+    public String create(TransactionDto transactionDto) {
+        TransactionEntity transactionEntity = new TransactionEntity();
+        String id = null;
         try {
-            txnNo = numberRange.generateNumber(transactionEntity.getType());
-            transactionEntity.setId(txnNo);
-            if (transactionEntity.getStatus() == null) {
+            id = numberRangeService.generateNumber(transactionEntity.getType());
+            transactionEntity.setId(id);
+            if (transactionDto.getStatus() == null) {
                 transactionEntity.setStatus(Status.NEW);
             }
+            transactionEntity.setType(transactionDto.getType());
+            transactionEntity.setSubType(transactionDto.getSubType());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            transactionEntity.setCreatedBy(userService.getCurrentUser());
             transactionRepository.save(transactionEntity);
-            OrderDateDto creationDate = new OrderDateDto();
-            creationDate.setTransaction(txnNo);
+
+            TransactionDateDto creationDate = new TransactionDateDto();
+            creationDate.setTransaction(id);
             creationDate.setType(DateType.CREATED);
             addDate(creationDate);
-        } catch (Exception ex) {
-            return null;
+
+        } catch (NumberRangeObjectNotFound ex) {
+            throw new RuntimeException();
         }
-
-        return txnNo;
-    }
-
-    @Override
-    public String update(TransactionEntity transactionEntity) {
-        return null;
+        return id;
     }
 
     @Override
@@ -65,38 +66,77 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public TransactionEntity findById(String id) {
-        return null;
-    }
-
-    @Override
-    public ArrayList<MessageDto> addDate(OrderDateDto od) {
-
+    public void addDate(TransactionDateDto transactionDateDto) {
         TransactionDatePKEntity txnDatePK = new TransactionDatePKEntity();
-        txnDatePK.setTransaction(od.getTransaction());
-        txnDatePK.setType(od.getType());
+        txnDatePK.setTransaction(transactionDateDto.getTransaction());
+        txnDatePK.setType(transactionDateDto.getType());
         TransactionDateEntity txnDate = new TransactionDateEntity();
         txnDate.setTransactionDatePK(txnDatePK);
-        if (od.getValue() != null) {
-            txnDate.setValue(Conversion.stringToDate(od.getValue()));
+        if (transactionDateDto.getValue() != null) {
+            txnDate.setValue(Conversion.stringToDate(transactionDateDto.getValue()));
         } else {
             txnDate.setValue(new Date());
         }
         try {
             transactionDateRepository.save(txnDate);
         } catch (Exception ex) {
-            return null;
+
         }
 
+    }
+
+    @Override
+    public void removeDate(TransactionDateDto transactionDateDto) {
+        TransactionDatePKEntity transactionDatePKEntity = new TransactionDatePKEntity();
+        transactionDatePKEntity.setTransaction(transactionDateDto.getTransaction());
+        transactionDatePKEntity.setType(transactionDateDto.getType());
+//        TransactionDateEntity transactionDateEntity = transactionDateRepository.getById(transactionDatePKEntity);
+        transactionDateRepository.deleteById(transactionDatePKEntity);
+
+    }
+
+    @Override
+    public ArrayList<TransactionDateDto> getDates(String id) {
         return null;
     }
 
     @Override
-    public ArrayList<OrderPartnerDto> getPartners(String transactionId) {
-        ArrayList<OrderPartnerDto> partners = new ArrayList<>();
+    public void addAttachment(TransactionAttachmentDto transactionAttachmentDto) {
+
+    }
+
+    @Override
+    public void removeDate(TransactionAttachmentDto transactionAttachmentDto) {
+
+    }
+
+
+    @Override
+    public ArrayList<TransactionAttachmentDto> getAttachments(String id) {
+        return null;
+    }
+
+    @Override
+    public void addLink(TransactionLinkDto transactionLinkDto) {
+
+    }
+
+    @Override
+    public void removeLink(TransactionLinkDto transactionLinkDto) {
+
+    }
+
+    @Override
+    public ArrayList<TransactionLinkDto> getLinks(String id) {
+        return null;
+    }
+
+    @Override
+    public ArrayList<TransactionPartnerDto> getPartners(String transactionId) {
+        ArrayList<TransactionPartnerDto> partners = new ArrayList<>();
         List<TransactionPartnerEntity> partnerList = transactionPartnerRepository.findPartnerByTransaction(transactionId);
         for (TransactionPartnerEntity transactionPartner : partnerList) {
-            OrderPartnerDto orderPartner = new OrderPartnerDto();
+            TransactionPartnerDto orderPartner = new TransactionPartnerDto();
             orderPartner.setFunction(transactionPartner.getTransactionPartnerPK().getPartnerFunction());
             orderPartner.setPartner(transactionPartner.getTransactionPartnerPK().getPartnerNo());
             orderPartner.setStatus(transactionPartner.getStatus());
@@ -115,77 +155,13 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public ArrayList<OrderHeaderDto> getTransactionByApprover(String approver) {
-        TransactionQueryDto transactionQuery = new TransactionQueryDto();
-        ArrayList<OrderHeaderDto> orderObjList = new ArrayList();
-        if (approver != null) {
-            transactionQuery.setPartnerNo(approver);
-            transactionQuery.setPartnerFunction(PartnerFunction.ASSIGNED_APPROVER);
-            ArrayList<TransactionDTO> partnerFunctions = search(transactionQuery);
-
-            if (!partnerFunctions.isEmpty()) {
-                for (TransactionDTO transactionObj : partnerFunctions) {
-                    OrderHeaderDto transactionHeader = getHeader(transactionObj.getId());
-                    OrderHeaderDto orderObj = new OrderHeaderDto();
-
-                    if (transactionHeader != null) {
-
-                        orderObj.setId(transactionHeader.getId());
-
-                        if (transactionHeader.getDescription() != null) {
-                            orderObj.setDescription(transactionHeader.getDescription());
-                        }
-
-                        if (transactionHeader.getStatus() != null) {
-                            orderObj.setStatus(transactionHeader.getStatus());
-                        }
-
-                        if (transactionHeader.getStatusReason() != null) {
-                            orderObj.setStatusReason(transactionHeader.getStatusReason());
-                        }
-
-                        if (transactionHeader.getSubType() != null) {
-                            orderObj.setSubType(transactionHeader.getSubType());
-                        }
-
-                        if (transactionHeader.getType() != null) {
-                            orderObj.setType(transactionHeader.getType());
-                        }
-
-                        if (transactionHeader.getValidFrom() != null) {
-                            orderObj.setValidFrom(transactionHeader.getValidFrom());
-                        }
-
-                        if (transactionHeader.getValidTo() != null) {
-                            orderObj.setValidTo(transactionHeader.getValidTo());
-                        }
-
-                        if (transactionHeader.getCreatedBy() != null) {
-                            orderObj.setCreatedBy(transactionHeader.getCreatedBy());
-                        }
-
-                        if (transactionHeader.getChangedBy() != null) {
-                            orderObj.setChangedBy(transactionHeader.getChangedBy());
-                        }
-
-                        orderObjList.add(orderObj);
-                    }
-                }
-            }
-
-        }
-
-        return orderObjList;
-    }
-
-    @Override
-    public ArrayList<TransactionDTO> search(TransactionQueryDto query) {
-        ArrayList<TransactionDTO> transactionList = new ArrayList<>();
+    public ArrayList<TransactionDto> search(TransactionQueryDto query) {
+        ArrayList<TransactionDto> transactionList = new ArrayList<>();
         if (query.getPartnerFunction() != null && query.getPartnerNo() != null) {
             List<TransactionPartnerEntity> transactions = transactionPartnerRepository.findTransactionByPartner(query.getPartnerNo());
             for (TransactionPartnerEntity txn : transactions) {
                 if (txn.getTransactionPartnerPK().getPartnerFunction().equals(query.getPartnerFunction())) {
-                    TransactionDTO object = getTransaction(txn.getTransactionPartnerPK().getTransactionId());
+                    TransactionDto object = getTransaction(txn.getTransactionPartnerPK().getTransactionId());
                     transactionList.add(object);
                 }
             }
@@ -194,7 +170,7 @@ public class TransactionService implements TransactionDao {
         if (query.getType() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByType(query.getType());
             for (TransactionEntity txn : transactions) {
-                TransactionDTO object = getTransaction(txn.getId());
+                TransactionDto object = getTransaction(txn.getId());
                 transactionList.add(object);
             }
         }
@@ -202,7 +178,7 @@ public class TransactionService implements TransactionDao {
         if (query.getStatus() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByStatus(query.getStatus());
             for (TransactionEntity txn : transactions) {
-                TransactionDTO object = getTransaction(txn.getId());
+                TransactionDto object = getTransaction(txn.getId());
                 transactionList.add(object);
             }
         }
@@ -211,62 +187,92 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public OrderHeaderDto getHeader(String orderId) {
-        OrderHeaderDto orderHeader = null;
-        TransactionEntity transaction = transactionRepository.getById(orderId);
-        if (transaction != null) {
-            orderHeader = new OrderHeaderDto();
-            orderHeader.setId(transaction.getId());
-            if (transaction.getSubType() != null) {
-                orderHeader.setSubType(transaction.getSubType());
-            }
-            if (transaction.getLocation() != null) {
-                orderHeader.setLocation(transaction.getLocation());
-            }
-            if (transaction.getType() != null) {
-                orderHeader.setType(transaction.getType());
-            }
-            orderHeader.setStatus(StringConversion.capitalizeFully(transaction.getStatus().replaceAll("_", " ")));
-            if (transaction.getStatusReason() != null) {
-                orderHeader.setStatusReason(StringConversion.capitalizeFully(transaction.getStatusReason().replaceAll("_", " ")));
-            }
-            if (transaction.getSubStatus() != null) {
-                orderHeader.setSubStatus(StringConversion.capitalizeFully(transaction.getSubStatus()));
-            }
-            if (transaction.getDescription() != null) {
-                orderHeader.setDescription(transaction.getDescription());
-            }
-            if (transaction.getSubDescription() != null) {
-                orderHeader.setSubDescription(transaction.getSubDescription());
-            }
-            if (transaction.getValidTo() != null) {
-                orderHeader.setValidTo(Conversion.dateToString(transaction.getValidTo()));
-            }
-            if (transaction.getValidFrom() != null) {
-                orderHeader.setValidFrom(Conversion.dateToString(transaction.getValidFrom()));
-            }
-            if (transaction.getCreatedBy() != null) {
-                orderHeader.setCreatedBy(transaction.getCreatedBy());
-            }
-            if (transaction.getChangedBy() != null) {
-                orderHeader.setChangedBy(transaction.getChangedBy());
-            }
-        }
-        return orderHeader;
+    public String edit(TransactionDto transactionDto) {
+        return null;
     }
 
-    private TransactionDTO getTransaction(String transacationId){
-        TransactionDTO object = null;
-        TransactionEntity transaction = transactionRepository.getById(transacationId);
-        if (transaction != null) {
-            object = new TransactionDTO();
-            object.setId(transacationId);
-            object.setSubtype(transaction.getSubType());
-            object.setType(transaction.getType());
-            object.setStatus(transaction.getStatus());
-            object.setStatusReason(transaction.getStatusReason());
-            object.setSubtype(transaction.getSubStatus());
+    @Override
+    public TransactionDto getTransaction(String orderId) {
+        TransactionDto transactionDto = null;
+        TransactionEntity transactionEntity = transactionRepository.getById(orderId);
+        if (transactionEntity != null) {
+            transactionDto = new TransactionDto();
+            transactionDto.setId(transactionEntity.getId());
+            if (transactionEntity.getSubType() != null) {
+                transactionDto.setSubType(transactionEntity.getSubType());
+            }
+            if (transactionEntity.getLocation() != null) {
+                transactionDto.setLocation(transactionEntity.getLocation());
+            }
+            if (transactionEntity.getType() != null) {
+                transactionDto.setType(transactionEntity.getType());
+            }
+            transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
+            if (transactionEntity.getStatusReason() != null) {
+                transactionDto.setStatusReason(StringConversion.capitalizeFully(transactionEntity.getStatusReason().replaceAll("_", " ")));
+            }
+            if (transactionEntity.getSubStatus() != null) {
+                transactionDto.setSubStatus(StringConversion.capitalizeFully(transactionEntity.getSubStatus()));
+            }
+            if (transactionEntity.getDescription() != null) {
+                transactionDto.setDescription(transactionEntity.getDescription());
+            }
+            if (transactionEntity.getSubDescription() != null) {
+                transactionDto.setSubDescription(transactionEntity.getSubDescription());
+            }
+            if (transactionEntity.getValidTo() != null) {
+                transactionDto.setValidTo(Conversion.dateToString(transactionEntity.getValidTo()));
+            }
+            if (transactionEntity.getValidFrom() != null) {
+                transactionDto.setValidFrom(Conversion.dateToString(transactionEntity.getValidFrom()));
+            }
+            if (transactionEntity.getCreatedBy() != null) {
+                transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
+            }
+            if (transactionEntity.getChangedBy() != null) {
+                transactionDto.setChangedBy(transactionEntity.getChangedBy());
+            }
         }
-        return object;
+        return transactionDto;
+    }
+
+    @Override
+    public void addItem(TransactionItemDto transactionItemDto) {
+
+    }
+
+    @Override
+    public void removeItem(TransactionItemDto transactionItemDto) {
+
+    }
+
+    @Override
+    public ArrayList<TransactionItemDto> getItems(String id) {
+        return null;
+    }
+
+    @Override
+    public void addAmount(TransactionAmountDto transactionAmountDto) {
+
+    }
+
+    @Override
+    public void removeAmount(TransactionAmountDto transactionAmountDto) {
+
+    }
+
+    @Override
+    public ArrayList<TransactionAmountDto> getAmounts(String id) {
+        return null;
+    }
+
+    @Override
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) {
+
+    }
+
+    @Override
+    public void removePartner(TransactionPartnerDto transactionPartnerDto) {
+
     }
 }

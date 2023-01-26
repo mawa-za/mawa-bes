@@ -2,22 +2,26 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.entity.NumberRangeEntity;
+import za.co.mawa.bes.exception.FieldDoesNotExist;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.NumberRangeRepository;
 import za.co.mawa.bes.dao.NumberRangeDao;
 import za.co.mawa.bes.dto.RangeDto;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class NumberRangeService implements NumberRangeDao {
 
     @Autowired
-    NumberRangeRepository numberRangeRepo;
+    NumberRangeRepository numberRangeRepository;
 
     @Override
     public void create(RangeDto range) {
-        List<NumberRangeEntity> numberRanges = numberRangeRepo.findAll();
+        List<NumberRangeEntity> numberRanges = numberRangeRepository.findAll();
 //        numberRangeRepo.findById(range.getObject());
         if (!numberRanges.isEmpty()) {
 
@@ -30,20 +34,24 @@ public class NumberRangeService implements NumberRangeDao {
     }
 
     @Override
-    public String generateNumber(String object) {
+    public String generateNumber(String object) throws NumberRangeObjectNotFound {
 
         String newNumber = null;
-        List<NumberRangeEntity> numberRanges = numberRangeRepo.findAll();
-        for (NumberRangeEntity num : numberRanges) {
+        List<NumberRangeEntity> numberRanges = numberRangeRepository.findAll();
 
-            if (num.getObject().equals(object)) {
+        List<NumberRangeEntity> result = numberRanges.stream()
+                .filter(a -> Objects.equals(a.getObject(), object))
+                .toList();
+
+        if (!result.isEmpty()){
                 {
+                    NumberRangeEntity numberRangeEntity = result.iterator().next();
                     String currentNumber;
-                    String withPrefix = num.getCurrent();
-                    if (num.getPrefix() == null) {
-                        currentNumber = num.getCurrent();
+                    String withPrefix = numberRangeEntity.getCurrent();
+                    if (numberRangeEntity.getPrefix() == null) {
+                        currentNumber = numberRangeEntity.getCurrent();
                     } else {
-                        currentNumber = withPrefix.replace(num.getPrefix(), "");
+                        currentNumber = withPrefix.replace(numberRangeEntity.getPrefix(), "");
                     }
 
                     int length = currentNumber.length();
@@ -54,22 +62,23 @@ public class NumberRangeService implements NumberRangeDao {
                     while (newNumber.length() != length) {
                         newNumber = "0" + newNumber;
                     }
-                    if (num.getPrefix() == null) {
-                        num.setCurrent(newNumber);
+                    if (numberRangeEntity.getPrefix() == null) {
+                        numberRangeEntity.setCurrent(newNumber);
                     } else {
-                        num.setCurrent(num.getPrefix() + newNumber);
+                        numberRangeEntity.setCurrent(numberRangeEntity.getPrefix() + newNumber);
                     }
-                    newNumber = num.getCurrent();
+                    newNumber = numberRangeEntity.getCurrent();
 
                     try {
-                        numberRangeRepo.save(num);
+                        numberRangeRepository.save(numberRangeEntity);
                     } catch (Exception ex) {
                         return null;
                     }
-
                 }
-            }
+            }else{
+            throw new NumberRangeObjectNotFound();
         }
+
         return  newNumber;
     }
 }

@@ -17,5 +17,6 @@ public interface UserDao {
     UserDto getUserById(String id);
     List<UserDto> getAll();
     List<UserRoleEntity> getRoles(String user);
+    String getCurrentUser();
 
 }

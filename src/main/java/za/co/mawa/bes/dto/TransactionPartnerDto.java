@@ -2,7 +2,7 @@ package za.co.mawa.bes.dto;
 
 import java.util.ArrayList;
 
-public class OrderPartnerDto {
+public class TransactionPartnerDto {
     private String partner;
     private String transaction;
     private String function;

@@ -1,6 +1,6 @@
 package za.co.mawa.bes.dto;
 
-public class OrderHeaderDto {
+public class TransactionDto {
 
     private String id;
 
