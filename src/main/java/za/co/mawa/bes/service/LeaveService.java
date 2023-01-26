@@ -9,7 +9,7 @@ import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.StatusReason;
 import za.co.mawa.bes.dao.LeaveDao;
 import za.co.mawa.bes.dto.LogLeaveRequestDto;
-import za.co.mawa.bes.dto.OrderHeaderDto;
+import za.co.mawa.bes.dto.TransactionDto;
 import za.co.mawa.bes.entity.TransactionEntity;
 
 import java.util.Calendar;
@@ -30,7 +30,7 @@ public class LeaveService implements LeaveDao {
         long numberOfDays = 0;
         if (logLeaveDto.getLeaveType() != null) {
             type = logLeaveDto.getLeaveType().replaceAll(" ", "").toUpperCase();
-            OrderHeaderDto orderHeader = new OrderHeaderDto();
+            TransactionDto orderHeader = new TransactionDto();
             TransactionEntity transactionEntity = new TransactionEntity();
             if (logLeaveDto.getDescription() != null && logLeaveDto.getSubDescription() != null) {
 
@@ -41,7 +41,8 @@ public class LeaveService implements LeaveDao {
             transactionEntity.setSubType(type);
             transactionEntity.setStatus(Status.PENDING);
             transactionEntity.setStatusReason(StatusReason.AWAITING_APPROVAL);
-            requestNr =      transactionService.create(transactionEntity);
+
+//            requestNr =      transactionService.create(transactionEntity);
 
 
         }

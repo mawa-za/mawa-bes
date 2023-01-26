@@ -2,18 +2,35 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.TransactionEntity;
-import za.co.mawa.bes.object.transaction.TransactionDTO;
 
 import java.util.ArrayList;
 
 public interface TransactionDao {
-    String create(TransactionEntity transactionEntity);
-    String update(TransactionEntity transactionEntity);
+    String create(TransactionDto transactionDto);
+    ArrayList<TransactionDto> search(TransactionQueryDto query);
+    String edit(TransactionDto transactionDto);
     String delete(String id);
-    TransactionEntity findById(String id);
-    ArrayList<MessageDto> addDate(OrderDateDto od);
-    ArrayList<OrderPartnerDto> getPartners (String transactionId);
-    ArrayList<OrderHeaderDto> getTransactionByApprover(String approver);
-    ArrayList<TransactionDTO> search(TransactionQueryDto query);
-    OrderHeaderDto getHeader(String orderId);
+    TransactionDto getTransaction(String orderId);
+
+    //Items
+    ArrayList<MessageDto> addItem(TransactionItemDto transactionItemDto);
+    ArrayList<MessageDto> removeItem(TransactionItemDto transactionItemDto);
+    ArrayList<TransactionItemDto> getItems(String id);
+
+    //Amounts
+    ArrayList<MessageDto> addAmount(TransactionAmountDto transactionAmountDto);
+    ArrayList<MessageDto> removeAmount(TransactionAmountDto transactionAmountDto);
+    ArrayList<TransactionAmountDto> getAmounts(String id);
+
+    //Partners
+    ArrayList<MessageDto> addPartner(TransactionPartnerDto transactionPartnerDto);
+    ArrayList<MessageDto> removePartner(TransactionPartnerDto transactionPartnerDto);
+    ArrayList<TransactionPartnerDto> getPartners(String id);
+
+    //Dates
+    ArrayList<MessageDto> addDate(TransactionDateDto transactionDateDto);
+    ArrayList<MessageDto> removeDate(TransactionDateDto transactionDateDto);
+    ArrayList<TransactionDateDto> getDates(String id);
+
+
 }

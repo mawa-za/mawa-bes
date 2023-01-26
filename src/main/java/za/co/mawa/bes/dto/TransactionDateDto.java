@@ -1,14 +1,14 @@
 package za.co.mawa.bes.dto;
 
-public class OrderDateDto {
+public class TransactionDateDto {
     private String transaction;
     private String type;
     private String value;
 
-    public OrderDateDto() {
+    public TransactionDateDto() {
     }
 
-    public OrderDateDto(String transaction, String type, String value) {
+    public TransactionDateDto(String transaction, String type, String value) {
         this.transaction = transaction;
         this.type = type;
         this.value = value;
