@@ -2,13 +2,11 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.entity.NumberRangeEntity;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.NumberRangeRepository;
 import za.co.mawa.bes.dao.NumberRangeDao;
-import za.co.mawa.bes.dto.RangeDto;
+import za.co.mawa.bes.dto.NumberRangeDto;
 
 import java.util.List;
 import java.util.Objects;
@@ -20,7 +18,7 @@ public class NumberRangeService implements NumberRangeDao {
     NumberRangeRepository numberRangeRepository;
 
     @Override
-    public void create(RangeDto range) {
+    public void create(NumberRangeDto numberRangeDto) {
         List<NumberRangeEntity> numberRanges = numberRangeRepository.findAll();
 //        numberRangeRepo.findById(range.getObject());
         if (!numberRanges.isEmpty()) {

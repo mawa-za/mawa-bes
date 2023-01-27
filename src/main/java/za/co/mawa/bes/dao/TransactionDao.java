@@ -8,8 +8,8 @@ import java.util.ArrayList;
 public interface TransactionDao {
     String create(TransactionDto transactionDto);
     ArrayList<TransactionDto> search(TransactionQueryDto query);
-    String edit(TransactionDto transactionDto);
-    String delete(String id);
+    void edit(TransactionDto transactionDto);
+    void delete(String id);
     TransactionDto getTransaction(String orderId);
 
     //Items
@@ -28,8 +28,8 @@ public interface TransactionDao {
     ArrayList<TransactionPartnerDto> getPartners(String id);
 
     //Dates
-    void addDate(TransactionDateDto transactionDateDto);
-    void removeDate(TransactionDateDto transactionDateDto);
+    void addDate(TransactionDateDto transactionDateDto) throws Exception;
+    void removeDate(TransactionDateDto transactionDateDto) throws Exception;
     ArrayList<TransactionDateDto> getDates(String id);
 
     //Attachments

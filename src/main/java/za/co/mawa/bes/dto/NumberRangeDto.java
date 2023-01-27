@@ -1,6 +1,6 @@
 package za.co.mawa.bes.dto;
 
-public class RangeDto {
+public class NumberRangeDto {
     private String object;
 
     public String getObject() {
