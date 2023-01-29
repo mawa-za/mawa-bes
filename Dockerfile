@@ -6,5 +6,5 @@ RUN mvn -f /home/app/pom.xml clean install
 FROM openjdk:latest
 EXPOSE 8080
 ARG JAR_FILE=/home/app/target/mawa-bes.jar
-ADD ${JAR_FILE} app.jar
+COPY --from=build ${JAR_FILE} app.jar
 ENTRYPOINT ["java","-jar","/app.jar"]
