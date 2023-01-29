@@ -11,7 +11,7 @@
     <groupId>za.co.raretag</groupId>
     <artifactId>mawa-bes</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
     <name>mawa-bes</name>
     <description>Mawa Backend Services</description>
     <properties>
