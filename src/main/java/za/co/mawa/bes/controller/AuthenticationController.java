@@ -3,6 +3,7 @@ package za.co.mawa.bes.controller;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import io.jsonwebtoken.impl.DefaultClaims;
 
 
@@ -43,7 +44,7 @@ public class AuthenticationController {
 
     @Value("${jwt.secret}")
     private String secret;
-
+    Gson gson = new Gson();
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestBody UserDto userDto) throws Exception {
 

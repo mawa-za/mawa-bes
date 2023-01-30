@@ -3,10 +3,7 @@ package za.co.mawa.bes.controller;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 import za.co.mawa.bes.dto.PersonDto;
@@ -14,14 +11,14 @@ import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
 
 import java.util.ArrayList;
-
 @RestController
+@CrossOrigin
 public class CustomerController {
     @Autowired
     PartnerService partnerService;
     Gson gson = new Gson();
 
-    @RequestMapping(value = "/customers", method = RequestMethod.GET)
+    @RequestMapping(value = "/customer", method = RequestMethod.GET)
     public ResponseEntity<?> getCustomer() throws Exception{
         PartnerQueryDto query = new PartnerQueryDto();
         query.setRole(RoleType.CUSTOMER);
@@ -37,11 +34,11 @@ public class CustomerController {
         return ResponseEntity.ok(response);
     }
 
-    @RequestMapping(value = "/customers", method = RequestMethod.POST)
+    @RequestMapping(value = "/customer", method = RequestMethod.POST)
     public String postCustomer() throws Exception{
         return null;
     }
-    @RequestMapping(value = "/customers", method = RequestMethod.PUT)
+    @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public String putCustomer() throws Exception{
         return null;
     }
