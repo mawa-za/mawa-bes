@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import za.co.mawa.bes.dto.TransactionAmountDto;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Entity
@@ -13,7 +14,7 @@ import java.math.BigDecimal;
 @ToString
 @Getter
 @Setter
-public class TransactionAmountEntity {
+public class TransactionAmountEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected TransactionAmountPKEntity transactionAmountPKEntity;
@@ -21,5 +22,8 @@ public class TransactionAmountEntity {
     private BigDecimal amount;
 
     public TransactionAmountEntity(TransactionAmountDto transactionAmountDto) {
+        this.transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());
+        this.transactionAmountPKEntity.setType(transactionAmountDto.getType());
+        this.amount = transactionAmountDto.getAmount();
     }
 }

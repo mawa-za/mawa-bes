@@ -15,7 +15,6 @@ import java.util.Objects;
 public class TransactionAmountPKEntity implements Serializable {
     @Column(name = "transaction", length = 20)
     private String transaction;
-
     @Column(name = "type", length = 20)
     private String type;
 
