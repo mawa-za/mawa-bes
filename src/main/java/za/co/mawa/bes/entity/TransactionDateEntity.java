@@ -1,6 +1,7 @@
 package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
+import za.co.mawa.bes.dto.TransactionDateDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -17,7 +18,11 @@ public class TransactionDateEntity implements Serializable {
 
     public TransactionDateEntity() {
     }
-
+    public TransactionDateEntity(TransactionDateDto transactionDateDto) {
+        this.transactionDatePK.setTransaction(transactionDateDto.getTransaction());
+        this.transactionDatePK.setType(transactionDateDto.getType());
+        this.value = (transactionDateDto.getValue());
+    }
     public TransactionDateEntity(TransactionDatePKEntity transactionDatePK) {
         this.transactionDatePK = transactionDatePK;
     }

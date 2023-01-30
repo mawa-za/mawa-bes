@@ -13,6 +13,6 @@ import java.util.List;
 @Repository
 public interface TransactionDateRepository extends JpaRepository<TransactionDateEntity, TransactionDatePKEntity> {
     @Query(value = "SELECT t FROM TransactionDate t WHERE t.transactionDatePK.transaction = :transaction", nativeQuery = true)
-    List<TransactionDateEntity> findTransactionByDate(String transaction);
+    List<TransactionDateEntity> getTransactionDates(String transaction);
 
 }
