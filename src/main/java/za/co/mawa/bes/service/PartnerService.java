@@ -2,17 +2,11 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.ContactDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.PersonDto;
-import za.co.mawa.bes.dto.RelationDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.repository.*;
-import za.co.mawa.bes.utils.Constant;
-import za.co.mawa.bes.utils.Conversion;
-import za.co.mawa.bes.utils.Status;
-import za.co.mawa.bes.utils.StringConversion;
+import za.co.mawa.bes.utils.*;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
@@ -37,6 +31,14 @@ public class PartnerService implements PartnerDao {
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
     PartnerContactRepository partnerContactRepository;
+    @Autowired
+    PartnerAddressRepository partnerAddressRepository;
+    @Autowired
+    AddressRepository addressRepository;
+    @Autowired
+    PartnerBankAccountRepository partnerBankAccountRepository;
+    @Autowired
+    PartnerResourceApiRepository partnerResourceApiRepository;
     @Override
     public String create(PartnerEntity partnerEntity) {
         return null;
@@ -233,6 +235,60 @@ public class PartnerService implements PartnerDao {
         return relations;
     }
 
+    private AddressDto getAddress(AddressDto address) {
+        try {
+            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
+            partnerAddressPK.setAddressUsage(address.getType());
+            partnerAddressPK.setPartner(address.getPartner());
+            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
+            for (PartnerAddressEntity addr : addresses) {
+                if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
+                    String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                    AddressEntity adr = addressRepository.getById(addressId);
+                    if (adr != null) {
+                        address.setLine1(adr.getAddressLine1());
+                        address.setLine2(adr.getAddressLine2());
+                        address.setLine3(adr.getAddressLine3());
+                        address.setLine4(adr.getAddressLine4());
+                        address.setPostalCode(adr.getPostalCode());
+                    }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return address;
+    }
+
+    private PartnerAddressDto getAddressID(AddressDto address) {
+        PartnerAddressDto objects = new PartnerAddressDto();
+        try {
+            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
+            partnerAddressPK.setAddressUsage(address.getType());
+            partnerAddressPK.setPartner(address.getPartner());
+
+            //PartnerAddress partnerAddress = addressUsageController.findPartnerAddress(partnerAddressPK);
+            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
+            for (PartnerAddressEntity addr : addresses) {
+                if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
+                    String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                    AddressEntity adr = addressRepository.getById(addressId);
+                    if (adr != null) {
+                        objects.setId(adr.getId());
+                        objects.setPatner(address.getPartner());
+                        objects.setType(address.getType());
+
+                    }
+                    break;
+                }
+
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return objects;
+    }
     @Override
     public ArrayList<PartnerDto> search(PartnerQueryDto pq) {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
@@ -374,5 +430,737 @@ public class PartnerService implements PartnerDao {
             }
         }
         return finalList;
+    }
+
+    @Override
+    public ArrayList<AddressDto> getAddresses(String partner) {
+        ArrayList<AddressDto> partnerAddresses = new ArrayList<>();
+        try {
+
+            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(partner);
+            for (PartnerAddressEntity addr : addresses) {
+                String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                AddressEntity adr = addressRepository.getById(addressId);
+                if (adr != null) {
+                    AddressDto address = new AddressDto();
+                    address.setType(addr.getPartnerAddressPK().getAddressUsage());
+                    address.setLine1(adr.getAddressLine1());
+                    address.setLine2(adr.getAddressLine2());
+                    address.setLine3(adr.getAddressLine3());
+                    address.setLine4(adr.getAddressLine4());
+                    address.setPostalCode(adr.getPostalCode());
+                    address.setId(adr.getId());
+                    address.setTypeDescription(fieldOptionService.getFieldOptionDescription("ADDRESSTYPE", address.getType()));
+                    address.setLine3Description(fieldOptionService.getFieldOptionDescription("SUBURB", adr.getAddressLine3()));
+                    address.setLine4Description(fieldOptionService.getFieldOptionDescription("TOWN", adr.getAddressLine4()));
+
+                    partnerAddresses.add(address);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return partnerAddresses;
+    }
+
+    @Override
+    public ArrayList<IdentityDto> getIdentities(String partner) {
+        ArrayList<IdentityDto> partnerIdentities = new ArrayList<>();
+        List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partner);
+        for (PartnerIdentityEntity partnerIdentity : identityList) {
+            IdentityDto identity = new IdentityDto();
+            identity.setIdType(partnerIdentity.getPartnerIdentityPK().getType());
+            identity.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
+            identity.setValidFrom(Conversion.dateTimeToString(partnerIdentity.getValidFrom()));
+            identity.setValidTo(Conversion.dateTimeToString(partnerIdentity.getValidTo()));
+            identity.setTypeDescription(fieldOptionService.getFieldOptionDescription("IDTYPE", identity.getIdType()));
+
+            partnerIdentities.add(identity);
+        }
+        return partnerIdentities;
+    }
+
+    @Override
+    public ArrayList<String> getRoles(String id) {
+        ArrayList<String> partnerRoles = new ArrayList<>();
+        List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
+        for (PartnerRoleEntity partnerRole : roleList) {
+            partnerRoles.add(partnerRole.getPartnerRolePK().getRole());
+        }
+        return partnerRoles;
+    }
+
+    @Override
+    public boolean addRole(String partner, String role) {
+        boolean added = false;
+        ArrayList<String> roles = getRoles(partner);
+        for (String rol : roles) {
+            if (rol.equals(role)) {
+                added = true;
+            }
+        }
+        if (!added) {
+            try {
+                PartnerRolePKEntity partnerRolePK = new PartnerRolePKEntity();
+                partnerRolePK.setId(partner);
+                partnerRolePK.setRole(role);
+                PartnerRoleEntity partnerRole = new PartnerRoleEntity();
+                partnerRole.setPartnerRolePK(partnerRolePK);
+                partnerRole.setValidFrom(new Date());
+                partnerRole.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                partnerRoleRepository.save(partnerRole);
+                added = true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return added;
+    }
+
+    @Override
+    public boolean addIdentity(IdentityDto identity) {
+        boolean created = false;
+        try {
+            PartnerIdentityPKEntity partnerIdentityPK = new PartnerIdentityPKEntity();
+            partnerIdentityPK.setValue(identity.getIdNumber());
+            partnerIdentityPK.setType(identity.getIdType());
+            PartnerIdentityEntity partnerIdentity = new PartnerIdentityEntity();
+            partnerIdentity.setPartner(identity.getPartner());
+            partnerIdentity.setValidFrom(new Date());
+            partnerIdentity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            partnerIdentity.setPartnerIdentityPK(partnerIdentityPK);
+            partnerIdentityRepository.save(partnerIdentity);
+            created = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean addContact(ContactDto contact) {
+        boolean created = false;
+        try {
+            PartnerContactPKEntity partnerContactPK = new PartnerContactPKEntity();
+            partnerContactPK.setPartner(contact.getPartner());
+            partnerContactPK.setType(contact.getType());
+
+            PartnerContactEntity partnerContact = new PartnerContactEntity();
+            partnerContact.setPartnerContactPK(partnerContactPK);
+            partnerContact.setValue(contact.getDetail());
+            partnerContact.setValidFrom(new Date());
+            partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            partnerContactRepository.save(partnerContact);
+            created = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean addAddress(AddressDto address) {
+        boolean created = false;
+        try {
+
+            AddressEntity adr = new AddressEntity();
+            adr.setAddressLine1(address.getLine1());
+            adr.setAddressLine2(address.getLine2());
+            adr.setAddressLine3(address.getLine3());
+            adr.setAddressLine4(address.getLine4());
+            adr.setPostalCode(address.getPostalCode());
+            adr.setValidFrom(new Date());
+            adr.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            //adr = partnerAddressRepository.save(adr);
+
+            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
+            partnerAddressPK.setAddressUsage(address.getType());
+            partnerAddressPK.setPartner(address.getPartner());
+            partnerAddressPK.setAddressId(adr.getId());
+            PartnerAddressEntity partnerAddress = new PartnerAddressEntity();
+            partnerAddress.setPartnerAddressPK(partnerAddressPK);
+
+            partnerAddress.setValidFrom(new Date());
+            partnerAddress.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            partnerAddressRepository.save(partnerAddress);
+
+            created = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean addRelation(RelationDto relation) {
+        boolean created = false;
+        try {
+            PartnerRelationPKEntity partnerRelationPK = new PartnerRelationPKEntity();
+            partnerRelationPK.setPartner1(relation.getPartner1());
+            partnerRelationPK.setPartner2(relation.getPartner2());
+            partnerRelationPK.setType(relation.getType());
+
+            PartnerRelationEntity partnerRelation = new PartnerRelationEntity();
+            partnerRelation.setPartnerRelationPK(partnerRelationPK);
+            partnerRelation.setValidFrom(new Date());
+            partnerRelation.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            partnerRelationRepository.save(partnerRelation);
+            created = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean editRole(RoleDto role) {
+        return false;
+    }
+
+    @Override
+    public boolean editIdentity(IdentityDto idnt) {
+        boolean edited = false;
+        try {
+            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(idnt.getPartner());
+            if (identityList != null) {
+                for (PartnerIdentityEntity partnerIdentity : identityList) {
+                    String validFrom = Conversion.dateToString(partnerIdentity.getValidFrom());
+                    if (partnerIdentity.getPartnerIdentityPK().getType().equals(idnt.getIdType())
+                            && validFrom.equals(idnt.getValidFrom())) {
+                        PartnerIdentityPKEntity partneridentityPK = new PartnerIdentityPKEntity();
+                        partneridentityPK.setType(idnt.getIdType());
+                        partneridentityPK.setValue(partnerIdentity.getPartnerIdentityPK().getValue());
+
+                        partnerIdentityRepository.deleteById(partneridentityPK);
+                        partneridentityPK.setType(idnt.getIdType());
+                        partneridentityPK.setValue(idnt.getIdNumber());
+
+                        partnerIdentity.setValidTo(Conversion.stringToDate(idnt.getValidTo()));
+                        partnerIdentity.setValidFrom(Conversion.stringToDate(validFrom));
+                        partnerIdentity.setPartnerIdentityPK(partneridentityPK);
+
+                        partnerIdentityRepository.save(partnerIdentity);
+                        edited = true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return edited;
+    }
+
+    @Override
+    public boolean editContact(ContactDto contact) {
+        boolean created = false;
+        try {
+            PartnerContactPKEntity partnerContactPK = new PartnerContactPKEntity();
+            partnerContactPK.setPartner(contact.getPartner());
+            partnerContactPK.setType(contact.getType());
+            PartnerContactEntity partnerContact = partnerContactRepository.getById(partnerContactPK);
+            if (partnerContact != null) {
+
+                if (contact.getDetail() != null) {
+                    partnerContact.setValue(contact.getDetail());
+                    partnerContact.setValidFrom(new Date());
+                    partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                    partnerContactRepository.save(partnerContact);
+                    created = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean editAddress(AddressDto adrs) {
+        boolean edited = false;
+        try {
+            PartnerAddressEntity adres = new PartnerAddressEntity();
+            AddressEntity entityAdress;
+            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
+            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(adrs.getPartner());
+            for (PartnerAddressEntity addr : addresses) {
+                if (addr.getPartnerAddressPK().getAddressId() == adrs.getId()) {
+                    partnerAddressPK.setAddressUsage(addr.getPartnerAddressPK().getAddressUsage());
+                    partnerAddressPK.setPartner(addr.getPartnerAddressPK().getPartner());
+                    partnerAddressPK.setAddressId(adrs.getId());
+                    partnerAddressRepository.deleteById(partnerAddressPK);
+                }
+            }
+
+            partnerAddressPK.setAddressUsage(adrs.getType());
+            partnerAddressPK.setPartner(adrs.getPartner());
+            partnerAddressPK.setAddressId(adrs.getId());
+            adres.setPartnerAddressPK(partnerAddressPK);
+
+            String address = Integer.toString(adres.getPartnerAddressPK().getAddressId());
+            entityAdress = addressRepository.getById(address);
+            entityAdress.setAddressLine1(adrs.getLine1());
+            entityAdress.setAddressLine2(adrs.getLine2());
+            entityAdress.setAddressLine3(adrs.getLine3());
+            entityAdress.setAddressLine4(adrs.getLine4());
+            entityAdress.setPostalCode(adrs.getPostalCode());
+
+            addressRepository.save(entityAdress);
+            adres.setValidFrom(entityAdress.getValidFrom());
+            adres.setValidTo(entityAdress.getValidTo());
+            partnerAddressRepository.save(adres);
+            edited = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return edited;
+    }
+
+    @Override
+    public boolean editRelation(RelationDto rltn) {
+        return false;
+    }
+
+    @Override
+    public boolean removeIdentity(IdentityDto idnt) {
+        boolean removed = false;
+        try {
+            PartnerIdentityPKEntity partneridentityPK = new PartnerIdentityPKEntity();
+            partneridentityPK.setType(idnt.getIdType());
+            partneridentityPK.setValue(idnt.getIdNumber());
+
+            partnerIdentityRepository.deleteById(partneridentityPK);
+            removed = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return removed;
+    }
+
+    @Override
+    public boolean removeContact(ContactDto cntct) {
+        boolean removed = false;
+        try {
+            PartnerContactPKEntity partnerContactPK = new PartnerContactPKEntity();
+            partnerContactPK.setPartner(cntct.getPartner());
+            partnerContactPK.setType(cntct.getType());
+            partnerContactRepository.deleteById(partnerContactPK);
+            removed = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return removed;
+    }
+
+    @Override
+    public boolean removeAddress(AddressDto adrs) {
+        boolean remove = false;
+        try {
+            PartnerAddressEntity adres = new PartnerAddressEntity();
+            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
+            partnerAddressPK.setAddressUsage(adrs.getType());
+            partnerAddressPK.setPartner(adrs.getPartner());
+            partnerAddressPK.setAddressId(adrs.getId());
+            adres.setPartnerAddressPK(partnerAddressPK);
+            String address = Integer.toString(adres.getPartnerAddressPK().getAddressId());
+            addressRepository.deleteById(address);
+            partnerAddressRepository.deleteById(adres.getPartnerAddressPK());
+            remove = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return remove;
+    }
+
+    @Override
+    public boolean removeRelation(RelationDto rltn) {
+        boolean removed = false;
+        try {
+            PartnerRelationPKEntity partnerRelationPK = new PartnerRelationPKEntity();
+            partnerRelationPK.setPartner1(rltn.getPartner1());
+            partnerRelationPK.setPartner2(rltn.getPartner2());
+            partnerRelationPK.setType(rltn.getType());
+            partnerRelationRepository.deleteById(partnerRelationPK);
+            removed = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return removed;
+    }
+
+    @Override
+    public boolean archive(String id) {
+        boolean archive = false;
+        try {
+            PartnerEntity partner = partnerRepository.getById(id);
+            if (partner != null);
+            {
+                if (!partner.getStatus().equals(Status.INACTIVE)) {
+                    partner.setStatus(Status.INACTIVE);
+                    partner.setStatusReason(StatusReason.ARCHIVE);
+                    List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(partner.getId());
+                    for (PartnerRoleEntity partnerRole : roleList) {
+                        removeRole(partnerRole.getPartnerRolePK().getId(), partnerRole.getPartnerRolePK().getRole());
+                    }
+                    partnerRepository.save(partner);
+                    archive = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return archive;
+    }
+
+    @Override
+    public boolean unArchive(String id) {
+        boolean unArchive = false;
+        try {
+            PartnerEntity partner = partnerRepository.getById(id);
+            if (partner != null) {
+                if (partner.getStatus().equals(Status.INACTIVE)) {
+                    partner.setStatus(Status.ACTIVE);
+                    partner.setStatusReason(null);
+                    partnerRepository.save(partner);
+                    unArchive = true;
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return unArchive;
+    }
+
+    @Override
+    public ArrayList<RelationDto> getRelations(String partner) {
+        ArrayList<RelationDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner);
+        for (PartnerRelationEntity partnerRelation : relationsPartner) {
+            RelationDto relation = new RelationDto();
+            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
+            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
+            relation.setType(partnerRelation.getPartnerRelationPK().getType());
+
+            relations.add(relation);
+
+        }
+
+        return relations;
+    }
+
+    @Override
+    public ArrayList<PartnerRoleDto> getAllRoles() {
+        ArrayList<PartnerRoleDto> partnerRoles = new ArrayList<>();
+        List<PartnerRoleEntity> roleList = partnerRoleRepository.findAll();
+        for (PartnerRoleEntity partnerRole : roleList) {
+            PartnerRoleDto partner = new PartnerRoleDto();
+            if (partnerRole != null) {
+                partner.setPartnerID(partnerRole.getPartnerRolePK().getId());
+                partner.setRole(partnerRole.getPartnerRolePK().getRole());
+            }
+            partnerRoles.add(partner);
+        }
+        return partnerRoles;
+    }
+
+    @Override
+    public boolean addBankAccount(PartnerBankAccountDto partnerBankAccount) {
+        boolean added = false;
+        try {
+            PartnerBankingDetailsEntity partnerBankDetails = new PartnerBankingDetailsEntity();
+            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
+            if (partnerBankAccount.getPartner() != null && partnerBankAccount.getAccountNumber() != null && partnerBankAccount.getType() != null) {
+
+                partnerBankDetailsPK.setAccountNumber(partnerBankAccount.getAccountNumber());
+                partnerBankDetailsPK.setPartner(partnerBankAccount.getPartner());
+                partnerBankDetailsPK.setType(partnerBankAccount.getType());
+                partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
+
+                if (partnerBankAccount.getAccountHolder() != null) {
+                    partnerBankDetails.setAccountHolder(partnerBankAccount.getAccountHolder());
+
+                } else {
+                    PartnerEntity partner = partnerRepository.getById(partnerBankAccount.getPartner());
+                    if (partner != null) {
+
+                        partnerBankDetails.setAccountHolder(partner.getName1());
+                    }
+                }
+
+                if (partnerBankAccount.getAccountType() != null) {
+
+                    partnerBankDetails.setAccountType(partnerBankAccount.getAccountType());
+                }
+
+                if (partnerBankAccount.getBankName() != null) {
+                    partnerBankDetails.setBankName(partnerBankAccount.getBankName());
+
+                }
+                if (partnerBankAccount.getBranchCode() != null) {
+                    partnerBankDetails.setBranchCode(partnerBankAccount.getBranchCode());
+
+                }
+
+                if (partnerBankAccount.getBranchName() != null) {
+
+                    partnerBankDetails.setBranchName(partnerBankAccount.getBranchName());
+                }
+
+                partnerBankDetails.setValidFrom(new Date());
+
+                if (partnerBankAccount.getValidTo() != null) {
+                    partnerBankDetails.setValidTo(Conversion.stringToDate(partnerBankAccount.getValidTo()));
+
+                } else {
+                    partnerBankDetails.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+
+                }
+
+                partnerBankDetails.setStatus(Status.ACTIVE);
+                partnerBankAccountRepository.save(partnerBankDetails);
+                added = true;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return added;
+    }
+
+    @Override
+    public ArrayList<PartnerBankAccountDto> getBankAccounts(String partner) {
+        List<PartnerBankingDetailsEntity> bankDetails = partnerBankAccountRepository.findPartnerBankByPartner(partner);
+        ArrayList<PartnerBankAccountDto> bankingDetails = new ArrayList<>();
+        if (!bankDetails.isEmpty()) {
+            for (PartnerBankingDetailsEntity bankDetail : bankDetails) {
+
+                PartnerBankAccountDto partnerBankObj = new PartnerBankAccountDto();
+                if (bankDetail.getPartnerBankingDetailsPk().getAccountNumber() != null) {
+                    partnerBankObj.setAccountNumber(bankDetail.getPartnerBankingDetailsPk().getAccountNumber());
+                }
+
+                if (bankDetail.getPartnerBankingDetailsPk().getPartner() != null) {
+                    partnerBankObj.setPartner(bankDetail.getPartnerBankingDetailsPk().getPartner());
+                }
+
+                if (bankDetail.getPartnerBankingDetailsPk().getType() != null) {
+
+                    partnerBankObj.setType(bankDetail.getPartnerBankingDetailsPk().getType());
+
+                }
+
+                bankingDetails.add(getBankAccount(partnerBankObj));
+            }
+        }
+        return bankingDetails;
+    }
+
+    @Override
+    public ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj) {
+        return null;
+    }
+
+    @Override
+    public boolean editBankAccount(PartnerBankAccountDto partnerBankAccount) {
+        boolean edited = false;
+        try {
+            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
+            partnerBankDetailsPK.setAccountNumber(partnerBankAccount.getAccountNumber());
+            partnerBankDetailsPK.setPartner(partnerBankAccount.getPartner());
+            partnerBankDetailsPK.setType(partnerBankAccount.getType());
+            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
+            if (partnerBankDetails != null) {
+                partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
+
+                if (partnerBankAccount.getAccountHolder() != null) {
+
+                    partnerBankDetails.setAccountHolder(partnerBankAccount.getAccountHolder());
+                }
+
+                if (partnerBankAccount.getAccountType() != null) {
+                    partnerBankDetails.setAccountType(partnerBankAccount.getAccountType());
+                }
+
+                if (partnerBankAccount.getBankName() != null) {
+
+                    partnerBankDetails.setBankName(partnerBankAccount.getBankName());
+                }
+
+                if (partnerBankAccount.getBranchCode() != null) {
+                    partnerBankDetails.setBranchCode(partnerBankAccount.getBranchCode());
+
+                }
+                if (partnerBankAccount.getBranchName() != null) {
+
+                    partnerBankDetails.setBranchName(partnerBankAccount.getBranchName());
+
+                }
+
+                if (partnerBankAccount.getValidTo() != null) {
+
+                    partnerBankDetails.setValidTo(Conversion.stringToDate(partnerBankAccount.getValidTo()));
+
+                }
+
+                partnerBankAccountRepository.save(partnerBankDetails);
+                edited = true;
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return edited;
+    }
+
+    @Override
+    public PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount) {
+        PartnerBankAccountDto bankAccountObj = new PartnerBankAccountDto();
+        if (bankAccount.getAccountNumber() != null && bankAccount.getType() != null && bankAccount.getPartner() != null) {
+            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
+            partnerBankDetailsPK.setAccountNumber(bankAccount.getAccountNumber());
+            partnerBankDetailsPK.setPartner(bankAccount.getPartner());
+            partnerBankDetailsPK.setType(bankAccount.getType());
+            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
+
+            if (partnerBankDetails != null) {
+
+                if (partnerBankDetails.getAccountHolder() != null) {
+                    bankAccountObj.setAccountHolder(partnerBankDetails.getAccountHolder());
+
+                }
+                if (partnerBankDetails.getAccountType() != null) {
+                    bankAccountObj.setAccountType(partnerBankDetails.getAccountType());
+                }
+                if (partnerBankDetails.getBankName() != null) {
+                    bankAccountObj.setBankName(partnerBankDetails.getBankName());
+                }
+                if (partnerBankDetails.getBranchCode() != null) {
+                    bankAccountObj.setBranchCode(partnerBankDetails.getBranchCode());
+                }
+
+                if (partnerBankDetails.getBranchName() != null) {
+
+                    bankAccountObj.setBranchName(partnerBankDetails.getBranchName());
+
+                }
+
+                if (partnerBankDetails.getValidFrom() != null) {
+                    bankAccountObj.setValidFrom(Conversion.dateToString(partnerBankDetails.getValidFrom()));
+                }
+
+                if (partnerBankDetails.getValidTo() != null) {
+
+                    bankAccountObj.setValidTo(Conversion.dateToString(partnerBankDetails.getValidTo()));
+
+                }
+
+                if (partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber() != null) {
+                    bankAccountObj.setAccountNumber(partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber());
+                }
+
+                if (partnerBankDetails.getPartnerBankingDetailsPk().getPartner() != null) {
+                    bankAccountObj.setPartner(partnerBankDetails.getPartnerBankingDetailsPk().getPartner());
+                }
+
+                if (partnerBankDetails.getPartnerBankingDetailsPk().getType() != null) {
+
+                    bankAccountObj.setType(partnerBankDetails.getPartnerBankingDetailsPk().getType());
+
+                }
+
+            }
+        }
+
+        return bankAccountObj;
+    }
+
+    @Override
+    public ArrayList<ValueDto> getPartnerRoles(String partner) {
+        ArrayList<ValueDto> partnerRoles = new ArrayList();
+        List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(partner);
+        if (!roleList.isEmpty()) {
+            for (PartnerRoleEntity partnerRole : roleList) {
+                FieldOptionEntity fo = fieldOptionService.fieldOptionRepository.getById(new FieldOptionPKEntity("PARTNERROLE", partnerRole.getPartnerRolePK().getRole()));
+                ValueDto partnerRol = new ValueDto();
+                if (fo != null) {
+                    partnerRol.setDescription(fo.getDescription());
+                    partnerRol.setId(partnerRole.getPartnerRolePK().getRole());
+                } else {
+                    if (partnerRole.getPartnerRolePK().getRole() != null) {
+                        partnerRol.setId(partnerRole.getPartnerRolePK().getRole());
+                    }
+                }
+                partnerRoles.add(partnerRol);
+            }
+        }
+
+        return partnerRoles;
+    }
+
+    @Override
+    public String addResource(PartnerResourceApiDto partnerResource) {
+        String resourceID = numberRangeService.generateNumber(OrderType.RESOURCE_API);
+        if (resourceID != null) {
+            PartnerRolePKEntity partnerRolePk = new PartnerRolePKEntity();
+            partnerRolePk.setRole(RoleType.ORGANIZATION);
+            partnerRolePk.setId(partnerResource.getPartnerID());
+            PartnerRoleEntity partnerRole = partnerRoleRepository.getById(partnerRolePk);
+            if (partnerRole != null) {
+                try {
+                    PartnerResourceApiEntity partnerResourceApi = new PartnerResourceApiEntity();
+                    partnerResourceApi.setResource_id(resourceID);
+                    partnerResourceApi.setPartner_no(partnerResource.getPartnerID());
+                    partnerResourceApi.setPartner_url(partnerResource.getPartnerUrl());
+                    if (partnerResource.getValidFrom() != null) {
+                        partnerResourceApi.setValidFrom(Conversion.stringToDate(partnerResource.getValidFrom()));
+
+                    } else {
+
+                        partnerResourceApi.setValidFrom(new Date());
+                    }
+
+                    if (partnerResource.getValidTo() != null) {
+                        partnerResourceApi.setValidTo(Conversion.stringToDate(partnerResource.getValidTo()));
+
+                    } else {
+                        partnerResourceApi.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+
+                    }
+
+                    if (partnerResource.getStatus() != null) {
+                        partnerResourceApi.setStatus(partnerResource.getStatus());
+
+                    } else {
+
+                        partnerResourceApi.setStatus(Status.INACTIVE);
+                    }
+
+                    if (partnerResource.getStatusReason() != null) {
+                        partnerResourceApi.setStatus_reason(partnerResource.getStatusReason());
+                    } else {
+                        partnerResourceApi.setStatus_reason(StatusReason.INACTIVE);
+
+                    }
+
+                    partnerResourceApi.setPort_number(partnerResource.getPortNumber());
+
+                    if (partnerResource.getResourceName() != null) {
+
+                        partnerResourceApi.setResource_name(partnerResource.getResourceName());
+
+                    }
+
+                    partnerResourceApiRepository.save(partnerResourceApi);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return resourceID;
     }
 }

@@ -11,4 +11,7 @@ import java.util.List;
 public interface PartnerRelationRepository extends JpaRepository<PartnerRelationEntity, PartnerRelationPKEntity> {
     @Query(value = "SELECT p FROM PartnerRelation p WHERE p.partnerRelationPK.partner2 = :partner2", nativeQuery = true)
     List<PartnerRelationEntity> findPartnerRelationByPartner2(String partner2);
+
+    @Query(value = "SELECT p FROM PartnerRelation p WHERE p.partnerRelationPK.partner1 = :partner1", nativeQuery = true)
+    List<PartnerRelationEntity> findPartnerRelationByPartner1(String partner1);
 }

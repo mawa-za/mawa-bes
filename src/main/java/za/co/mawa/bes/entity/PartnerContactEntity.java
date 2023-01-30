@@ -1,13 +1,12 @@
 package za.co.mawa.bes.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.util.Date;
 
+@Entity
+@Table(name = "partner_contact")
 public class PartnerContactEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId

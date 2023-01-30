@@ -3,10 +3,7 @@ package za.co.mawa.bes.controller;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 import za.co.mawa.bes.dto.PersonDto;
@@ -16,6 +13,7 @@ import za.co.mawa.bes.utils.RoleType;
 import java.util.ArrayList;
 
 @RestController
+@CrossOrigin
 public class CustomerController {
     @Autowired
     PartnerService partnerService;
