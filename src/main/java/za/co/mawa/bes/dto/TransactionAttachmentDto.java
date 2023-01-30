@@ -1,4 +1,15 @@
 package za.co.mawa.bes.dto;
 
-public class TransactionAttachmentDto {
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.io.Serializable;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class TransactionAttachmentDto implements Serializable {
 }

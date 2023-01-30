@@ -1,38 +1,26 @@
 package za.co.mawa.bes.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import za.co.mawa.bes.entity.TransactionAmountEntity;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
-
-public class TransactionAmountDto {
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class TransactionAmountDto implements Serializable {
     private String transaction;
     private String type;
     private BigDecimal amount;
 
     public TransactionAmountDto(TransactionAmountEntity transactionAmountEntity) {
+        this.transaction = transactionAmountEntity.getTransactionAmountPKEntity().getTransaction();
+        this.type = transactionAmountEntity.getTransactionAmountPKEntity().getType();
+        this.amount = transactionAmountEntity.getAmount();
     }
 
-    public String getTransaction() {
-        return transaction;
-    }
-
-    public void setTransaction(String transaction) {
-        this.transaction = transaction;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
 }
