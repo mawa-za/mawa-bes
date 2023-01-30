@@ -39,6 +39,12 @@ public class PartnerService implements PartnerDao {
     PartnerBankAccountRepository partnerBankAccountRepository;
     @Autowired
     PartnerResourceApiRepository partnerResourceApiRepository;
+    @Autowired
+    PartnerAttachmentRepository partnerAttachmentRepository;
+    @Autowired
+    UserService userService;
+    @Autowired
+    PartnerDateRepository partnerDateRepository;
     @Override
     public String create(PartnerEntity partnerEntity) {
         return null;
@@ -1162,5 +1168,277 @@ public class PartnerService implements PartnerDao {
             }
         }
         return resourceID;
+    }
+
+    @Override
+    public ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource) {
+        ArrayList<PartnerResourceApiResultDto> partnerUrlList = new ArrayList<>();
+        if (partnerResource.getPartnerID() != null) {
+            List<PartnerResourceApiEntity> partnerResourcesList = partnerResourceApiRepository.findByPartner(partnerResource.getPartnerID());
+            if (!partnerResourcesList.isEmpty()) {
+                for (PartnerResourceApiEntity partnerResourceObject : partnerResourcesList) {
+                    PartnerResourceApiResultDto partnerUrl = getResourceApi(partnerResourceObject.getResource_id());
+                    partnerUrlList.add(partnerUrl);
+                }
+            }
+        }
+        return partnerUrlList;
+    }
+
+    @Override
+    public PartnerResourceApiResultDto getResourceApi(String resource_id) {
+        PartnerResourceApiResultDto partnerResourceResult = new PartnerResourceApiResultDto();
+        if (resource_id != null) {
+            PartnerResourceApiEntity partnerResource = partnerResourceApiRepository.getById(resource_id);
+            if (partnerResource != null) {
+                partnerResourceResult.setResourceID(partnerResource.getResource_id());
+                partnerResourceResult.setPartnerID(partnerResource.getPartner_no());
+                if (partnerResource.getResource_name() != null) {
+                    partnerResourceResult.setPartnerUrl(partnerResource.getPartner_url() + ":" + partnerResource.getPort_number() + partnerResource.getResource_name());
+                } else {
+                    partnerResourceResult.setPartnerUrl(partnerResource.getPartner_url() + ":" + partnerResource.getPort_number());
+                }
+                partnerResourceResult.setValidFrom(Conversion.dateToString(partnerResource.getValidFrom()));
+                partnerResourceResult.setValidTo(Conversion.dateToString(partnerResource.getValidTo()));
+                partnerResourceResult.setStatus(partnerResource.getStatus());
+                partnerResourceResult.setStatusReason(partnerResource.getStatus_reason());
+
+            }
+        }
+        return partnerResourceResult;
+    }
+
+    @Override
+    public boolean editResourceApi(PartnerResourceApiDto partnerResourceObj) {
+        boolean edited = false;
+        PartnerResourceApiEntity partnerResourceApi = partnerResourceApiRepository.getById(partnerResourceObj.getId());
+        if (partnerResourceApi != null) {
+            try {
+                if (partnerResourceObj.getPartnerUrl() != null) {
+                    partnerResourceApi.setPartner_url(partnerResourceObj.getPartnerUrl());
+                }
+                if (partnerResourceObj.getPortNumber() != null) {
+                    partnerResourceApi.setPort_number(partnerResourceObj.getPortNumber());
+                }
+                if (partnerResourceObj.getResourceName() != null) {
+                    partnerResourceApi.setResource_name(partnerResourceObj.getResourceName());
+                }
+                if (partnerResourceObj.getStatus() != null) {
+                    partnerResourceApi.setStatus(partnerResourceObj.getStatus());
+                }
+                if (partnerResourceObj.getStatusReason() != null) {
+                    partnerResourceApi.setStatus_reason(partnerResourceObj.getStatusReason());
+                }
+                if (partnerResourceObj.getValidFrom() != null) {
+                    partnerResourceApi.setValidFrom(Conversion.stringToDate(partnerResourceObj.getValidFrom()));
+                }
+                if (partnerResourceObj.getValidTo() != null) {
+                    partnerResourceApi.setValidTo(Conversion.stringToDate(partnerResourceObj.getValidTo()));
+                }
+
+                partnerResourceApiRepository.save(partnerResourceApi);
+                edited = true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return edited;
+    }
+
+    @Override
+    public boolean addAttachment(AttachmentDto attachment) {
+        boolean processed = false;
+        try {
+            PartnerAttachmentEntity entity = new PartnerAttachmentEntity();
+            entity.setId(attachment.getId());
+            entity.setPartner(attachment.getParent());
+            entity.setType(attachment.getType());
+            entity.setName(attachment.getFileName());
+            entity.setExtension(attachment.getExtension());
+            entity.setCreatedBy(attachment.getCreatedBy());
+            entity.setCreatedAt(new Date());
+            entity.setStatus(Status.ACTIVE);
+            entity.setValidFrom(new Date());
+            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
+            partnerAttachmentRepository.save(entity);
+            processed = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return processed;
+    }
+
+    @Override
+    public boolean removeAttachment(AttachmentDto attachment) {
+        boolean edited = false;
+        PartnerAttachmentEntity attach = partnerAttachmentRepository.getById(attachment.getId());
+        if (attach != null) {
+            try {
+                attach.setStatus(Status.DELETED);
+                attach.setValidTo(new Date());
+                partnerAttachmentRepository.save(attach);
+                edited = true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return edited;
+    }
+
+    @Override
+    public ArrayList<AttachmentDto> getAttachments(String partner) {
+        ArrayList<AttachmentDto> list = new ArrayList<>();
+        List<PartnerAttachmentEntity> attachments = partnerAttachmentRepository.findByPartner(partner);
+        for (PartnerAttachmentEntity partnerAttachment : attachments) {
+            AttachmentDto object = new AttachmentDto();
+            if (partnerAttachment.getStatus().equals(Status.ACTIVE)) {
+                UserDto usrObj = new UserDto();
+                object.setId(partnerAttachment.getId());
+                object.setParent(partnerAttachment.getPartner());
+                object.setCreatedAt(Conversion.dateTimeToString(partnerAttachment.getCreatedAt()));
+                object.setCreatedBy(partnerAttachment.getCreatedBy());
+
+                usrObj = userService.getUserById(partnerAttachment.getCreatedBy());
+                if (usrObj.getPartner() != null) {
+                    object.setAttachedById(usrObj.getPartner());
+                    PartnerDto prt = new PartnerDto();
+                    prt = get(usrObj.getPartner());
+
+                    if (prt != null) {
+                        PersonDto person = new PersonDto(prt);
+                        object.setAttachedBy(person);
+                    }
+                }
+                object.setExtension(partnerAttachment.getExtension());
+                object.setFileName(partnerAttachment.getName());
+                object.setType(fieldOptionService.getFieldOptionDescription("DOCUMENTTYPE", partnerAttachment.getType()));
+                if (partnerAttachment.getStatus() != null) {
+                    object.setStatus(partnerAttachment.getStatus());
+                }
+                if (partnerAttachment.getStatusReason() != null) {
+                    object.setStatusReason(partnerAttachment.getStatusReason());
+                }
+                if (partnerAttachment.getValidFrom() != null) {
+                    object.setValidFrom(Conversion.dateToString(partnerAttachment.getValidFrom()));
+                }
+                if (partnerAttachment.getValidTo() != null) {
+                    object.setValidTo(Conversion.dateToString(partnerAttachment.getValidTo()));
+                }
+                list.add(object);
+            }
+
+        }
+        return list;
+    }
+
+    @Override
+    public boolean addDate(PartnerDateDto date) {
+        boolean created = false;
+        try {
+            PartnerDatePKEntity ptnDatePK = new PartnerDatePKEntity();
+            ptnDatePK.setPartnerNumber(date.getPartnerNo());
+            if (date.getType() != null) {
+                ptnDatePK.setType(date.getType());
+            }
+            PartnerDateEntity ptnDate = new PartnerDateEntity();
+            if (ptnDatePK != null) {
+                ptnDate.setPartnerDatePK(ptnDatePK);
+            }
+            if (date.getValue() != null) {
+                ptnDate.setValue(Conversion.stringToDate(date.getValue()));
+            } else {
+                ptnDate.setValue(new Date());
+            }
+            partnerDateRepository.save(ptnDate);
+            created = true;
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return created;
+    }
+
+    @Override
+    public boolean editDate(PartnerDateDto date) {
+        boolean edited = true;
+        PartnerDatePKEntity ptnDatePK = new PartnerDatePKEntity();
+        try {
+            ptnDatePK.setPartnerNumber(date.getPartnerNo());
+            ptnDatePK.setType(date.getType());
+            PartnerDateEntity ptnDate = new PartnerDateEntity();
+            ptnDate.setPartnerDatePK(ptnDatePK);
+            ptnDate.setValue(Conversion.stringToDate(date.getValue()));
+            partnerDateRepository.save(ptnDate);
+            edited = true;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return edited;
+    }
+
+    @Override
+    public PartnerDateDto getDate(String partnerNo, String dateType) {
+        PartnerDateDto partnerDateObj = null;
+        PartnerDatePKEntity partnerDatePK = new PartnerDatePKEntity();
+        partnerDatePK.setPartnerNumber(partnerNo);
+        partnerDatePK.setType(dateType);
+        PartnerDateEntity partnerDate = partnerDateRepository.getById(partnerDatePK);
+        if (partnerDate != null) {
+            partnerDateObj = new PartnerDateDto();
+            partnerDateObj.setPartnerNo(partnerDate.getPartnerDatePK().getPartnerNumber());
+            partnerDateObj.setType(partnerDate.getPartnerDatePK().getType());
+            if (partnerDateObj.getType() != null) {
+                partnerDateObj.setTypeDescription(fieldOptionService.getFieldOptionDescription("DATETYPES", partnerDateObj.getType()));
+            }
+            partnerDateObj.setValue(Conversion.dateTimeToString(partnerDate.getValue()));
+        }
+        return partnerDateObj;
+    }
+
+    @Override
+    public ArrayList<PartnerDateDto> getDates(String partnerNo) {
+        ArrayList<PartnerDateDto> dates = new ArrayList<>();
+        List<PartnerDateEntity> dateList = partnerDateRepository.findByPartner(partnerNo);
+        for (PartnerDateEntity partnerDate : dateList) {
+            PartnerDateDto pDates = new PartnerDateDto();
+            pDates.setType(partnerDate.getPartnerDatePK().getType());
+            if (pDates.getType() != null) {
+                pDates.setTypeDescription(fieldOptionService.getFieldOptionDescription("DATETYPES", pDates.getType()));
+            }
+            pDates.setValue((Conversion.dateTimeToString(partnerDate.getValue())));
+            dates.add(pDates);
+        }
+        return dates;
+    }
+
+    @Override
+    public ArrayList<PartnerDateDto> getAllDates() {
+        ArrayList<PartnerDateDto> dates = new ArrayList<>();
+        List<PartnerDateEntity> dateList = partnerDateRepository.findAll();
+        for (PartnerDateEntity partnerDate : dateList) {
+            PartnerDateDto pDates = new PartnerDateDto();
+            pDates.setPartnerNo(partnerDate.getPartnerDatePK().getPartnerNumber());
+            pDates.setType(partnerDate.getPartnerDatePK().getType());
+            if (pDates.getType() != null) {
+                pDates.setTypeDescription(fieldOptionService.getFieldOptionDescription("DATETYPES", pDates.getType()));
+            }
+            pDates.setValue((Conversion.dateTimeToString(partnerDate.getValue())));
+            dates.add(pDates);
+        }
+        return dates;
+    }
+
+    @Override
+    public ArrayList<RelationDto> getRelationByPartner1(String partner1) {
+        ArrayList<RelationDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner1);
+        for (PartnerRelationEntity partnerRelation : relationsPartner) {
+            RelationDto relation = new RelationDto();
+            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
+            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
+            relation.setType(partnerRelation.getPartnerRelationPK().getType());
+            relations.add(relation);
+        }
+        return relations;
     }
 }

@@ -42,4 +42,16 @@ public interface PartnerDao {
     PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
     ArrayList<ValueDto> getPartnerRoles(String partner);
     String addResource(PartnerResourceApiDto partnerResource);
+    ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
+    PartnerResourceApiResultDto getResourceApi(String resource_id);
+    boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
+    boolean addAttachment(AttachmentDto attachment);
+    boolean removeAttachment(AttachmentDto attachment);
+    ArrayList<AttachmentDto> getAttachments(String partner);
+    boolean addDate(PartnerDateDto date);
+    boolean editDate(PartnerDateDto date);
+    PartnerDateDto getDate(String partnerNo, String dateType);
+    ArrayList<PartnerDateDto> getDates(String partnerNo);
+    ArrayList<PartnerDateDto> getAllDates();
+    ArrayList<RelationDto> getRelationByPartner1(String partner1);
 }
