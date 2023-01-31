@@ -6,7 +6,7 @@ import za.co.mawa.bes.entity.TransactionEntity;
 import java.util.ArrayList;
 
 public interface TransactionDao {
-    String create(TransactionDto transactionDto);
+    TransactionDto create(TransactionDto transactionDto);
     ArrayList<TransactionDto> search(TransactionQueryDto query);
     void edit(TransactionDto transactionDto);
     void delete(String id);

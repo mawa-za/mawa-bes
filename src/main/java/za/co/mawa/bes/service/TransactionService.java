@@ -30,7 +30,7 @@ public class TransactionService implements TransactionDao {
     UserService userService;
 
     @Override
-    public String create(TransactionDto transactionDto) {
+    public TransactionDto create(TransactionDto transactionDto) {
         try {
             TransactionEntity transactionEntity = new TransactionEntity(transactionDto);
             String id = numberRangeService.generateNumber(transactionEntity.getType());
@@ -44,12 +44,7 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(userService.getCurrentUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
-
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(id);
-            creationDate.setType(DateType.CREATED);
-            addDate(creationDate);
-            return createdTransactionEntity.getId();
+            return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
             throw new RuntimeException();
         } catch (Exception e) {
