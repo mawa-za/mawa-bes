@@ -47,7 +47,7 @@ public class AuthenticationController {
     Gson gson = new Gson();
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestBody UserDto userDto) throws Exception {
-
+        userDto.setId(userDto.getUsername());
         authenticate(userDto.getId(),userDto.getPassword());
 //        userService.authenticate(userDto);
         final UserDetails userDetails = userDetailsService.loadUserByUsername(userDto.getId());
