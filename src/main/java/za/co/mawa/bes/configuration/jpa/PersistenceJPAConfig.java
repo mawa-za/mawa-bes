@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
-@EnableTransactionManagement
 @EntityScan("za.co.mawa.bes")
 @EnableJpaRepositories("za.co.mawa.bes")
 @ComponentScan(basePackages = "za.co.mawa.bes")
