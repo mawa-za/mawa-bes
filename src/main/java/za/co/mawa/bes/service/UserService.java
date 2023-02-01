@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@Transactional
 public class UserService implements UserDao {
     @Autowired
     EntityManager entityManager;
@@ -59,7 +58,7 @@ public class UserService implements UserDao {
         }
         return authenticated;
     }
-
+    @Transactional
     @Override
     public UserDto create(UserCreateDto userCreateDto) {
         UserEntity userEntity = new UserEntity();
@@ -75,14 +74,14 @@ public class UserService implements UserDao {
         UserEntity userEntity = userRepository.getById(userDto.getId());
 //        userEntity.setId(userUpdateDto.getId());
     }
-
+    @Transactional
     @Override
     public UserDto update(UserUpdateDto userUpdateDto) {
         UserEntity userEntity = userRepository.getById(userUpdateDto.getId());
         userEntity.setId(userUpdateDto.getId());
         return entityToDto(userRepository.save(userEntity));
     }
-
+    @Transactional
     @Override
     public UserDto updatePassword(UserUpdateDto userUpdateDto) {
         try {
@@ -94,7 +93,7 @@ public class UserService implements UserDao {
         }
 
     }
-
+    @Transactional
     @Override
     public UserDto getUserById(String id) {
         try {
@@ -110,7 +109,7 @@ public class UserService implements UserDao {
             return null;
         }
     }
-
+    @Transactional
     private UserEntity createAdminUser() {
         UserEntity userEntity = new UserEntity();
         TestEntity testEntity = new TestEntity();
@@ -127,6 +126,7 @@ public class UserService implements UserDao {
         }
         return userEntity;
     }
+    @Transactional
     @Override
     public List<UserDto> getAll() {
         List<UserDto> userDtoList = new ArrayList<>();
