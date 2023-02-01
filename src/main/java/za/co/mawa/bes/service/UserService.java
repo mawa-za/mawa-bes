@@ -18,9 +18,11 @@ import za.co.mawa.bes.dto.UserUpdateDto;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;
+import za.co.mawa.bes.utils.Constant;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -58,15 +60,21 @@ public class UserService implements UserDao {
         }
         return authenticated;
     }
-    @Transactional
     @Override
-    public UserDto create(UserCreateDto userCreateDto) {
-        UserEntity userEntity = new UserEntity();
-        userEntity.setId(userCreateDto.getId());
-        userEntity.setEmail(userCreateDto.getEmail());
-        userEntity.setUserType(userCreateDto.getUserType());
-        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
-        return entityToDto(userRepository.save(userEntity));
+    public UserDto create(UserCreateDto userCreateDto) throws Exception {
+        try {
+            UserEntity userEntity = new UserEntity();
+//            userEntity.setId(userCreateDto.getId());
+            userEntity.setUsername(userCreateDto.getUsername());
+            userEntity.setEmail(userCreateDto.getEmail());
+            userEntity.setUserType(userCreateDto.getUserType());
+            userEntity.setValidFrom(new Date());
+            userEntity.setValidTo(new Date());
+            userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+            return entityToDto(userRepository.save(userEntity));
+        } catch (Exception exception) {
+            throw new Exception();
+        }
     }
 
     @Override
@@ -74,14 +82,14 @@ public class UserService implements UserDao {
         UserEntity userEntity = userRepository.getById(userDto.getId());
 //        userEntity.setId(userUpdateDto.getId());
     }
-    @Transactional
+
     @Override
     public UserDto update(UserUpdateDto userUpdateDto) {
         UserEntity userEntity = userRepository.getById(userUpdateDto.getId());
         userEntity.setId(userUpdateDto.getId());
         return entityToDto(userRepository.save(userEntity));
     }
-    @Transactional
+
     @Override
     public UserDto updatePassword(UserUpdateDto userUpdateDto) {
         try {
@@ -93,40 +101,29 @@ public class UserService implements UserDao {
         }
 
     }
-    @Transactional
+
     @Override
-    public UserDto getUserById(String id) {
+    public UserDto getUserByName(String username) throws Exception {
         try {
-            UserEntity userEntity = userRepository.getById(id);
-            return entityToDto(userEntity);
-        } catch (EntityNotFoundException ex) {
-            UserDto userDto = null;
-            if (id.equals(ADMIN_USER)) {
-                userDto = entityToDto(createAdminUser());
+            UserEntity userEntity = userRepository.getByName(username);
+            if (userEntity == null){
+                UserDto userDto = null;
+                if (username.equals(ADMIN_USER)) {
+                    UserCreateDto userCreateDto = new UserCreateDto();
+                    userCreateDto.setUsername(ADMIN_USER);
+                    userCreateDto.setPassword(DEFAULT_ADMIN_PASSWORD);
+                    userDto = create(userCreateDto);
+                }
+                return userDto;
+            }else{
+                return entityToDto(userEntity);
             }
-            return userDto;
+
         } catch (Exception ex) {
             return null;
         }
     }
-    @Transactional
-    private UserEntity createAdminUser() {
-        UserEntity userEntity = new UserEntity();
-        TestEntity testEntity = new TestEntity();
-        try {
-            testEntity.setUsername(ADMIN_USER);
-            testEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
-            testRepository.save(testEntity);
 
-            userEntity.setId(ADMIN_USER);
-            userEntity.setPassword(encryptionService.encrypt(DEFAULT_ADMIN_PASSWORD, secret).getBytes());
-            userRepository.save(userEntity);
-        } catch (Exception ex) {
-           System.out.println(ex.getMessage());
-        }
-        return userEntity;
-    }
-    @Transactional
     @Override
     public List<UserDto> getAll() {
         List<UserDto> userDtoList = new ArrayList<>();
@@ -157,9 +154,9 @@ public class UserService implements UserDao {
 
     private UserDto entityToDto(UserEntity userEntity) {
         UserDto userDto = new UserDto();
-        userDto.setId(userEntity.getId());
+        userDto.setUsername(userEntity.getUsername());
         try {
-            userDto.setPassword(new String(userEntity.getPassword(),"UTF-8"));
+            userDto.setPassword(new String(userEntity.getPassword(), "UTF-8"));
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
