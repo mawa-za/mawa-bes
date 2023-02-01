@@ -11,8 +11,8 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TransactionItemPKEntity implements Serializable {
-    @Column(name = "transaction", length = 20)
+    @Column(name = "transaction")
     private String transaction;
-    @Column(name = "item", length = 40)
+    @Column(name = "item")
     private String item;
 }

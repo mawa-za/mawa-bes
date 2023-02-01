@@ -13,9 +13,9 @@ import java.io.Serializable;
 @Embeddable
 public class UserRolePKEntity implements Serializable {
 
-    @Column(name = "user", length = 200)
+    @Column(name = "user")
     private String user;
-    @Column(name = "role", length = 20)
+    @Column(name = "role")
     private String role;
 
     public UserRolePKEntity() {

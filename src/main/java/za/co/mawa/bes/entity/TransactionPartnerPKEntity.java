@@ -13,12 +13,12 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TransactionPartnerPKEntity implements Serializable {
-    @Column(name = "transaction", length = 20)
+    @Column(name = "transaction")
     private String transaction;
-    @Column(name = "partner_function", length = 20)
-    private String partnerFunction;
-    @Column(name = "partner_no", length = 20)
-    private String partnerNo;
+    @Column(name = "function")
+    private String function;
+    @Column(name = "partner")
+    private String partner;
 
 
 }

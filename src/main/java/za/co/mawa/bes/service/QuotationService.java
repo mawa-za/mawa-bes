@@ -19,7 +19,6 @@ public class QuotationService implements QuotationDao {
         try {
             TransactionDto transactionDto = new TransactionDto();
             transactionDto.setType(TransactionType.QUOTATION);
-
             QuotationDto quotationDto = (QuotationDto) transactionService.create(transactionDto);
 
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -32,7 +31,6 @@ public class QuotationService implements QuotationDao {
             transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
             transactionPartnerDto.setPartner(quotationCreateDto.getCustomer());
             transactionService.addPartner(transactionPartnerDto);
-
             return null;
         }catch (Exception exception){
             throw new Exception();
