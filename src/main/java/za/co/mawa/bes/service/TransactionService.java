@@ -142,7 +142,7 @@ public class TransactionService implements TransactionDao {
         if (query.getPartnerFunction() != null && query.getPartnerNo() != null) {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(query.getPartnerNo());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
-                if (transactionPartnerEntity.getTransactionPartnerPK().getPartnerFunction().equals(query.getPartnerFunction())) {
+                if (transactionPartnerEntity.getTransactionPartnerPK().getFunction().equals(query.getPartnerFunction())) {
                     TransactionDto object = getTransaction(transactionPartnerEntity.getTransactionPartnerPK().getTransaction());
                     transactionDtos.add(object);
                 }
@@ -178,42 +178,7 @@ public class TransactionService implements TransactionDao {
         TransactionDto transactionDto = null;
         TransactionEntity transactionEntity = transactionRepository.getById(orderId);
         if (transactionEntity != null) {
-            transactionDto = new TransactionDto();
-            transactionDto.setId(transactionEntity.getId());
-            if (transactionEntity.getSubType() != null) {
-                transactionDto.setSubType(transactionEntity.getSubType());
-            }
-            if (transactionEntity.getLocation() != null) {
-                transactionDto.setLocation(transactionEntity.getLocation());
-            }
-            if (transactionEntity.getType() != null) {
-                transactionDto.setType(transactionEntity.getType());
-            }
-            transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
-            if (transactionEntity.getStatusReason() != null) {
-                transactionDto.setStatusReason(StringConversion.capitalizeFully(transactionEntity.getStatusReason().replaceAll("_", " ")));
-            }
-            if (transactionEntity.getSubStatus() != null) {
-                transactionDto.setSubStatus(StringConversion.capitalizeFully(transactionEntity.getSubStatus()));
-            }
-            if (transactionEntity.getDescription() != null) {
-                transactionDto.setDescription(transactionEntity.getDescription());
-            }
-            if (transactionEntity.getSubDescription() != null) {
-                transactionDto.setSubDescription(transactionEntity.getSubDescription());
-            }
-            if (transactionEntity.getValidTo() != null) {
-                transactionDto.setValidTo(Conversion.dateToString(transactionEntity.getValidTo()));
-            }
-            if (transactionEntity.getValidFrom() != null) {
-                transactionDto.setValidFrom(Conversion.dateToString(transactionEntity.getValidFrom()));
-            }
-            if (transactionEntity.getCreatedBy() != null) {
-                transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
-            }
-            if (transactionEntity.getChangedBy() != null) {
-                transactionDto.setChangedBy(transactionEntity.getChangedBy());
-            }
+            transactionDto = new TransactionDto(transactionEntity);
         }
         return transactionDto;
     }
@@ -221,17 +186,9 @@ public class TransactionService implements TransactionDao {
     @Override
     public void addItem(TransactionItemDto transactionItemDto) {
         try {
-            TransactionItemPKEntity transactionItemPKEntity = new TransactionItemPKEntity();
-            transactionItemPKEntity.setTransaction(transactionItemDto.getTransaction());
+            TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
-            transactionItemPKEntity.setItem(itemUUID);
-
-            TransactionItemEntity transactionItemEntity = new TransactionItemEntity();
-            transactionItemEntity.setTransactionItemPKEntity(transactionItemPKEntity);
-            transactionItemEntity.setProduct(transactionItemDto.getProduct());
-            transactionItemEntity.setUnitOfMeasure(transactionItemDto.getUnitOfMeasure());
-            transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
-            transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
+            transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
             transactionItemEntity.setValidFrom(new Date());
             transactionItemEntity.setValidTo(new Date(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
@@ -305,8 +262,8 @@ public class TransactionService implements TransactionDao {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
-            transactionPartnerPKEntity.setPartnerFunction(transactionPartnerDto.getFunction());
-            transactionPartnerPKEntity.setPartnerNo(transactionPartnerDto.getPartner());
+            transactionPartnerPKEntity.setFunction(transactionPartnerDto.getFunction());
+            transactionPartnerPKEntity.setPartner(transactionPartnerDto.getPartner());
 
             TransactionPartnerEntity transactionPartnerEntity = new TransactionPartnerEntity();
             transactionPartnerEntity.setTransactionPartnerPK(transactionPartnerPKEntity);
@@ -324,8 +281,8 @@ public class TransactionService implements TransactionDao {
     public void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
         TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
         transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
-        transactionPartnerPKEntity.setPartnerFunction(transactionPartnerDto.getFunction());
-        transactionPartnerPKEntity.setPartnerNo(transactionPartnerDto.getPartner());
+        transactionPartnerPKEntity.setFunction(transactionPartnerDto.getFunction());
+        transactionPartnerPKEntity.setPartner(transactionPartnerDto.getPartner());
         try {
             transactionPartnerRepository.deleteById(transactionPartnerPKEntity);
         } catch (Exception ex) {

@@ -12,6 +12,7 @@ import java.io.Serializable;
 @Setter
 public class TransactionDto implements Serializable {
     private String id;
+    private String number;
     private String type;
     private String subType;
     private String description;
@@ -27,6 +28,7 @@ public class TransactionDto implements Serializable {
 
     public TransactionDto(TransactionEntity transactionEntity) {
         this.id = transactionEntity.getId();
+        this.number = transactionEntity.getNumber();
         this.type = transactionEntity.getType();
         this.subType = transactionEntity.getSubType();
         this.status = transactionEntity.getStatus();

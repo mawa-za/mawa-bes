@@ -34,6 +34,5 @@ public class UserController {
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.POST)
     public ResponseEntity<?> addRole(@PathVariable String id) throws Exception {
         return null;
-
     }
 }
