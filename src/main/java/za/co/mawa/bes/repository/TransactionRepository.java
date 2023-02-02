@@ -9,10 +9,10 @@ import java.util.List;
 
 @Component
 public interface TransactionRepository extends JpaRepository<TransactionEntity,String> {
-    @Query(value = "SELECT t FROM Transaction t WHERE t.type = :type", nativeQuery = true)
+    @Query(value = "SELECT * FROM transaction t WHERE t.type = :type", nativeQuery = true)
     List<TransactionEntity> findTransactionByType(String type);
 
-    @Query(value = "SELECT t FROM Transaction t WHERE t.status = :status", nativeQuery = true)
+    @Query(value = "SELECT * FROM transaction t WHERE t.status = :status", nativeQuery = true)
     List<TransactionEntity> findTransactionByStatus(String status);
 
 }

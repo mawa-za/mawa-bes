@@ -260,9 +260,9 @@ public class EmploymentService implements EmploymentDao {
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setPartnerFunction(PartnerFunction.APPROVER);
         transactionQueryDto.setPartnerNo(approver);
-        ArrayList<TransactionDto> transactionDtos = transactionService.search(transactionQueryDto);
+        List<TransactionDto> transactionDtos = transactionService.search(transactionQueryDto);
         for(TransactionDto transactionDto : transactionDtos){
-            ArrayList<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
+            List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
             for(TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos){
                 if(transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){
                     EmploymentDto employmentDto = get(transactionPartnerDto.getPartner());

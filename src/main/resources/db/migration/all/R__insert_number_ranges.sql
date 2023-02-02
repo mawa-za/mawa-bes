@@ -1,11 +1,20 @@
-INSERT INTO `mawa`.`settings` (`value`, `attribute`, `setting`)
-VALUES ('qas.api.admin.app.mawa.co.za', 'admin-api-host', 'ADMIN');
-
-INSERT INTO `mawa`.`settings` (`value`, `attribute`, `setting`)
-VALUES ('qas.api.admin.app.mawa.co.za', 'admin-api-username', 'ADMIN');
-
-INSERT INTO `mawa`.`settings` (`value`, `attribute`, `setting`)
-VALUES ('qas.api.admin.app.mawa.co.za', 'admin-api-password', 'ADMIN');
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'QUOTATION', '0000000001', CURRENT_DATE, '9999-12-31');
 
 INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
-VALUES ('0000000001', '9999999999', 'QUOTATION', '0000000001', CURRENT_DATE, '9999-12-31');
+VALUES ('0000000000', '9999999999', 'INVOICE', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'SALES-ORDER', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'SERVICE-REQUEST', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'SERVICE-ORDER', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'PURCHASE-ORDER', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'PURCHASE-REQUISITION', '0000000001', CURRENT_DATE, '9999-12-31');

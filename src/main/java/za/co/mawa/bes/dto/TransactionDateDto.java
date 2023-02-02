@@ -15,8 +15,8 @@ public class TransactionDateDto implements Serializable {
     private String type;
     private Date value;
     public TransactionDateDto(TransactionDateEntity transactionDateEntity) {
-        this.transaction = transactionDateEntity.getTransactionDatePK().getTransaction();
-        this.type = transactionDateEntity.getTransactionDatePK().getType();
+        this.transaction = transactionDateEntity.getTransactionDatePKEntity().getTransaction();
+        this.type = transactionDateEntity.getTransactionDatePKEntity().getType();
         this.value = transactionDateEntity.getValue();
     }
 

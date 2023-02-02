@@ -26,19 +26,19 @@ public class EmploymentEntity implements Serializable {
     @Temporal(TemporalType.DATE)
     private Date endDate;
     //@Size(max = 10)
-    @Column(name = "position", length = 20)
+    @Column(name = "position")
     private String position;
     //@Size(max = 5)
-    @Column(name = "status", length = 20)
+    @Column(name = "status")
     private String status;
 
-    @Column(name = "type", length = 20)
+    @Column(name = "type")
     private String type;
 
-    @Column(name = "branch", length = 20)
+    @Column(name = "branch")
     private String branch;
 
-    @Column(name = "department", length = 20)
+    @Column(name = "department")
     private String department;
 
     public EmploymentEntity() {

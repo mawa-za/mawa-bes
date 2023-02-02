@@ -10,17 +10,17 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.util.List;
 
 @Service
-public class ServiceRequestService extends TransactionService {
+public class InvoiceService extends TransactionService {
     @Autowired
     TransactionService transactionService;
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
-        transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
+        transactionCreateDto.setType(TransactionType.INVOICE);
         return super.create(transactionCreateDto);
     }
     @Override
     public List<TransactionDto> search(TransactionQueryDto transactionQueryDto){
-        transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
+        transactionQueryDto.setType(TransactionType.INVOICE);
         return super.search(transactionQueryDto);
     }
 

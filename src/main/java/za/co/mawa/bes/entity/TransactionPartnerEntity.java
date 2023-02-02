@@ -17,7 +17,7 @@ import java.util.Date;
 public class TransactionPartnerEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
-    protected TransactionPartnerPKEntity transactionPartnerPK;
+    protected TransactionPartnerPKEntity transactionPartnerPKEntity;
     @Column(name = "date_added")
     @Temporal(TemporalType.DATE)
     private Date dateAdded;
@@ -30,13 +30,13 @@ public class TransactionPartnerEntity implements Serializable {
     @Column(name = "valid_to")
     @Temporal(TemporalType.DATE)
     private Date validTo;
-    @Column(name = "status", length = 20)
+    @Column(name = "status")
     private String status;
-    @Column(name = "status_reason", length = 20)
+    @Column(name = "status_reason")
     private String statusReason;
-    @Column(name = "createdBy",length = 45)
+    @Column(name = "createdBy")
     private String createdBy;
-    @Column(name = "changedBy",length = 45)
+    @Column(name = "changedBy")
     private String changedBy;
 
     public TransactionPartnerEntity(TransactionPartnerDto transactionPartnerDto) {

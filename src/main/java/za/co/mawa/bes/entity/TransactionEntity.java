@@ -3,6 +3,7 @@ package za.co.mawa.bes.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
+import za.co.mawa.bes.dto.TransactionCreateDto;
 import za.co.mawa.bes.dto.TransactionDto;
 
 import java.io.Serializable;
@@ -24,13 +25,13 @@ public class TransactionEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "number", length = 20)
+    @Column(name = "number")
     private String number;
-    @Column(name = "type", length = 20)
+    @Column(name = "type")
     private String type;
-    @Column(name = "sub_type", length = 45)
+    @Column(name = "sub_type")
     private String subType;
-    @Column(name = "description", length = 255)
+    @Column(name = "description")
     private String description;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)
@@ -38,20 +39,20 @@ public class TransactionEntity implements Serializable {
     @Column(name = "valid_to")
     @Temporal(TemporalType.DATE)
     private Date validTo;
-    @Column(name = "status", length = 45)
+    @Column(name = "status")
     private String status;
-    @Column(name = "status_reason", length = 45)
+    @Column(name = "status_reason")
     private String statusReason;
-    @Column(name = "sub_status", length = 45)
+    @Column(name = "sub_status")
     private String subStatus;
-    @Column(name = "location", length = 100)
+    @Column(name = "location")
     private String location;
     @Lob
     @Column(name = "sub_description")
     private String subDescription;
-    @Column(name = "createdBy", length = 45)
+    @Column(name = "createdBy")
     private String createdBy;
-    @Column(name = "changedBy", length = 45)
+    @Column(name = "changedBy")
     private String changedBy;
 
     public TransactionEntity(TransactionDto transactionDto) {
@@ -60,6 +61,14 @@ public class TransactionEntity implements Serializable {
         this.subType = transactionDto.getSubType();
         this.description = transactionDto.getDescription();
         this.status = transactionDto.getStatus();
+    }
+
+    public TransactionEntity(TransactionCreateDto transactionCreateDto) {
+        this.number = transactionCreateDto.getNumber();
+        this.type = transactionCreateDto.getType();
+        this.subType = transactionCreateDto.getSubType();
+        this.description = transactionCreateDto.getDescription();
+        this.status = transactionCreateDto.getStatus();
     }
 }
 

@@ -17,14 +17,15 @@ import java.util.Date;
 public class TransactionDateEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
-    protected TransactionDatePKEntity transactionDatePK;
+    protected TransactionDatePKEntity transactionDatePKEntity;
     @Column(name = "value")
     @Temporal(TemporalType.TIMESTAMP)
     private Date value;
 
     public TransactionDateEntity(TransactionDateDto transactionDateDto) {
-        this.transactionDatePK.setTransaction(transactionDateDto.getTransaction());
-        this.transactionDatePK.setType(transactionDateDto.getType());
+        this.transactionDatePKEntity = new TransactionDatePKEntity();
+        this.transactionDatePKEntity.setTransaction(transactionDateDto.getTransaction());
+        this.transactionDatePKEntity.setType(transactionDateDto.getType());
         this.value = (transactionDateDto.getValue());
     }
 
