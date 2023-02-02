@@ -8,6 +8,7 @@ import za.co.mawa.bes.repository.NumberRangeRepository;
 import za.co.mawa.bes.dao.NumberRangeDao;
 import za.co.mawa.bes.dto.NumberRangeDto;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
@@ -16,17 +17,23 @@ public class NumberRangeService implements NumberRangeDao {
 
     @Autowired
     NumberRangeRepository numberRangeRepository;
+    public static final String START = "0000000001";
+    public static final String END = "9999999999";
 
     @Override
     public void create(NumberRangeDto numberRangeDto) {
-        List<NumberRangeEntity> numberRanges = numberRangeRepository.findAll();
-//        numberRangeRepo.findById(range.getObject());
-        if (!numberRanges.isEmpty()) {
-
-            for (NumberRangeEntity numberRange : numberRanges) {
-
-
+        try {
+            if (numberRangeRepository.getRangeByObject(numberRangeDto.getObject()) == null) {
+                NumberRangeEntity numberRangeEntity = new NumberRangeEntity();
+                numberRangeEntity.setObject(numberRangeDto.getObject());
+                numberRangeEntity.setCurrent(START);
+                numberRangeEntity.setStart(START);
+                numberRangeEntity.setEnd(END);
+                numberRangeEntity.setValidFrom(new Date());
+                numberRangeRepository.save(numberRangeEntity);
             }
+        } catch (Exception exception) {
+
         }
 
     }
@@ -34,49 +41,42 @@ public class NumberRangeService implements NumberRangeDao {
     @Override
     public String generateNumber(String object) throws NumberRangeObjectNotFound {
 
-        String newNumber = null;
-        List<NumberRangeEntity> numberRanges = numberRangeRepository.findAll();
+        try {
+            String newNumber = null;
+            NumberRangeEntity numberRangeEntity = numberRangeRepository.getRangeByObject(object);
+            if (numberRangeEntity != null) {
 
-        List<NumberRangeEntity> result = numberRanges.stream()
-                .filter(a -> Objects.equals(a.getObject(), object))
-                .toList();
-
-        if (!result.isEmpty()){
-                {
-                    NumberRangeEntity numberRangeEntity = result.iterator().next();
-                    String currentNumber;
-                    String withPrefix = numberRangeEntity.getCurrent();
-                    if (numberRangeEntity.getPrefix() == null) {
-                        currentNumber = numberRangeEntity.getCurrent();
-                    } else {
-                        currentNumber = withPrefix.replace(numberRangeEntity.getPrefix(), "");
-                    }
-
-                    int length = currentNumber.length();
-
-                    Integer tempIntNum = Integer.parseInt(currentNumber);
-                    tempIntNum = tempIntNum + 1;
-                    newNumber = Integer.toString(tempIntNum);
-                    while (newNumber.length() != length) {
-                        newNumber = "0" + newNumber;
-                    }
-                    if (numberRangeEntity.getPrefix() == null) {
-                        numberRangeEntity.setCurrent(newNumber);
-                    } else {
-                        numberRangeEntity.setCurrent(numberRangeEntity.getPrefix() + newNumber);
-                    }
-                    newNumber = numberRangeEntity.getCurrent();
-
-                    try {
-                        numberRangeRepository.save(numberRangeEntity);
-                    } catch (Exception ex) {
-                        return null;
-                    }
+                String currentNumber;
+                String withPrefix = numberRangeEntity.getCurrent();
+                if (numberRangeEntity.getPrefix() == null) {
+                    currentNumber = numberRangeEntity.getCurrent();
+                } else {
+                    currentNumber = withPrefix.replace(numberRangeEntity.getPrefix(), "");
                 }
-            }else{
-            throw new NumberRangeObjectNotFound();
-        }
 
-        return  newNumber;
+                int length = currentNumber.length();
+
+                Integer tempIntNum = Integer.parseInt(currentNumber);
+                tempIntNum = tempIntNum + 1;
+                newNumber = Integer.toString(tempIntNum);
+                while (newNumber.length() != length) {
+                    newNumber = "0" + newNumber;
+                }
+                if (numberRangeEntity.getPrefix() == null) {
+                    numberRangeEntity.setCurrent(newNumber);
+                } else {
+                    numberRangeEntity.setCurrent(numberRangeEntity.getPrefix() + newNumber);
+                }
+                numberRangeRepository.save(numberRangeEntity);
+                return newNumber;
+            } else {
+                throw new NumberRangeObjectNotFound();
+            }
+
+        } catch (Exception ex) {
+            return null;
+        }
     }
+
 }
+
