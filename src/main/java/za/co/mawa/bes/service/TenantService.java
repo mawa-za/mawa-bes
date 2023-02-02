@@ -1,16 +1,24 @@
 package za.co.mawa.bes.service;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.Property;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.JwtRequest;
 import za.co.mawa.bes.dao.TenantDao;
+import za.co.mawa.bes.dto.TenantDto;
 
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 @Service
@@ -20,25 +28,33 @@ public class TenantService implements TenantDao {
 
     Gson gson = new Gson();
 
-    private static final String ADMIN_API_URL = "admin-api-url";
-    private static final String ADMIN_USERNAME = "admin-username";
-    private static final String ADMIN_PASSWORD = "admin-password";
-    private static final String ADMIN_SETTING = "ADMIN";
+
+    @Value("${mawa.admin.api.url}")
+    private String ADMIN_API_URL;
+    @Value("${mawa.admin.api.password}")
+    private String ADMIN_USERNAME;
+    @Value("${mawa.admin.api.password}")
+    private String ADMIN_PASSWORD;
+
     @Override
     public String getAdminToken() {
-        Properties properties = settingService.getSettings(ADMIN_SETTING);
         JwtRequest tokenRequest = new JwtRequest();
-        tokenRequest.setUsername(properties.get(ADMIN_USERNAME).toString());
-        tokenRequest.setPassword(properties.get(ADMIN_PASSWORD).toString());
+        tokenRequest.setUsername(ADMIN_USERNAME);
+        tokenRequest.setId(ADMIN_USERNAME);
+        tokenRequest.setPassword(ADMIN_PASSWORD);
         String token = "";
         try {
-            URL url = new URL(properties.get(ADMIN_API_URL).toString() + "/Authenticate");
+            URL url = new URL(ADMIN_API_URL + "/authenticate");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Accept", "*/*");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-TenantID", "default");
+            conn.setDoOutput(true);
             OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
             writer.write(gson.toJson(tokenRequest));
             writer.close();
+            System.out.println(gson.toJson(tokenRequest));
             if (conn.getResponseCode() != 200) {
                 throw new RuntimeException("Failed : HTTP error code : "
                         + conn.getResponseCode());
@@ -50,24 +66,26 @@ public class TenantService implements TenantDao {
             }
             conn.disconnect();
         } catch (MalformedURLException ex) {
-
+            System.out.println(ex.getMessage());
         } catch (IOException ex) {
-
+            System.out.println(ex.getMessage());
         }
+
         return token;
     }
+
     @Override
-    public Properties getTenantProperties(String tenant) {
-        Properties props = new Properties();
+    public List<TenantDto> getAll() {
+        List<TenantDto> tenants = new ArrayList<>();
         String jsonString = "";
         try {
             String token = getAdminToken();
-            URL url = new URL(settingService.getSettings(ADMIN_SETTING).get(ADMIN_API_URL).toString() + "/tenant/"+tenant+"property");
+            URL url = new URL(ADMIN_API_URL + "/tenant");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setDoInput(true);
             conn.setDoOutput(true);
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Accept", "*/*");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Authorization", "Bearer " + token);
             if (conn.getResponseCode() != 200) {
@@ -82,25 +100,62 @@ public class TenantService implements TenantDao {
             }
             conn.disconnect();
 
+            JSONArray array = new JSONArray(jsonString);
+            List<JSONObject> list = new ArrayList();
+            for (int i = 0; i < array.length(); i++) {
+                TenantDto tenantDto = gson.fromJson(String.valueOf(array.getJSONObject(i)), TenantDto.class);
+                tenants.add(tenantDto);
+            }
+
+            return tenants;
         } catch (MalformedURLException ex) {
-
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
-
+            throw new RuntimeException(ex);
+        } catch (JSONException ex) {
+            throw new RuntimeException(ex);
         }
-        return props;
-
-
-//        Properties properties = new Properties();
-//        List<TenantPropertyEntity> propertyEntities = tenantPropertyRepository.findAll();
-//        for (TenantPropertyEntity tenantPropertyEntity : propertyEntities) {
-//            if (tenantPropertyEntity.getTenant().equals(tenant)) {
-//                properties.put(tenantPropertyEntity.getProperty(), tenantPropertyEntity.getValue());
-//            }
-//        }
-//        return properties;
     }
 
-    private String getAdminApiUrl(){
+    @Override
+    public Properties getTenantProperties(String tenant) {
+        Properties props = new Properties();
+        String jsonString = "";
+        try {
+            String token = getAdminToken();
+            URL url = new URL(ADMIN_API_URL + "/tenant/" + tenant + "/property");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "*/*");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output;
+            while ((output = br.readLine()) != null) {
+                jsonString += output;
+            }
+            conn.disconnect();
+            JSONObject jsonObject = new JSONObject(jsonString);
+
+            props = Property.toProperties(jsonObject);
+            return props;
+        } catch (MalformedURLException ex) {
+            throw new RuntimeException(ex);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        } catch (JSONException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private String getAdminApiUrl() {
         return "";
     }
 }

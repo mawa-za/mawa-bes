@@ -1,6 +1,5 @@
 package za.co.mawa.bes.repository;
 
-import jakarta.xml.bind.annotation.XmlRootElement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +10,6 @@ import za.co.mawa.bes.entity.EmploymentPKEntity;
 import java.util.List;
 
 @Repository
-@XmlRootElement
 public interface EmploymentRepository extends JpaRepository<EmploymentEntity, EmploymentPKEntity> {
     @Query(value = "SELECT e FROM Employment e WHERE e.employmentPK.employeeId = :employeeId", nativeQuery = true)
  List<EmploymentEntity> findEmploymentById(@Param("employeeId") String employeeId);
