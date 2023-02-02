@@ -18,7 +18,7 @@ public class TransactionItemEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected TransactionItemPKEntity transactionItemPKEntity;
-    @Column(name = "product", length = 20)
+    @Column(name = "product")
     private String product;
     @Column(name = "quantity")
     private BigDecimal quantity;
@@ -30,7 +30,7 @@ public class TransactionItemEntity implements Serializable {
     @Column(name = "valid_to")
     @Temporal(TemporalType.DATE)
     private Date validTo;
-    @Column(name = "unit_of_measure", length = 45)
+    @Column(name = "unit_of_measure")
     private String unitOfMeasure;
 //    @Column(name = "quantity_remaining")
 //    private BigDecimal quantityRemaining;

@@ -15,10 +15,9 @@ import java.io.Serializable;
 public class TransactionPartnerPKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;
-    @Column(name = "function")
+    @Column(name = "partner_function")
     private String function;
     @Column(name = "partner")
     private String partner;
-
 
 }

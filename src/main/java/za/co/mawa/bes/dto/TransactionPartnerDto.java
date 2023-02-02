@@ -29,6 +29,6 @@ public class TransactionPartnerDto implements Serializable {
 //    private String approver;
 
     public TransactionPartnerDto(TransactionPartnerEntity transactionPartnerEntity) {
-        this.transaction = transactionPartnerEntity.getTransactionPartnerPK().getTransaction();
+        this.transaction = transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction();
     }
 }
