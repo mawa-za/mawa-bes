@@ -10,6 +10,7 @@ import lombok.Setter;
 public class TransactionCreateDto {
     private String number;
     private String customer;
+    private String member;
     private String supplier;
     private String claimant;
     private String description;
