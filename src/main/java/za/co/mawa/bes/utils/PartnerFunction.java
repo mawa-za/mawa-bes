@@ -30,5 +30,6 @@ public class PartnerFunction {
     public static String DELETEDBY = "DELETEDBY";
     public static String SCHEDULEDTO = "SCHEDULEDTO";
     public static String SCHEDULEDBY = "SCHEDULEDBY";
+    public static String SUPPLIER = "SUPPLIER";
     public static String ASSIGNED_APPROVER = "ASSIGNEDAPPROVER";
 }
