@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface PartnerResourceApiRepository extends JpaRepository<PartnerResourceApiEntity,String> {
     @Query(value = "SELECT r FROM PartnerResourceApi r WHERE r.partner_no = :partner_no",nativeQuery = true)
-    List<PartnerResourceApiEntity> findByPartner(String partnerNo);
+    List<PartnerResourceApiEntity> findByPartner(String partner_no);
 }
