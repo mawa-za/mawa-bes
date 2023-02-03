@@ -7,10 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.entity.TestEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.repository.TestRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.dto.UserCreateDto;
 import za.co.mawa.bes.dto.UserDto;
@@ -39,9 +37,6 @@ public class UserService implements UserDao {
     private String secret;
     public static final String ADMIN_USER = "admin";
     public static final String DEFAULT_ADMIN_PASSWORD = "admin";
-    @Autowired
-    private TestRepository testRepository;
-
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
         this.secret = secret;

@@ -54,7 +54,6 @@ public class TenantService implements TenantDao {
             OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
             writer.write(gson.toJson(tokenRequest));
             writer.close();
-            System.out.println(gson.toJson(tokenRequest));
             if (conn.getResponseCode() != 200) {
                 throw new RuntimeException("Failed : HTTP error code : "
                         + conn.getResponseCode());
