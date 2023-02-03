@@ -2,18 +2,43 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.TransactionEntity;
-import za.co.mawa.bes.object.transaction.TransactionDTO;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public interface TransactionDao {
-    String create(TransactionEntity transactionEntity);
-    String update(TransactionEntity transactionEntity);
-    String delete(String id);
-    TransactionEntity findById(String id);
-    ArrayList<MessageDto> addDate(OrderDateDto od);
-    ArrayList<OrderPartnerDto> getPartners (String transactionId);
-    ArrayList<OrderHeaderDto> getTransactionByApprover(String approver);
-    ArrayList<TransactionDTO> search(TransactionQueryDto query);
-    OrderHeaderDto getHeader(String orderId);
+    TransactionDto create(TransactionCreateDto transactionCreateDto);
+    List<TransactionDto> search(TransactionQueryDto query);
+    void edit(TransactionDto transactionDto);
+    void delete(String id);
+    TransactionDto get(String orderId);
+
+    //Items
+    void addItem(TransactionItemDto transactionItemDto);
+    void removeItem(TransactionItemDto transactionItemDto) throws Exception;
+    List<TransactionItemDto> getItems(String id);
+
+    //Amounts
+    void addAmount(TransactionAmountDto transactionAmountDto);
+    void removeAmount(TransactionAmountDto transactionAmountDto) throws Exception;
+    List<TransactionAmountDto> getAmounts(String id);
+
+    //Partners
+    void addPartner(TransactionPartnerDto transactionPartnerDto);
+    void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
+    List<TransactionPartnerDto> getPartners(String id);
+
+    //Dates
+    void addDate(TransactionDateDto transactionDateDto) throws Exception;
+    void removeDate(TransactionDateDto transactionDateDto) throws Exception;
+    List<TransactionDateDto> getDates(String id);
+
+    //Attachments
+    void addAttachment(TransactionAttachmentDto transactionAttachmentDto);
+    void removeAttachment(TransactionAttachmentDto transactionAttachmentDto);
+    List<TransactionAttachmentDto> getAttachments(String id);
+
+    void addLink(TransactionLinkDto transactionLinkDto);
+    void removeLink(TransactionLinkDto transactionLinkDto);
+    List<TransactionLinkDto> getLinks(String id);
 }

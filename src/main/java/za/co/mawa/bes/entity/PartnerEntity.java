@@ -4,6 +4,7 @@ package za.co.mawa.bes.entity;
 import java.io.Serializable;
 import java.util.Date;
 import jakarta.persistence.*;
+import org.hibernate.annotations.GenericGenerator;
 
 /**
  * @author tebogomohale
@@ -14,9 +15,11 @@ public class PartnerEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
-    @Basic(optional = false)
-    @Column(name = "id", length = 20)
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
+    @Column(name = "no", length = 20)
+    private String no;
     @Column(name = "birth_date")
     @Temporal(TemporalType.DATE)
     private Date birthDate;

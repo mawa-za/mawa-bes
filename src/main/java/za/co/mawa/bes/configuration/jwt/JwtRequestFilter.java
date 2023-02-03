@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
 
@@ -75,6 +76,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
             }
         }
+
+//        UserContext.setCurrentUser(username);
+
         chain.doFilter(request, response);
     }
 

@@ -1,20 +1,31 @@
 package za.co.mawa.bes.controller;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.UserCreateDto;
+import za.co.mawa.bes.dto.UserDto;
 import za.co.mawa.bes.service.UserService;
 
 @RestController
 @CrossOrigin
 public class UserController {
+    Gson gson = new Gson();
     @Autowired
     UserService userService;
+
     @RequestMapping(value = "/user", method = RequestMethod.POST)
-    public  ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto){
-       return ResponseEntity.ok(userService.create(userCreateDto));
+    public ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto) {
+        try {
+            UserDto userDto = userService.create(userCreateDto);
+            return ResponseEntity.ok(gson.toJson(userDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
+
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.GET)
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(userService.getRoles(id));
@@ -23,6 +34,5 @@ public class UserController {
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.POST)
     public ResponseEntity<?> addRole(@PathVariable String id) throws Exception {
         return null;
-
     }
 }

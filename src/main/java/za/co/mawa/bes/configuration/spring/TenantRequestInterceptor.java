@@ -29,7 +29,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
 //        if (isPost.test(method) && isAuthenticatePath.test(requestURI)) {
-        if (isPost.test(method) && requestURI.contains("/authenticate")){
+        if (isPost.test(method) && requestURI.contains("/authenticate")) {
             String tenantID = request.getHeader("X-TenantID");
             TenantContext.setCurrentTenant(tenantID);
             return true;

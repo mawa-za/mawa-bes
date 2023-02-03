@@ -3,6 +3,7 @@ package za.co.mawa.bes.configuration.hibernate;
 import org.hibernate.engine.jdbc.connections.internal.DriverManagerConnectionProviderImpl;
 import org.hibernate.engine.jdbc.connections.spi.AbstractMultiTenantConnectionProvider;
 import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.configuration.context.TenantContext;
@@ -14,12 +15,12 @@ import java.util.*;
 public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
     @Autowired
     TenantService tenantService;
-    public static final String HIBERNATE_PROPERTIES_PATH = "/hibernate-%s.properties";
-    private final Map<String, ConnectionProvider> connectionProviderMap;
+    public static final String HIBERNATE_PROPERTIES_PATH = "/application.properties";
+    private final Map<String, ConnectionProvider> connectionProviderMap = new HashMap<String, ConnectionProvider>();;
 
-    public DatabaseMultiTenantConnectionProvider() {
-        this.connectionProviderMap = new HashMap<String, ConnectionProvider>();
-    }
+//    public DatabaseMultiTenantConnectionProvider() {
+//        this.connectionProviderMap = new HashMap<String, ConnectionProvider>();
+//    }
 
     @Override
     protected ConnectionProvider getAnyConnectionProvider() {
@@ -60,7 +61,7 @@ public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantCo
         } catch (NullPointerException ex) {
             try{
                 Properties properties = new Properties();
-                properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
+                properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
                 return properties;
             }catch (IOException e){
                 throw new RuntimeException("Cannot open hibernate properties: " + HIBERNATE_PROPERTIES_PATH);

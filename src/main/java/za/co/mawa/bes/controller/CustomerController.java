@@ -11,7 +11,6 @@ import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
 
 import java.util.ArrayList;
-
 @RestController
 @CrossOrigin
 public class CustomerController {
@@ -19,7 +18,7 @@ public class CustomerController {
     PartnerService partnerService;
     Gson gson = new Gson();
 
-    @RequestMapping(value = "/customers", method = RequestMethod.GET)
+    @RequestMapping(value = "/customer", method = RequestMethod.GET)
     public ResponseEntity<?> getCustomer() throws Exception{
         PartnerQueryDto query = new PartnerQueryDto();
         query.setRole(RoleType.CUSTOMER);
@@ -35,11 +34,11 @@ public class CustomerController {
         return ResponseEntity.ok(response);
     }
 
-    @RequestMapping(value = "/customers", method = RequestMethod.POST)
+    @RequestMapping(value = "/customer", method = RequestMethod.POST)
     public String postCustomer() throws Exception{
         return null;
     }
-    @RequestMapping(value = "/customers", method = RequestMethod.PUT)
+    @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public String putCustomer() throws Exception{
         return null;
     }

@@ -7,12 +7,16 @@ import org.hibernate.cfg.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
+import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.TenantService;
 
 import java.util.Properties;
+
 @Component
 public class FlywayConfiguration {
-
+    @Autowired
+    EncryptionService encryptionService;
     @Autowired
     TenantService tenantService;
     private static final String DB_MIGRATION_TENANTS = "db/migration/all";
@@ -20,9 +24,9 @@ public class FlywayConfiguration {
 
     @PostConstruct
     Boolean tenantSchemaFlyway() {
-//       for(TenantEntity tenant : tenantService.getAll()){
-////           updateTenantDB(tenant.getId());
-//       }
+        for (TenantDto tenant : tenantService.getAll()) {
+            updateTenantDB(tenant.getId());
+        }
         return true;
     }
 
@@ -56,8 +60,9 @@ public class FlywayConfiguration {
             dataSource.setDriverClassName(properties.get(Environment.DRIVER).toString());
             dataSource.setUrl(properties.get(Environment.URL).toString());
             dataSource.setUsername(properties.get(Environment.USER).toString());
-            dataSource.setPassword(properties.get(Environment.PASS).toString());
-            return Pair.of(properties.get(Environment.DEFAULT_SCHEMA).toString(),  dataSource);
+            String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(),properties.get("jwt.secret").toString());
+            dataSource.setPassword(password);
+            return Pair.of(properties.get(Environment.DEFAULT_SCHEMA).toString(), dataSource);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

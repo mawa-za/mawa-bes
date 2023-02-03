@@ -7,14 +7,13 @@ import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
 
 @Configuration
 @EnableWebMvc
-public class WebConfiguration implements WebMvcConfigurer {
-
+public class WebConfiguration  implements WebMvcConfigurer    {
+//public class WebConfiguration extends WebMvcConfigurerAdapter  {
     @Autowired
     private TenantRequestInterceptor tenantInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-//        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns("/authenticate");
         registry.addInterceptor(tenantInterceptor).addPathPatterns("/**");
 
     }
@@ -26,6 +25,13 @@ public class WebConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+
+        registry.addResourceHandler("swagger-ui.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/");
+
         WebMvcConfigurer.super.addResourceHandlers(registry);
     }
 

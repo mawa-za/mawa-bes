@@ -3,6 +3,7 @@ package za.co.mawa.bes.controller;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import io.jsonwebtoken.impl.DefaultClaims;
 
 
@@ -16,6 +17,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
 import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
@@ -42,10 +44,10 @@ public class AuthenticationController {
 
     @Value("${jwt.secret}")
     private String secret;
-
+    Gson gson = new Gson();
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestBody UserDto userDto) throws Exception {
-
+        userDto.setId(userDto.getUsername());
         authenticate(userDto.getId(),userDto.getPassword());
 //        userService.authenticate(userDto);
         final UserDetails userDetails = userDetailsService.loadUserByUsername(userDto.getId());
