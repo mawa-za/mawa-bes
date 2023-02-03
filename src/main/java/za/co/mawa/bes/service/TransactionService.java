@@ -60,7 +60,14 @@ public class TransactionService implements TransactionDao {
             if (transactionCreateDto.getSupplier() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
+                transactionPartnerDto.setPartner(transactionCreateDto.getCustomer());
+                addPartner(transactionPartnerDto);
+            }
+            if (transactionCreateDto.getClaimant() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.CLAIMANT);
                 transactionPartnerDto.setPartner(transactionCreateDto.getCustomer());
                 addPartner(transactionPartnerDto);
             }
