@@ -61,6 +61,7 @@ public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantCo
         } catch (NullPointerException ex) {
             try{
                 Properties properties = new Properties();
+                String path = String.format(HIBERNATE_PROPERTIES_PATH, tenantId);
                 properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
                 return properties;
             }catch (IOException e){
