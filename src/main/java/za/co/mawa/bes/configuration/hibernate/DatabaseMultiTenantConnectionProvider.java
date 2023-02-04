@@ -15,7 +15,7 @@ import java.util.*;
 public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
     @Autowired
     TenantService tenantService;
-    public static final String HIBERNATE_PROPERTIES_PATH = "/application.properties";
+    public static final String HIBERNATE_PROPERTIES_PATH = "/application-%s.properties";
     private final Map<String, ConnectionProvider> connectionProviderMap = new HashMap<String, ConnectionProvider>();;
 
 //    public DatabaseMultiTenantConnectionProvider() {
@@ -61,10 +61,11 @@ public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantCo
         } catch (NullPointerException ex) {
             try{
                 Properties properties = new Properties();
-                properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
+                String path = String.format(HIBERNATE_PROPERTIES_PATH, tenantId);
+                properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
                 return properties;
             }catch (IOException e){
-                throw new RuntimeException("Cannot open hibernate properties: " + HIBERNATE_PROPERTIES_PATH);
+                throw new RuntimeException("Cannot open hibernate properties: " + String.format(HIBERNATE_PROPERTIES_PATH, tenantId));
             }
 
         }
