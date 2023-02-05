@@ -18,4 +18,25 @@ public class TransactionQueryDto implements Serializable {
     private String partnerFunction;
     private String partnerNo;
 
+    public TransactionQueryDto(QuotationQueryDto quotationQueryDto) {
+    }
+
+    public TransactionQueryDto(ServiceRequestQueryDto serviceRequestQueryDto) {
+    }
+
+    public TransactionQueryDto(SalesOrderQueryDto quotationQueryDto) {
+    }
+
+    public TransactionQueryDto(PurchaseOrderQueryDto purchaseOrderQueryDto) {
+    }
+
+    public TransactionQueryDto(InvoiceQueryDto invoiceQueryDto) {
+    }
+
+    public TransactionQueryDto(ClaimQueryDto claimQueryDto) {
+    }
+
+    public TransactionQueryDto(InquiryQueryDto inquiryQueryDto) {
+    }
+
 }

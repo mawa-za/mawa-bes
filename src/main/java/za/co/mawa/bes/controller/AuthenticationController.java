@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
+import za.co.mawa.bes.dto.AuthenticationDto;
 import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.JwtUserDetailsService;
@@ -46,11 +47,10 @@ public class AuthenticationController {
     private String secret;
     Gson gson = new Gson();
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody UserDto userDto) throws Exception {
-        userDto.setId(userDto.getUsername());
-        authenticate(userDto.getId(),userDto.getPassword());
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationDto authenticationDto) throws Exception {
+        authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
 //        userService.authenticate(userDto);
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(userDto.getId());
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
 
         final String token = jwtTokenUtil.generateToken(userDetails);
 
