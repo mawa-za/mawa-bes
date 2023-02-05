@@ -5,10 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.ClaimQueryDto;
-import za.co.mawa.bes.dto.TransactionCreateDto;
-import za.co.mawa.bes.dto.TransactionDto;
-import za.co.mawa.bes.dto.TransactionQueryDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.service.ClaimService;
 import za.co.mawa.bes.service.QuotationService;
 
@@ -20,8 +17,10 @@ public class ClaimController {
     Gson gson = new Gson();
 
     @RequestMapping(value = "/claim", method = RequestMethod.POST)
-    public ResponseEntity<?> postClaim(@RequestBody TransactionCreateDto transactionCreateDto) {
+    public ResponseEntity<?> postClaim(@RequestBody ClaimCreateDto claimCreateDto) {
+
         try {
+            TransactionCreateDto transactionCreateDto = new TransactionCreateDto(claimCreateDto);
             return ResponseEntity.ok(gson.toJson(claimService.create(transactionCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -29,8 +28,9 @@ public class ClaimController {
     }
 
     @RequestMapping(value = "/claim", method = RequestMethod.GET)
-    public ResponseEntity<?> getClaims(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getClaims(@RequestBody ClaimQueryDto claimQueryDto) {
         try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto(claimQueryDto);
             return ResponseEntity.ok(gson.toJson(claimService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
