@@ -22,6 +22,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
     }
 
     Predicate<String> isPost = it -> it.equals("POST");
+    Predicate<String> isGet = it -> it.equals("GET");
     Predicate<String> isAuthenticatePath = it -> it.equals("/authenticate");
 
     @Override
@@ -35,15 +36,17 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
             if (tenantID != null) {
                 TenantContext.setCurrentTenant(tenantID);
                 return true;
-            }else{
+            } else {
                 throw new TenantNotProvided("X-TenantID request header not provided");
             }
         } else {
+
             return Optional.ofNullable(request)
                     .map(req -> securityDomain.getTenantIdFromJwt(req))
                     .map(tenant -> setTenantContext(tenant))
                     .orElse(false);
         }
+
     }
 
     @Override

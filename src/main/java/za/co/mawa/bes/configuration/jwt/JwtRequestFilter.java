@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
 
@@ -17,6 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
@@ -96,6 +101,5 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         request.setAttribute("claims", ex.getClaims());
 
     }
-
 
 }
