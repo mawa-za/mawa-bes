@@ -10,10 +10,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TransactionCreateDto implements Serializable {
-    private String number;
-    private String customer;
-    private String supplier;
-    private String claimant;
+
     private String description;
     private String type;
     private String subType;

@@ -10,7 +10,8 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ClaimQueryDto implements Serializable {
+public class ClaimDto implements Serializable {
+    private String id;
     private String no;
     private String claimant;
     private String deceased;
