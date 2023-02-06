@@ -7,7 +7,7 @@ public class Status {
     public static String SUBMITTED = "SUBMITTED";
     public static String AWAITING = "AWAITING";
     public static String VERIFIED = "VERIFIED";
-    public static String PENDING_CONFIRMATION = "PENDINGCONFIRMATION";
+    public static String PENDING_CONFIRMATION = "PENDING-CONFIRMATION";
     public static String PENDING = "PENDING";
     public static String APPROVED = "APPROVED";
     public static String DECLINED = "DECLINED";
@@ -35,4 +35,6 @@ public class Status {
     public static String DELETED = "DELETED";
     public static String DECEASED = "DECEASED";
     public static String EXECUTED = "EXECUTED";
+
+
 }

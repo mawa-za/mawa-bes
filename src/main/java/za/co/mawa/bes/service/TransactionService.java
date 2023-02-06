@@ -45,32 +45,6 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setCreatedBy(userService.getCurrentUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(createdTransactionEntity.getId());
-            creationDate.setType(DateType.CREATED);
-            addDate(creationDate);
-
-            if (transactionCreateDto.getCustomer() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                transactionPartnerDto.setPartner(transactionCreateDto.getCustomer());
-                addPartner(transactionPartnerDto);
-            }
-            if (transactionCreateDto.getSupplier() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
-                transactionPartnerDto.setPartner(transactionCreateDto.getCustomer());
-                addPartner(transactionPartnerDto);
-            }
-            if (transactionCreateDto.getClaimant() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CLAIMANT);
-                transactionPartnerDto.setPartner(transactionCreateDto.getCustomer());
-                addPartner(transactionPartnerDto);
-            }
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
             throw new RuntimeException();

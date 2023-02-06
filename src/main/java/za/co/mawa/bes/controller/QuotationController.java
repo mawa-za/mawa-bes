@@ -16,18 +16,18 @@ public class QuotationController {
     Gson gson = new Gson();
 
     @RequestMapping(value = "/quotation", method = RequestMethod.POST)
-    public ResponseEntity<?> postQuotation(@RequestBody TransactionCreateDto transactionCreateDto) {
+    public ResponseEntity<?> postQuotation(@RequestBody QuotationCreateDto quotationCreateDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(quotationService.create(transactionCreateDto)));
+            return ResponseEntity.ok(gson.toJson(quotationService.create(quotationCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
     @RequestMapping(value = "/quotation", method = RequestMethod.GET)
-    public ResponseEntity<?> getQuotations(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getQuotations(@RequestBody QuotationQueryDto quotationQueryDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(quotationService.search(transactionQueryDto)));
+            return ResponseEntity.ok(gson.toJson(quotationService.search(quotationQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -43,9 +43,9 @@ public class QuotationController {
     }
 
     @RequestMapping(value = "/quotation/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> editQuotation(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
+    public ResponseEntity<?> editQuotation(@PathVariable String id, @RequestBody QuotationDto quotationDto) {
         try {
-            quotationService.edit(transactionDto);
+            quotationService.edit(quotationDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

@@ -10,8 +10,7 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ClaimQueryDto implements Serializable {
-    private String no;
+public class ClaimCreateDto implements Serializable {
     private String claimant;
     private String deceased;
     private String member;
@@ -19,5 +18,5 @@ public class ClaimQueryDto implements Serializable {
     private String type;
     private Date deathDate;
     private Date burialDate;
-    private String status;
+
 }

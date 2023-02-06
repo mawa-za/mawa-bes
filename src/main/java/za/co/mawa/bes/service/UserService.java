@@ -17,6 +17,9 @@ import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.Constant;
+import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.PasswordStatus;
+import za.co.mawa.bes.utils.UserStatus;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -63,8 +66,10 @@ public class UserService implements UserDao {
             userEntity.setUsername(userCreateDto.getUsername());
             userEntity.setEmail(userCreateDto.getEmail());
             userEntity.setUserType(userCreateDto.getUserType());
+            userEntity.setStatus(UserStatus.ACTIVE);
+            userEntity.setPasswordStatus(PasswordStatus.INITIAL);
             userEntity.setValidFrom(new Date());
-            userEntity.setValidTo(new Date());
+            userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
             return entityToDto(userRepository.save(userEntity));
         } catch (Exception exception) {

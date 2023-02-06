@@ -2,22 +2,31 @@ package za.co.mawa.bes.entity;
 
 
 import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
+import za.co.mawa.bes.dto.ProductDto;
 
 import java.io.Serializable;
 import java.util.Date;
 @Entity
 @Table(name = "product")
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Getter
+@Setter
 public class ProductEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
-    @Basic(optional = false)
-
-    @Column(name = "id", length = 60)
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "description", length = 60)
+    @Column(name = "code")
+    private String code;
+    @Column(name = "description")
     private String description;
-    @Column(name = "category", length = 20)
+    @Column(name = "category")
     private String category;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)
@@ -26,78 +35,10 @@ public class ProductEntity implements Serializable {
     @Temporal(TemporalType.DATE)
     private Date validTo;
 
-    public ProductEntity() {
+    public ProductEntity(ProductDto productDto){
+        this.code = productDto.getCode();
+        this.description = productDto.getDescription();
+        this.category = productDto.getCategory();
     }
-
-    public ProductEntity(String id) {
-        this.id = id;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public Date getValidFrom() {
-        return validFrom;
-    }
-
-    public void setValidFrom(Date validFrom) {
-        this.validFrom = validFrom;
-    }
-
-    public Date getValidTo() {
-        return validTo;
-    }
-
-    public void setValidTo(Date validTo) {
-        this.validTo = validTo;
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 0;
-        hash += (id != null ? id.hashCode() : 0);
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object object) {
-        // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof ProductEntity)) {
-            return false;
-        }
-        ProductEntity other = (ProductEntity) object;
-        if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    public String toString() {
-        return "za.raretag.mawa.entities.Product[ id=" + id + " ]";
-    }
-
-
 
 }

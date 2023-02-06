@@ -14,8 +14,7 @@ public class WebConfiguration  implements WebMvcConfigurer    {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**");
-
+        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.AUTH_WHITELIST);
     }
 
     @Override
@@ -25,12 +24,6 @@ public class WebConfiguration  implements WebMvcConfigurer    {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-
-        registry.addResourceHandler("swagger-ui.html")
-                .addResourceLocations("classpath:/META-INF/resources/");
-
-        registry.addResourceHandler("/webjars/**")
-                .addResourceLocations("classpath:/META-INF/resources/webjars/");
 
         WebMvcConfigurer.super.addResourceHandlers(registry);
     }

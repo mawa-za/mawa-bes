@@ -13,15 +13,17 @@ import java.util.List;
 
 @Service
 public class QuotationService extends TransactionService {
-    @Autowired
-    TransactionService transactionService;
-    @Override
-    public TransactionDto create(TransactionCreateDto transactionCreateDto) {
+//    @Autowired
+//    TransactionService transactionService;
+
+    public TransactionDto create(QuotationCreateDto quotationCreateDto) {
+        TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.QUOTATION);
         return super.create(transactionCreateDto);
     }
-    @Override
-    public List<TransactionDto> search(TransactionQueryDto transactionQueryDto){
+
+    public List<TransactionDto> search(QuotationQueryDto quotationQueryDto){
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.QUOTATION);
         return super.search(transactionQueryDto);
     }
