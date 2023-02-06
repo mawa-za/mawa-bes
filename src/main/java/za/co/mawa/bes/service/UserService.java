@@ -65,6 +65,7 @@ public class UserService implements UserDao {
 //            userEntity.setId(userCreateDto.getId());
             userEntity.setUsername(userCreateDto.getUsername());
             userEntity.setEmail(userCreateDto.getEmail());
+            userEntity.setCellphone(userCreateDto.getCellphone());
             userEntity.setUserType(userCreateDto.getUserType());
             userEntity.setStatus(UserStatus.ACTIVE);
             userEntity.setPasswordStatus(PasswordStatus.INITIAL);
@@ -154,9 +155,15 @@ public class UserService implements UserDao {
 
     private UserDto entityToDto(UserEntity userEntity) {
         UserDto userDto = new UserDto();
-        userDto.setUsername(userEntity.getUsername());
+
         try {
+            userDto.setId(userEntity.getId());
+            userDto.setUsername(userEntity.getUsername());
             userDto.setPassword(new String(userEntity.getPassword(), "UTF-8"));
+            userDto.setEmail(userEntity.getEmail());
+            userDto.setCellphone(userEntity.getCellphone());
+            userDto.setType(userEntity.getUserType());
+            userDto.setStatus(userEntity.getStatus());
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }

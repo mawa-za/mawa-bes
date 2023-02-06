@@ -37,8 +37,8 @@ public class WebSecurityConfig {
             "/webjars/**",
             // -- Swagger UI v3 (OpenAPI)
             "/v3/api-docs/**",
-            "/swagger-ui/**",
-            "/authenticate"
+            "/swagger-ui/**"
+//            "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
     @Autowired
@@ -79,6 +79,7 @@ public class WebSecurityConfig {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeHttpRequests((requests) -> requests
                         .requestMatchers(AUTH_WHITELIST).permitAll()
+                        .requestMatchers("/authenticate").permitAll()
                         .anyRequest().authenticated()
                 );
         http.authenticationProvider(authenticationProvider());
