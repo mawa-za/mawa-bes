@@ -7,7 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.UserCreateDto;
 import za.co.mawa.bes.dto.UserDto;
+import za.co.mawa.bes.dto.UserRoleDto;
 import za.co.mawa.bes.service.UserService;
+
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -35,13 +38,24 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.GET)
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(userService.getRoles(id));
     }
 
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.POST)
-    public ResponseEntity<?> addRole(@PathVariable String id) throws Exception {
-        return null;
+    public ResponseEntity<?> addRole(@PathVariable String id, @RequestBody List<String> roleList) throws Exception {
+        try {
+            for (String role : roleList) {
+                UserRoleDto userRoleDto = new UserRoleDto();
+                userRoleDto.setUser(id);
+                userRoleDto.setRole(role);
+                userService.addRole(userRoleDto);
+            }
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 }
