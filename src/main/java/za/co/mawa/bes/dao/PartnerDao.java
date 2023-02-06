@@ -1,16 +1,58 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.RelationDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 
 import java.util.ArrayList;
 
 public interface PartnerDao {
     String create(PartnerEntity partnerEntity);
+    String create(PartnerDto object);
+    boolean edit(PersonDto object);
     PartnerEntity findById(String id);
     PartnerDto get (String id);
     boolean removeRole(String partner, String role);
     ArrayList<RelationDto> getRelationByPartner2(String partner2);
     ArrayList<PartnerDto> search(za.co.raretag.mawabes.dto.PartnerQueryDto pq);
+    ArrayList<AddressDto> getAddresses(String partner);
+    ArrayList<IdentityDto> getIdentities(String partner);
+    ArrayList<String> getRoles(String id);
+    boolean addRole(String partner, String role);
+    boolean addIdentity(IdentityDto identity);
+    boolean addContact(ContactDto contact);
+    boolean addAddress(AddressDto address);
+    boolean addRelation(RelationDto relation);
+    boolean editRole(RoleDto role);
+    boolean editIdentity(IdentityDto idnt);
+    boolean editContact(ContactDto contact);
+    boolean editAddress(AddressDto adrs);
+    boolean editRelation(RelationDto rltn);
+    boolean removeIdentity(IdentityDto idnt);
+    boolean removeContact(ContactDto cntct);
+    boolean removeAddress(AddressDto adrs);
+    boolean removeRelation(RelationDto rltn);
+    boolean archive(String id);
+    boolean unArchive(String id);
+    ArrayList<RelationDto> getRelations(String partner);
+    ArrayList<PartnerRoleDto> getAllRoles();
+    boolean addBankAccount(PartnerBankAccountDto partnerBankAccount);
+    ArrayList<PartnerBankAccountDto> getBankAccounts(String partner);
+    ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj);
+    boolean editBankAccount(PartnerBankAccountDto partnerBankAccount);
+    PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
+    ArrayList<ValueDto> getPartnerRoles(String partner);
+    String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound;
+    ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
+    PartnerResourceApiResultDto getResourceApi(String resource_id);
+    boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
+    boolean addAttachment(AttachmentDto attachment);
+    boolean removeAttachment(AttachmentDto attachment);
+    ArrayList<AttachmentDto> getAttachments(String partner) throws Exception;
+    boolean addDate(PartnerDateDto date);
+    boolean editDate(PartnerDateDto date);
+    PartnerDateDto getDate(String partnerNo, String dateType);
+    ArrayList<PartnerDateDto> getDates(String partnerNo);
+    ArrayList<PartnerDateDto> getAllDates();
+    ArrayList<RelationDto> getRelationByPartner1(String partner1);
 }
