@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.dto.UserRoleDto;
 import za.co.mawa.bes.entity.UserEntity;
+import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.dto.UserCreateDto;
@@ -40,6 +42,7 @@ public class UserService implements UserDao {
     private String secret;
     public static final String ADMIN_USER = "admin";
     public static final String DEFAULT_ADMIN_PASSWORD = "admin";
+
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
         this.secret = secret;
@@ -58,6 +61,7 @@ public class UserService implements UserDao {
         }
         return authenticated;
     }
+
     @Override
     public UserDto create(UserCreateDto userCreateDto) throws Exception {
         try {
@@ -107,7 +111,7 @@ public class UserService implements UserDao {
     public UserDto getUserByName(String username) throws Exception {
         try {
             UserEntity userEntity = userRepository.getByName(username);
-            if (userEntity == null){
+            if (userEntity == null) {
                 UserDto userDto = null;
                 if (username.equals(ADMIN_USER)) {
                     UserCreateDto userCreateDto = new UserCreateDto();
@@ -116,7 +120,7 @@ public class UserService implements UserDao {
                     userDto = create(userCreateDto);
                 }
                 return userDto;
-            }else{
+            } else {
                 return entityToDto(userEntity);
             }
 
@@ -140,13 +144,34 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public List<UserRoleEntity> getRoles(String user) {
-        return userRoleRepository.findUserRoles(user);
+    public List<String> getRoles(String user) {
+        List<String> roleList = new ArrayList<>();
+        List<UserRoleEntity> userRoleEntities = userRoleRepository.findUserRoles(user);
+        for (UserRoleEntity userRoleEntity : userRoleEntities) {
+            roleList.add(userRoleEntity.getUserRolePKEntity().getRole());
+        }
+        return roleList;
     }
 
     @Override
     public String getCurrentUser() {
         return UserContext.getCurrentUser();
+    }
+
+    @Override
+    public void addRole(UserRoleDto userRoleDto) throws Exception {
+        try {
+            UserRolePKEntity userRolePKEntity = new UserRolePKEntity();
+            userRolePKEntity.setUser(userRoleDto.getUser());
+            userRolePKEntity.setRole(userRoleDto.getRole());
+            UserRoleEntity userRoleEntity = new UserRoleEntity();
+            userRoleEntity.setUserRolePKEntity(userRolePKEntity);
+            userRoleEntity.setValidFrom(new Date());
+            userRoleEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            userRoleRepository.save(userRoleEntity);
+        } catch (Exception exception) {
+            throw new Exception();
+        }
     }
 
     private boolean validatePassword(String enteredPassword, String storedPassword) {
