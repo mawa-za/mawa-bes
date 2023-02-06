@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
@@ -1109,7 +1110,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public String addResource(PartnerResourceApiDto partnerResource) {
+    public String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound {
         String resourceID = numberRangeService.generateNumber(OrderType.RESOURCE_API);
         if (resourceID != null) {
             PartnerRolePKEntity partnerRolePk = new PartnerRolePKEntity();
@@ -1286,7 +1287,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public ArrayList<AttachmentDto> getAttachments(String partner) {
+    public ArrayList<AttachmentDto> getAttachments(String partner) throws Exception {
         ArrayList<AttachmentDto> list = new ArrayList<>();
         List<PartnerAttachmentEntity> attachments = partnerAttachmentRepository.findByPartner(partner);
         for (PartnerAttachmentEntity partnerAttachment : attachments) {
@@ -1298,7 +1299,7 @@ public class PartnerService implements PartnerDao {
                 object.setCreatedAt(Conversion.dateTimeToString(partnerAttachment.getCreatedAt()));
                 object.setCreatedBy(partnerAttachment.getCreatedBy());
 
-                usrObj = userService.getUserById(partnerAttachment.getCreatedBy());
+                usrObj = userService.getUserByName(partnerAttachment.getCreatedBy());
                 if (usrObj.getPartner() != null) {
                     object.setAttachedById(usrObj.getPartner());
                     PartnerDto prt = new PartnerDto();

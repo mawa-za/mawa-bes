@@ -2,6 +2,7 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 
 import java.util.ArrayList;
 
@@ -41,13 +42,13 @@ public interface PartnerDao {
     boolean editBankAccount(PartnerBankAccountDto partnerBankAccount);
     PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
     ArrayList<ValueDto> getPartnerRoles(String partner);
-    String addResource(PartnerResourceApiDto partnerResource);
+    String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound;
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
     PartnerResourceApiResultDto getResourceApi(String resource_id);
     boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
     boolean addAttachment(AttachmentDto attachment);
     boolean removeAttachment(AttachmentDto attachment);
-    ArrayList<AttachmentDto> getAttachments(String partner);
+    ArrayList<AttachmentDto> getAttachments(String partner) throws Exception;
     boolean addDate(PartnerDateDto date);
     boolean editDate(PartnerDateDto date);
     PartnerDateDto getDate(String partnerNo, String dateType);

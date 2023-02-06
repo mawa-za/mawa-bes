@@ -1,7 +1,6 @@
 package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Size;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -12,19 +11,15 @@ public class PartnerBankingDetailsEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected PartnerBankingDetailsPKEntity partnerBankingDetailsPk;
-    @Size(max = 20)
     @Column(name = "account_holder")
     private String accountHolder;
-    @Size(max = 20)
     @Column(name = "account_type")
     private String accountType;
-    @Size(max = 20)
     @Column(name = "bank_name")
     private String bankName;
-    @Size(max = 20)
     @Column(name = "branch_code")
     private String branchCode;
-    @Size(max = 20)
+
     @Column(name = "branch_name")
     private String branchName;
     @Column(name = "valid_from")
@@ -33,7 +28,6 @@ public class PartnerBankingDetailsEntity implements Serializable {
     @Column(name = "valid_to")
     @Temporal(TemporalType.DATE)
     private Date validTo;
-    @Size(max = 20)
     @Column(name = "status")
     private String status;
 
