@@ -16,4 +16,6 @@ public class UserDto {
     private String type;
     private String status;
 
+    private String partner;
+
 }
