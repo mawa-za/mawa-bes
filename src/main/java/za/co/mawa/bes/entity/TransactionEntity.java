@@ -64,8 +64,7 @@ public class TransactionEntity implements Serializable {
     }
 
     public TransactionEntity(TransactionCreateDto transactionCreateDto) {
-        this.number = transactionCreateDto.getNumber();
-        this.type = transactionCreateDto.getType();
+         this.type = transactionCreateDto.getType();
         this.subType = transactionCreateDto.getSubType();
         this.description = transactionCreateDto.getDescription();
         this.status = transactionCreateDto.getStatus();
