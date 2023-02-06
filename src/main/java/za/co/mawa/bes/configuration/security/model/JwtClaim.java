@@ -2,7 +2,7 @@ package za.co.mawa.bes.configuration.security.model;
 
 public enum JwtClaim {
 
-    TOKEN_ID("tenant-id");
+    TENANT_ID("tenant-id");
 
     private String value;
 
