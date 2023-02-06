@@ -10,14 +10,5 @@ import java.util.List;
 
 @Service
 public class ClaimService extends TransactionService{
-    @Override
-    public TransactionDto create(TransactionCreateDto transactionCreateDto) {
-        transactionCreateDto.setType(TransactionType.CLAIM);
-        return super.create(transactionCreateDto);
-    }
-    @Override
-    public List<TransactionDto> search(TransactionQueryDto transactionQueryDto){
-        transactionQueryDto.setType(TransactionType.CLAIM);
-        return super.search(transactionQueryDto);
-    }
+
 }
