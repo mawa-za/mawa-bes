@@ -81,7 +81,7 @@ public class JwtTokenUtil implements Serializable {
     }
 
     private String doGenerateToken(Map<String, Object> claims, String subject) {
-        claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
+        claims.put(JwtClaim.TENANT_ID.getValue(),TenantContext.getCurrentTenant());
         return Jwts.builder()
                 .setClaims(claims)
                 .setAudience(TenantContext.getCurrentTenant())
@@ -92,7 +92,7 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public String doGenerateRefreshToken(Map<String, Object> claims, String subject) {
-        claims.put(JwtClaim.TOKEN_ID.getValue(),TenantContext.getCurrentTenant());
+        claims.put(JwtClaim.TENANT_ID.getValue(),TenantContext.getCurrentTenant());
         return Jwts.builder()
                 .setClaims(claims)
                 .setAudience(TenantContext.getCurrentTenant())

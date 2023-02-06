@@ -18,7 +18,7 @@ class SecurityDomainImpl implements SecurityDomain {
     public String getTenantIdFromJwt(HttpServletRequest request) {
         return Optional.ofNullable(request)
                 .map(JwtDecoder::new)
-                .map(jwtDecoder -> jwtDecoder.getJwtParameter(JwtClaim.TOKEN_ID))
+                .map(jwtDecoder -> jwtDecoder.getJwtParameter(JwtClaim.TENANT_ID))
                 .orElse(null);
     }
 }

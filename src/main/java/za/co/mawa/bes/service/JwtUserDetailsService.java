@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.UserDto;
 
 @Component
@@ -25,6 +26,7 @@ public class JwtUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         UserDto userDto = null;
         try {
+            System.out.println("loadUserByUsername: Tenant-id="+TenantContext.getCurrentTenant());
             userDto = userService.getUserByName(username);
             if (userDto != null) {
                 String decryptedPassword = encryptionService.decrypt(userDto.getPassword().toString(), secret);
