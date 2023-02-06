@@ -26,6 +26,15 @@ public class UserController {
         }
     }
 
+    @RequestMapping(value = "/user/{id}", method = RequestMethod.GET)
+    public ResponseEntity<?> getUser(@PathVariable String id) {
+        try {
+            UserDto userDto = userService.getUserByName(id);
+            return ResponseEntity.ok(gson.toJson(userDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
     @RequestMapping(value = "/user/{id}/role", method = RequestMethod.GET)
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(userService.getRoles(id));

@@ -16,11 +16,11 @@ public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantCo
     @Autowired
     TenantService tenantService;
     public static final String HIBERNATE_PROPERTIES_PATH = "/application-%s.properties";
-    private final Map<String, ConnectionProvider> connectionProviderMap = new HashMap<String, ConnectionProvider>();;
+    private final Map<String, ConnectionProvider> connectionProviderMap;
 
-//    public DatabaseMultiTenantConnectionProvider() {
-//        this.connectionProviderMap = new HashMap<String, ConnectionProvider>();
-//    }
+    public DatabaseMultiTenantConnectionProvider() {
+        this.connectionProviderMap = new HashMap<String, ConnectionProvider>();
+    }
 
     @Override
     protected ConnectionProvider getAnyConnectionProvider() {

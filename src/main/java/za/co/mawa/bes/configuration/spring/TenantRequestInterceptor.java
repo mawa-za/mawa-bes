@@ -2,19 +2,28 @@ package za.co.mawa.bes.configuration.spring;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
+import za.co.mawa.bes.dto.FieldDto;
+import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.exception.TenantNotProvided;
+import za.co.mawa.bes.service.TenantService;
 
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 @Component
 public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
-
+    @Autowired
+    TenantService tenantService;
     private SecurityDomain securityDomain;
 
     public TenantRequestInterceptor(SecurityDomain securityDomain) {
@@ -30,17 +39,26 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
 
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
-//        if (isPost.test(method) && isAuthenticatePath.test(requestURI)) {
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
-            String tenantID = request.getHeader("X-TenantID");
-            if (tenantID != null) {
-                TenantContext.setCurrentTenant(tenantID);
+            String serverName = request.getServerName();
+            System.out.println(serverName);
+            List<TenantDto> tenants = tenantService.getAll().stream()
+                    .filter(a -> Objects.equals(a.getHost(), "ignore for now"))
+                    .toList();
+            if (!tenants.isEmpty()){
+                TenantDto tenant = tenants.iterator().next();
+                TenantContext.setCurrentTenant(tenant.getId());
                 return true;
-            } else {
-                throw new TenantNotProvided("X-TenantID request header not provided");
+            }else{
+                String tenantID = request.getHeader("X-TenantID");
+                if (tenantID != null) {
+                    TenantContext.setCurrentTenant(tenantID);
+                    return true;
+                } else {
+                    throw new TenantNotProvided("X-TenantID request header not provided");
+                }
             }
         } else {
-
             return Optional.ofNullable(request)
                     .map(req -> securityDomain.getTenantIdFromJwt(req))
                     .map(tenant -> setTenantContext(tenant))

@@ -13,6 +13,8 @@ public class TenantDto implements Serializable {
     private String id;
     private String name;
     private String url;
+
+    private String host;
     private String status;
     private String database_url;
     private String database_username;
