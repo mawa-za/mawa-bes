@@ -14,7 +14,9 @@ import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class ProductService implements ProductDao {
@@ -48,8 +50,18 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public ProductDto search(ProductQueryDto productQueryDto) {
-        return null;
+    public List<ProductDto> search(ProductQueryDto productQueryDto) {
+        List<ProductDto> productDtoList = new ArrayList<>();
+        List<ProductEntity> productEntityList = productRepository.findAll();
+        for(ProductEntity productEntity:productEntityList ){
+            ProductDto productDto = new ProductDto();
+            productDto.setId(productEntity.getId());
+            productDto.setCode(productEntity.getCode());
+            productDto.setDescription(productEntity.getDescription());
+            productDto.setCategory(productEntity.getCategory());
+            productDtoList.add(productDto);
+        }
+        return productDtoList;
     }
 
     @Override
