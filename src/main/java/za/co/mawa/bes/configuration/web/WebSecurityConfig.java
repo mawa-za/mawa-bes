@@ -27,8 +27,10 @@ import za.co.mawa.bes.service.JwtUserDetailsService;
 public class WebSecurityConfig {
     public static final String[] AUTH_WHITELIST = {
             "/authenticate",
+            // other public endpoints of your API may be appended to this array
+    };
+    public static final String[] TENANT_WHITELIST = {
             "/versions"
-
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] SWAGGER_WHITELIST = {
@@ -43,7 +45,7 @@ public class WebSecurityConfig {
             // -- Swagger UI v3 (OpenAPI)
             "/v3/api-docs/**",
             "/swagger-ui/**",
-
+            "/versions"
 //            "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
