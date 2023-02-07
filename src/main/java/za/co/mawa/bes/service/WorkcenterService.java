@@ -12,12 +12,12 @@ public class WorkcenterService implements WorkcenterDao {
     @Override
     public List<WorkcenterDto> getAll() {
         List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
-        workcenterDtoList.add(new WorkcenterDto("Customer","Customers","Search"));
-        workcenterDtoList.add(new WorkcenterDto("Organisation","Organisations","Search"));
-        workcenterDtoList.add(new WorkcenterDto("ServiceRequest","Service Requests","Search"));
-        workcenterDtoList.add(new WorkcenterDto("LeaveRequest","Leave Requests","Search"));
-        workcenterDtoList.add(new WorkcenterDto("LeaveApproval","Leave Approvals","Search"));
-        workcenterDtoList.add(new WorkcenterDto("Employee","Employees","Search"));
+        workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
+        workcenterDtoList.add(new WorkcenterDto("organisation","Organisations","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
+        workcenterDtoList.add(new WorkcenterDto("leave-request","Leave Requests","search"));
+        workcenterDtoList.add(new WorkcenterDto("leave-approval","Leave Approvals","search"));
+        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
         return workcenterDtoList;
     }
 
