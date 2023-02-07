@@ -9,6 +9,7 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.service.EncryptionService;
+import za.co.mawa.bes.service.RemoteTenantService;
 import za.co.mawa.bes.service.TenantService;
 
 import java.util.Properties;
