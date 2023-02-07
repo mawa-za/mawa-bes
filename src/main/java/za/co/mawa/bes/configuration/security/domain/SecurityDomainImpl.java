@@ -8,11 +8,11 @@ import za.co.mawa.bes.configuration.security.model.JwtClaim;
 import java.util.Optional;
 
 @Component
+public
 class SecurityDomainImpl implements SecurityDomain {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String TOKEN_PREFIX = "Bearer ";
-
 
     @Override
     public String getTenantIdFromJwt(HttpServletRequest request) {

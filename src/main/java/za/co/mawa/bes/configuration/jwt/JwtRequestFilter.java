@@ -4,7 +4,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
+import za.co.mawa.bes.configuration.security.domain.SecurityDomainImpl;
 import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -25,6 +28,8 @@ import java.util.Objects;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
+    @Autowired
+    private SecurityDomainImpl securityDomain;
 
     @Autowired
     private JwtUserDetailsService jwtUserDetailsService;
@@ -44,6 +49,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         // only the Token
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
+            String tenant = securityDomain.getTenantIdFromJwt(request);
+            TenantContext.setCurrentTenant(tenant);
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
             } catch (IllegalArgumentException e) {

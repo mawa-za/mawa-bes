@@ -28,7 +28,6 @@ public class TenantService implements TenantDao {
 
     Gson gson = new Gson();
 
-
     @Value("${mawa.admin.api.url}")
     private String ADMIN_API_URL;
     @Value("${mawa.admin.api.password}")

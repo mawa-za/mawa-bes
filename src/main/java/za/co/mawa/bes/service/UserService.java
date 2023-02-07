@@ -110,6 +110,7 @@ public class UserService implements UserDao {
     @Override
     public UserDto getUserByName(String username) throws Exception {
         try {
+            userRepository.findAll();
             UserEntity userEntity = userRepository.getByName(username);
             if (userEntity == null) {
                 UserDto userDto = null;

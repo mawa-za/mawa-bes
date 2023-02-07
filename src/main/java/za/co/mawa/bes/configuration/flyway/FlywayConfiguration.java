@@ -25,7 +25,7 @@ public class FlywayConfiguration {
     @PostConstruct
     Boolean tenantSchemaFlyway() {
         for (TenantDto tenant : tenantService.getAll()) {
-            updateTenantDB(tenant.getId());
+//            updateTenantDB(tenant.getId());
         }
         return true;
     }
