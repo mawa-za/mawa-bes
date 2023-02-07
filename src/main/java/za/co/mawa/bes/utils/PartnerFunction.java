@@ -1,9 +1,9 @@
 package za.co.mawa.bes.utils;
 
 public class PartnerFunction {
-    public static String POLICY_HOLDER = "MAINMEMBER";
+    public static String POLICY_HOLDER = "MAIN-MEMBER";
     public static String DEPENDENT = "DEPENDENT";
-    public static String SALES_REPRESENTATIVE = "SALESREPRESENTANTIVE";
+    public static String SALES_REPRESENTATIVE = "SALES-REPRESENTANTIVE";
     public static String DECEASED = "DECEASED";
     public static String TOMBSTONE_RECIPIENT = "TOMBSTONERECIPIENT";
     public static String CLAIMANT = "CLAMAINT";
@@ -12,7 +12,7 @@ public class PartnerFunction {
     public static String APPROVERID = "APPROVERID";
     public static String REQUESTOR = "REQUESTOR";
     public static String CUSTOMER = "CUSTOMER";
-    public static String EMPLOYEE_RESPONSIBLE = "EMPLOYEERESPONSIBLE";
+    public static String EMPLOYEE_RESPONSIBLE = "EMPLOYEE-RESPONSIBLE";
     public static String ORGANIZATION_RESPONSIBLE = "ORGANIZATIONRESPONSIBLE";
     public static String RECIPIENT = "RECIPIENT";
     public static String ENQUIRER = "ENQUIRER";
