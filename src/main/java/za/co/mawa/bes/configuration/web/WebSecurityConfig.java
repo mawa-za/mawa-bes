@@ -25,8 +25,13 @@ import za.co.mawa.bes.service.JwtUserDetailsService;
         // jsr250Enabled = true,
         prePostEnabled = true)
 public class WebSecurityConfig {
-
     public static final String[] AUTH_WHITELIST = {
+            "/authenticate",
+            "/versions"
+
+            // other public endpoints of your API may be appended to this array
+    };
+    public static final String[] SWAGGER_WHITELIST = {
             // -- Swagger UI v2
             "/v2/api-docs",
             "/swagger-resources",
@@ -37,7 +42,8 @@ public class WebSecurityConfig {
             "/webjars/**",
             // -- Swagger UI v3 (OpenAPI)
             "/v3/api-docs/**",
-            "/swagger-ui/**"
+            "/swagger-ui/**",
+
 //            "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
@@ -77,8 +83,8 @@ public class WebSecurityConfig {
                 .exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeHttpRequests((requests) -> requests
+                        .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(AUTH_WHITELIST).permitAll()
-                        .requestMatchers("/authenticate").permitAll()
                         .anyRequest().authenticated()
                 );
         http.authenticationProvider(authenticationProvider());
