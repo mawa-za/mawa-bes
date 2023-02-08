@@ -11,8 +11,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------------------------------------------------------
 -- Schema mawa
 -- ----------------------------------------------------------------------------
-DROP SCHEMA IF EXISTS `mawa` ;
-CREATE SCHEMA IF NOT EXISTS `mawa` ;
+--DROP SCHEMA IF EXISTS `mawa` ;
+--CREATE SCHEMA IF NOT EXISTS `mawa` ;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.address
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`address` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.attachment
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`attachment` (
   `file_type` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.employment
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`employment` (
   `type` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`employee_id`, `start_date`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.field
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`field` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `field_code_UNIQUE` (`code` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.field_option
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`field_option` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`code`, `field`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.number_range
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`number_range` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `object_UNIQUE` (`object` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `no_UNIQUE` (`no` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_address
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_address` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`address_id`, `address_usage`, `partner`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_attachment
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_attachment` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_bank_account
@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_bank_account` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`account_number`, `partner`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_contact
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_contact` (
   `value` VARCHAR(60) NULL DEFAULT NULL,
   PRIMARY KEY (`partner`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_date
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_date` (
   `value` DATETIME(6) NULL DEFAULT NULL,
   PRIMARY KEY (`partner_no`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_identity
@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_identity` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`type`, `value`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_relation
@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_relation` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`partner1`, `partner2`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_resources
@@ -244,7 +244,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_resources` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`resource_id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_role
@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner_role` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`id`, `role`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.product
@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`product` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `code_UNIQUE` (`code` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.product_pricing
@@ -282,7 +282,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`product_pricing` (
   `value` DECIMAL(38,2) NULL DEFAULT NULL,
   PRIMARY KEY (`pricing`, `product`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.role
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`role` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.role_workcenter
@@ -305,7 +305,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`role_workcenter` (
   `position` INT NULL DEFAULT NULL,
   PRIMARY KEY (`role`, `workcenter`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.settings
@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`settings` (
   `value` VARCHAR(60) NULL DEFAULT NULL,
   PRIMARY KEY (`attribute`, `setting`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.tenant
@@ -329,7 +329,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`tenant` (
   `url` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.tenant_property
@@ -340,7 +340,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`tenant_property` (
   `value` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`property`, `tenant`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`transaction` (
   UNIQUE INDEX `no_UNIQUE` (`no` ASC) VISIBLE,
   UNIQUE INDEX `type_UNIQUE` (`type` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_amount
@@ -377,7 +377,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`transaction_amount` (
   `amount` DECIMAL(38,2) NULL DEFAULT NULL,
   PRIMARY KEY (`transaction`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_date
@@ -388,7 +388,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`transaction_date` (
   `value` DATETIME(6) NULL DEFAULT NULL,
   PRIMARY KEY (`transaction`, `type`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_item
@@ -404,7 +404,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`transaction_item` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`item`, `transaction`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_partner
@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`transaction_partner` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`partner_function`, `partner`, `transaction`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.user
@@ -444,7 +444,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`user` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `username_UNIQUE` (`username` ASC) VISIBLE)
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 
 -- ----------------------------------------------------------------------------
 -- Table mawa.user_role
@@ -456,5 +456,5 @@ CREATE TABLE IF NOT EXISTS `mawa`.`user_role` (
   `valid_to` DATE NULL DEFAULT NULL,
   PRIMARY KEY (`role`, `user`))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4;
+DEFAULT CHARACTER SET = utf8mb3;
 SET FOREIGN_KEY_CHECKS = 1;
