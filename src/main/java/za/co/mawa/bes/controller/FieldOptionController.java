@@ -25,15 +25,15 @@ public class FieldOptionController {
     public ResponseEntity<?> getFieldOptions(@PathVariable String field) {
         return ResponseEntity.ok(gson.toJson(fieldOptionService.getFieldOptions(field)));
     }
-
-    @RequestMapping(value = "/field/{field}/option", method = RequestMethod.POST)
-    public ResponseEntity<?> addFieldOption(@RequestBody FieldOptionDto fieldOptionDto, @PathVariable String field) {
-        try {
-            fieldOptionDto.setField(field);
-            fieldOptionService.create(fieldOptionDto);
-            return ResponseEntity.ok().build();
-        } catch (FieldDoesNotExist ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }
+//
+//    @RequestMapping(value = "/field/{field}/option", method = RequestMethod.POST)
+//    public ResponseEntity<?> addFieldOption(@RequestBody FieldOptionDto fieldOptionDto, @PathVariable String field) {
+//        try {
+//            fieldOptionDto.setField(field);
+//            fieldOptionService.create(fieldOptionDto);
+//            return ResponseEntity.ok().build();
+//        } catch (FieldDoesNotExist ex) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+//        }
+//    }
 }

@@ -43,11 +43,11 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
             List<TenantDto> tenants = tenantService.getAll().stream()
                     .filter(a -> Objects.equals(a.getHost(), "ignore for now"))
                     .toList();
-            if (!tenants.isEmpty()){
+            if (!tenants.isEmpty()) {
                 TenantDto tenant = tenants.iterator().next();
                 TenantContext.setCurrentTenant(tenant.getId());
                 return true;
-            }else{
+            } else {
                 String tenantID = request.getHeader("X-TenantID");
                 if (tenantID != null) {
                     TenantContext.setCurrentTenant(tenantID);
@@ -57,10 +57,15 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
                 }
             }
         } else {
-            return Optional.ofNullable(request)
-                    .map(req -> securityDomain.getTenantIdFromJwt(req))
-                    .map(tenant -> setTenantContext(tenant))
-                    .orElse(false);
+            try {
+                System.out.println(request.toString());
+                return Optional.ofNullable(request)
+                        .map(req -> securityDomain.getTenantIdFromJwt(req))
+                        .map(tenant -> setTenantContext(tenant))
+                        .orElse(false);
+            } catch (Exception exception) {
+                throw new TenantNotProvided();
+            }
         }
 
     }
