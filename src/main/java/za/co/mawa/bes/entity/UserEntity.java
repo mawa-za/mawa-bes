@@ -20,7 +20,7 @@ public class UserEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "username", length = 100)
+    @Column(unique = true,name = "username", length = 100)
     private String username;
     @Column(name = "partner", length = 20)
     private String partner;

@@ -33,3 +33,6 @@ VALUES ('0000000000', '9999999999', 'MEMBERSHIP', '0000000001', CURRENT_DATE, '9
 
 INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
 VALUES ('0000000000', '9999999999', 'APPOINTMENT', '0000000001', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `mawa`.`number_range` (`current`, `end`, `object`, `start`, `valid_from`, `valid_to`)
+VALUES ('0000000000', '9999999999', 'CLAIM', '0000000001', CURRENT_DATE, '9999-12-31');

@@ -12,6 +12,7 @@ import za.co.mawa.bes.entity.TenantPropertyEntity;
 import za.co.mawa.bes.entity.TenantPropertyPKEntity;
 import za.co.mawa.bes.repository.TenantPropertyRepository;
 import za.co.mawa.bes.repository.TenantRepository;
+import za.co.mawa.bes.utils.Status;
 
 
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ public class TenantService implements TenantDao {
             tenantEntity.setName(tenantDto.getName());
             tenantEntity.setHost(tenantDto.getHost());
             tenantEntity.setUrl(tenantDto.getUrl());
-            tenantEntity.setStatus(tenantDto.getStatus());
+            tenantEntity.setStatus(Status.ACTIVE);
             tenantDto.setId(tenantRepository.save(tenantEntity).getId());
             return tenantDto;
         } catch (Exception exception) {
