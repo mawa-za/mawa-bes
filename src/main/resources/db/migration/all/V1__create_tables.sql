@@ -1,22 +1,6 @@
--- ----------------------------------------------------------------------------
--- MySQL Workbench Migration
--- Migrated Schemata: mawa
--- Source Schemata: mawa
--- Created: Wed Feb  8 10:09:40 2023
--- Workbench Version: 8.0.28
--- ----------------------------------------------------------------------------
 
 SET FOREIGN_KEY_CHECKS = 0;
 
--- ----------------------------------------------------------------------------
--- Schema mawa
--- ----------------------------------------------------------------------------
---DROP SCHEMA IF EXISTS `mawa` ;
---CREATE SCHEMA IF NOT EXISTS `mawa` ;
-
--- ----------------------------------------------------------------------------
--- Table mawa.address
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mawa`.`address` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `address_line_1` VARCHAR(45) NULL DEFAULT NULL,
@@ -30,9 +14,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`address` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.attachment
--- ----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `mawa`.`attachment` (
   `id` VARCHAR(255) NOT NULL,
   `creation_by` DATETIME(6) NULL DEFAULT NULL,
@@ -44,9 +26,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`attachment` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.employment
--- ----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `mawa`.`employment` (
   `employee_id` VARCHAR(20) NOT NULL,
   `start_date` DATE NOT NULL,
@@ -60,9 +40,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`employment` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.field
--- ----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `mawa`.`field` (
   `id` VARCHAR(255) NOT NULL,
   `code` VARCHAR(255) NULL DEFAULT NULL,
@@ -74,9 +52,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`field` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.field_option
--- ----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `mawa`.`field_option` (
   `code` VARCHAR(20) NOT NULL,
   `field` VARCHAR(20) NOT NULL,
@@ -87,9 +63,6 @@ CREATE TABLE IF NOT EXISTS `mawa`.`field_option` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.number_range
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mawa`.`number_range` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `current` VARCHAR(40) NULL DEFAULT NULL,
@@ -104,9 +77,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`number_range` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.partner
--- ----------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `mawa`.`partner` (
   `id` VARCHAR(255) NOT NULL,
   `birth_date` DATE NULL DEFAULT NULL,
@@ -128,9 +99,6 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
--- ----------------------------------------------------------------------------
--- Table mawa.partner_address
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mawa`.`partner_address` (
   `address_id` INT NOT NULL,
   `address_usage` VARCHAR(20) NOT NULL,
