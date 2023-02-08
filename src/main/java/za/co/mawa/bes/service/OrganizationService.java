@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.OrganizationDao;
 import za.co.mawa.bes.dto.OrganizationDto;
 import za.co.mawa.bes.dto.PartnerDto;
@@ -10,7 +11,7 @@ import za.co.mawa.bes.utils.RoleType;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
-
+@Service
 public class OrganizationService implements OrganizationDao {
     @Autowired
     UserService userService;
