@@ -13,7 +13,7 @@ import java.util.Date;
  * @author tebogomohale
  */
 @Entity
-@Table(name = "transaction")
+@Table(name = "transaction", uniqueConstraints = { @UniqueConstraint(name = "UniqueNumberAndType", columnNames = { "number", "type" }) })
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString

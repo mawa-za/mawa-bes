@@ -12,8 +12,11 @@ import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.Constant;
+import za.co.mawa.bes.utils.Conversion;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class ProductService implements ProductDao {
@@ -21,33 +24,44 @@ public class ProductService implements ProductDao {
     ProductRepository productRepository;
     @Autowired
     ProductPricingRepository productPricingRepository;
+
     @Override
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
-        try{
-        ProductEntity productEntity = new ProductEntity();
-        productEntity.setCode(productCreateDto.getCode());
-        productEntity.setDescription(productCreateDto.getDescription());
-        productEntity.setCategory(productCreateDto.getCategory());
-        productEntity.setValidFrom(new Date());
-        productEntity.setValidFrom(new Date(Constant.END_DATE));
-        ProductDto productDto = new ProductDto(productRepository.save(productEntity));
+        try {
+            ProductEntity productEntity = new ProductEntity();
+            productEntity.setCode(productCreateDto.getCode());
+            productEntity.setDescription(productCreateDto.getDescription());
+            productEntity.setCategory(productCreateDto.getCategory());
+            productEntity.setValidFrom(new Date());
+            productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            ProductDto productDto = new ProductDto(productRepository.save(productEntity));
 
-        ProductPricingDto productPricingDto = new ProductPricingDto();
-        productPricingDto.setProduct(productEntity.getId());
-        productPricingDto.setPricing("SELLING-PRICE");
-        productPricingDto.setValue(productCreateDto.getSellingPrice());
+            ProductPricingDto productPricingDto = new ProductPricingDto();
+            productPricingDto.setProduct(productEntity.getId());
+            productPricingDto.setPricing("SELLING-PRICE");
+            productPricingDto.setValue(productCreateDto.getSellingPrice());
 
-        addPricing(productPricingDto);
+            addPricing(productPricingDto);
 
-        return productDto;}
-        catch (Exception exception){
+            return productDto;
+        } catch (Exception exception) {
             throw new ProductCreationFailure();
         }
     }
 
     @Override
-    public ProductDto search(ProductQueryDto productQueryDto) {
-        return null;
+    public List<ProductDto> search(ProductQueryDto productQueryDto) {
+        List<ProductDto> productDtoList = new ArrayList<>();
+        List<ProductEntity> productEntityList = productRepository.findAll();
+        for(ProductEntity productEntity:productEntityList ){
+            ProductDto productDto = new ProductDto();
+            productDto.setId(productEntity.getId());
+            productDto.setCode(productEntity.getCode());
+            productDto.setDescription(productEntity.getDescription());
+            productDto.setCategory(productEntity.getCategory());
+            productDtoList.add(productDto);
+        }
+        return productDtoList;
     }
 
     @Override

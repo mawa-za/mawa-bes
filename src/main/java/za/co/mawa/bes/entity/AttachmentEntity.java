@@ -5,28 +5,31 @@ import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @Entity
-@Table(name = "tenant")
+@Table(name = "attachment")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
 @Getter
 @Setter
-public class TenantEntity implements Serializable {
+public class AttachmentEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(unique = true, name = "name")
-    private String name;
-    @Column(name = "url")
-    private String url;
-    @Column(name = "host")
-    private String host;
-    @Column(name = "status")
-    private String status;
+    @Column(name = "file_name")
+    private String fileName;
+    @Column(name = "file_type")
+    private String fileType;
+    @Column(name = "file_content")
+    private byte[] fileContent;
+    @Column(name = "creation_by")
+    private Date creationBy;
+    @Column(name = "creation_date")
+    private Date creationDate;
+
 
 }
-//}

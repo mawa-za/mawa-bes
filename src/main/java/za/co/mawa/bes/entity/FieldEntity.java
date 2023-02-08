@@ -1,22 +1,19 @@
 package za.co.mawa.bes.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
-import za.co.mawa.bes.dto.ProductDto;
 
 import java.io.Serializable;
-import java.util.Date;
+
 @Entity
-@Table(name = "product")
+@Table(name = "field")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
 @Getter
 @Setter
-public class ProductEntity implements Serializable {
-
+public class FieldEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(generator = "system-uuid")
@@ -26,19 +23,8 @@ public class ProductEntity implements Serializable {
     private String code;
     @Column(name = "description")
     private String description;
-    @Column(name = "category")
-    private String category;
     @Column(name = "valid_from")
-    @Temporal(TemporalType.DATE)
-    private Date validFrom;
+    private String validFrom;
     @Column(name = "valid_to")
-    @Temporal(TemporalType.DATE)
-    private Date validTo;
-
-    public ProductEntity(ProductDto productDto){
-        this.code = productDto.getCode();
-        this.description = productDto.getDescription();
-        this.category = productDto.getCategory();
-    }
-
+    private String validTo;
 }
