@@ -16,9 +16,6 @@ import java.io.Serializable;
 public class FieldEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(generator = "system-uuid")
-    @GenericGenerator(name = "system-uuid", strategy = "uuid")
-    private String id;
     @Column(unique = true, name = "code")
     private String code;
     @Column(name = "description")
