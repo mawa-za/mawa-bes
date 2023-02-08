@@ -1,6 +1,8 @@
 package za.co.mawa.bes.dto;
 
-public class AttachmentDto {
+import java.io.Serializable;
+
+public class AttachmentDto implements Serializable {
     private String id;
     private String type;
     private String parent;
