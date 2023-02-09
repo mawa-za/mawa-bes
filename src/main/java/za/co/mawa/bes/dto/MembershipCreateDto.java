@@ -17,9 +17,5 @@ public class MembershipCreateDto implements Serializable {
     private String memberId;
     private String salesRepresentativeId;
     private String productId;
-    private BigDecimal premium;
     private Date dateJoined;
-    private Date dateEffective;
-    private String statusId;
-    private String statusReasonId;
 }

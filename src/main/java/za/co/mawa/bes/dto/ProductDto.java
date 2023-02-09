@@ -16,6 +16,7 @@ public class ProductDto {
     private String description;
     private String category;
     private BigDecimal sellingPrice;
+    private String baseUnitOfMeasure;
 
     public ProductDto(ProductEntity productEntity){
         this.id = productEntity.getId();
