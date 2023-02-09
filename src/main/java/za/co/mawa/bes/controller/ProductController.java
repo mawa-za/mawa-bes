@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.service.ProductService;
 
 @RestController
@@ -37,8 +38,8 @@ public class ProductController {
     public ResponseEntity<?> getProduct(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(productService.get(id)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (ProductNotFound exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
