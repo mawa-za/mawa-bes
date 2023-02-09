@@ -1,6 +1,8 @@
 package za.co.mawa.bes.dto;
 
-public class EmploymentDto {
+import java.io.Serializable;
+
+public class EmploymentDto implements Serializable {
     private String employeeId;
     private String type;
     private String startDate;
