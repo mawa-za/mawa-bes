@@ -11,6 +11,6 @@ import java.util.List;
 
 @Repository
 public interface UserRoleRepository extends JpaRepository<UserRoleEntity, UserRolePKEntity> {
-@Query(value = "SELECT * FROM UserRoleEntity u WHERE u.user = :user")
+@Query("SELECT u FROM UserRoleEntity u WHERE u.userRolePKEntity.user = :user")
     List<UserRoleEntity> findUserRoles(@Param("user") String user);
 }
