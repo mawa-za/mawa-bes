@@ -47,7 +47,7 @@ public class TransactionService implements TransactionDao {
 
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
-            throw new RuntimeException();
+            throw new RuntimeException("Object number range not found");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -70,7 +70,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionDateRepository.save(transactionDateEntity);
         } catch (Exception ex) {
-            throw new Exception("Date not added");
+            throw new Exception("Error adding date to transaction");
         }
     }
 
@@ -184,7 +184,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addItem(TransactionItemDto transactionItemDto) {
+    public void addItem(TransactionItemDto transactionItemDto) throws Exception {
         try {
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
@@ -193,7 +193,7 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setValidTo(new Date(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
         } catch (Exception exception) {
-
+            throw new Exception("Error adding item to transaction");
         }
     }
 
@@ -258,7 +258,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addPartner(TransactionPartnerDto transactionPartnerDto) {
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
@@ -273,7 +273,7 @@ public class TransactionService implements TransactionDao {
 
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
-
+            throw new Exception("Could not add partner to transaction");
         }
     }
 
