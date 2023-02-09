@@ -13,5 +13,6 @@ public class ProductCreateDto {
     private String code;
     private String description;
     private String category;
+    private String baseUnitOfMeasure;
     private BigDecimal sellingPrice;
 }
