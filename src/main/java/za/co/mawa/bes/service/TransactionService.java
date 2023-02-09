@@ -190,7 +190,7 @@ public class TransactionService implements TransactionDao {
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
             transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
             transactionItemEntity.setValidFrom(new Date());
-            transactionItemEntity.setValidTo(new Date(Constant.END_DATE));
+            transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
         } catch (Exception exception) {
             throw new Exception("Error adding item to transaction");
