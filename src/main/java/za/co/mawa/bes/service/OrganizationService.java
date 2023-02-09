@@ -10,7 +10,6 @@ import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.RoleType;
 import za.co.raretag.mawabes.dto.PartnerQueryDto;
 
-import java.util.ArrayList;
 @Service
 public class OrganizationService implements OrganizationDao {
     @Autowired
@@ -38,14 +37,15 @@ public class OrganizationService implements OrganizationDao {
     }
 
     @Override
-    public String getOrganization() {
-        PartnerQueryDto query = new PartnerQueryDto();
-        ArrayList<ArrayList<PartnerDto>> organization = new ArrayList<>();
-        query.setRole(RoleType.ORGANIZATION);
-        ArrayList<PartnerDto> partners =  partnerService.search(query);
-        if(partners != null){
-            organization.add(partners);
+    public PartnerQueryDto getOrganization() {
+        PartnerQueryDto query;
+        try {
+            query = new PartnerQueryDto();
+            query.setRole(RoleType.ORGANIZATION);
+            partnerService.search(query);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return null;
+        return query;
     }
 }
