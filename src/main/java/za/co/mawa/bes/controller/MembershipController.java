@@ -7,11 +7,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.service.MembershipService;
+import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 @RestController
@@ -21,6 +23,9 @@ public class MembershipController {
     TransactionService transactionService;
     @Autowired
     MembershipService membershipService;
+
+    @Autowired
+    ProductService productService;
     Gson gson = new Gson();
 
     @RequestMapping(value = "/membership", method = RequestMethod.POST)
@@ -29,6 +34,18 @@ public class MembershipController {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.MEMBERSHIP);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+            if (membershipCreateDto.getProductId() != null){
+                ProductDto productDto = productService.get(membershipCreateDto.getProductId());
+                TransactionItemDto transactionItemDto = new TransactionItemDto();
+                transactionItemDto.setTransaction(transactionDto.getId());
+                transactionItemDto.setProduct(membershipCreateDto.getProductId());
+                transactionItemDto.setProduct(productDto.getId());
+                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                transactionItemDto.setQuantity(new BigDecimal("1"));
+                transactionService.addItem(transactionItemDto);
+            }
 
             TransactionDateDto creationDate = new TransactionDateDto();
             creationDate.setTransaction(transactionDto.getId());
@@ -41,14 +58,6 @@ public class MembershipController {
                 creationDate.setTransaction(transactionDto.getId());
                 creationDate.setType(DateType.CREATED);
                 creationDate.setValue(membershipCreateDto.getDateJoined());
-                transactionService.addDate(creationDate);
-            }
-
-            if (membershipCreateDto.getDateEffective() != null) {
-                TransactionDateDto Date = new TransactionDateDto();
-                creationDate.setTransaction(transactionDto.getId());
-                creationDate.setType(DateType.CREATED);
-                creationDate.setValue(membershipCreateDto.getDateEffective());
                 transactionService.addDate(creationDate);
             }
 
@@ -67,9 +76,9 @@ public class MembershipController {
                 transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            return ResponseEntity.ok(gson.toJson(transactionService.create(transactionCreateDto)));
+            return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 

@@ -17,7 +17,7 @@ public class TransactionItemDto implements Serializable {
     private String transaction;
     private String item;
     private String product;
-    private String unitOfMeasure;
+    private String baseUnitOfMeasure;
     private BigDecimal unitPrice;
     private BigDecimal quantity;
     private Date validFrom;
@@ -26,7 +26,7 @@ public class TransactionItemDto implements Serializable {
         this.transaction = transactionItemEntity.getTransactionItemPKEntity().getTransaction();
         this.item = transactionItemEntity.getTransactionItemPKEntity().getItem();
         this.product = transactionItemEntity.getProduct();
-        this.unitOfMeasure = transactionItemEntity.getUnitOfMeasure();
+        this.baseUnitOfMeasure = transactionItemEntity.getUnitOfMeasure();
         this.quantity = transactionItemEntity.getQuantity();
         this.unitPrice = transactionItemEntity.getUnitPrice();
         this.validFrom = transactionItemEntity.getValidFrom();
