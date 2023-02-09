@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.ProductPricingDto;
 import za.co.mawa.bes.dto.ProductQueryDto;
 import za.co.mawa.bes.entity.ProductEntity;
 import za.co.mawa.bes.exception.ProductCreationFailure;
+import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.Constant;
@@ -17,6 +18,7 @@ import za.co.mawa.bes.utils.Conversion;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProductService implements ProductDao {
@@ -65,8 +67,19 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public ProductDto get(String id) {
-        return null;
+    public ProductDto get(String id) throws ProductNotFound {
+        ProductEntity productEntity = productRepository.getById(id);
+       if(productEntity != null){
+            ProductDto productDto = new ProductDto();
+            productDto.setId(productEntity.getId());
+            productDto.setCode(productEntity.getCode());
+            productDto.setDescription(productEntity.getDescription());
+            productDto.setCategory(productEntity.getCategory());
+           return productDto;
+        }else{
+           throw new ProductNotFound();
+       }
+
     }
 
     @Override
