@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductEntity;
 import za.co.mawa.bes.exception.ProductCreationFailure;
+import za.co.mawa.bes.exception.ProductDeleteFailure;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
 import za.co.mawa.bes.repository.ProductPricingRepository;
@@ -97,8 +98,12 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public void delete(String id) {
-
+    public void delete(String id) throws ProductDeleteFailure {
+        try {
+        productRepository.deleteById(id);
+        } catch (Exception exception) {
+            throw new ProductDeleteFailure();
+        }
     }
 
     @Override
