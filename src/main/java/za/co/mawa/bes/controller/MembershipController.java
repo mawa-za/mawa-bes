@@ -87,7 +87,7 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "/membership", method = RequestMethod.GET)
-    public ResponseEntity<?> getMemberships(@RequestBody MembershipQueryDto membershipQueryDto) {
+    public ResponseEntity<?> getMemberships() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.MEMBERSHIP);
