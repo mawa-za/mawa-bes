@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.product.pricing;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,6 +12,5 @@ import java.math.BigDecimal;
 public class ProductPricingDto {
     private String product;
     private String pricing;
-
     private BigDecimal value;
 }

@@ -1,21 +1,18 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.io.Serializable;
-import java.util.Objects;
-
 @Embeddable
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
 @Getter
 @Setter
-public class TransactionAmountPKEntity implements Serializable {
+public class TransactionItemPKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;
-    @Column(name = "type")
-    private String type;
-
+    @Column(name = "item")
+    private String item;
 }

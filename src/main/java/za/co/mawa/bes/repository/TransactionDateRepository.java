@@ -4,9 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
-import za.co.mawa.bes.entity.TransactionDateEntity;
-import za.co.mawa.bes.entity.TransactionDatePKEntity;
-import za.co.mawa.bes.entity.TransactionPartnerEntity;
+import za.co.mawa.bes.entity.transaction.TransactionDateEntity;
+import za.co.mawa.bes.entity.transaction.TransactionDatePKEntity;
 
 import java.util.List;
 

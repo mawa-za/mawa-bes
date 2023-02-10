@@ -1,8 +1,8 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
-import za.co.mawa.bes.dto.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
