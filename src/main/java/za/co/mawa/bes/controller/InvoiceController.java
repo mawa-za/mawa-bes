@@ -27,8 +27,9 @@ public class InvoiceController {
     }
 
     @RequestMapping(value = "/invoice", method = RequestMethod.GET)
-    public ResponseEntity<?> getInvoices(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getInvoices() {
         try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             return ResponseEntity.ok(gson.toJson(invoiceService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
