@@ -1,4 +1,4 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 
 import jakarta.persistence.*;

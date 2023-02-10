@@ -1,9 +1,9 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.entity.TransactionDateEntity;
+import za.co.mawa.bes.entity.transaction.TransactionDateEntity;
 
 import java.io.Serializable;
 import java.util.Date;

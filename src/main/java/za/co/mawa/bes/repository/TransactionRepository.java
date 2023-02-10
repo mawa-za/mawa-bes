@@ -3,7 +3,7 @@ package za.co.mawa.bes.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Component;
-import za.co.mawa.bes.entity.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 
 import java.util.List;
 

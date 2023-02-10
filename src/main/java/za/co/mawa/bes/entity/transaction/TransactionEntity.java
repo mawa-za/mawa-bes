@@ -1,10 +1,10 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
-import za.co.mawa.bes.dto.TransactionCreateDto;
-import za.co.mawa.bes.dto.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
 
 import java.io.Serializable;
 import java.util.Date;
