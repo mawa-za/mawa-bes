@@ -1,8 +1,8 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
-import za.co.mawa.bes.dto.TransactionDateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 
 import java.io.Serializable;
 import java.util.Date;

@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

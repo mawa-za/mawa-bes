@@ -1,10 +1,10 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction.item;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.entity.TransactionItemEntity;
+import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 
 import java.io.Serializable;
 import java.math.BigDecimal;

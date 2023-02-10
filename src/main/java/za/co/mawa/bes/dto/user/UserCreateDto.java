@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.user;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,15 +9,11 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @Setter
-public class UserDto implements Serializable {
-    private String id;
+public class UserCreateDto implements Serializable {
     private String username;
     private String password;
     private String email;
     private String cellphone;
-    private String type;
-    private String status;
-
-    private String partner;
+    private String userType;
 
 }

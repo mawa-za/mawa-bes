@@ -1,13 +1,11 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import org.apache.catalina.connector.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.EmploymentDto;
-import za.co.mawa.bes.dto.UserCreateDto;
 import za.co.mawa.bes.service.EmploymentService;
 
 import java.util.ArrayList;

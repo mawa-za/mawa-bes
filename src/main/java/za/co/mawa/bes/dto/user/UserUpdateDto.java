@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.user;
 
 public class UserUpdateDto {
     private String id;

@@ -1,9 +1,10 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.TransactionEntity;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public interface TransactionDao {
