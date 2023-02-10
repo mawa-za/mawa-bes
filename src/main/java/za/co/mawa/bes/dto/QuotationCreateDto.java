@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 public class QuotationCreateDto implements Serializable {
-    private String customer;
+    private String customerId;
     private Date deliveryDate;
     private Date expiryDate;
 

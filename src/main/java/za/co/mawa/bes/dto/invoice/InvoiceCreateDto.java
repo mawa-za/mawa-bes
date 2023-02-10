@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 public class InvoiceCreateDto implements Serializable {
-private String customer;
+private String customerId;
 private List<ItemDto> items;
 
 }

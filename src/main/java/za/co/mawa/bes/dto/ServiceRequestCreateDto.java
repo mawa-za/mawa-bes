@@ -11,6 +11,6 @@ import java.util.List;
 @Getter
 @Setter
 public class ServiceRequestCreateDto implements Serializable {
-    private String customer;
+    private String customerId;
     private List<ItemDto> items;
 }
