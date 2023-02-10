@@ -25,8 +25,9 @@ public class QuotationController {
     }
 
     @RequestMapping(value = "/quotation", method = RequestMethod.GET)
-    public ResponseEntity<?> getQuotations(@RequestBody QuotationQueryDto quotationQueryDto) {
+    public ResponseEntity<?> getQuotations() {
         try {
+            QuotationQueryDto quotationQueryDto = new QuotationQueryDto();
             return ResponseEntity.ok(gson.toJson(quotationService.search(quotationQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

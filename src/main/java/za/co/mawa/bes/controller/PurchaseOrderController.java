@@ -5,9 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.TransactionCreateDto;
-import za.co.mawa.bes.dto.TransactionDto;
-import za.co.mawa.bes.dto.TransactionQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.service.PurchaseOrderService;
 
 @RestController
@@ -27,8 +27,9 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "/purchase-order", method = RequestMethod.GET)
-    public ResponseEntity<?> getPurchaseOrder(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getPurchaseOrder() {
         try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             return ResponseEntity.ok(gson.toJson(purchaseOrderService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

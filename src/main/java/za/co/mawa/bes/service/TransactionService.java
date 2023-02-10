@@ -2,9 +2,11 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -47,7 +49,7 @@ public class TransactionService implements TransactionDao {
 
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
-            throw new RuntimeException();
+            throw new RuntimeException("Object number range not found");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -70,7 +72,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionDateRepository.save(transactionDateEntity);
         } catch (Exception ex) {
-            throw new Exception("Date not added");
+            throw new Exception("Error adding date to transaction");
         }
     }
 
@@ -184,16 +186,16 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addItem(TransactionItemDto transactionItemDto) {
+    public void addItem(TransactionItemDto transactionItemDto) throws Exception {
         try {
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
             transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
             transactionItemEntity.setValidFrom(new Date());
-            transactionItemEntity.setValidTo(new Date(Constant.END_DATE));
+            transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
         } catch (Exception exception) {
-
+            throw new Exception("Error adding item to transaction");
         }
     }
 
@@ -258,7 +260,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addPartner(TransactionPartnerDto transactionPartnerDto) {
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
@@ -273,7 +275,7 @@ public class TransactionService implements TransactionDao {
 
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
-
+            throw new Exception("Could not add partner to transaction");
         }
     }
 

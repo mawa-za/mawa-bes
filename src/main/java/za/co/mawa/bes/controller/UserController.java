@@ -5,9 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.UserCreateDto;
-import za.co.mawa.bes.dto.UserDto;
-import za.co.mawa.bes.dto.UserRoleDto;
+import za.co.mawa.bes.dto.user.UserCreateDto;
+import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.service.UserService;
 
 import java.util.List;

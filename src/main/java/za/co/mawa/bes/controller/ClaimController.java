@@ -6,8 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.service.ClaimService;
-import za.co.mawa.bes.service.QuotationService;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
 import za.co.mawa.bes.utils.DateType;
@@ -62,7 +62,7 @@ public class ClaimController {
     }
 
     @RequestMapping(value = "/claim", method = RequestMethod.GET)
-    public ResponseEntity<?> getClaims(@RequestBody ClaimQueryDto claimQueryDto) {
+    public ResponseEntity<?> getClaims() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
