@@ -36,11 +36,12 @@ public class TransactionItemEntity implements Serializable {
 //    private BigDecimal quantityRemaining;
 
     public TransactionItemEntity(TransactionItemDto transactionItemDto) {
+        this.transactionItemPKEntity = new TransactionItemPKEntity();
         this.transactionItemPKEntity.setTransaction(transactionItemDto.getTransaction());
         this.transactionItemPKEntity.setItem(transactionItemDto.getItem());
         this.product = transactionItemDto.getProduct();
         this.quantity = transactionItemDto.getQuantity();
-        this.unitOfMeasure = transactionItemDto.getUnitOfMeasure();
+        this.unitOfMeasure = transactionItemDto.getBaseUnitOfMeasure();
         this.unitPrice = transactionItemDto.getUnitPrice();
         this.validFrom = transactionItemDto.getValidFrom();
         this.validTo = transactionItemDto.getValidTo();
