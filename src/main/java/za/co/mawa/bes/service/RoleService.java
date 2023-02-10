@@ -62,7 +62,8 @@ public class RoleService implements RoleDao {
         List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
         List<RoleWorkcenterEntity> roleWorkcenterEntities = roleWorkcenterRepository.findRoleWorkcenters(role);
         for (RoleWorkcenterEntity roleWorkcenterEntity : roleWorkcenterEntities) {
-            workcenterDtoList.add(workcenterService.getById(roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter()));
+            String workcenter = roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter();
+            workcenterDtoList.add(workcenterService.getById(workcenter));
         }
         return workcenterDtoList;
     }
