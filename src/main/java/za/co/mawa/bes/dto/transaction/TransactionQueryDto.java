@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 
 import java.io.Serializable;
 

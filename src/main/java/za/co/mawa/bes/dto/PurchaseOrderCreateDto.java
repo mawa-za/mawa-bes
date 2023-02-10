@@ -5,10 +5,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
 @Setter
 public class PurchaseOrderCreateDto implements Serializable {
 private String supplier;
+    private List<ItemDto> items;
 }
