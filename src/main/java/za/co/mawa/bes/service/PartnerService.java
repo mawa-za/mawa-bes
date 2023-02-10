@@ -46,10 +46,10 @@ public class PartnerService implements PartnerDao {
     UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
-    @Override
-    public String create(PartnerEntity partnerEntity) {
-        return null;
-    }
+   // @Override
+//    public String create(PartnerEntity partnerEntity) {
+//        return null;
+//    }
 
     @Override
     public String create(PartnerDto object) {

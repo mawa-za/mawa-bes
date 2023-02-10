@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PersonDto;
@@ -15,11 +16,13 @@ public class PersonController {
     Gson gson = new Gson();
 
     @RequestMapping(value = "/persons", method = RequestMethod.POST)
-    public ResponseEntity<?> creatPerson (@RequestBody PersonDto person) {
+    public ResponseEntity<?> createPerson (@RequestBody PersonDto person) {
         try{
-            return ResponseEntity.ok(personService.createPerson(person));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            String personDto = personService.createPerson(person);
+            return ResponseEntity.ok(gson.toJson(personDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
 }

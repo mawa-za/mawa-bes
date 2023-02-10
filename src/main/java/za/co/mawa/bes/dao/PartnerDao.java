@@ -7,7 +7,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import java.util.ArrayList;
 
 public interface PartnerDao {
-    String create(PartnerEntity partnerEntity);
+    //String create(PartnerEntity partnerEntity);
     String create(PartnerDto object);
     boolean edit(PersonDto object);
     PartnerEntity findById(String id);
