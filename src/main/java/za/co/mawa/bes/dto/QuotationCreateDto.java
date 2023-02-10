@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
@@ -14,4 +15,6 @@ public class QuotationCreateDto implements Serializable {
     private String customer;
     private Date deliveryDate;
     private Date expiryDate;
+
+    private List<ItemDto> items;
 }

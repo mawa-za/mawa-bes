@@ -4,11 +4,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.io.Serializable;
-
+import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class InvoiceCreateDto implements Serializable {
-private String customer;
+public class ItemDto {
+    private String productId;
+    private BigDecimal quantity;
 }

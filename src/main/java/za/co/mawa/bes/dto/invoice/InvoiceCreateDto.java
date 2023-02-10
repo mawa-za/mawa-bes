@@ -1,8 +1,9 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.invoice;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.ItemDto;
 
 import java.io.Serializable;
 import java.util.List;
@@ -10,8 +11,8 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
-public class InquiryCreateDto implements Serializable {
+public class InvoiceCreateDto implements Serializable {
 private String customer;
+private List<ItemDto> items;
 
-    private List<ItemDto> items;
 }
