@@ -26,8 +26,9 @@ public class ServiceRequestController {
     }
 
     @RequestMapping(value = "/service-request", method = RequestMethod.GET)
-    public ResponseEntity<?> getServiceRequest(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getServiceRequest() {
         try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             return ResponseEntity.ok(gson.toJson(serviceRequestService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

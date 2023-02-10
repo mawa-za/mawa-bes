@@ -27,8 +27,9 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "/purchase-order", method = RequestMethod.GET)
-    public ResponseEntity<?> getPurchaseOrder(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getPurchaseOrder() {
         try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             return ResponseEntity.ok(gson.toJson(purchaseOrderService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

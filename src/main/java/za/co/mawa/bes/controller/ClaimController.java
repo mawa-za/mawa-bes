@@ -62,7 +62,7 @@ public class ClaimController {
     }
 
     @RequestMapping(value = "/claim", method = RequestMethod.GET)
-    public ResponseEntity<?> getClaims(@RequestBody ClaimQueryDto claimQueryDto) {
+    public ResponseEntity<?> getClaims() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
