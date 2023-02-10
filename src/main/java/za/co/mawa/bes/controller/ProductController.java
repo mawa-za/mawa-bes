@@ -30,8 +30,9 @@ public class ProductController {
     }
 
     @RequestMapping(value = "/product", method = RequestMethod.GET)
-    public ResponseEntity<?> getProducts(@RequestBody ProductQueryDto productQueryDto) {
+    public ResponseEntity<?> getProducts() {
         try {
+            ProductQueryDto productQueryDto = new ProductQueryDto();
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
