@@ -6,14 +6,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Date;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class RoleDto {
+public class RoleCreateDto {
    private String id;
    private String description;
-   private Date validFrom;
-   private Date validTo;
 
 }
