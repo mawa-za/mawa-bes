@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
@@ -9,6 +10,7 @@ import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductEntity;
 import za.co.mawa.bes.exception.ProductCreationFailure;
+import za.co.mawa.bes.exception.ProductDeleteFailure;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
 import za.co.mawa.bes.repository.ProductPricingRepository;
@@ -68,18 +70,17 @@ public class ProductService implements ProductDao {
 
     @Override
     public ProductDto get(String id) throws ProductNotFound {
-        ProductEntity productEntity = productRepository.getById(id);
-        if (productEntity != null) {
+        try {
+            ProductEntity productEntity = productRepository.getById(id);
             ProductDto productDto = new ProductDto();
             productDto.setId(productEntity.getId());
             productDto.setCode(productEntity.getCode());
             productDto.setDescription(productEntity.getDescription());
             productDto.setCategory(productEntity.getCategory());
             return productDto;
-        } else {
+        } catch (EntityNotFoundException exception) {
             throw new ProductNotFound();
         }
-
     }
 
     @Override
@@ -97,8 +98,12 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public void delete(String id) {
-
+    public void delete(String id) throws ProductDeleteFailure {
+        try {
+            productRepository.deleteById(id);
+        } catch (Exception exception) {
+            throw new ProductDeleteFailure();
+        }
     }
 
     @Override

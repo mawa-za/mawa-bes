@@ -5,6 +5,7 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.exception.ProductCreationFailure;
+import za.co.mawa.bes.exception.ProductDeleteFailure;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
 
@@ -15,7 +16,7 @@ public interface ProductDao {
     List<ProductDto> search(ProductQueryDto productQueryDto);
     ProductDto get(String id) throws ProductNotFound;
     void edit(ProductDto productDto) throws ProductUpdateFailure;
-    void delete(String id);
+    void delete(String id) throws ProductDeleteFailure;
     void addPricing(ProductPricingDto productPricingDto);
     void editPricing(ProductPricingDto productPricingDto);
 
