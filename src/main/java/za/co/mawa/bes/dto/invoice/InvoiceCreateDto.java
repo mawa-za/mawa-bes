@@ -3,7 +3,7 @@ package za.co.mawa.bes.dto.invoice;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.ItemDto;
+import za.co.mawa.bes.dto.LineItemDto;
 
 import java.io.Serializable;
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 public class InvoiceCreateDto implements Serializable {
-private String customer;
-private List<ItemDto> items;
+private String customerId;
+private List<LineItemDto> items;
 
 }
