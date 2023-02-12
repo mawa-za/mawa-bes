@@ -15,7 +15,7 @@ public class CalculatorController {
     @RequestMapping(value = "/calculate", method = RequestMethod.DELETE)
     public ResponseEntity<?> deleteQuotation(@RequestBody List<LineItemDto> items) {
         try {
-            pricingService.delete(id);
+//            pricingService.delete(id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
