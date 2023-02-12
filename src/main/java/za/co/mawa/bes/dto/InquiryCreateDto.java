@@ -13,5 +13,5 @@ import java.util.List;
 public class InquiryCreateDto implements Serializable {
 private String customer;
 
-    private List<ItemDto> items;
+    private List<LineItemDto> items;
 }

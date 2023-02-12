@@ -16,5 +16,5 @@ public class QuotationCreateDto implements Serializable {
     private Date deliveryDate;
     private Date expiryDate;
 
-    private List<ItemDto> items;
+    private List<LineItemDto> items;
 }

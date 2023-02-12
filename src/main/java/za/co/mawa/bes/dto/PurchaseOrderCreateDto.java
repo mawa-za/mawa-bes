@@ -11,6 +11,6 @@ import java.util.List;
 @Getter
 @Setter
 public class PurchaseOrderCreateDto implements Serializable {
-private String supplierId;
-    private List<ItemDto> items;
+    private String supplierId;
+    private List<LineItemDto> items;
 }

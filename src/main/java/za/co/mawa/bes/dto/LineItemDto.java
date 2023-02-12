@@ -8,7 +8,13 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ItemDto {
+public class LineItemDto {
     private String productId;
+    private String code;
+    private String description;
+    private String ean;
+    private String uom;
     private BigDecimal quantity;
+    private BigDecimal unitPrice;
+    private BigDecimal lineTotal;
 }

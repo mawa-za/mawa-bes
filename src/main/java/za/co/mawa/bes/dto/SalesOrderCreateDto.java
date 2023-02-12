@@ -13,5 +13,5 @@ import java.util.List;
 public class SalesOrderCreateDto implements Serializable {
 private String customerId;
 
-    private List<ItemDto> items;
+    private List<LineItemDto> items;
 }
