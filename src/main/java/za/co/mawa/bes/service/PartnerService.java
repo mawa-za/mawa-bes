@@ -1443,4 +1443,22 @@ public class PartnerService implements PartnerDao {
         }
         return relations;
     }
+
+    @Override
+    public ArrayList<PartnerDto> getPartners(String partnerRole) {
+        ArrayList<PartnerDto> partners = new ArrayList();
+        List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerRole);
+        if(!partnerRoleList.isEmpty()){
+            for(PartnerRoleEntity prtRole : partnerRoleList){
+                //fieldOptionService.getFieldOptionDescription("IDTYPE", partnerIdentity.getPartnerIdentityPK().getType())
+                String fo = fieldOptionService.getFieldOptionDescription("PARTNERROLE", prtRole.getPartnerRolePK().getRole());
+                if(fo != null){
+                    PartnerDto partner = new PartnerDto();
+                    partner = get(prtRole.getPartnerRolePK().getId());
+                    partners.add(partner);
+                }
+            }
+        }
+        return partners;
+    }
 }
