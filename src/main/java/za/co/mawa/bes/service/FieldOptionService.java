@@ -64,7 +64,15 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public String getFieldOptionDescription(String field, String code) {
-        return null;
+        FieldOptionPKEntity pk = new FieldOptionPKEntity();
+        pk.setCode(code);
+        pk.setField(field);
+        FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
+        if (fieldOption != null) {
+            return fieldOption.getDescription();
+        } else {
+            return null;
+        }
     }
 
     private FieldOptionDto entityToDto(FieldOptionEntity fieldOptionEntity) {
