@@ -6,6 +6,9 @@ import za.co.mawa.bes.dao.PersonDao;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.utils.PartnerType;
+
+import java.util.ArrayList;
+
 @Service
 public class PersonService implements PersonDao {
     @Autowired
@@ -35,15 +38,17 @@ public class PersonService implements PersonDao {
     }
 
     @Override
-    public String getPerson() {
-//        PartnerQueryDto query = new PartnerQueryDto();
-//        query.setIdType(idtype);
-//        query.setIdNumber(idnumber);
-//        query.setName1(surname);
-//        query.setName2(name);
-//        query.setName3(name);
-//        query.setCellphone(cellnumber);
-//        ArrayList<PartnerObject> objects = partnerBean.search(query);
-        return null;
+    public PersonDto getPerson(String partner) {
+        PartnerDto object = partnerService.get(partner);
+        PersonDto person = null;
+        try {
+            if (object != null) {
+                person = new PersonDto(object);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return person;
     }
+
 }
