@@ -1,4 +1,4 @@
-package za.co.raretag.mawabes.dto;
+package za.co.mawa.bes.dto;
 
 public class PartnerQueryDto {
     private String id;

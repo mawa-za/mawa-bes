@@ -9,7 +9,7 @@ import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-import za.co.raretag.mawabes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 import java.util.Date;

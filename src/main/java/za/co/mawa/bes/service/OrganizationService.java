@@ -8,7 +8,7 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.utils.AddressType;
 import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.RoleType;
-import za.co.raretag.mawabes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 @Service
 public class OrganizationService implements OrganizationDao {

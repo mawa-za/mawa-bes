@@ -12,7 +12,7 @@ import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PersonService;
 import za.co.mawa.bes.service.UserService;
-import za.co.raretag.mawabes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 
