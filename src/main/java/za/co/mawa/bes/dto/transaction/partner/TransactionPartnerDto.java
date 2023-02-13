@@ -29,5 +29,7 @@ public class TransactionPartnerDto implements Serializable {
 
     public TransactionPartnerDto(TransactionPartnerEntity transactionPartnerEntity) {
         this.transaction = transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction();
+        this.partner = transactionPartnerEntity.getTransactionPartnerPKEntity().getPartner();
+        this.function = transactionPartnerEntity.getTransactionPartnerPKEntity().getFunction();
     }
 }

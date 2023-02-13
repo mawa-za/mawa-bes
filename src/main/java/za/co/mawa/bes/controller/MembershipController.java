@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.service.MembershipService;
+import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
@@ -18,7 +19,10 @@ import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 @RestController
 @CrossOrigin
@@ -27,9 +31,10 @@ public class MembershipController {
     TransactionService transactionService;
     @Autowired
     MembershipService membershipService;
-
     @Autowired
     ProductService productService;
+    @Autowired
+    PartnerService partnerService;
     Gson gson = new Gson();
 
     @RequestMapping(value = "/membership", method = RequestMethod.POST)
@@ -39,7 +44,7 @@ public class MembershipController {
             transactionCreateDto.setType(TransactionType.MEMBERSHIP);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-            if (membershipCreateDto.getProductId() != null){
+            if (membershipCreateDto.getProductId() != null) {
                 ProductDto productDto = productService.get(membershipCreateDto.getProductId());
                 TransactionItemDto transactionItemDto = new TransactionItemDto();
                 transactionItemDto.setTransaction(transactionDto.getId());
@@ -126,4 +131,58 @@ public class MembershipController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
+    @RequestMapping(value = "/membership/{id}/dependent", method = RequestMethod.POST)
+    public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
+        try {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);
+            transactionPartnerDto.setPartner(dependentDto.getId());
+            transactionService.addPartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "/membership/{id}/dependent", method = RequestMethod.GET)
+    public ResponseEntity<?> addDependent(@PathVariable String id) {
+        try {
+            List<DependentDto> dependentDtoList = new ArrayList<>();
+            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
+                    .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
+                    .toList();
+            for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtoList) {
+                PartnerDto partnerDto = partnerService.get(transactionPartnerDto.getPartner());
+                if (partnerDto != null) {
+                    DependentDto dependentDto = new DependentDto();
+                    dependentDto.setIdType(partnerDto.getIdType());
+                    dependentDto.setIdNumber(partnerDto.getIdNumber());
+                    dependentDto.setLastName(partnerDto.getName1());
+                    dependentDto.setFirstName(partnerDto.getName2());
+                    dependentDto.setMiddleName(partnerDto.getName3());
+                    dependentDtoList.add(dependentDto);
+                }
+            }
+            return ResponseEntity.ok(gson.toJson(dependentDtoList));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "/membership/{id}/dependent/{dependentId}", method = RequestMethod.DELETE)
+    public ResponseEntity<?> addDependent(@PathVariable String id, @PathVariable String dependentId) {
+        try {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);
+            transactionPartnerDto.setPartner(dependentId);
+            transactionService.removePartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
 }

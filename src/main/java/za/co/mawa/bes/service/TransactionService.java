@@ -288,7 +288,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionPartnerRepository.deleteById(transactionPartnerPKEntity);
         } catch (Exception ex) {
-            throw new Exception("");
+            throw new Exception("Could not remove partner to transaction");
         }
     }
 
