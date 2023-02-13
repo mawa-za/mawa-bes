@@ -55,4 +55,5 @@ public interface PartnerDao {
     ArrayList<PartnerDateDto> getDates(String partnerNo);
     ArrayList<PartnerDateDto> getAllDates();
     ArrayList<RelationDto> getRelationByPartner1(String partner1);
+    ArrayList<PartnerDto> getPartners (String partnerRole);
 }
