@@ -44,7 +44,7 @@ public class MembershipController {
             transactionCreateDto.setType(TransactionType.MEMBERSHIP);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-            if (membershipCreateDto.getProductId() != null){
+            if (membershipCreateDto.getProductId() != null) {
                 ProductDto productDto = productService.get(membershipCreateDto.getProductId());
                 TransactionItemDto transactionItemDto = new TransactionItemDto();
                 transactionItemDto.setTransaction(transactionDto.getId());
@@ -145,6 +145,7 @@ public class MembershipController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "/membership/{id}/dependent", method = RequestMethod.GET)
     public ResponseEntity<?> addDependent(@PathVariable String id) {
         try {
@@ -152,21 +153,24 @@ public class MembershipController {
             List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
                     .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
                     .toList();
-            for(TransactionPartnerDto transactionPartnerDto: transactionPartnerDtoList){
+            for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtoList) {
                 PartnerDto partnerDto = partnerService.get(transactionPartnerDto.getPartner());
-                DependentDto dependentDto = new DependentDto();
-                dependentDto.setIdType(partnerDto.getIdType());
-                dependentDto.setIdNumber(partnerDto.getIdNumber());
-                dependentDto.setLastName(partnerDto.getName1());
-                dependentDto.setFirstName(partnerDto.getName2());
-                dependentDto.setMiddleName(partnerDto.getName3());
-                dependentDtoList.add(dependentDto);
+                if (partnerDto != null) {
+                    DependentDto dependentDto = new DependentDto();
+                    dependentDto.setIdType(partnerDto.getIdType());
+                    dependentDto.setIdNumber(partnerDto.getIdNumber());
+                    dependentDto.setLastName(partnerDto.getName1());
+                    dependentDto.setFirstName(partnerDto.getName2());
+                    dependentDto.setMiddleName(partnerDto.getName3());
+                    dependentDtoList.add(dependentDto);
+                }
             }
             return ResponseEntity.ok(gson.toJson(dependentDtoList));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "/membership/{id}/dependent/{dependentId}", method = RequestMethod.DELETE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @PathVariable String dependentId) {
         try {
