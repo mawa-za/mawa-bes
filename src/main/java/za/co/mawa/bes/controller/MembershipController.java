@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.membership.MembershipCreateDto;
+import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
@@ -135,6 +137,19 @@ public class MembershipController {
     @RequestMapping(value = "/membership/{id}/dependent", method = RequestMethod.POST)
     public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
         try {
+//            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+//            partnerQueryDto.setIdType(dependentDto.getIdType());
+//            partnerQueryDto.setIdNumber(dependentDto.getIdNumber());
+//            List<PartnerDto> partnerDtoList = partnerService.search(partnerQueryDto);
+//            if (partnerDtoList.isEmpty()){
+//                PartnerDto partnerDto = new PartnerDto();
+//                partnerDto.setIdType(dependentDto.getIdType());
+//                partnerDto.setIdNumber(dependentDto.getIdNumber());
+//                partnerDto.setName1(dependentDto.getLastName());
+//                partnerDto.setName2(dependentDto.getFirstName());
+//                partnerDto.setName3(dependentDto.getMiddleName());
+//                dependentDto.setId(partnerService.create(partnerDto));
+//            }
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(id);
             transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);

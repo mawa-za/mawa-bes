@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.membership;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,7 +12,7 @@ import java.util.Date;
 @AllArgsConstructor
 @Getter
 @Setter
-public class MembershipDto {
+public class MembershipQueryDto {
     private String memberId;
     private String member;
     private String salesRepresentativeId;

@@ -1,7 +1,8 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.quotation.QuotationCreateDto;
+import za.co.mawa.bes.dto.quotation.QuotationQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;

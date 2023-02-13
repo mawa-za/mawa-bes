@@ -3,8 +3,13 @@ package za.co.mawa.bes.dto.transaction;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.claim.ClaimCreateDto;
+import za.co.mawa.bes.dto.inquiry.InquiryCreateDto;
 import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
+import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
+import za.co.mawa.bes.dto.quotation.QuotationCreateDto;
+import za.co.mawa.bes.dto.sales.order.SalesOrderCreateDto;
+import za.co.mawa.bes.dto.service.request.ServiceRequestCreateDto;
 
 import java.io.Serializable;
 
