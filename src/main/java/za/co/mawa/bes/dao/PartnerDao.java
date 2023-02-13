@@ -3,6 +3,7 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 
@@ -14,7 +15,7 @@ public interface PartnerDao {
     PartnerDto get (String id);
     boolean removeRole(String partner, String role);
     ArrayList<RelationDto> getRelationByPartner2(String partner2);
-    ArrayList<PartnerDto> search(za.co.raretag.mawabes.dto.PartnerQueryDto pq);
+    ArrayList<PartnerDto> search(PartnerQueryDto pq);
     ArrayList<AddressDto> getAddresses(String partner);
     ArrayList<IdentityDto> getIdentities(String partner);
     ArrayList<String> getRoles(String id);
