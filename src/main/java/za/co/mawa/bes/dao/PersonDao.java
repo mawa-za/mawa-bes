@@ -4,5 +4,5 @@ import za.co.mawa.bes.dto.PersonDto;
 
 public interface PersonDao {
     String createPerson(PersonDto person);
-    String getPerson();
+    PersonDto getPerson(String partner);
 }
