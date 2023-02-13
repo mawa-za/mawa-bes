@@ -3,6 +3,7 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 
