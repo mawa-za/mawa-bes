@@ -1,8 +1,8 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
-import za.co.mawa.bes.dto.QuotationDto;
-import za.co.mawa.bes.dto.QuotationQueryDto;
+import za.co.mawa.bes.dto.quotation.QuotationDto;
+import za.co.mawa.bes.dto.quotation.QuotationQueryDto;
 
 import java.util.List;
 

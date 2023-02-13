@@ -5,11 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.PurchaseOrderCreateDto;
+import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
-import za.co.mawa.bes.service.PurchaseOrderService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.TransactionType;
 
