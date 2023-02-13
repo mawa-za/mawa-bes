@@ -137,19 +137,19 @@ public class MembershipController {
     @RequestMapping(value = "/membership/{id}/dependent", method = RequestMethod.POST)
     public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
         try {
-            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
-            partnerQueryDto.setIdType(dependentDto.getIdType());
-            partnerQueryDto.setIdNumber(dependentDto.getIdNumber());
-            List<PartnerDto> partnerDtoList = partnerService.search(partnerQueryDto);
-            if (partnerDtoList.isEmpty()){
-                PartnerDto partnerDto = new PartnerDto();
-                partnerDto.setIdType(dependentDto.getIdType());
-                partnerDto.setIdNumber(dependentDto.getIdNumber());
-                partnerDto.setName1(dependentDto.getLastName());
-                partnerDto.setName2(dependentDto.getFirstName());
-                partnerDto.setName3(dependentDto.getMiddleName());
-                partnerService.create(partnerDto);
-            }
+//            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+//            partnerQueryDto.setIdType(dependentDto.getIdType());
+//            partnerQueryDto.setIdNumber(dependentDto.getIdNumber());
+//            List<PartnerDto> partnerDtoList = partnerService.search(partnerQueryDto);
+//            if (partnerDtoList.isEmpty()){
+//                PartnerDto partnerDto = new PartnerDto();
+//                partnerDto.setIdType(dependentDto.getIdType());
+//                partnerDto.setIdNumber(dependentDto.getIdNumber());
+//                partnerDto.setName1(dependentDto.getLastName());
+//                partnerDto.setName2(dependentDto.getFirstName());
+//                partnerDto.setName3(dependentDto.getMiddleName());
+//                dependentDto.setId(partnerService.create(partnerDto));
+//            }
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(id);
             transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);
