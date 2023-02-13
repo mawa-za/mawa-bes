@@ -9,7 +9,6 @@ import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-import za.co.raretag.mawabes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -54,11 +53,11 @@ public class PartnerService implements PartnerDao {
 
     @Override
     public String create(PartnerDto object) {
-        String partnerId = null;
+        String partnerNo = null;
         try {
             PartnerEntity entity = new PartnerEntity();
-            partnerId = numberRangeService.generateNumber(object.getType());
-            entity.setId(partnerId);
+            partnerNo = numberRangeService.generateNumber(object.getType());
+            entity.setNo(partnerNo);
             entity.setType(object.getType());
             if (object.getName1() != null) {
                 entity.setName1(object.getName1().toUpperCase());
@@ -77,11 +76,11 @@ public class PartnerService implements PartnerDao {
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            partnerRepository.save(entity);
+            return partnerRepository.save(entity).getId();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return partnerId;
+
     }
 
     @Override

@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.quotation;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
