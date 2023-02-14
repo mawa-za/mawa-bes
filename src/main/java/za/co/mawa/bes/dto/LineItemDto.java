@@ -14,7 +14,7 @@ public class LineItemDto {
     private String description;
     private String ean;
     private String uom;
-    private BigDecimal quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal lineTotal;
+    private BigDecimal quantity  = new BigDecimal("0");
+    private BigDecimal unitPrice = new BigDecimal("0");
+    private BigDecimal lineTotal = new BigDecimal("0");
 }
