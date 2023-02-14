@@ -5,16 +5,18 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
 @Setter
 public class PricingDto {
-    private BigDecimal totalExcVat;
-    private BigDecimal totalIncVat;
-    private BigDecimal discountAmount;
-    private BigDecimal discountPercentage;
-    private BigDecimal VATAmount;
-    private BigDecimal VATPercentage;
+    private BigDecimal totalExcVat = new BigDecimal("0");
+    private BigDecimal totalIncVat = new BigDecimal("0");
+    private BigDecimal discountAmount = new BigDecimal("0");
+    private BigDecimal discountPercentage = new BigDecimal("0");
+    private BigDecimal VATAmount = new BigDecimal("0");
+    private BigDecimal VATPercentage = new BigDecimal("0");
+    private List<LineItemDto> items;
 
 }
