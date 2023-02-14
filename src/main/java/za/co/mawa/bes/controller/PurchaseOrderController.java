@@ -34,6 +34,7 @@ public class PurchaseOrderController {
     public ResponseEntity<?> getPurchaseOrder() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.PURCHASE_ORDER);
             return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
