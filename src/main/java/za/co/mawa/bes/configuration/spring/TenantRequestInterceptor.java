@@ -38,14 +38,13 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
-            String serverName = request.getServerName();
-            System.out.println(serverName);
+            String host = request.getHeader("X-TenantID").split(":")[1];
             List<TenantDto> tenants = tenantService.getAll().stream()
-                    .filter(a -> Objects.equals(a.getHost(), "ignore for now"))
+                    .filter(a -> Objects.equals(a.getHost(), host))
                     .toList();
             if (!tenants.isEmpty()) {
                 TenantDto tenant = tenants.iterator().next();
-                TenantContext.setCurrentTenant(tenant.getId());
+                TenantContext.setCurrentTenant(tenant.getName());
                 return true;
             } else {
                 String tenantID = request.getHeader("X-TenantID");
