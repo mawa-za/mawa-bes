@@ -18,8 +18,17 @@ public class PartnerController {
     PartnerService partnerService;
 
     @RequestMapping(value = "/partners/{id}/role", method = RequestMethod.GET)
-    public ResponseEntity<?> getFieldOptions(@PathVariable String id) {
+    public ResponseEntity<?> getPartnerRole(@PathVariable String id) {
         return ResponseEntity.ok(gson.toJson(partnerService.getPartnerRoles(id)));
+    }
+    @RequestMapping(value = "/partners/{id}", method = RequestMethod.GET)
+    public ResponseEntity<?> getPartner(@PathVariable String id) {
+        try{
+            PartnerDto partnerDto = partnerService.get(id);
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
     @RequestMapping(value = "/partners{id}/assign", method = RequestMethod.POST)
