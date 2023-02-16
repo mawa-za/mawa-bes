@@ -13,6 +13,6 @@ public interface PartnerIdentityRepository extends JpaRepository<PartnerIdentity
     @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partner = :partner")
     List<PartnerIdentityEntity> findPartnerIdentityByPartner(String partner);
 
-    @Query(value = "SELECT p FROM PartnerIdentityEntity p WHERE p.partnerIdentityPK.value = :value", nativeQuery = true)
+    @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partnerIdentityPK.value = :value")
     List<PartnerIdentityEntity> findPartnerIdentityByValue(String value);
 }
