@@ -479,9 +479,10 @@ public class PartnerService implements PartnerDao {
             IdentityDto identity = new IdentityDto();
             identity.setIdType(partnerIdentity.getPartnerIdentityPK().getType());
             identity.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
+            identity.setPartner(partner);
             identity.setValidFrom(Conversion.dateTimeToString(partnerIdentity.getValidFrom()));
             identity.setValidTo(Conversion.dateTimeToString(partnerIdentity.getValidTo()));
-            identity.setTypeDescription(fieldOptionService.getFieldOptionDescription("IDTYPE", identity.getIdType()));
+            identity.setTypeDescription(fieldOptionService.getFieldOptionDescription("ID-TYPE", identity.getIdType()));
 
             partnerIdentities.add(identity);
         }
