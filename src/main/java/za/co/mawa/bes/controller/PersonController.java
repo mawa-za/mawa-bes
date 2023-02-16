@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.IdentityDto;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.service.PartnerService;
@@ -79,7 +80,7 @@ public class PersonController {
     }
 
     @RequestMapping(value = "/persons/{id}", method = RequestMethod.GET)
-    public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
+    public ResponseEntity<?> getPerson(@PathVariable String id) throws Exception {
         try{
             return ResponseEntity.ok(personService.getPerson(id));
         }catch (Exception exception) {
@@ -87,4 +88,42 @@ public class PersonController {
         }
     }
 
+    @RequestMapping(value = "/persons/{id}/identity", method = RequestMethod.POST)
+    public ResponseEntity<?> addIdentity (@PathVariable String id, @RequestBody IdentityDto identity) throws Exception{
+        try{
+            identity.setPartner(id);
+            Boolean Identity = partnerService.addIdentity(identity);
+            return ResponseEntity.ok(gson.toJson(Identity));
+        }  catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    @RequestMapping(value = "/persons/{id}/identity", method = RequestMethod.GET)
+    public ResponseEntity<?> getIdentity(@PathVariable String id) throws Exception {
+        try{
+            return ResponseEntity.ok(partnerService.getIdentities(id));
+        }catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "/persons/{id}/identity", method = RequestMethod.DELETE)
+    public ResponseEntity<?> deleteIdentity(@PathVariable String id,
+                                            @Param("idType") String type,
+                                            @Param("idNumber") String idValue ) throws Exception {
+        try{
+            IdentityDto identity = new IdentityDto();
+            identity.setPartner(id);
+            if (type != null) {
+                identity.setIdType(type);
+            }
+            if (idValue != null) {
+                identity.setIdNumber(idValue);
+            }
+            boolean Deleted = partnerService.removeIdentity(identity);
+            return ResponseEntity.ok(Deleted);
+        }catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 }
