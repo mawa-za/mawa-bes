@@ -302,6 +302,7 @@ public class PartnerService implements PartnerDao {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
         ArrayList<PartnerDto> filteredList = new ArrayList<>();
         ArrayList<PartnerDto> initialList = new ArrayList<>();
+        boolean pass = false;
 
         if (pq == null) {
             List<PartnerEntity> partnerList = partnerRepository.findAll();
@@ -392,31 +393,35 @@ public class PartnerService implements PartnerDao {
         for (PartnerDto pqr : initialList) {
             if (pq.getIdType() != null && !"".equals(pq.getIdType())) {
                 if (!pqr.getIdType().equals(pq.getIdType())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getIdNumber() != null && !"".equals(pq.getIdNumber())) {
                 if (!pqr.getIdNumber().equals(pq.getIdNumber())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getName1() != null && !"".equals(pq.getName1())) {
                 if (!pqr.getName1().equals(pq.getName1())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getName2() != null && !"".equals(pq.getName2())) {
                 if (!pqr.getName2().equals(pq.getName2())) {
-
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
             if (pq.getName3() != null && !"".equals(pq.getName3())) {
                 if (!pqr.getName3().equals(pq.getName3())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
             if (pq.getRole() != null && !"".equals(pq.getRole())) {
