@@ -13,16 +13,16 @@ public class WorkcenterDto implements Serializable {
     private String id;
     private String description;
     private String defaultFunction;
-    private String navigationRoute;
+    private String path;
 
     public WorkcenterDto(String id, String description, String defaultFunction) {
         this.id = id;
         this.description = description;
         this.defaultFunction = defaultFunction;
         if (defaultFunction != "" && defaultFunction != null) {
-            this.navigationRoute = id + "-" + defaultFunction;
+            this.path = id + "-" + defaultFunction;
         }else{
-            this.navigationRoute = id;
+            this.path = id;
         }
     }
 
