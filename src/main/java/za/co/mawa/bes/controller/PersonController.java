@@ -1,7 +1,6 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
@@ -12,7 +11,6 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PersonService;
-import za.co.mawa.bes.service.UserService;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
@@ -76,7 +74,7 @@ public class PersonController {
             }
             response = gson.toJson(persons);
         }
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(response);
     }
 
     @RequestMapping(value = "/persons/{id}", method = RequestMethod.GET)
