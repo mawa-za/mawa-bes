@@ -1451,8 +1451,7 @@ public class PartnerService implements PartnerDao {
         List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerRole);
         if(!partnerRoleList.isEmpty()){
             for(PartnerRoleEntity prtRole : partnerRoleList){
-                //fieldOptionService.getFieldOptionDescription("IDTYPE", partnerIdentity.getPartnerIdentityPK().getType())
-                String fo = fieldOptionService.getFieldOptionDescription("PARTNERROLE", prtRole.getPartnerRolePK().getRole());
+                String fo = fieldOptionService.getFieldOptionDescription("PARTNER-ROLE", prtRole.getPartnerRolePK().getRole());
                 if(fo != null){
                     PartnerDto partner = new PartnerDto();
                     partner = get(prtRole.getPartnerRolePK().getId());
