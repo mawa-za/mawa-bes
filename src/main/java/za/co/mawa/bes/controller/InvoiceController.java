@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
@@ -15,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.service.InvoiceService;
+import za.co.mawa.bes.service.PricingService;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
@@ -31,8 +33,10 @@ public class InvoiceController {
     Gson gson = new Gson();
     @Autowired
     ProductService productService;
+    @Autowired
+    PricingService pricingService;
     @RequestMapping(value = "/invoice", method = RequestMethod.POST)
-    public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto)  {
+    public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
@@ -51,16 +55,18 @@ public class InvoiceController {
                 transactionPartnerDto.setPartner(invoiceCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-
-            for (LineItemDto item: invoiceCreateDto.getItems()) {
-                ProductDto productDto = productService.get(item.getProductId());
-                TransactionItemDto transactionItemDto = new TransactionItemDto();
-                transactionItemDto.setTransaction(transactionDto.getId());
-                transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                transactionItemDto.setQuantity(item.getQuantity());
-                transactionService.addItem(transactionItemDto);
+            if (!invoiceCreateDto.getItems().isEmpty()) {
+                PricingDto pricingDto = pricingService.calculate(invoiceCreateDto.getItems());
+                for (LineItemDto item : pricingDto.getItems()) {
+                    ProductDto productDto = productService.get(item.getProductId());
+                    TransactionItemDto transactionItemDto = new TransactionItemDto();
+                    transactionItemDto.setTransaction(transactionDto.getId());
+                    transactionItemDto.setProduct(productDto.getId());
+                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                    transactionItemDto.setQuantity(item.getQuantity());
+                    transactionService.addItem(transactionItemDto);
+                }
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {

@@ -10,6 +10,6 @@ import java.util.List;
 
 @Repository
 public interface TransactionAmountRepository extends JpaRepository<TransactionAmountEntity, TransactionAmountPKEntity> {
-    @Query(value = "SELECT t FROM TransactionAmountEntity t WHERE t.transactionAmountPKEntity.transaction = :transaction", nativeQuery = true)
+    @Query("SELECT t FROM TransactionAmountEntity t WHERE t.transactionAmountPKEntity.transaction = :transaction")
     List<TransactionAmountEntity> getTransactionAmounts(String transaction);
 }
