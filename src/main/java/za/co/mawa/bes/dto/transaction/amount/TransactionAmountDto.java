@@ -15,7 +15,12 @@ import java.math.BigDecimal;
 public class TransactionAmountDto implements Serializable {
     private String transaction;
     private String type;
-    private BigDecimal amount;
+    private BigDecimal amount = new BigDecimal("0.00");
+
+    public TransactionAmountDto(String transaction, String type) {
+        this.transaction = transaction;
+        this.type = type;
+    }
 
     public TransactionAmountDto(TransactionAmountEntity transactionAmountEntity) {
         this.transaction = transactionAmountEntity.getTransactionAmountPKEntity().getTransaction();

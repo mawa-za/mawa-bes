@@ -58,7 +58,7 @@ public class PurchaseOrderController {
                 TransactionItemDto transactionItemDto = new TransactionItemDto();
                 transactionItemDto.setTransaction(transactionDto.getId());
                 transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                transactionItemDto.setUnitPrice(item.getUnitPrice());
                 transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
                 transactionItemDto.setQuantity(item.getQuantity());
                 transactionService.addItem(transactionItemDto);
