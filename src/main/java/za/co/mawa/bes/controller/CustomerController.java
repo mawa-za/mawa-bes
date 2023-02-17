@@ -2,11 +2,13 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.service.PersonService;
 import za.co.mawa.bes.utils.RoleType;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 
@@ -16,6 +18,8 @@ import java.util.ArrayList;
 public class CustomerController {
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    PersonService personService;
     Gson gson = new Gson();
 
     @RequestMapping(value = "/customer", method = RequestMethod.GET)
@@ -35,8 +39,13 @@ public class CustomerController {
     }
 
     @RequestMapping(value = "/customer", method = RequestMethod.POST)
-    public String postCustomer() throws Exception{
-        return null;
+    public ResponseEntity<?> postCustomer(@RequestBody PersonDto person) throws Exception{
+        try{
+            String personDto = personService.createPerson(person);
+            return ResponseEntity.ok(gson.toJson(personDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public String putCustomer() throws Exception{
