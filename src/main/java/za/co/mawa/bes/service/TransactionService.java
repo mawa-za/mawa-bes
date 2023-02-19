@@ -73,8 +73,12 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void delete(String id) {
-
+    public void delete(String id) throws Exception {
+        try {
+            transactionRepository.deleteById(id);
+        } catch (Exception ex) {
+            throw new Exception("Error deleting transaction");
+        }
     }
 
     @Override
