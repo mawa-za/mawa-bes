@@ -8,6 +8,6 @@ import za.co.mawa.bes.entity.PartnerAttachmentEntity;
 import java.util.List;
 @Repository
 public interface PartnerAttachmentRepository extends JpaRepository<PartnerAttachmentEntity, String> {
-    @Query(value = "SELECT p FROM PartnerAttachment p WHERE p.partner = :partner", nativeQuery = true)
+    @Query("SELECT p FROM PartnerAttachmentEntity p WHERE p.partner = :partner")
     List<PartnerAttachmentEntity> findByPartner(String partner);
 }

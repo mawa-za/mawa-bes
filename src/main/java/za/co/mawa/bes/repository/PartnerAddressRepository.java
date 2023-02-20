@@ -10,6 +10,6 @@ import java.util.List;
 
 @Repository
 public interface PartnerAddressRepository extends JpaRepository<PartnerAddressEntity, PartnerAddressPKEntity> {
-    @Query(value = "SELECT p FROM PartnerAddress p WHERE p.partnerAddressPK.partner = :partner", nativeQuery = true)
+    @Query("SELECT p FROM PartnerAddressEntity p WHERE p.partnerAddressPK.partner = :partner")
     List<PartnerAddressEntity> findPartnerAddressByPartner(String partner);
 }
