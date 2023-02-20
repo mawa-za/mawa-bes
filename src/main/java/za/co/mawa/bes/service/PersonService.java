@@ -15,6 +15,7 @@ public class PersonService implements PersonDao {
     PartnerService partnerService;
     @Autowired
     UserService userService;
+
     @Override
     public String createPerson(PersonDto person) {
         String partnerNo;
@@ -39,16 +40,16 @@ public class PersonService implements PersonDao {
 
     @Override
     public PersonDto getPerson(String partner) {
-        PartnerDto object = partnerService.get(partner);
-        PersonDto person = null;
         try {
+            PartnerDto object = partnerService.get(partner);
+            PersonDto person = null;
             if (object != null) {
                 person = new PersonDto(object);
             }
+            return person;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return person;
     }
 
 }

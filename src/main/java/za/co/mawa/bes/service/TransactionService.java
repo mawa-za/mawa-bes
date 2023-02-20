@@ -160,6 +160,19 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
+    public TransactionPartnerDto getPartner(String transaction, String partnerFunction) {
+//        TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//        List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findPartnerByTransaction(transaction).stream()
+//                .filter(a -> Objects.equals(a.getTransactionPartnerPKEntity().getFunction(), partnerFunction))
+//                .toList();
+//       if(!transactionPartnerEntities.isEmpty())
+//            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(transactionPartnerEntity);
+//            transactionPartnerDtos.add(transactionPartnerDto);
+//        }
+        return null;
+    }
+
+    @Override
     public List<TransactionDto> search(TransactionQueryDto transactionQueryDto) {
         List<TransactionDto> transactionDtos = new ArrayList<>();
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {

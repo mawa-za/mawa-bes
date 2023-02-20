@@ -33,6 +33,7 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("claim","Claims","search"));
         workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
         workcenterDtoList.add(new WorkcenterDto("product","Products","search"));
+        workcenterDtoList.add(new WorkcenterDto("complaint","Complaints","search"));
         return workcenterDtoList;
     }
 

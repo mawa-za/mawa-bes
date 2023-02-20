@@ -4,6 +4,7 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.dto.PartnerQueryDto;
+import za.co.mawa.bes.exception.PartnerNotFound;
 
 import java.util.ArrayList;
 
@@ -12,7 +13,7 @@ public interface PartnerDao {
     String create(PartnerDto object);
     boolean edit(PersonDto object);
     PartnerEntity findById(String id);
-    PartnerDto get (String id);
+    PartnerDto get (String id) throws PartnerNotFound;
     boolean removeRole(String partner, String role);
     ArrayList<RelationDto> getRelationByPartner2(String partner2);
     ArrayList<PartnerDto> search(PartnerQueryDto pq);

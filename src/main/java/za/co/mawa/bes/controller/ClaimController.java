@@ -9,17 +9,25 @@ import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.exception.PartnerNotFound;
+import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
 @RestController
 @CrossOrigin
 public class ClaimController {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    PartnerService partnerService;
     Gson gson = new Gson();
 
     @RequestMapping(value = "/claim", method = RequestMethod.POST)
@@ -35,25 +43,25 @@ public class ClaimController {
             creationDate.setType(DateType.CREATED);
             transactionService.addDate(creationDate);
 
-            if (claimCreateDto.getMember() != null) {
+            if (claimCreateDto.getMemberId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
                 transactionPartnerDto.setFunction(PartnerFunction.MAINMEMBER);
-                transactionPartnerDto.setPartner(claimCreateDto.getMember());
+                transactionPartnerDto.setPartner(claimCreateDto.getMemberId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            if (claimCreateDto.getDeceased() != null) {
+            if (claimCreateDto.getDeceasedId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
                 transactionPartnerDto.setFunction(PartnerFunction.DECEASED);
-                transactionPartnerDto.setPartner(claimCreateDto.getDeceased());
+                transactionPartnerDto.setPartner(claimCreateDto.getDeceasedId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            if (claimCreateDto.getClaimant() != null) {
+            if (claimCreateDto.getClaimantId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
                 transactionPartnerDto.setFunction(PartnerFunction.CLAIMANT);
-                transactionPartnerDto.setPartner(claimCreateDto.getClaimant());
+                transactionPartnerDto.setPartner(claimCreateDto.getClaimantId());
                 transactionService.addPartner(transactionPartnerDto);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
@@ -65,9 +73,13 @@ public class ClaimController {
     @RequestMapping(value = "/claim", method = RequestMethod.GET)
     public ResponseEntity<?> getClaims() {
         try {
+            List<ClaimDto> claimDtoList = new ArrayList<>();
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
-            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
+            for (TransactionDto transactionDto : transactionService.search(transactionQueryDto)) {
+                claimDtoList.add(getClaimData(transactionDto.getId()));
+            }
+            return ResponseEntity.ok(gson.toJson(claimDtoList));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -76,7 +88,7 @@ public class ClaimController {
     @RequestMapping(value = "/claim/{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getClaim(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
+            return ResponseEntity.ok(gson.toJson(getClaimData(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -137,5 +149,31 @@ public class ClaimController {
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
+    }
+
+    private ClaimDto getClaimData(String id) {
+        TransactionDto transactionDto = transactionService.get(id);
+        ClaimDto claimDto = new ClaimDto();
+        claimDto.setId(transactionDto.getId());
+        claimDto.setNumber(transactionDto.getNumber());
+        claimDto.setType(transactionDto.getSubType());
+        claimDto.setStatus(transactionDto.getStatus());
+        for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+            if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.MAINMEMBER)) {
+                claimDto.setMemberId(transactionPartnerDto.getPartner());
+            }
+            if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.DECEASED)) {
+                claimDto.setDeceasedId(transactionPartnerDto.getPartner());
+            }
+            if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CLAIMANT)) {
+                claimDto.setDeceasedId(transactionPartnerDto.getPartner());
+            }
+        }
+        for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+            if (Objects.equals(transactionDateDto.getType(), DateType.CREATED)) {
+                claimDto.setCreationDate(transactionDateDto.getValue());
+            }
+        }
+        return claimDto;
     }
 }
