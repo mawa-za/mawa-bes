@@ -11,7 +11,7 @@ public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
     List<TransactionDto> search(TransactionQueryDto query);
     void edit(TransactionDto transactionDto);
-    void delete(String id);
+    void delete(String id) throws Exception;
     TransactionDto get(String orderId);
 
     //Items

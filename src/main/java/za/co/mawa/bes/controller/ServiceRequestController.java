@@ -34,6 +34,7 @@ public class ServiceRequestController {
     public ResponseEntity<?> getServiceRequest() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
             return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
