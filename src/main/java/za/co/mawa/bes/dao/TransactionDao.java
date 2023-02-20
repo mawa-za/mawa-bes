@@ -1,20 +1,21 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.TransactionEntity;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
     List<TransactionDto> search(TransactionQueryDto query);
     void edit(TransactionDto transactionDto);
-    void delete(String id);
+    void delete(String id) throws Exception;
     TransactionDto get(String orderId);
 
     //Items
-    void addItem(TransactionItemDto transactionItemDto);
+    void addItem(TransactionItemDto transactionItemDto) throws Exception;
     void removeItem(TransactionItemDto transactionItemDto) throws Exception;
     List<TransactionItemDto> getItems(String id);
 
@@ -24,7 +25,7 @@ public interface TransactionDao {
     List<TransactionAmountDto> getAmounts(String id);
 
     //Partners
-    void addPartner(TransactionPartnerDto transactionPartnerDto);
+    void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
     void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
     List<TransactionPartnerDto> getPartners(String id);
 

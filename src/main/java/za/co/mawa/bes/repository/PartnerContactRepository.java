@@ -9,6 +9,6 @@ import za.co.mawa.bes.entity.PartnerContactPKEntity;
 import java.util.List;
 @Repository
 public interface PartnerContactRepository extends JpaRepository<PartnerContactEntity, PartnerContactPKEntity> {
-    @Query("SELECT p FROM PartnerContactEntity ")
+    @Query("SELECT p FROM PartnerContactEntity p WHERE p.value = :value")
     List<PartnerContactEntity> findPartnerByValue(String value);
 }

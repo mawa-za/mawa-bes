@@ -1,20 +1,18 @@
 package za.co.mawa.bes.service;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.UserRoleDto;
+import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.dto.UserCreateDto;
-import za.co.mawa.bes.dto.UserDto;
-import za.co.mawa.bes.dto.UserUpdateDto;
+import za.co.mawa.bes.dto.user.UserCreateDto;
+import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.UserUpdateDto;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;

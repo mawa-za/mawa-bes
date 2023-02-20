@@ -10,9 +10,9 @@ import java.util.List;
 
 @Repository
 public interface PartnerRoleRepository extends JpaRepository<PartnerRoleEntity, PartnerRolePKEntity> {
-    @Query(value = "SELECT p FROM PartnerRole p WHERE p.partnerRolePK.role = :role", nativeQuery = true)
+    @Query("SELECT p FROM PartnerRoleEntity p WHERE p.partnerRolePK.role = :role")
     List<PartnerRoleEntity> findPartnerByRole(String role);
 
-    @Query(value = "SELECT p FROM PartnerRole p WHERE p.partnerRolePK.id = :id", nativeQuery = true)
+    @Query("SELECT p FROM PartnerRoleEntity p WHERE p.partnerRolePK.id = :id")
     List<PartnerRoleEntity> findRoleByPartner(String id);
 }

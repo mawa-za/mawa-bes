@@ -5,7 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.product.ProductCreateDto;
+import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.ProductQueryDto;
+import za.co.mawa.bes.dto.product.ProductUpdateDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.service.ProductService;
 
@@ -26,8 +30,9 @@ public class ProductController {
     }
 
     @RequestMapping(value = "/product", method = RequestMethod.GET)
-    public ResponseEntity<?> getProducts(@RequestBody ProductQueryDto productQueryDto) {
+    public ResponseEntity<?> getProducts() {
         try {
+            ProductQueryDto productQueryDto = new ProductQueryDto();
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -44,12 +49,25 @@ public class ProductController {
     }
 
     @RequestMapping(value = "/product/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductDto productDto) {
+    public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductUpdateDto productUpdateDto) {
         try {
+            ProductDto productDto = productService.get(id);
+            productDto.setCode(productUpdateDto.getCode());
+            productDto.setCategory(productUpdateDto.getCategory());
+            productDto.setDescription(productUpdateDto.getDescription());
+//            productDto.setBaseUnitOfMeasure(productUpdateDto.getBaseUnitOfMeasure());
             productService.edit(productDto);
+//
+//
+//            ProductPricingDto productPricingDto = new ProductPricingDto();
+//            productPricingDto.setProduct(productEntity.getId());
+//            productPricingDto.setPricing("SELLING-PRICE");
+//            productPricingDto.setValue(productUpdateDto.getSellingPrice());
+//            editPricing(productPricingDto);
+
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 

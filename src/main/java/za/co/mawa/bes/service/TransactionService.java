@@ -2,9 +2,13 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -28,6 +32,8 @@ public class TransactionService implements TransactionDao {
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     UserService userService;
+    @Autowired
+    PricingService pricingService;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -45,9 +51,21 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setCreatedBy(userService.getCurrentUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
+            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
+            addAmount(totalIncVat);
+            TransactionAmountDto totalExcVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_EXC_VAT);
+            addAmount(totalExcVat);
+            TransactionAmountDto discountAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_AMOUNT);
+            addAmount(discountAmount);
+            TransactionAmountDto discountPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_PERCENT);
+            addAmount(discountPercentage);
+            TransactionAmountDto VATAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_AMOUNT);
+            addAmount(VATAmount);
+            TransactionAmountDto VATPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_PERCENT);
+            addAmount(VATPercentage);
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
-            throw new RuntimeException();
+            throw new RuntimeException("Object number range not found");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -55,8 +73,12 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void delete(String id) {
-
+    public void delete(String id) throws Exception {
+        try {
+            transactionRepository.deleteById(id);
+        } catch (Exception ex) {
+            throw new Exception("Error deleting transaction");
+        }
     }
 
     @Override
@@ -70,7 +92,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionDateRepository.save(transactionDateEntity);
         } catch (Exception ex) {
-            throw new Exception("Date not added");
+            throw new Exception("Error adding date to transaction");
         }
     }
 
@@ -184,16 +206,17 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addItem(TransactionItemDto transactionItemDto) {
+    public void addItem(TransactionItemDto transactionItemDto) throws Exception {
         try {
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
             transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
             transactionItemEntity.setValidFrom(new Date());
-            transactionItemEntity.setValidTo(new Date(Constant.END_DATE));
+            transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
+            calculatePricing(transactionItemDto.getTransaction());
         } catch (Exception exception) {
-
+            throw new Exception("Error adding item to transaction");
         }
     }
 
@@ -225,7 +248,6 @@ public class TransactionService implements TransactionDao {
             TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
             transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());
             transactionAmountPKEntity.setType(transactionAmountDto.getType());
-
             TransactionAmountEntity transactionAmountEntity = new TransactionAmountEntity();
             transactionAmountEntity.setTransactionAmountPKEntity(transactionAmountPKEntity);
             transactionAmountEntity.setAmount(transactionAmountDto.getAmount());
@@ -258,7 +280,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addPartner(TransactionPartnerDto transactionPartnerDto) {
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
@@ -273,7 +295,7 @@ public class TransactionService implements TransactionDao {
 
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
-
+            throw new Exception("Could not add partner to transaction");
         }
     }
 
@@ -286,7 +308,50 @@ public class TransactionService implements TransactionDao {
         try {
             transactionPartnerRepository.deleteById(transactionPartnerPKEntity);
         } catch (Exception ex) {
-            throw new Exception("");
+            throw new Exception("Could not remove partner to transaction");
+        }
+    }
+
+    private void calculatePricing(String id) throws Exception {
+        try {
+            List<LineItemDto> lineItemDtoList = new ArrayList<>();
+            for (TransactionItemDto transactionItemDto : getItems(id)) {
+                LineItemDto lineItemDto = new LineItemDto();
+                lineItemDto.setQuantity(transactionItemDto.getQuantity());
+                lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
+                lineItemDtoList.add(lineItemDto);
+            }
+
+            PricingDto pricingDto = pricingService.calculate(lineItemDtoList);
+
+            List<TransactionAmountDto> transactionAmountDtoList = getAmounts(id);
+
+            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat());
+            removeAmount(totalIncVat);
+            addAmount(totalIncVat);
+
+            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat());
+            removeAmount(totalExcVat);
+            addAmount(totalExcVat);
+
+            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount());
+            removeAmount(discountAmount);
+            addAmount(discountAmount);
+
+            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage());
+            removeAmount(discountPercentage);
+            addAmount(discountPercentage);
+
+            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount());
+            removeAmount(VATAmount);
+            addAmount(VATAmount);
+
+            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage());
+            removeAmount(VATPercentage);
+            addAmount(VATPercentage);
+
+        } catch (Exception exception) {
+            throw new Exception("Pricing Engine Failure");
         }
     }
 

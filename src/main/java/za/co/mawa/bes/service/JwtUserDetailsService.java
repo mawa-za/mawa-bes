@@ -11,7 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.dto.UserDto;
+import za.co.mawa.bes.dto.user.UserDto;
 
 @Component
 public class JwtUserDetailsService implements UserDetailsService {

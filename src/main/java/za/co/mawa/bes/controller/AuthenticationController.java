@@ -17,15 +17,14 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
 import za.co.mawa.bes.dto.AuthenticationDto;
 import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.UserService;
-import za.co.mawa.bes.dto.UserDto;
-import za.co.mawa.bes.dto.UserUpdateDto;
+import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.UserUpdateDto;
 
 
 @RestController

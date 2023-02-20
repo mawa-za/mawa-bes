@@ -38,27 +38,33 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
-            String serverName = request.getServerName();
-            System.out.println(serverName);
+            System.out.println("Tenant Before:" +TenantContext.getCurrentTenant() );
+            System.out.println("X-TenantID:" + request.getHeader("X-TenantID"));
+            String host = request.getHeader("X-TenantID").split(":")[0];
+            System.out.println("host:" + host);
             List<TenantDto> tenants = tenantService.getAll().stream()
-                    .filter(a -> Objects.equals(a.getHost(), "ignore for now"))
+                    .filter(a -> Objects.equals(a.getHost(), host))
                     .toList();
+            System.out.println("Found Tenant:" + tenants.toString());
             if (!tenants.isEmpty()) {
                 TenantDto tenant = tenants.iterator().next();
-                TenantContext.setCurrentTenant(tenant.getId());
+                TenantContext.setCurrentTenant(tenant.getName());
+                System.out.println("Tenant After:" +TenantContext.getCurrentTenant() );
                 return true;
             } else {
                 String tenantID = request.getHeader("X-TenantID");
                 if (tenantID != null) {
                     TenantContext.setCurrentTenant(tenantID);
+                    System.out.println("Tenant After:" +TenantContext.getCurrentTenant() );
                     return true;
                 } else {
                     throw new TenantNotProvided("X-TenantID request header not provided");
                 }
             }
+
         } else {
             try {
-                System.out.println(request.toString());
+
                 return Optional.ofNullable(request)
                         .map(req -> securityDomain.getTenantIdFromJwt(req))
                         .map(tenant -> setTenantContext(tenant))
