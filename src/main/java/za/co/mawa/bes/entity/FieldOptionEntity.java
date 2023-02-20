@@ -18,7 +18,7 @@ public class FieldOptionEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected FieldOptionPKEntity fieldOptionPKEntity;
-    @Column(name = "description", length = 255)
+    @Column(name = "description")
     private String description;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)

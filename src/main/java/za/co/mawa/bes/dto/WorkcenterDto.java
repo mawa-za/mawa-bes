@@ -1,40 +1,29 @@
 package za.co.mawa.bes.dto;
 
-public class WorkcenterDto {
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.io.Serializable;
+
+@NoArgsConstructor
+@Getter
+@Setter
+public class WorkcenterDto implements Serializable {
     private String id;
     private String description;
     private String defaultFunction;
-
-    public WorkcenterDto() {
-    }
+    private String path;
 
     public WorkcenterDto(String id, String description, String defaultFunction) {
         this.id = id;
         this.description = description;
         this.defaultFunction = defaultFunction;
+        if (defaultFunction != "" && defaultFunction != null) {
+            this.path = id + "-" + defaultFunction;
+        }else{
+            this.path = id;
+        }
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getDefaultFunction() {
-        return defaultFunction;
-    }
-
-    public void setDefaultFunction(String defaultFunction) {
-        this.defaultFunction = defaultFunction;
-    }
 }

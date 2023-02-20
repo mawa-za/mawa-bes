@@ -1,11 +1,10 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.UserCreateDto;
-import za.co.mawa.bes.dto.UserRoleDto;
-import za.co.mawa.bes.entity.UserRoleEntity;
+import za.co.mawa.bes.dto.user.UserCreateDto;
+import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.dto.UserDto;
-import za.co.mawa.bes.dto.UserUpdateDto;
+import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.UserUpdateDto;
 
 import java.util.List;
 

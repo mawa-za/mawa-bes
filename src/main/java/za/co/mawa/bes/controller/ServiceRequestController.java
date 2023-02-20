@@ -5,31 +5,37 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.TransactionCreateDto;
-import za.co.mawa.bes.dto.TransactionDto;
-import za.co.mawa.bes.dto.TransactionQueryDto;
-import za.co.mawa.bes.service.SalesOrderService;
-import za.co.mawa.bes.service.ServiceRequestService;
+import za.co.mawa.bes.dto.service.request.ServiceRequestCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
+import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.utils.TransactionType;
+
 @RestController
 @CrossOrigin
 public class ServiceRequestController {
     @Autowired
-    ServiceRequestService serviceRequestService;
+    TransactionService transactionService;
     Gson gson = new Gson();
 
     @RequestMapping(value = "/service-request", method = RequestMethod.POST)
-    public ResponseEntity<?> postServiceRequest(@RequestBody TransactionCreateDto transactionCreateDto) {
+    public ResponseEntity<?> postServiceRequest(@RequestBody ServiceRequestCreateDto serviceRequestCreateDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.create(transactionCreateDto)));
+            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
+            transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
+            return ResponseEntity.ok(gson.toJson(transactionService.create(transactionCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
     @RequestMapping(value = "/service-request", method = RequestMethod.GET)
-    public ResponseEntity<?> getServiceRequest(@RequestBody TransactionQueryDto transactionQueryDto) {
+    public ResponseEntity<?> getServiceRequest() {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.search(transactionQueryDto)));
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
+            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -38,7 +44,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "/service-request/{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getServiceRequest(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -47,7 +53,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "/service-request/{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
         try {
-            serviceRequestService.edit(transactionDto);
+            transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -57,7 +63,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "/service-request/{id}", method = RequestMethod.DELETE)
     public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
         try {
-            serviceRequestService.delete(id);
+            transactionService.delete(id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

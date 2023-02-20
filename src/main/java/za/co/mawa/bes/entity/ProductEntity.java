@@ -4,7 +4,7 @@ package za.co.mawa.bes.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
-import za.co.mawa.bes.dto.ProductDto;
+import za.co.mawa.bes.dto.product.ProductDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -22,7 +22,7 @@ public class ProductEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "code")
+    @Column(unique = true, name = "code")
     private String code;
     @Column(name = "description")
     private String description;

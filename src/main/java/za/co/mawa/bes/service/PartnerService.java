@@ -3,12 +3,13 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-import za.co.raretag.mawabes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,10 +47,10 @@ public class PartnerService implements PartnerDao {
     UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
-    @Override
-    public String create(PartnerEntity partnerEntity) {
-        return null;
-    }
+   // @Override
+//    public String create(PartnerEntity partnerEntity) {
+//        return null;
+//    }
 
     @Override
     public String create(PartnerDto object) {
@@ -156,14 +157,14 @@ public class PartnerService implements PartnerDao {
         object.setStatus(StringConversion.capitalizeFully(partner.getStatus()));
         object.setTitle(fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle()));
         object.setGender(fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender()));
-        object.setMaritalStatus(fieldOptionService.getFieldOptionDescription("MARITALSTATUS", partner.getMaritalStatus()));
+        object.setMaritalStatus(fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus()));
         object.setLanguage(fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage()));
         object.setValidFrom(Conversion.dateToString(partner.getValidFrom()));
         object.setValidTo(Conversion.dateToString(partner.getValidTo()));
 
         PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
         if (partnerIdentity != null) {
-            object.setIdType(fieldOptionService.getFieldOptionDescription("IDTYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+            object.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
             object.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
         }
 
@@ -301,6 +302,7 @@ public class PartnerService implements PartnerDao {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
         ArrayList<PartnerDto> filteredList = new ArrayList<>();
         ArrayList<PartnerDto> initialList = new ArrayList<>();
+        boolean pass = false;
 
         if (pq == null) {
             List<PartnerEntity> partnerList = partnerRepository.findAll();
@@ -391,31 +393,35 @@ public class PartnerService implements PartnerDao {
         for (PartnerDto pqr : initialList) {
             if (pq.getIdType() != null && !"".equals(pq.getIdType())) {
                 if (!pqr.getIdType().equals(pq.getIdType())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getIdNumber() != null && !"".equals(pq.getIdNumber())) {
                 if (!pqr.getIdNumber().equals(pq.getIdNumber())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getName1() != null && !"".equals(pq.getName1())) {
                 if (!pqr.getName1().equals(pq.getName1())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
 
             if (pq.getName2() != null && !"".equals(pq.getName2())) {
                 if (!pqr.getName2().equals(pq.getName2())) {
-
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
             if (pq.getName3() != null && !"".equals(pq.getName3())) {
                 if (!pqr.getName3().equals(pq.getName3())) {
-                    continue;
+                    pass = true;
+                    //continue;
                 }
             }
             if (pq.getRole() != null && !"".equals(pq.getRole())) {
@@ -478,9 +484,10 @@ public class PartnerService implements PartnerDao {
             IdentityDto identity = new IdentityDto();
             identity.setIdType(partnerIdentity.getPartnerIdentityPK().getType());
             identity.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
+            identity.setPartner(partner);
             identity.setValidFrom(Conversion.dateTimeToString(partnerIdentity.getValidFrom()));
             identity.setValidTo(Conversion.dateTimeToString(partnerIdentity.getValidTo()));
-            identity.setTypeDescription(fieldOptionService.getFieldOptionDescription("IDTYPE", identity.getIdType()));
+            identity.setTypeDescription(fieldOptionService.getFieldOptionDescription("ID-TYPE", identity.getIdType()));
 
             partnerIdentities.add(identity);
         }
@@ -1441,5 +1448,22 @@ public class PartnerService implements PartnerDao {
             relations.add(relation);
         }
         return relations;
+    }
+
+    @Override
+    public ArrayList<PartnerDto> getPartners(String partnerRole) {
+        ArrayList<PartnerDto> partners = new ArrayList();
+        List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerRole);
+        if(!partnerRoleList.isEmpty()){
+            for(PartnerRoleEntity prtRole : partnerRoleList){
+                String fo = fieldOptionService.getFieldOptionDescription("PARTNER-ROLE", prtRole.getPartnerRolePK().getRole());
+                if(fo != null){
+                    PartnerDto partner = new PartnerDto();
+                    partner = get(prtRole.getPartnerRolePK().getId());
+                    partners.add(partner);
+                }
+            }
+        }
+        return partners;
     }
 }

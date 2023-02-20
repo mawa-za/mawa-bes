@@ -1,32 +1,17 @@
 package za.co.mawa.bes.dto;
 
-import java.io.Serializable;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.io.Serializable;
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
 public class FieldDto implements Serializable {
-    private String id;
+    private String code;
     private String description;
 
-    public FieldDto() {
-    }
-
-    public FieldDto(String id, String description) {
-        this.id = id;
-        this.description = description;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
 }

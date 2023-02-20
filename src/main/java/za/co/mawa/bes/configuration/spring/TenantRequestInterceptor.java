@@ -8,13 +8,11 @@ import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
-import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.TenantDto;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.exception.TenantNotProvided;
+import za.co.mawa.bes.service.RemoteTenantService;
 import za.co.mawa.bes.service.TenantService;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,16 +38,15 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
-            String serverName = request.getServerName();
-            System.out.println(serverName);
+            String host = request.getHeader("X-TenantID").split(":")[0];
             List<TenantDto> tenants = tenantService.getAll().stream()
-                    .filter(a -> Objects.equals(a.getHost(), "ignore for now"))
+                    .filter(a -> Objects.equals(a.getHost(), host))
                     .toList();
-            if (!tenants.isEmpty()){
+            if (!tenants.isEmpty()) {
                 TenantDto tenant = tenants.iterator().next();
-                TenantContext.setCurrentTenant(tenant.getId());
+                TenantContext.setCurrentTenant(tenant.getName());
                 return true;
-            }else{
+            } else {
                 String tenantID = request.getHeader("X-TenantID");
                 if (tenantID != null) {
                     TenantContext.setCurrentTenant(tenantID);
@@ -59,10 +56,15 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
                 }
             }
         } else {
-            return Optional.ofNullable(request)
-                    .map(req -> securityDomain.getTenantIdFromJwt(req))
-                    .map(tenant -> setTenantContext(tenant))
-                    .orElse(false);
+            try {
+                System.out.println(request.toString());
+                return Optional.ofNullable(request)
+                        .map(req -> securityDomain.getTenantIdFromJwt(req))
+                        .map(tenant -> setTenantContext(tenant))
+                        .orElse(false);
+            } catch (Exception exception) {
+                throw new TenantNotProvided();
+            }
         }
 
     }

@@ -3,10 +3,10 @@ package za.co.mawa.bes.configuration.hibernate;
 import org.hibernate.engine.jdbc.connections.internal.DriverManagerConnectionProviderImpl;
 import org.hibernate.engine.jdbc.connections.spi.AbstractMultiTenantConnectionProvider;
 import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
-import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.service.RemoteTenantService;
 import za.co.mawa.bes.service.TenantService;
 
 import java.io.IOException;

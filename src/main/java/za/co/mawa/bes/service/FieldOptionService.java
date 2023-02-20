@@ -5,10 +5,12 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.FieldOptionDao;
 import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.entity.FieldEntity;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.FieldOptionPKEntity;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.repository.FieldOptionRepository;
+import za.co.mawa.bes.repository.FieldRepository;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -20,15 +22,18 @@ public class FieldOptionService implements FieldOptionDao {
     @Autowired
     FieldOptionRepository fieldOptionRepository;
 
+    @Autowired
+    FieldRepository fieldRepository;
+
     @Override
     public void create(FieldOptionDto fieldOptionDto) throws FieldDoesNotExist {
         List<FieldDto> result = getFields().stream()
-                .filter(a -> Objects.equals(a.getId(), fieldOptionDto.getField()))
+                .filter(a -> Objects.equals(a.getCode(), fieldOptionDto.getField()))
                 .toList();
-        if (!result.isEmpty()){
+        if (!result.isEmpty()) {
             fieldOptionDto.setValidFrom(new Date());
             fieldOptionRepository.save(dtoToEntity(fieldOptionDto));
-        }else{
+        } else {
             throw new FieldDoesNotExist();
         }
 
@@ -46,16 +51,28 @@ public class FieldOptionService implements FieldOptionDao {
     @Override
     public List<FieldDto> getFields() {
         List<FieldDto> fieldDtoList = new ArrayList<>();
-        fieldDtoList.add(new FieldDto("TITLE", "Title"));
-        fieldDtoList.add(new FieldDto("GENDER", "Gender"));
-        fieldDtoList.add(new FieldDto("IDTYPE", "ID Type"));
-        fieldDtoList.add(new FieldDto("USERROLE", "User Role"));
+        List<FieldEntity> fieldEntities = fieldRepository.findAll();
+        for (FieldEntity fieldEntity : fieldEntities) {
+            FieldDto fieldDto = new FieldDto();
+            fieldDto.setCode(fieldEntity.getCode());
+            fieldDto.setDescription(fieldEntity.getDescription());
+            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription()));
+        }
         return fieldDtoList;
     }
 
+
     @Override
     public String getFieldOptionDescription(String field, String code) {
-        return null;
+        FieldOptionPKEntity pk = new FieldOptionPKEntity();
+        pk.setCode(code);
+        pk.setField(field);
+        FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
+        if (fieldOption != null) {
+            return fieldOption.getDescription();
+        } else {
+            return null;
+        }
     }
 
     private FieldOptionDto entityToDto(FieldOptionEntity fieldOptionEntity) {

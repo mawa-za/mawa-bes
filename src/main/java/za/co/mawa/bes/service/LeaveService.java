@@ -9,8 +9,8 @@ import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.StatusReason;
 import za.co.mawa.bes.dao.LeaveDao;
 import za.co.mawa.bes.dto.LogLeaveRequestDto;
-import za.co.mawa.bes.dto.TransactionDto;
-import za.co.mawa.bes.entity.TransactionEntity;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 
 import java.util.Calendar;
 @Service

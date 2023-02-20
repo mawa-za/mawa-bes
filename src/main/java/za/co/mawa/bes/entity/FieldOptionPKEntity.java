@@ -8,10 +8,10 @@ import java.util.Objects;
 
 @Embeddable
 public class FieldOptionPKEntity implements Serializable {
-    @Column(name = "field", length = 20)
+    @Column(name = "field")
     private String field;
 
-    @Column(name = "code", length = 20)
+    @Column(name = "code")
     private String code;
 
     public FieldOptionPKEntity() {
