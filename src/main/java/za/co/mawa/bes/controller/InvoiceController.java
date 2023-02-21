@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.util.Date;
 
 @RestController
+@RequestMapping(value = "invoice")
 @CrossOrigin
 public class InvoiceController {
     @Autowired
@@ -35,7 +37,10 @@ public class InvoiceController {
     ProductService productService;
     @Autowired
     PricingService pricingService;
-    @RequestMapping(value = "/invoice", method = RequestMethod.POST)
+    @Autowired
+    @Qualifier("items")
+    ItemsController itemsController;
+    @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -51,21 +56,15 @@ public class InvoiceController {
             if (invoiceCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
                 transactionPartnerDto.setPartner(invoiceCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
             if (!invoiceCreateDto.getItems().isEmpty()) {
                 PricingDto pricingDto = pricingService.calculate(invoiceCreateDto.getItems());
-                for (LineItemDto item : pricingDto.getItems()) {
-                    ProductDto productDto = productService.get(item.getProductId());
-                    TransactionItemDto transactionItemDto = new TransactionItemDto();
-                    transactionItemDto.setTransaction(transactionDto.getId());
-                    transactionItemDto.setProduct(productDto.getId());
-                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                    transactionItemDto.setQuantity(item.getQuantity());
-                    transactionService.addItem(transactionItemDto);
+                for (LineItemDto lineItemDto : pricingDto.getItems()) {
+                    itemsController.post(transactionDto.getId(),lineItemDto);
+
                 }
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
@@ -74,7 +73,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/invoice", method = RequestMethod.GET)
+    @RequestMapping(method = RequestMethod.GET)
     public ResponseEntity<?> getInvoices() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
@@ -85,7 +84,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/invoice/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
@@ -94,7 +93,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/invoice/{id}", method = RequestMethod.PUT)
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editInvoice(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
         try {
             transactionService.edit(transactionDto);
@@ -104,7 +103,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/invoice/{id}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE)
     public ResponseEntity<?> deleteInvoice(@PathVariable String id) {
         try {
             transactionService.delete(id);
@@ -114,13 +113,30 @@ public class InvoiceController {
         }
     }
 
-
-    @RequestMapping(value = "/invoice/{id}/items", method = RequestMethod.GET)
-    public ResponseEntity<?> getItems(@PathVariable String id) {
-        try {
-            return ResponseEntity.ok(gson.toJson(transactionService.getItems(id)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+    @RequestMapping(value = "/{id}/items")
+    public ItemsController getItemsController(@PathVariable String id) {
+        return itemsController;
     }
+
+//    @RequestMapping(value = "{id}/items", method = RequestMethod.GET)
+//    public ResponseEntity<?> getItems(@PathVariable String id) {
+//        try {
+//            ItemsController itemsController = ItemsController.getInstance(id);
+//            return ResponseEntity.ok(gson.toJson(itemsController.getAll()));
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+//        }
+//    }
+//
+//    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
+//    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+//        try {
+//            ItemsController itemsController = ItemsController.getInstance(id);
+//            itemsController.post(lineItemDto);
+//            return ResponseEntity.ok().build();
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+//        }
+//    }
+
 }

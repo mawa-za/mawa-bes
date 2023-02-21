@@ -11,10 +11,10 @@ import java.util.Date;
 @Getter
 @Setter
 public class ClaimCreateDto implements Serializable {
-    private String claimant;
-    private String deceased;
-    private String member;
-    private String membership;
+    private String claimantId;
+    private String deceasedId;
+    private String memberId;
+    private String membershipId;
     private String type;
     private Date deathDate;
     private Date burialDate;

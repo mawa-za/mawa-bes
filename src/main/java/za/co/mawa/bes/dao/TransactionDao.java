@@ -28,6 +28,7 @@ public interface TransactionDao {
     void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
     void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
     List<TransactionPartnerDto> getPartners(String id);
+    TransactionPartnerDto getPartner(String transaction, String partnerFunction);
 
     //Dates
     void addDate(TransactionDateDto transactionDateDto) throws Exception;
