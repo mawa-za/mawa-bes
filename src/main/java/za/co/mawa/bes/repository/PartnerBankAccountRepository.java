@@ -8,6 +8,6 @@ import za.co.mawa.bes.entity.PartnerBankingDetailsPKEntity;
 import java.util.List;
 
 public interface PartnerBankAccountRepository extends JpaRepository<PartnerBankingDetailsEntity, PartnerBankingDetailsPKEntity> {
-    @Query(value = "SELECT b FROM PartnerBankingDetails b WHERE b.partnerBankingDetailsPk.partner = :partner", nativeQuery = true)
+    @Query("SELECT b FROM PartnerBankingDetailsEntity b WHERE b.partnerBankingDetailsPk.partner = :partner")
     List<PartnerBankingDetailsEntity> findPartnerBankByPartner(String partner);
 }

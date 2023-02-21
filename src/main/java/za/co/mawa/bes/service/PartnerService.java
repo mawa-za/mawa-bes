@@ -594,7 +594,7 @@ public class PartnerService implements PartnerDao {
             adr.setPostalCode(address.getPostalCode());
             adr.setValidFrom(new Date());
             adr.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            //adr = partnerAddressRepository.save(adr);
+            adr = addressRepository.save(adr);
 
             PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
             partnerAddressPK.setAddressUsage(address.getType());

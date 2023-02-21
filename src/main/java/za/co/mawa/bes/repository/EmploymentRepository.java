@@ -11,7 +11,7 @@ import java.util.List;
 
 @Repository
 public interface EmploymentRepository extends JpaRepository<EmploymentEntity, EmploymentPKEntity> {
-    @Query(value = "SELECT e FROM Employment e WHERE e.employmentPK.employeeId = :employeeId", nativeQuery = true)
+    @Query("SELECT e FROM EmploymentEntity e WHERE e.employmentPK.employeeId = :employeeId")
  List<EmploymentEntity> findEmploymentById(@Param("employeeId") String employeeId);
 
 }
