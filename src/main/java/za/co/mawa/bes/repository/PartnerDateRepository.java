@@ -10,6 +10,6 @@ import java.util.List;
 
 @Repository
 public interface PartnerDateRepository extends JpaRepository<PartnerDateEntity, PartnerDatePKEntity> {
-    @Query("SELECT p FROM PartnerDate p WHERE p.partnerDatePK.partner_no = :partner_no")
+    @Query("SELECT p FROM PartnerDateEntity p WHERE p.partnerDatePK.partner_no = :partner_no")
     List<PartnerDateEntity> findByPartner(String partner_no);
 }
