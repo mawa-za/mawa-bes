@@ -15,4 +15,5 @@ public interface TransactionPartnerRepository  extends JpaRepository<Transaction
 
     @Query("SELECT t FROM TransactionPartnerEntity t WHERE t.transactionPartnerPKEntity.transaction = :transaction")
     List<TransactionPartnerEntity> findPartnerByTransaction(String transaction);
+
 }

@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 public class LineItemDto {
+    private String transaction;
     private String productId;
     private String code;
     private String description;

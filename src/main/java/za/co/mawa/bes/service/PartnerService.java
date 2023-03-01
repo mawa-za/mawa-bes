@@ -7,6 +7,7 @@ import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dto.PartnerQueryDto;
@@ -47,7 +48,7 @@ public class PartnerService implements PartnerDao {
     UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
-   // @Override
+    // @Override
 //    public String create(PartnerEntity partnerEntity) {
 //        return null;
 //    }
@@ -137,14 +138,19 @@ public class PartnerService implements PartnerDao {
     public PartnerEntity findById(String id) {
         return null;
     }
+
     @Override
-    public PartnerDto get(String id) {
-        PartnerDto object = null;
-        PartnerEntity partner = partnerRepository.getById(id);
-        if (partner != null) {
-            object = entityToObject(partner);
+    public PartnerDto get(String id) throws PartnerNotFound {
+        try {
+            PartnerDto object = null;
+            PartnerEntity partner = partnerRepository.getById(id);
+            if (partner != null) {
+                object = entityToObject(partner);
+            }
+            return object;
+        } catch (Exception exception) {
+            throw new PartnerNotFound();
         }
-        return object;
     }
 
     private PartnerDto entityToObject(PartnerEntity partner) {
@@ -197,6 +203,7 @@ public class PartnerService implements PartnerDao {
         person.setMaritalStatus(fieldOptionService.getFieldOptionDescription("MARITALSTATUS", partner.getMaritalStatus()));
         return person;
     }
+
     private ContactDto getContact(ContactDto contact) {
         try {
             PartnerContactPKEntity partnerContactPK = new PartnerContactPKEntity();
@@ -211,6 +218,7 @@ public class PartnerService implements PartnerDao {
         }
         return contact;
     }
+
     @Override
     public boolean removeRole(String partner, String role) {
         boolean removed = false;
@@ -297,6 +305,7 @@ public class PartnerService implements PartnerDao {
         }
         return objects;
     }
+
     @Override
     public ArrayList<PartnerDto> search(PartnerQueryDto pq) {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
@@ -585,7 +594,7 @@ public class PartnerService implements PartnerDao {
             adr.setPostalCode(address.getPostalCode());
             adr.setValidFrom(new Date());
             adr.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            //adr = partnerAddressRepository.save(adr);
+            adr = addressRepository.save(adr);
 
             PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
             partnerAddressPK.setAddressUsage(address.getType());
@@ -810,7 +819,7 @@ public class PartnerService implements PartnerDao {
         boolean archive = false;
         try {
             PartnerEntity partner = partnerRepository.getById(id);
-            if (partner != null);
+            if (partner != null) ;
             {
                 if (!partner.getStatus().equals(Status.INACTIVE)) {
                     partner.setStatus(Status.INACTIVE);
@@ -1454,12 +1463,16 @@ public class PartnerService implements PartnerDao {
     public ArrayList<PartnerDto> getPartners(String partnerRole) {
         ArrayList<PartnerDto> partners = new ArrayList();
         List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerRole);
-        if(!partnerRoleList.isEmpty()){
-            for(PartnerRoleEntity prtRole : partnerRoleList){
+        if (!partnerRoleList.isEmpty()) {
+            for (PartnerRoleEntity prtRole : partnerRoleList) {
                 String fo = fieldOptionService.getFieldOptionDescription("PARTNER-ROLE", prtRole.getPartnerRolePK().getRole());
-                if(fo != null){
+                if (fo != null) {
                     PartnerDto partner = new PartnerDto();
-                    partner = get(prtRole.getPartnerRolePK().getId());
+                    try {
+                        partner = get(prtRole.getPartnerRolePK().getId());
+                    } catch (PartnerNotFound e) {
+//                        throw new RuntimeException(e);
+                    }
                     partners.add(partner);
                 }
             }

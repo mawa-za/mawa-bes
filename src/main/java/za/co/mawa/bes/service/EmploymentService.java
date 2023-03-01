@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
+import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.repository.EmploymentRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -188,7 +189,12 @@ public class EmploymentService implements EmploymentDao {
 
                 if (relation.getType().equals(PartnerFunction.EMPLOYEE)) {
                     object.setGroupID(relation.getPartner1());
-                    PartnerDto groupObject = partnerService.get(object.getGroupID());
+                    PartnerDto groupObject = null;
+                    try {
+                        groupObject = partnerService.get(object.getGroupID());
+                    } catch (PartnerNotFound e) {
+                        throw new RuntimeException(e);
+                    }
                     if (groupObject != null) {
                         object.setGroupName(groupObject.getName2());
                     }
