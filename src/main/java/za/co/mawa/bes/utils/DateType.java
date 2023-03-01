@@ -2,10 +2,11 @@ package za.co.mawa.bes.utils;
 
 public class DateType {
 
-    public static String JOINED = "DATEJOINED";
-    public static String CREATED = "DATECREATED";
-    public static String EFFECTIVE = "DATEEFFECT";
-    public static String LOGGED = "DATELOGGED";
+    public static String JOINED = "DATE-JOINED";
+    public static String DATE_EXPECTED = "DATE-EXPECTED";
+    public static String CREATED = "DATE-CREATED";
+    public static String EFFECTIVE = "DATE-EFFECT";
+    public static String LOGGED = "DATE-LOGGED";
     public static String NEXT_PAYMENT_DATE = "NEXTPAYDAT";
     public static String NEXT_BILLING_DATE = "NEXTBILLINGDATE";
     public static String DEATH_DATE = "DEATHDATE";

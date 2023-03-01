@@ -19,6 +19,7 @@ public class WorkcenterService implements WorkcenterDao {
         List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
         workcenterDtoList.add(new WorkcenterDto("dashboard","Dashboard",""));
         workcenterDtoList.add(new WorkcenterDto("home","Home",""));
+        workcenterDtoList.add(new WorkcenterDto("prospect","Prospects","search"));
         workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
         workcenterDtoList.add(new WorkcenterDto("organisation","Organisations","search"));
         workcenterDtoList.add(new WorkcenterDto("sales-order","Sales Orders","search"));
@@ -34,6 +35,14 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
         workcenterDtoList.add(new WorkcenterDto("product","Products","search"));
         workcenterDtoList.add(new WorkcenterDto("complaint","Complaints","search"));
+        workcenterDtoList.add(new WorkcenterDto("identify-customer","Identify Customer",""));
+        workcenterDtoList.add(new WorkcenterDto("interaction-record","Interaction Record","list"));
+        workcenterDtoList.add(new WorkcenterDto("calendar","Calendar",""));
+        workcenterDtoList.add(new WorkcenterDto("appointment","Appointments","search"));
+        workcenterDtoList.add(new WorkcenterDto("time-tracker","Time Tracker","search"));
+        workcenterDtoList.add(new WorkcenterDto("company-setup","Company Settings",""));
+        workcenterDtoList.add(new WorkcenterDto("system-configuration","System Configuration",""));
+        workcenterDtoList.add(new WorkcenterDto("reports","Reports",""));
         return workcenterDtoList;
     }
 
