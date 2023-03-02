@@ -1,7 +1,8 @@
 package za.co.mawa.bes.utils;
 
 public class DateType {
-
+    public static String EXPIRY_DATE = "EXPIRY-DATE";
+    public static String DELIVERY_DATE = "DELIVERY-DATE";
     public static String JOINED = "DATEJOINED";
     public static String CREATED = "DATECREATED";
     public static String EFFECTIVE = "DATEEFFECT";
