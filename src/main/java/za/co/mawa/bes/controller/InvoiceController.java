@@ -118,15 +118,14 @@ public class InvoiceController {
         return itemsController;
     }
 
-//    @RequestMapping(value = "{id}/items", method = RequestMethod.GET)
-//    public ResponseEntity<?> getItems(@PathVariable String id) {
-//        try {
-//            ItemsController itemsController = ItemsController.getInstance(id);
-//            return ResponseEntity.ok(gson.toJson(itemsController.getAll()));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
+    @RequestMapping(value = "{id}/items", method = RequestMethod.GET)
+    public ResponseEntity<?> getItems(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(transactionService.getItems(id)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 //
 //    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
 //    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
