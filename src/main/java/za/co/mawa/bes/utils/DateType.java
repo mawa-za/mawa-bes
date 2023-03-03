@@ -4,6 +4,8 @@ public class DateType {
 
     public static String JOINED = "DATE-JOINED";
     public static String DATE_EXPECTED = "DATE-EXPECTED";
+    public static String DELIVERY_DATE = "DATE-JOINED";
+    public static String EXPIRY_DATE = "EXPIRY-DATE";
     public static String CREATED = "DATE-CREATED";
     public static String EFFECTIVE = "DATE-EFFECT";
     public static String LOGGED = "DATE-LOGGED";
@@ -15,7 +17,7 @@ public class DateType {
     public static String LAPSE_DATE = "LAPSEDATE";
     public static String REQUEST_DATE = "REQUESTDATE";
     public static String PAYMENT_DATE = "PAYMENTDATE";
-    public static String DUE_DATE = "DUEDATE";
+    public static String DUE_DATE = "DUE-DATE";
     public static String START_DATE = "STARTDATE";
     public static String END_DATE = "ENDDATE";
     public static String RESOLVE_DATE = "RESOLVEDATE";

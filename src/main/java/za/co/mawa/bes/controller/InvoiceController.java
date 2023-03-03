@@ -55,6 +55,14 @@ public class InvoiceController {
             creationDate.setValue(new Date());
             transactionService.addDate(creationDate);
 
+            if (invoiceCreateDto.getDueDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.DUE_DATE);
+                transactionDateDto.setValue(invoiceCreateDto.getDueDate());
+                transactionService.addDate(transactionDateDto);
+            }
+
             if (invoiceCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());

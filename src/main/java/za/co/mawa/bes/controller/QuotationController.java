@@ -46,10 +46,25 @@ public class QuotationController {
             creationDate.setValue(new Date());
             transactionService.addDate(creationDate);
 
+            if (quotationCreateDto.getDeliveryDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.DELIVERY_DATE);
+                transactionDateDto.setValue(quotationCreateDto.getDeliveryDate());
+                transactionService.addDate(transactionDateDto);
+            }
+            if (quotationCreateDto.getExpiryDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.EXPIRY_DATE);
+                transactionDateDto.setValue(quotationCreateDto.getExpiryDate());
+                transactionService.addDate(creationDate);
+            }
+
             if (quotationCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
                 transactionPartnerDto.setPartner(quotationCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
