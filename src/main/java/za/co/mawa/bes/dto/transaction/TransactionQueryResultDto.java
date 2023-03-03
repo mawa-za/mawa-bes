@@ -27,6 +27,11 @@ public class TransactionQueryResultDto implements Serializable {
     private String location;
     private String subStatus;
     private Date creationDate;
+    private Date orderDate;
+    private Date invoiceDate;
+    private Date deliveryDate;
+    private Date dueDate;
+    private Date expiryDate;
     private String validFrom;
     private String validTo;
     private String createdBy;
