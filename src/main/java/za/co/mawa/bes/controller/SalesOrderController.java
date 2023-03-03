@@ -49,7 +49,7 @@ public class SalesOrderController {
             if (salesOrderCreateDto.getExpectedDate() != null) {
                 TransactionDateDto expectedDate = new TransactionDateDto();
                 creationDate.setTransaction(transactionDto.getId());
-                creationDate.setType(DateType.DATE_EXPECTED);
+                creationDate.setType(DateType.EXPECTED_DATE);
                 creationDate.setValue(new Date());
                 transactionService.addDate(expectedDate);
             }
