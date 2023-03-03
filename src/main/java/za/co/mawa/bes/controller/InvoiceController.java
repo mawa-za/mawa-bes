@@ -24,7 +24,9 @@ import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "invoice")
@@ -116,31 +118,34 @@ public class InvoiceController {
     @RequestMapping(value = "/{id}/items", method = RequestMethod.GET)
     public ResponseEntity<?>  getItemsController(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(transactionService.getItems(id)));
+            List<LineItemDto> lineItemDtoList = new ArrayList<>();
+            List<TransactionItemDto> transactionItemDtoList = transactionService.getItems(id);
+            for(TransactionItemDto transactionItemDto: transactionItemDtoList){
+                LineItemDto lineItemDto = new LineItemDto();
+                lineItemDto.setTransaction(transactionItemDto.getTransaction());
+                lineItemDto.setProductId(transactionItemDto.getProduct());
+                lineItemDtoList.add(lineItemDto);
+            }
+            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-//    @RequestMapping(value = "{id}/items", method = RequestMethod.GET)
-//    public ResponseEntity<?> getItems(@PathVariable String id) {
-//        try {
-//            ItemsController itemsController = ItemsController.getInstance(id);
-//            return ResponseEntity.ok(gson.toJson(itemsController.getAll()));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
-//
-//    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
-//    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
-//        try {
-//            ItemsController itemsController = ItemsController.getInstance(id);
-//            itemsController.post(lineItemDto);
-//            return ResponseEntity.ok().build();
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
-
+    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+        try {
+            ProductDto productDto = productService.get(lineItemDto.getProductId());
+            TransactionItemDto transactionItemDto = new TransactionItemDto();
+            transactionItemDto.setTransaction(id);
+            transactionItemDto.setProduct(productDto.getId());
+            transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+            transactionItemDto.setQuantity(lineItemDto.getQuantity());
+            transactionService.addItem(transactionItemDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 }
