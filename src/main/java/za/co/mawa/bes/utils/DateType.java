@@ -1,9 +1,11 @@
 package za.co.mawa.bes.utils;
 
 public class DateType {
-
+    public static String INVOICE_DATE = "INVOICE-DATE";
+    public static String QUOTATION_DATE = "QUOTATION-DATE";
+    public static String ORDER_DATE = "ORDER-DATE";
     public static String JOINED = "DATE-JOINED";
-    public static String DATE_EXPECTED = "DATE-EXPECTED";
+    public static String EXPECTED_DATE = "EXPECTED-DATE";
     public static String DELIVERY_DATE = "DATE-JOINED";
     public static String EXPIRY_DATE = "EXPIRY-DATE";
     public static String CREATED = "DATE-CREATED";

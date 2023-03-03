@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.service.LineItemService;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
@@ -23,28 +24,34 @@ import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.Date;
+import java.util.List;
 
 @RestController
 @CrossOrigin
+@RequestMapping(value = "/quotation")
 public class QuotationController {
     @Autowired
     TransactionService transactionService;
     @Autowired
+    LineItemService lineItemService;
+    @Autowired
     ProductService productService;
     Gson gson = new Gson();
 
-    @RequestMapping(value = "/quotation", method = RequestMethod.POST)
+    @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity<?> postQuotation(@RequestBody QuotationCreateDto quotationCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.QUOTATION);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(transactionDto.getId());
-            creationDate.setType(DateType.CREATED);
-            creationDate.setValue(new Date());
-            transactionService.addDate(creationDate);
+            if (quotationCreateDto.getQuotationDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.QUOTATION_DATE);
+                transactionDateDto.setValue(quotationCreateDto.getQuotationDate());
+                transactionService.addDate(transactionDateDto);
+            }
 
             if (quotationCreateDto.getDeliveryDate() != null){
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
@@ -58,7 +65,7 @@ public class QuotationController {
                 transactionDateDto.setTransaction(transactionDto.getId());
                 transactionDateDto.setType(DateType.EXPIRY_DATE);
                 transactionDateDto.setValue(quotationCreateDto.getExpiryDate());
-                transactionService.addDate(creationDate);
+                transactionService.addDate(transactionDateDto);
             }
 
             if (quotationCreateDto.getCustomerId() != null) {
@@ -69,15 +76,8 @@ public class QuotationController {
                 transactionService.addPartner(transactionPartnerDto);
             }
 
-            for (LineItemDto item: quotationCreateDto.getItems()) {
-                ProductDto productDto = productService.get(item.getProductId());
-                TransactionItemDto transactionItemDto = new TransactionItemDto();
-                transactionItemDto.setTransaction(transactionDto.getId());
-                transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                transactionItemDto.setQuantity(item.getQuantity());
-                transactionService.addItem(transactionItemDto);
+            for (LineItemDto lineItemDto: quotationCreateDto.getItems()) {
+                lineItemService.add(transactionDto.getId(),lineItemDto);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
@@ -85,7 +85,7 @@ public class QuotationController {
         }
     }
 
-    @RequestMapping(value = "/quotation", method = RequestMethod.GET)
+    @RequestMapping(method = RequestMethod.GET)
     public ResponseEntity<?> getQuotations() {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
@@ -96,7 +96,7 @@ public class QuotationController {
         }
     }
 
-    @RequestMapping(value = "/quotation/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getQuotation(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
@@ -105,7 +105,7 @@ public class QuotationController {
         }
     }
 
-    @RequestMapping(value = "/quotation/{id}", method = RequestMethod.PUT)
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editQuotation(@PathVariable String id, @RequestBody QuotationDto quotationDto) {
         try {
             transactionService.edit(quotationDto);
@@ -115,7 +115,7 @@ public class QuotationController {
         }
     }
 
-    @RequestMapping(value = "/quotation/{id}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE)
     public ResponseEntity<?> deleteQuotation(@PathVariable String id) {
         try {
             transactionService.delete(id);
@@ -124,10 +124,41 @@ public class QuotationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/quotation/{id}/items", method = RequestMethod.GET)
-    public ResponseEntity<?> getItems(@PathVariable String id) {
+
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.GET)
+    public ResponseEntity<?>  getItems(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(transactionService.getItems(id)));
+            List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
+            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+        try {
+            lineItemService.add(id,lineItemDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/items", method = RequestMethod.PUT)
+    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+        try {
+            lineItemService.edit();
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE)
+    public ResponseEntity<?>  deleteItem(@PathVariable String id) {
+        try {
+            lineItemService.delete(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

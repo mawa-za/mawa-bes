@@ -6,6 +6,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.LineItemDto;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 @NoArgsConstructor
@@ -13,5 +14,8 @@ import java.util.List;
 @Setter
 public class PurchaseOrderCreateDto implements Serializable {
     private String supplierId;
+    private Date orderDate;
+    private Date expectedDate;
+    private String deliveryAddress;
     private List<LineItemDto> items;
 }

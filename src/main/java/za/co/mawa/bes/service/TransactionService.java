@@ -161,26 +161,26 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public TransactionPartnerDto getPartner(String transaction, String partnerFunction) {
-//        TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-//        List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findPartnerByTransaction(transaction).stream()
-//                .filter(a -> Objects.equals(a.getTransactionPartnerPKEntity().getFunction(), partnerFunction))
-//                .toList();
-//       if(!transactionPartnerEntities.isEmpty())
-//            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(transactionPartnerEntity);
-//            transactionPartnerDtos.add(transactionPartnerDto);
-//        }
-        return null;
+        TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+        List<TransactionPartnerDto> transactionPartnerDtoList = getPartners(transaction).stream()
+                .filter(a -> Objects.equals(a.getFunction(), partnerFunction))
+                .toList();
+        if (transactionPartnerDtoList.iterator().hasNext()) {
+            return transactionPartnerDtoList.iterator().next();
+        } else {
+            return null;
+        }
     }
 
     @Override
-    public List<TransactionDto> search(TransactionQueryDto transactionQueryDto) {
-        List<TransactionDto> transactionDtos = new ArrayList<>();
+    public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto) {
+        List<String> transactionIdList = new ArrayList<>();
+        List<TransactionQueryResultDto> transactionQueryResultDtoList = new ArrayList<>();
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getPartnerNo());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
                 if (transactionPartnerEntity.getTransactionPartnerPKEntity().getFunction().equals(transactionQueryDto.getPartnerFunction())) {
-                    TransactionDto object = get(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
-                    transactionDtos.add(object);
+                    transactionIdList.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
                 }
             }
         }
@@ -188,19 +188,38 @@ public class TransactionService implements TransactionDao {
         if (transactionQueryDto.getType() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
-                TransactionDto transactionDto = get(transactionEntity.getId());
-                transactionDtos.add(transactionDto);
+                transactionIdList.add(transactionEntity.getId());
             }
         }
 
         if (transactionQueryDto.getStatus() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByStatus(transactionQueryDto.getStatus());
             for (TransactionEntity transactionEntity : transactions) {
-                TransactionDto transactionDto = get(transactionEntity.getId());
-                transactionDtos.add(transactionDto);
+                transactionIdList.add(transactionEntity.getId());
             }
         }
-        return transactionDtos;
+
+        for (String transactionId : transactionIdList) {
+            TransactionDto transactionDto = get(transactionId);
+            TransactionQueryResultDto object = new TransactionQueryResultDto();
+            object.setId(transactionDto.getId());
+            object.setNumber(transactionDto.getNumber());
+            object.setDescription(transactionDto.getDescription());
+            object.setType(transactionDto.getType());
+            object.setSubType(transactionDto.getSubType());
+            object.setStatus(transactionDto.getStatus());
+
+            for(TransactionPartnerDto transactionPartnerDto: getPartners(transactionId)){
+                if(transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)){
+                    object.setCustomerId(transactionPartnerDto.getPartner());
+                }
+                if(transactionPartnerDto.getFunction().equals(PartnerFunction.SUPPLIER)){
+                    object.setSupplierId(transactionPartnerDto.getPartner());
+                }
+            }
+            transactionQueryResultDtoList.add(object);
+        }
+        return transactionQueryResultDtoList;
     }
 
     @Override
@@ -224,6 +243,9 @@ public class TransactionService implements TransactionDao {
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
             transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
+            transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
+            transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
+            transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
             transactionItemEntity.setValidFrom(new Date());
             transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);

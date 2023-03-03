@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
@@ -269,8 +270,8 @@ public class EmploymentService implements EmploymentDao {
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setPartnerFunction(PartnerFunction.APPROVER);
         transactionQueryDto.setPartnerNo(approver);
-        List<TransactionDto> transactionDtos = transactionService.search(transactionQueryDto);
-        for(TransactionDto transactionDto : transactionDtos){
+        List<TransactionQueryResultDto> transactionDtos = transactionService.search(transactionQueryDto);
+        for(TransactionQueryResultDto transactionDto : transactionDtos){
             List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
             for(TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos){
                 if(transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){

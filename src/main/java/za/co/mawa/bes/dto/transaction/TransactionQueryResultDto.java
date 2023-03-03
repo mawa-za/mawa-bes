@@ -1,5 +1,4 @@
 package za.co.mawa.bes.dto.transaction;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,10 +11,14 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class TransactionDto implements Serializable {
+public class TransactionQueryResultDto implements Serializable {
     private String id;
     private String number;
     private String type;
+    private String customerId;
+    private String customerName;
+    private String supplierId;
+    private String supplierName;
     private String subType;
     private String description;
     private String subDescription;
@@ -28,15 +31,5 @@ public class TransactionDto implements Serializable {
     private String validTo;
     private String createdBy;
     private String changedBy;
-    private PricingDto pricing;
 
-    public TransactionDto(TransactionEntity transactionEntity) {
-        this.id = transactionEntity.getId();
-        this.number = transactionEntity.getNumber();
-        this.description = transactionEntity.getDescription();
-        this.type = transactionEntity.getType();
-        this.subType = transactionEntity.getSubType();
-        this.status = transactionEntity.getStatus();
-        this.creationDate = transactionEntity.getValidFrom();
-    }
 }

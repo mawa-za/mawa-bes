@@ -6,10 +6,11 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
-    List<TransactionDto> search(TransactionQueryDto query);
+    List<TransactionQueryResultDto> search(TransactionQueryDto query);
     void edit(TransactionDto transactionDto);
     void delete(String id) throws Exception;
     TransactionDto get(String orderId);
