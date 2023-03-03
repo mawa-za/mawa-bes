@@ -217,6 +217,24 @@ public class TransactionService implements TransactionDao {
                     object.setSupplierId(transactionPartnerDto.getPartner());
                 }
             }
+
+            for(TransactionDateDto transactionDateDto: getDates(transactionId)){
+                if(transactionDateDto.getType().equals(DateType.ORDER_DATE)){
+                    object.setOrderDate(transactionDateDto.getValue());
+                }
+                if(transactionDateDto.getType().equals(DateType.INVOICE_DATE)){
+                    object.setInvoiceDate(transactionDateDto.getValue());
+                }
+                if(transactionDateDto.getType().equals(DateType.DELIVERY_DATE)){
+                    object.setDeliveryDate(transactionDateDto.getValue());
+                }
+                if(transactionDateDto.getType().equals(DateType.EXPIRY_DATE)){
+                    object.setExpiryDate(transactionDateDto.getValue());
+                }
+                if(transactionDateDto.getType().equals(DateType.DUE_DATE)){
+                    object.setDueDate(transactionDateDto.getValue());
+                }
+            }
             transactionQueryResultDtoList.add(object);
         }
         return transactionQueryResultDtoList;
