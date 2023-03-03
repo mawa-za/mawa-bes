@@ -15,7 +15,8 @@ import java.util.List;
 public class QuotationCreateDto implements Serializable {
     private String customerId;
     private Date deliveryDate;
+    private Date quotationDate;
+    private String deliveryAddress;
     private Date expiryDate;
-
     private List<LineItemDto> items;
 }

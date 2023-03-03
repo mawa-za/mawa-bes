@@ -6,6 +6,7 @@ import za.co.mawa.bes.dto.quotation.QuotationQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.List;
@@ -21,7 +22,7 @@ public class QuotationService extends TransactionService {
         return super.create(transactionCreateDto);
     }
 
-    public List<TransactionDto> search(QuotationQueryDto quotationQueryDto){
+    public List<TransactionQueryResultDto> search(QuotationQueryDto quotationQueryDto){
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.QUOTATION);
         return super.search(transactionQueryDto);

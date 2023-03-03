@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto.invoice;
+package za.co.mawa.bes.dto.sales.order;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,11 +12,13 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
-public class InvoiceCreateDto implements Serializable {
+public class SalesOrderDto implements Serializable {
+    private String id;
+    private String number;
     private String customerId;
-    private Date dueDate;
-    private Date invoiceDate;
-    private String paymentTerms;
+    private String salesRepresentativeId;
+    private Date orderDate;
+    private Date expectedDate;
+    private Date deliveryDate;
     private List<LineItemDto> items;
-
 }

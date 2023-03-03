@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public class MembershipService extends TransactionService {
         return super.create(transactionCreateDto);
     }
     @Override
-    public List<TransactionDto> search(TransactionQueryDto transactionQueryDto){
+    public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto){
         transactionQueryDto.setType(TransactionType.MEMBERSHIP);
         return super.search(transactionQueryDto);
     }
