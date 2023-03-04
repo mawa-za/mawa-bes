@@ -4,6 +4,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.exception.TransactionNotFound;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,7 @@ public interface TransactionDao {
     List<TransactionQueryResultDto> search(TransactionQueryDto query);
     void edit(TransactionDto transactionDto);
     void delete(String id) throws Exception;
-    TransactionDto get(String orderId);
+    TransactionDto get(String transactionId) throws TransactionNotFound;
 
     //Items
     void addItem(TransactionItemDto transactionItemDto) throws Exception;

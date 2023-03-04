@@ -17,7 +17,6 @@ public class UserDto implements Serializable {
     private String cellphone;
     private String type;
     private String status;
-
     private String partner;
 
 }
