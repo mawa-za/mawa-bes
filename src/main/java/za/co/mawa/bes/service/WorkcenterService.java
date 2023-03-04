@@ -42,7 +42,8 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("time-tracker","Time Tracker","search"));
         workcenterDtoList.add(new WorkcenterDto("company-setup","Company Settings",""));
         workcenterDtoList.add(new WorkcenterDto("system-configuration","System Configuration",""));
-        workcenterDtoList.add(new WorkcenterDto("reports","Reports",""));
+        workcenterDtoList.add(new WorkcenterDto("report","Reports",""));
+        workcenterDtoList.add(new WorkcenterDto("user","Users",""));
         return workcenterDtoList;
     }
 

@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
@@ -200,42 +201,43 @@ public class TransactionService implements TransactionDao {
         }
 
         for (String transactionId : transactionIdList) {
-            TransactionDto transactionDto = get(transactionId);
-            TransactionQueryResultDto object = new TransactionQueryResultDto();
-            object.setId(transactionDto.getId());
-            object.setNumber(transactionDto.getNumber());
-            object.setDescription(transactionDto.getDescription());
-            object.setType(transactionDto.getType());
-            object.setSubType(transactionDto.getSubType());
-            object.setStatus(transactionDto.getStatus());
-
-            for(TransactionPartnerDto transactionPartnerDto: getPartners(transactionId)){
-                if(transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)){
-                    object.setCustomerId(transactionPartnerDto.getPartner());
+            try {
+                TransactionDto transactionDto = get(transactionId);
+                TransactionQueryResultDto object = new TransactionQueryResultDto();
+                object.setId(transactionDto.getId());
+                object.setNumber(transactionDto.getNumber());
+                object.setDescription(transactionDto.getDescription());
+                object.setType(transactionDto.getType());
+                object.setSubType(transactionDto.getSubType());
+                object.setStatus(transactionDto.getStatus());
+                for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
+                        object.setCustomerId(transactionPartnerDto.getPartner());
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SUPPLIER)) {
+                        object.setSupplierId(transactionPartnerDto.getPartner());
+                    }
                 }
-                if(transactionPartnerDto.getFunction().equals(PartnerFunction.SUPPLIER)){
-                    object.setSupplierId(transactionPartnerDto.getPartner());
+                for (TransactionDateDto transactionDateDto : getDates(transactionId)) {
+                    if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
+                        object.setOrderDate(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.INVOICE_DATE)) {
+                        object.setInvoiceDate(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.DELIVERY_DATE)) {
+                        object.setDeliveryDate(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.EXPIRY_DATE)) {
+                        object.setExpiryDate(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.DUE_DATE)) {
+                        object.setDueDate(transactionDateDto.getValue());
+                    }
                 }
+                transactionQueryResultDtoList.add(object);
+            } catch (TransactionNotFound exception) {
             }
-
-            for(TransactionDateDto transactionDateDto: getDates(transactionId)){
-                if(transactionDateDto.getType().equals(DateType.ORDER_DATE)){
-                    object.setOrderDate(transactionDateDto.getValue());
-                }
-                if(transactionDateDto.getType().equals(DateType.INVOICE_DATE)){
-                    object.setInvoiceDate(transactionDateDto.getValue());
-                }
-                if(transactionDateDto.getType().equals(DateType.DELIVERY_DATE)){
-                    object.setDeliveryDate(transactionDateDto.getValue());
-                }
-                if(transactionDateDto.getType().equals(DateType.EXPIRY_DATE)){
-                    object.setExpiryDate(transactionDateDto.getValue());
-                }
-                if(transactionDateDto.getType().equals(DateType.DUE_DATE)){
-                    object.setDueDate(transactionDateDto.getValue());
-                }
-            }
-            transactionQueryResultDtoList.add(object);
         }
         return transactionQueryResultDtoList;
     }
@@ -246,13 +248,47 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public TransactionDto get(String orderId) {
-        TransactionDto transactionDto = null;
-        TransactionEntity transactionEntity = transactionRepository.getById(orderId);
+    public TransactionDto get(String transactionId) throws TransactionNotFound {
+        TransactionEntity transactionEntity = transactionRepository.getById(transactionId);
         if (transactionEntity != null) {
-            transactionDto = new TransactionDto(transactionEntity);
+            TransactionDto transactionDto = new TransactionDto();
+            transactionDto.setId(transactionEntity.getId());
+            transactionDto.setNumber(transactionEntity.getNumber());
+            transactionDto.setDescription(transactionEntity.getDescription());
+            transactionDto.setType(transactionEntity.getType());
+            transactionDto.setSubType(transactionEntity.getSubType());
+            transactionDto.setStatus(transactionEntity.getStatus());
+            for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
+                if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
+                    transactionDto.setCustomerId(transactionPartnerDto.getPartner());
+                }
+                if (transactionPartnerDto.getFunction().equals(PartnerFunction.SUPPLIER)) {
+                    transactionDto.setSupplierId(transactionPartnerDto.getPartner());
+                }
+            }
+
+            for (TransactionDateDto transactionDateDto : getDates(transactionId)) {
+                if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
+                    transactionDto.setOrderDate(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equals(DateType.INVOICE_DATE)) {
+                    transactionDto.setInvoiceDate(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equals(DateType.DELIVERY_DATE)) {
+                    transactionDto.setDeliveryDate(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equals(DateType.EXPIRY_DATE)) {
+                    transactionDto.setExpiryDate(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equals(DateType.DUE_DATE)) {
+                    transactionDto.setDueDate(transactionDateDto.getValue());
+                }
+            }
+            return transactionDto;
+        } else {
+            throw new TransactionNotFound("Transaction not found");
         }
-        return transactionDto;
+
     }
 
     @Override
