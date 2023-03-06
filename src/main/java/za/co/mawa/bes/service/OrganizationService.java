@@ -22,7 +22,7 @@ public class OrganizationService implements OrganizationDao {
         partner.setType(PartnerType.ORGANIZATION);
         partner.setName1(organization.getName1());
         partner.setCreatedBy(userService.getCurrentUser());
-        String id = partnerService.create(partner);
+        String id = partnerService.create(partner).getId();
         if (organization.getBusinessAddress() != null) {
             organization.getBusinessAddress().setPartner(id);
             organization.getBusinessAddress().setType(AddressType.BUSINESS);
