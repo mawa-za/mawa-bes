@@ -54,43 +54,42 @@ public class PartnerService implements PartnerDao {
 //    }
 
     @Override
-    public String create(PartnerDto object) {
-        String partnerId = null;
+    public PartnerDto create(PartnerDto partnerDto) {
+
         try {
             PartnerEntity entity = new PartnerEntity();
-            partnerId = numberRangeService.generateNumber(object.getType());
-            entity.setId(partnerId);
-            entity.setType(object.getType());
-            if (object.getName1() != null) {
-                entity.setName1(object.getName1().toUpperCase());
+            String partnerNo = numberRangeService.generateNumber(partnerDto.getType());
+            entity.setNo(partnerNo);
+            entity.setType(partnerDto.getType());
+            if (partnerDto.getName1() != null) {
+                entity.setName1(partnerDto.getName1().toUpperCase());
             }
-            if (object.getName2() != null) {
-                entity.setName2(object.getName2().toUpperCase());
+            if (partnerDto.getName2() != null) {
+                entity.setName2(partnerDto.getName2().toUpperCase());
             }
-            if (object.getName3() != null) {
-                entity.setName3(object.getName3().toUpperCase());
+            if (partnerDto.getName3() != null) {
+                entity.setName3(partnerDto.getName3().toUpperCase());
             }
-            entity.setBirthDate(Conversion.stringToDate(object.getBirthDate()));
-            entity.setGender(object.getGender());
-            entity.setLanguage(object.getLanguage());
-            entity.setMaritalStatus(object.getMaritalStatus());
-            entity.setTitle(object.getTitle());
+            entity.setBirthDate(Conversion.stringToDate(partnerDto.getBirthDate()));
+            entity.setGender(partnerDto.getGender());
+            entity.setLanguage(partnerDto.getLanguage());
+            entity.setMaritalStatus(partnerDto.getMaritalStatus());
+            entity.setTitle(partnerDto.getTitle());
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerRepository.save(entity);
+            return partnerDto;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return partnerId;
     }
 
     @Override
-    public boolean edit(PersonDto object) {
+    public void edit(PersonDto object) {
 
         try {
             PartnerEntity partner = partnerRepository.getById(object.getId());
-
             if (partner != null) {
                 if (object.getLastName() != null) {
                     partner.setName1(object.getLastName().toUpperCase());
@@ -120,12 +119,8 @@ public class PartnerService implements PartnerDao {
                 if (object.getStatus() != null) {
                     partner.setStatus(object.getStatus());
                 }
-
                 partnerRepository.save(partner);
-
-                return true;
             } else {
-                return false;
             }
 
         } catch (Exception e) {

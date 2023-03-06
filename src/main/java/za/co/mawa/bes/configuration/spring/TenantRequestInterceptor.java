@@ -38,6 +38,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
+            TenantContext.setDefaultTenant();
             System.out.println("Tenant Before:" +TenantContext.getCurrentTenant() );
             System.out.println("X-TenantID:" + request.getHeader("X-TenantID"));
             String host = request.getHeader("X-TenantID").split(":")[0];
@@ -61,7 +62,6 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
                     throw new TenantNotProvided("X-TenantID request header not provided");
                 }
             }
-
         } else {
             try {
 

@@ -10,8 +10,8 @@ import java.util.ArrayList;
 
 public interface PartnerDao {
     //String create(PartnerEntity partnerEntity);
-    String create(PartnerDto object);
-    boolean edit(PersonDto object);
+    PartnerDto create(PartnerDto object);
+    void edit(PersonDto object);
     PartnerEntity findById(String id);
     PartnerDto get (String id) throws PartnerNotFound;
     boolean removeRole(String partner, String role);
