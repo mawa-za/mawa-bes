@@ -1258,7 +1258,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean addAttachment(AttachmentDto attachment) {
+    public boolean addAttachment(PartnerAttachmentDto attachment) {
         boolean processed = false;
         try {
             PartnerAttachmentEntity entity = new PartnerAttachmentEntity();
@@ -1281,7 +1281,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean removeAttachment(AttachmentDto attachment) {
+    public boolean removeAttachment(PartnerAttachmentDto attachment) {
         boolean edited = false;
         PartnerAttachmentEntity attach = partnerAttachmentRepository.getById(attachment.getId());
         if (attach != null) {
@@ -1298,11 +1298,11 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public ArrayList<AttachmentDto> getAttachments(String partner) throws Exception {
-        ArrayList<AttachmentDto> list = new ArrayList<>();
+    public ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception {
+        ArrayList<PartnerAttachmentDto> list = new ArrayList<>();
         List<PartnerAttachmentEntity> attachments = partnerAttachmentRepository.findByPartner(partner);
         for (PartnerAttachmentEntity partnerAttachment : attachments) {
-            AttachmentDto object = new AttachmentDto();
+            PartnerAttachmentDto object = new PartnerAttachmentDto();
             if (partnerAttachment.getStatus().equals(Status.ACTIVE)) {
                 UserDto usrObj = new UserDto();
                 object.setId(partnerAttachment.getId());

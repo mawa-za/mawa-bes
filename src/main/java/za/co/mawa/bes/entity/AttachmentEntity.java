@@ -1,6 +1,8 @@
 package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jdk.jfr.Timestamp;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
@@ -20,16 +22,23 @@ public class AttachmentEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "file_name")
-    private String fileName;
-    @Column(name = "file_type")
-    private String fileType;
-    @Column(name = "file_content")
-    private byte[] fileContent;
-    @Column(name = "creation_by")
-    private Date creationBy;
-    @Column(name = "creation_date")
-    private Date creationDate;
+    @Column(name = "upload_by")
+    private String uploadedBy;
+    @Column(name = "upload_time")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date uploadTime;
 
+    @Column(name = "upload_date")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date uploadDate;
 
+    @Column(name = "downnload_by")
+    private String downloadedBy;
+
+    @Column(name = "download_date")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date downloadDate;
+    @Lob
+    @Column(name = "file")
+    private byte[] file;
 }
