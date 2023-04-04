@@ -28,4 +28,15 @@ public class ReceiptController {
         }
 
     }
+
+    @RequestMapping(value= "/receipt/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getReceipt(@PathVariable String id) {
+        try {
+            ReceiptDto receiptDto = receiptService.getReceipt(id);
+            return ResponseEntity.ok(gson.toJson(receiptDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
 }

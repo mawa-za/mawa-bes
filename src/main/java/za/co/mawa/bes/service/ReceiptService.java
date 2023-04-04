@@ -43,7 +43,7 @@ public class ReceiptService implements ReceiptDao {
            entity.setCreationTime(new Date());
            entity.setCreatedBy(getUser());
            entity.setInvoiceNumber(receipt.getInvoiceNumber());
-           entity.setTenderType(receipt.getTenderType());
+           entity.setTenderType(receipt.getTenderType().toUpperCase());
            entity.setAmount(new BigDecimal(receipt.getAmount()));
 
            return entityIDtoDto(receiptRepository.save(entity));
@@ -51,6 +51,36 @@ public class ReceiptService implements ReceiptDao {
         catch (Exception e)
         {
             throw new Exception();
+        }
+    }
+
+    @Override
+    public ReceiptDto getReceipt(String id) throws DoesNotExist {
+        ReceiptEntity entity = receiptRepository.getById(id);
+        if(entity != null)
+        {
+            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
+            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
+            ReceiptDto receipt = new ReceiptDto();
+            receipt.setId(entity.getId());
+            receipt.setReceiptNumber(entity.getReceiptNumber());
+            receipt.setInvoiceNumber(entity.getInvoiceNumber());
+            receipt.setReceiptType(entity.getReceiptType());
+            if(entity.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP))
+            {
+                receipt.setMembershipNumber(entity.getMembershipNumber());
+                receipt.setMembershipPeriod(entity.getMembershipPeriod());
+            }
+            receipt.setTenderType(entity.getTenderType());
+            receipt.setAmount(entity.getAmount().toString());
+            receipt.setCreatedBy(entity.getCreatedBy());
+            receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
+            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+
+            return receipt;
+        }
+        else {
+            throw new DoesNotExist();
         }
     }
 
