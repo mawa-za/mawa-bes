@@ -1,5 +1,6 @@
 package za.co.mawa.bes.controller;
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,7 @@ public class AttachmentController {
     @Autowired
     AttachmentService attachmentService;
 
-    @RequestMapping(value = "/attachment", method = RequestMethod.POST)
+    @RequestMapping(value = "/attachment", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addAttachment(@RequestBody AttachmentDto attachmentDto) {
         try {
             AttachmentDto attachmentFile = attachmentService.saveAttachment(attachmentDto);
@@ -34,7 +35,7 @@ public class AttachmentController {
         }
     }
 
-    @RequestMapping(value = "/attachmentfile", method = RequestMethod.POST)
+    @RequestMapping(value = "/attachmentfile", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> fileUpload(@RequestParam("file") MultipartFile multipartFile) {
        // multipartFile.getBytes();
         try {
@@ -61,7 +62,7 @@ public class AttachmentController {
         }
     }
 
-    @RequestMapping(value = "/attachment/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "/attachment/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAttachment(@PathVariable String id) {
         try {
             AttachmentDto attachment = attachmentService.getAttachment(id);
