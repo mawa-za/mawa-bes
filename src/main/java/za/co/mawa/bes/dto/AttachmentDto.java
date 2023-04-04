@@ -3,121 +3,86 @@ package za.co.mawa.bes.dto;
 import java.io.Serializable;
 
 public class AttachmentDto implements Serializable {
-    private String id;
-    private String type;
-    private String parent;
-    private String fileName;
-    private String extension;
-    private String createdBy;
-    private String createdAt;
-    private String attachedById;
-    private PersonDto attachedBy;
-    private String status;
-    private String statusReason;
-    private String validFrom;
-    private String validTo;
+   private String id;
 
-    public String getId() {
-        return id;
-    }
+   public void setId(String id)
+   {
+       this.id = id;
+   }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+   public String getId()
+   {
+       return id;
+   }
 
-    public String getType() {
-        return type;
-    }
+   private String uploadDate;
+   public void setUploadDate(String uploadDate)
+   {
+      this.uploadDate = uploadDate;
+   }
 
-    public void setType(String type) {
-        this.type = type;
-    }
+   public String getUploadDate()
+   {
+      return uploadDate;
 
-    public String getParent() {
-        return parent;
-    }
+   }
 
-    public void setParent(String parent) {
-        this.parent = parent;
-    }
+   private String uploadTime;
+   public void setUploadTime(String uploadTime)
+   {
+      this.uploadTime = uploadTime;
+   }
 
-    public String getFileName() {
-        return fileName;
-    }
+   public String getUploadTime()
+   {
+      return uploadTime;
+   }
 
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
+   private String uploadedBy;
 
-    public String getExtension() {
-        return extension;
-    }
+   public void setUploadedBy(String uploadedBy)
+   {
+      this.uploadedBy = uploadedBy;
+   }
 
-    public void setExtension(String extension) {
-        this.extension = extension;
-    }
+   public String getUploadedBy()
+   {
+      return uploadedBy;
+   }
 
-    public String getCreatedBy() {
-        return createdBy;
-    }
+   private String downloadDate;
 
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
+   public void setDownloadDate(String downloadDate)
+   {
+      this.downloadDate = downloadDate;
+   }
 
-    public String getCreatedAt() {
-        return createdAt;
-    }
+   public String getDownloadDate()
+   {
+      return downloadDate;
+   }
 
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
-    }
+   private String downloadedBy;
 
-    public String getAttachedById() {
-        return attachedById;
-    }
+   public void setDownloadedBy(String downloadedBy)
+   {
+      this.downloadedBy = downloadedBy;
+   }
 
-    public void setAttachedById(String attachedById) {
-        this.attachedById = attachedById;
-    }
+   public String getDownloadedBy()
+   {
+      return downloadedBy;
+   }
 
-    public PersonDto getAttachedBy() {
-        return attachedBy;
-    }
+   private String file;
 
-    public void setAttachedBy(PersonDto attachedBy) {
-        this.attachedBy = attachedBy;
-    }
+   public void setFile(String file)
+   {
+      this.file = file;
+   }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getStatusReason() {
-        return statusReason;
-    }
-
-    public void setStatusReason(String statusReason) {
-        this.statusReason = statusReason;
-    }
-
-    public String getValidFrom() {
-        return validFrom;
-    }
-
-    public void setValidFrom(String validFrom) {
-        this.validFrom = validFrom;
-    }
-
-    public String getValidTo() {
-        return validTo;
-    }
-
-    public void setValidTo(String validTo) {
-        this.validTo = validTo;
-    }
+   public String getFile()
+   {
+      return file;
+   }
 }
