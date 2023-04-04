@@ -4,12 +4,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.membership.MembershipDto;
+import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -35,6 +38,8 @@ public class TransactionService implements TransactionDao {
     UserService userService;
     @Autowired
     PricingService pricingService;
+    @Autowired
+    ProductService productService;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -150,6 +155,28 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
+    public TransactionAmountDto getAmount(TransactionAmountPKEntity id) {
+
+        Optional<TransactionAmountEntity> transactionAmountPKEntity = transactionAmountRepository.findById(id);
+
+
+        TransactionAmountDto transactionAmountDto = EntityToDto(transactionAmountPKEntity);
+
+
+        return transactionAmountDto;
+    }
+
+    private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity)
+    {
+
+        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
+        transactionAmountDto.setTransaction(transactionAmountEntity.get().getTransactionAmountPKEntity().getTransaction());
+        transactionAmountDto.setType(transactionAmountEntity.get().getTransactionAmountPKEntity().getType());
+        transactionAmountDto.setAmount(transactionAmountEntity.get().getAmount());
+        return transactionAmountDto;
+    }
+
+    @Override
     public List<TransactionPartnerDto> getPartners(String transactionId) {
         List<TransactionPartnerDto> transactionPartnerDtos = new ArrayList<>();
         List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findPartnerByTransaction(transactionId);
@@ -186,6 +213,7 @@ public class TransactionService implements TransactionDao {
             }
         }
 
+
         if (transactionQueryDto.getType() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
@@ -210,7 +238,24 @@ public class TransactionService implements TransactionDao {
                 object.setType(transactionDto.getType());
                 object.setSubType(transactionDto.getSubType());
                 object.setStatus(transactionDto.getStatus());
+
+                List<TransactionDateDto> transactionDateDtoList = getDates(transactionId);
+
+                MembershipDto membershipDto = new MembershipDto();
+
+
                 for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
+
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
+                        membershipDto.setMemberId(transactionPartnerDto.getPartner());
+
+
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
+
+                        membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
+
+                    }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                         object.setCustomerId(transactionPartnerDto.getPartner());
                     }
@@ -218,10 +263,19 @@ public class TransactionService implements TransactionDao {
                         object.setSupplierId(transactionPartnerDto.getPartner());
                     }
                 }
+
+
                 for (TransactionDateDto transactionDateDto : getDates(transactionId)) {
                     if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
                         object.setOrderDate(transactionDateDto.getValue());
                     }
+                    if (transactionDateDto.getType().equals(DateType.JOINED)) {
+                        membershipDto.setDateJoined(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
+                        membershipDto.setDateEffective(transactionDateDto.getValue());
+                    }
+
                     if (transactionDateDto.getType().equals(DateType.INVOICE_DATE)) {
                         object.setInvoiceDate(transactionDateDto.getValue());
                     }
@@ -235,8 +289,40 @@ public class TransactionService implements TransactionDao {
                         object.setDueDate(transactionDateDto.getValue());
                     }
                 }
+
+                if (transactionQueryDto.getType().equals(TransactionType.MEMBERSHIP)) {
+
+                    membershipDto.setStatus(transactionDto.getStatus());
+                    membershipDto.setStatusReason(transactionDto.getStatusReason());
+
+                    List<TransactionItemDto> transactionItemDtoList = getItems(transactionId);
+
+
+                    String productId = transactionItemDtoList.stream()
+                            .map(TransactionItemDto::getProduct)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (productId != null) {
+                        ProductDto productDto = productService.get(productId);
+                        if (productDto != null) {
+                            membershipDto.setProductId(productDto.getId());
+                            membershipDto.setProductDescription(productDto.getDescription());
+                        }
+                    }
+
+
+                    TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                    transactionAmountPKEntity.setTransaction(transactionId);
+                    transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
+                    TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
+                    membershipDto.setPremium(transactionAmountDto.getAmount());
+                    object.setMembershipHolder(membershipDto);
+                }
                 transactionQueryResultDtoList.add(object);
             } catch (TransactionNotFound exception) {
+            } catch (ProductNotFound e) {
+                throw new RuntimeException(e);
             }
         }
         return transactionQueryResultDtoList;

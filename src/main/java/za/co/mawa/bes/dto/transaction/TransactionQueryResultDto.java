@@ -3,6 +3,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 
 import java.io.Serializable;
@@ -36,5 +37,7 @@ public class TransactionQueryResultDto implements Serializable {
     private String validTo;
     private String createdBy;
     private String changedBy;
+
+    private MembershipDto membershipHolder;
 
 }
