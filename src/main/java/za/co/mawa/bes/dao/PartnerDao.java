@@ -48,9 +48,9 @@ public interface PartnerDao {
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
     PartnerResourceApiResultDto getResourceApi(String resource_id);
     boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
-    boolean addAttachment(AttachmentDto attachment);
-    boolean removeAttachment(AttachmentDto attachment);
-    ArrayList<AttachmentDto> getAttachments(String partner) throws Exception;
+    boolean addAttachment(PartnerAttachmentDto attachment);
+    boolean removeAttachment(PartnerAttachmentDto attachment);
+    ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception;
     boolean addDate(PartnerDateDto date);
     boolean editDate(PartnerDateDto date);
     PartnerDateDto getDate(String partnerNo, String dateType);
