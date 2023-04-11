@@ -1,6 +1,8 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.user.UserDto;
@@ -60,7 +62,7 @@ public class PartnerService implements PartnerDao {
             PartnerEntity entity = new PartnerEntity();
             String partnerNo = numberRangeService.generateNumber(partnerDto.getType());
             entity.setNo(partnerNo);
-            entity.setType(partnerDto.getType());
+            entity.setType(partnerDto.getType().toUpperCase());
             if (partnerDto.getName1() != null) {
                 entity.setName1(partnerDto.getName1().toUpperCase());
             }
@@ -70,16 +72,32 @@ public class PartnerService implements PartnerDao {
             if (partnerDto.getName3() != null) {
                 entity.setName3(partnerDto.getName3().toUpperCase());
             }
-            entity.setBirthDate(Conversion.stringToDate(partnerDto.getBirthDate()));
-            entity.setGender(partnerDto.getGender());
-            entity.setLanguage(partnerDto.getLanguage());
-            entity.setMaritalStatus(partnerDto.getMaritalStatus());
-            entity.setTitle(partnerDto.getTitle());
+            if(partnerDto.getBirthDate() != null)
+            {
+                entity.setBirthDate(Conversion.stringToDate(partnerDto.getBirthDate()));
+            }
+            if(partnerDto.getGender() != null)
+            {
+                entity.setGender(partnerDto.getGender());
+            }
+            if(partnerDto.getLanguage() != null)
+            {
+                entity.setLanguage(partnerDto.getLanguage());
+            }
+            if(partnerDto.getMaritalStatus() != null)
+            {
+                entity.setMaritalStatus(partnerDto.getMaritalStatus());
+            }
+            if(partnerDto.getTitle() != null)
+            {
+                entity.setTitle(partnerDto.getTitle());
+            }
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            partnerRepository.save(entity);
-            return partnerDto;
+            entity.setCreationDate(new Date());
+            entity.setCreatedBy(getUser());
+            return entityIdToDto(partnerRepository.save(entity));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1473,5 +1491,24 @@ public class PartnerService implements PartnerDao {
             }
         }
         return partners;
+    }
+
+    private String getUser()
+    {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUser = userDetails.getUsername();
+        return currentUser;
+    }
+
+    private PartnerDto entityIdToDto(PartnerEntity partnerEntity) throws Exception
+    {
+        try {
+            PartnerDto partnerDto = new PartnerDto();
+            partnerDto.setId(partnerEntity.getId());
+            return partnerDto;
+
+        }catch (Exception e){
+            throw new Exception();
+        }
     }
 }
