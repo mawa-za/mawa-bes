@@ -176,7 +176,7 @@ public class ReceiptService implements ReceiptDao {
             receipt.setAmount(entity.getAmount().toString());
             receipt.setCreatedBy(entity.getCreatedBy());
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
 
             return receipt;
         }
