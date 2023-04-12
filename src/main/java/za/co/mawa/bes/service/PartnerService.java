@@ -1,11 +1,16 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
+import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
@@ -1514,6 +1519,15 @@ public class PartnerService implements PartnerDao {
       }
     }
 
+    @Override
+    public ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception {
+        ArrayList<ProspectDto> prospectDtoArrayList = new ArrayList<>();
+        Sort sort = Sort.by("id").descending();
+        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),sort);
+        prospectDtoArrayList = entityArrayToDto(partners);
+        return prospectDtoArrayList;
+    }
+
     private String getUser()
     {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -1539,21 +1553,64 @@ public class PartnerService implements PartnerDao {
         ProspectDto prospectDto = new ProspectDto();
         prospectDto.setId(partnerEntity.getId());
         prospectDto.setNumber(partnerEntity.getNo());
-        if(partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION))
+        if(partnerEntity.getType() != null)
         {
-            prospectDto.setOrganisationName(partnerEntity.getName1());
+            if(partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION))
+            {
+                prospectDto.setOrganisationName(partnerEntity.getName1());
+            }
+            else {
+                prospectDto.setFirstName(partnerEntity.getName2());
+                prospectDto.setSurname(partnerEntity.getName1());
+                if(partnerEntity.getName3() != null)
+                {
+                    prospectDto.setMiddleName(partnerEntity.getName3());
+                }
+            }
         }
-        else {
-            prospectDto.setFirstName(partnerEntity.getName2());
-            prospectDto.setSurname(partnerEntity.getName1());
-             if(partnerEntity.getName3() != null)
-             {
-                 prospectDto.setMiddleName(partnerEntity.getName3());
-             }
-        }
+
          return prospectDto;
          }catch (Exception e){
         throw new Exception();
     }
+    }
+
+    private ArrayList<ProspectDto> entityArrayToDto(List<PartnerEntity> partners) throws Exception
+    {
+        ArrayList<ProspectDto> prospectDto = new ArrayList<>();
+        for(PartnerEntity partner:partners)
+        {
+            try{
+            prospectDto.add(entityToProspect(partner));
+            } catch (Exception e) {
+               throw new RuntimeException(e);
+                }
+       }
+        return prospectDto;
+    }
+
+    private Specification<PartnerEntity> findByCriteria(ProspectSearchDto prospectSearch) {
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (prospectSearch.getPartnerNumber()!= null) {
+                predicate = cb.and(predicate, cb.equal(root.get("no"), prospectSearch.getPartnerNumber()));
+            }
+            if (prospectSearch.getPartnerType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("type"), prospectSearch.getPartnerType()));
+            }
+            if (prospectSearch.getSurname() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("name1"), prospectSearch.getSurname()));
+            }
+            if (prospectSearch.getOrganisationName() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("name1"), prospectSearch.getOrganisationName()));
+            }
+            if (prospectSearch.getMiddleName() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("name3"), prospectSearch.getMiddleName()));
+            }
+            if (prospectSearch.getFirstName() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("name2"), prospectSearch.getFirstName()));
+            }
+            return predicate;
+        };
     }
 }

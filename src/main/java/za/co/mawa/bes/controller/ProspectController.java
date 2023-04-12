@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.PartnerType;
@@ -56,6 +57,48 @@ public class ProspectController {
         try {
             ProspectDto partner = partnerService.getProspect(id);
             return ResponseEntity.ok(gson.toJson(partner));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(value= "/prospects" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getProspects(@RequestParam(required = false) String partnerType,
+                                          @RequestParam(required = false) String partnerNumber,
+                                          @RequestParam(required = false) String surname,
+                                          @RequestParam(required = false) String firstName,
+                                          @RequestParam(required = false) String middleName,
+                                          @RequestParam(required = false) String organisationName) {
+        try {
+
+            ProspectSearchDto search = new ProspectSearchDto();
+            if(partnerType != null && partnerType != "")
+            {
+                search.setPartnerType(partnerType.toUpperCase());
+            }
+            if(partnerNumber != null && partnerNumber != "")
+            {
+                search.setPartnerNumber(partnerNumber);
+            }
+            if(surname != null && surname != "")
+            {
+                search.setSurname(surname.toUpperCase());
+            }
+            if(firstName != null && firstName != "")
+            {
+                search.setFirstName(firstName.toUpperCase());
+            }
+            if(middleName != null && middleName != "")
+            {
+                search.setMiddleName(middleName.toUpperCase());
+            }
+            if(organisationName != null && organisationName != "")
+            {
+                search.setOrganisationName(organisationName.toUpperCase());
+            }
+            ArrayList<ProspectDto> prospects = partnerService.getProspects(search);
+            return ResponseEntity.ok(gson.toJson(prospects));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
