@@ -162,6 +162,7 @@ public class ReceiptService implements ReceiptDao {
         try {
             SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
             SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
+
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
@@ -176,7 +177,7 @@ public class ReceiptService implements ReceiptDao {
             receipt.setAmount(entity.getAmount().toString());
             receipt.setCreatedBy(entity.getCreatedBy());
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
 
             return receipt;
         }
