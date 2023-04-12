@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
+import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.PartnerType;
 
@@ -44,6 +46,15 @@ public class ProspectController {
                 }
             }
             PartnerDto partner = partnerService.create(createDto);
+            return ResponseEntity.ok(gson.toJson(partner));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+    @RequestMapping(value= "/prospect/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getProspect(@PathVariable String id) {
+        try {
+            ProspectDto partner = partnerService.getProspect(id);
             return ResponseEntity.ok(gson.toJson(partner));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

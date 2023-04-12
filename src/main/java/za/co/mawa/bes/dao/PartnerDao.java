@@ -1,7 +1,9 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 import za.co.mawa.bes.exception.PartnerNotFound;
@@ -58,4 +60,6 @@ public interface PartnerDao {
     ArrayList<PartnerDateDto> getAllDates();
     ArrayList<RelationDto> getRelationByPartner1(String partner1);
     ArrayList<PartnerDto> getPartners (String partnerRole);
+    ProspectDto getProspect(String id) throws DoesNotExist;
+
 }

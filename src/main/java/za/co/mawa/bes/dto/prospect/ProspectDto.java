@@ -11,9 +11,10 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class ProspectCreateDto implements Serializable{
+public class ProspectDto implements Serializable{
 
-    private String partnerType;
+    private String id;
+    private String number;
     private String surname;
     private String firstName;
     private String middleName;
