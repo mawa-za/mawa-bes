@@ -158,16 +158,18 @@ public class TransactionService implements TransactionDao {
     public TransactionAmountDto getAmount(TransactionAmountPKEntity id) {
 
         Optional<TransactionAmountEntity> transactionAmountPKEntity = transactionAmountRepository.findById(id);
+        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
+        TransactionAmountEntity transactionAmountEntity = transactionAmountPKEntity.orElse(null);
+        if (transactionAmountEntity != null) {
+            transactionAmountDto = EntityToDto(transactionAmountPKEntity);
 
-
-        TransactionAmountDto transactionAmountDto = EntityToDto(transactionAmountPKEntity);
+        }
 
 
         return transactionAmountDto;
     }
 
-    private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity)
-    {
+    private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
 
         TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
         transactionAmountDto.setTransaction(transactionAmountEntity.get().getTransactionAmountPKEntity().getTransaction());
@@ -304,25 +306,23 @@ public class TransactionService implements TransactionDao {
                             .orElse(null);
 
                     if (productId != null) {
-                        ProductDto productDto = productService.get(productId);
+                        ProductDto productDto = productService.getOptionalById(productId);
                         if (productDto != null) {
                             membershipDto.setProductId(productDto.getId());
                             membershipDto.setProductDescription(productDto.getDescription());
                         }
+                        TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                        transactionAmountPKEntity.setTransaction(transactionId);
+                        transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
+                        TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
+                        membershipDto.setPremium(transactionAmountDto.getAmount());
                     }
 
 
-                    TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-                    transactionAmountPKEntity.setTransaction(transactionId);
-                    transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
-                    TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
-                    membershipDto.setPremium(transactionAmountDto.getAmount());
                     object.setMembershipHolder(membershipDto);
                 }
                 transactionQueryResultDtoList.add(object);
             } catch (TransactionNotFound exception) {
-            } catch (ProductNotFound e) {
-                throw new RuntimeException(e);
             }
         }
         return transactionQueryResultDtoList;
