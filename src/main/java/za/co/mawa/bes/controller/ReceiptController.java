@@ -43,7 +43,7 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value= "/receipt" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/receipts" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,@RequestParam(required = false) String invoiceNumber
             ,@RequestParam(required = false) String membershipNumber,@RequestParam(required = false) String membershipPeriod,@RequestParam(required = false) String tenderType,@RequestParam(name ="user",required = false) String createdBy) {
         try {
