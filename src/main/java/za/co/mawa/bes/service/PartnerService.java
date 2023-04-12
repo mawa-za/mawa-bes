@@ -5,9 +5,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
+import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.repository.*;
@@ -1493,6 +1495,25 @@ public class PartnerService implements PartnerDao {
         return partners;
     }
 
+    @Override
+    public ProspectDto getProspect(String id) throws DoesNotExist {
+      PartnerEntity partner = partnerRepository.getById(id);
+      if(partner != null)
+      {
+          try{
+              return entityToProspect(partner);
+          }
+          catch (Exception e)
+          {
+              throw new RuntimeException(e);
+          }
+
+      }
+      else {
+          throw new DoesNotExist();
+      }
+    }
+
     private String getUser()
     {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -1510,5 +1531,29 @@ public class PartnerService implements PartnerDao {
         }catch (Exception e){
             throw new Exception();
         }
+    }
+
+    private ProspectDto entityToProspect(PartnerEntity partnerEntity) throws Exception
+    {
+        try{
+        ProspectDto prospectDto = new ProspectDto();
+        prospectDto.setId(partnerEntity.getId());
+        prospectDto.setNumber(partnerEntity.getNo());
+        if(partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION))
+        {
+            prospectDto.setOrganisationName(partnerEntity.getName1());
+        }
+        else {
+            prospectDto.setFirstName(partnerEntity.getName2());
+            prospectDto.setSurname(partnerEntity.getName1());
+             if(partnerEntity.getName3() != null)
+             {
+                 prospectDto.setMiddleName(partnerEntity.getName3());
+             }
+        }
+         return prospectDto;
+         }catch (Exception e){
+        throw new Exception();
+    }
     }
 }
