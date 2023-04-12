@@ -162,6 +162,7 @@ public class ReceiptService implements ReceiptDao {
         try {
             SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
             SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
+
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
