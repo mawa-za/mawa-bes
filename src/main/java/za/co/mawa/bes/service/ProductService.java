@@ -21,6 +21,7 @@ import za.co.mawa.bes.utils.Conversion;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProductService implements ProductDao {
@@ -113,6 +114,28 @@ public class ProductService implements ProductDao {
 
     @Override
     public void editPricing(ProductPricingDto productPricingDto) {
+
+    }
+
+    @Override
+    public ProductDto getOptionalById(String id) {
+//        ProductEntity productEntity = productRepository.findById(id);
+        Optional<ProductEntity> productEntity = productRepository.findById(id);
+        ProductDto productDto = new ProductDto();
+        ProductEntity product = productEntity.orElse(null);
+        if (product != null) {
+
+            productDto.setId(productEntity.get().getId());
+            productDto.setCode(productEntity.get().getCode());
+            productDto.setDescription(productEntity.get().getDescription());
+            productDto.setCategory(productEntity.get().getCategory());
+        }else {
+
+//            Optional<ProductEntity> product = Optional.of(productEntity);
+            return null;
+        }
+
+        return productDto;
 
     }
 }

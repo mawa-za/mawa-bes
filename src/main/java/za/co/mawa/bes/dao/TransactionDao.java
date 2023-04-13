@@ -4,6 +4,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 
 import java.util.List;
@@ -45,4 +46,5 @@ public interface TransactionDao {
     void addLink(TransactionLinkDto transactionLinkDto);
     void removeLink(TransactionLinkDto transactionLinkDto);
     List<TransactionLinkDto> getLinks(String id);
+    TransactionAmountDto getAmount(TransactionAmountPKEntity id);
 }
