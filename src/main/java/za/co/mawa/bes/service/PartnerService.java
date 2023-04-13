@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.user.UserDto;
@@ -1526,6 +1527,40 @@ public class PartnerService implements PartnerDao {
         List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),sort);
         prospectDtoArrayList = entityArrayToDto(partners);
         return prospectDtoArrayList;
+    }
+
+    @Override
+    public boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist, Exception {
+        PartnerEntity entity = partnerRepository.getById(id);
+        if(entity != null)
+        {
+            try {
+                 if(editDto.getSurname() != null)
+                 {
+                     entity.setName1(editDto.getSurname().toUpperCase());
+                 }
+                if(editDto.getOrganisationName() != null)
+                {
+                    entity.setName1(editDto.getOrganisationName().toUpperCase());
+                }
+                 if(editDto.getMiddleName() != null)
+                 {
+                     entity.setName3(editDto.getMiddleName().toUpperCase());
+                 }
+                 if(editDto.getFirstName() != null)
+                 {
+                     entity.setName2(editDto.getFirstName().toUpperCase());
+                 }
+                 partnerRepository.save(entity);
+                 return true;
+            }
+            catch (Exception e){
+                throw new RuntimeException(e);
+            }
+        }
+        else{
+            throw new DoesNotExist();
+        }
     }
 
     private String getUser()

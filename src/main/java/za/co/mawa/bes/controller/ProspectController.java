@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.service.PartnerService;
@@ -99,6 +100,17 @@ public class ProspectController {
             }
             ArrayList<ProspectDto> prospects = partnerService.getProspects(search);
             return ResponseEntity.ok(gson.toJson(prospects));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(value= "/prospect/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editProspect(@PathVariable String id, @RequestBody ProspectEditDto prospectEditDto) {
+        try {
+            boolean edited = partnerService.editProspect(id,prospectEditDto);
+            return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
