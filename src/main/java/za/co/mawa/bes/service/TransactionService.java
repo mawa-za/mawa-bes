@@ -3,6 +3,7 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -40,6 +41,8 @@ public class TransactionService implements TransactionDao {
     PricingService pricingService;
     @Autowired
     ProductService productService;
+    @Autowired
+    PartnerService partnerService;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -271,12 +274,15 @@ public class TransactionService implements TransactionDao {
                     if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
                         object.setOrderDate(transactionDateDto.getValue());
                     }
-                    if (transactionDateDto.getType().equals(DateType.JOINED)) {
-                        membershipDto.setDateJoined(transactionDateDto.getValue());
+                    if (transactionQueryDto.getType().equals(TransactionType.MEMBERSHIP)) {
+                        if (transactionDateDto.getType().equals(DateType.JOINED)) {
+                            membershipDto.setDateJoined(transactionDateDto.getValue());
+                        }
+                        if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
+                            membershipDto.setDateEffective(transactionDateDto.getValue());
+                        }
                     }
-                    if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
-                        membershipDto.setDateEffective(transactionDateDto.getValue());
-                    }
+
 
                     if (transactionDateDto.getType().equals(DateType.INVOICE_DATE)) {
                         object.setInvoiceDate(transactionDateDto.getValue());
@@ -344,7 +350,24 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setStatus(transactionEntity.getStatus());
+            MembershipDto membershipDto = new MembershipDto();
             for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
+
+                if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
+
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
+                        membershipDto.setMemberId(transactionPartnerDto.getPartner());
+//                        PartnerDto partnerDto = partnerService.get(id);
+
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
+
+                        membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
+
+                    }
+
+                }
+
                 if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                     transactionDto.setCustomerId(transactionPartnerDto.getPartner());
                 }
@@ -353,7 +376,28 @@ public class TransactionService implements TransactionDao {
                 }
             }
 
+            if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
+
+
+                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                transactionAmountPKEntity.setTransaction(transactionId);
+                transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
+                TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
+                membershipDto.setPremium(transactionAmountDto.getAmount());
+            }
+
             for (TransactionDateDto transactionDateDto : getDates(transactionId)) {
+
+                if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
+                    if (transactionDateDto.getType().equals(DateType.JOINED)) {
+                        membershipDto.setDateJoined(transactionDateDto.getValue());
+                    }
+                    if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
+                        membershipDto.setDateEffective(transactionDateDto.getValue());
+                    }
+                }
+
+
                 if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
                     transactionDto.setOrderDate(transactionDateDto.getValue());
                 }
@@ -370,6 +414,7 @@ public class TransactionService implements TransactionDao {
                     transactionDto.setDueDate(transactionDateDto.getValue());
                 }
             }
+            transactionDto.setMembershipHolder(membershipDto);
             return transactionDto;
         } else {
             throw new TransactionNotFound("Transaction not found");
