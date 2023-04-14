@@ -20,4 +20,6 @@ public interface ProductDao {
     void addPricing(ProductPricingDto productPricingDto);
     void editPricing(ProductPricingDto productPricingDto);
 
+    ProductDto getOptionalById(String id);
+
 }

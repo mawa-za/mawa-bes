@@ -4,6 +4,8 @@ import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
@@ -19,6 +21,7 @@ import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
@@ -65,6 +68,16 @@ public class ClaimController {
                 transactionPartnerDto.setPartner(claimCreateDto.getClaimantId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+            if(claimCreateDto.getMembershipId() != null)
+            {
+               TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
+
+                transactionLinkDto.setTransaction1(claimCreateDto.getMembershipId());
+                transactionLinkDto.setTransaction2(transactionDto.getId());
+                transactionLinkDto.setType(TransactionType.CLAIM);
+               transactionLinkDto.setCreationDate(new Date());
+                transactionLinkDto.setCreateBy(getUser());
+            }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -95,6 +108,22 @@ public class ClaimController {
         }
     }
 
+    @RequestMapping(value = "/claimByMember/{id}", method = RequestMethod.GET)
+    public ResponseEntity<?> getClaimByMember(@PathVariable String id) {
+        try {
+           TransactionDto transactionDto =  transactionService.get(id);
+            List<ClaimDto> claimDtoList = new ArrayList<>();
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.CLAIM);
+            for (TransactionQueryResultDto transactionQueryResultDtoDto : transactionService.search(transactionQueryDto)) {
+                  claimDtoList.add(getClaimData(transactionQueryResultDtoDto.getId()));
+//                transactionDto.setClaimDtoList(claimDtoList);
+            }
+            return ResponseEntity.ok(gson.toJson(transactionDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
     @RequestMapping(value = "/claim/{id}/approve", method = RequestMethod.PUT)
     public ResponseEntity<?> approveClaim(@PathVariable String id) {
         try {
@@ -152,6 +181,13 @@ public class ClaimController {
         }
     }
 
+
+    private String getUser()
+    {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUser = userDetails.getUsername();
+        return currentUser;
+    }
     private ClaimDto getClaimData(String id) throws TransactionNotFound {
         try {
             TransactionDto transactionDto = transactionService.get(id);

@@ -18,7 +18,7 @@ public class ClaimDto extends TransactionDto implements Serializable {
     private String memberId;
     private String claimantId;
     private String deceasedId;
-    private Date creationDate;
+//    private Date creationDate;
     private Date deathDate;
     private Date burialDate;
 }

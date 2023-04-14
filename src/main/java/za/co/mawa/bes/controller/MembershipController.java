@@ -95,16 +95,16 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity<?> getMemberships() {
-        try {
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }
+//    @RequestMapping(method = RequestMethod.GET)
+//    public ResponseEntity<?> getMemberships() {
+//        try {
+//            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+//            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+//            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+//        }
+//    }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getMembership(@PathVariable String id) {
@@ -151,7 +151,7 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET)
-    public ResponseEntity<?> addDependent(@PathVariable String id) {
+    public ResponseEntity<?> getDependent(@PathVariable String id) {
         try {
             List<DependentDto> dependentDtoList = new ArrayList<>();
             List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()

@@ -4,10 +4,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
@@ -38,6 +41,9 @@ public class TransactionDto implements Serializable {
     private String createdBy;
     private String changedBy;
     private PricingDto pricing;
+   private  List<ClaimDto> claimDtoList;
+    private MembershipDto membershipHolder;
+
 
     public TransactionDto(TransactionEntity transactionEntity) {
         this.id = transactionEntity.getId();

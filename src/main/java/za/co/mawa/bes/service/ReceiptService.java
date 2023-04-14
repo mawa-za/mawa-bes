@@ -1,9 +1,14 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
+//import javax.sql.rowset.Predicate;
+import jakarta.persistence.criteria.Predicate;
+import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.exception.DoesNotExist;
 
 import za.co.mawa.bes.dao.ReceiptDao;
@@ -84,6 +89,15 @@ public class ReceiptService implements ReceiptDao {
         }
     }
 
+    @Override
+    public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) throws Exception {
+        ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
+        Sort sort = Sort.by("id").descending();
+        List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch),sort);
+        receiptDtos = entityArrayToDto(receipts);
+        return receiptDtos;
+    }
+
     private ReceiptDto entityIDtoDto(ReceiptEntity entity) throws Exception
     {
         try {
@@ -104,4 +118,73 @@ public class ReceiptService implements ReceiptDao {
         String currentUser = userDetails.getUsername();
         return currentUser;
     }
+
+    private Specification<ReceiptEntity> findByCriteria(ReceiptSearchDto receiptSearchDto) {
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (receiptSearchDto.getReceiptType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("receiptType"), receiptSearchDto.getReceiptType()));
+            }
+            if (receiptSearchDto.getInvoiceNumber() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("invoiceNumber"), receiptSearchDto.getInvoiceNumber()));
+            }
+            if (receiptSearchDto.getCreatedBy() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("createdBy"), receiptSearchDto.getCreatedBy()));
+            }
+            if (receiptSearchDto.getMembershipNumber() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("membershipNumber"), receiptSearchDto.getMembershipNumber()));
+            }
+            if (receiptSearchDto.getMembershipPeriod() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("membershipPeriod"), receiptSearchDto.getMembershipPeriod()));
+            }
+            if (receiptSearchDto.getTenderType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("tenderType"), receiptSearchDto.getTenderType()));
+            }
+            return predicate;
+        };
+    }
+
+    private ArrayList<ReceiptDto> entityArrayToDto(List<ReceiptEntity> receipts) throws Exception {
+        ArrayList<ReceiptDto> receiptDt = new ArrayList<>();
+        for(ReceiptEntity receipt: receipts)
+        {
+            try {
+                receiptDt.add(entityToDto(receipt));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return receiptDt;
+    }
+
+    private ReceiptDto entityToDto(ReceiptEntity entity) throws Exception
+    {
+        try {
+            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
+            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
+
+            ReceiptDto receipt = new ReceiptDto();
+            receipt.setId(entity.getId());
+            receipt.setReceiptNumber(entity.getReceiptNumber());
+            receipt.setInvoiceNumber(entity.getInvoiceNumber());
+            receipt.setReceiptType(entity.getReceiptType());
+            if(entity.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP))
+            {
+                receipt.setMembershipNumber(entity.getMembershipNumber());
+                receipt.setMembershipPeriod(entity.getMembershipPeriod());
+            }
+            receipt.setTenderType(entity.getTenderType());
+            receipt.setAmount(entity.getAmount().toString());
+            receipt.setCreatedBy(entity.getCreatedBy());
+            receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
+
+            return receipt;
+        }
+        catch (Exception e)
+        {
+            throw new Exception();
+        }
+    }
+
 }
