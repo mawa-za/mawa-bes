@@ -15,9 +15,9 @@ import java.io.Serializable;
 @Setter
 public class ProductPricingPKEntity implements Serializable {
     @Column(name = "product")
-    private String transaction;
+    private String product;
     @Column(name = "pricing")
-    private String function;
+    private String pricing;
 
 
 }

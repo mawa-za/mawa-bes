@@ -16,6 +16,7 @@ public class NumberRangeType {
     public static String APPOINTMENT = "APPOINTMENT";
     public static String CLAIM = "CLAIM";
     public static String RECEIPT = "RECEIPT";
+    public static String PRODUCT = "PRODUCT";
 
 
 }
