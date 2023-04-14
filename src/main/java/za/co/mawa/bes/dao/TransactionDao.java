@@ -43,7 +43,7 @@ public interface TransactionDao {
     void removeAttachment(TransactionAttachmentDto transactionAttachmentDto);
     List<TransactionAttachmentDto> getAttachments(String id);
 
-    void addLink(TransactionLinkDto transactionLinkDto);
+    void addLink(TransactionLinkDto transactionLinkDto) throws Exception;
     void removeLink(TransactionLinkDto transactionLinkDto);
     List<TransactionLinkDto> getLinks(String id);
     TransactionAmountDto getAmount(TransactionAmountPKEntity id);
