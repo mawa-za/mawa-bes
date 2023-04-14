@@ -17,8 +17,8 @@ public interface ProductDao {
     ProductDto get(String id) throws ProductNotFound;
     void edit(ProductDto productDto) throws ProductUpdateFailure;
     void delete(String id) throws ProductDeleteFailure;
-    void addPricing(ProductPricingDto productPricingDto);
-    void editPricing(ProductPricingDto productPricingDto);
+    void addPricing(ProductPricingDto productPricingDto) throws Exception;
+    void editPricing(ProductPricingDto productPricingDto) throws Exception;
 
     ProductDto getOptionalById(String id);
 
