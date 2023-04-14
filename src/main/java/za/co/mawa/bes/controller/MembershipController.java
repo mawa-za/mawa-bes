@@ -106,7 +106,7 @@ public class MembershipController {
 //        }
 //    }
 
-    @RequestMapping(method = RequestMethod.GET)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET)
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
