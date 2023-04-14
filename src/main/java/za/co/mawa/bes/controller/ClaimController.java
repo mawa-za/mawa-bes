@@ -75,8 +75,9 @@ public class ClaimController {
                 transactionLinkDto.setTransaction1(claimCreateDto.getMembershipId());
                 transactionLinkDto.setTransaction2(transactionDto.getId());
                 transactionLinkDto.setType(TransactionType.CLAIM);
-               transactionLinkDto.setCreationDate(new Date());
+//               transactionLinkDto.setCreationDate(new Date());
                 transactionLinkDto.setCreateBy(getUser());
+                transactionService.addLink(transactionLinkDto);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
@@ -113,11 +114,11 @@ public class ClaimController {
         try {
            TransactionDto transactionDto =  transactionService.get(id);
             List<ClaimDto> claimDtoList = new ArrayList<>();
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            transactionQueryDto.setType(TransactionType.CLAIM);
-            for (TransactionQueryResultDto transactionQueryResultDtoDto : transactionService.search(transactionQueryDto)) {
-                  claimDtoList.add(getClaimData(transactionQueryResultDtoDto.getId()));
-//                transactionDto.setClaimDtoList(claimDtoList);
+
+
+            for (TransactionLinkDto transactionLinkDto : transactionService.getLinks(id)) {
+                  claimDtoList.add(getClaimData(transactionLinkDto.getTransaction2()));
+                transactionDto.setClaimDtoList(claimDtoList);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {

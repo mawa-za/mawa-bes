@@ -42,6 +42,8 @@ public class TransactionService implements TransactionDao {
     @Autowired
     ProductService productService;
     @Autowired
+    TransactionLinkRepository transactionLinkRepository;
+    @Autowired
     PartnerService partnerService;
 
     @Override
@@ -143,7 +145,19 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addLink(TransactionLinkDto transactionLinkDto) {
+    public void addLink(TransactionLinkDto transactionLinkDto) throws Exception {
+
+        TransactionLinkEntity transactionLinkEntity = new TransactionLinkEntity(transactionLinkDto);
+        if (transactionLinkDto.getCreationDate() != null) {
+            transactionLinkEntity.setCreation_date(transactionLinkDto.getCreationDate());
+        } else {
+            transactionLinkEntity.setCreation_date(new Date());
+        }
+        try {
+            transactionLinkRepository.save(transactionLinkEntity);
+        } catch (Exception ex) {
+            throw new Exception("Error adding transaction link");
+        }
 
     }
 
@@ -154,7 +168,17 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public List<TransactionLinkDto> getLinks(String id) {
-        return null;
+
+
+        List<TransactionLinkDto> transactionLinkDtos = new ArrayList<>();
+        List<TransactionLinkEntity> transactionLinkEntities = transactionLinkRepository.getTransactionLinks(id);
+
+        for (TransactionLinkEntity transactionLinkEntity : transactionLinkEntities) {
+            transactionLinkDtos.add(new TransactionLinkDto(transactionLinkEntity));
+        }
+        return transactionLinkDtos;
+        
+//        return null;
     }
 
     @Override
