@@ -381,7 +381,11 @@ public class TransactionService implements TransactionDao {
 
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
                         membershipDto.setMemberId(transactionPartnerDto.getPartner());
-//                        PartnerDto partnerDto = partnerService.get(id);
+                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
+                        if (partnerDto != null)
+                        {
+                            membershipDto.setMainMember(partnerDto);
+                        }
 
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
