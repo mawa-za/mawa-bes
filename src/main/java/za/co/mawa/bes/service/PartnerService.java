@@ -1559,6 +1559,15 @@ public class PartnerService implements PartnerDao {
             partnerDto.setGender(partner.getGender());
             partnerDto.setTitle(partner.getTitle());
             partnerDto.setMaritalStatus(partner.getMaritalStatus());
+            partnerDto.setStatus(partner.getStatus());
+
+
+            PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
+            if (partnerIdentity != null) {
+                partnerDto.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+                partnerDto.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
+            }
+
 
         }
 

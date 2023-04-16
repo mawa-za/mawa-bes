@@ -2,9 +2,7 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.LineItemDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
@@ -20,6 +18,7 @@ import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TransactionService implements TransactionDao {
@@ -384,13 +383,22 @@ public class TransactionService implements TransactionDao {
                         PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
                         if (partnerDto != null)
                         {
-                            membershipDto.setMainMember(partnerDto);
+
+                            PersonDto personDto = new PersonDto(partnerDto);
+                            membershipDto.setMainMember(personDto);
                         }
 
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
 
                         membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
+                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
+                        if (partnerDto != null)
+                        {
+
+                            PersonDto personDto = new PersonDto(partnerDto);
+                            membershipDto.setSalesRep(personDto);
+                        }
 
                     }
 
@@ -405,8 +413,24 @@ public class TransactionService implements TransactionDao {
             }
 
             if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
-
-
+                List<TransactionPartnerDto> transactionPartnerDtoList = getPartners(transactionId).stream()
+                        .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
+                        .toList();
+                List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
+                        .map(TransactionPartnerDto::getPartner)
+                        .map(partnerService::getOptional)
+                        .filter(Objects::nonNull)
+                        .map(partnerDto -> {
+                            DependentDto dependentDto = new DependentDto();
+                            dependentDto.setIdType(partnerDto.getIdType());
+                            dependentDto.setIdNumber(partnerDto.getIdNumber());
+                            dependentDto.setLastName(partnerDto.getName1());
+                            dependentDto.setFirstName(partnerDto.getName2());
+                            dependentDto.setMiddleName(partnerDto.getName3());
+                            return dependentDto;
+                        })
+                        .collect(Collectors.toList());
+                membershipDto.setDependentDtoList(dependentDtoList);
                 TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
                 transactionAmountPKEntity.setTransaction(transactionId);
                 transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
