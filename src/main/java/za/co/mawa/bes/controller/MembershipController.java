@@ -3,6 +3,7 @@ package za.co.mawa.bes.controller;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
@@ -41,7 +42,7 @@ public class MembershipController {
     PartnerService partnerService;
     Gson gson = new Gson();
 
-    @RequestMapping(method = RequestMethod.POST)
+    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -69,7 +70,7 @@ public class MembershipController {
             if (membershipCreateDto.getDateJoined() != null) {
                 TransactionDateDto Date = new TransactionDateDto();
                 creationDate.setTransaction(transactionDto.getId());
-                creationDate.setType(DateType.CREATED);
+                creationDate.setType(DateType.JOINED);
                 creationDate.setValue(membershipCreateDto.getDateJoined());
                 transactionService.addDate(creationDate);
             }
@@ -95,27 +96,47 @@ public class MembershipController {
         }
     }
 
-//    @RequestMapping(method = RequestMethod.GET)
-//    public ResponseEntity<?> getMemberships() {
-//        try {
-//            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-//            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-//            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
-
-    @RequestMapping(value = "{id}", method = RequestMethod.GET)
-    public ResponseEntity<?> getMembership(@PathVariable String id) {
+    @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
+                                            @RequestParam(required = false) String partnerFunction,
+                                            @RequestParam(required = false) String partnerNo) {
         try {
-            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            String partner = partnerNo == null ? "":partnerNo;
+            String function = partnerFunction == null ? "":partnerFunction;
+            if(status != null && status != "")
+            {
+                transactionQueryDto.setStatus(status);
+            }
+            if(partner != "" && function != "")
+            {
+                transactionQueryDto.setPartnerNo(partner);
+                transactionQueryDto.setPartnerFunction(function);
+            }
+            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.PUT)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembership(@PathVariable String id) {
+        try {
+            TransactionDto transactionDto = transactionService.get(id);
+            if(transactionDto.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP))
+            {
+                return ResponseEntity.ok(gson.toJson(transactionDto));
+            }
+            else {
+              return  ResponseEntity.ok(gson.toJson(null));
+            }
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipDto membershipDto) {
         try {
             TransactionDto transactionDto = new TransactionDto();
@@ -126,7 +147,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteMembership(@PathVariable String id) {
         try {
             transactionService.delete(id);
@@ -136,7 +157,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST)
+    @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -150,7 +171,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET)
+    @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDependent(@PathVariable String id) {
         try {
             List<DependentDto> dependentDtoList = new ArrayList<>();
@@ -175,7 +196,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent/{dependentId}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "{id}/dependent/{dependentId}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @PathVariable String dependentId) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -189,7 +210,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/claims", method = RequestMethod.GET)
+    @RequestMapping(value = "{id}/claims", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaims(@PathVariable String id) {
         try {
             List<ClaimDto> claimDtoList = new ArrayList<>();
