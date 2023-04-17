@@ -1,6 +1,8 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
@@ -58,7 +60,7 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setSubType(transactionCreateDto.getSubType());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            transactionEntity.setCreatedBy(userService.getCurrentUser());
+            transactionEntity.setCreatedBy(getUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
             TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
@@ -231,6 +233,7 @@ public class TransactionService implements TransactionDao {
     @Override
     public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto) {
         List<String> transactionIdList = new ArrayList<>();
+        String transactionType = transactionQueryDto.getType() == null?"":transactionQueryDto.getType();
         List<TransactionQueryResultDto> transactionQueryResultDtoList = new ArrayList<>();
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getPartnerNo());
@@ -241,20 +244,27 @@ public class TransactionService implements TransactionDao {
             }
         }
 
-
-        if (transactionQueryDto.getType() != null) {
-            List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
-            for (TransactionEntity transactionEntity : transactions) {
-                transactionIdList.add(transactionEntity.getId());
-            }
-        }
-
         if (transactionQueryDto.getStatus() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByStatus(transactionQueryDto.getStatus());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionIdList.add(transactionEntity.getId());
             }
         }
+        if(transactionIdList.size() == 0 &&
+                transactionQueryDto.getStatus() == null &&
+                transactionQueryDto.getPartnerFunction() == null &&
+                transactionQueryDto.getPartnerNo() == null)
+        {
+            if (transactionQueryDto.getType() != null) {
+                List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
+                for (TransactionEntity transactionEntity : transactions) {
+                    transactionIdList.add(transactionEntity.getId());
+                }
+            }
+        }
+
+
+
 
         for (String transactionId : transactionIdList) {
             try {
@@ -267,7 +277,7 @@ public class TransactionService implements TransactionDao {
                 object.setSubType(transactionDto.getSubType());
                 object.setStatus(transactionDto.getStatus());
 
-                List<TransactionDateDto> transactionDateDtoList = getDates(transactionId);
+               // List<TransactionDateDto> transactionDateDtoList = getDates(transactionId);
 
                 MembershipDto membershipDto = new MembershipDto();
 
@@ -350,7 +360,17 @@ public class TransactionService implements TransactionDao {
 
                     object.setMembershipHolder(membershipDto);
                 }
-                transactionQueryResultDtoList.add(object);
+                if(transactionType != "")
+                {
+                    if(object.getType().equalsIgnoreCase(transactionType))
+                    {
+                        transactionQueryResultDtoList.add(object);
+                    }
+                }
+                else {
+                    transactionQueryResultDtoList.add(object);
+                }
+
             } catch (TransactionNotFound exception) {
             }
         }
@@ -562,7 +582,7 @@ public class TransactionService implements TransactionDao {
             TransactionPartnerEntity transactionPartnerEntity = new TransactionPartnerEntity();
             transactionPartnerEntity.setTransactionPartnerPKEntity(transactionPartnerPKEntity);
             transactionPartnerEntity.setValidFrom(new Date());
-            transactionPartnerEntity.setCreatedBy(userService.getCurrentUser());
+            transactionPartnerEntity.setCreatedBy(getUser());
             transactionPartnerEntity.setStatus(transactionPartnerDto.getStatus());
 
             transactionPartnerRepository.save(transactionPartnerEntity);
@@ -625,6 +645,13 @@ public class TransactionService implements TransactionDao {
         } catch (Exception exception) {
             throw new Exception("Pricing Engine Failure");
         }
+    }
+
+    private String getUser()
+    {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUser = userDetails.getUsername();
+        return currentUser;
     }
 
 }
