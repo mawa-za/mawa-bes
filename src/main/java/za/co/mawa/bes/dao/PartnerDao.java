@@ -66,4 +66,7 @@ public interface PartnerDao {
     ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception;
     boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist,Exception;
 
+    PartnerDto getOptional(String id);
+
+
 }

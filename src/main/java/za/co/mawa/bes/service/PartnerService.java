@@ -22,10 +22,7 @@ import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class PartnerService implements PartnerDao {
@@ -80,24 +77,19 @@ public class PartnerService implements PartnerDao {
             if (partnerDto.getName3() != null) {
                 entity.setName3(partnerDto.getName3().toUpperCase());
             }
-            if(partnerDto.getBirthDate() != null)
-            {
+            if (partnerDto.getBirthDate() != null) {
                 entity.setBirthDate(Conversion.stringToDate(partnerDto.getBirthDate()));
             }
-            if(partnerDto.getGender() != null)
-            {
+            if (partnerDto.getGender() != null) {
                 entity.setGender(partnerDto.getGender());
             }
-            if(partnerDto.getLanguage() != null)
-            {
+            if (partnerDto.getLanguage() != null) {
                 entity.setLanguage(partnerDto.getLanguage());
             }
-            if(partnerDto.getMaritalStatus() != null)
-            {
+            if (partnerDto.getMaritalStatus() != null) {
                 entity.setMaritalStatus(partnerDto.getMaritalStatus());
             }
-            if(partnerDto.getTitle() != null)
-            {
+            if (partnerDto.getTitle() != null) {
                 entity.setTitle(partnerDto.getTitle());
             }
             entity.setStatus(Status.ACTIVE);
@@ -1503,28 +1495,24 @@ public class PartnerService implements PartnerDao {
 
     @Override
     public ProspectDto getProspect(String id) throws DoesNotExist {
-      PartnerEntity partner = partnerRepository.getById(id);
-      if(partner != null)
-      {
-          try{
-              return entityToProspect(partner);
-          }
-          catch (Exception e)
-          {
-              throw new RuntimeException(e);
-          }
+        PartnerEntity partner = partnerRepository.getById(id);
+        if (partner != null) {
+            try {
+                return entityToProspect(partner);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-      }
-      else {
-          throw new DoesNotExist();
-      }
+        } else {
+            throw new DoesNotExist();
+        }
     }
 
     @Override
     public ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception {
         ArrayList<ProspectDto> prospectDtoArrayList = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
-        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),sort);
+        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
         prospectDtoArrayList = entityArrayToDto(partners);
         return prospectDtoArrayList;
     }
@@ -1532,102 +1520,116 @@ public class PartnerService implements PartnerDao {
     @Override
     public boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist, Exception {
         PartnerEntity entity = partnerRepository.getById(id);
-        if(entity != null)
-        {
+        if (entity != null) {
             try {
-                 if(editDto.getSurname() != null)
-                 {
-                     entity.setName1(editDto.getSurname().toUpperCase());
-                 }
-                if(editDto.getOrganisationName() != null)
-                {
+                if (editDto.getSurname() != null) {
+                    entity.setName1(editDto.getSurname().toUpperCase());
+                }
+                if (editDto.getOrganisationName() != null) {
                     entity.setName1(editDto.getOrganisationName().toUpperCase());
                 }
-                 if(editDto.getMiddleName() != null)
-                 {
-                     entity.setName3(editDto.getMiddleName().toUpperCase());
-                 }
-                 if(editDto.getFirstName() != null)
-                 {
-                     entity.setName2(editDto.getFirstName().toUpperCase());
-                 }
-                 partnerRepository.save(entity);
-                 return true;
-            }
-            catch (Exception e){
+                if (editDto.getMiddleName() != null) {
+                    entity.setName3(editDto.getMiddleName().toUpperCase());
+                }
+                if (editDto.getFirstName() != null) {
+                    entity.setName2(editDto.getFirstName().toUpperCase());
+                }
+                partnerRepository.save(entity);
+                return true;
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-        }
-        else{
+        } else {
             throw new DoesNotExist();
         }
     }
 
-    private String getUser()
-    {
+    @Override
+    public PartnerDto getOptional(String id) {
+
+        Optional<PartnerEntity> partnerEntity = partnerRepository.findById(id);
+        PartnerEntity partner = partnerEntity.orElse(null);
+        PartnerDto partnerDto = new PartnerDto();
+        if (partner != null) {
+            partnerDto.setId(partner.getId());
+            partnerDto.setBirthDate(String.valueOf(partner.getBirthDate()));
+            partnerDto.setName1(partner.getName1());
+            partnerDto.setName2(partner.getName2());
+            partnerDto.setName3(partner.getName3());
+            partnerDto.setGender(partner.getGender());
+            partnerDto.setTitle(partner.getTitle());
+            partnerDto.setMaritalStatus(partner.getMaritalStatus());
+            partnerDto.setStatus(partner.getStatus());
+
+
+            PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
+            if (partnerIdentity != null) {
+                partnerDto.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+                partnerDto.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
+            }
+
+
+        }
+
+        return partnerDto;
+    }
+
+    private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();
         return currentUser;
     }
 
-    private PartnerDto entityIdToDto(PartnerEntity partnerEntity) throws Exception
-    {
+    private PartnerDto entityIdToDto(PartnerEntity partnerEntity) throws Exception {
         try {
             PartnerDto partnerDto = new PartnerDto();
             partnerDto.setId(partnerEntity.getId());
             return partnerDto;
 
-        }catch (Exception e){
+        } catch (Exception e) {
             throw new Exception();
         }
     }
 
-    private ProspectDto entityToProspect(PartnerEntity partnerEntity) throws Exception
-    {
-        try{
-        ProspectDto prospectDto = new ProspectDto();
-        prospectDto.setId(partnerEntity.getId());
-        prospectDto.setNumber(partnerEntity.getNo());
-        if(partnerEntity.getType() != null)
-        {
-            if(partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION))
-            {
-                prospectDto.setOrganisationName(partnerEntity.getName1());
-            }
-            else {
-                prospectDto.setFirstName(partnerEntity.getName2());
-                prospectDto.setSurname(partnerEntity.getName1());
-                if(partnerEntity.getName3() != null)
-                {
-                    prospectDto.setMiddleName(partnerEntity.getName3());
+    private ProspectDto entityToProspect(PartnerEntity partnerEntity) throws Exception {
+        try {
+            ProspectDto prospectDto = new ProspectDto();
+            prospectDto.setId(partnerEntity.getId());
+            prospectDto.setNumber(partnerEntity.getNo());
+            if (partnerEntity.getType() != null) {
+                if (partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION)) {
+                    prospectDto.setOrganisationName(partnerEntity.getName1());
+                } else {
+                    prospectDto.setFirstName(partnerEntity.getName2());
+                    prospectDto.setSurname(partnerEntity.getName1());
+                    if (partnerEntity.getName3() != null) {
+                        prospectDto.setMiddleName(partnerEntity.getName3());
+                    }
                 }
+            }
+
+            return prospectDto;
+        } catch (Exception e) {
+            throw new Exception();
+        }
+    }
+
+    private ArrayList<ProspectDto> entityArrayToDto(List<PartnerEntity> partners) throws Exception {
+        ArrayList<ProspectDto> prospectDto = new ArrayList<>();
+        for (PartnerEntity partner : partners) {
+            try {
+                prospectDto.add(entityToProspect(partner));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
-
-         return prospectDto;
-         }catch (Exception e){
-        throw new Exception();
-    }
-    }
-
-    private ArrayList<ProspectDto> entityArrayToDto(List<PartnerEntity> partners) throws Exception
-    {
-        ArrayList<ProspectDto> prospectDto = new ArrayList<>();
-        for(PartnerEntity partner:partners)
-        {
-            try{
-            prospectDto.add(entityToProspect(partner));
-            } catch (Exception e) {
-               throw new RuntimeException(e);
-                }
-       }
         return prospectDto;
     }
 
     private Specification<PartnerEntity> findByCriteria(ProspectSearchDto prospectSearch) {
         return (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
-            if (prospectSearch.getPartnerNumber()!= null) {
+            if (prospectSearch.getPartnerNumber() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("no"), prospectSearch.getPartnerNumber()));
             }
             if (prospectSearch.getPartnerType() != null) {
