@@ -16,9 +16,13 @@ import java.util.Date;
 public class ClaimDto extends TransactionDto implements Serializable {
     private String membershipId;
     private String memberId;
+    private PersonDto member;
     private String claimantId;
+    private PersonDto claimant;
     private String deceasedId;
+    private PersonDto deceased;
 //    private Date creationDate;
     private Date deathDate;
     private Date burialDate;
+
 }

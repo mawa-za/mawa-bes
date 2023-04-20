@@ -67,6 +67,5 @@ public interface PartnerDao {
     boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist,Exception;
 
     PartnerDto getOptional(String id);
-
-
+    PartnerDto getPartner(String id);
 }
