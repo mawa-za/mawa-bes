@@ -2,9 +2,13 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 
 import java.util.List;
@@ -13,7 +17,7 @@ import java.util.Optional;
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
     List<TransactionQueryResultDto> search(TransactionQueryDto query);
-    void edit(TransactionDto transactionDto);
+    boolean edit(TransactionDto transactionDto) throws DoesNotExist, Exception;
     void delete(String id) throws Exception;
     TransactionDto get(String transactionId) throws TransactionNotFound;
 
@@ -47,4 +51,7 @@ public interface TransactionDao {
     void removeLink(TransactionLinkDto transactionLinkDto);
     List<TransactionLinkDto> getLinks(String id);
     TransactionAmountDto getAmount(TransactionAmountPKEntity id);
+    TransactionLinkEntity getTransaction(String type,String transaction1);
+    boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception;
+    boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
 }
