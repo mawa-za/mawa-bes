@@ -128,11 +128,11 @@ public class EmploymentService implements EmploymentDao {
 
     @Override
     public List<EmploymentDto> getAll() {
-        List<EmploymentEntity> employess = employmentRepository.findAll();
+        List<EmploymentEntity> employees = employmentRepository.findAll();
         List<EmploymentDto> currentEmployment = new ArrayList<>();
 
-        if (!employess.isEmpty()) {
-            for (EmploymentEntity empDetails : employess) {
+        if (!employees.isEmpty()) {
+            for (EmploymentEntity empDetails : employees) {
                 EmploymentDto emp = get(empDetails.getEmploymentPK().getEmployeeId());
                 if (emp != null) {
                     currentEmployment.add(emp);
