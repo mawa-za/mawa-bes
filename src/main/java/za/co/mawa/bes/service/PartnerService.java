@@ -172,21 +172,39 @@ public class PartnerService implements PartnerDao {
         object.setName1(partner.getName1());
         object.setName2(partner.getName2());
         object.setName3(partner.getName3());
-        object.setBirthDate(Conversion.dateToString(partner.getBirthDate()));
+        object.setNumber(partner.getNo());
+        if(partner.getBirthDate() != null)
+        {
+            object.setBirthDate(Conversion.dateToString(partner.getBirthDate()));
+        }
         object.setStatus(StringConversion.capitalizeFully(partner.getStatus()));
-        object.setTitle(fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle()));
-        object.setGender(fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender()));
-        object.setMaritalStatus(fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus()));
-        object.setLanguage(fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage()));
+        if(partner.getTitle() != null)
+        {
+            String title = fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle()) == null ? partner.getTitle():fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle());
+            object.setTitle(title);
+        }
+        if(partner.getGender() != null)
+        {
+            String gender = fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender()) == null ? partner.getGender(): fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender());
+            object.setGender(gender);
+        }
+        if(partner.getMaritalStatus() != null)
+        {
+            String maritalStatus = fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus()) == null ? partner.getMaritalStatus():fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus());
+            object.setMaritalStatus(maritalStatus);
+        }
+        if(partner.getLanguage() != null)
+        {
+            String language = fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage()) == null ? partner.getLanguage():fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage());
+            object.setLanguage(language);
+        }
         object.setValidFrom(Conversion.dateToString(partner.getValidFrom()));
         object.setValidTo(Conversion.dateToString(partner.getValidTo()));
-
         PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
         if (partnerIdentity != null) {
-            object.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+           // object.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
             object.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
         }
-
         return object;
     }
 
@@ -1572,6 +1590,20 @@ public class PartnerService implements PartnerDao {
         }
 
         return partnerDto;
+    }
+
+    @Override
+    public PartnerDto getPartner(String id) {
+        Optional<PartnerEntity> partner = partnerRepository.findById(id);
+        PartnerDto object = new PartnerDto();
+        if (!partner.isEmpty()) {
+            object = entityToObject(partner.get());
+            return object;
+        }
+        else {
+            return null;
+        }
+
     }
 
     private String getUser() {

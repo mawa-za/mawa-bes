@@ -12,8 +12,11 @@ import java.util.List;
 public interface TransactionPartnerRepository  extends JpaRepository<TransactionPartnerEntity, TransactionPartnerPKEntity> {
     @Query("SELECT t FROM TransactionPartnerEntity t WHERE t.transactionPartnerPKEntity.partner = :partner")
     List<TransactionPartnerEntity> findTransactionByPartner(String partner);
-
     @Query("SELECT t FROM TransactionPartnerEntity t WHERE t.transactionPartnerPKEntity.transaction = :transaction")
     List<TransactionPartnerEntity> findPartnerByTransaction(String transaction);
+    @Query("SELECT t FROM TransactionPartnerEntity t WHERE t.transactionPartnerPKEntity.transaction = :transaction AND t.transactionPartnerPKEntity.function = :type")
+    TransactionPartnerEntity findPartnerByTransactionAndType(String transaction,String type);
+
+
 
 }

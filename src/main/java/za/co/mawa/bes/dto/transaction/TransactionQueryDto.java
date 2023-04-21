@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.sales.order.SalesOrderQueryDto;
 import za.co.mawa.bes.dto.service.request.ServiceRequestQueryDto;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,6 +25,11 @@ public class TransactionQueryDto implements Serializable {
     private String status;
     private String partnerFunction;
     private String partnerNo;
+    private String number;
+    private Date value;
+    private String dateType;
+    private String transactionlink1;
+
 
     public TransactionQueryDto(QuotationQueryDto quotationQueryDto) {
     }

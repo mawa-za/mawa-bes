@@ -14,7 +14,10 @@ public class PersonDto {
 
 
     public PersonDto(PartnerDto partner) {
-
+        if(partner.getNumber() != null)
+        {
+            this.number = partner.getNumber();
+        }
         if (partner.getId() != null) {
             this.id = partner.getId();
         }
@@ -66,7 +69,7 @@ public class PersonDto {
     }
 
     private String id;
-
+    private String number;
     private String idType;
 
     private String idNumber;

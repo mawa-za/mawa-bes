@@ -4,6 +4,7 @@ public class PartnerDto {
 
     private String type;
     private String id;
+    private String number;
     private String idType;
     private String idNumber;
     private String name1;
@@ -164,4 +165,8 @@ public class PartnerDto {
     public void setValidTo(String validTo) {
         this.validTo = validTo;
     }
+
+    public String getNumber() {return number;}
+
+    public void setNumber(String number) {this.number = number;}
 }
