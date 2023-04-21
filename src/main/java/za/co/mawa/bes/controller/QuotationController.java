@@ -108,7 +108,7 @@ public class QuotationController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editQuotation(@PathVariable String id, @RequestBody QuotationDto quotationDto) {
         try {
-            transactionService.edit(quotationDto);
+            //transactionService.edit(quotationDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

@@ -110,7 +110,7 @@ public class SalesOrderController {
             TransactionDto transactionDto = transactionService.get(id);
             transactionDto.setStatus(salesOrderEditDto.getStatus());
             transactionDto.setDescription(salesOrderEditDto.getDescription());
-            transactionService.edit(transactionDto);
+            //transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

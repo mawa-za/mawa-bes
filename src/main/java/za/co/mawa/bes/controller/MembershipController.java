@@ -140,7 +140,7 @@ public class MembershipController {
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipDto membershipDto) {
         try {
             TransactionDto transactionDto = new TransactionDto();
-            transactionService.edit(transactionDto);
+          //  transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

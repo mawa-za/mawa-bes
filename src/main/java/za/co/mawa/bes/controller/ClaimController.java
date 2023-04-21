@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimEditDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
@@ -195,10 +196,11 @@ public class ClaimController {
     @RequestMapping(value = "/claim/{id}/approve", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> approveClaim(@PathVariable String id) {
         try {
-            TransactionDto transactionDto = transactionService.get(id);
-            transactionDto.setStatus(ClaimStatus.APPROVED);
-            transactionService.edit(transactionDto);
-            return ResponseEntity.ok().build();
+            TransactionEdit edit = new TransactionEdit();
+            edit.setId(id);
+            edit.setStatus(ClaimStatus.APPROVED);
+            boolean edited = transactionService.edit(edit);
+            return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -207,24 +209,26 @@ public class ClaimController {
     @RequestMapping(value = "/claim/{id}/reject", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> rejectClaim(@PathVariable String id) {
         try {
-            TransactionDto transactionDto = transactionService.get(id);
-            transactionDto.setStatus(ClaimStatus.REJECTED);
-            transactionService.edit(transactionDto);
-            return ResponseEntity.ok().build();
+            TransactionEdit edit = new TransactionEdit();
+            edit.setId(id);
+            edit.setStatus(ClaimStatus.REJECTED);
+            boolean edited = transactionService.edit(edit);
+            return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
     @RequestMapping(value = "/claim/{id}/dispute", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> disputeClaim(@PathVariable String id) {
         try {
-            TransactionDto transactionDto = transactionService.get(id);
-            transactionDto.setStatus(ClaimStatus.DISPUTED);
-            transactionService.edit(transactionDto);
-            return ResponseEntity.ok().build();
+            TransactionEdit edit = new TransactionEdit();
+            edit.setId(id);
+            edit.setStatus(ClaimStatus.DISPUTED);
+            boolean edited = transactionService.edit(edit);
+            return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -291,6 +295,10 @@ public class ClaimController {
             claimDto.setStatus(transactionDto.getStatus());
             if(transactionDto.getCreatedBy() != null) {
                 claimDto.setCreatedBy(transactionDto.getCreatedBy());
+            }
+            if(transactionDto.getChangedBy() != null)
+            {
+                claimDto.setChangedBy(transactionDto.getChangedBy());
             }
 
             TransactionLinkEntity transactionLink = transactionService.getTransaction(TransactionType.CLAIM,id);
