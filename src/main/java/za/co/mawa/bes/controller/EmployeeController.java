@@ -6,11 +6,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.AddressDto;
+import za.co.mawa.bes.dto.ContactDto;
 import za.co.mawa.bes.dto.EmploymentDto;
+import za.co.mawa.bes.dto.IdentityDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.service.EmploymentService;
+import za.co.mawa.bes.service.PartnerService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -19,21 +24,18 @@ public class EmployeeController {
     Gson gson = new Gson();
     @Autowired
     EmploymentService employmentService;
+    @Autowired
+    PartnerService partnerService;
 
-    @RequestMapping(value = "/Employees", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getEmployees(@RequestParam(required = false) String contacts,
-                                          @RequestParam(required = false) String identities,
-                                          @RequestParam(required = false) String addresses) {
+    @RequestMapping(value = "/employees", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getEmployees() {
 
 
-      EmploymentDto employmentDto = new EmploymentDto();
+        EmploymentDto employmentDto = new EmploymentDto();
 
         try {
 
-            if( contacts != null  )
-            {
 
-            }
             return ResponseEntity.ok(gson.toJson(employmentService.getAll()));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -41,18 +43,53 @@ public class EmployeeController {
 
     }
 
-    @RequestMapping(value = "/Employee{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getEmployee(@PathVariable String id) {
+    @RequestMapping(value = "/employee/{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getEmployee(@PathVariable String id, @RequestParam(required = false) boolean contacts,
+                                         @RequestParam(required = false) boolean identities,
+                                         @RequestParam(required = false) boolean addresses) {
 
         try {
-            return ResponseEntity.ok(gson.toJson(employmentService.get(id)));
+
+            EmploymentDto employmentDto = employmentService.get(id);
+
+            if (!contacts) {
+
+                ArrayList<ContactDto> contactDtos = partnerService.getContacts(id);
+                if (employmentDto != null) {
+                    if (!contactDtos.isEmpty()) {
+                        employmentDto.setContactDtos(contactDtos);
+                    }
+
+                }
+            }
+            if (!identities) {
+                if (employmentDto != null) {
+                    ArrayList<IdentityDto> identityDtos = partnerService.getIdentities(id);
+                    if (!identityDtos.isEmpty()) {
+                        employmentDto.setIdentityDtos(identityDtos);
+                    }
+                }
+            }
+
+            if (!addresses) {
+                if (employmentDto != null) {
+
+                    ArrayList<AddressDto> addressDtos = partnerService.getAddresses(id);
+                    if (!addressDtos.isEmpty()) {
+                        employmentDto.setAddressDtos(addressDtos);
+                    }
+
+                }
+
+            }
+            return ResponseEntity.ok(gson.toJson(employmentDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
     }
 
-    @RequestMapping(value = "/Employee{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/employee/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editEmployee(@PathVariable String id, @RequestBody EmploymentDto employmentDto) {
         try {
 
@@ -64,7 +101,6 @@ public class EmployeeController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-
 
 
 }

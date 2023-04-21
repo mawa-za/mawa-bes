@@ -30,6 +30,7 @@ public class EmploymentService implements EmploymentDao {
 
     @Autowired
     TransactionService transactionService;
+
     @Override
     public boolean terminate(EmploymentDto employee) {
         boolean processed = false;
@@ -176,14 +177,29 @@ public class EmploymentService implements EmploymentDao {
 
     private EmploymentDto entityToObject(EmploymentEntity entity) {
         EmploymentDto object = new EmploymentDto();
-        object.setBranch(fieldOptionService.getFieldOptionDescription("BRANCH", entity.getBranch()));
-        object.setDepartment(fieldOptionService.getFieldOptionDescription("DEPARTMENT", entity.getDepartment()));
+
+        String branch = fieldOptionService.getOptionalFieldDescription("BRANCH", entity.getBranch());
+        if (branch != null) {
+            object.setBranch(branch);
+        }
+        String department = fieldOptionService.getOptionalFieldDescription("DEPARTMENT", entity.getDepartment());
+        if (department != null) {
+            object.setDepartment(department);
+        }
         object.setEmployeeId(entity.getEmploymentPK().getEmployeeId());
         object.setEndDate(Conversion.dateToString(entity.getEndDate()));
-        object.setPosition(fieldOptionService.getFieldOptionDescription("JOBTITLE", entity.getPosition()));
+        String title = fieldOptionService.getOptionalFieldDescription("JOBTITLE", entity.getPosition());
+        if (title != null) {
+            object.setPosition(title);
+        }
+
         object.setStartDate(Conversion.dateToString(entity.getEmploymentPK().getStartDate()));
         object.setStatus(StringConversion.capitalizeFully(entity.getStatus()));
-        object.setType(fieldOptionService.getFieldOptionDescription("EMPLOYMENTTYPE", entity.getType()));
+        String empType = fieldOptionService.getOptionalFieldDescription("EMPLOYMENTTYPE", entity.getType());
+        if (empType != null) {
+            object.setType(empType);
+        }
+
         ArrayList<RelationDto> partnerRelations = partnerService.getRelationByPartner2(object.getEmployeeId());
         if (!partnerRelations.isEmpty()) {
             for (RelationDto relation : partnerRelations) {
@@ -271,12 +287,12 @@ public class EmploymentService implements EmploymentDao {
         transactionQueryDto.setPartnerFunction(PartnerFunction.APPROVER);
         transactionQueryDto.setPartnerNo(approver);
         List<TransactionQueryResultDto> transactionDtos = transactionService.search(transactionQueryDto);
-        for(TransactionQueryResultDto transactionDto : transactionDtos){
+        for (TransactionQueryResultDto transactionDto : transactionDtos) {
             List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
-            for(TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos){
-                if(transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){
+            for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos) {
+                if (transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)) {
                     EmploymentDto employmentDto = get(transactionPartnerDto.getPartner());
-                    if(employmentDto != null){
+                    if (employmentDto != null) {
                         currentEmployment.add(employmentDto);
                     }
                 }

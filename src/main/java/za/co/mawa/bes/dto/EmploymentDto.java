@@ -1,7 +1,14 @@
 package za.co.mawa.bes.dto;
 
-import java.io.Serializable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+@NoArgsConstructor
+@Getter
+@Setter
 public class EmploymentDto implements Serializable {
     private String employeeId;
     private String type;
@@ -14,83 +21,10 @@ public class EmploymentDto implements Serializable {
     private String groupID;
     private String groupName;
 
-    public String getEmployeeId() {
-        return employeeId;
-    }
+    private ArrayList<AddressDto> addressDtos;
 
-    public void setEmployeeId(String employeeId) {
-        this.employeeId = employeeId;
-    }
+    private ArrayList<IdentityDto> identityDtos;
+    private ArrayList<ContactDto> contactDtos;
 
-    public String getType() {
-        return type;
-    }
 
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(String startDate) {
-        this.startDate = startDate;
-    }
-
-    public String getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(String endDate) {
-        this.endDate = endDate;
-    }
-
-    public String getPosition() {
-        return position;
-    }
-
-    public void setPosition(String position) {
-        this.position = position;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getBranch() {
-        return branch;
-    }
-
-    public void setBranch(String branch) {
-        this.branch = branch;
-    }
-
-    public String getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(String department) {
-        this.department = department;
-    }
-
-    public String getGroupID() {
-        return groupID;
-    }
-
-    public void setGroupID(String groupID) {
-        this.groupID = groupID;
-    }
-
-    public String getGroupName() {
-        return groupName;
-    }
-
-    public void setGroupName(String groupName) {
-        this.groupName = groupName;
-    }
 }

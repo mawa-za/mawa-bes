@@ -23,6 +23,7 @@ import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PartnerService implements PartnerDao {
@@ -173,36 +174,31 @@ public class PartnerService implements PartnerDao {
         object.setName2(partner.getName2());
         object.setName3(partner.getName3());
         object.setNumber(partner.getNo());
-        if(partner.getBirthDate() != null)
-        {
+        if (partner.getBirthDate() != null) {
             object.setBirthDate(Conversion.dateToString(partner.getBirthDate()));
         }
         object.setStatus(StringConversion.capitalizeFully(partner.getStatus()));
-        if(partner.getTitle() != null)
-        {
-            String title = fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle()) == null ? partner.getTitle():fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle());
+        if (partner.getTitle() != null) {
+            String title = fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle()) == null ? partner.getTitle() : fieldOptionService.getFieldOptionDescription("TITLE", partner.getTitle());
             object.setTitle(title);
         }
-        if(partner.getGender() != null)
-        {
-            String gender = fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender()) == null ? partner.getGender(): fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender());
+        if (partner.getGender() != null) {
+            String gender = fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender()) == null ? partner.getGender() : fieldOptionService.getFieldOptionDescription("GENDER", partner.getGender());
             object.setGender(gender);
         }
-        if(partner.getMaritalStatus() != null)
-        {
-            String maritalStatus = fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus()) == null ? partner.getMaritalStatus():fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus());
+        if (partner.getMaritalStatus() != null) {
+            String maritalStatus = fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus()) == null ? partner.getMaritalStatus() : fieldOptionService.getFieldOptionDescription("MARITAL-STATUS", partner.getMaritalStatus());
             object.setMaritalStatus(maritalStatus);
         }
-        if(partner.getLanguage() != null)
-        {
-            String language = fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage()) == null ? partner.getLanguage():fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage());
+        if (partner.getLanguage() != null) {
+            String language = fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage()) == null ? partner.getLanguage() : fieldOptionService.getFieldOptionDescription("LANGUAGE", partner.getLanguage());
             object.setLanguage(language);
         }
         object.setValidFrom(Conversion.dateToString(partner.getValidFrom()));
         object.setValidTo(Conversion.dateToString(partner.getValidTo()));
         PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
         if (partnerIdentity != null) {
-           // object.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+            // object.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
             object.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
         }
         return object;
@@ -1599,11 +1595,27 @@ public class PartnerService implements PartnerDao {
         if (!partner.isEmpty()) {
             object = entityToObject(partner.get());
             return object;
-        }
-        else {
+        } else {
             return null;
         }
 
+    }
+
+    @Override
+    public ArrayList<ContactDto> getContacts(String partner) {
+        List<ContactDto> contactDtos = partnerContactRepository.findContactsByPartner(partner)
+                .stream()
+                .map(contact -> {
+                    ContactDto contactDto = new ContactDto();
+                    contactDto.setPartner(contact.getPartnerContactPK().getPartner());
+                    contactDto.setType(contact.getPartnerContactPK().getType());
+                    contactDto.setValue(contact.getValue());
+                    contactDto.setValidFrom(contact.getValidFrom());
+                    contactDto.setValidTo(contact.getValidTo());
+                    return contactDto;
+                })
+                .collect(Collectors.toList());
+        return (ArrayList<ContactDto>) contactDtos;
     }
 
     private String getUser() {

@@ -8,14 +8,12 @@ import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.entity.FieldEntity;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.FieldOptionPKEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.FieldRepository;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class FieldOptionService implements FieldOptionDao {
@@ -73,6 +71,22 @@ public class FieldOptionService implements FieldOptionDao {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public String getOptionalFieldDescription(String field, String code) {
+
+        FieldOptionPKEntity pk = new FieldOptionPKEntity();
+        pk.setCode(code);
+        pk.setField(field);
+        Optional<FieldOptionEntity> fieldEntity = fieldOptionRepository.findById(pk);
+        FieldOptionEntity fieldOption = fieldEntity.orElse(null);
+
+        if(fieldOption != null)
+        {
+            return fieldOption.getDescription();
+        }
+        return null;
     }
 
     private FieldOptionDto entityToDto(FieldOptionEntity fieldOptionEntity) {
