@@ -3,6 +3,7 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -17,7 +18,7 @@ import java.util.Optional;
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
     List<TransactionQueryResultDto> search(TransactionQueryDto query);
-    boolean edit(TransactionDto transactionDto) throws DoesNotExist, Exception;
+    boolean edit(TransactionEdit transactionEditDto) throws DoesNotExist, Exception;
     void delete(String id) throws Exception;
     TransactionDto get(String transactionId) throws TransactionNotFound;
 

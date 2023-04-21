@@ -100,7 +100,7 @@ public class InvoiceController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editInvoice(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
         try {
-            transactionService.edit(transactionDto);
+            //transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
