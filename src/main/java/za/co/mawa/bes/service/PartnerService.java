@@ -499,9 +499,9 @@ public class PartnerService implements PartnerDao {
                     address.setLine4(adr.getAddressLine4());
                     address.setPostalCode(adr.getPostalCode());
                     address.setId(adr.getId());
-                    address.setTypeDescription(fieldOptionService.getFieldOptionDescription("ADDRESSTYPE", address.getType()));
-                    address.setLine3Description(fieldOptionService.getFieldOptionDescription("SUBURB", adr.getAddressLine3()));
-                    address.setLine4Description(fieldOptionService.getFieldOptionDescription("TOWN", adr.getAddressLine4()));
+                    address.setTypeDescription(fieldOptionService.getOptionalFieldDescription("ADDRESSTYPE", address.getType()));
+                    address.setLine3Description(fieldOptionService.getOptionalFieldDescription("SUBURB", adr.getAddressLine3()));
+                    address.setLine4Description(fieldOptionService.getOptionalFieldDescription("TOWN", adr.getAddressLine4()));
 
                     partnerAddresses.add(address);
                 }
@@ -597,7 +597,7 @@ public class PartnerService implements PartnerDao {
 
             PartnerContactEntity partnerContact = new PartnerContactEntity();
             partnerContact.setPartnerContactPK(partnerContactPK);
-            partnerContact.setValue(contact.getDetail());
+            partnerContact.setValue(contact.getValue());
             partnerContact.setValidFrom(new Date());
             partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerContactRepository.save(partnerContact);
@@ -739,6 +739,7 @@ public class PartnerService implements PartnerDao {
                     partnerAddressPK.setPartner(addr.getPartnerAddressPK().getPartner());
                     partnerAddressPK.setAddressId(adrs.getId());
                     partnerAddressRepository.deleteById(partnerAddressPK);
+                    break;
                 }
             }
 

@@ -88,6 +88,17 @@ public class PartnerController {
         }
     }
 
+    @RequestMapping(value = "{id}/address", method = RequestMethod.PUT)
+    public ResponseEntity<?> editPartnerAddress(@PathVariable String id, @RequestBody AddressDto addressDto) {
+        try {
+            addressDto.setPartner(id);
+            boolean partnerDto  =   partnerService.editAddress(addressDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
     @RequestMapping(value = "{id}/contact", method = RequestMethod.POST)
     public ResponseEntity<?> addPartnerContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
         try {
@@ -100,11 +111,35 @@ public class PartnerController {
         }
     }
 
+    @RequestMapping(value = "{id}/contact", method = RequestMethod.PUT)
+    public ResponseEntity<?> editPartnerContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
+        try {
+            contactDto.setPartner(id);
+            boolean partnerDto  =   partnerService.editContact(contactDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
     @RequestMapping(value = "{id}/identity", method = RequestMethod.POST)
     public ResponseEntity<?> addPartnerIdentity(@PathVariable String id, @RequestBody IdentityDto identityDto) {
         try {
             identityDto.setPartner(id);
             boolean partnerDto  =   partnerService.addIdentity(identityDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/identity", method = RequestMethod.PUT)
+    public ResponseEntity<?> editPartnerIdentity(@PathVariable String id, @RequestBody IdentityDto identityDto) {
+        try {
+            identityDto.setPartner(id);
+            boolean partnerDto  =   partnerService.editIdentity(identityDto);
 
             return ResponseEntity.ok(gson.toJson(partnerDto));
         } catch (Exception exception) {

@@ -52,7 +52,7 @@ public class EmployeeController {
 
             EmploymentDto employmentDto = employmentService.get(id);
 
-            if (!contacts) {
+            if (contacts) {
 
                 ArrayList<ContactDto> contactDtos = partnerService.getContacts(id);
                 if (employmentDto != null) {
@@ -62,7 +62,7 @@ public class EmployeeController {
 
                 }
             }
-            if (!identities) {
+            if (identities) {
                 if (employmentDto != null) {
                     ArrayList<IdentityDto> identityDtos = partnerService.getIdentities(id);
                     if (!identityDtos.isEmpty()) {
@@ -71,7 +71,7 @@ public class EmployeeController {
                 }
             }
 
-            if (!addresses) {
+            if (addresses) {
                 if (employmentDto != null) {
 
                     ArrayList<AddressDto> addressDtos = partnerService.getAddresses(id);
