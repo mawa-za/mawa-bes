@@ -7,9 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.PartnerQueryDto;
-import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
 
@@ -73,6 +71,42 @@ public class PartnerController {
         try {
         boolean partnerDto = partnerService.addRole(id, role);
         return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/address", method = RequestMethod.POST)
+    public ResponseEntity<?> addPartnerAddress(@PathVariable String id, @RequestBody AddressDto addressDto) {
+        try {
+            addressDto.setPartner(id);
+            boolean partnerDto  =   partnerService.addAddress(addressDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/contact", method = RequestMethod.POST)
+    public ResponseEntity<?> addPartnerContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
+        try {
+            contactDto.setPartner(id);
+            boolean partnerDto  =   partnerService.addContact(contactDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/identity", method = RequestMethod.POST)
+    public ResponseEntity<?> addPartnerIdentity(@PathVariable String id, @RequestBody IdentityDto identityDto) {
+        try {
+            identityDto.setPartner(id);
+            boolean partnerDto  =   partnerService.addIdentity(identityDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
