@@ -53,7 +53,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "/service-request/{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
         try {
-            transactionService.edit(transactionDto);
+//            transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

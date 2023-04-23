@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -509,8 +510,27 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean edit(TransactionDto transactionDto) throws DoesNotExist, Exception{
-     return false;
+    public boolean edit(TransactionEdit transactionDto) throws DoesNotExist, Exception{
+        TransactionEntity entity = transactionRepository.getById(transactionDto.getId());
+        if(entity != null)
+        {
+            try {
+                if(transactionDto.getStatus() != null) {
+                   entity.setStatus(transactionDto.getStatus());
+                }
+                entity.setChangedBy(getUser());
+                transactionRepository.save(entity);
+                return true;
+            }catch(Exception e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else {
+            throw new DoesNotExist();
+        }
+
+
     }
 
     @Override
@@ -526,6 +546,9 @@ public class TransactionService implements TransactionDao {
             transactionDto.setStatus(transactionEntity.getStatus());
             if(transactionEntity.getCreatedBy() != null) {
                 transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
+            }
+            if(transactionEntity.getChangedBy() != null) {
+                transactionDto.setChangedBy(transactionEntity.getChangedBy());
             }
             MembershipDto membershipDto = new MembershipDto();
             for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
