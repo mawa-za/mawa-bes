@@ -684,13 +684,19 @@ public class PartnerService implements PartnerDao {
                         partnerIdentityRepository.deleteById(partneridentityPK);
                         partneridentityPK.setType(idnt.getIdType());
                         partneridentityPK.setValue(idnt.getIdNumber());
+                        if (idnt.getValidTo() != null) {
+                            partnerIdentity.setValidTo(Conversion.stringToDate(idnt.getValidTo()));
+                        }else {
+                            partnerIdentity.setValidTo(partnerIdentity.getValidTo());
+                        }
 
-                        partnerIdentity.setValidTo(Conversion.stringToDate(idnt.getValidTo()));
                         partnerIdentity.setValidFrom(Conversion.stringToDate(validFrom));
+                        partnerIdentity.setPartner(idnt.getPartner());
                         partnerIdentity.setPartnerIdentityPK(partneridentityPK);
 
                         partnerIdentityRepository.save(partnerIdentity);
                         edited = true;
+                        break;
                     }
                 }
             }
@@ -711,8 +717,8 @@ public class PartnerService implements PartnerDao {
             PartnerContactEntity partnerContact = partnerContactRepository.getById(partnerContactPK);
             if (partnerContact != null) {
 
-                if (contact.getDetail() != null) {
-                    partnerContact.setValue(contact.getDetail());
+                if (contact.getValue() != null) {
+                    partnerContact.setValue(contact.getValue());
                     partnerContact.setValidFrom(new Date());
                     partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                     partnerContactRepository.save(partnerContact);
