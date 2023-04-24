@@ -300,4 +300,14 @@ public class EmploymentService implements EmploymentDao {
         }
         return currentEmployment;
     }
+
+    @Override
+    public boolean assignRole(EmploymentDto employmentDto) {
+
+        if(employmentDto.getRole() != null)
+        {
+
+        }
+        return false;
+    }
 }

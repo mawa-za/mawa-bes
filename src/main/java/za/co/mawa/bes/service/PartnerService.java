@@ -686,7 +686,7 @@ public class PartnerService implements PartnerDao {
                         partneridentityPK.setValue(idnt.getIdNumber());
                         if (idnt.getValidTo() != null) {
                             partnerIdentity.setValidTo(Conversion.stringToDate(idnt.getValidTo()));
-                        }else {
+                        } else {
                             partnerIdentity.setValidTo(partnerIdentity.getValidTo());
                         }
 
@@ -1623,6 +1623,27 @@ public class PartnerService implements PartnerDao {
                 })
                 .collect(Collectors.toList());
         return (ArrayList<ContactDto>) contactDtos;
+    }
+
+    @Override
+    public boolean assignRole(String role, String id) throws PartnerNotFound {
+
+        boolean assign = false;
+
+        if (role != null && id != null) {
+            PartnerDto partnerDto = get(id);
+            PartnerRolePKEntity partnerRolePKEntity = new PartnerRolePKEntity();
+            partnerRolePKEntity.setId(partnerDto.getId());
+            partnerRolePKEntity.setRole(role);
+            PartnerRoleEntity partnerRoleEntity = new PartnerRoleEntity();
+            partnerRoleEntity.setPartnerRolePK(partnerRolePKEntity);
+            partnerRoleEntity.setValidFrom(new Date());
+            partnerRoleEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            partnerRoleRepository.save(partnerRoleEntity);
+            assign = true;
+        }
+
+        return assign;
     }
 
     private String getUser() {

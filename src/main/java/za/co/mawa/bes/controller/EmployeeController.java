@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.AddressDto;
-import za.co.mawa.bes.dto.ContactDto;
-import za.co.mawa.bes.dto.EmploymentDto;
-import za.co.mawa.bes.dto.IdentityDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.service.EmploymentService;
@@ -102,5 +99,16 @@ public class EmployeeController {
         }
     }
 
+    @RequestMapping(value = "/employee/{id}/role", method = RequestMethod.POST)
+    public ResponseEntity<?> assignRole(@PathVariable String id, @RequestParam("role") String role) {
+        try {
+
+            boolean success  = partnerService.assignRole(role, id);
+
+            return ResponseEntity.ok(gson.toJson(success));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 
 }

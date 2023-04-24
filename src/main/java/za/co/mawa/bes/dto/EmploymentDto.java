@@ -25,6 +25,7 @@ public class EmploymentDto implements Serializable {
 
     private ArrayList<IdentityDto> identityDtos;
     private ArrayList<ContactDto> contactDtos;
+    private String role;
 
 
 }
