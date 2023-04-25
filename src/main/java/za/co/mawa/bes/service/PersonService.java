@@ -52,4 +52,10 @@ public class PersonService implements PersonDao {
         }
     }
 
+    @Override
+    public ArrayList<PersonDto> getPersons(String type) {
+
+        return null;
+    }
+
 }
