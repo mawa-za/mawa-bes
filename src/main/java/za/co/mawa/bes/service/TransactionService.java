@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.DoesNotExist;
@@ -23,6 +24,7 @@ import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -222,14 +224,20 @@ public class TransactionService implements TransactionDao {
            try {
                if(transaction.getParnter() != null)
                {
-                   TransactionPartnerPKEntity pk = new TransactionPartnerPKEntity();
-                   //pk.setTransaction();
-                   pk.setPartner(transaction.getParnter());
-                   entity.setTransactionPartnerPKEntity(pk);
+                    TransactionPartnerDto partnerRemove = new TransactionPartnerDto();
+                    partnerRemove.setTransaction(entity.getTransactionPartnerPKEntity().getTransaction());
+                    partnerRemove.setPartner(entity.getTransactionPartnerPKEntity().getPartner());
+                    partnerRemove.setFunction(entity.getTransactionPartnerPKEntity().getFunction());
+                    removePartner(partnerRemove);
 
+                   TransactionPartnerDto partnerAdd = new TransactionPartnerDto();
+                   partnerAdd.setTransaction(transaction.getTransaction());
+                   partnerAdd.setPartner(transaction.getParnter());
+                   partnerAdd.setFunction(transaction.getPartnerFunction());
+                   addPartner(partnerAdd);
                }
-               entity.setChangedBy(getUser());
-               transactionPartnerRepository.save(entity);
+               //entity.setChangedBy(getUser());
+               //transactionPartnerRepository.save(entity);
                return true;
            }catch(Exception e){
                throw new RuntimeException(e);
@@ -301,6 +309,51 @@ public class TransactionService implements TransactionDao {
         }
     }
 
+    @Override
+    public boolean editAmount() throws DoesNotExist, Exception {
+        return false;
+    }
+
+    @Override
+    public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
+        boolean edited = false;
+        if(item.getPreviousProduct() != null && item.getPreviousProduct() != "")
+        {
+            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getPreviousProduct());
+            if(transactionItem != null)
+            {
+                try{
+                    transactionItem.setValidTo(new Date());
+                    transactionItemRepository.save(transactionItem);
+                ProductDto productDto = productService.get(item.getProduct());
+                TransactionItemDto transactionItemDto = new TransactionItemDto();
+                transactionItemDto.setTransaction(item.getTransaction());
+                transactionItemDto.setProduct(productDto.getId());
+                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                transactionItemDto.setQuantity(new BigDecimal("1"));
+                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                addItem(transactionItemDto);
+                edited = true;
+                }catch(Exception e){
+                    throw new RuntimeException(e);
+                }
+            }
+
+        }
+        else {
+            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getProduct());
+            if(transactionItem != null)
+            {
+                transactionItem.setUnitPrice(item.getUnitPrice());
+                transactionItemRepository.save(transactionItem);
+                calculatePricing(item.getTransaction());
+                edited = true;
+
+            }
+
+        }
+        return edited;
+    }
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
 
         TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
@@ -518,6 +571,9 @@ public class TransactionService implements TransactionDao {
                 if(transactionDto.getStatus() != null) {
                    entity.setStatus(transactionDto.getStatus());
                 }
+                if(transactionDto.getStatusReason() != null){
+                    entity.setStatusReason(transactionDto.getStatusReason());
+                }
                 entity.setChangedBy(getUser());
                 transactionRepository.save(entity);
                 return true;
@@ -529,8 +585,6 @@ public class TransactionService implements TransactionDao {
         else {
             throw new DoesNotExist();
         }
-
-
     }
 
     @Override
@@ -543,12 +597,16 @@ public class TransactionService implements TransactionDao {
             transactionDto.setDescription(transactionEntity.getDescription());
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
-            transactionDto.setStatus(transactionEntity.getStatus());
+            transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
             if(transactionEntity.getCreatedBy() != null) {
                 transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
             }
             if(transactionEntity.getChangedBy() != null) {
                 transactionDto.setChangedBy(transactionEntity.getChangedBy());
+            }
+            if(transactionEntity.getStatusReason() != null)
+            {
+                transactionDto.setStatusReason(StringConversion.capitalizeFully(transactionEntity.getStatusReason().replaceAll("_", " ")));
             }
             MembershipDto membershipDto = new MembershipDto();
             for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
@@ -765,10 +823,16 @@ public class TransactionService implements TransactionDao {
         try {
             List<LineItemDto> lineItemDtoList = new ArrayList<>();
             for (TransactionItemDto transactionItemDto : getItems(id)) {
-                LineItemDto lineItemDto = new LineItemDto();
-                lineItemDto.setQuantity(transactionItemDto.getQuantity());
-                lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
-                lineItemDtoList.add(lineItemDto);
+                Date currentDate = new Date();
+                int compare = currentDate.compareTo(transactionItemDto.getValidTo());
+                if(compare < 0 && compare != 0)
+                {
+                    LineItemDto lineItemDto = new LineItemDto();
+                    lineItemDto.setQuantity(transactionItemDto.getQuantity());
+                    lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
+                    lineItemDtoList.add(lineItemDto);
+                }
+
             }
 
             PricingDto pricingDto = pricingService.calculate(lineItemDtoList);

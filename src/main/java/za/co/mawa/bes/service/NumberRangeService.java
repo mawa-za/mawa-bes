@@ -68,7 +68,14 @@ public class NumberRangeService implements NumberRangeDao {
                     numberRangeEntity.setCurrent(numberRangeEntity.getPrefix() + newNumber);
                 }
                 numberRangeRepository.save(numberRangeEntity);
-                return newNumber;
+                if(numberRangeEntity.getPrefix() == null)
+                {
+                    return newNumber;
+                }
+                else {
+                    return numberRangeEntity.getPrefix() + newNumber;
+                }
+
             } else {
                 throw new NumberRangeObjectNotFound();
             }

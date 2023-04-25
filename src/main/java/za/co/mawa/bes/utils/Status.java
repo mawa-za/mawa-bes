@@ -7,7 +7,7 @@ public class Status {
     public static String SUBMITTED = "SUBMITTED";
     public static String AWAITING = "AWAITING";
     public static String VERIFIED = "VERIFIED";
-    public static String PENDING_CONFIRMATION = "PENDING-CONFIRMATION";
+    public static String PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
     public static String PENDING = "PENDING";
     public static String APPROVED = "APPROVED";
     public static String DECLINED = "DECLINED";
@@ -19,7 +19,7 @@ public class Status {
     public static String ACTIVE = "ACTIVE";
     public static String INACTIVE = "INACTIVE";
     public static String SET = "SET";
-    public static String NOT_SET = "NOTSET";
+    public static String NOT_SET = "NOT_SET";
     public static String OPEN = "OPEN";
     public static String CLOSED = "CLOSED";
     public static String  LAPSED = "LAPSED";
