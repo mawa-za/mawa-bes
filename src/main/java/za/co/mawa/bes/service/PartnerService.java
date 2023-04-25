@@ -349,6 +349,10 @@ public class PartnerService implements PartnerDao {
             return finalList;
         }
 
+        if(pq.getType() != null)
+        {
+
+        }
         if (pq.getRole() != null) {
             List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(pq.getRole());
             for (PartnerRoleEntity partnerRole : partnerRoleList) {

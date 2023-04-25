@@ -10,12 +10,17 @@ import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.RoleType;
 import za.co.mawa.bes.dto.PartnerQueryDto;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 public class OrganizationService implements OrganizationDao {
     @Autowired
     UserService userService;
     @Autowired
     PartnerService partnerService;
+
     @Override
     public String addOrganization(OrganizationDto organization) {
         PartnerDto partner = new PartnerDto();
@@ -48,4 +53,18 @@ public class OrganizationService implements OrganizationDao {
         }
         return query;
     }
+
+    @Override
+    public List<PartnerDto> getOrganizations() {
+
+        List<PartnerDto> partnerDtoArrayList = partnerService.search(null);
+
+        List<PartnerDto> filteredList = partnerDtoArrayList.stream()
+                .filter(partnerDto -> partnerDto.getType() != null &&
+                        partnerDto.getType().equals(PartnerType.ORGANIZATION))
+                .collect(Collectors.toList());
+        return filteredList;
+    }
+
+
 }

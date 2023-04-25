@@ -37,9 +37,9 @@ public class OrganisationController {
     }
 
     @RequestMapping(value = "/Organization", method = RequestMethod.GET)
-         public ResponseEntity<?> getProducts() {
+         public ResponseEntity<?> getOrganizations() {
               try {
-                  return ResponseEntity.ok(gson.toJson(organizationService.getOrganization()));
+                  return ResponseEntity.ok(gson.toJson(organizationService.getOrganizations()));
              } catch (Exception exception) {
                   return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
               }
