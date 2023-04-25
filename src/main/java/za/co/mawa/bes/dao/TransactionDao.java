@@ -6,6 +6,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
@@ -55,4 +56,6 @@ public interface TransactionDao {
     TransactionLinkEntity getTransaction(String type,String transaction1);
     boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception;
     boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
+    boolean editAmount() throws DoesNotExist,Exception;
+    boolean editItem(TransactionItemEditDto transactionItemEditDto) throws DoesNotExist,Exception;
 }

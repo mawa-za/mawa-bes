@@ -10,9 +10,13 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
+import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.service.MembershipService;
 import za.co.mawa.bes.service.PartnerService;
@@ -137,13 +141,45 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipDto membershipDto) {
+    public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            TransactionDto transactionDto = new TransactionDto();
-          //  transactionService.edit(transactionDto);
-            return ResponseEntity.ok().build();
+            TransactionEdit transactionDto = new TransactionEdit();
+            TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
+            boolean edited = false;
+            if(membershipDto.getStatus() != null && membershipDto.getStatus() != ""){
+                transactionDto.setStatus(membershipDto.getStatus());
+            }
+            if(membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != ""){
+                transactionDto.setStatusReason(membershipDto.getStatusReason());
+            }
+            if(transactionDto.getStatusReason() != null || transactionDto.getStatus() != null)
+            {
+                transactionDto.setId(id);
+               edited = transactionService.edit(transactionDto);
+            }
+            if(membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != ""){
+              partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
+              partnerEdit.setTransaction(id);
+              partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
+              edited = transactionService.partnerEdit(partnerEdit);
+            }
+            if(membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
+                TransactionItemEditDto editDto = new TransactionItemEditDto();
+                editDto.setTransaction(id);
+                editDto.setProduct(membershipDto.getProductId());
+                editDto.setUnitPrice(membershipDto.getPremium());
+                edited = transactionService.editItem(editDto);
+            }
+            if(membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
+                TransactionItemEditDto editDto = new TransactionItemEditDto();
+                editDto.setTransaction(id);
+                editDto.setProduct(membershipDto.getProductId());
+                editDto.setPreviousProduct(membershipDto.getPreviousProduct());
+                edited = transactionService.editItem(editDto);
+            }
+            return ResponseEntity.ok().body(gson.toJson(edited));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
