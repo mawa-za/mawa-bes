@@ -68,4 +68,8 @@ public interface PartnerDao {
 
     PartnerDto getOptional(String id);
     PartnerDto getPartner(String id);
+
+    ArrayList<ContactDto> getContacts(String partner);
+
+    boolean assignRole(String role, String id) throws PartnerNotFound;
 }
