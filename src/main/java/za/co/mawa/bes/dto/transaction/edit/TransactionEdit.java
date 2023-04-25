@@ -15,4 +15,5 @@ public class TransactionEdit implements Serializable {
     private String subtype;
     private String status;
     private String statusReason;
+    private String description;
 }

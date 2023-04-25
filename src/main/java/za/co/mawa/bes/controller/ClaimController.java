@@ -194,11 +194,19 @@ public class ClaimController {
         }
     }
     @RequestMapping(value = "/claim/{id}/approve", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> approveClaim(@PathVariable String id) {
+    public ResponseEntity<?> approveClaim(@PathVariable String id,
+                                          @RequestParam(required = false) String statusReason,
+                                          @RequestParam(required = false) String description) {
         try {
             TransactionEdit edit = new TransactionEdit();
             edit.setId(id);
             edit.setStatus(ClaimStatus.APPROVED);
+            if(statusReason != null && statusReason != ""){
+                edit.setStatusReason(statusReason);
+            }
+            if(description != null && description != null) {
+              edit.setDescription(description);
+            }
             boolean edited = transactionService.edit(edit);
             return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
@@ -207,11 +215,17 @@ public class ClaimController {
     }
 
     @RequestMapping(value = "/claim/{id}/reject", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> rejectClaim(@PathVariable String id) {
+    public ResponseEntity<?> rejectClaim(@PathVariable String id,
+                                         @RequestParam(required = true) String statusReason,
+                                         @RequestParam(required = false) String description) {
         try {
             TransactionEdit edit = new TransactionEdit();
             edit.setId(id);
             edit.setStatus(ClaimStatus.REJECTED);
+            edit.setStatusReason(statusReason);
+            if(description != null && description != ""){
+               edit.setDescription(description);
+            }
             boolean edited = transactionService.edit(edit);
             return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
@@ -220,11 +234,17 @@ public class ClaimController {
     }
 
     @RequestMapping(value = "/claim/{id}/dispute", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> disputeClaim(@PathVariable String id) {
+    public ResponseEntity<?> disputeClaim(@PathVariable String id,
+                                          @RequestParam(required = true) String statusReason,
+                                          @RequestParam(required = false) String description) {
         try {
             TransactionEdit edit = new TransactionEdit();
             edit.setId(id);
             edit.setStatus(ClaimStatus.DISPUTED);
+            edit.setStatusReason(statusReason);
+            if(description != null && description != ""){
+                edit.setDescription(description);
+            }
             boolean edited = transactionService.edit(edit);
             return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
@@ -296,11 +316,18 @@ public class ClaimController {
             if(transactionDto.getCreatedBy() != null) {
                 claimDto.setCreatedBy(transactionDto.getCreatedBy());
             }
-            if(transactionDto.getChangedBy() != null)
-            {
+            if(transactionDto.getChangedBy() != null) {
                 claimDto.setChangedBy(transactionDto.getChangedBy());
             }
-
+            if(transactionDto.getDescription() != null) {
+                claimDto.setDescription(transactionDto.getDescription());
+            }
+            if(transactionDto.getStatusReason() != null) {
+                claimDto.setStatusReason(transactionDto.getStatusReason());
+            }
+            if(transactionDto.getSubDescription() != null){
+                claimDto.setSubDescription(transactionDto.getSubDescription());
+            }
             TransactionLinkEntity transactionLink = transactionService.getTransaction(TransactionType.CLAIM,id);
             if(transactionLink != null)
             {
