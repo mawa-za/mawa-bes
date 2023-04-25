@@ -574,6 +574,14 @@ public class TransactionService implements TransactionDao {
                 if(transactionDto.getStatusReason() != null){
                     entity.setStatusReason(transactionDto.getStatusReason());
                 }
+                if(transactionDto.getDescription() != null)
+                {
+                    if(transactionDto.getDescription().length() > 255){
+                       entity.setDescription(transactionDto.getDescription());
+                    } else if (transactionDto.getDescription().length() <= 255) {
+                        entity.setSubDescription(transactionDto.getDescription());
+                    }
+                }
                 entity.setChangedBy(getUser());
                 transactionRepository.save(entity);
                 return true;
