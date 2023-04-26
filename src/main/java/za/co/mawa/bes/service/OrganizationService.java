@@ -1,14 +1,12 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.OrganizationDao;
-import za.co.mawa.bes.dto.OrganizationDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.utils.AddressType;
-import za.co.mawa.bes.utils.PartnerType;
-import za.co.mawa.bes.utils.RoleType;
-import za.co.mawa.bes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.utils.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +31,37 @@ public class OrganizationService implements OrganizationDao {
             organization.getBusinessAddress().setType(AddressType.BUSINESS);
             partnerService.addAddress(organization.getBusinessAddress());
         }
+        if (organization.getRegNumber() != null) {
+            IdentityDto identityDto = new IdentityDto();
+            identityDto.setPartner(id);
+            identityDto.setIdType(IdType.REG_NUMBER);
+            identityDto.setIdNumber(organization.getRegNumber());
+            partnerService.addIdentity(identityDto);
+
+        }
+        if (organization.getEmailAddress() != null) {
+            ContactDto contactDto = new ContactDto();
+            contactDto.setPartner(id);
+            contactDto.setValue(organization.getEmailAddress());
+            contactDto.setType(ContactType.EMAIL);
+            partnerService.addContact(contactDto);
+        }
+
+        if (organization.getTelephoneNumber() != null) {
+            ContactDto contactDto = new ContactDto();
+            contactDto.setPartner(id);
+            contactDto.setValue(organization.getTelephoneNumber());
+            contactDto.setType(ContactType.TELEPHONE);
+            partnerService.addContact(contactDto);
+        }
+
+        if (organization.getVATNo() != null) {
+            IdentityDto identityDto = new IdentityDto();
+            identityDto.setPartner(id);
+            identityDto.setIdType(IdType.VAT_NUMBER);
+            identityDto.setIdNumber(organization.getVATNo());
+            partnerService.addIdentity(identityDto);
+        }
         if (organization.getPostalAddress() != null) {
             organization.getPostalAddress().setPartner(id);
             organization.getPostalAddress().setType(AddressType.POSTAL);
@@ -56,14 +85,13 @@ public class OrganizationService implements OrganizationDao {
 
     @Override
     public List<PartnerDto> getOrganizations() {
+        PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+        partnerQueryDto.setType(PartnerType.ORGANIZATION);
+        List<PartnerDto> partnerDtoArrayList = partnerService.search(partnerQueryDto);
+//        Sort sort = Sort.by("id").descending();
+//        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
 
-        List<PartnerDto> partnerDtoArrayList = partnerService.search(null);
-
-        List<PartnerDto> filteredList = partnerDtoArrayList.stream()
-                .filter(partnerDto -> partnerDto.getType() != null &&
-                        partnerDto.getType().equals(PartnerType.ORGANIZATION))
-                .collect(Collectors.toList());
-        return filteredList;
+        return partnerDtoArrayList;
     }
 
 

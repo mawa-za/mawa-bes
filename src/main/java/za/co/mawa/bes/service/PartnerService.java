@@ -351,6 +351,15 @@ public class PartnerService implements PartnerDao {
 
         if(pq.getType() != null)
         {
+            ProspectSearchDto searchDto = new ProspectSearchDto();
+            searchDto.setPartnerType(pq.getType());
+            Sort sort = Sort.by("id").descending();
+            List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
+            for (PartnerEntity partnerType : partners) {
+
+                    initialList.add(entityToObject(partnerType));
+
+            }
 
         }
         if (pq.getRole() != null) {
