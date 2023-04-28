@@ -34,4 +34,5 @@ public class DateType {
     public static String LEAVE_CYCLE_START_DATE = "LEAVECYCLESTARTDATE";
     public static String LEAVE_CYCLE_END_DATE = "LEAVECYCLEENDDATE";
     public static String BURIAL_DATE = "BURIALDATE";
+    public static String LAST_UPDATED = "LASTUPDATED";
 }

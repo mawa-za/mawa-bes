@@ -29,6 +29,8 @@ public class TransactionQueryDto implements Serializable {
     private Date value;
     private String dateType;
     private String transactionlink1;
+    private String createdBy;
+    private String changedBy;
 
 
     public TransactionQueryDto(QuotationQueryDto quotationQueryDto) {

@@ -9,15 +9,18 @@ import org.springframework.data.jpa.domain.Specification;
 //import javax.sql.rowset.Predicate;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 
 import za.co.mawa.bes.dao.ReceiptDao;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.utils.NumberRangeType;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.utils.ReceiptType;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -33,6 +36,8 @@ public class ReceiptService implements ReceiptDao {
     ReceiptRepository receiptRepository;
     @Autowired
     NumberRangeService numberRangeService;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
     @Override
     public ReceiptDto createReceipt(ReceiptCreateDto receipt) throws Exception {
         try {
@@ -95,6 +100,23 @@ public class ReceiptService implements ReceiptDao {
         Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch),sort);
         receiptDtos = entityArrayToDto(receipts);
+        return receiptDtos;
+    }
+
+    @Override
+    public ArrayList<ReceiptDto> getReceiptsX(ReceiptSearchDto receiptSearch) throws Exception {
+        ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
+        Sort sort = Sort.by("id").descending();
+        List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch),sort);
+        List<ReceiptEntity> receiptsNotCashed = new ArrayList<>();
+        for(ReceiptEntity receipt:receipts ) {
+            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
+            if(linkEntity == null)
+            {
+                receiptsNotCashed.add(receipt);
+            }
+        }
+        receiptDtos = entityArrayToDto(receiptsNotCashed);
         return receiptDtos;
     }
 

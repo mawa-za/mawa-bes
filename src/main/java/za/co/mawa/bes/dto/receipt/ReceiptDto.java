@@ -23,4 +23,6 @@ public class ReceiptDto implements Serializable {
     private String membershipPeriod;
     private String tenderType;
     private String amount;
+    private String cashupId;
+    private String cashupNumber;
 }
