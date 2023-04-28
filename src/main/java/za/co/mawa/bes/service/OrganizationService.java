@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.OrganizationDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.utils.*;
 
 import java.util.ArrayList;
@@ -92,6 +93,20 @@ public class OrganizationService implements OrganizationDao {
 //        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
 
         return partnerDtoArrayList;
+    }
+
+    @Override
+    public PartnerDto getSpecOrganization(String id) {
+
+        try {
+            PartnerDto partnerDto = partnerService.get(id);
+            if (partnerDto.getType().equals(PartnerType.ORGANIZATION)) {
+                return partnerDto;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return null;
     }
 
 
