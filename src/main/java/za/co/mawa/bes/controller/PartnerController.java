@@ -212,4 +212,28 @@ public class PartnerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
+
+    @RequestMapping(value = "{id}/archive", method = RequestMethod.PUT)
+    public ResponseEntity<?> ArchivePartner(@PathVariable String id) {
+        try {
+
+            boolean partnerDto = partnerService.archive(id);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    @RequestMapping(value = "{id}/unarchive", method = RequestMethod.PUT)
+    public ResponseEntity<?> UnarchivePartner(@PathVariable String id) {
+        try {
+
+            boolean partnerDto = partnerService.unArchive(id);
+
+            return ResponseEntity.ok(gson.toJson(partnerDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 }
