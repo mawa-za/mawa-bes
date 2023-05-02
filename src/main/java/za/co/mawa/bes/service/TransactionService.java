@@ -407,6 +407,18 @@ public class TransactionService implements TransactionDao {
                 transactionListId.add(transactionEntity.getId());
             }
         }
+        if (transactionQueryDto.getChangedBy()!= null && transactionQueryDto.getType() != null) {
+            List<TransactionEntity> transactions = transactionRepository.findTransactionByChangedBy(transactionQueryDto.getChangedBy(),transactionQueryDto.getType());
+            for (TransactionEntity transactionEntity : transactions) {
+                transactionListId.add(transactionEntity.getId());
+            }
+        }
+        if (transactionQueryDto.getCreatedBy() != null && transactionQueryDto.getType() != null) {
+            List<TransactionEntity> transactions = transactionRepository.findTransactionByCreatedBy(transactionQueryDto.getCreatedBy(),transactionQueryDto.getType());
+            for (TransactionEntity transactionEntity : transactions) {
+                transactionListId.add(transactionEntity.getId());
+            }
+        }
         if(transactionQueryDto.getSubtype() != null){
             List<TransactionEntity> transactions = transactionRepository.findTransactionBySubType(transactionQueryDto.getSubtype());
             for (TransactionEntity transactionEntity : transactions) {
@@ -439,7 +451,8 @@ public class TransactionService implements TransactionDao {
                 transactionQueryDto.getPartnerFunction() == null &&
                 transactionQueryDto.getPartnerNo() == null &&
                 transactionQueryDto.getDateType() == null && transactionQueryDto.getValue() == null
-                && transactionQueryDto.getNumber() == null && transactionQueryDto.getSubtype() == null)
+                && transactionQueryDto.getNumber() == null && transactionQueryDto.getSubtype() == null
+                 && transactionQueryDto.getChangedBy() == null && transactionQueryDto.getCreatedBy() == null)
         {
             if (transactionQueryDto.getType() != null) {
                 List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
@@ -766,6 +779,17 @@ public class TransactionService implements TransactionDao {
             TransactionAmountEntity transactionAmountEntity = new TransactionAmountEntity();
             transactionAmountEntity.setTransactionAmountPKEntity(transactionAmountPKEntity);
             transactionAmountEntity.setAmount(transactionAmountDto.getAmount());
+            if(transactionAmountDto != null)
+            {
+                transactionAmountEntity.setCreatedBy(transactionAmountDto.getCreatedBy());
+            }
+            else {
+                transactionAmountEntity.setCreatedBy(getUser());
+            }
+            if(transactionAmountDto.getChangedBy() != null)
+            {
+                transactionAmountEntity.setChangedBy(transactionAmountDto.getChangedBy());
+            }
             transactionAmountRepository.save(transactionAmountEntity);
         } catch (Exception exception) {
 
@@ -847,27 +871,27 @@ public class TransactionService implements TransactionDao {
 
             List<TransactionAmountDto> transactionAmountDtoList = getAmounts(id);
 
-            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat());
+            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(),getUser(),null);
             removeAmount(totalIncVat);
             addAmount(totalIncVat);
 
-            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat());
+            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(),getUser(),null);
             removeAmount(totalExcVat);
             addAmount(totalExcVat);
 
-            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount());
+            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(),getUser(),null);
             removeAmount(discountAmount);
             addAmount(discountAmount);
 
-            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage());
+            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(),getUser(),null);
             removeAmount(discountPercentage);
             addAmount(discountPercentage);
 
-            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount());
+            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(),getUser(),null);
             removeAmount(VATAmount);
             addAmount(VATAmount);
 
-            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage());
+            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(),getUser(),null);
             removeAmount(VATPercentage);
             addAmount(VATPercentage);
 

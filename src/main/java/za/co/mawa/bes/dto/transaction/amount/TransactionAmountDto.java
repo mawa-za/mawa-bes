@@ -16,6 +16,8 @@ public class TransactionAmountDto implements Serializable {
     private String transaction;
     private String type;
     private BigDecimal amount = new BigDecimal("0.00");
+    private String createdBy;
+    private String changedBy;
 
     public TransactionAmountDto(String transaction, String type) {
         this.transaction = transaction;

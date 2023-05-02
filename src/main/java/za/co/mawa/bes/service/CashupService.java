@@ -1,0 +1,205 @@
+package za.co.mawa.bes.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dao.CashupDao;
+import za.co.mawa.bes.dto.cashup.CashupDto;
+import za.co.mawa.bes.dto.cashup.CashupEditDto;
+import za.co.mawa.bes.dto.cashup.CashupSearchDto;
+import za.co.mawa.bes.dto.receipt.ReceiptDto;
+import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionAmountRepository;
+import za.co.mawa.bes.repository.TransactionItemRepository;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.TransactionRepository;
+import za.co.mawa.bes.utils.DateType;
+import za.co.mawa.bes.utils.PriceType;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.TransactionType;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@Service
+public class CashupService implements CashupDao {
+    @Autowired
+    ReceiptService receiptService;
+    @Autowired
+    TransactionService transactionService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
+
+    @Override
+    public String create() throws Exception {
+        ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
+        searchReceipt.setCreatedBy(getUser());
+        ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
+        String id = null;
+        if(receipts.size() > 0)
+        {
+            BigDecimal amount = BigDecimal.ZERO;
+            for(ReceiptDto receipt : receipts){
+                amount = amount.add(new BigDecimal(receipt.getAmount()));
+            }
+            if(!BigDecimal.ZERO.equals(amount)) {
+            TransactionCreateDto createDto = new TransactionCreateDto();
+            createDto.setType(TransactionType.CASHUP);
+            createDto.setStatus(Status.OPEN);
+            TransactionDto transaction = transactionService.create(createDto);
+            if(transaction.getId() != null) {
+                id = transaction.getId();
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto.setAmount(amount);
+                amountDto.setTransaction(transaction.getId());
+                amountDto.setType(PriceType.AMOUNT_COLLECTED);
+                //amountDto.setCreatedBy();
+                transactionService.addAmount(amountDto);
+
+                amountDto = new TransactionAmountDto();
+                amountDto.setAmount(BigDecimal.ZERO);
+                amountDto.setTransaction(transaction.getId());
+                amountDto.setType(PriceType.AMOUNT_DEPOSITED);
+                transactionService.addAmount(amountDto);
+                for(ReceiptDto receipt : receipts){
+                    TransactionLinkDto link = new TransactionLinkDto();
+                    link.setTransaction1(transaction.getId());
+                    link.setTransaction2(receipt.getId());
+                    link.setType(TransactionType.CASHUP);
+                    link.setCreateBy(getUser());
+                    transactionService.addLink(link);
+                }
+                TransactionDateDto date = new TransactionDateDto();
+                date.setType(DateType.CREATED);
+                date.setTransaction(id);
+                date.setValue(new Date());
+                transactionService.addDate(date);
+
+                date = new TransactionDateDto();
+                date.setType(DateType.LAST_UPDATED);
+                date.setTransaction(id);
+                date.setValue(new Date());
+                transactionService.addDate(date);
+
+             }
+            }
+        }
+        return id;
+    }
+
+    @Override
+    public CashupDto get(String id) throws Exception, DoesNotExist {
+        TransactionDto transactionDto = transactionService.get(id);
+        if(transactionDto.getType().equalsIgnoreCase(TransactionType.CASHUP))
+        {
+            try{
+                CashupDto cashupDto = new CashupDto();
+                ArrayList<ReceiptDto> receipts = new ArrayList<>();
+                cashupDto.setId(transactionDto.getId());
+                cashupDto.setCreatedBy(transactionDto.getCreatedBy());
+                cashupDto.setChangedBy(transactionDto.getChangedBy());
+                cashupDto.setNumber(transactionDto.getNumber());
+                cashupDto.setStatus(transactionDto.getStatus());
+                List<TransactionLinkDto> links = transactionService.getLinks(id);
+                for(TransactionLinkDto link : links)
+                {
+                    ReceiptDto receipt = new ReceiptDto();
+                    receipt = receiptService.getReceipt(link.getTransaction2());
+                    receipts.add(receipt);
+                }
+                cashupDto.setReceipts(receipts);
+               for(TransactionAmountDto amount :transactionService.getAmounts(id)) {
+                   if(amount.getType().equalsIgnoreCase(PriceType.AMOUNT_COLLECTED)){
+                       cashupDto.setAmountCollected(amount.getAmount().toString());
+                   }
+                   if(amount.getType().equalsIgnoreCase(PriceType.AMOUNT_DEPOSITED)){
+                       cashupDto.setAmountDeposited(amount.getAmount().toString());
+                   }
+               }
+                for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+                    if(transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)){
+                        cashupDto.setCreatedDate(transactionDateDto.getValue());
+                    }
+                    if(transactionDateDto.getType().equalsIgnoreCase(DateType.LAST_UPDATED)){
+                        cashupDto.setLastUpdated(transactionDateDto.getValue());
+                    }
+                }
+                return cashupDto;
+            }catch (Exception ex){
+                throw new RuntimeException(ex);
+            }
+
+        }
+        else {
+            throw new DoesNotExist();
+        }
+
+    }
+
+    @Override
+    public CashupDto getCashups(CashupSearchDto search) throws Exception {
+
+        return null;
+    }
+
+    @Override
+    public boolean edit(CashupEditDto edit ,String id) throws Exception {
+        TransactionEntity entity = transactionRepository.getById(id);
+        boolean edited = false;
+        if(entity != null)
+        {
+            try{
+            if(edit.getStatus() != null)
+            {
+                entity.setStatus(edit.getStatus());
+            }
+            if(edit.getAmountDeposited() != null)
+            {
+                TransactionAmountEntity amountEntity = transactionAmountRepository.getTransactionAmount(id,PriceType.AMOUNT_DEPOSITED);
+                amountEntity.setChangedBy(getUser());
+                amountEntity.setAmount(new BigDecimal(edit.getAmountDeposited()));
+                transactionAmountRepository.save(amountEntity);
+            }
+            TransactionDateEdit editDate = new TransactionDateEdit();
+            editDate.setTransaction(id);
+            editDate.setType(DateType.LAST_UPDATED);
+            editDate.setValue(new Date());
+            transactionService.dateEdit(editDate);
+            entity.setChangedBy(getUser());
+            transactionRepository.save(entity);
+            edited = true;
+            }
+            catch(Exception ex){
+             throw new RuntimeException(ex);
+            }
+
+        }
+        else{
+            throw new TransactionNotFound();
+        }
+        return edited;
+    }
+    private String getUser()
+    {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUser = userDetails.getUsername();
+        return currentUser;
+    }
+}

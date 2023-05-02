@@ -11,4 +11,5 @@ public class TransactionType {
     public static String APPOINTMENT = "APPOINTMENT";
     public static String QUOTATION = "QUOTATION";
     public static String INVOICE = "INVOICE";
+    public static String CASHUP = "CASHUP";
 }

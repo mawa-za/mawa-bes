@@ -14,5 +14,6 @@ public interface ReceiptDao {
     ReceiptDto getReceipt(String id) throws DoesNotExist;
 
     ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) throws Exception;
+    ArrayList<ReceiptDto> getReceiptsX(ReceiptSearchDto receiptSearch) throws Exception;
 
 }
