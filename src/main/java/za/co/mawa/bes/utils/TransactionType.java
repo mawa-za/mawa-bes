@@ -12,4 +12,6 @@ public class TransactionType {
     public static String QUOTATION = "QUOTATION";
     public static String INVOICE = "INVOICE";
     public static String CASHUP = "CASHUP";
+    public static String PAYMENT_REQUEST = "PAYMENT-REQUEST";
+
 }
