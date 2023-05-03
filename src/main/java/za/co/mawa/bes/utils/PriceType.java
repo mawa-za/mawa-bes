@@ -10,4 +10,5 @@ public class PriceType {
     public static String SELLING_PRICE = "SELLING-PRICE";
     public static String AMOUNT_COLLECTED = "AMOUNT-COLLECTED";
     public static String AMOUNT_DEPOSITED = "AMOUNT-DEPOSITED";
+    public static String PAYMENT_AMOUNT = "PAYMENT-AMOUNT";
 }

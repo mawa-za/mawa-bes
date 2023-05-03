@@ -1,6 +1,7 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
@@ -14,7 +15,6 @@ import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
@@ -58,4 +58,7 @@ public interface TransactionDao {
     boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
     boolean editAmount() throws DoesNotExist,Exception;
     boolean editItem(TransactionItemEditDto transactionItemEditDto) throws DoesNotExist,Exception;
+    void addBankAccount(TransactionAccountDto accountDto) throws Exception;
+    boolean editBankAccount(TransactionAccountDto accountDto) throws Exception;
+    TransactionAccountDto getBankAccount(String id);
 }

@@ -8,6 +8,7 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
@@ -18,7 +19,6 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
-import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -52,6 +52,8 @@ public class TransactionService implements TransactionDao {
     TransactionLinkRepository transactionLinkRepository;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    TransactionBankAccountRepository transactionBankAccountRepository;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -354,6 +356,53 @@ public class TransactionService implements TransactionDao {
         }
         return edited;
     }
+
+    @Override
+    public void addBankAccount(TransactionAccountDto accountDto) throws Exception {
+
+       try{
+           TransactionBankAccount entity = new TransactionBankAccount();
+        entity.setTransaction(accountDto.getTransaction());
+        entity.setBankName(accountDto.getBankName());
+        entity.setAccountHolder(accountDto.getAccountHolder());
+        entity.setAccountNumber(accountDto.getAccountNumber());
+        entity.setAccountType(accountDto.getAccountType());
+        entity.setBranchCode(accountDto.getBranchCode());
+        transactionBankAccountRepository.save(entity);
+       }
+       catch (Exception ex)
+       {
+          throw new RuntimeException(ex);
+       }
+
+    }
+
+    @Override
+    public boolean editBankAccount(TransactionAccountDto accountDto) throws Exception {
+        return false;
+    }
+
+    @Override
+    public TransactionAccountDto getBankAccount(String id) {
+        TransactionBankAccount entity = transactionBankAccountRepository.getBankAccount(id);
+        if(entity != null)
+        {
+            TransactionAccountDto account = new TransactionAccountDto();
+            account.setAccountHolder(entity.getAccountHolder());
+            account.setAccountType(entity.getAccountType());
+            account.setAccountNumber(entity.getAccountNumber());
+            account.setBankName(entity.getBankName());
+            account.setTransaction(entity.getTransaction());
+            account.setBranchCode(entity.getBranchCode());
+
+            return account;
+        }
+        else{
+            return null;
+        }
+
+    }
+
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
 
         TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
@@ -779,7 +828,7 @@ public class TransactionService implements TransactionDao {
             TransactionAmountEntity transactionAmountEntity = new TransactionAmountEntity();
             transactionAmountEntity.setTransactionAmountPKEntity(transactionAmountPKEntity);
             transactionAmountEntity.setAmount(transactionAmountDto.getAmount());
-            if(transactionAmountDto != null)
+            if(transactionAmountDto.getCreatedBy() != null)
             {
                 transactionAmountEntity.setCreatedBy(transactionAmountDto.getCreatedBy());
             }
