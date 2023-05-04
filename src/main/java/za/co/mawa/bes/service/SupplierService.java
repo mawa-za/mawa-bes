@@ -40,8 +40,7 @@ public class SupplierService implements SupplierDao {
                         partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
                         assign = true;
                     }
-                }catch (Exception e)
-                {
+                } catch (Exception e) {
                     throw new PartnerNotFound("Partner Not found");
                 }
 
@@ -49,17 +48,24 @@ public class SupplierService implements SupplierDao {
         } else {
 
             if (supplierDto.getPartnerId() != null) {
-                PartnerDto partnerDto = partnerService.get(supplierDto.getPartnerId());
-                UserDto userDto = userService.getUserByID(partnerDto.getId());
-                if (userDto != null) {
-                    userRoleDto.setUser(userDto.getUsername());
-                    userRoleDto.setRole(RoleType.SUPPLIER);
-                    userService.addRole(userRoleDto);
-                    partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
-                    assign = true;
+
+
+                PartnerDto partnerDto = partnerService.getOptional(supplierDto.getPartnerId());
+                if (partnerDto.getId() != null) {
+                    UserDto userDto = userService.getUserByID(partnerDto.getId());
+                    if (userDto != null) {
+                        userRoleDto.setUser(userDto.getUsername());
+                        userRoleDto.setRole(RoleType.SUPPLIER);
+                        userService.addRole(userRoleDto);
+                        partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
+                        assign = true;
+                    }
+                }else {
+                    throw new PartnerNotFound("Partner not found");
                 }
 
-            }else {
+
+            } else {
                 throw new Exception();
             }
         }
