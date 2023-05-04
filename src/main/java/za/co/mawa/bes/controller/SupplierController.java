@@ -26,10 +26,19 @@ public class SupplierController {
     @Autowired
     SupplierService supplierService;
 
-    @RequestMapping(value = "/supplier", method = RequestMethod.POST)
-    public ResponseEntity<?> postSupplierRequest(@RequestBody SupplierDto supplierDto) {
+    @RequestMapping(value = "/supplier/assign", method = RequestMethod.PUT)
+    public ResponseEntity<?> postSupplierRequest(@RequestParam(required = false) String username, @RequestParam(required = false) String partnerId) {
         try {
-            return ResponseEntity.ok(gson.toJson(supplierService.createSupplier(supplierDto)));
+
+            SupplierDto supplierDto = new SupplierDto();
+            if (username != null) {
+                supplierDto.setUsername(username);
+            }
+            if (partnerId != null) {
+                supplierDto.setPartnerId(partnerId);
+            }
+
+            return ResponseEntity.ok(gson.toJson(supplierService.assignSupplier(supplierDto)));
 
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

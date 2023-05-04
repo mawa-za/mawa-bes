@@ -24,38 +24,54 @@ public class SupplierService implements SupplierDao {
     PartnerService partnerService;
 
     @Override
-    public String createSupplier(SupplierDto supplierDto) throws Exception {
+    public boolean assignSupplier(SupplierDto supplierDto) throws Exception {
+        boolean assign = false;
         UserRoleDto userRoleDto = new UserRoleDto();
         if (supplierDto.getUsername() != null) {
             UserDto userDto = userService.getUserByName(supplierDto.getUsername());
 
             if (userDto.getId() != null) {
-                PartnerDto partnerDto = partnerService.getOptional(userDto.getId());
-                if (partnerDto != null) {
+                try {
+                    PartnerDto partnerDto = partnerService.get(userDto.getId());
+                    if (partnerDto.getId() != null) {
+                        userRoleDto.setUser(supplierDto.getUsername());
+                        userRoleDto.setRole(RoleType.SUPPLIER);
+                        userService.addRole(userRoleDto);
+                        partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
+                        assign = true;
+                    }
+                }catch (Exception e)
+                {
+                    throw new PartnerNotFound("Partner Not found");
+                }
 
-                    userRoleDto.setUser(supplierDto.getUsername());
+            }
+        } else {
+
+            if (supplierDto.getPartnerId() != null) {
+                PartnerDto partnerDto = partnerService.get(supplierDto.getPartnerId());
+                UserDto userDto = userService.getUserByID(partnerDto.getId());
+                if (userDto != null) {
+                    userRoleDto.setUser(userDto.getUsername());
                     userRoleDto.setRole(RoleType.SUPPLIER);
                     userService.addRole(userRoleDto);
-                    if (supplierDto.getAddressDto() != null) {
-                        partnerService.addAddress(supplierDto.getAddressDto());
-                    }
-                    if (supplierDto.getContactDto() != null) {
-                        partnerService.addContact(supplierDto.getContactDto());
-                    }
-                    if (supplierDto.getIdentityDto() != null) {
-                        partnerService.addIdentity(supplierDto.getIdentityDto());
-                    }
+                    partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
+                    assign = true;
                 }
+
+            }else {
+                throw new Exception();
             }
         }
 
-        return supplierDto.getUsername();
+
+        return assign;
     }
 
     @Override
     public SupplierDto getSupplier(String id) throws PartnerNotFound {
 
-       PartnerDto partnerDto =  partnerService.get(id);
+        PartnerDto partnerDto = partnerService.get(id);
 
         return null;
     }

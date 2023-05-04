@@ -12,14 +12,10 @@ import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 @Setter
 public class SupplierDto {
 
-    private String partnerType;
-    private String surname;
-    private String firstName;
-    private String middleName;
+
 
     private String username;
-    private String organisationName;
-
+    private String partnerId;
 
     AddressDto addressDto;
     ContactDto contactDto;

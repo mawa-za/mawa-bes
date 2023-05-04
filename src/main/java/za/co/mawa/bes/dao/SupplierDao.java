@@ -5,7 +5,7 @@ import za.co.mawa.bes.exception.PartnerNotFound;
 
 public interface SupplierDao {
 
-    String createSupplier(SupplierDto supplierDto) throws Exception;
+    boolean assignSupplier(SupplierDto supplierDto) throws Exception;
 
     SupplierDto getSupplier(String id) throws PartnerNotFound;
 
