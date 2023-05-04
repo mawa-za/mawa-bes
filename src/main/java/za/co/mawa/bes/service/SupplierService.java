@@ -77,7 +77,7 @@ public class SupplierService implements SupplierDao {
     @Override
     public SupplierDto getSupplier(String id) throws PartnerNotFound {
 
-        PartnerDto partnerDto = partnerService.get(id);
+//        PartnerDto partnerDto = partnerService.get(id);
 
         return null;
     }
