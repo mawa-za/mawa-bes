@@ -4,6 +4,7 @@ import za.co.mawa.bes.dto.product.ProductCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
+import za.co.mawa.bes.entity.ProductPricingPKEntity;
 import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.exception.ProductDeleteFailure;
 import za.co.mawa.bes.exception.ProductNotFound;
@@ -21,5 +22,7 @@ public interface ProductDao {
     void editPricing(ProductPricingDto productPricingDto) throws Exception;
 
     ProductDto getOptionalById(String id);
+
+    void deletePricing(ProductPricingPKEntity productPricingPK) throws ProductDeleteFailure;
 
 }

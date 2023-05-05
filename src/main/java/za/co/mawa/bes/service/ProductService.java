@@ -1,7 +1,10 @@
 package za.co.mawa.bes.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
 import za.co.mawa.bes.dto.product.ProductCreateDto;
@@ -79,7 +82,9 @@ public class ProductService implements ProductDao {
     @Override
     public List<ProductDto> search(ProductQueryDto productQueryDto) {
         List<ProductDto> productDtoList = new ArrayList<>();
-        List<ProductEntity> productEntityList = productRepository.findAll();
+        List<ProductEntity> productEntityList = new ArrayList<>();
+        Sort sort = Sort.by("id").descending();
+        productEntityList = productRepository.findAll(findByCriteria(productQueryDto),sort);
         for (ProductEntity productEntity : productEntityList) {
             ProductDto productDto = new ProductDto();
             productDto.setId(productEntity.getId());
@@ -87,6 +92,13 @@ public class ProductService implements ProductDao {
             productDto.setCode(code);
             productDto.setDescription(productEntity.getDescription());
             productDto.setCategory(productEntity.getCategory());
+            productDto.setBaseUnitOfMeasure(productEntity.getUom());
+            for(ProductPricingEntity price : productPricingRepository.findPricing(productEntity.getId())){
+                if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
+                    productDto.setSellingPrice(price.getValue());
+                    break;
+                }
+            }
             productDtoList.add(productDto);
         }
         return productDtoList;
@@ -104,13 +116,11 @@ public class ProductService implements ProductDao {
             productDto.setCategory(productEntity.getCategory());
             productDto.setBaseUnitOfMeasure(productEntity.getUom());
 
-            ProductPricingPKEntity pk = new ProductPricingPKEntity();
-            pk.setProduct(id);
-            pk.setPricing(PriceType.SELLING_PRICE);
-            ProductPricingEntity entity = productPricingRepository.getById(pk);
-            if(entity != null)
-            {
-                productDto.setSellingPrice(entity.getValue());
+            for(ProductPricingEntity price : productPricingRepository.findPricing(id)){
+                if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
+                    productDto.setSellingPrice(price.getValue());
+                    break;
+                }
             }
             return productDto;
         } catch (EntityNotFoundException exception) {
@@ -126,6 +136,7 @@ public class ProductService implements ProductDao {
             productEntity.setCode(productDto.getCode());
             productEntity.setDescription(productDto.getDescription());
             productEntity.setCategory(productDto.getCategory());
+            productEntity.setUom(productDto.getBaseUnitOfMeasure().toUpperCase());
             productRepository.save(productEntity);
         } catch (Exception exception) {
             throw new ProductUpdateFailure();
@@ -136,7 +147,9 @@ public class ProductService implements ProductDao {
     public void delete(String id) throws ProductDeleteFailure {
         try {
             productRepository.deleteById(id);
-            //productPricingRepository.deleteById();
+            for(ProductPricingEntity price :productPricingRepository.findPricing(id)){
+                deletePricing(price.getProductPricingPKEntity());
+            }
         } catch (Exception exception) {
             throw new ProductDeleteFailure();
         }
@@ -162,6 +175,17 @@ public class ProductService implements ProductDao {
 
     @Override
     public void editPricing(ProductPricingDto productPricingDto) throws Exception {
+        try{
+            ProductPricingPKEntity pkEntity = new ProductPricingPKEntity();
+            ProductPricingEntity entity = new ProductPricingEntity();
+            pkEntity.setProduct(productPricingDto.getProduct());
+            pkEntity.setPricing(productPricingDto.getPricing());
+            entity.setValue(productPricingDto.getValue());
+            entity.setProductPricingPKEntity(pkEntity);
+            productPricingRepository.save(entity);
+        }catch(Exception ex){
+            throw new RuntimeException(ex);
+        }
 
     }
 
@@ -185,5 +209,27 @@ public class ProductService implements ProductDao {
 
         return productDto;
 
+    }
+
+    @Override
+    public void deletePricing(ProductPricingPKEntity productPricingPK) throws ProductDeleteFailure {
+        try{
+            productPricingRepository.deleteById(productPricingPK);
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private Specification<ProductEntity> findByCriteria(ProductQueryDto productQuery) {
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (productQuery.getCode() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("code"), productQuery.getCode()));
+            }
+            if (productQuery.getCategory() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("category"), productQuery.getCategory()));
+            }
+            return predicate;
+        };
     }
 }
