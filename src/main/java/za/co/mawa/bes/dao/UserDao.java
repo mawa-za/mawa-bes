@@ -20,7 +20,7 @@ public interface UserDao {
     UserDto updatePassword(UserUpdateDto userUpdateDto);
 
     UserDto getUserByName(String username) throws Exception;
-
+    UserDto getUserByID(String id) throws Exception;
     List<UserDto> getAll();
 
     List<String> getRoles(String user);

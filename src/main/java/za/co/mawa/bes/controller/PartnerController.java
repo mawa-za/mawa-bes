@@ -21,7 +21,22 @@ public class PartnerController {
     @Autowired
     PartnerService partnerService;
 
-    @RequestMapping(method = RequestMethod.GET)
+
+    @RequestMapping( method = RequestMethod.GET)
+    public ResponseEntity<?> getPartner() throws Exception {
+
+
+        ArrayList<PartnerDto> objects = partnerService.search(null);
+        ArrayList<PersonDto> persons = new ArrayList<>();
+        for (PartnerDto object : objects) {
+            ArrayList<ContactDto> contactDtos = partnerService.getContacts(object.getId());
+            PersonDto person = new PersonDto(object);
+            persons.add(person);
+        }
+        String response = gson.toJson(persons);
+        return ResponseEntity.ok(response);
+    }
+    @RequestMapping(value = "/customer", method = RequestMethod.GET)
     public ResponseEntity<?> getCustomer() throws Exception {
         PartnerQueryDto query = new PartnerQueryDto();
         query.setRole(RoleType.CUSTOMER);

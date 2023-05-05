@@ -25,6 +25,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService implements UserDao {
@@ -126,6 +127,14 @@ public class UserService implements UserDao {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    @Override
+    public UserDto getUserByID(String id) throws Exception {
+        Optional<UserEntity> userEntity = userRepository.findById(id);
+        UserEntity user = userEntity.orElse(null);
+        return entityToDto(user);
+
     }
 
     @Override
