@@ -7,7 +7,7 @@ public interface SupplierDao {
 
     boolean assignSupplier(SupplierDto supplierDto) throws Exception;
 
-    SupplierDto getSupplier(String id) throws PartnerNotFound;
+    SupplierDto getSupplier(String id) throws Exception;
 
 
 }

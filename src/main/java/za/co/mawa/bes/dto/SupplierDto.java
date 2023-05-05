@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 
+import java.util.ArrayList;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -13,12 +15,16 @@ import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 public class SupplierDto {
 
 
-
     private String username;
     private String partnerId;
+    private String firstName;
+    private String lastName;
+    private String middleName;
+    private String supplierType;
 
-    AddressDto addressDto;
-    ContactDto contactDto;
-    IdentityDto identityDto;
+    private String organizationName;
+    ArrayList<AddressDto> addressDto;
+    ArrayList<ContactDto> contactDto;
+    ArrayList<IdentityDto> identityDto;
 
 }

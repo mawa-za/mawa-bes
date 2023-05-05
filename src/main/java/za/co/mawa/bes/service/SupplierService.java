@@ -15,6 +15,10 @@ import za.co.mawa.bes.utils.IdType;
 import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.RoleType;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 @Service
 public class SupplierService implements SupplierDao {
 
@@ -37,7 +41,7 @@ public class SupplierService implements SupplierDao {
                         userRoleDto.setUser(supplierDto.getUsername());
                         userRoleDto.setRole(RoleType.SUPPLIER);
                         userService.addRole(userRoleDto);
-                        partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
+                        partnerService.addRole(userDto.getId(), RoleType.SUPPLIER);
                         assign = true;
                     }
                 } catch (Exception e) {
@@ -60,7 +64,7 @@ public class SupplierService implements SupplierDao {
                         partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
                         assign = true;
                     }
-                }else {
+                } else {
                     throw new PartnerNotFound("Partner not found");
                 }
 
@@ -75,10 +79,52 @@ public class SupplierService implements SupplierDao {
     }
 
     @Override
-    public SupplierDto getSupplier(String id) throws PartnerNotFound {
+    public SupplierDto getSupplier(String id) throws Exception {
 
-//        PartnerDto partnerDto = partnerService.get(id);
 
-        return null;
+        SupplierDto supplierDto = Optional.ofNullable(partnerService.get(id))
+                .filter(partnerDto -> partnerDto.getId() != null)
+                .map(partnerDto -> {
+                    ArrayList<String> roles = partnerService.getRoles(partnerDto.getId());
+                    return roles.stream()
+                            .filter(role -> role.equals(RoleType.SUPPLIER))
+                            .findFirst()
+                            .map(role -> {
+                                UserDto userDto = null;
+                                try {
+                                    userDto = userService.getUserByID(partnerDto.getId());
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return Optional.ofNullable(userDto.getUsername())
+                                        .map(username -> {
+                                            List<String> userRoles = userService.getRoles(username);
+                                            return userRoles.stream()
+                                                    .filter(userRole -> userRole.equals(RoleType.SUPPLIER))
+                                                    .findFirst()
+                                                    .map(userRole -> {
+                                                        SupplierDto supplier = new SupplierDto();
+                                                        supplier.setPartnerId(partnerDto.getId());
+                                                        supplier.setUsername(username);
+                                                        supplier.setSupplierType(partnerDto.getType());
+                                                        if (partnerDto.getType().equals(PartnerType.ORGANIZATION)) {
+                                                            supplier.setOrganizationName(partnerDto.getName1());
+                                                        } else {
+                                                            supplier.setFirstName(partnerDto.getName2());
+                                                            supplier.setMiddleName(partnerDto.getName3());
+                                                            supplier.setLastName(partnerDto.getName1());
+                                                        }
+                                                        return supplier;
+                                                    })
+                                                    .orElse(null);
+                                        })
+                                        .orElse(null);
+                            })
+                            .orElse(null);
+                })
+                .orElseThrow(() -> new PartnerNotFound("Partner not found"));
+
+
+        return supplierDto;
     }
 }

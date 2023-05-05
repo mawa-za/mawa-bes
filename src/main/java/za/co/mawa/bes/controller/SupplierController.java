@@ -44,4 +44,15 @@ public class SupplierController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "/supplier/{id}", method = RequestMethod.GET)
+    public ResponseEntity<?> getSupplierRequest(@PathVariable String id) {
+        try {
+
+            return ResponseEntity.ok(gson.toJson(supplierService.getSupplier(id)));
+
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
 }
