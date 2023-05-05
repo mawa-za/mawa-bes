@@ -13,6 +13,7 @@ public class ProductUpdateDto {
     private String code;
     private String description;
     private String category;
-//    private String baseUnitOfMeasure;
-//    private BigDecimal sellingPrice;
+   private String baseUnitOfMeasure;
+   private BigDecimal price;
+    private String pricingType;
 }
