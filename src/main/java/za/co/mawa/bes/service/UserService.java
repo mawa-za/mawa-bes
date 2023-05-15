@@ -3,23 +3,21 @@ package za.co.mawa.bes.service;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.user.UserRoleDto;
+import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.dto.user.UserCreateDto;
-import za.co.mawa.bes.dto.user.UserDto;
-import za.co.mawa.bes.dto.user.UserUpdateDto;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;
-import za.co.mawa.bes.utils.Constant;
-import za.co.mawa.bes.utils.Conversion;
-import za.co.mawa.bes.utils.PasswordStatus;
-import za.co.mawa.bes.utils.UserStatus;
+import za.co.mawa.bes.utils.*;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -37,6 +35,8 @@ public class UserService implements UserDao {
     UserRoleRepository userRoleRepository;
     @Autowired
     EncryptionService encryptionService;
+    @Autowired
+    SimpleKeyGenerator keyGenerator;
     private String secret;
     public static final String ADMIN_USER = "admin";
     public static final String DEFAULT_ADMIN_PASSWORD = "admin";
@@ -65,15 +65,22 @@ public class UserService implements UserDao {
         try {
             UserEntity userEntity = new UserEntity();
 //            userEntity.setId(userCreateDto.getId());
+            userEntity.setPartner(userCreateDto.getPartnerId());
             userEntity.setUsername(userCreateDto.getUsername());
             userEntity.setEmail(userCreateDto.getEmail());
             userEntity.setCellphone(userCreateDto.getCellphone());
-            userEntity.setUserType(userCreateDto.getUserType());
+            userEntity.setUserType(userCreateDto.getUserType().toUpperCase());
             userEntity.setStatus(UserStatus.ACTIVE);
             userEntity.setPasswordStatus(PasswordStatus.INITIAL);
             userEntity.setValidFrom(new Date());
             userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+            if(userCreateDto.getPassword() != null) {
+                userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+            }
+            else if(userCreateDto.getPassword() == null){
+                String password = keyGenerator.generatePassword();
+                userEntity.setPassword(encryptionService.encrypt(password, secret).getBytes());
+            }
             return entityToDto(userRepository.save(userEntity));
         } catch (Exception exception) {
             throw new Exception();
@@ -102,7 +109,7 @@ public class UserService implements UserDao {
         } catch (Exception ex) {
             return null;
         }
-
+        //Utils.generateRandomPassword();
     }
 
     @Override
@@ -129,15 +136,19 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public List<UserDto> getAll() {
+    public List<UserDto> getAll(UserQueryDto query) {
         List<UserDto> userDtoList = new ArrayList<>();
         try {
-            List<UserEntity> userEntities = userRepository.findAll();
+            Sort sort = Sort.by("id").descending();
+            List<UserEntity> userEntities = userRepository.findAll(findByCriteria(query),sort);
             for (UserEntity userEntity : userEntities) {
-                userDtoList.add(entityToDto(userEntity));
+                UserDto user = new UserDto();
+                user = entityToDto(userEntity);
+                user.setPassword(null);
+                userDtoList.add(user);
             }
         } catch (Exception ex) {
-
+           throw new RuntimeException(ex);
         }
         return userDtoList;
     }
@@ -173,13 +184,122 @@ public class UserService implements UserDao {
         }
     }
 
+    @Override
+    public boolean lockuser(String id, String statusReason) throws Exception {
+       try{
+           UserEntity user = userRepository.getById(id);
+           user.setStatus(UserStatus.LOCKED);
+           user.setStatusReason(statusReason);
+           userRepository.save(user);
+           return true;
+       }catch (Exception ex){
+           throw new RuntimeException(ex);
+       }
+    }
+
+    @Override
+    public boolean unlockuser(String id) throws Exception {
+        try{
+            UserEntity user = userRepository.getById(id);
+            user.setStatus(UserStatus.ACTIVE);
+            user.setStatusReason("");
+            userRepository.save(user);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+    @Override
+    public boolean deleteRole(UserRolePKEntity entityPk) throws Exception {
+        try {
+            userRoleRepository.deleteById(entityPk);
+            return true;
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+
+    }
+    @Override
+    public String resetUser(String id) throws Exception {
+        try{
+            String password = keyGenerator.generatePassword();
+            UserEntity userEntity = userRepository.getById(id);
+            userEntity.setPassword(encryptionService.encrypt(password, secret).getBytes());
+            userRepository.save(userEntity);
+            return password;
+
+        }catch(Exception ex){
+           throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean deleteUser(String id) throws Exception {
+        try{
+            userRepository.deleteById(id);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean editUser(String id, UserEditDto edit) throws Exception{
+        UserEntity user = userRepository.getById(id);
+
+        if(user != null)
+        {
+            if(edit.getEmail() != null && edit.getEmail() != ""){
+                UserQueryDto queryDto = new UserQueryDto();
+                queryDto.setEmail(edit.getEmail());
+                if(getAll(queryDto).size() > 0){
+                   throw new RuntimeException("Email already belongs to another user") ;
+                }
+                else{
+                    user.setEmail(edit.getEmail());
+                }
+            }
+            if(edit.getCellphone() != null && edit.getCellphone() != ""){
+                UserQueryDto queryDto = new UserQueryDto();
+                queryDto.setCellphone(edit.getCellphone());
+                if(getAll(queryDto).size() > 0){
+                    throw new RuntimeException("Cellphone already belongs to another user") ;
+                }
+                else{
+                  user.setCellphone(edit.getCellphone());
+                }
+            }
+            if(edit.getUserType() != null && edit.getUserType() != ""){
+                user.setUserType(edit.getUserType().toUpperCase());
+            }
+            if(edit.getPassword() != null && edit.getPassword() != ""){
+              user.setPasswordStatus(PasswordStatus.PRODUCTIVE);
+              user.setPassword(encryptionService.encrypt(edit.getPassword(), secret).getBytes());
+            }
+            userRepository.save(user);
+            return true;
+        }
+        else{
+            throw new DoesNotExist();
+        }
+
+    }
+
+    @Override
+    public UserDto getUserById(String id) throws Exception {
+        try {
+            return entityToDto(userRepository.getById(id));
+        }catch(Exception ex){
+          throw new RuntimeException(ex);
+        }
+    }
+
     private boolean validatePassword(String enteredPassword, String storedPassword) {
         return encryptionService.encrypt(enteredPassword, secret).equals(storedPassword);
     }
 
     private UserDto entityToDto(UserEntity userEntity) {
         UserDto userDto = new UserDto();
-
         try {
             userDto.setId(userEntity.getId());
             userDto.setUsername(userEntity.getUsername());
@@ -188,6 +308,11 @@ public class UserService implements UserDao {
             userDto.setCellphone(userEntity.getCellphone());
             userDto.setType(userEntity.getUserType());
             userDto.setStatus(userEntity.getStatus());
+            userDto.setPasswordStatus(userEntity.getPasswordStatus());
+            userDto.setValidFrom(userEntity.getValidFrom());
+            userDto.setValidTo(userEntity.getValidTo());
+            userDto.setPartner(userEntity.getPartner());
+            userDto.setStatusReason(userEntity.getStatusReason());
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -199,5 +324,30 @@ public class UserService implements UserDao {
         UserEntity userEntity = new UserEntity();
         userEntity.setEmail(userDto.getEmail());
         return userEntity;
+    }
+
+    private Specification<UserEntity> findByCriteria(UserQueryDto userQuery) {
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (userQuery.getEmail() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("email"), userQuery.getEmail()));
+            }
+            if(userQuery.getUserType() != null){
+                predicate = cb.and(predicate, cb.equal(root.get("userType"), userQuery.getUserType()));
+            }
+            if(userQuery.getPartnerId() != null){
+                predicate = cb.and(predicate, cb.equal(root.get("partner"), userQuery.getPartnerId()));
+            }
+            if(userQuery.getCellphone() != null){
+                predicate = cb.and(predicate, cb.equal(root.get("cellphone"), userQuery.getCellphone()));
+            }
+            if(userQuery.getPasswordStatus() != null){
+                predicate = cb.and(predicate, cb.equal(root.get("passwordStatus"), userQuery.getPasswordStatus()));
+            }
+            if(userQuery.getStatus() != null){
+                predicate = cb.and(predicate, cb.equal(root.get("status"), userQuery.getStatus()));
+            }
+            return predicate;
+        };
     }
 }
