@@ -18,11 +18,8 @@ public interface UserDao {
     UserDto updatePassword(UserUpdateDto userUpdateDto);
 
     UserDto getUserByName(String username) throws Exception;
-
     List<UserDto> getAll(UserQueryDto query);
-
     List<String> getRoles(String user);
-
     String getCurrentUser();
     void addRole(UserRoleDto userRoleDto) throws Exception;
     boolean lockuser(String id,String statusReason) throws Exception;

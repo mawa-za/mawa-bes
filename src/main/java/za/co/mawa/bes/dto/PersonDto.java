@@ -24,6 +24,10 @@ public class PersonDto {
         if (partner.getIdType() != null) {
             this.idType = partner.getIdType();
         }
+        if(partner.getType() != null)
+        {
+            this.type = partner.getType();
+        }
         if (partner.getIdNumber() != null) {
             this.idNumber = partner.getIdNumber();
         }
