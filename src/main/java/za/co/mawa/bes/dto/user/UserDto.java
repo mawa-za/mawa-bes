@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -18,5 +19,9 @@ public class UserDto implements Serializable {
     private String type;
     private String status;
     private String partner;
+    private String passwordStatus;
+    private Date validFrom;
+    private Date validTo;
+    private String statusReason;
 
 }

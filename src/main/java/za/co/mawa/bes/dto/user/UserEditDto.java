@@ -1,18 +1,14 @@
 package za.co.mawa.bes.dto.user;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @Setter
-public class UserQueryDto implements Serializable {
-    private String email;
+public class UserEditDto implements Serializable{
     private String cellphone;
-    private String partnerId;
-    private String passwordStatus;
-    private String status;
+    private String email;
+    private String password;
     private String userType;
 }
