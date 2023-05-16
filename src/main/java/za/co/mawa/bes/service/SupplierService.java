@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.SupplierDto;
 import za.co.mawa.bes.dto.user.UserCreateDto;
 import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.UserQueryDto;
 import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.utils.IdType;
@@ -56,14 +57,16 @@ public class SupplierService implements SupplierDao {
 
                 PartnerDto partnerDto = partnerService.getOptional(supplierDto.getPartnerId());
                 if (partnerDto.getId() != null) {
-                    UserDto userDto = userService.getUserByID(partnerDto.getId());
-                    if (userDto != null) {
-                        userRoleDto.setUser(userDto.getUsername());
+                    UserQueryDto query = new UserQueryDto();
+                    query.setPartnerId(partnerDto.getId());
+                    for(UserDto user :userService.getAll(query)){
+                        userRoleDto.setUser(user.getUsername());
                         userRoleDto.setRole(RoleType.SUPPLIER);
                         userService.addRole(userRoleDto);
                         partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
                         assign = true;
                     }
+
                 } else {
                     throw new PartnerNotFound("Partner not found");
                 }
@@ -92,7 +95,12 @@ public class SupplierService implements SupplierDao {
                             .map(role -> {
                                 UserDto userDto = null;
                                 try {
-                                    userDto = userService.getUserByID(partnerDto.getId());
+                                    UserQueryDto query = new UserQueryDto();
+                                    query.setPartnerId(partnerDto.getId());
+                                    for(UserDto user :userService.getAll(query)){
+                                        userDto = user;
+                                    }
+                                   // userDto = userService.getUserByID(partnerDto.getId());
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
