@@ -11,7 +11,6 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
-import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
@@ -518,7 +517,6 @@ public class PartnerService implements PartnerDao {
                     address.setTypeDescription(fieldOptionService.getOptionalFieldDescription("ADDRESSTYPE", address.getType()));
                     address.setLine3Description(fieldOptionService.getOptionalFieldDescription("SUBURB", adr.getAddressLine3()));
                     address.setLine4Description(fieldOptionService.getOptionalFieldDescription("TOWN", adr.getAddressLine4()));
-
                     partnerAddresses.add(address);
                 }
             }
@@ -585,8 +583,13 @@ public class PartnerService implements PartnerDao {
 
     @Override
     public boolean addIdentity(IdentityDto identity) {
-        boolean created = false;
+
         try {
+            for(PartnerIdentityEntity identityEntity:partnerIdentityRepository.findPartnerIdentityByPartner(identity.getPartner())){
+                if(identityEntity.getPartnerIdentityPK().getType().equals(identity.getIdType())){
+                    throw new RuntimeException("Duplicate identity type found for partner");
+                }
+            }
             PartnerIdentityPKEntity partnerIdentityPK = new PartnerIdentityPKEntity();
             partnerIdentityPK.setValue(identity.getIdNumber());
             partnerIdentityPK.setType(identity.getIdType());
@@ -596,11 +599,11 @@ public class PartnerService implements PartnerDao {
             partnerIdentity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerIdentity.setPartnerIdentityPK(partnerIdentityPK);
             partnerIdentityRepository.save(partnerIdentity);
-            created = true;
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return created;
+
     }
 
     @Override
@@ -796,20 +799,14 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean removeIdentity(IdentityDto idnt) {
-        boolean removed = false;
+    public boolean removeIdentity(PartnerIdentityPKEntity pkEntity) {
         try {
-            PartnerIdentityPKEntity partneridentityPK = new PartnerIdentityPKEntity();
-            partneridentityPK.setType(idnt.getIdType());
-            partneridentityPK.setValue(idnt.getIdNumber());
-
-            partnerIdentityRepository.deleteById(partneridentityPK);
-            removed = true;
+            partnerIdentityRepository.deleteById(pkEntity);
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        return removed;
     }
 
     @Override
@@ -828,24 +825,14 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean removeAddress(AddressDto adrs) {
-        boolean remove = false;
+    public boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception{
         try {
-            PartnerAddressEntity adres = new PartnerAddressEntity();
-            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
-            partnerAddressPK.setAddressUsage(adrs.getType());
-            partnerAddressPK.setPartner(adrs.getPartner());
-            partnerAddressPK.setAddressId(adrs.getId());
-            adres.setPartnerAddressPK(partnerAddressPK);
-            String address = Integer.toString(adres.getPartnerAddressPK().getAddressId());
-            addressRepository.deleteById(address);
-            partnerAddressRepository.deleteById(adres.getPartnerAddressPK());
-            remove = true;
+            addressRepository.deleteById(Integer.toString(pkEntity.getAddressId()));
+            partnerAddressRepository.deleteById(pkEntity);
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        return remove;
     }
 
     @Override
@@ -1151,30 +1138,6 @@ public class PartnerService implements PartnerDao {
 
         return bankAccountObj;
     }
-
-    @Override
-    public ArrayList<ValueDto> getPartnerRoles(String partner) {
-        ArrayList<ValueDto> partnerRoles = new ArrayList();
-        List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(partner);
-        if (!roleList.isEmpty()) {
-            for (PartnerRoleEntity partnerRole : roleList) {
-                FieldOptionEntity fo = fieldOptionService.fieldOptionRepository.getById(new FieldOptionPKEntity("PARTNERROLE", partnerRole.getPartnerRolePK().getRole()));
-                ValueDto partnerRol = new ValueDto();
-                if (fo != null) {
-                    partnerRol.setDescription(fo.getDescription());
-                    partnerRol.setId(partnerRole.getPartnerRolePK().getRole());
-                } else {
-                    if (partnerRole.getPartnerRolePK().getRole() != null) {
-                        partnerRol.setId(partnerRole.getPartnerRolePK().getRole());
-                    }
-                }
-                partnerRoles.add(partnerRol);
-            }
-        }
-
-        return partnerRoles;
-    }
-
     @Override
     public String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound {
         String resourceID = numberRangeService.generateNumber(OrderType.RESOURCE_API);
@@ -1662,6 +1625,192 @@ public class PartnerService implements PartnerDao {
         return assign;
     }
 
+    @Override
+    public ArrayList<AddressDto> getPartnerAddress(AddressQueryDto queryDto) {
+         ArrayList<AddressDto> addressDtos = new ArrayList<>();
+        Sort sort = Sort.by("partnerAddressPK").descending();
+        List<PartnerAddressEntity> addressEntities = partnerAddressRepository.findAll(findByAddress(queryDto),sort);
+        for(PartnerAddressEntity address:addressEntities){
+            AddressDto addressDto = new AddressDto();
+            addressDto.setPartner(address.getPartnerAddressPK().getPartner());
+            addressDto.setType(address.getPartnerAddressPK().getAddressUsage());
+            addressDto.setId(address.getPartnerAddressPK().getAddressId());
+
+            AddressEntity address1 = new AddressEntity();
+            address1 = addressRepository.getById(Integer.toString(address.getPartnerAddressPK().getAddressId()));
+            addressDto.setLine1(address1.getAddressLine1());
+            addressDto.setLine2(address1.getAddressLine2());
+            addressDto.setLine3(address1.getAddressLine3());
+            addressDto.setLine4(address1.getAddressLine4());
+            addressDto.setPostalCode(address1.getPostalCode());
+
+            addressDtos.add(addressDto);
+        }
+        return addressDtos;
+    }
+
+    @Override
+    public boolean editPartnerAddress(String id, AddressEditDto addressEditDto) throws Exception {
+        try{
+            AddressEntity entity = addressRepository.getById(id);
+            if(addressEditDto.getLine1() != null && addressEditDto.getLine1() != ""){
+                entity.setAddressLine1(addressEditDto.getLine1());
+            }
+            if(addressEditDto.getLine2() != null && addressEditDto.getLine2() != ""){
+                entity.setAddressLine2(addressEditDto.getLine2());
+            }
+            if(addressEditDto.getLine3() != null && addressEditDto.getLine3() != ""){
+                  entity.setAddressLine3(addressEditDto.getLine3());
+            }
+            if(addressEditDto.getLine4() != null && addressEditDto.getLine4() != ""){
+                 entity.setAddressLine4(addressEditDto.getLine4());
+            }
+            if(addressEditDto.getPostalCode() != null && addressEditDto.getPostalCode() != ""){
+                entity.setPostalCode(addressEditDto.getPostalCode());
+            }
+            addressRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public ArrayList<ContactGetDto> getPartnerContact(ContactQueryDto queryDto) throws Exception {
+        ArrayList<ContactGetDto> contacts = new ArrayList<>();
+        Sort sort = Sort.by("partnerContactPK").descending();
+        for(PartnerContactEntity contact:partnerContactRepository.findAll(findByContact(queryDto),sort)){
+            ContactGetDto contactPartner = new ContactGetDto();
+            contactPartner.setType(contact.getPartnerContactPK().getType());
+            contactPartner.setPartner(contact.getPartnerContactPK().getPartner());
+            contactPartner.setValue(contact.getValue());
+            contactPartner.setValidFrom(contact.getValidFrom());
+            contactPartner.setValidTo(contact.getValidTo());
+            contacts.add(contactPartner);
+
+        }
+        return contacts;
+    }
+
+    @Override
+    public boolean removePartnerContact(PartnerContactPKEntity pkEntity) throws Exception {
+        try{
+            partnerContactRepository.deleteById(pkEntity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean addPartnerContact(String id, ContactCreateDto contact) throws Exception {
+        try{
+            PartnerContactEntity entity = new PartnerContactEntity();
+            PartnerContactPKEntity pk = new PartnerContactPKEntity();
+            pk.setPartner(id);
+            pk.setType(contact.getType());
+            entity.setPartnerContactPK(pk);
+            entity.setValue(contact.getValue());
+            entity.setValidFrom(new Date());
+            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
+            partnerContactRepository.save(entity);
+            return true;
+        }catch(Exception ex){
+          throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public ArrayList<IdentityDto> getPartnerIdentities(IdentityQueryDto queryDto) throws Exception {
+        try{
+            ArrayList<IdentityDto> identities = new ArrayList<>();
+            Sort sort = Sort.by("partner").descending();
+            for(PartnerIdentityEntity identity:partnerIdentityRepository.findAll(findByIdentity(queryDto),sort)){
+                IdentityDto id = new IdentityDto();
+                id.setPartner(identity.getPartner());
+                id.setValidFrom(Conversion.dateToString(identity.getValidFrom()));
+                id.setValidTo(Conversion.dateToString(identity.getValidTo()));
+                id.setIdNumber(identity.getPartnerIdentityPK().getValue());
+                id.setIdType(identity.getPartnerIdentityPK().getType());
+
+                id.setTypeDescription(fieldOptionService.getOptionalFieldDescription("ID-TYPE", identity.getPartnerIdentityPK().getType()));
+                identities.add(id);
+            }
+            return identities;
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean editPartnerIdentity(IdentityEditDto editDto, String type, String partner) throws Exception {
+        try{
+           PartnerIdentityEntity entity = partnerIdentityRepository.findPartnerIdentityByTypeAndPartner(type,partner);
+            if (entity == null) {
+                throw new Exception("Partner identity not found.");
+            }
+            removeIdentity(entity.getPartnerIdentityPK());
+
+           if(editDto.getIdNumber() != null && editDto.getIdNumber() != ""){
+               entity.getPartnerIdentityPK().setValue(editDto.getIdNumber());
+           }
+           if(editDto.getValidFrom() != null && editDto.getValidFrom() != ""){
+               entity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
+           }
+            if(editDto.getValidTo() != null && editDto.getValidTo() != ""){
+               entity.setValidTo(Conversion.stringToDate(editDto.getValidTo()));
+            }
+            partnerIdentityRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public ArrayList<RoleDto> getPartnerRoles(String id) throws Exception {
+        try{
+            ArrayList<RoleDto> roles = new ArrayList<>();
+            for(PartnerRoleEntity role:partnerRoleRepository.findRoleByPartner(id)){
+                RoleDto roleDto = new RoleDto();
+                roleDto.setId(role.getPartnerRolePK().getRole());
+                roleDto.setDescription(fieldOptionService.getFieldOptionDescription("PARTNER-ROLE",role.getPartnerRolePK().getRole()));
+                roleDto.setValidFrom(role.getValidFrom());
+                roleDto.setValidTo(role.getValidTo());
+                roles.add(roleDto);
+            }
+            return roles;
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public void addPartnersRole(RolePartnerDto rolePartnerDto) throws Exception {
+        try{
+            PartnerRolePKEntity pkEntity = new PartnerRolePKEntity();
+            PartnerRoleEntity entity = new PartnerRoleEntity();
+            pkEntity.setRole(rolePartnerDto.getRole());
+            pkEntity.setId(rolePartnerDto.getPartner());
+            entity.setPartnerRolePK(pkEntity);
+            entity.setValidFrom(new Date());
+            entity.setValidTo((Conversion.stringToDate(Constant.END_DATE)));
+            partnerRoleRepository.save(entity);
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean deleteRoles(PartnerRolePKEntity rolePKEntity) throws Exception {
+        try{
+            partnerRoleRepository.deleteById(rolePKEntity);
+            return true;
+        }catch(Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
     private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();
@@ -1714,6 +1863,49 @@ public class PartnerService implements PartnerDao {
         return prospectDto;
     }
 
+    private Specification<PartnerIdentityEntity> findByIdentity(IdentityQueryDto queryDto){
+        return(root,query,cb) ->{
+            Predicate predicate = cb.conjunction();
+            if(queryDto.getPartner() != null) {
+                predicate = cb.and(predicate,cb.equal(root.get("partner"),queryDto.getPartner()));
+            }
+            if(queryDto.getValue() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("partnerIdentityPK").get("value"),queryDto.getValue()));
+            }
+            if(queryDto.getType() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("partnerIdentityPK").get("type"),queryDto.getType()));
+            }
+            return predicate;
+        };
+    }
+
+    private Specification<PartnerContactEntity> findByContact(ContactQueryDto queryDto){
+        return(root,query,cb) ->{
+            Predicate predicate = cb.conjunction();
+            if(queryDto.getPartner() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("partnerContactPK").get("partner"),queryDto.getPartner()));
+            }
+            if(queryDto.getType() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("partnerContactPK").get("type"),queryDto.getType()));
+            }
+            if(queryDto.getValue() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("value"),queryDto.getValue()));
+            }
+            return predicate;
+        };
+    }
+    private Specification<PartnerAddressEntity> findByAddress(AddressQueryDto queryAddress){
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (queryAddress.getPartnerId() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("partnerAddressPK").get("partner"), queryAddress.getPartnerId()));
+            }
+            if (queryAddress.getType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("partnerAddressPK").get("addressUsage"), queryAddress.getType()));
+            }
+            return predicate;
+        };
+    }
     private Specification<PartnerEntity> findByCriteria(ProspectSearchDto prospectSearch) {
         return (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
