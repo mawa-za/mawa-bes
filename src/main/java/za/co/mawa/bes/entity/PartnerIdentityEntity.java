@@ -11,7 +11,7 @@ public class PartnerIdentityEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected PartnerIdentityPKEntity partnerIdentityPK;
-    @Column(name = "partner", length = 20)
+    @Column(name = "partner")
     private String partner;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)

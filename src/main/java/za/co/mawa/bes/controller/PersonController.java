@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.IdentityDto;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PersonService;
 import za.co.mawa.bes.dto.PartnerQueryDto;
@@ -135,18 +136,12 @@ public class PersonController {
                                             @Param("idType") String type,
                                             @Param("idNumber") String idValue) throws Exception {
         try {
-            IdentityDto identity = new IdentityDto();
-            identity.setPartner(id);
-            if (type != null) {
-                identity.setIdType(type);
-            }
-            if (idValue != null) {
-                identity.setIdNumber(idValue);
-            }
-            boolean Deleted = partnerService.removeIdentity(identity);
-            return ResponseEntity.ok(Deleted);
+            PartnerIdentityPKEntity pkEntity = new PartnerIdentityPKEntity();
+            pkEntity.setType(type);
+            pkEntity.setValue(idValue);
+            return ResponseEntity.ok(partnerService.removeIdentity(pkEntity));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 }

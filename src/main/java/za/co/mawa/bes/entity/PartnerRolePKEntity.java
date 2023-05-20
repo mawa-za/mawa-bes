@@ -10,7 +10,7 @@ import java.io.Serializable;
 public class PartnerRolePKEntity implements Serializable {
     @Basic(optional = false)
     //@NotNull
-    @Column(name = "id", length = 20)
+    @Column(name = "partner")
     private String id;
     @Basic(optional = false)
     //@NotNull
