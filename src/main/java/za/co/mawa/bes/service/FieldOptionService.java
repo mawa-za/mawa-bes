@@ -69,9 +69,9 @@ public class FieldOptionService implements FieldOptionDao {
         FieldOptionPKEntity pk = new FieldOptionPKEntity();
         pk.setCode(code);
         pk.setField(field);
-        FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
-        if (fieldOption != null) {
-            return fieldOption.getDescription();
+        Optional<FieldOptionEntity> fieldOption = fieldOptionRepository.findById(pk);
+        if (!fieldOption.isEmpty()) {
+            return fieldOption.get().getDescription();
         } else {
             return null;
         }

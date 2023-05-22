@@ -120,7 +120,7 @@ public class MembershipController {
             transactionQueryDto.setType(TransactionType.MEMBERSHIP);
             return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -136,7 +136,7 @@ public class MembershipController {
               return  ResponseEntity.ok(gson.toJson(null));
             }
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -189,7 +189,7 @@ public class MembershipController {
             transactionService.delete(id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -203,7 +203,7 @@ public class MembershipController {
             transactionService.addPartner(transactionPartnerDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -228,7 +228,7 @@ public class MembershipController {
             }
             return ResponseEntity.ok(gson.toJson(dependentDtoList));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -242,7 +242,7 @@ public class MembershipController {
             transactionService.removePartner(transactionPartnerDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
@@ -257,7 +257,7 @@ public class MembershipController {
             }
             return ResponseEntity.ok(gson.toJson(claimDtoList));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
