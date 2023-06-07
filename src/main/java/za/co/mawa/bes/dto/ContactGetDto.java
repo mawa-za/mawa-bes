@@ -14,7 +14,7 @@ public class ContactGetDto implements Serializable {
     private String partner;
     private String type;
     private  String value;
-    private Date validFrom;
-    private Date validTo;
+    private String validFrom;
+    private String validTo;
 
 }
