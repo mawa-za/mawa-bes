@@ -12,4 +12,7 @@ import java.util.List;
 public interface TransactionAmountRepository extends JpaRepository<TransactionAmountEntity, TransactionAmountPKEntity> {
     @Query("SELECT t FROM TransactionAmountEntity t WHERE t.transactionAmountPKEntity.transaction = :transaction")
     List<TransactionAmountEntity> getTransactionAmounts(String transaction);
+
+    @Query("SELECT t FROM TransactionAmountEntity t WHERE t.transactionAmountPKEntity.transaction = :transaction AND t.transactionAmountPKEntity.type = :type")
+    TransactionAmountEntity getTransactionAmount(String transaction,String type);
 }

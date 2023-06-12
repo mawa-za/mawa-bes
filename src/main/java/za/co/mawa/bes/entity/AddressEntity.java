@@ -1,12 +1,18 @@
 package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.Date;
 
 @Entity
 @Table(name = "address")
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Getter
+@Setter
 public class AddressEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -35,101 +41,5 @@ public class AddressEntity implements Serializable {
     @Column(name = "valid_to")
     @Temporal(TemporalType.DATE)
     private Date validTo;
-
-    public AddressEntity() {
-    }
-
-    public AddressEntity(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public String getAddressLine1() {
-        return addressLine1;
-    }
-
-    public void setAddressLine1(String addressLine1) {
-        this.addressLine1 = addressLine1;
-    }
-
-    public String getAddressLine2() {
-        return addressLine2;
-    }
-
-    public void setAddressLine2(String addressLine2) {
-        this.addressLine2 = addressLine2;
-    }
-
-    public String getAddressLine3() {
-        return addressLine3;
-    }
-
-    public void setAddressLine3(String addressLine3) {
-        this.addressLine3 = addressLine3;
-    }
-
-    public String getAddressLine4() {
-        return addressLine4;
-    }
-
-    public void setAddressLine4(String addressLine4) {
-        this.addressLine4 = addressLine4;
-    }
-
-    public String getPostalCode() {
-        return postalCode;
-    }
-
-    public void setPostalCode(String postalCode) {
-        this.postalCode = postalCode;
-    }
-
-    public Date getValidFrom() {
-        return validFrom;
-    }
-
-    public void setValidFrom(Date validFrom) {
-        this.validFrom = validFrom;
-    }
-
-    public Date getValidTo() {
-        return validTo;
-    }
-
-    public void setValidTo(Date validTo) {
-        this.validTo = validTo;
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 0;
-        hash += (id != null ? id.hashCode() : 0);
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object object) {
-        // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof AddressEntity)) {
-            return false;
-        }
-        AddressEntity other = (AddressEntity) object;
-        if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    public String toString() {
-        return "za.raretag.mawa.entities.Address[ id=" + id + " ]";
-    }
 
 }

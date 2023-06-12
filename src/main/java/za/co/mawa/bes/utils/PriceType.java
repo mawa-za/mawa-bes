@@ -7,4 +7,8 @@ public class PriceType {
     public static String DISCOUNT_PERCENT = "DISCOUNT-PERCENT";
     public static String VAT_AMOUNT = "VAT-AMOUNT";
     public static String VAT_PERCENT = "VAT-PERCENT";
+    public static String SELLING_PRICE = "SELLING-PRICE";
+    public static String AMOUNT_COLLECTED = "AMOUNT-COLLECTED";
+    public static String AMOUNT_DEPOSITED = "AMOUNT-DEPOSITED";
+    public static String PAYMENT_AMOUNT = "PAYMENT-AMOUNT";
 }

@@ -12,4 +12,6 @@ import java.util.List;
 public interface TransactionItemRepository extends JpaRepository<TransactionItemEntity, TransactionItemPKEntity> {
     @Query("SELECT t FROM TransactionItemEntity t WHERE t.transactionItemPKEntity.transaction = :transaction")
     List<TransactionItemEntity> getTransactionItems(String transaction);
+    @Query("SELECT t FROM TransactionItemEntity t WHERE t.transactionItemPKEntity.transaction = :transaction AND product = :product")
+    TransactionItemEntity getTransactionItem(String transaction,String product);
 }

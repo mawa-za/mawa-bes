@@ -11,5 +11,8 @@ import java.io.Serializable;
 public class UserQueryDto implements Serializable {
     private String email;
     private String cellphone;
-    private String partner;
+    private String partnerId;
+    private String passwordStatus;
+    private String status;
+    private String userType;
 }

@@ -1,42 +1,25 @@
 package za.co.mawa.bes.dto;
 
-import java.io.Serializable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.io.Serializable;
+import java.util.Date;
+
+@NoArgsConstructor
+@Getter
+@Setter
 public class ContactDto implements Serializable {
     private String partner;
     private String type;
     private String detail;
     private String typeDescription;
 
-    public String getPartner() {
-        return partner;
-    }
+    private Date validFrom;
 
-    public void setPartner(String partner) {
-        this.partner = partner;
-    }
+    private Date validTo;
+    private  String value;
 
-    public String getType() {
-        return type;
-    }
 
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getDetail() {
-        return detail;
-    }
-
-    public void setDetail(String detail) {
-        this.detail = detail;
-    }
-
-    public String getTypeDescription() {
-        return typeDescription;
-    }
-
-    public void setTypeDescription(String typeDescription) {
-        this.typeDescription = typeDescription;
-    }
 }

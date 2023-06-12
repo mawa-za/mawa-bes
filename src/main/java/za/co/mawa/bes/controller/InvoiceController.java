@@ -16,30 +16,26 @@ import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.service.InvoiceService;
-import za.co.mawa.bes.service.PricingService;
-import za.co.mawa.bes.service.ProductService;
-import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @RestController
-@RequestMapping(value = "invoice")
 @CrossOrigin
+@RequestMapping(value = "invoice")
 public class InvoiceController {
     @Autowired
     TransactionService transactionService;
     Gson gson = new Gson();
     @Autowired
-    ProductService productService;
-    @Autowired
     PricingService pricingService;
     @Autowired
-    @Qualifier("items")
-    ItemsController itemsController;
+    LineItemService lineItemService;
     @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
         try {
@@ -47,11 +43,20 @@ public class InvoiceController {
             transactionCreateDto.setType(TransactionType.INVOICE);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(transactionDto.getId());
-            creationDate.setType(DateType.CREATED);
-            creationDate.setValue(new Date());
-            transactionService.addDate(creationDate);
+            if (invoiceCreateDto.getInvoiceDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.INVOICE_DATE);
+                transactionDateDto.setValue(invoiceCreateDto.getInvoiceDate());
+                transactionService.addDate(transactionDateDto);
+            }
+            if (invoiceCreateDto.getDueDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.DUE_DATE);
+                transactionDateDto.setValue(invoiceCreateDto.getDueDate());
+                transactionService.addDate(transactionDateDto);
+            }
 
             if (invoiceCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -63,8 +68,7 @@ public class InvoiceController {
             if (!invoiceCreateDto.getItems().isEmpty()) {
                 PricingDto pricingDto = pricingService.calculate(invoiceCreateDto.getItems());
                 for (LineItemDto lineItemDto : pricingDto.getItems()) {
-                    itemsController.post(transactionDto.getId(),lineItemDto);
-
+                    lineItemService.add(transactionDto.getId(),lineItemDto);
                 }
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
@@ -96,7 +100,7 @@ public class InvoiceController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT)
     public ResponseEntity<?> editInvoice(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
         try {
-            transactionService.edit(transactionDto);
+            //transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -113,30 +117,42 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/{id}/items")
-    public ItemsController getItemsController(@PathVariable String id) {
-        return itemsController;
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.GET)
+    public ResponseEntity<?>  getItems(@PathVariable String id) {
+        try {
+            List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
+            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
-//    @RequestMapping(value = "{id}/items", method = RequestMethod.GET)
-//    public ResponseEntity<?> getItems(@PathVariable String id) {
-//        try {
-//            ItemsController itemsController = ItemsController.getInstance(id);
-//            return ResponseEntity.ok(gson.toJson(itemsController.getAll()));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
-//
-//    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
-//    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
-//        try {
-//            ItemsController itemsController = ItemsController.getInstance(id);
-//            itemsController.post(lineItemDto);
-//            return ResponseEntity.ok().build();
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
+    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+        try {
+            lineItemService.add(id,lineItemDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 
+    @RequestMapping(value = "{id}/items", method = RequestMethod.PUT)
+    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+        try {
+            lineItemService.edit();
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE)
+    public ResponseEntity<?>  deleteItem(@PathVariable String id) {
+        try {
+            lineItemService.delete(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 }

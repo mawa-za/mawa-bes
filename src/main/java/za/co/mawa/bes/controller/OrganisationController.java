@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.OrganizationDto;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.service.OrganizationService;
+import za.co.mawa.bes.service.PartnerService;
 
 @RestController
 @CrossOrigin
@@ -27,6 +28,8 @@ public class OrganisationController {
     PartnerAddressRepository partnerAddressRepository;
     @Autowired
     PartnerAttachmentRepository partnerAttachmentRepository;
+    @Autowired
+    PartnerService partnerService;
     @RequestMapping(value = "/Organization", method = RequestMethod.POST)
     public ResponseEntity<?> postOrganization (@RequestBody OrganizationDto organizationDto){
         try{
@@ -37,12 +40,21 @@ public class OrganisationController {
     }
 
     @RequestMapping(value = "/Organization", method = RequestMethod.GET)
-         public ResponseEntity<?> getProducts() {
+         public ResponseEntity<?> getOrganizations() {
               try {
-                  return ResponseEntity.ok(gson.toJson(organizationService.getOrganization()));
+                  return ResponseEntity.ok(gson.toJson(organizationService.getOrganizations()));
              } catch (Exception exception) {
                   return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
               }
+    }
+
+    @RequestMapping(value = "/Organization/{id}", method = RequestMethod.GET)
+    public ResponseEntity<?> getSpecificOrg(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(organizationService.getSpecOrganization(id)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
     }
 
     @RequestMapping(value = "/Organization{id}/Roles", method = RequestMethod.GET)

@@ -11,8 +11,15 @@ import java.util.List;
 public interface TransactionRepository extends JpaRepository<TransactionEntity,String> {
     @Query(value = "SELECT * FROM transaction t WHERE t.type = :type", nativeQuery = true)
     List<TransactionEntity> findTransactionByType(String type);
-
     @Query(value = "SELECT * FROM transaction t WHERE t.status = :status", nativeQuery = true)
     List<TransactionEntity> findTransactionByStatus(String status);
+    @Query(value = "SELECT * FROM transaction t WHERE t.sub_type = :subType", nativeQuery = true)
+    List<TransactionEntity> findTransactionBySubType(String subType);
+    @Query(value = "SELECT * FROM transaction t WHERE t.number = :number", nativeQuery = true)
+    List<TransactionEntity> findTransactionByNumber(String number);
+    @Query(value = "SELECT * FROM transaction t WHERE t.created_by = :createdBy AND t.type = :type", nativeQuery = true)
+    List<TransactionEntity> findTransactionByCreatedBy(String createdBy,String type);
+    @Query(value = "SELECT * FROM transaction t WHERE t.changed_by = :changedBy AND t.type = :type", nativeQuery = true)
+    List<TransactionEntity> findTransactionByChangedBy(String changedBy,String type);
 
 }

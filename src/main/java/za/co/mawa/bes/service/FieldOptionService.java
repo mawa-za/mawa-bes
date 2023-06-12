@@ -3,19 +3,19 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.FieldOptionDao;
+import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.entity.FieldEntity;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.FieldOptionPKEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.FieldRepository;
+import za.co.mawa.bes.utils.Conversion;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class FieldOptionService implements FieldOptionDao {
@@ -56,7 +56,9 @@ public class FieldOptionService implements FieldOptionDao {
             FieldDto fieldDto = new FieldDto();
             fieldDto.setCode(fieldEntity.getCode());
             fieldDto.setDescription(fieldEntity.getDescription());
-            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription()));
+            fieldDto.setValidFrom(fieldEntity.getValidFrom());
+            fieldDto.setValidTo(fieldEntity.getValidTo());
+            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription(),fieldDto.getValidFrom(),fieldDto.getValidTo()));
         }
         return fieldDtoList;
     }
@@ -67,12 +69,66 @@ public class FieldOptionService implements FieldOptionDao {
         FieldOptionPKEntity pk = new FieldOptionPKEntity();
         pk.setCode(code);
         pk.setField(field);
-        FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
-        if (fieldOption != null) {
-            return fieldOption.getDescription();
+        Optional<FieldOptionEntity> fieldOption = fieldOptionRepository.findById(pk);
+        if (!fieldOption.isEmpty()) {
+            return fieldOption.get().getDescription();
         } else {
             return null;
         }
+    }
+
+    @Override
+    public String getOptionalFieldDescription(String field, String code) {
+
+        FieldOptionPKEntity pk = new FieldOptionPKEntity();
+        pk.setCode(code);
+        pk.setField(field);
+        Optional<FieldOptionEntity> fieldEntity = fieldOptionRepository.findById(pk);
+        FieldOptionEntity fieldOption = fieldEntity.orElse(null);
+
+        if(fieldOption != null)
+        {
+            return fieldOption.getDescription();
+        }
+        return null;
+    }
+
+    @Override
+    public FieldDto createField(FieldCreateDto Field) {
+        try{
+            FieldEntity entity = new FieldEntity();
+            entity.setDescription(Field.getDescription());
+            entity.setCode(Field.getDescription().toUpperCase().replace(" ","-"));
+            if(Field.getValidTo() != null && Field.getValidTo() != "") {
+                entity.setValidTo(Field.getValidTo());
+            }
+            else{
+                entity.setValidTo("9999-12-31");
+            }
+            if(Field.getValidFrom() != null && Field.getValidFrom() != "") {
+                entity.setValidFrom(Field.getValidFrom());
+            }
+            else{
+                entity.setValidFrom(Conversion.dateToString(new Date()));
+            }
+            return  entityFieldToDto(fieldRepository.save(entity));
+        }catch(Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean deleteFieldOption(String field, String option) throws Exception {
+        try{
+            FieldOptionPKEntity pkEntity = new FieldOptionPKEntity();
+            pkEntity.setField(field);
+            pkEntity.setCode(option);
+            fieldOptionRepository.deleteById(pkEntity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+
     }
 
     private FieldOptionDto entityToDto(FieldOptionEntity fieldOptionEntity) {
@@ -83,6 +139,14 @@ public class FieldOptionService implements FieldOptionDao {
         fieldOptionDto.setValidFrom(fieldOptionEntity.getValidFrom());
         fieldOptionDto.setValidTo(fieldOptionEntity.getValidTo());
         return fieldOptionDto;
+    }
+    private FieldDto entityFieldToDto(FieldEntity fieldEntity) {
+        FieldDto fieldDto = new FieldDto();
+        fieldDto.setCode(fieldEntity.getCode());
+        fieldDto.setDescription(fieldEntity.getDescription());
+        fieldDto.setValidFrom(fieldEntity.getValidFrom());
+        fieldDto.setValidTo(fieldEntity.getValidTo());
+        return fieldDto;
     }
 
     private FieldOptionEntity dtoToEntity(FieldOptionDto fieldOptionDto) {

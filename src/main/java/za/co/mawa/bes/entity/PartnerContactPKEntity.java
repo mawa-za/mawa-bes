@@ -8,7 +8,7 @@ import java.io.Serializable;
 public class PartnerContactPKEntity implements Serializable {
     @Basic(optional = false)
     //@NotNull
-    @Column(name = "partner", length = 20)
+    @Column(name = "partner")
     private String partner;
     @Basic(optional = false)
     //@NotNull

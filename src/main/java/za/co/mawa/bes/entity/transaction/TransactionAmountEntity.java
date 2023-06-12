@@ -20,6 +20,10 @@ public class TransactionAmountEntity implements Serializable {
     protected TransactionAmountPKEntity transactionAmountPKEntity;
     @Column(name = "amount")
     private BigDecimal amount;
+    @Column(name = "created_by")
+    private String createdBy;
+    @Column(name = "changed_by")
+    private String changedBy;
 
     public TransactionAmountEntity(TransactionAmountDto transactionAmountDto) {
         this.transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());

@@ -28,6 +28,8 @@ public class ProductEntity implements Serializable {
     private String description;
     @Column(name = "category")
     private String category;
+    @Column(name = "uom")
+    private String uom;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)
     private Date validFrom;
