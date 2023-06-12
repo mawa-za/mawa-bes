@@ -79,4 +79,5 @@ public interface PartnerDao {
     ArrayList<RoleDto> getPartnerRoles(String id) throws Exception;
     void addPartnersRole(RolePartnerDto rolePartnerDto) throws Exception;
     boolean deleteRoles(PartnerRolePKEntity rolePKEntity) throws Exception;
+    boolean editPartner(PartnerEditDto editDto,String id) throws Exception;
 }

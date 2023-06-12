@@ -10,9 +10,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class PersonDto {
-
-
-
     public PersonDto(PartnerDto partner) {
         if(partner.getNumber() != null)
         {
