@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.sales.order.SalesOrderCreateDto;
+import za.co.mawa.bes.dto.sales.order.SalesOrderEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
@@ -36,6 +37,7 @@ public class SalesOrderController {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.SALES_ORDER);
+            transactionCreateDto.setDescription(salesOrderCreateDto.getDescription());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -44,14 +46,28 @@ public class SalesOrderController {
             creationDate.setValue(new Date());
             transactionService.addDate(creationDate);
 
+            if (salesOrderCreateDto.getExpectedDate() != null) {
+                TransactionDateDto expectedDate = new TransactionDateDto();
+                creationDate.setTransaction(transactionDto.getId());
+                creationDate.setType(DateType.EXPECTED_DATE);
+                creationDate.setValue(new Date());
+                transactionService.addDate(expectedDate);
+            }
+
             if (salesOrderCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
                 transactionPartnerDto.setPartner(salesOrderCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-
+            if (salesOrderCreateDto.getSalesRepresentativeId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+                transactionPartnerDto.setPartner(salesOrderCreateDto.getSalesRepresentativeId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
             for (LineItemDto item: salesOrderCreateDto.getItems()) {
                 ProductDto productDto = productService.get(item.getProductId());
                 TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -89,9 +105,12 @@ public class SalesOrderController {
     }
 
     @RequestMapping(value = "/sales-order/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> editSalesOrder(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
+    public ResponseEntity<?> editSalesOrder(@PathVariable String id, @RequestBody SalesOrderEditDto salesOrderEditDto) {
         try {
-            transactionService.edit(transactionDto);
+            TransactionDto transactionDto = transactionService.get(id);
+            transactionDto.setStatus(salesOrderEditDto.getStatus());
+            transactionDto.setDescription(salesOrderEditDto.getDescription());
+            //transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

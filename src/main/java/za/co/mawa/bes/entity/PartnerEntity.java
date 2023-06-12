@@ -24,7 +24,7 @@ public class PartnerEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(unique = true, name = "no", length = 20)
+    @Column(unique = true, name = "number", length = 20)
     private String no;
     @Column(name = "birth_date")
     @Temporal(TemporalType.DATE)
@@ -55,5 +55,10 @@ public class PartnerEntity implements Serializable {
     private String status;
     @Column(name = "status_reason", length = 20)
     private String statusReason;
+    @Column(name = "created_by", length = 45)
+    private String createdBy;
+    @Column(name = "creation_date")
+    @Temporal(TemporalType.DATE)
+    private Date creationDate;
 
 }

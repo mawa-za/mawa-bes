@@ -13,5 +13,7 @@ import java.io.Serializable;
 public class FieldDto implements Serializable {
     private String code;
     private String description;
+    private String validFrom;
+    private String validTo;
 
 }

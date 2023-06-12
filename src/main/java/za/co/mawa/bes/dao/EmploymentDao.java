@@ -20,4 +20,6 @@ public interface EmploymentDao {
     List<EmploymentDto> getByOrg(String orgID);
     List<EmploymentDto> getByApprover(String approver);
 
+    boolean assignRole(EmploymentDto employmentDto);
+
 }

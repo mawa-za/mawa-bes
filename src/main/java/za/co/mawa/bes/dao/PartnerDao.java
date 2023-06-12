@@ -1,18 +1,23 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.dto.prospect.ProspectDto;
+import za.co.mawa.bes.dto.prospect.ProspectEditDto;
+import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
+import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.dto.PartnerQueryDto;
+import za.co.mawa.bes.exception.PartnerNotFound;
 
 import java.util.ArrayList;
 
 public interface PartnerDao {
     //String create(PartnerEntity partnerEntity);
-    String create(PartnerDto object);
-    boolean edit(PersonDto object);
+    PartnerDto create(PartnerDto object);
+    void edit(PersonDto object);
     PartnerEntity findById(String id);
-    PartnerDto get (String id);
+    PartnerDto get (String id) throws PartnerNotFound;
     boolean removeRole(String partner, String role);
     ArrayList<RelationDto> getRelationByPartner2(String partner2);
     ArrayList<PartnerDto> search(PartnerQueryDto pq);
@@ -29,9 +34,9 @@ public interface PartnerDao {
     boolean editContact(ContactDto contact);
     boolean editAddress(AddressDto adrs);
     boolean editRelation(RelationDto rltn);
-    boolean removeIdentity(IdentityDto idnt);
+    boolean removeIdentity(PartnerIdentityPKEntity pkEntity);
     boolean removeContact(ContactDto cntct);
-    boolean removeAddress(AddressDto adrs);
+    boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception;
     boolean removeRelation(RelationDto rltn);
     boolean archive(String id);
     boolean unArchive(String id);
@@ -42,14 +47,13 @@ public interface PartnerDao {
     ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj);
     boolean editBankAccount(PartnerBankAccountDto partnerBankAccount);
     PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
-    ArrayList<ValueDto> getPartnerRoles(String partner);
     String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound;
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
     PartnerResourceApiResultDto getResourceApi(String resource_id);
     boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
-    boolean addAttachment(AttachmentDto attachment);
-    boolean removeAttachment(AttachmentDto attachment);
-    ArrayList<AttachmentDto> getAttachments(String partner) throws Exception;
+    boolean addAttachment(PartnerAttachmentDto attachment);
+    boolean removeAttachment(PartnerAttachmentDto attachment);
+    ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception;
     boolean addDate(PartnerDateDto date);
     boolean editDate(PartnerDateDto date);
     PartnerDateDto getDate(String partnerNo, String dateType);
@@ -57,4 +61,22 @@ public interface PartnerDao {
     ArrayList<PartnerDateDto> getAllDates();
     ArrayList<RelationDto> getRelationByPartner1(String partner1);
     ArrayList<PartnerDto> getPartners (String partnerRole);
+    ProspectDto getProspect(String id) throws DoesNotExist;
+    ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception;
+    boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist,Exception;
+
+    PartnerDto getOptional(String id);
+    PartnerDto getPartner(String id);
+    ArrayList<ContactDto> getContacts(String partner);
+    boolean assignRole(String role, String id) throws PartnerNotFound;
+    ArrayList<AddressDto> getPartnerAddress(AddressQueryDto queryDto);
+    boolean editPartnerAddress(String id,AddressEditDto addressEditDto) throws Exception;
+    ArrayList<ContactGetDto> getPartnerContact(ContactQueryDto queryDto) throws Exception;
+    boolean removePartnerContact(PartnerContactPKEntity pkEntity) throws Exception;
+    boolean addPartnerContact(String id,ContactCreateDto contact) throws Exception;
+    ArrayList<IdentityDto> getPartnerIdentities(IdentityQueryDto queryDto) throws Exception;
+    boolean editPartnerIdentity(IdentityEditDto editDto,String type,String partner) throws Exception;
+    ArrayList<RoleDto> getPartnerRoles(String id) throws Exception;
+    void addPartnersRole(RolePartnerDto rolePartnerDto) throws Exception;
+    boolean deleteRoles(PartnerRolePKEntity rolePKEntity) throws Exception;
 }

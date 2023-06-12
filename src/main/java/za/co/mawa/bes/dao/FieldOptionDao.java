@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dao;
 
+import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
@@ -12,4 +13,8 @@ public interface FieldOptionDao {
 
     List<FieldDto> getFields();
     String getFieldOptionDescription(String field, String code);
+
+    String getOptionalFieldDescription(String field, String code);
+    FieldDto createField(FieldCreateDto Field);
+    boolean deleteFieldOption(String field,String option) throws Exception;
 }

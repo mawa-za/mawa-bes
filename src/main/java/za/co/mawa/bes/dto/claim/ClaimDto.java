@@ -3,6 +3,9 @@ package za.co.mawa.bes.dto.claim;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -10,15 +13,16 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ClaimDto implements Serializable {
-    private String id;
-    private String no;
-    private String claimant;
-    private String deceased;
-    private String member;
-    private String membership;
-    private String type;
+public class ClaimDto extends TransactionDto implements Serializable {
+    private String membershipId;
+    private String memberId;
+    private PersonDto member;
+    private String claimantId;
+    private PersonDto claimant;
+    private String deceasedId;
+    private PersonDto deceased;
+//    private Date creationDate;
     private Date deathDate;
     private Date burialDate;
-    private String status;
+
 }

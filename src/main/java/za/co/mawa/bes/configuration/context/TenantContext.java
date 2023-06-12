@@ -6,6 +6,9 @@ public abstract class TenantContext {
 
     private static ThreadLocal<String> currentTenant = new ThreadLocal<String>();
 
+    public static void setDefaultTenant() {
+        currentTenant.set(DEFAULT_TENANT_ID);
+    }
     public static void setCurrentTenant(String tenant) {
         currentTenant.set(tenant);
     }

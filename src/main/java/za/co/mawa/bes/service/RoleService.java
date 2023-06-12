@@ -7,12 +7,11 @@ import za.co.mawa.bes.dao.RoleDao;
 import za.co.mawa.bes.dto.RoleDto;
 import za.co.mawa.bes.dto.RoleWorkcenterDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
-import za.co.mawa.bes.entity.RoleEntity;
-import za.co.mawa.bes.entity.RoleWorkcenterEntity;
-import za.co.mawa.bes.entity.RoleWorkcenterPKEntity;
+import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
 import za.co.mawa.bes.repository.RoleRepository;
 import za.co.mawa.bes.repository.RoleWorkcenterRepository;
+import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 
@@ -28,6 +27,10 @@ public class RoleService implements RoleDao {
     RoleWorkcenterRepository roleWorkcenterRepository;
     @Autowired
     WorkcenterService workcenterService;
+    @Autowired
+    UserService userService;
+    @Autowired
+    UserRoleRepository userRoleRepository;
 
     @Override
     public void create(RoleDto roleDto) throws Exception {
@@ -80,6 +83,34 @@ public class RoleService implements RoleDao {
             roleWorkcenterRepository.save(roleWorkcenterEntity);
         } catch (Exception exception) {
             throw new Exception("Failed to add role:" + roleWorkcenterDto.toString());
+        }
+    }
+
+    @Override
+    public boolean deleteWorkcenter(RoleWorkcenterPKEntity entity) throws Exception {
+        try{
+            roleWorkcenterRepository.deleteById(entity);
+            return true;
+        }catch(Exception ex){
+           throw new RuntimeException(ex);
+        }
+    }
+    @Override
+    public boolean deleteRole(String role) throws Exception {
+        try{
+            roleRepository.deleteById(role);
+            for(WorkcenterDto workcenterRole :getRoleWorkcenters(role)){
+               RoleWorkcenterPKEntity entity = new RoleWorkcenterPKEntity();
+               entity.setRole(role);
+               entity.setWorkcenter(workcenterRole.getId());
+               deleteWorkcenter(entity);
+            }
+            for(UserRoleEntity userRole:userRoleRepository.findRoles(role)){
+                userService.deleteRole(userRole.getUserRolePKEntity());
+            }
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
         }
     }
 

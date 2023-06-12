@@ -5,10 +5,12 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
+import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.repository.EmploymentRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -28,6 +30,7 @@ public class EmploymentService implements EmploymentDao {
 
     @Autowired
     TransactionService transactionService;
+
     @Override
     public boolean terminate(EmploymentDto employee) {
         boolean processed = false;
@@ -126,11 +129,11 @@ public class EmploymentService implements EmploymentDao {
 
     @Override
     public List<EmploymentDto> getAll() {
-        List<EmploymentEntity> employess = employmentRepository.findAll();
+        List<EmploymentEntity> employees = employmentRepository.findAll();
         List<EmploymentDto> currentEmployment = new ArrayList<>();
 
-        if (!employess.isEmpty()) {
-            for (EmploymentEntity empDetails : employess) {
+        if (!employees.isEmpty()) {
+            for (EmploymentEntity empDetails : employees) {
                 EmploymentDto emp = get(empDetails.getEmploymentPK().getEmployeeId());
                 if (emp != null) {
                     currentEmployment.add(emp);
@@ -174,21 +177,41 @@ public class EmploymentService implements EmploymentDao {
 
     private EmploymentDto entityToObject(EmploymentEntity entity) {
         EmploymentDto object = new EmploymentDto();
-        object.setBranch(fieldOptionService.getFieldOptionDescription("BRANCH", entity.getBranch()));
-        object.setDepartment(fieldOptionService.getFieldOptionDescription("DEPARTMENT", entity.getDepartment()));
+
+        String branch = fieldOptionService.getOptionalFieldDescription("BRANCH", entity.getBranch());
+        if (branch != null) {
+            object.setBranch(branch);
+        }
+        String department = fieldOptionService.getOptionalFieldDescription("DEPARTMENT", entity.getDepartment());
+        if (department != null) {
+            object.setDepartment(department);
+        }
         object.setEmployeeId(entity.getEmploymentPK().getEmployeeId());
         object.setEndDate(Conversion.dateToString(entity.getEndDate()));
-        object.setPosition(fieldOptionService.getFieldOptionDescription("JOBTITLE", entity.getPosition()));
+        String title = fieldOptionService.getOptionalFieldDescription("JOBTITLE", entity.getPosition());
+        if (title != null) {
+            object.setPosition(title);
+        }
+
         object.setStartDate(Conversion.dateToString(entity.getEmploymentPK().getStartDate()));
         object.setStatus(StringConversion.capitalizeFully(entity.getStatus()));
-        object.setType(fieldOptionService.getFieldOptionDescription("EMPLOYMENTTYPE", entity.getType()));
+        String empType = fieldOptionService.getOptionalFieldDescription("EMPLOYMENTTYPE", entity.getType());
+        if (empType != null) {
+            object.setType(empType);
+        }
+
         ArrayList<RelationDto> partnerRelations = partnerService.getRelationByPartner2(object.getEmployeeId());
         if (!partnerRelations.isEmpty()) {
             for (RelationDto relation : partnerRelations) {
 
                 if (relation.getType().equals(PartnerFunction.EMPLOYEE)) {
                     object.setGroupID(relation.getPartner1());
-                    PartnerDto groupObject = partnerService.get(object.getGroupID());
+                    PartnerDto groupObject = null;
+                    try {
+                        groupObject = partnerService.get(object.getGroupID());
+                    } catch (PartnerNotFound e) {
+                        throw new RuntimeException(e);
+                    }
                     if (groupObject != null) {
                         object.setGroupName(groupObject.getName2());
                     }
@@ -263,18 +286,28 @@ public class EmploymentService implements EmploymentDao {
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setPartnerFunction(PartnerFunction.APPROVER);
         transactionQueryDto.setPartnerNo(approver);
-        List<TransactionDto> transactionDtos = transactionService.search(transactionQueryDto);
-        for(TransactionDto transactionDto : transactionDtos){
+        List<TransactionQueryResultDto> transactionDtos = transactionService.search(transactionQueryDto);
+        for (TransactionQueryResultDto transactionDto : transactionDtos) {
             List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartners(transactionDto.getId());
-            for(TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos){
-                if(transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)){
+            for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos) {
+                if (transactionPartnerDto.getFunction().equals(PartnerFunction.ASSIGNED_APPROVER)) {
                     EmploymentDto employmentDto = get(transactionPartnerDto.getPartner());
-                    if(employmentDto != null){
+                    if (employmentDto != null) {
                         currentEmployment.add(employmentDto);
                     }
                 }
             }
         }
         return currentEmployment;
+    }
+
+    @Override
+    public boolean assignRole(EmploymentDto employmentDto) {
+
+        if(employmentDto.getRole() != null)
+        {
+
+        }
+        return false;
     }
 }

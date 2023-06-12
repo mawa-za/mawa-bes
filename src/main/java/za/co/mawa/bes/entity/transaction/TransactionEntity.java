@@ -50,7 +50,7 @@ public class TransactionEntity implements Serializable {
     @Lob
     @Column(name = "sub_description")
     private String subDescription;
-    @Column(name = "createdBy")
+    @Column(name = "created_by")
     private String createdBy;
     @Column(name = "changedBy")
     private String changedBy;

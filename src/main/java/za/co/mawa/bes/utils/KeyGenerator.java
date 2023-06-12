@@ -5,4 +5,7 @@ import java.security.Key;
 public interface KeyGenerator {
 
     Key generateKey(String keyString);
+
+    String generateUUID();
+    String generatePassword();
 }

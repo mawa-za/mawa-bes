@@ -9,9 +9,9 @@ import za.co.mawa.bes.entity.PartnerRelationPKEntity;
 import java.util.List;
 @Repository
 public interface PartnerRelationRepository extends JpaRepository<PartnerRelationEntity, PartnerRelationPKEntity> {
-    @Query(value = "SELECT p FROM PartnerRelation p WHERE p.partnerRelationPK.partner2 = :partner2", nativeQuery = true)
+    @Query("SELECT p FROM PartnerRelationEntity p WHERE p.partnerRelationPK.partner2 = :partner2")
     List<PartnerRelationEntity> findPartnerRelationByPartner2(String partner2);
 
-    @Query(value = "SELECT p FROM PartnerRelation p WHERE p.partnerRelationPK.partner1 = :partner1", nativeQuery = true)
+    @Query("SELECT p FROM PartnerRelationEntity p WHERE p.partnerRelationPK.partner1 = :partner1")
     List<PartnerRelationEntity> findPartnerRelationByPartner1(String partner1);
 }

@@ -3,6 +3,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.WorkcenterDto;
@@ -21,7 +22,7 @@ public class WorkcenterController {
     @Autowired
     WorkcenterService workcenterService;
     Gson gson = new Gson();
-    @RequestMapping(value = "/workcenter", method = RequestMethod.GET)
+    @RequestMapping(value = "/workcenter", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getWorkcenters() {
         return ResponseEntity.ok(gson.toJson(workcenterService.getAll()));
     }
