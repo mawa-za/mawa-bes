@@ -1684,8 +1684,8 @@ public class PartnerService implements PartnerDao {
             contactPartner.setType(contact.getPartnerContactPK().getType());
             contactPartner.setPartner(contact.getPartnerContactPK().getPartner());
             contactPartner.setValue(contact.getValue());
-            contactPartner.setValidFrom(contact.getValidFrom());
-            contactPartner.setValidTo(contact.getValidTo());
+            contactPartner.setValidFrom(Conversion.dateToString(contact.getValidFrom()));
+            contactPartner.setValidTo(Conversion.dateToString(contact.getValidTo()));
             contacts.add(contactPartner);
 
         }
