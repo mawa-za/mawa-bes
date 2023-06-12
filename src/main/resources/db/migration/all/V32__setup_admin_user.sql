@@ -1,0 +1,32 @@
+INSERT INTO `mawa`.`role` (`id`, `description`, `valid_from`, `valid_to`) VALUES ('SYSADMIN', 'System Administrator', '2023-06-12', '9999-12-31');
+
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'dashboard', '1');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'home', '2');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'prospect', '3');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'customer', '4');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'organisation', '5');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'sales-order', '6');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'invoice', '7');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'purchase-order', '8');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'service-request', '9');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'service-order', '10');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'leave-request', '11');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'leave-approval', '12');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'employee', '13');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'quotation', '14');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'claim', '15');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'membership', '16');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'product', '17');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'complaint', '18');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'identify-customer', '19');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'interaction-record', '20');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'calendar', '21');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'appointment', '22');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'time-tracker', '23');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'company-setup', '24');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'system-configuration', '25');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'report', '26');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'user', '27');
+INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'receipt', '28');
+
+INSERT INTO `mawa`.`user_role` (`role`, `user`, `valid_from`, `valid_to`) VALUES ('SYSADMIN', 'admin', '2023-06-12', '9999-12-31');
