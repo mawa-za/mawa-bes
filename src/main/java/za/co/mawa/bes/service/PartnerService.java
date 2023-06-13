@@ -1811,6 +1811,44 @@ public class PartnerService implements PartnerDao {
         }
     }
 
+    @Override
+    public boolean editPartner(PartnerEditDto editDto, String id) throws Exception {
+        try{
+            PartnerEntity entity = partnerRepository.getById(id);
+            if(entity != null){
+                if(editDto.getGender() != null && editDto.getGender() != ""){
+                    entity.setGender(editDto.getGender());
+                }
+                if(editDto.getMaritalStatus() != null && editDto.getMaritalStatus() != ""){
+                    entity.setMaritalStatus(editDto.getMaritalStatus());
+                }
+                if(editDto.getTitle() != null && editDto.getTitle() != ""){
+                    entity.setTitle(editDto.getTitle());
+                }
+                if(editDto.getLastName() != null && editDto.getLastName() != ""){
+                    entity.setName1(editDto.getLastName());
+                }
+                if(editDto.getFirstName() != null && editDto.getFirstName() != ""){
+                    entity.setName2(editDto.getFirstName());
+                }
+                if(editDto.getMiddleName() != null && editDto.getMiddleName() != ""){
+                    entity.setName3(editDto.getMiddleName());
+                }
+                if(editDto.getDateOfBirth() != null && editDto.getDateOfBirth() != ""){
+                    entity.setBirthDate(Conversion.stringToDate(editDto.getDateOfBirth()));
+                }
+                partnerRepository.save(entity);
+                return true;
+            }
+            else{
+                throw new PartnerNotFound();
+            }
+        }catch(Exception ex){
+            throw new RuntimeException(ex);
+        }
+
+    }
+
     private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();

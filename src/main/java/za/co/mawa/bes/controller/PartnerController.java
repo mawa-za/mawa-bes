@@ -338,4 +338,13 @@ public class PartnerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "{id}",method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editPartner(@PathVariable String id,@RequestBody PartnerEditDto editPartner){
+        try{
+            return ResponseEntity.ok(gson.toJson(gson.toJson(partnerService.editPartner(editPartner,id))));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
 }
