@@ -194,7 +194,7 @@ public class PartnerService implements PartnerDao {
             object.setLanguage(language);
         }
         object.setValidFrom(Conversion.dateToString(partner.getValidFrom()));
-        object.setType(partner.getType());
+        object.setType(StringConversion.capitalizeFully(partner.getType()));
         object.setValidTo(Conversion.dateToString(partner.getValidTo()));
         PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
         if (partnerIdentity != null) {
@@ -1635,7 +1635,10 @@ public class PartnerService implements PartnerDao {
             addressDto.setPartner(address.getPartnerAddressPK().getPartner());
             addressDto.setType(address.getPartnerAddressPK().getAddressUsage());
             addressDto.setId(address.getPartnerAddressPK().getAddressId());
-
+            String AddressType = fieldOptionService.getOptionalFieldDescription("ADDRESSES", address.getPartnerAddressPK().getAddressUsage());
+            if(AddressType != null){
+                addressDto.setTypeDescription(AddressType);
+            }
             AddressEntity address1 = new AddressEntity();
             address1 = addressRepository.getById(Integer.toString(address.getPartnerAddressPK().getAddressId()));
             addressDto.setLine1(address1.getAddressLine1());
