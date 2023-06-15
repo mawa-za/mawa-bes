@@ -27,10 +27,7 @@ import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @RestController
 @CrossOrigin
@@ -130,6 +127,18 @@ public class MembershipController {
             TransactionDto transactionDto = transactionService.get(id);
             if(transactionDto.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP))
             {
+                String productId = null;
+                for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
+                   int number =  item.getValidTo().compareTo(new Date());
+                 if(number == 1){
+                    productId = item.getProduct();
+                 }
+                }
+               ProductDto productDto =  productService.getOptionalById(productId);
+                if(productDto != null)
+                {
+                    transactionDto.setProductDetails(productDto);
+                }
                 return ResponseEntity.ok(gson.toJson(transactionDto));
             }
             else {

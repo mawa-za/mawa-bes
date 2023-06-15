@@ -19,4 +19,7 @@ public class ProspectDto implements Serializable{
     private String firstName;
     private String middleName;
     private String organisationName;
+    private String validTo;
+    private String validFrom;
+    private String status;
 }

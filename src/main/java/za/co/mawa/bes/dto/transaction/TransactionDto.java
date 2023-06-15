@@ -6,6 +6,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
+import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 
 import java.io.Serializable;
@@ -43,6 +44,7 @@ public class TransactionDto implements Serializable {
     private PricingDto pricing;
    private  List<ClaimDto> claimDtoList;
     private MembershipDto membershipHolder;
+    private ProductDto productDetails;
 
 
     public TransactionDto(TransactionEntity transactionEntity) {

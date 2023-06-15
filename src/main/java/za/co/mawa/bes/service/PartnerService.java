@@ -1885,7 +1885,9 @@ public class PartnerService implements PartnerDao {
                     }
                 }
             }
-
+            prospectDto.setStatus(partnerEntity.getStatus());
+            prospectDto.setValidTo(Conversion.dateToString(partnerEntity.getValidTo()));
+            prospectDto.setValidFrom(Conversion.dateToString(partnerEntity.getValidFrom()));
             return prospectDto;
         } catch (Exception e) {
             throw new Exception();
