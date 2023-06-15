@@ -45,6 +45,8 @@ public class TransactionService implements TransactionDao {
     @Autowired
     UserService userService;
     @Autowired
+    FieldOptionService fieldOptionService;
+    @Autowired
     PricingService pricingService;
     @Autowired
     ProductService productService;
@@ -727,6 +729,19 @@ public class TransactionService implements TransactionDao {
                         .filter(Objects::nonNull)
                         .map(partnerDto -> {
                             DependentDto dependentDto = new DependentDto();
+                            dependentDto.setId(partnerDto.getId());
+                            if (partnerDto.getTitle() != null) {
+                                String title = fieldOptionService.getOptionalFieldDescription("TITLE", partnerDto.getTitle());
+                                if(title != null){
+                                    dependentDto.setTitle(title);
+                                }
+                            }
+                            if (partnerDto.getGender() != null) {
+                                String gender = fieldOptionService.getOptionalFieldDescription("GENDER", partnerDto.getGender());
+                                if(gender != null){
+                                    dependentDto.setGender(gender);
+                                }
+                            }
                             dependentDto.setIdType(partnerDto.getIdType());
                             dependentDto.setIdNumber(partnerDto.getIdNumber());
                             dependentDto.setLastName(partnerDto.getName1());
