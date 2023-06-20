@@ -1,5 +1,7 @@
 package za.co.mawa.bes.repository;
 
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +14,7 @@ import java.util.List;
 @Repository
 public interface EmploymentRepository extends JpaRepository<EmploymentEntity, EmploymentPKEntity> {
     @Query("SELECT e FROM EmploymentEntity e WHERE e.employmentPK.employeeId = :employeeId")
- List<EmploymentEntity> findEmploymentById(@Param("employeeId") String employeeId);
+    List<EmploymentEntity> findEmploymentById(@Param("employeeId") String employeeId);
+    List<EmploymentEntity> findAll(Specification<EmploymentEntity> byCriteria, Sort sort);
 
 }

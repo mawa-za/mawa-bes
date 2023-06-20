@@ -9,14 +9,10 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @Setter
-public class EmploymentDto implements Serializable {
-    private String employeeId;
-    private PartnerDto employee;
+public class EmploymentEditDto implements Serializable {
     private String type;
-    private String startDate;
     private String endDate;
     private String position;
-    private String status;
     private String branch;
     private String department;
 }
