@@ -59,6 +59,7 @@ public class EmploymentService implements EmploymentDao {
                     partnerService.removeRole(id,RoleType.EMPLOYEE);
                 }
                 return true;
+
             }
             else{
                 throw new DoesNotExist();
@@ -275,6 +276,7 @@ public class EmploymentService implements EmploymentDao {
         }
     }
 
+
     @Override
     public ArrayList<PartnerDto> getEmployees() throws Exception {
         try{
@@ -289,7 +291,6 @@ public class EmploymentService implements EmploymentDao {
         }
 
     }
-
     private Specification<EmploymentEntity> findByCriteria(EmploymentSearchDto searchDto){
         return(root,query,cb) ->{
             Predicate predicate = cb.conjunction();
