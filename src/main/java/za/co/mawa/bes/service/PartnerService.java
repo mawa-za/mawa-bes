@@ -1552,6 +1552,7 @@ public class PartnerService implements PartnerDao {
         PartnerDto partnerDto = new PartnerDto();
         if (partner != null) {
             partnerDto.setId(partner.getId());
+            partnerDto.setNumber(partner.getNo());
             partnerDto.setBirthDate(String.valueOf(partner.getBirthDate()));
             partnerDto.setName1(partner.getName1());
             partnerDto.setName2(partner.getName2());
