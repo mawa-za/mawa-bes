@@ -4,9 +4,7 @@ import org.hibernate.usertype.UserType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.SupplierDao;
-import za.co.mawa.bes.dto.IdentityDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.SupplierDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.user.UserCreateDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.dto.user.UserQueryDto;
@@ -35,9 +33,9 @@ public class SupplierService implements SupplierDao {
         if (supplierDto.getUsername() != null) {
             UserDto userDto = userService.getUserByName(supplierDto.getUsername());
 
-            if (userDto.getId() != null) {
+            if (userDto.getPartner() != null) {
                 try {
-                    PartnerDto partnerDto = partnerService.get(userDto.getId());
+                    PartnerDto partnerDto = partnerService.get(userDto.getPartner());
                     if (partnerDto.getId() != null) {
                         userRoleDto.setUser(supplierDto.getUsername());
                         userRoleDto.setRole(RoleType.SUPPLIER);
@@ -49,31 +47,6 @@ public class SupplierService implements SupplierDao {
                     throw new PartnerNotFound("Partner Not found");
                 }
 
-            }
-        } else {
-
-            if (supplierDto.getPartnerId() != null) {
-
-
-                PartnerDto partnerDto = partnerService.getOptional(supplierDto.getPartnerId());
-                if (partnerDto.getId() != null) {
-                    UserQueryDto query = new UserQueryDto();
-                    query.setPartnerId(partnerDto.getId());
-                    for(UserDto user :userService.getAll(query)){
-                        userRoleDto.setUser(user.getUsername());
-                        userRoleDto.setRole(RoleType.SUPPLIER);
-                        userService.addRole(userRoleDto);
-                        partnerService.addRole(supplierDto.getPartnerId(), RoleType.SUPPLIER);
-                        assign = true;
-                    }
-
-                } else {
-                    throw new PartnerNotFound("Partner not found");
-                }
-
-
-            } else {
-                throw new Exception();
             }
         }
 
@@ -97,10 +70,22 @@ public class SupplierService implements SupplierDao {
                                 try {
                                     UserQueryDto query = new UserQueryDto();
                                     query.setPartnerId(partnerDto.getId());
-                                    for(UserDto user :userService.getAll(query)){
-                                        userDto = user;
+                                    for (UserDto user : userService.getAll(query)) {
+                                        List<String> userRoles = userService.getRoles(user.getUsername());
+                                        if (!userRoles.isEmpty()) {
+
+                                            for (String userRole : userRoles) {
+                                                if (userRole.equals(RoleType.SUPPLIER)) {
+                                                    userDto = user;
+                                                    break;
+                                                }
+
+                                            }
+                                            break;
+                                        }
+
                                     }
-                                   // userDto = userService.getUserByID(partnerDto.getId());
+                                    // userDto = userService.getUserByID(partnerDto.getId());
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
@@ -122,6 +107,19 @@ public class SupplierService implements SupplierDao {
                                                             supplier.setMiddleName(partnerDto.getName3());
                                                             supplier.setLastName(partnerDto.getName1());
                                                         }
+                                                        ArrayList<AddressDto> addressDtos = partnerService.getAddresses(partnerDto.getId());
+                                                        if (!addressDtos.isEmpty()) {
+                                                            supplier.setAddressDto(addressDtos);
+                                                        }
+                                                        ArrayList<ContactDto> contacts = partnerService.getContacts(partnerDto.getId());
+                                                        if (!contacts.isEmpty()) {
+                                                            supplier.setContactDto(contacts);
+                                                        }
+                                                        ArrayList<IdentityDto> Identities = partnerService.getIdentities(partnerDto.getId());
+
+                                                        if (!Identities.isEmpty()) {
+                                                            supplier.setIdentityDto(Identities);
+                                                        }
                                                         return supplier;
                                                     })
                                                     .orElse(null);
@@ -135,4 +133,72 @@ public class SupplierService implements SupplierDao {
 
         return supplierDto;
     }
+
+    @Override
+    public List<SupplierDto> getAll() {
+        boolean userSupplier = false;
+
+        List<SupplierDto> supplierDtoList = new ArrayList<>();
+        PartnerQueryDto query = new PartnerQueryDto();
+        query.setRole(RoleType.SUPPLIER);
+        UserDto userDto = new UserDto();
+        ArrayList<PartnerDto> supplies = partnerService.search(query);
+        if (!supplies.isEmpty()) {
+            for (PartnerDto partner : supplies) {
+                SupplierDto supplierDto = new SupplierDto();
+                UserQueryDto queryUser = new UserQueryDto();
+                queryUser.setPartnerId(partner.getId());
+                for (UserDto user : userService.getAll(queryUser)) {
+
+                    List<String> userRoles = userService.getRoles(user.getUsername());
+
+                    if (!userRoles.isEmpty()) {
+                        for (String userRole : userRoles) {
+                            if (userRole.equals(RoleType.SUPPLIER)) {
+
+                                supplierDto.setUsername(user.getUsername());
+                                supplierDto.setSupplierType(partner.getType());
+                                supplierDto.setPartnerId(partner.getId());
+                                if (partner.getType().equals(PartnerType.ORGANIZATION)) {
+                                    supplierDto.setOrganizationName(partner.getName1());
+                                } else {
+
+                                    supplierDto.setFirstName(partner.getName2());
+                                    supplierDto.setMiddleName(partner.getName3());
+                                    supplierDto.setLastName(partner.getName1());
+
+                                }
+                                ArrayList<AddressDto> addressDtos = partnerService.getAddresses(partner.getId());
+                                if (!addressDtos.isEmpty()) {
+                                    supplierDto.setAddressDto(addressDtos);
+                                }
+                                ArrayList<ContactDto> contacts = partnerService.getContacts(partner.getId());
+                                if (!contacts.isEmpty()) {
+                                    supplierDto.setContactDto(contacts);
+                                }
+
+                                ArrayList<IdentityDto> Identities = partnerService.getIdentities(partner.getId());
+
+                                if (!Identities.isEmpty()) {
+                                    supplierDto.setIdentityDto(Identities);
+                                }
+                                supplierDtoList.add(supplierDto);
+                                break;
+                            }
+
+                        }
+                        break;
+                    }
+
+                }
+
+
+//
+
+            }
+        }
+        return supplierDtoList;
+    }
+
+
 }
