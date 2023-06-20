@@ -12,9 +12,11 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
+import za.co.mawa.bes.entity.PartnerRoleEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.repository.EmploymentRepository;
+import za.co.mawa.bes.repository.PartnerRoleRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.util.ArrayList;
@@ -25,6 +27,8 @@ import java.util.List;
 public class EmploymentService implements EmploymentDao {
     @Autowired
     EmploymentRepository employmentRepository;
+    @Autowired
+    PartnerRoleRepository partnerRoleRepository;
     @Autowired
     PartnerService partnerService;
 
@@ -270,6 +274,22 @@ public class EmploymentService implements EmploymentDao {
             throw new RuntimeException(ex);
         }
     }
+
+    @Override
+    public ArrayList<PartnerDto> getEmployees() throws Exception {
+        try{
+            ArrayList<PartnerDto> employees = new ArrayList<>();
+            for(PartnerRoleEntity role:partnerRoleRepository.findPartnerByRole(RoleType.EMPLOYEE)){
+                PartnerDto partnerDto = partnerService.getOptional(role.getPartnerRolePK().getId());
+                employees.add(partnerDto);
+            }
+            return employees;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+
+    }
+
     private Specification<EmploymentEntity> findByCriteria(EmploymentSearchDto searchDto){
         return(root,query,cb) ->{
             Predicate predicate = cb.conjunction();

@@ -125,5 +125,12 @@ public class EmploymentController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-
+    @RequestMapping(value = "/employees", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public  ResponseEntity<?> getEmployees(){
+        try{
+            return ResponseEntity.ok(gson.toJson(employmentService.getEmployees()));
+        }catch(Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
 }
