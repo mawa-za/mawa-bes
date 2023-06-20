@@ -13,6 +13,7 @@ import java.util.Date;
 public class ContactGetDto implements Serializable {
     private String partner;
     private String type;
+    private String description;
     private  String value;
     private String validFrom;
     private String validTo;
