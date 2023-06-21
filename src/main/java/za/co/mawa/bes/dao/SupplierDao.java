@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface SupplierDao {
 
-    boolean assignSupplier(SupplierDto supplierDto) throws Exception;
+    String assignSupplier(SupplierDto supplierDto) throws Exception;
 
     SupplierDto getSupplier(String id) throws Exception;
 

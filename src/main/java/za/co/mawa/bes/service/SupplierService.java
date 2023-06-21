@@ -27,8 +27,8 @@ public class SupplierService implements SupplierDao {
     PartnerService partnerService;
 
     @Override
-    public boolean assignSupplier(SupplierDto supplierDto) throws Exception {
-        boolean assign = false;
+    public String assignSupplier(SupplierDto supplierDto) throws Exception {
+        String partnerId = "";
         UserRoleDto userRoleDto = new UserRoleDto();
         if (supplierDto.getUsername() != null) {
             UserDto userDto = userService.getUserByName(supplierDto.getUsername());
@@ -40,8 +40,8 @@ public class SupplierService implements SupplierDao {
                         userRoleDto.setUser(supplierDto.getUsername());
                         userRoleDto.setRole(RoleType.SUPPLIER);
                         userService.addRole(userRoleDto);
-                        partnerService.addRole(userDto.getId(), RoleType.SUPPLIER);
-                        assign = true;
+                        partnerService.addRole(userDto.getPartner(), RoleType.SUPPLIER);
+                        partnerId = userDto.getPartner() ;
                     }
                 } catch (Exception e) {
                     throw new PartnerNotFound("Partner Not found");
@@ -51,7 +51,7 @@ public class SupplierService implements SupplierDao {
         }
 
 
-        return assign;
+        return  partnerId ;
     }
 
     @Override
