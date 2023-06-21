@@ -100,7 +100,7 @@ public class OrganizationService implements OrganizationDao {
 
         try {
             PartnerDto partnerDto = partnerService.get(id);
-            if (partnerDto.getType().equals(PartnerType.ORGANIZATION)) {
+            if (partnerDto.getType().equalsIgnoreCase(PartnerType.ORGANIZATION)) {
                 return partnerDto;
             }
         } catch (Exception e) {

@@ -65,7 +65,13 @@ public class PartnerService implements PartnerDao {
 
         try {
             PartnerEntity entity = new PartnerEntity();
-            String partnerNo = numberRangeService.generateNumber(partnerDto.getType());
+            String partnerNo = "";
+            if(partnerDto.getType().equalsIgnoreCase(RoleType.ORGANIZATION)) {
+                partnerNo = numberRangeService.generateNumber(PartnerType.ORGANISATION);
+            }
+            else{
+                partnerNo = numberRangeService.generateNumber(partnerDto.getType());
+            }
             entity.setNo(partnerNo);
             entity.setType(partnerDto.getType().toUpperCase());
             if (partnerDto.getName1() != null) {
@@ -1888,7 +1894,7 @@ public class PartnerService implements PartnerDao {
             prospectDto.setId(partnerEntity.getId());
             prospectDto.setNumber(partnerEntity.getNo());
             if (partnerEntity.getType() != null) {
-                if (partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION)) {
+                if (partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANIZATION)) {
                     prospectDto.setOrganisationName(partnerEntity.getName1());
                 } else {
                     prospectDto.setFirstName(partnerEntity.getName2());

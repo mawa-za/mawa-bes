@@ -29,7 +29,7 @@ public class ProspectController {
         try {
             PartnerDto createDto = new PartnerDto();
             createDto.setType(prospectCreateDto.getPartnerType());
-            if(prospectCreateDto.getPartnerType().equalsIgnoreCase(PartnerType.ORGANISATION))
+            if(prospectCreateDto.getPartnerType().equalsIgnoreCase(PartnerType.ORGANIZATION))
             {
                 createDto.setName1(prospectCreateDto.getOrganisationName());
             }
