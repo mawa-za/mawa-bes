@@ -65,7 +65,13 @@ public class PartnerService implements PartnerDao {
 
         try {
             PartnerEntity entity = new PartnerEntity();
-            String partnerNo = numberRangeService.generateNumber(partnerDto.getType());
+            String partnerNo = "";
+            if(partnerDto.getType().equalsIgnoreCase(RoleType.ORGANIZATION)) {
+                partnerNo = numberRangeService.generateNumber(PartnerType.ORGANISATION);
+            }
+            else{
+                partnerNo = numberRangeService.generateNumber(partnerDto.getType());
+            }
             entity.setNo(partnerNo);
             entity.setType(partnerDto.getType().toUpperCase());
             if (partnerDto.getName1() != null) {
@@ -1552,6 +1558,7 @@ public class PartnerService implements PartnerDao {
         PartnerDto partnerDto = new PartnerDto();
         if (partner != null) {
             partnerDto.setId(partner.getId());
+            partnerDto.setNumber(partner.getNo());
             partnerDto.setBirthDate(String.valueOf(partner.getBirthDate()));
             partnerDto.setName1(partner.getName1());
             partnerDto.setName2(partner.getName2());
@@ -1644,6 +1651,14 @@ public class PartnerService implements PartnerDao {
             addressDto.setLine1(address1.getAddressLine1());
             addressDto.setLine2(address1.getAddressLine2());
             addressDto.setLine3(address1.getAddressLine3());
+            String line3 = fieldOptionService.getOptionalFieldDescription("SUBURB", address1.getAddressLine3());
+            if(line3 != null){
+                addressDto.setLine3Description(line3);
+            }
+             String line4 = fieldOptionService.getOptionalFieldDescription("TOWN", address1.getAddressLine4());
+            if(line4 != null){
+                addressDto.setLine4Description(line4);
+            }
             addressDto.setLine4(address1.getAddressLine4());
             addressDto.setPostalCode(address1.getPostalCode());
 
@@ -1684,6 +1699,10 @@ public class PartnerService implements PartnerDao {
         Sort sort = Sort.by("partnerContactPK").descending();
         for(PartnerContactEntity contact:partnerContactRepository.findAll(findByContact(queryDto),sort)){
             ContactGetDto contactPartner = new ContactGetDto();
+            String contactType = fieldOptionService.getOptionalFieldDescription("CONTACT-TYPE", contact.getPartnerContactPK().getType());
+            if(contactType != null){
+                contactPartner.setDescription(contactType);
+            }
             contactPartner.setType(contact.getPartnerContactPK().getType());
             contactPartner.setPartner(contact.getPartnerContactPK().getPartner());
             contactPartner.setValue(contact.getValue());
@@ -1875,7 +1894,7 @@ public class PartnerService implements PartnerDao {
             prospectDto.setId(partnerEntity.getId());
             prospectDto.setNumber(partnerEntity.getNo());
             if (partnerEntity.getType() != null) {
-                if (partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANISATION)) {
+                if (partnerEntity.getType().equalsIgnoreCase(PartnerType.ORGANIZATION)) {
                     prospectDto.setOrganisationName(partnerEntity.getName1());
                 } else {
                     prospectDto.setFirstName(partnerEntity.getName2());

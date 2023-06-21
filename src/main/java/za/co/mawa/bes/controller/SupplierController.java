@@ -26,17 +26,17 @@ public class SupplierController {
     @Autowired
     SupplierService supplierService;
 
-    @RequestMapping(value = "/supplier/assign", method = RequestMethod.PUT)
-    public ResponseEntity<?> postSupplierRequest(@RequestParam(required = false) String username, @RequestParam(required = false) String partnerId) {
+    @RequestMapping(value = "/supplier/assign", method = RequestMethod.POST)
+    public ResponseEntity<?> postSupplierRequest(@RequestParam(required = false) String username) {
         try {
 
             SupplierDto supplierDto = new SupplierDto();
             if (username != null) {
                 supplierDto.setUsername(username);
             }
-            if (partnerId != null) {
-                supplierDto.setPartnerId(partnerId);
-            }
+//            if (partnerId != null) {
+//                supplierDto.setPartnerId(partnerId);
+//            }
 
             return ResponseEntity.ok(gson.toJson(supplierService.assignSupplier(supplierDto)));
 
@@ -50,6 +50,16 @@ public class SupplierController {
         try {
 
             return ResponseEntity.ok(gson.toJson(supplierService.getSupplier(id)));
+
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+    @RequestMapping(value = "/supplier", method = RequestMethod.GET)
+    public ResponseEntity<?> getSuppliers() {
+        try {
+
+            return ResponseEntity.ok(gson.toJson(supplierService.getAll()));
 
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

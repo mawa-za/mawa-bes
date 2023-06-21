@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
+import za.co.mawa.bes.dto.user.UserDto;
 
 import java.util.ArrayList;
 
@@ -26,5 +27,7 @@ public class SupplierDto {
     ArrayList<AddressDto> addressDto;
     ArrayList<ContactDto> contactDto;
     ArrayList<IdentityDto> identityDto;
+
+
 
 }

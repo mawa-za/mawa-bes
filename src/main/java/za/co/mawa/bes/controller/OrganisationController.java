@@ -4,6 +4,7 @@ import com.nimbusds.jose.shaded.gson.Gson;
 import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.OrganizationDto;
@@ -30,7 +31,7 @@ public class OrganisationController {
     PartnerAttachmentRepository partnerAttachmentRepository;
     @Autowired
     PartnerService partnerService;
-    @RequestMapping(value = "/Organization", method = RequestMethod.POST)
+    @RequestMapping(value = "/Organization", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postOrganization (@RequestBody OrganizationDto organizationDto){
         try{
             return ResponseEntity.ok(gson.toJson(organizationService.addOrganization(organizationDto)));
@@ -39,7 +40,7 @@ public class OrganisationController {
               }
     }
 
-    @RequestMapping(value = "/Organization", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
          public ResponseEntity<?> getOrganizations() {
               try {
                   return ResponseEntity.ok(gson.toJson(organizationService.getOrganizations()));
@@ -48,7 +49,7 @@ public class OrganisationController {
               }
     }
 
-    @RequestMapping(value = "/Organization/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getSpecificOrg(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(organizationService.getSpecOrganization(id)));
@@ -57,7 +58,7 @@ public class OrganisationController {
         }
     }
 
-    @RequestMapping(value = "/Organization{id}/Roles", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization{id}/Roles", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getRolesResource(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerRoleRepository.findPartnerByRole(id)));
@@ -65,7 +66,7 @@ public class OrganisationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/Organization{id}/Identities", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization{id}/Identities", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getIdentitiesResource(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerIdentityRepository.findPartnerIdentityByPartner(id)));
@@ -74,7 +75,7 @@ public class OrganisationController {
         }
     }
 
-    @RequestMapping(value = "/Organization{id}/Contacts", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization{id}/Contacts", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getContactsResource(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerContactRepository.findPartnerByValue(id)));
@@ -83,7 +84,7 @@ public class OrganisationController {
         }
     }
 
-    @RequestMapping(value = "/Organization{id}/Addresses", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization{id}/Addresses", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAddressesResource(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerAddressRepository.findPartnerAddressByPartner(id)));
@@ -92,7 +93,7 @@ public class OrganisationController {
         }
     }
 
-    @RequestMapping(value = "/Organization{id}/Attachments", method = RequestMethod.GET)
+    @RequestMapping(value = "/Organization{id}/Attachments", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAttachmentsResource(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerAttachmentRepository.findByPartner(id)));
