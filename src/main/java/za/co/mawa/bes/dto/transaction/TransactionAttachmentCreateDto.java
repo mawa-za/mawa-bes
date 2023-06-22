@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,12 +11,8 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class PartnerAttachmentDto implements Serializable {
-    private String partner;
-    private String fileId;
+public class TransactionAttachmentCreateDto implements Serializable {
+    private String transaction;
     private String fileType;
-    private String validFrom;
-    private String validTo;
-    private String status;
-
+    
 }

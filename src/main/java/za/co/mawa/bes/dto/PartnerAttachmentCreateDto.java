@@ -11,12 +11,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class PartnerAttachmentDto implements Serializable {
+public class PartnerAttachmentCreateDto implements Serializable {
     private String partner;
-    private String fileId;
     private String fileType;
-    private String validFrom;
-    private String validTo;
-    private String status;
-
 }

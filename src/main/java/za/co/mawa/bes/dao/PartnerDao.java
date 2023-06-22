@@ -51,8 +51,8 @@ public interface PartnerDao {
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
     PartnerResourceApiResultDto getResourceApi(String resource_id);
     boolean editResourceApi(PartnerResourceApiDto partnerResourceObj);
-    boolean addAttachment(PartnerAttachmentDto attachment);
-    boolean removeAttachment(PartnerAttachmentDto attachment);
+    boolean addAttachment(PartnerAttachmentEntity attachment) throws Exception;
+    boolean removeAttachment(PartnerAttachmentPKEntity attachment);
     ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception;
     boolean addDate(PartnerDateDto date);
     boolean editDate(PartnerDateDto date);
@@ -64,7 +64,6 @@ public interface PartnerDao {
     ProspectDto getProspect(String id) throws DoesNotExist;
     ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception;
     boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist,Exception;
-
     PartnerDto getOptional(String id);
     PartnerDto getPartner(String id);
     ArrayList<ContactDto> getContacts(String partner);
