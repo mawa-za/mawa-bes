@@ -1,22 +1,20 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.io.Serializable;
 import java.util.Date;
-
 @Entity
-@Table(name = "partner_attachment")
+@Table(name = "transaction_attachment")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
 @Getter
 @Setter
-public class PartnerAttachmentEntity implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class TransactionAttachmentEntity implements Serializable {
     @EmbeddedId
-    PartnerAttachmentPKEntity partnerAttachmentPKEntity;
+    TransactionAttachmentPKEntity transactionAttachmentPKEntity;
     @Column(name = "file_id")
     private String fileId;
     @Column(name = "valid_from")

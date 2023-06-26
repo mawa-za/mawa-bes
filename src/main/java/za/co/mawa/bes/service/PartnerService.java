@@ -1282,89 +1282,46 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean addAttachment(PartnerAttachmentDto attachment) {
-        boolean processed = false;
-        try {
-            PartnerAttachmentEntity entity = new PartnerAttachmentEntity();
-            entity.setId(attachment.getId());
-            entity.setPartner(attachment.getParent());
-            entity.setType(attachment.getType());
-            entity.setName(attachment.getFileName());
-            entity.setExtension(attachment.getExtension());
-            entity.setCreatedBy(attachment.getCreatedBy());
-            entity.setCreatedAt(new Date());
-            entity.setStatus(Status.ACTIVE);
-            entity.setValidFrom(new Date());
-            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            partnerAttachmentRepository.save(entity);
-            processed = true;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    public boolean addAttachment(PartnerAttachmentEntity attachment) {
+        try{
+            partnerAttachmentRepository.save(attachment);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
         }
-        return processed;
+
     }
 
     @Override
-    public boolean removeAttachment(PartnerAttachmentDto attachment) {
-        boolean edited = false;
-        PartnerAttachmentEntity attach = partnerAttachmentRepository.getById(attachment.getId());
-        if (attach != null) {
-            try {
-                attach.setStatus(Status.DELETED);
-                attach.setValidTo(new Date());
-                partnerAttachmentRepository.save(attach);
-                edited = true;
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+    public boolean removeAttachment(PartnerAttachmentPKEntity attachment) {
+        try{
+            partnerAttachmentRepository.deleteById(attachment);
+            return true;
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
         }
-        return edited;
+
     }
 
     @Override
     public ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception {
-        ArrayList<PartnerAttachmentDto> list = new ArrayList<>();
-        List<PartnerAttachmentEntity> attachments = partnerAttachmentRepository.findByPartner(partner);
-        for (PartnerAttachmentEntity partnerAttachment : attachments) {
-            PartnerAttachmentDto object = new PartnerAttachmentDto();
-            if (partnerAttachment.getStatus().equals(Status.ACTIVE)) {
-                UserDto usrObj = new UserDto();
-                object.setId(partnerAttachment.getId());
-                object.setParent(partnerAttachment.getPartner());
-                object.setCreatedAt(Conversion.dateTimeToString(partnerAttachment.getCreatedAt()));
-                object.setCreatedBy(partnerAttachment.getCreatedBy());
-
-                usrObj = userService.getUserByName(partnerAttachment.getCreatedBy());
-                if (usrObj.getPartner() != null) {
-                    object.setAttachedById(usrObj.getPartner());
-                    PartnerDto prt = new PartnerDto();
-                    prt = get(usrObj.getPartner());
-
-                    if (prt != null) {
-                        PersonDto person = new PersonDto(prt);
-                        object.setAttachedBy(person);
-                    }
-                }
-                object.setExtension(partnerAttachment.getExtension());
-                object.setFileName(partnerAttachment.getName());
-                object.setType(fieldOptionService.getFieldOptionDescription("DOCUMENTTYPE", partnerAttachment.getType()));
-                if (partnerAttachment.getStatus() != null) {
-                    object.setStatus(partnerAttachment.getStatus());
-                }
-                if (partnerAttachment.getStatusReason() != null) {
-                    object.setStatusReason(partnerAttachment.getStatusReason());
-                }
-                if (partnerAttachment.getValidFrom() != null) {
-                    object.setValidFrom(Conversion.dateToString(partnerAttachment.getValidFrom()));
-                }
-                if (partnerAttachment.getValidTo() != null) {
-                    object.setValidTo(Conversion.dateToString(partnerAttachment.getValidTo()));
-                }
-                list.add(object);
+        try{
+            ArrayList<PartnerAttachmentDto> partnerAttachments = new ArrayList<>();
+            for(PartnerAttachmentEntity attachment:partnerAttachmentRepository.findByPartner(partner)){
+                PartnerAttachmentDto attachmentDto = new PartnerAttachmentDto();
+                attachmentDto.setPartner(attachment.getPartnerAttachmentPKEntity().getPartner());
+                attachmentDto.setFileType(attachment.getPartnerAttachmentPKEntity().getFileType());
+                attachmentDto.setFileId(attachment.getFileId());
+                attachmentDto.setStatus(attachment.getStatus());
+                attachmentDto.setValidFrom(Conversion.dateToString(attachment.getValidFrom()));
+                attachmentDto.setValidTo(Conversion.dateToString(attachment.getValidTo()));
+                partnerAttachments.add(attachmentDto);
             }
-
+            return partnerAttachments;
+        }catch(Exception exception){
+           throw new RuntimeException(exception);
         }
-        return list;
+
     }
 
     @Override

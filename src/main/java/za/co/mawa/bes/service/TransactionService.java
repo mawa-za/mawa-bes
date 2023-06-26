@@ -43,6 +43,8 @@ public class TransactionService implements TransactionDao {
     @Autowired
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
+    TransactionAttachmentRepository transactionAttachmentRepository;
+    @Autowired
     UserService userService;
     @Autowired
     FieldOptionService fieldOptionService;
@@ -141,18 +143,43 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addAttachment(TransactionAttachmentDto transactionAttachmentDto) {
-
+    public boolean addAttachment(TransactionAttachmentEntity entity) throws Exception{
+        try{
+            transactionAttachmentRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
     }
 
     @Override
-    public void removeAttachment(TransactionAttachmentDto transactionAttachmentDto) {
-
+    public boolean removeAttachment(TransactionAttachmentPKEntity transactionAttachmentDto) {
+        try{
+            transactionAttachmentRepository.deleteById(transactionAttachmentDto);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
     }
 
     @Override
-    public List<TransactionAttachmentDto> getAttachments(String id) {
-        return null;
+    public ArrayList<TransactionAttachmentDto> getAttachments(String id) throws Exception{
+        try{
+            ArrayList<TransactionAttachmentDto> attachments = new ArrayList<>();
+            for(TransactionAttachmentEntity attachment:transactionAttachmentRepository.findByTransaction(id)){
+                TransactionAttachmentDto attachmentDto = new TransactionAttachmentDto();
+                attachmentDto.setTransaction(attachment.getTransactionAttachmentPKEntity().getTransaction());
+                attachmentDto.setFileType(attachment.getTransactionAttachmentPKEntity().getFileType());
+                attachmentDto.setFileId(attachment.getFileId());
+                attachmentDto.setStatus(attachment.getStatus());
+                attachmentDto.setValidFrom(Conversion.dateToString(attachment.getValidFrom()));
+                attachmentDto.setValidTo(Conversion.dateToString(attachment.getValidTo()));
+                attachments.add(attachmentDto);
+            }
+            return attachments;
+        }catch (Exception ex){
+         throw new RuntimeException(ex);
+        }
     }
 
     @Override
