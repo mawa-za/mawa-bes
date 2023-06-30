@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimEditDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
@@ -298,6 +299,15 @@ public class ClaimController {
         }
     }
 
+    @RequestMapping(value = "/claim/bankDetails", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> postClaimBankDetails(@RequestBody TransactionAccountDto transactionAccountDto)  {
+        try {
+       transactionService.addBankAccount(transactionAccountDto);
+       return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
 
     private String getUser()
     {
@@ -313,6 +323,8 @@ public class ClaimController {
             claimDto.setNumber(transactionDto.getNumber());
             claimDto.setType(transactionDto.getSubType());
             claimDto.setStatus(transactionDto.getStatus());
+
+
             if(transactionDto.getCreatedBy() != null) {
                 claimDto.setCreatedBy(transactionDto.getCreatedBy());
             }
@@ -371,7 +383,12 @@ public class ClaimController {
                     claimDto.setDeathDate(transactionDateDto.getValue());
                 }
             }
+            TransactionAccountDto transactionAccountDto =   transactionService.getOptionalBankAccount(id);
 
+            if (transactionAccountDto != null)
+            {
+                claimDto.setBankDetails(transactionAccountDto);
+            }
             return claimDto;
         }catch(TransactionNotFound exception){
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
