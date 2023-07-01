@@ -6,6 +6,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -24,5 +25,7 @@ public class ClaimDto extends TransactionDto implements Serializable {
 //    private Date creationDate;
     private Date deathDate;
     private Date burialDate;
+
+    private TransactionAccountDto bankDetails;
 
 }

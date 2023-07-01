@@ -411,6 +411,24 @@ public class TransactionService implements TransactionDao {
 
     }
 
+    @Override
+    public TransactionAccountDto getOptionalBankAccount(String id) {
+        Optional<TransactionBankAccount> entity = transactionBankAccountRepository.findById(id);
+        TransactionBankAccount bankAccount = entity.orElse(null);
+        if (bankAccount != null) {
+            TransactionAccountDto account = new TransactionAccountDto();
+            account.setAccountHolder(bankAccount.getAccountHolder());
+            account.setAccountType(bankAccount.getAccountType());
+            account.setAccountNumber(bankAccount.getAccountNumber());
+            account.setBankName(bankAccount.getBankName());
+            account.setTransaction(bankAccount.getTransaction());
+            account.setBranchCode(bankAccount.getBranchCode());
+
+            return account;
+        }
+        return null;
+    }
+
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
 
         TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
