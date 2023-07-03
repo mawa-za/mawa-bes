@@ -16,5 +16,7 @@ public interface TransactionLinkRepository extends JpaRepository<TransactionLink
 
     @Query("SELECT t FROM TransactionLinkEntity t WHERE t.transactionLinkPKEntity.transaction2 = :transaction2 AND t.transactionLinkPKEntity.type = :type" )
     TransactionLinkEntity getTransactionLinks(String transaction2,String type);
+    @Query("SELECT t FROM TransactionLinkEntity t WHERE t.transactionLinkPKEntity.transaction2 = :transaction2 AND t.transactionLinkPKEntity.type = :type" )
+    List<TransactionLinkEntity> getTransactionLink(String transaction2,String type);
 
 }
