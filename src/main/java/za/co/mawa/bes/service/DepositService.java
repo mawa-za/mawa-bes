@@ -1,0 +1,224 @@
+package za.co.mawa.bes.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dao.DepositDao;
+import za.co.mawa.bes.dto.cashup.CashupDto;
+import za.co.mawa.bes.dto.cashup.CashupEditDto;
+import za.co.mawa.bes.dto.deposit.DepositCreateDto;
+import za.co.mawa.bes.dto.deposit.DepositDto;
+import za.co.mawa.bes.dto.deposit.DepositEditDto;
+import za.co.mawa.bes.dto.deposit.DepositSearchDto;
+import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionDatePKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkPKEntity;
+import za.co.mawa.bes.repository.TransactionAmountRepository;
+import za.co.mawa.bes.repository.TransactionDateRepository;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.utils.*;
+
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@Service
+public class DepositService implements DepositDao {
+    @Autowired
+    TransactionService transactionService;
+    @Autowired
+    CashupService cashupService;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
+    @Autowired
+    TransactionDateRepository transactionDateRepository;
+    @Override
+    public String create(DepositCreateDto depositCreate) throws Exception {
+        try{
+            TransactionCreateDto createDto = new TransactionCreateDto();
+            createDto.setType(TransactionType.DEPOSIT);
+            createDto.setStatus(Status.NEW);
+            TransactionDto transaction = transactionService.create(createDto);
+            if(transaction.getId() != null)
+            {
+                TransactionDateDto date = new TransactionDateDto();
+                date.setType(DateType.CREATED);
+                date.setTransaction(transaction.getId());
+                date.setValue(new Date());
+                transactionService.addDate(date);
+
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                BigDecimal amount = new BigDecimal(depositCreate.getAmount());
+                amountDto.setAmount(amount);
+                amountDto.setTransaction(transaction.getId());
+                amountDto.setType(PriceType.DEPOSIT_AMOUNT);
+                transactionService.addAmount(amountDto);
+                TransactionDto transactionLink = transactionService.get(depositCreate.getTransactionIdLink());
+
+                TransactionLinkDto linkDto = new TransactionLinkDto();
+                linkDto.setTransaction1(transaction.getId());
+                linkDto.setTransaction2(transactionLink.getId());
+                linkDto.setType(TransactionType.DEPOSIT);
+                linkDto.setCreateBy(getUser());
+                transactionService.addLink(linkDto);
+                if(transactionLink.getType().equalsIgnoreCase(TransactionType.CASHUP)){
+                    CashupEditDto edit = new CashupEditDto();
+                    CashupDto cashupDto = cashupService.get(transactionLink.getId());
+                    BigDecimal total = new BigDecimal(cashupDto.getAmountDeposited()).add(amount);
+                    edit.setAmountDeposited(total.toString());
+                    if(total.compareTo(new BigDecimal(cashupDto.getAmountCollected())) == 0){
+                        edit.setStatus(Status.CLOSED);
+                    }
+                    cashupService.edit(edit,transactionLink.getId());
+                }
+            }
+            return transaction.getId();
+        }catch (Exception ex){
+          throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public DepositDto get(String id) throws Exception {
+        try{
+            DepositDto depositDto = new DepositDto();
+            TransactionDto transactionDto = transactionService.get(id);
+
+            depositDto.setId(transactionDto.getId());
+            depositDto.setNumber(transactionDto.getNumber());
+            depositDto.setCreatedBy(transactionDto.getCreatedBy());
+            depositDto.setStatus(transactionDto.getStatus());
+            depositDto.setChangedBy(transactionDto.getChangedBy());
+            for(TransactionDateDto date:transactionService.getDates(id)){
+                if(date.getType().equalsIgnoreCase(DateType.CREATED)){
+                    depositDto.setCreatedOn(Conversion.dateToString(date.getValue()));
+                    break;
+                }
+            }
+            for(TransactionLinkDto link:transactionService.getLinks(id)){
+                if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT)){
+                    depositDto.setTransactionIdLink(link.getTransaction2());
+                    break;
+                }
+            }
+            for(TransactionAmountDto amountDto:transactionService.getAmounts(id)){
+                if(amountDto.getType().equalsIgnoreCase(PriceType.DEPOSIT_AMOUNT)){
+                    depositDto.setAmount(amountDto.getAmount().toString());
+                    break;
+                }
+            }
+            //depositDto.setAmount();
+            return depositDto;
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
+        }
+
+    }
+
+    @Override
+    public ArrayList<DepositDto> search(DepositSearchDto searchDto) throws Exception {
+        try{
+            ArrayList<DepositDto> deposits = new ArrayList<>();
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.DEPOSIT);
+            if(searchDto.getCreatedOn() != null){
+                Date create = new SimpleDateFormat("yyyy-MM-dd").parse(searchDto.getCreatedOn());
+                transactionQueryDto.setValue(create);
+                transactionQueryDto.setDateType(DateType.CREATED);
+            }
+            if(searchDto.getCreatedBy() != null){
+                transactionQueryDto.setCreatedBy(searchDto.getCreatedBy());
+            }
+            if(searchDto.getStatus() != null) {
+                transactionQueryDto.setStatus(searchDto.getStatus());
+            }
+            for(TransactionQueryResultDto resultDto:transactionService.search(transactionQueryDto)) {
+                DepositDto depositDto = new DepositDto();
+                depositDto = get(resultDto.getId());
+                deposits.add(depositDto);
+            }
+            return deposits;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+    @Override
+    public boolean delete(String id) throws Exception {
+        try{
+            for(TransactionDateDto dateDto: transactionService.getDates(id)){
+                TransactionDatePKEntity transactionDatePKEntity = new TransactionDatePKEntity();
+                transactionDatePKEntity.setTransaction(dateDto.getTransaction());
+                transactionDatePKEntity.setType(dateDto.getType());
+                transactionDateRepository.deleteById(transactionDatePKEntity);
+            }
+             BigDecimal amount =  BigDecimal.ZERO;
+            for(TransactionAmountDto amountDto: transactionService.getAmounts(id)){
+                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                transactionAmountPKEntity.setTransaction(id);
+                transactionAmountPKEntity.setType(amountDto.getType());
+                if(amountDto.getType().equalsIgnoreCase(PriceType.DEPOSIT_AMOUNT)){
+                    amount = amountDto.getAmount();
+                }
+                transactionAmountRepository.deleteById(transactionAmountPKEntity);
+            }
+            String transaction = "";
+            for(TransactionLinkDto link:transactionService.getLinks(id)){
+                if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT)){
+                    transaction = link.getTransaction2();
+                }
+                TransactionLinkPKEntity pk = new TransactionLinkPKEntity();
+                pk.setType(link.getType());
+                pk.setTransaction1(link.getTransaction1());
+                pk.setTransaction2(link.getTransaction2());
+                transactionLinkRepository.deleteById(pk);
+            }
+            transactionService.delete(id);
+            TransactionDto transactionDto = transactionService.get(transaction);
+            if(transactionDto.getType().equalsIgnoreCase(TransactionType.CASHUP)){
+                CashupDto cashupDto = new CashupDto();
+                cashupDto = cashupService.get(transaction);
+                BigDecimal total = new BigDecimal(cashupDto.getAmountDeposited()).subtract(amount);
+
+                CashupEditDto edit = new CashupEditDto();
+                edit.setAmountDeposited(total.toString());
+                if(new BigDecimal(cashupDto.getAmountCollected()).compareTo(total) > 0){
+                    edit.setStatus(Status.OPEN);
+                }
+                cashupService.edit(edit,transaction);
+            }
+            return true;
+        }catch (Exception exception){
+            throw new RuntimeException(exception);
+        }
+    }
+
+    @Override
+    public ArrayList<DepositDto> searchByTransactionLink(String linkId) {
+        try{
+            ArrayList<DepositDto> deposits = new ArrayList<>();
+            for(TransactionLinkEntity link : transactionLinkRepository.getTransactionLink(linkId,TransactionType.DEPOSIT)){
+              DepositDto deposit = new DepositDto();
+              deposit = get(link.getTransactionLinkPKEntity().getTransaction1());
+              deposits.add(deposit);
+            }
+            return deposits;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private String getUser()
+    {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUser = userDetails.getUsername();
+        return currentUser;
+    }
+}

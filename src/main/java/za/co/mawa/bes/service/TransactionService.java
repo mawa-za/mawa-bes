@@ -101,7 +101,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionRepository.deleteById(id);
         } catch (Exception ex) {
-            throw new Exception("Error deleting transaction");
+            throw new RuntimeException(ex);
         }
     }
 
