@@ -13,5 +13,6 @@ public class TransactionType {
     public static String INVOICE = "INVOICE";
     public static String CASHUP = "CASHUP";
     public static String PAYMENT_REQUEST = "PAYMENT-REQUEST";
+    public static String DEPOSIT = "DEPOSIT";
 
 }

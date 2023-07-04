@@ -64,4 +64,6 @@ public interface TransactionDao {
     void addBankAccount(TransactionAccountDto accountDto) throws Exception;
     boolean editBankAccount(TransactionAccountDto accountDto) throws Exception;
     TransactionAccountDto getBankAccount(String id);
+
+    TransactionAccountDto getOptionalBankAccount(String id);
 }
