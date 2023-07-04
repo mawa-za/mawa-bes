@@ -9,10 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.PartnerAddressPKEntity;
-import za.co.mawa.bes.entity.PartnerContactPKEntity;
-import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
-import za.co.mawa.bes.entity.PartnerRolePKEntity;
+import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
 
@@ -343,6 +340,27 @@ public class PartnerController {
     public ResponseEntity<?> editPartner(@PathVariable String id,@RequestBody PartnerEditDto editPartner){
         try{
             return ResponseEntity.ok(gson.toJson(gson.toJson(partnerService.editPartner(editPartner,id))));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/attachment",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAttachPartner(@PathVariable String id){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.getAttachments(id)));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/attachment",method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> removeAttachPartner(@PathVariable String id,@RequestParam String fileType){
+        try{
+            PartnerAttachmentPKEntity pkEntity = new PartnerAttachmentPKEntity();
+            pkEntity.setFileType(fileType);
+            pkEntity.setPartner(id);
+            return ResponseEntity.ok(gson.toJson(partnerService.removeAttachment(pkEntity)));
         }catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

@@ -18,6 +18,8 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.MembershipService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.ProductService;
@@ -41,6 +43,8 @@ public class MembershipController {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    PartnerIdentityRepository partnerIdentityRepository;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
@@ -100,22 +104,38 @@ public class MembershipController {
     @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
-                                            @RequestParam(required = false) String partnerNo) {
+                                            @RequestParam(required = false) String partnerNo,
+                                            @RequestParam(required = false) String idNumber) {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             String partner = partnerNo == null ? "":partnerNo;
             String function = partnerFunction == null ? "":partnerFunction;
-            if(status != null && status != "")
-            {
-                transactionQueryDto.setStatus(status);
+            String idNo = idNumber == null ? "":idNumber;
+            List<TransactionQueryResultDto> results = new ArrayList<>();
+            if(idNumber != "" && function != ""){
+                for(PartnerIdentityEntity identityEntity: partnerIdentityRepository.findPartnerIdentityByValue(idNumber)){
+                    transactionQueryDto.setPartnerNo(identityEntity.getPartner());
+                    transactionQueryDto.setPartnerFunction(function);
+                    List<TransactionQueryResultDto> result = new ArrayList<>();
+                    transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+                    result = transactionService.search(transactionQueryDto);
+                    results.addAll(result);
+                }
             }
-            if(partner != "" && function != "")
-            {
-                transactionQueryDto.setPartnerNo(partner);
-                transactionQueryDto.setPartnerFunction(function);
+            else{
+                if(status != null && status != "")
+                {
+                    transactionQueryDto.setStatus(status);
+                }
+                if(partner != "" && function != "")
+                {
+                    transactionQueryDto.setPartnerNo(partner);
+                    transactionQueryDto.setPartnerFunction(function);
+                }
+                transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+                results = transactionService.search(transactionQueryDto);
             }
-            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
+            return ResponseEntity.ok(gson.toJson(results));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

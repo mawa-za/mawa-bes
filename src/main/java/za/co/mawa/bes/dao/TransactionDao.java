@@ -10,10 +10,13 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionAttachmentEntity;
+import za.co.mawa.bes.entity.transaction.TransactionAttachmentPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public interface TransactionDao {
@@ -45,9 +48,9 @@ public interface TransactionDao {
     List<TransactionDateDto> getDates(String id);
 
     //Attachments
-    void addAttachment(TransactionAttachmentDto transactionAttachmentDto);
-    void removeAttachment(TransactionAttachmentDto transactionAttachmentDto);
-    List<TransactionAttachmentDto> getAttachments(String id);
+    boolean addAttachment(TransactionAttachmentEntity entity) throws Exception;
+    boolean removeAttachment(TransactionAttachmentPKEntity transactionAttachmentDto);
+    ArrayList<TransactionAttachmentDto> getAttachments(String id) throws Exception;
 
     void addLink(TransactionLinkDto transactionLinkDto) throws Exception;
     void removeLink(TransactionLinkDto transactionLinkDto);
@@ -61,4 +64,6 @@ public interface TransactionDao {
     void addBankAccount(TransactionAccountDto accountDto) throws Exception;
     boolean editBankAccount(TransactionAccountDto accountDto) throws Exception;
     TransactionAccountDto getBankAccount(String id);
+
+    TransactionAccountDto getOptionalBankAccount(String id);
 }

@@ -43,6 +43,8 @@ public class TransactionService implements TransactionDao {
     @Autowired
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
+    TransactionAttachmentRepository transactionAttachmentRepository;
+    @Autowired
     UserService userService;
     @Autowired
     FieldOptionService fieldOptionService;
@@ -99,7 +101,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionRepository.deleteById(id);
         } catch (Exception ex) {
-            throw new Exception("Error deleting transaction");
+            throw new RuntimeException(ex);
         }
     }
 
@@ -141,18 +143,43 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addAttachment(TransactionAttachmentDto transactionAttachmentDto) {
-
+    public boolean addAttachment(TransactionAttachmentEntity entity) throws Exception{
+        try{
+            transactionAttachmentRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
     }
 
     @Override
-    public void removeAttachment(TransactionAttachmentDto transactionAttachmentDto) {
-
+    public boolean removeAttachment(TransactionAttachmentPKEntity transactionAttachmentDto) {
+        try{
+            transactionAttachmentRepository.deleteById(transactionAttachmentDto);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
     }
 
     @Override
-    public List<TransactionAttachmentDto> getAttachments(String id) {
-        return null;
+    public ArrayList<TransactionAttachmentDto> getAttachments(String id) throws Exception{
+        try{
+            ArrayList<TransactionAttachmentDto> attachments = new ArrayList<>();
+            for(TransactionAttachmentEntity attachment:transactionAttachmentRepository.findByTransaction(id)){
+                TransactionAttachmentDto attachmentDto = new TransactionAttachmentDto();
+                attachmentDto.setTransaction(attachment.getTransactionAttachmentPKEntity().getTransaction());
+                attachmentDto.setFileType(attachment.getTransactionAttachmentPKEntity().getFileType());
+                attachmentDto.setFileId(attachment.getFileId());
+                attachmentDto.setStatus(attachment.getStatus());
+                attachmentDto.setValidFrom(Conversion.dateToString(attachment.getValidFrom()));
+                attachmentDto.setValidTo(Conversion.dateToString(attachment.getValidTo()));
+                attachments.add(attachmentDto);
+            }
+            return attachments;
+        }catch (Exception ex){
+         throw new RuntimeException(ex);
+        }
     }
 
     @Override
@@ -188,7 +215,7 @@ public class TransactionService implements TransactionDao {
             transactionLinkDtos.add(new TransactionLinkDto(transactionLinkEntity));
         }
         return transactionLinkDtos;
-        
+
 //        return null;
     }
 
@@ -209,90 +236,78 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public TransactionLinkEntity getTransaction(String type, String transaction1) {
-        TransactionLinkEntity transaction = transactionLinkRepository.getTransactionLinks(transaction1,type);
-        if(transaction != null)
-        {
+        TransactionLinkEntity transaction = transactionLinkRepository.getTransactionLinks(transaction1, type);
+        if (transaction != null) {
             return transaction;
-        }
-        else{
+        } else {
             return null;
         }
 
     }
 
     @Override
-    public boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception{
-        TransactionPartnerEntity entity = transactionPartnerRepository.findPartnerByTransactionAndType(transaction.getTransaction(),transaction.getPartnerFunction());
-       if(entity != null)
-       {
-           try {
-               if(transaction.getParnter() != null)
-               {
+    public boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception {
+        TransactionPartnerEntity entity = transactionPartnerRepository.findPartnerByTransactionAndType(transaction.getTransaction(), transaction.getPartnerFunction());
+        if (entity != null) {
+            try {
+                if (transaction.getParnter() != null) {
                     TransactionPartnerDto partnerRemove = new TransactionPartnerDto();
                     partnerRemove.setTransaction(entity.getTransactionPartnerPKEntity().getTransaction());
                     partnerRemove.setPartner(entity.getTransactionPartnerPKEntity().getPartner());
                     partnerRemove.setFunction(entity.getTransactionPartnerPKEntity().getFunction());
                     removePartner(partnerRemove);
 
-                   TransactionPartnerDto partnerAdd = new TransactionPartnerDto();
-                   partnerAdd.setTransaction(transaction.getTransaction());
-                   partnerAdd.setPartner(transaction.getParnter());
-                   partnerAdd.setFunction(transaction.getPartnerFunction());
-                   addPartner(partnerAdd);
-               }
-               //entity.setChangedBy(getUser());
-               //transactionPartnerRepository.save(entity);
-               return true;
-           }catch(Exception e){
-               throw new RuntimeException(e);
-           }
-       }
-       else{
-           try {
-               TransactionDto dto = get(transaction.getTransaction());
-               if(dto != null)
-               {
-                   TransactionPartnerPKEntity pk = new TransactionPartnerPKEntity();
-                   pk.setTransaction(transaction.getTransaction());
-                   pk.setFunction(transaction.getPartnerFunction());
-                   pk.setPartner(transaction.getParnter());
-                   TransactionPartnerEntity entityParnter = new TransactionPartnerEntity();
-                   entityParnter.setCreatedBy(getUser());
-                   entityParnter.setTransactionPartnerPKEntity(pk);
-                   transactionPartnerRepository.save(entityParnter);
-                   return true;
-               }
-               else{
-                   throw new DoesNotExist();
-               }
-           }catch(Exception e){
-               throw new RuntimeException(e);
-           }
-       }
+                    TransactionPartnerDto partnerAdd = new TransactionPartnerDto();
+                    partnerAdd.setTransaction(transaction.getTransaction());
+                    partnerAdd.setPartner(transaction.getParnter());
+                    partnerAdd.setFunction(transaction.getPartnerFunction());
+                    addPartner(partnerAdd);
+                }
+                //entity.setChangedBy(getUser());
+                //transactionPartnerRepository.save(entity);
+                return true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            try {
+                TransactionDto dto = get(transaction.getTransaction());
+                if (dto != null) {
+                    TransactionPartnerPKEntity pk = new TransactionPartnerPKEntity();
+                    pk.setTransaction(transaction.getTransaction());
+                    pk.setFunction(transaction.getPartnerFunction());
+                    pk.setPartner(transaction.getParnter());
+                    TransactionPartnerEntity entityParnter = new TransactionPartnerEntity();
+                    entityParnter.setCreatedBy(getUser());
+                    entityParnter.setTransactionPartnerPKEntity(pk);
+                    transactionPartnerRepository.save(entityParnter);
+                    return true;
+                } else {
+                    throw new DoesNotExist();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
-    public boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception{
-        TransactionDateEntity entity = transactionDateRepository.getTransactionDatesType(transaction.getTransaction(),transaction.getType());
-        if(entity != null)
-        {
+    public boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception {
+        TransactionDateEntity entity = transactionDateRepository.getTransactionDatesType(transaction.getTransaction(), transaction.getType());
+        if (entity != null) {
             try {
-               if(transaction.getValue() != null)
-               {
-                   entity.setValue(transaction.getValue());
-               }
-               transactionDateRepository.save(entity);
-               return true;
-            }catch(Exception e){
-               throw new RuntimeException(e);
+                if (transaction.getValue() != null) {
+                    entity.setValue(transaction.getValue());
+                }
+                transactionDateRepository.save(entity);
+                return true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-        }
-        else
-        {
+        } else {
             try {
                 TransactionDto dto = get(transaction.getTransaction());
-                if(dto != null)
-                {
+                if (dto != null) {
                     TransactionDatePKEntity pk = new TransactionDatePKEntity();
                     TransactionDateEntity entityCreate = new TransactionDateEntity();
                     pk.setTransaction(transaction.getTransaction());
@@ -301,12 +316,11 @@ public class TransactionService implements TransactionDao {
                     entityCreate.setTransactionDatePKEntity(pk);
                     transactionDateRepository.save(entityCreate);
                     return true;
-                }
-                else {
+                } else {
                     throw new DoesNotExist();
                 }
 
-            }catch(Exception e){
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
             //throw new DoesNotExist();
@@ -321,33 +335,29 @@ public class TransactionService implements TransactionDao {
     @Override
     public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
         boolean edited = false;
-        if(item.getPreviousProduct() != null && item.getPreviousProduct() != "")
-        {
+        if (item.getPreviousProduct() != null && item.getPreviousProduct() != "") {
             TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getPreviousProduct());
-            if(transactionItem != null)
-            {
-                try{
+            if (transactionItem != null) {
+                try {
                     transactionItem.setValidTo(new Date());
                     transactionItemRepository.save(transactionItem);
-                ProductDto productDto = productService.get(item.getProduct());
-                TransactionItemDto transactionItemDto = new TransactionItemDto();
-                transactionItemDto.setTransaction(item.getTransaction());
-                transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setQuantity(new BigDecimal("1"));
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                addItem(transactionItemDto);
-                edited = true;
-                }catch(Exception e){
+                    ProductDto productDto = productService.get(item.getProduct());
+                    TransactionItemDto transactionItemDto = new TransactionItemDto();
+                    transactionItemDto.setTransaction(item.getTransaction());
+                    transactionItemDto.setProduct(productDto.getId());
+                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                    transactionItemDto.setQuantity(new BigDecimal("1"));
+                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                    addItem(transactionItemDto);
+                    edited = true;
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
 
-        }
-        else {
+        } else {
             TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getProduct());
-            if(transactionItem != null)
-            {
+            if (transactionItem != null) {
                 transactionItem.setUnitPrice(item.getUnitPrice());
                 transactionItemRepository.save(transactionItem);
                 calculatePricing(item.getTransaction());
@@ -362,20 +372,18 @@ public class TransactionService implements TransactionDao {
     @Override
     public void addBankAccount(TransactionAccountDto accountDto) throws Exception {
 
-       try{
-           TransactionBankAccount entity = new TransactionBankAccount();
-        entity.setTransaction(accountDto.getTransaction());
-        entity.setBankName(accountDto.getBankName());
-        entity.setAccountHolder(accountDto.getAccountHolder());
-        entity.setAccountNumber(accountDto.getAccountNumber());
-        entity.setAccountType(accountDto.getAccountType());
-        entity.setBranchCode(accountDto.getBranchCode());
-        transactionBankAccountRepository.save(entity);
-       }
-       catch (Exception ex)
-       {
-          throw new RuntimeException(ex);
-       }
+        try {
+            TransactionBankAccount entity = new TransactionBankAccount();
+            entity.setTransaction(accountDto.getTransaction());
+            entity.setBankName(accountDto.getBankName());
+            entity.setAccountHolder(accountDto.getAccountHolder());
+            entity.setAccountNumber(accountDto.getAccountNumber());
+            entity.setAccountType(accountDto.getAccountType());
+            entity.setBranchCode(accountDto.getBranchCode());
+            transactionBankAccountRepository.save(entity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
 
     }
 
@@ -387,8 +395,7 @@ public class TransactionService implements TransactionDao {
     @Override
     public TransactionAccountDto getBankAccount(String id) {
         TransactionBankAccount entity = transactionBankAccountRepository.getBankAccount(id);
-        if(entity != null)
-        {
+        if (entity != null) {
             TransactionAccountDto account = new TransactionAccountDto();
             account.setAccountHolder(entity.getAccountHolder());
             account.setAccountType(entity.getAccountType());
@@ -398,11 +405,28 @@ public class TransactionService implements TransactionDao {
             account.setBranchCode(entity.getBranchCode());
 
             return account;
-        }
-        else{
+        } else {
             return null;
         }
 
+    }
+
+    @Override
+    public TransactionAccountDto getOptionalBankAccount(String id) {
+        Optional<TransactionBankAccount> entity = transactionBankAccountRepository.findById(id);
+        TransactionBankAccount bankAccount = entity.orElse(null);
+        if (bankAccount != null) {
+            TransactionAccountDto account = new TransactionAccountDto();
+            account.setAccountHolder(bankAccount.getAccountHolder());
+            account.setAccountType(bankAccount.getAccountType());
+            account.setAccountNumber(bankAccount.getAccountNumber());
+            account.setBankName(bankAccount.getBankName());
+            account.setTransaction(bankAccount.getTransaction());
+            account.setBranchCode(bankAccount.getBranchCode());
+
+            return account;
+        }
+        return null;
     }
 
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
@@ -441,7 +465,7 @@ public class TransactionService implements TransactionDao {
     @Override
     public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto) {
         List<String> transactionListId = new ArrayList<>();
-        String transactionType = transactionQueryDto.getType() == null?"":transactionQueryDto.getType();
+        String transactionType = transactionQueryDto.getType() == null ? "" : transactionQueryDto.getType();
         List<TransactionQueryResultDto> transactionQueryResultDtoList = new ArrayList<>();
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getPartnerNo());
@@ -458,53 +482,49 @@ public class TransactionService implements TransactionDao {
                 transactionListId.add(transactionEntity.getId());
             }
         }
-        if (transactionQueryDto.getChangedBy()!= null && transactionQueryDto.getType() != null) {
-            List<TransactionEntity> transactions = transactionRepository.findTransactionByChangedBy(transactionQueryDto.getChangedBy(),transactionQueryDto.getType());
+        if (transactionQueryDto.getChangedBy() != null && transactionQueryDto.getType() != null) {
+            List<TransactionEntity> transactions = transactionRepository.findTransactionByChangedBy(transactionQueryDto.getChangedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getCreatedBy() != null && transactionQueryDto.getType() != null) {
-            List<TransactionEntity> transactions = transactionRepository.findTransactionByCreatedBy(transactionQueryDto.getCreatedBy(),transactionQueryDto.getType());
+            List<TransactionEntity> transactions = transactionRepository.findTransactionByCreatedBy(transactionQueryDto.getCreatedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
             }
         }
-        if(transactionQueryDto.getSubtype() != null){
+        if (transactionQueryDto.getSubtype() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionBySubType(transactionQueryDto.getSubtype());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
             }
         }
-        if(transactionQueryDto.getNumber() != null)
-        {
+        if (transactionQueryDto.getNumber() != null) {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByNumber(transactionQueryDto.getNumber());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
             }
         }
-        if(transactionQueryDto.getValue() != null && transactionQueryDto.getDateType() != null)
-        {
-            List<TransactionDateEntity> transactions = transactionDateRepository.findByDateType(transactionQueryDto.getValue(),transactionQueryDto.getDateType());
+        if (transactionQueryDto.getValue() != null && transactionQueryDto.getDateType() != null) {
+            List<TransactionDateEntity> transactions = transactionDateRepository.findByDateType(transactionQueryDto.getValue(), transactionQueryDto.getDateType());
             for (TransactionDateEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionDatePKEntity().getTransaction());
             }
         }
-        if(transactionQueryDto.getTransactionlink1() != null)
-        {
+        if (transactionQueryDto.getTransactionlink1() != null) {
             List<TransactionLinkEntity> transactions = transactionLinkRepository.getTransactionLinks(transactionQueryDto.getTransactionlink1());
             for (TransactionLinkEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionLinkPKEntity().getTransaction2());
             }
         }
-        if(transactionListId.size() == 0 &&
+        if (transactionListId.size() == 0 &&
                 transactionQueryDto.getStatus() == null &&
                 transactionQueryDto.getPartnerFunction() == null &&
                 transactionQueryDto.getPartnerNo() == null &&
                 transactionQueryDto.getDateType() == null && transactionQueryDto.getValue() == null
                 && transactionQueryDto.getNumber() == null && transactionQueryDto.getSubtype() == null
-                 && transactionQueryDto.getChangedBy() == null && transactionQueryDto.getCreatedBy() == null)
-        {
+                && transactionQueryDto.getChangedBy() == null && transactionQueryDto.getCreatedBy() == null) {
             if (transactionQueryDto.getType() != null) {
                 List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
                 for (TransactionEntity transactionEntity : transactions) {
@@ -513,7 +533,7 @@ public class TransactionService implements TransactionDao {
             }
         }
 
-         ArrayList<String> transactionIdList = new ArrayList<>(new HashSet<>(transactionListId));
+        ArrayList<String> transactionIdList = new ArrayList<>(new HashSet<>(transactionListId));
 
         for (String transactionId : transactionIdList) {
             try {
@@ -526,7 +546,7 @@ public class TransactionService implements TransactionDao {
                 object.setSubType(transactionDto.getSubType());
                 object.setStatus(transactionDto.getStatus());
 
-               // List<TransactionDateDto> transactionDateDtoList = getDates(transactionId);
+                // List<TransactionDateDto> transactionDateDtoList = getDates(transactionId);
 
                 MembershipDto membershipDto = new MembershipDto();
 
@@ -535,12 +555,22 @@ public class TransactionService implements TransactionDao {
 
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
                         membershipDto.setMemberId(transactionPartnerDto.getPartner());
+                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
+                        PersonDto personDto = new PersonDto(partnerDto);
+                        if (personDto != null) {
+                            membershipDto.setMainMember(personDto);
+                        }
 
 
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
 
                         membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
+                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
+                        PersonDto personDto = new PersonDto(partnerDto);
+                        if (personDto != null) {
+                            membershipDto.setSalesRep(personDto);
+                        }
 
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
@@ -609,14 +639,11 @@ public class TransactionService implements TransactionDao {
 
                     object.setMembershipHolder(membershipDto);
                 }
-                if(transactionType != "")
-                {
-                    if(object.getType().equalsIgnoreCase(transactionType))
-                    {
+                if (transactionType != "") {
+                    if (object.getType().equalsIgnoreCase(transactionType)) {
                         transactionQueryResultDtoList.add(object);
                     }
-                }
-                else {
+                } else {
                     transactionQueryResultDtoList.add(object);
                 }
 
@@ -627,21 +654,19 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean edit(TransactionEdit transactionDto) throws DoesNotExist, Exception{
+    public boolean edit(TransactionEdit transactionDto) throws DoesNotExist, Exception {
         TransactionEntity entity = transactionRepository.getById(transactionDto.getId());
-        if(entity != null)
-        {
+        if (entity != null) {
             try {
-                if(transactionDto.getStatus() != null) {
-                   entity.setStatus(transactionDto.getStatus());
+                if (transactionDto.getStatus() != null) {
+                    entity.setStatus(transactionDto.getStatus());
                 }
-                if(transactionDto.getStatusReason() != null){
+                if (transactionDto.getStatusReason() != null) {
                     entity.setStatusReason(transactionDto.getStatusReason());
                 }
-                if(transactionDto.getDescription() != null)
-                {
-                    if(transactionDto.getDescription().length() > 255){
-                       entity.setDescription(transactionDto.getDescription());
+                if (transactionDto.getDescription() != null) {
+                    if (transactionDto.getDescription().length() > 255) {
+                        entity.setDescription(transactionDto.getDescription());
                     } else if (transactionDto.getDescription().length() <= 255) {
                         entity.setSubDescription(transactionDto.getDescription());
                     }
@@ -649,12 +674,10 @@ public class TransactionService implements TransactionDao {
                 entity.setChangedBy(getUser());
                 transactionRepository.save(entity);
                 return true;
-            }catch(Exception e)
-            {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-        }
-        else {
+        } else {
             throw new DoesNotExist();
         }
     }
@@ -670,14 +693,13 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
-            if(transactionEntity.getCreatedBy() != null) {
+            if (transactionEntity.getCreatedBy() != null) {
                 transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
             }
-            if(transactionEntity.getChangedBy() != null) {
+            if (transactionEntity.getChangedBy() != null) {
                 transactionDto.setChangedBy(transactionEntity.getChangedBy());
             }
-            if(transactionEntity.getStatusReason() != null)
-            {
+            if (transactionEntity.getStatusReason() != null) {
                 transactionDto.setStatusReason(StringConversion.capitalizeFully(transactionEntity.getStatusReason().replaceAll("_", " ")));
             }
             MembershipDto membershipDto = new MembershipDto();
@@ -688,8 +710,7 @@ public class TransactionService implements TransactionDao {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
                         membershipDto.setMemberId(transactionPartnerDto.getPartner());
                         PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        if (partnerDto != null)
-                        {
+                        if (partnerDto != null) {
 
                             PersonDto personDto = new PersonDto(partnerDto);
                             membershipDto.setMainMember(personDto);
@@ -700,8 +721,7 @@ public class TransactionService implements TransactionDao {
 
                         membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
                         PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        if (partnerDto != null)
-                        {
+                        if (partnerDto != null) {
 
                             PersonDto personDto = new PersonDto(partnerDto);
                             membershipDto.setSalesRep(personDto);
@@ -732,13 +752,13 @@ public class TransactionService implements TransactionDao {
                             dependentDto.setId(partnerDto.getId());
                             if (partnerDto.getTitle() != null) {
                                 String title = fieldOptionService.getOptionalFieldDescription("TITLE", partnerDto.getTitle());
-                                if(title != null){
+                                if (title != null) {
                                     dependentDto.setTitle(title);
                                 }
                             }
                             if (partnerDto.getGender() != null) {
                                 String gender = fieldOptionService.getOptionalFieldDescription("GENDER", partnerDto.getGender());
-                                if(gender != null){
+                                if (gender != null) {
                                     dependentDto.setGender(gender);
                                 }
                             }
@@ -843,15 +863,12 @@ public class TransactionService implements TransactionDao {
             TransactionAmountEntity transactionAmountEntity = new TransactionAmountEntity();
             transactionAmountEntity.setTransactionAmountPKEntity(transactionAmountPKEntity);
             transactionAmountEntity.setAmount(transactionAmountDto.getAmount());
-            if(transactionAmountDto.getCreatedBy() != null)
-            {
+            if (transactionAmountDto.getCreatedBy() != null) {
                 transactionAmountEntity.setCreatedBy(transactionAmountDto.getCreatedBy());
-            }
-            else {
+            } else {
                 transactionAmountEntity.setCreatedBy(getUser());
             }
-            if(transactionAmountDto.getChangedBy() != null)
-            {
+            if (transactionAmountDto.getChangedBy() != null) {
                 transactionAmountEntity.setChangedBy(transactionAmountDto.getChangedBy());
             }
             transactionAmountRepository.save(transactionAmountEntity);
@@ -921,8 +938,7 @@ public class TransactionService implements TransactionDao {
             for (TransactionItemDto transactionItemDto : getItems(id)) {
                 Date currentDate = new Date();
                 int compare = currentDate.compareTo(transactionItemDto.getValidTo());
-                if(compare < 0 && compare != 0)
-                {
+                if (compare < 0 && compare != 0) {
                     LineItemDto lineItemDto = new LineItemDto();
                     lineItemDto.setQuantity(transactionItemDto.getQuantity());
                     lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
@@ -935,27 +951,27 @@ public class TransactionService implements TransactionDao {
 
             List<TransactionAmountDto> transactionAmountDtoList = getAmounts(id);
 
-            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(),getUser(),null);
+            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(), getUser(), null);
             removeAmount(totalIncVat);
             addAmount(totalIncVat);
 
-            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(),getUser(),null);
+            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(), getUser(), null);
             removeAmount(totalExcVat);
             addAmount(totalExcVat);
 
-            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(),getUser(),null);
+            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(), getUser(), null);
             removeAmount(discountAmount);
             addAmount(discountAmount);
 
-            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(),getUser(),null);
+            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(), getUser(), null);
             removeAmount(discountPercentage);
             addAmount(discountPercentage);
 
-            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(),getUser(),null);
+            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(), getUser(), null);
             removeAmount(VATAmount);
             addAmount(VATAmount);
 
-            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(),getUser(),null);
+            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(), getUser(), null);
             removeAmount(VATPercentage);
             addAmount(VATPercentage);
 
@@ -964,8 +980,7 @@ public class TransactionService implements TransactionDao {
         }
     }
 
-    private String getUser()
-    {
+    private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();
         return currentUser;
