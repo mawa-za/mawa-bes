@@ -1,0 +1,3 @@
+ALTER TABLE `mawa`.`field_option`
+CHANGE COLUMN `code` `code` VARCHAR(255) NOT NULL ,
+CHANGE COLUMN `field` `field` VARCHAR(255) NOT NULL ;
