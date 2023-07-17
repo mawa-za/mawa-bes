@@ -16,6 +16,7 @@ import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,11 +60,14 @@ public interface TransactionDao {
     TransactionLinkEntity getTransaction(String type,String transaction1);
     boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception;
     boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
-    boolean editAmount() throws DoesNotExist,Exception;
+    boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist,Exception;
     boolean editItem(TransactionItemEditDto transactionItemEditDto) throws DoesNotExist,Exception;
     void addBankAccount(TransactionAccountDto accountDto) throws Exception;
     boolean editBankAccount(TransactionAccountDto accountDto) throws Exception;
     TransactionAccountDto getBankAccount(String id);
 
     TransactionAccountDto getOptionalBankAccount(String id);
+    boolean removePartner(String id,String partnerFunction,String partner) throws Exception;
+    boolean removeAmount(String id,String type) throws Exception;
+    boolean removeDate(String id,String type) throws Exception;
 }

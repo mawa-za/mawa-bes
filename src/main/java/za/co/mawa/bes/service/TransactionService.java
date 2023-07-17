@@ -328,8 +328,25 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean editAmount() throws DoesNotExist, Exception {
-        return false;
+    public boolean editAmount(String type,BigDecimal value,String id) throws DoesNotExist, Exception {
+        try{
+            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
+            pkEntity.setTransaction(id);
+            pkEntity.setType(type);
+            TransactionAmountEntity entity = transactionAmountRepository.getById(pkEntity);
+            if(entity != null){
+                entity.setAmount(value);
+                transactionAmountRepository.save(entity);
+                return true;
+            }
+            else{
+                throw new DoesNotExist();
+            }
+
+        }catch (Exception ex){
+           throw new RuntimeException(ex);
+        }
+
     }
 
     @Override
@@ -427,6 +444,46 @@ public class TransactionService implements TransactionDao {
             return account;
         }
         return null;
+    }
+
+    @Override
+    public boolean removePartner(String id, String partnerFunction,String partner) throws Exception {
+        try{
+            TransactionPartnerPKEntity entityPk = new TransactionPartnerPKEntity();
+            entityPk.setFunction(partnerFunction);
+            entityPk.setTransaction(id);
+            entityPk.setPartner(partner);
+            transactionPartnerRepository.deleteById(entityPk);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean removeAmount(String id, String type) throws Exception {
+        try{
+            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
+            pkEntity.setTransaction(id);
+            pkEntity.setType(type);
+            transactionAmountRepository.deleteById(pkEntity);
+            return true;
+        }catch (Exception ex){
+          throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean removeDate(String id, String type) throws Exception {
+        try {
+          TransactionDatePKEntity pkEntity = new TransactionDatePKEntity();
+          pkEntity.setTransaction(id);
+          pkEntity.setType(type);
+          transactionDateRepository.deleteById(pkEntity);
+          return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
     }
 
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
