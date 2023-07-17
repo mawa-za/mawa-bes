@@ -150,7 +150,7 @@ public class MembershipController {
                 String productId = null;
                 for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
                    int number =  item.getValidTo().compareTo(new Date());
-                 if(number == 1){
+                 if(number > 0){
                     productId = item.getProduct();
                  }
                 }
