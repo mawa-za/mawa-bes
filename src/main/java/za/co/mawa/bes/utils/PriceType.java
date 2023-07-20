@@ -12,4 +12,5 @@ public class PriceType {
     public static String AMOUNT_DEPOSITED = "AMOUNT-DEPOSITED";
     public static String PAYMENT_AMOUNT = "PAYMENT-AMOUNT";
     public static String DEPOSIT_AMOUNT = "DEPOSIT-AMOUNT";
+    public static String VOUCHER_AMOUNT = "VOUCHER-AMOUNT";
 }
