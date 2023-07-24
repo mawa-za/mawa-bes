@@ -148,7 +148,7 @@ public class QuotationController {
     @RequestMapping(value = "{id}/items", method = RequestMethod.PUT)
     public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
         try {
-            lineItemService.edit();
+           // lineItemService.edit();
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
