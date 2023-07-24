@@ -46,7 +46,9 @@ public class LineItemService {
                 lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
                 lineItemDto.setQuantity(transactionItemDto.getQuantity());
                 lineItemDto.setUom(transactionItemDto.getBaseUnitOfMeasure());
-                lineItemDto.setLineTotal(lineItemDto.getQuantity().multiply(lineItemDto.getUnitPrice()));
+                if(lineItemDto.getUnitPrice() != null){
+                    lineItemDto.setLineTotal(lineItemDto.getQuantity().multiply(lineItemDto.getUnitPrice()));
+                }
                 lineItemDtoList.add(lineItemDto);
             }
             return lineItemDtoList;
