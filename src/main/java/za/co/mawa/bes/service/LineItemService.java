@@ -8,11 +8,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import za.co.mawa.bes.controller.ItemsController;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemEditDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemPKEntity;
 import za.co.mawa.bes.repository.TransactionItemRepository;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 @Service
@@ -67,7 +70,25 @@ public class LineItemService {
         }
 
     }
-    public void edit() {
+    public void edit(LineItemEditDto lineItemEditDto,String id,String itemId) {
+        try{
+            TransactionItemPKEntity pkEntity = new TransactionItemPKEntity();
+            pkEntity.setTransaction(id);
+            pkEntity.setItem(itemId);
+            TransactionItemEntity entity = transactionItemRepository.getById(pkEntity);
+            if(!lineItemEditDto.getQuantity().equals(BigDecimal.ZERO)){
+                entity.setQuantity(lineItemEditDto.getQuantity());
+            }
+            if(lineItemEditDto.getUom() != null && lineItemEditDto.getUom() != ""){
+                entity.setUnitOfMeasure(lineItemEditDto.getUom());
+            }
+            if(!lineItemEditDto.getUnitPrice().equals(BigDecimal.ZERO)){
+                entity.setUnitPrice(lineItemEditDto.getUnitPrice());
+            }
+            transactionItemRepository.save(entity);
+        }catch(Exception ex){
+          throw new RuntimeException(ex);
+        }
     }
     public void delete(String id) {
 

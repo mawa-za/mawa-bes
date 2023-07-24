@@ -7,12 +7,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemEditDto;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.TransactionNotFound;
@@ -82,10 +84,32 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPurchaseOrder() {
+    public ResponseEntity<?> getPurchaseOrders(@RequestParam(required = false) String supplierId,
+                                               @RequestParam(required = false) String orderDate,
+                                               @RequestParam(required = false) String expectedDate,
+                                               @RequestParam(required = false) String purchaseNumber,
+                                               @RequestParam(required = false) String status) {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.PURCHASE_ORDER);
+            if(supplierId != null && supplierId != ""){
+                transactionQueryDto.setPartnerNo(supplierId);
+                transactionQueryDto.setPartnerFunction(PartnerFunction.SUPPLIER);
+            }
+            if(orderDate != null && orderDate != ""){
+                transactionQueryDto.setDateType(DateType.ORDER_DATE);
+                transactionQueryDto.setValue(Conversion.stringToDate(orderDate));
+            }
+            if(expectedDate != null && expectedDate != ""){
+                transactionQueryDto.setDateType(DateType.EXPECTED_DATE);
+                transactionQueryDto.setValue(Conversion.stringToDate(expectedDate));
+            }
+            if(purchaseNumber != null && purchaseNumber != ""){
+                transactionQueryDto.setNumber(purchaseNumber);
+            }
+            if (status != null & status != ""){
+                transactionQueryDto.setStatus(status);
+            }
             ArrayList<PurchaseOrderDto> purchaseOrder = new ArrayList<>();
             for(TransactionQueryResultDto POs:transactionService.search(transactionQueryDto)){
                purchaseOrder.add(getPOOverview(POs.getId()));
@@ -106,9 +130,10 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
+    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody TransactionEdit transactionDto) {
         try {
-            //transactionService.edit(transactionDto);
+            transactionDto.setId(id);
+            transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -147,9 +172,9 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemEditDto lineItemDto,@RequestParam String itemId) {
         try {
-            lineItemService.add(id, lineItemDto);
+            lineItemService.edit(lineItemDto,id,itemId);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -177,6 +202,7 @@ public class PurchaseOrderController {
                 PO.setNumber(transactionDto.getNumber());
                 PO.setStatus(transactionDto.getStatus());
                 PO.setCreatedBy(transactionDto.getCreatedBy());
+                PO.setChangedBy(transactionDto.getChangedBy());
                 PO.setStatusReason(transactionDto.getStatusReason());
                 for(LineItemDto items:lineItemService.getAll(id)){
                     amount = amount.add(items.getLineTotal());
@@ -220,6 +246,7 @@ public class PurchaseOrderController {
                 PO.setNumber(transactionDto.getNumber());
                 PO.setStatus(transactionDto.getStatus());
                 PO.setCreatedBy(transactionDto.getCreatedBy());
+                PO.setChangedBy(transactionDto.getChangedBy());
                 PO.setStatusReason(transactionDto.getStatusReason());
                 for(LineItemDto items:lineItemService.getAll(id)){
                     amount = amount.add(items.getLineTotal());

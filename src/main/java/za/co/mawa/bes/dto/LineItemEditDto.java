@@ -10,8 +10,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class LineItemCreateDto implements Serializable {
-    private String productId;
+public class LineItemEditDto implements Serializable {
+    //private String productId;
     private String uom;
     private BigDecimal quantity  = new BigDecimal("0");
     private BigDecimal unitPrice = new BigDecimal("0");

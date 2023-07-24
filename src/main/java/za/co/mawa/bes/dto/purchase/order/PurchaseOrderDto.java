@@ -18,6 +18,7 @@ import java.util.List;
 @Setter
 public class PurchaseOrderDto implements Serializable {
     private String createdBy;
+    private String changedBy;
     private String id;
     private String number;
     private String status;
