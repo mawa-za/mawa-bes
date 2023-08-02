@@ -26,9 +26,13 @@ public class PartnerController {
 
 
     @RequestMapping( method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartner() throws Exception {
+    public ResponseEntity<?> getPartner(@RequestParam(required = false) String role) throws Exception {
         try{
-        ArrayList<PartnerDto> objects = partnerService.search(null);
+            PartnerQueryDto pq = new PartnerQueryDto();
+                if(role != null && role != ""){
+                    pq.setRole(role);
+                }
+        ArrayList<PartnerDto> objects = partnerService.search(pq);
         ArrayList<PersonDto> persons = new ArrayList<>();
         for (PartnerDto object : objects) {
             ArrayList<ContactDto> contactDtos = partnerService.getContacts(object.getId());
