@@ -11,8 +11,8 @@ import java.io.Serializable;
 @Setter
 public class TransactionEdit implements Serializable {
     private String id;
-    private String type;
-    private String subtype;
+   // private String type;
+   // private String subtype;
     private String status;
     private String statusReason;
     private String description;
