@@ -440,11 +440,19 @@ public class PartnerService implements PartnerDao {
             }
         }
 
-        if (pq.getFilter() != null) {
-            List<PartnerEntity> partnerList = partnerRepository.findAll();
-            for (PartnerEntity partner : partnerList) {
-                initialList.add(entityToObject(partner));
-            }
+//        if (pq.getFilter() != null) {
+//            List<PartnerEntity> partnerList = partnerRepository.findAll();
+//            for (PartnerEntity partner : partnerList) {
+//                initialList.add(entityToObject(partner));
+//            }
+//        }
+
+        if(initialList.size() < 1){
+                List<PartnerEntity> partnerList = partnerRepository.findAll();
+                for (PartnerEntity partner : partnerList) {
+                    finalList.add(entityToObject(partner));
+                }
+                return finalList;
         }
 
         for (PartnerDto pqr : initialList) {
