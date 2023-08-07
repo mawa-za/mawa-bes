@@ -115,12 +115,14 @@ public class ProductService implements ProductDao {
             productDto.setDescription(productEntity.getDescription());
             productDto.setCategory(productEntity.getCategory());
             productDto.setBaseUnitOfMeasure(productEntity.getUom());
-
+            productDto.setValidTo(Conversion.dateToString(productEntity.getValidTo()));
+            productDto.setValidFrom(Conversion.dateToString(productEntity.getValidFrom()));
             for(ProductPricingEntity price : productPricingRepository.findPricing(id)){
-                if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
+              //  if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
                     productDto.setSellingPrice(price.getValue());
-                    break;
-                }
+                    productDto.setPriceType(price.getProductPricingPKEntity().getPricing());
+               //     break;
+               // }
             }
             return productDto;
         } catch (EntityNotFoundException exception) {
