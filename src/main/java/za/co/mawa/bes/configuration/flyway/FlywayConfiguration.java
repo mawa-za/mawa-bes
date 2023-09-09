@@ -23,6 +23,8 @@ public class FlywayConfiguration {
     private static final String DB_MIGRATION_TENANTS = "db/migration/all";
     private static final String DB_MIGRATION_SPECIFIC_FOR_TENANT = "db/migration/%s";
 
+    public static final String HIBERNATE_PROPERTIES_PATH = "/application-default.properties";
+
     @PostConstruct
     Boolean tenantSchemaFlyway() {
         for (TenantDto tenant : tenantService.getAll()) {
@@ -48,15 +50,18 @@ public class FlywayConfiguration {
                 .locations(DB_MIGRATION_TENANTS, String.format(DB_MIGRATION_SPECIFIC_FOR_TENANT, tenantId))
                 .baselineOnMigrate(true)
                 .dataSource(data.getSecond())
-                .schemas(data.getFirst())
+                .schemas(tenantId)
+                .createSchemas(true)
                 .load()
                 .migrate();
     }
 
     public Pair<String, BasicDataSource> dataSource(String tenantId) {
         try {
-            Properties properties = tenantService.getTenantProperties(tenantId);
+// Properties properties = tenantService.getTenantProperties(tenantId);
+            Properties properties = new Properties();
 //            properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
+            properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
             BasicDataSource dataSource = new BasicDataSource();
             dataSource.setDriverClassName(properties.get(Environment.DRIVER).toString());
             dataSource.setUrl(properties.get(Environment.URL).toString());

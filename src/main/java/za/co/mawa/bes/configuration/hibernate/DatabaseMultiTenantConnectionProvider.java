@@ -11,7 +11,7 @@ import za.co.mawa.bes.service.TenantService;
 
 import java.io.IOException;
 import java.util.*;
-@Component
+//@Component
 public class DatabaseMultiTenantConnectionProvider extends AbstractMultiTenantConnectionProvider {
     @Autowired
     TenantService tenantService;
