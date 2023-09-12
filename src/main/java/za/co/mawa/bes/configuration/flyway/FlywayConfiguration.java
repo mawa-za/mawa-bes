@@ -12,16 +12,20 @@ import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.RemoteTenantService;
 import za.co.mawa.bes.service.TenantService;
 
+import java.io.IOException;
 import java.util.Properties;
 
 @Component
 public class FlywayConfiguration {
+    @Autowired
+    Environment environment;
     @Autowired
     EncryptionService encryptionService;
     @Autowired
     TenantService tenantService;
     private static final String DB_MIGRATION_TENANTS = "db/migration/all";
     private static final String DB_MIGRATION_SPECIFIC_FOR_TENANT = "db/migration/%s";
+    private static final String DEFAULT_SCHEMA = "mawa";
 
     public static final String HIBERNATE_PROPERTIES_PATH = "/application-default.properties";
 
@@ -44,6 +48,25 @@ public class FlywayConfiguration {
                 .migrate();
     }
 
+    private void updateDefaultDB() throws IOException {
+        Properties properties = new Properties();
+        properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
+        BasicDataSource dataSource = new BasicDataSource();
+        dataSource.setDriverClassName(properties.get(Environment.DRIVER).toString());
+        dataSource.setUrl(properties.get(Environment.URL).toString());
+        dataSource.setUsername(properties.get(Environment.USER).toString());
+        String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(), properties.get("jwt.secret").toString());
+        dataSource.setPassword(password);
+        Flyway.configure()
+                .locations(DB_MIGRATION_TENANTS)
+                .baselineOnMigrate(true)
+                .dataSource(dataSource)
+                .schemas(DEFAULT_SCHEMA)
+                .createSchemas(true)
+                .load()
+                .migrate();
+    }
+
     private void updateTenantDB(String tenantId) {
         Pair<String, BasicDataSource> data = dataSource(tenantId);
         Flyway.configure()
@@ -58,15 +81,15 @@ public class FlywayConfiguration {
 
     public Pair<String, BasicDataSource> dataSource(String tenantId) {
         try {
-// Properties properties = tenantService.getTenantProperties(tenantId);
-            Properties properties = new Properties();
+            Properties properties = tenantService.getTenantProperties(tenantId);
+//            Properties properties = new Properties();
 //            properties.load(getClass().getResourceAsStream(String.format(HIBERNATE_PROPERTIES_PATH, tenantId)));
-            properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
+//            properties.load(getClass().getResourceAsStream(HIBERNATE_PROPERTIES_PATH));
             BasicDataSource dataSource = new BasicDataSource();
             dataSource.setDriverClassName(properties.get(Environment.DRIVER).toString());
             dataSource.setUrl(properties.get(Environment.URL).toString());
             dataSource.setUsername(properties.get(Environment.USER).toString());
-            String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(),properties.get("jwt.secret").toString());
+            String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(), properties.get("jwt.secret").toString());
             dataSource.setPassword(password);
             return Pair.of(properties.get(Environment.DEFAULT_SCHEMA).toString(), dataSource);
         } catch (Exception e) {

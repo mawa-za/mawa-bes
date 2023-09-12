@@ -1,4 +1,4 @@
-CREATE TABLE `mawa`.`receipt` (
+CREATE TABLE `receipt` (
   `id` VARCHAR(50) NOT NULL,
   `receipt_number` VARCHAR(45) NULL,
   `receipt_type` VARCHAR(45) NULL,

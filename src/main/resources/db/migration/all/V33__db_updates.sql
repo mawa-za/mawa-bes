@@ -1,4 +1,4 @@
-CREATE TABLE `mawa`.`transaction_attachment` (
+CREATE TABLE `transaction_attachment` (
   `transaction` VARCHAR(255) NOT NULL,
   `file_id` VARCHAR(255) NULL,
   `file_type` VARCHAR(45) NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE `mawa`.`transaction_attachment` (
   `status` VARCHAR(45) NULL,
   PRIMARY KEY (`transaction`, `file_type`));
 
-  ALTER TABLE `mawa`.`partner_attachment`
+  ALTER TABLE `partner_attachment`
   DROP COLUMN `status_reason`,
   DROP COLUMN `name`,
   DROP COLUMN `extension`,

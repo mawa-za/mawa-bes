@@ -1,4 +1,4 @@
-CREATE TABLE `mawa`.`transaction_link` (
+CREATE TABLE `transaction_link` (
   `transaction1` VARCHAR(45) NOT NULL,
   `transaction2` VARCHAR(45) NOT NULL,
   `type` VARCHAR(45) NOT NULL,
