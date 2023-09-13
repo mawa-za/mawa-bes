@@ -43,6 +43,8 @@ public class PurchaseOrderController {
     PartnerService partnerService;
     @Autowired
     ReceiptService receiptService;
+    @Autowired
+    FieldOptionService fieldOptionService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
@@ -50,6 +52,11 @@ public class PurchaseOrderController {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.PURCHASE_ORDER);
+               if (purchaseOrderCreateDto.getPaymentMethod() != null)
+                  {
+                   transactionCreateDto.setSubType(purchaseOrderCreateDto.getPaymentMethod());
+                 }
+
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             if (purchaseOrderCreateDto.getOrderDate() != null){
@@ -204,6 +211,12 @@ public class PurchaseOrderController {
                 PO.setCreatedBy(transactionDto.getCreatedBy());
                 PO.setChangedBy(transactionDto.getChangedBy());
                 PO.setStatusReason(transactionDto.getStatusReason());
+                if (transactionDto.getSubType() != null)
+                {
+                    String paymentMethod = fieldOptionService.getOptionalFieldDescription("PAYMENT-METHOD", transactionDto.getSubType());
+                    PO.setPaymentMethod(paymentMethod);
+                }
+
                 for(LineItemDto items:lineItemService.getAll(id)){
                     amount = amount.add(items.getLineTotal());
                 }
@@ -248,6 +261,12 @@ public class PurchaseOrderController {
                 PO.setCreatedBy(transactionDto.getCreatedBy());
                 PO.setChangedBy(transactionDto.getChangedBy());
                 PO.setStatusReason(transactionDto.getStatusReason());
+             if (transactionDto.getSubType() != null)
+              {
+                  String paymentMethod = fieldOptionService.getOptionalFieldDescription("PAYMENT-METHOD", transactionDto.getSubType());
+                  PO.setPaymentMethod(paymentMethod);
+             }
+
                 for(LineItemDto items:lineItemService.getAll(id)){
                     amount = amount.add(items.getLineTotal());
                 }

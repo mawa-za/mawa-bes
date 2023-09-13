@@ -18,4 +18,6 @@ public class PurchaseOrderCreateDto implements Serializable {
     private Date expectedDate;
     private String deliveryAddress;
     private List<LineItemDto> items;
+
+    private String paymentMethod;
 }
