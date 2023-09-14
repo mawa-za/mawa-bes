@@ -28,5 +28,3 @@ INSERT INTO `role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADM
 INSERT INTO `role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'report', '26');
 INSERT INTO `role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'user', '27');
 INSERT INTO `role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'receipt', '28');
-
-INSERT INTO `user_role` (`role`, `user`, `valid_from`, `valid_to`) VALUES ('SYSADMIN', 'admin', '2023-06-12', '9999-12-31');
