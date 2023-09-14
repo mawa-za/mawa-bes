@@ -1,1 +1,1 @@
-INSERT INTO `mawa`.`role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'voucher', '33');
+INSERT INTO `role_workcenter` (`role`, `workcenter`, `position`) VALUES ('SYSADMIN', 'voucher', '33');

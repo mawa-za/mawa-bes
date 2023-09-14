@@ -1,4 +1,4 @@
-CREATE TABLE `mawa`.`partner_attribute` (
+CREATE TABLE `partner_attribute` (
   `partner` VARCHAR(255) NOT NULL,
   `attribute` VARCHAR(45) NOT NULL,
   `value` VARCHAR(45) NULL,

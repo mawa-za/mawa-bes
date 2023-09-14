@@ -1,4 +1,4 @@
-ALTER TABLE `mawa`.`attachment` 
+ALTER TABLE `attachment` 
 CHANGE COLUMN `UploadedBy` `upload_by` VARCHAR(45) NULL DEFAULT NULL ,
 CHANGE COLUMN `UploadTime` `upload_time` DATETIME(6) NULL DEFAULT NULL ,
 CHANGE COLUMN `UploadDate` `upload_date` DATETIME(6) NULL DEFAULT NULL ,

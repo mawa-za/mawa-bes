@@ -1,14 +1,11 @@
 package za.co.mawa.bes.configuration.context;
 
 public abstract class TenantContext {
-
-    public static final String DEFAULT_TENANT_ID = "default";
+    public static final String LOCALHOST_HOST = "localhost";
+    public static final String DEFAULT_TENANT_ID = "mawa";
 
     private static ThreadLocal<String> currentTenant = new ThreadLocal<String>();
 
-    public static void setDefaultTenant() {
-        currentTenant.set(DEFAULT_TENANT_ID);
-    }
     public static void setCurrentTenant(String tenant) {
         currentTenant.set(tenant);
     }

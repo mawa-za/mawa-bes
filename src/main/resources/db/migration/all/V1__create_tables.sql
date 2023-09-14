@@ -1,7 +1,7 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
-CREATE TABLE IF NOT EXISTS `mawa`.`address` (
+CREATE TABLE IF NOT EXISTS `address` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `address_line_1` VARCHAR(45) NULL DEFAULT NULL,
   `address_line_2` VARCHAR(45) NULL DEFAULT NULL,
@@ -15,7 +15,7 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
 
-CREATE TABLE IF NOT EXISTS `mawa`.`attachment` (
+CREATE TABLE IF NOT EXISTS `attachment` (
   `id` VARCHAR(255) NOT NULL,
   `creation_by` DATETIME(6) NULL DEFAULT NULL,
   `creation_date` DATETIME(6) NULL DEFAULT NULL,
@@ -27,7 +27,7 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
 
-CREATE TABLE IF NOT EXISTS `mawa`.`employment` (
+CREATE TABLE IF NOT EXISTS `employment` (
   `employee_id` VARCHAR(20) NOT NULL,
   `start_date` DATE NOT NULL,
   `branch` VARCHAR(255) NULL DEFAULT NULL,
@@ -41,7 +41,7 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
 
-CREATE TABLE IF NOT EXISTS `mawa`.`field` (
+CREATE TABLE IF NOT EXISTS `field` (
   `code` VARCHAR(255) NOT NULL,
   `description` VARCHAR(255) NULL DEFAULT NULL,
   `valid_from` VARCHAR(255) NULL DEFAULT NULL,
@@ -51,7 +51,7 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
 
-CREATE TABLE IF NOT EXISTS `mawa`.`field_option` (
+CREATE TABLE IF NOT EXISTS `field_option` (
   `code` VARCHAR(20) NOT NULL,
   `field` VARCHAR(20) NOT NULL,
   `description` VARCHAR(255) NULL DEFAULT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`field_option` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
-CREATE TABLE IF NOT EXISTS `mawa`.`number_range` (
+CREATE TABLE IF NOT EXISTS `number_range` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `current` VARCHAR(40) NULL DEFAULT NULL,
   `end` VARCHAR(40) NULL DEFAULT NULL,
@@ -76,7 +76,7 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
 
-CREATE TABLE IF NOT EXISTS `mawa`.`partner` (
+CREATE TABLE IF NOT EXISTS `partner` (
   `id` VARCHAR(255) NOT NULL,
   `birth_date` DATE NULL DEFAULT NULL,
   `gender` VARCHAR(20) NULL DEFAULT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS `mawa`.`partner` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
 
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_address` (
+CREATE TABLE IF NOT EXISTS `partner_address` (
   `address_id` INT NOT NULL,
   `address_usage` VARCHAR(20) NOT NULL,
   `partner` VARCHAR(20) NOT NULL,
@@ -110,7 +110,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_attachment
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_attachment` (
+CREATE TABLE IF NOT EXISTS `partner_attachment` (
   `id` VARCHAR(60) NOT NULL,
   `created_at` DATETIME(6) NULL DEFAULT NULL,
   `created_by` VARCHAR(200) NULL DEFAULT NULL,
@@ -129,7 +129,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_bank_account
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_bank_account` (
+CREATE TABLE IF NOT EXISTS `partner_bank_account` (
   `account_number` VARCHAR(255) NOT NULL,
   `partner` VARCHAR(255) NOT NULL,
   `type` VARCHAR(255) NOT NULL,
@@ -148,7 +148,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_contact
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_contact` (
+CREATE TABLE IF NOT EXISTS `partner_contact` (
   `partner` VARCHAR(20) NOT NULL,
   `type` VARCHAR(20) NOT NULL,
   `valid_from` DATE NULL DEFAULT NULL,
@@ -161,7 +161,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_date
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_date` (
+CREATE TABLE IF NOT EXISTS `partner_date` (
   `partner_no` VARCHAR(20) NOT NULL,
   `type` VARCHAR(20) NOT NULL,
   `value` DATETIME(6) NULL DEFAULT NULL,
@@ -172,7 +172,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_identity
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_identity` (
+CREATE TABLE IF NOT EXISTS `partner_identity` (
   `type` VARCHAR(20) NOT NULL,
   `value` VARCHAR(60) NOT NULL,
   `partner` VARCHAR(20) NULL DEFAULT NULL,
@@ -185,7 +185,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_relation
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_relation` (
+CREATE TABLE IF NOT EXISTS `partner_relation` (
   `partner1` VARCHAR(20) NOT NULL,
   `partner2` VARCHAR(20) NOT NULL,
   `type` VARCHAR(20) NOT NULL,
@@ -198,7 +198,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_resources
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_resources` (
+CREATE TABLE IF NOT EXISTS `partner_resources` (
   `resource_id` VARCHAR(20) NOT NULL,
   `partner_no` VARCHAR(45) NOT NULL,
   `partner_url` VARCHAR(20) NOT NULL,
@@ -215,7 +215,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.partner_role
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`partner_role` (
+CREATE TABLE IF NOT EXISTS `partner_role` (
   `id` VARCHAR(20) NOT NULL,
   `role` VARCHAR(20) NOT NULL,
   `valid_from` DATE NULL DEFAULT NULL,
@@ -227,7 +227,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.product
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`product` (
+CREATE TABLE IF NOT EXISTS `product` (
   `id` VARCHAR(60) NOT NULL,
   `code` VARCHAR(255) NULL DEFAULT NULL,
   `category` VARCHAR(20) NULL DEFAULT NULL,
@@ -242,7 +242,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.product_pricing
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`product_pricing` (
+CREATE TABLE IF NOT EXISTS `product_pricing` (
   `pricing` VARCHAR(255) NOT NULL,
   `product` VARCHAR(255) NOT NULL,
   `value` DECIMAL(38,2) NULL DEFAULT NULL,
@@ -253,7 +253,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.role
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`role` (
+CREATE TABLE IF NOT EXISTS `role` (
   `id` VARCHAR(45) NOT NULL,
   `description` VARCHAR(60) NULL DEFAULT NULL,
   `valid_from` DATE NULL DEFAULT NULL,
@@ -265,7 +265,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.role_workcenter
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`role_workcenter` (
+CREATE TABLE IF NOT EXISTS `role_workcenter` (
   `role` VARCHAR(255) NOT NULL,
   `workcenter` VARCHAR(255) NOT NULL,
   `position` INT NULL DEFAULT NULL,
@@ -276,7 +276,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.settings
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`settings` (
+CREATE TABLE IF NOT EXISTS `settings` (
   `attribute` VARCHAR(60) NOT NULL,
   `setting` VARCHAR(20) NOT NULL,
   `value` VARCHAR(60) NULL DEFAULT NULL,
@@ -287,7 +287,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.tenant
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`tenant` (
+CREATE TABLE IF NOT EXISTS `tenant` (
   `id` VARCHAR(255) NOT NULL,
   `host` VARCHAR(255) NULL DEFAULT NULL,
   `name` VARCHAR(255) NULL DEFAULT NULL,
@@ -300,7 +300,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.tenant_property
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`tenant_property` (
+CREATE TABLE IF NOT EXISTS `tenant_property` (
   `property` VARCHAR(255) NOT NULL,
   `tenant` VARCHAR(255) NOT NULL,
   `value` VARCHAR(255) NULL DEFAULT NULL,
@@ -311,7 +311,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`transaction` (
+CREATE TABLE IF NOT EXISTS `transaction` (
   `id` VARCHAR(255) NOT NULL,
   `no` VARCHAR(255) NULL DEFAULT NULL,
   `type` VARCHAR(255) NULL DEFAULT NULL,
@@ -337,7 +337,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_amount
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`transaction_amount` (
+CREATE TABLE IF NOT EXISTS `transaction_amount` (
   `transaction` VARCHAR(255) NOT NULL,
   `type` VARCHAR(255) NOT NULL,
   `amount` DECIMAL(38,2) NULL DEFAULT NULL,
@@ -348,7 +348,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_date
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`transaction_date` (
+CREATE TABLE IF NOT EXISTS `transaction_date` (
   `transaction` VARCHAR(255) NOT NULL,
   `type` VARCHAR(255) NOT NULL,
   `value` DATETIME(6) NULL DEFAULT NULL,
@@ -359,7 +359,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_item
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`transaction_item` (
+CREATE TABLE IF NOT EXISTS `transaction_item` (
   `item` VARCHAR(255) NOT NULL,
   `transaction` VARCHAR(255) NOT NULL,
   `product` VARCHAR(255) NULL DEFAULT NULL,
@@ -375,7 +375,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.transaction_partner
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`transaction_partner` (
+CREATE TABLE IF NOT EXISTS `transaction_partner` (
   `partner_function` VARCHAR(255) NOT NULL,
   `partner` VARCHAR(255) NOT NULL,
   `transaction` VARCHAR(255) NOT NULL,
@@ -394,7 +394,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.user
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`user` (
+CREATE TABLE IF NOT EXISTS `user` (
   `id` VARCHAR(255) NOT NULL,
   `username` VARCHAR(100) NULL DEFAULT NULL,
   `cellphone` VARCHAR(20) NULL DEFAULT NULL,
@@ -415,7 +415,7 @@ DEFAULT CHARACTER SET = utf8mb3;
 -- ----------------------------------------------------------------------------
 -- Table mawa.user_role
 -- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mawa`.`user_role` (
+CREATE TABLE IF NOT EXISTS `user_role` (
   `role` VARCHAR(255) NOT NULL,
   `user` VARCHAR(255) NOT NULL,
   `valid_from` DATE NULL DEFAULT NULL,
