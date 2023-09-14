@@ -14,18 +14,11 @@ import java.util.Optional;
 @Component
 //@Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS)
 public class TenantIdentifierResolver implements CurrentTenantIdentifierResolver, HibernatePropertiesCustomizer {
-    private String currentTenant = "unknown";
-
-    public void setCurrentTenant(String tenant) {
-        currentTenant = tenant;
-    }
-
     @Override
     public String resolveCurrentTenantIdentifier() {
         return Optional.ofNullable(TenantContext.getCurrentTenant())
                 .orElse(TenantContext.DEFAULT_TENANT_ID);
     }
-
     @Override
     public boolean validateExistingCurrentSessions() {
         return true;

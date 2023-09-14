@@ -40,27 +40,28 @@ public class TenantAdminService implements TenantDao {
     SettingService settingService;
 
     Gson gson = new Gson();
-    @Value("${admin-api-url}")
+    @Value("${mawa.admin.api.url}")
     private String adminApiUrl;
-    @Value("${admin-username}")
+    @Value("${mawa.admin.api.username}")
     private String adminApiUsername;
-    @Value("${admin-password}")
+    @Value("${mawa.admin.api.password}")
     private String adminApiPassword;
     private static final String ADMIN_API_URL = "admin-api-url";
     private static final String ADMIN_USERNAME = "admin-username";
     private static final String ADMIN_PASSWORD = "admin-password";
     private static final String ADMIN_SETTING = "ADMIN";
     private String getAdminToken() {
-        Properties properties = settingService.getSettings(ADMIN_SETTING);
         JwtRequest tokenRequest = new JwtRequest();
         tokenRequest.setUsername(adminApiUsername);
         tokenRequest.setPassword(adminApiPassword);
         String token = "";
         try {
-            URL url = new URL(adminApiUrl + "/Authenticate");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            URL url = new URL(adminApiUrl + "/authenticate");HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
             OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
             writer.write(gson.toJson(tokenRequest));
             writer.close();
@@ -75,9 +76,9 @@ public class TenantAdminService implements TenantDao {
             }
             conn.disconnect();
         } catch (MalformedURLException ex) {
-
+            System.out.println(ex.getMessage());
         } catch (IOException ex) {
-
+            System.out.println(ex.getMessage());
         }
         return token;
     }

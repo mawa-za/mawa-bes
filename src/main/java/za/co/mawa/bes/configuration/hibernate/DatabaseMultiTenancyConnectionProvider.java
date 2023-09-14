@@ -14,8 +14,8 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 
-//@Component
-public class DatabaseMultiTenancyConnectionProvider implements MultiTenantConnectionProvider, HibernatePropertiesCustomizer {
+@Component
+    public class DatabaseMultiTenancyConnectionProvider implements MultiTenantConnectionProvider, HibernatePropertiesCustomizer {
     @Autowired
     DataSource dataSource;
     @Override
@@ -30,8 +30,9 @@ public class DatabaseMultiTenancyConnectionProvider implements MultiTenantConnec
 
     @Override
     public Connection getConnection(String schema) throws SQLException {
-
-        return dataSource.getConnection();
+        Connection connection = dataSource.getConnection();
+        connection.createStatement().execute(String.format("USE %s;", schema));
+        return connection;
     }
 
     @Override

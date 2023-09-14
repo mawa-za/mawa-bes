@@ -22,8 +22,6 @@ public class FlywayConfiguration {
     @Autowired
     DataSource dataSource;
     @Autowired
-    Environment environment;
-    @Autowired
     EncryptionService encryptionService;
     @Autowired
     TenantAdminService tenantAdminService;
@@ -56,7 +54,6 @@ public class FlywayConfiguration {
     }
 
     private void updateTenantDB(String tenantId) {
-        Pair<String, BasicDataSource> data = dataSource(tenantId);
         Flyway.configure()
                 .locations(DB_MIGRATION_TENANTS)
                 .baselineOnMigrate(true)

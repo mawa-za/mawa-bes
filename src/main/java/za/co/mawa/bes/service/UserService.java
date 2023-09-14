@@ -116,7 +116,7 @@ public class UserService implements UserDao {
     @Override
     public UserDto getUserByName(String username) throws Exception {
         try {
-            userRepository.findAll();
+//            userRepository.findAll();
             UserEntity userEntity = userRepository.getByName(username);
             if (userEntity == null) {
                 UserDto userDto = null;
@@ -124,6 +124,7 @@ public class UserService implements UserDao {
                     UserCreateDto userCreateDto = new UserCreateDto();
                     userCreateDto.setUsername(ADMIN_USER);
                     userCreateDto.setPassword(DEFAULT_ADMIN_PASSWORD);
+                    userCreateDto.setUserType(UserType.ADMIN);
                     userDto = create(userCreateDto);
                 }
                 return userDto;
