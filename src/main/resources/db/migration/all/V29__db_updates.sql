@@ -1,28 +1,28 @@
-ALTER TABLE `mawa`.`partner_address`
+ALTER TABLE `partner_address`
 CHANGE COLUMN `partner` `partner` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`partner_attachment`
+ALTER TABLE `partner_attachment`
 CHANGE COLUMN `partner` `partner` VARCHAR(255) NULL DEFAULT NULL ;
 
-ALTER TABLE `mawa`.`partner_contact`
+ALTER TABLE `partner_contact`
 CHANGE COLUMN `partner` `partner` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`partner_date`
+ALTER TABLE `partner_date`
 CHANGE COLUMN `partner_no` `partner_no` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`partner_identity`
+ALTER TABLE `partner_identity`
 CHANGE COLUMN `partner` `partner` VARCHAR(255) NULL DEFAULT NULL ;
 
-ALTER TABLE `mawa`.`partner_relation`
+ALTER TABLE `partner_relation`
 CHANGE COLUMN `partner1` `partner1` VARCHAR(255) NOT NULL ,
 CHANGE COLUMN `partner2` `partner2` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`partner_resources`
+ALTER TABLE `partner_resources`
 CHANGE COLUMN `partner_no` `partner_no` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`partner_role`
+ALTER TABLE `partner_role`
 CHANGE COLUMN `id` `partner` VARCHAR(255) NOT NULL ;
 
-ALTER TABLE `mawa`.`employment`
+ALTER TABLE `employment`
 CHANGE COLUMN `employee_id` `employee_id` VARCHAR(255) NOT NULL ;
 

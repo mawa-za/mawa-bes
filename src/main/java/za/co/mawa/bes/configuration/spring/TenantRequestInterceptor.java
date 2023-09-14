@@ -9,8 +9,10 @@ import org.springframework.web.servlet.ModelAndView;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
 import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.exception.TenantNotFound;
 import za.co.mawa.bes.exception.TenantNotProvided;
 import za.co.mawa.bes.service.RemoteTenantService;
+import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TenantService;
 
 import java.util.List;
@@ -21,7 +23,7 @@ import java.util.function.Predicate;
 @Component
 public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
     @Autowired
-    TenantService tenantService;
+    TenantAdminService tenantAdminService;
     private SecurityDomain securityDomain;
 
     public TenantRequestInterceptor(SecurityDomain securityDomain) {
@@ -33,38 +35,31 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
     Predicate<String> isAuthenticatePath = it -> it.equals("/authenticate");
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws TenantNotProvided {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws TenantNotFound, TenantNotProvided {
 
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if (isPost.test(method) && requestURI.contains("/authenticate")) {
-            TenantContext.setDefaultTenant();
-            System.out.println("Tenant Before:" +TenantContext.getCurrentTenant() );
-            System.out.println("X-TenantID:" + request.getHeader("X-TenantID"));
-            String host = request.getHeader("X-TenantID").split(":")[0];
-            System.out.println("host:" + host);
-            List<TenantDto> tenants = tenantService.getAll().stream()
+            String tenant = "";
+            String tenantHeader = request.getHeader("X-TenantID");
+            if (tenantHeader != null) {
+                tenant = tenantHeader.split(":")[0];
+            } else {
+                tenant = TenantContext.LOCALHOST_HOST;
+            }
+            String host = tenant;
+            List<TenantDto> tenants = tenantAdminService.getAll().stream()
                     .filter(a -> Objects.equals(a.getHost(), host))
                     .toList();
-            System.out.println("Found Tenant:" + tenants.toString());
             if (!tenants.isEmpty()) {
-                TenantDto tenant = tenants.iterator().next();
-                TenantContext.setCurrentTenant(tenant.getName());
-                System.out.println("Tenant After:" +TenantContext.getCurrentTenant() );
+                TenantDto tenantDto = tenants.iterator().next();
+                TenantContext.setCurrentTenant(tenantDto.getId());
                 return true;
             } else {
-                String tenantID = request.getHeader("X-TenantID");
-                if (tenantID != null) {
-                    TenantContext.setCurrentTenant(tenantID);
-                    System.out.println("Tenant After:" +TenantContext.getCurrentTenant() );
-                    return true;
-                } else {
-                    throw new TenantNotProvided("X-TenantID request header not provided");
-                }
+                throw new TenantNotFound("Tenant not found");
             }
         } else {
             try {
-
                 return Optional.ofNullable(request)
                         .map(req -> securityDomain.getTenantIdFromJwt(req))
                         .map(tenant -> setTenantContext(tenant))

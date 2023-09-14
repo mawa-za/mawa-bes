@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Properties;
 
 public interface TenantDao {
+
     TenantDto create(TenantDto tenantDto) throws Exception;
     List<TenantDto> getAll();
     void addProperty(TenantPropertyDto tenantPropertyDto);

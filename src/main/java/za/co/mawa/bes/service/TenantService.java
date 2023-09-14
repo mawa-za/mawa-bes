@@ -1,10 +1,13 @@
 package za.co.mawa.bes.service;
 
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.TenantDao;
+import za.co.mawa.bes.dto.JwtRequest;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.TenantPropertyDto;
 import za.co.mawa.bes.entity.TenantEntity;
@@ -15,6 +18,14 @@ import za.co.mawa.bes.repository.TenantRepository;
 import za.co.mawa.bes.utils.Status;
 
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -25,7 +36,8 @@ public class TenantService implements TenantDao {
     TenantRepository tenantRepository;
     @Autowired
     TenantPropertyRepository tenantPropertyRepository;
-
+    @Autowired
+    SettingService settingService;
     @Override
     public TenantDto create(TenantDto tenantDto) throws Exception {
         try {
@@ -41,7 +53,7 @@ public class TenantService implements TenantDao {
         }
     }
 
-    @Transactional
+
     @Override
     public List<TenantDto> getAll() {
         List<TenantDto> tenantDtos = new ArrayList<>();
@@ -57,6 +69,7 @@ public class TenantService implements TenantDao {
         }
         return tenantDtos;
     }
+
 
     @Override
     public void addProperty(TenantPropertyDto propertyDto) {
