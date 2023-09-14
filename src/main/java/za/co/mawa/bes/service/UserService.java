@@ -126,6 +126,10 @@ public class UserService implements UserDao {
                     userCreateDto.setPassword(DEFAULT_ADMIN_PASSWORD);
                     userCreateDto.setUserType(UserType.ADMIN);
                     userDto = create(userCreateDto);
+                    UserRoleDto userRoleDto = new UserRoleDto();
+                    userRoleDto.setUser(userDto.getId());
+                    userRoleDto.setRole("SYSADMIN");
+                    addRole(userRoleDto);
                 }
                 return userDto;
             } else {
