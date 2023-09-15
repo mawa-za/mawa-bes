@@ -8,7 +8,7 @@ INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
 VALUES ('USER-TYPE', 'User Type', '2023-09-14', '9999-12-31');
 
 INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
-VALUES ('PAYMENT-TYPE', 'Payment Type', '2023-09-14', '9999-12-31');
+VALUES ('PAYMENT-METHOD', 'Payment Type', '2023-09-14', '9999-12-31');
 
 INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
 VALUES ('TENDER-TYPE', 'Tender Type', '2023-09-14', '9999-12-31');
@@ -44,10 +44,10 @@ INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid
 VALUES ('ADMIN', 'USER-TYPE', 'Admin', '2023-09-14', '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
-VALUES ('CASH', 'PAYMENT-TYPE', 'Cash', '2023-09-14', '9999-12-31');
+VALUES ('CASH', 'PAYMENT-METHOD', 'Cash', '2023-09-14', '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
-VALUES ('EFT', 'PAYMENT-TYPE', 'Electronic Funds Transfer', '2023-09-14', '9999-12-31');
+VALUES ('EFT', 'PAYMENT-METHOD', 'Electronic Funds Transfer', '2023-09-14', '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
 VALUES ('CASH', 'TENDER-TYPE', 'Cash', '2023-09-14', '9999-12-31');
