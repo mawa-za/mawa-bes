@@ -13,9 +13,8 @@ import java.util.List;
 @Setter
 public class ServiceRequestCreateDto implements Serializable {
     private String customerId;
-    private String description;
     private String summary;
+    private String description;
     private String category;
     private String priority;
-    private List<LineItemDto> items;
 }

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.service.request.ServiceRequestCreateDto;
+import za.co.mawa.bes.dto.service.request.ServiceRequestEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
@@ -51,7 +52,7 @@ public class ServiceRequestController {
     }
 
     @RequestMapping(value = "/service-request/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
+    public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
 //            transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();

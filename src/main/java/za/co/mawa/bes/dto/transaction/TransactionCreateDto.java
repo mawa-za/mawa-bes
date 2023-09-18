@@ -17,9 +17,8 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TransactionCreateDto implements Serializable {
-
-    private String description;
     private String type;
+    private String description;
     private String subType;
     private String status;
     public TransactionCreateDto(QuotationCreateDto quotationCreateDto){
