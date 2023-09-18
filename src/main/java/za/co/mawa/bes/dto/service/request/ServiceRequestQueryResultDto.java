@@ -3,16 +3,11 @@ package za.co.mawa.bes.dto.service.request;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.LineItemDto;
-
-import java.io.Serializable;
-import java.util.List;
 
 @NoArgsConstructor
 @Getter
 @Setter
-public class ServiceRequestEditDto implements Serializable {
-    private String id;
+public class ServiceRequestQueryResultDto {
     private String customerId;
     private String summary;
     private String description;

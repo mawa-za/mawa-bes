@@ -1,11 +1,13 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.service.request.ServiceRequestCreateDto;
-import za.co.mawa.bes.dto.service.request.ServiceRequestQueryDto;
+import za.co.mawa.bes.dto.service.request.*;
 
 import java.util.List;
 
 public interface ServiceRequestDao {
-    ServiceRequestDao create(ServiceRequestCreateDto serviceRequestCreateDto);
-    List<ServiceRequestDao> search(ServiceRequestQueryDto serviceRequestQueryDto);
+    ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto);
+    ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto);
+    List<ServiceRequestQueryResultDto> search(ServiceRequestQueryDto serviceRequestQueryDto);
+    ServiceRequestDto get(String id);
+    void delete(String id);
 }
