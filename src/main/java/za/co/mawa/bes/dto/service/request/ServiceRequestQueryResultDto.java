@@ -7,7 +7,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ServiceRequestQueryDto {
+public class ServiceRequestQueryResultDto {
     private String customerId;
-    private String status;
+    private String summary;
+    private String description;
+    private String category;
+    private String priority;
 }
