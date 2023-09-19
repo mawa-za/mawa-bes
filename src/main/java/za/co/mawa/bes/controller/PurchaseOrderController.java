@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderDto;
+import za.co.mawa.bes.dto.purchase.order.PurchaseOrderEditDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
@@ -35,6 +36,8 @@ import java.util.List;
 public class PurchaseOrderController {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    PurchaseOrderService purchaseOrderService;
     @Autowired
     ProductService productService;
     @Autowired
@@ -137,10 +140,10 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody TransactionEdit transactionDto) {
+    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody PurchaseOrderEditDto purchaseOrderEditDto) {
         try {
-            transactionDto.setId(id);
-            transactionService.edit(transactionDto);
+            purchaseOrderEditDto.setId(id);
+            purchaseOrderService.edit(purchaseOrderEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

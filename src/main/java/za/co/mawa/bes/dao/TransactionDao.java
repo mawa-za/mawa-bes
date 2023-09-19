@@ -3,6 +3,7 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.date.TransactionDateEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
@@ -60,6 +61,7 @@ public interface TransactionDao {
     TransactionLinkEntity getTransaction(String type,String transaction1);
     boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception;
     boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
+    boolean editDate(TransactionDateDto transactionDateDto) throws DoesNotExist, Exception;
     boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist,Exception;
     boolean editItem(TransactionItemEditDto transactionItemEditDto) throws DoesNotExist,Exception;
     void addBankAccount(TransactionAccountDto accountDto) throws Exception;

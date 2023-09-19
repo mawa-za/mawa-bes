@@ -229,15 +229,15 @@ public class LayByService implements LayByDao {
     public boolean edit(String id, LayByEditDto editDto) throws Exception {
         try{
             boolean edited = false;
-            TransactionEdit edit = new TransactionEdit();
-            edit.setId(id);
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
             if(editDto.getStatus() != null && editDto.getStatus() != ""){
-                edit.setStatus(editDto.getStatus());
-                edited = transactionService.edit(edit);
+                transactionEditDto.setStatus(editDto.getStatus());
+                transactionService.edit(transactionEditDto);
             }
             if(editDto.getStatusReason() != null && editDto.getStatusReason() != ""){
-                edit.setStatusReason(editDto.getStatusReason());
-                edited = transactionService.edit(edit);
+                transactionEditDto.setStatusReason(editDto.getStatusReason());
+                transactionService.edit(transactionEditDto);
             }
             if(editDto.getEndDate() != null && editDto.getEndDate() != ""){
                 TransactionDateEdit dateEdit = new TransactionDateEdit();

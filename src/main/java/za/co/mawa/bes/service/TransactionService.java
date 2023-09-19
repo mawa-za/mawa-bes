@@ -351,6 +351,11 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
+    public boolean editDate(TransactionDateDto transactionDateDto) throws DoesNotExist, Exception {
+        return false;
+    }
+
+    @Override
     public boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist, Exception {
         try {
             TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
