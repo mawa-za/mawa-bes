@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimEditDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
+import za.co.mawa.bes.dto.transaction.date.TransactionDateEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
@@ -199,17 +200,17 @@ public class ClaimController {
                                           @RequestParam(required = false) String statusReason,
                                           @RequestParam(required = false) String description) {
         try {
-            TransactionEdit edit = new TransactionEdit();
-            edit.setId(id);
-            edit.setStatus(ClaimStatus.APPROVED);
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(ClaimStatus.APPROVED);
             if(statusReason != null && statusReason != ""){
-                edit.setStatusReason(statusReason);
+                transactionEditDto.setStatusReason(statusReason);
             }
             if(description != null && description != null) {
-              edit.setDescription(description);
+                transactionEditDto.setDescription(description);
             }
-            boolean edited = transactionService.edit(edit);
-            return ResponseEntity.ok(gson.toJson(edited));
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -220,15 +221,15 @@ public class ClaimController {
                                          @RequestParam(required = true) String statusReason,
                                          @RequestParam(required = false) String description) {
         try {
-            TransactionEdit edit = new TransactionEdit();
-            edit.setId(id);
-            edit.setStatus(ClaimStatus.REJECTED);
-            edit.setStatusReason(statusReason);
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(ClaimStatus.REJECTED);
+            transactionEditDto.setStatusReason(statusReason);
             if(description != null && description != ""){
-               edit.setDescription(description);
+                transactionEditDto.setDescription(description);
             }
-            boolean edited = transactionService.edit(edit);
-            return ResponseEntity.ok(gson.toJson(edited));
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -239,15 +240,15 @@ public class ClaimController {
                                           @RequestParam(required = true) String statusReason,
                                           @RequestParam(required = false) String description) {
         try {
-            TransactionEdit edit = new TransactionEdit();
-            edit.setId(id);
-            edit.setStatus(ClaimStatus.DISPUTED);
-            edit.setStatusReason(statusReason);
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(ClaimStatus.DISPUTED);
+            transactionEditDto.setStatusReason(statusReason);
             if(description != null && description != ""){
-                edit.setDescription(description);
+                transactionEditDto.setDescription(description);
             }
-            boolean edited = transactionService.edit(edit);
-            return ResponseEntity.ok(gson.toJson(edited));
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -259,11 +260,11 @@ public class ClaimController {
             boolean edited = false;
             if(claimDto.getBurialDate() != null)
             {
-                TransactionDateEdit edit = new TransactionDateEdit();
-                edit.setTransaction(id);
-                edit.setType(DateType.BURIAL_DATE);
-                edit.setValue(claimDto.getBurialDate());
-                edited = transactionService.dateEdit(edit);
+                TransactionDateEdit transactionDateEdit = new TransactionDateEdit();
+                transactionDateEdit.setTransaction(id);
+                transactionDateEdit.setType(DateType.BURIAL_DATE);
+                transactionDateEdit.setValue(claimDto.getBurialDate());
+                edited = transactionService.dateEdit(transactionDateEdit);
 
             }
             if(claimDto.getDeathDate() != null)

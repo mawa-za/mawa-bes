@@ -10,5 +10,5 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class PurchaseOrderEditDto implements Serializable {
-
+private String id;
 }

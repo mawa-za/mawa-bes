@@ -172,19 +172,19 @@ public class MembershipController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            TransactionEdit transactionDto = new TransactionEdit();
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
             TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
             boolean edited = false;
             if(membershipDto.getStatus() != null && membershipDto.getStatus() != ""){
-                transactionDto.setStatus(membershipDto.getStatus());
+                transactionEditDto.setStatus(membershipDto.getStatus());
             }
             if(membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != ""){
-                transactionDto.setStatusReason(membershipDto.getStatusReason());
+                transactionEditDto.setStatusReason(membershipDto.getStatusReason());
             }
-            if(transactionDto.getStatusReason() != null || transactionDto.getStatus() != null)
+            if(transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null)
             {
-                transactionDto.setId(id);
-               edited = transactionService.edit(transactionDto);
+                transactionEditDto.setId(id);
+              transactionService.edit(transactionEditDto);
             }
             if(membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != ""){
               partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
