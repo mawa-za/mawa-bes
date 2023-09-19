@@ -733,26 +733,25 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean edit(TransactionEdit transactionDto) throws DoesNotExist, Exception {
-        TransactionEntity entity = transactionRepository.getById(transactionDto.getId());
+    public void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception {
+        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
         if (entity != null) {
             try {
-                if (transactionDto.getStatus() != null) {
-                    entity.setStatus(transactionDto.getStatus());
+                if (transactionEditDto.getStatus() != null) {
+                    entity.setStatus(transactionEditDto.getStatus());
                 }
-                if (transactionDto.getStatusReason() != null) {
-                    entity.setStatusReason(transactionDto.getStatusReason());
+                if (transactionEditDto.getStatusReason() != null) {
+                    entity.setStatusReason(transactionEditDto.getStatusReason());
                 }
-                if (transactionDto.getDescription() != null) {
-                    if (transactionDto.getDescription().length() > 255) {
-                        entity.setDescription(transactionDto.getDescription());
-                    } else if (transactionDto.getDescription().length() <= 255) {
-                        entity.setSubDescription(transactionDto.getDescription());
+                if (transactionEditDto.getDescription() != null) {
+                    if (transactionEditDto.getDescription().length() > 255) {
+                        entity.setDescription(transactionEditDto.getDescription());
+                    } else if (transactionEditDto.getDescription().length() <= 255) {
+                        entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
                 entity.setChangedBy(getUser());
                 transactionRepository.save(entity);
-                return true;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

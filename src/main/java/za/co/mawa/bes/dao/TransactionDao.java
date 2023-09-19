@@ -23,7 +23,7 @@ import java.util.List;
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
     List<TransactionQueryResultDto> search(TransactionQueryDto query);
-    boolean edit(TransactionEdit transactionEditDto) throws DoesNotExist, Exception;
+    void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception;
     void delete(String id) throws Exception;
     TransactionDto get(String transactionId) throws TransactionNotFound;
 
