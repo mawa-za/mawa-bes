@@ -80,14 +80,14 @@ public class TransactionService implements TransactionDao {
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
                 transactionPartnerDto.setPartner(transactionCreateDto.getCustomerId());
                 transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                addPartner(new TransactionPartnerDto());
+                addPartner(transactionPartnerDto);
             }
             if (transactionCreateDto.getSupplierId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
                 transactionPartnerDto.setPartner(transactionCreateDto.getSupplierId());
                 transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
-                addPartner(new TransactionPartnerDto());
+                addPartner(transactionPartnerDto);
             }
 
             if (transactionCreateDto.getEmployeeResponsible() != null) {
@@ -95,7 +95,7 @@ public class TransactionService implements TransactionDao {
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
                 transactionPartnerDto.setPartner(transactionCreateDto.getEmployeeResponsible());
                 transactionPartnerDto.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
-                addPartner(new TransactionPartnerDto());
+                addPartner(transactionPartnerDto);
             }
 
 //            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
