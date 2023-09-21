@@ -10,7 +10,11 @@ import za.co.mawa.bes.dto.product.ProductCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.ProductUpdateDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
+import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.utils.PriceType;
@@ -105,4 +109,44 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+    @RequestMapping(value = "/product/{id}/attribute", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addAttribute(@PathVariable String id, @RequestBody ProductAttributeCreateDto attributeCreate) {
+        try {
+            return ResponseEntity.ok(gson.toJson(productService.addAttribute(attributeCreate)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+    @RequestMapping(value = "/product/{id}/attribute", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAttribute(@PathVariable String id) {
+        try {
+            ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
+            queryDto.setProduct(id);
+            return ResponseEntity.ok(gson.toJson(productService.getAttributes(queryDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+    @RequestMapping(value = "/product/{id}/attribute", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteAttribute(@PathVariable String id,@RequestParam String attribute) {
+        try {
+            ProductAttributePKEntity pk = new ProductAttributePKEntity();
+            pk.setProduct(id);
+            pk.setAttribute(attribute);
+            return ResponseEntity.ok(gson.toJson(productService.deleteAttribute(pk)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+    @RequestMapping(value = "/product/{id}/attribute", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editAttribute(@PathVariable String id,
+                                           @RequestParam String attribute,
+                                           @RequestBody ProductAttributeEditDto editDto) {
+        try {
+            return ResponseEntity.ok(gson.toJson(productService.editAttribute(editDto,id,attribute)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 }

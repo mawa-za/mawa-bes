@@ -12,7 +12,9 @@ import java.util.logging.Logger;
 public class Conversion {
     private static final DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final DateFormat dateTimeFormatter2 = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     private static final DateFormat TimeFormatter = new SimpleDateFormat("HH:mm:ss");
+    private static final DateFormat TimeFormatter2 = new SimpleDateFormat("HH:mm");
     public static String dateToString(Date date) {
         String stringDate = "";
 
@@ -22,6 +24,14 @@ public class Conversion {
         return stringDate;
     }
 
+    public static String time2ToString(Date date) {
+        String stringDate = "";
+
+        if (date != null) {
+            stringDate = TimeFormatter2.format(date);
+        }
+        return stringDate;
+    }
     public static String dateTimeToString(Date date) {
         String stringDate = "";
 
@@ -29,6 +39,16 @@ public class Conversion {
             stringDate = dateTimeFormatter.format(date);
         }
         return stringDate;
+    }
+    public static Date dateTimeToString2(String date) {
+        Date returnDate = null;
+        try {
+            returnDate = dateTimeFormatter2.parse(date);
+        } catch (ParseException ex) {
+            Logger.getLogger(Conversion.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return returnDate;
     }
     public static String TimeToString(Date date) {
         String stringDate = "";
