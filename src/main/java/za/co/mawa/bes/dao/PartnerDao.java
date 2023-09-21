@@ -1,6 +1,7 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
@@ -79,4 +80,8 @@ public interface PartnerDao {
     void addPartnersRole(RolePartnerDto rolePartnerDto) throws Exception;
     boolean deleteRoles(PartnerRolePKEntity rolePKEntity) throws Exception;
     boolean editPartner(PartnerEditDto editDto,String id) throws Exception;
+    ArrayList<PartnerAttribute> getAttributes(PartnerAttributeQueryDto queryDto);
+    boolean addAttribute(PartnerAttributeCreateDto createDto)throws Exception;
+    boolean editAttribute(PartnerAttributeEditDto editDto, String partner, String attribute) throws Exception;
+    boolean deleteAttribute(PartnerAttributePKEntity pkEntity) throws Exception;
 }

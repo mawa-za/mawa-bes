@@ -16,5 +16,6 @@ public class TransactionType {
     public static String DEPOSIT = "DEPOSIT";
     public static String VOUCHER = "VOUCHER";
     public static String LAYBY = "LAY-BY";
+    public static String BOOKING = "BOOKING";
 
 }

@@ -10,14 +10,17 @@ import za.co.mawa.bes.dao.ProductDao;
 import za.co.mawa.bes.dto.product.ProductCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
-import za.co.mawa.bes.entity.ProductEntity;
-import za.co.mawa.bes.entity.ProductPricingEntity;
-import za.co.mawa.bes.entity.ProductPricingPKEntity;
+import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.exception.ProductDeleteFailure;
 import za.co.mawa.bes.exception.ProductNotFound;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
+import za.co.mawa.bes.repository.ProductAttributeRepository;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.Constant;
@@ -36,6 +39,8 @@ public class ProductService implements ProductDao {
     ProductRepository productRepository;
     @Autowired
     ProductPricingRepository productPricingRepository;
+    @Autowired
+    ProductAttributeRepository productAttributeRepository;
 
     @Autowired
     NumberRangeService numberRangeService;
@@ -222,6 +227,79 @@ public class ProductService implements ProductDao {
         }
     }
 
+    @Override
+    public ArrayList<ProductAttributeDto> getAttributes(ProductAttributeQueryDto queryDto) {
+        try{
+            ArrayList<ProductAttributeDto> attributes = new ArrayList<>();
+            Sort sort = Sort.by("productAttributePKEntity").descending();
+            for(ProductAttributeEntity attributeEntity:productAttributeRepository.findAll(findByAttribute(queryDto),sort)){
+                ProductAttributeDto productAttributeDto = new ProductAttributeDto();
+                productAttributeDto.setAttribute(attributeEntity.getProductAttributePKEntity().getAttribute());
+                productAttributeDto.setProduct(attributeEntity.getProductAttributePKEntity().getProduct());
+                productAttributeDto.setValue(attributeEntity.getValue());
+                productAttributeDto.setValidFrom(Conversion.dateToString(attributeEntity.getValidFrom()));
+                productAttributeDto.setValidTo(Conversion.dateToString(attributeEntity.getValidTo()));
+                attributes.add(productAttributeDto);
+            }
+            return attributes;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean addAttribute(ProductAttributeCreateDto createDto) throws Exception {
+        try{
+            ProductAttributePKEntity pkEntity = new ProductAttributePKEntity();
+            ProductAttributeEntity entity = new ProductAttributeEntity();
+            pkEntity.setAttribute(createDto.getAttribute());
+            pkEntity.setProduct(createDto.getProduct());
+            entity.setValue(createDto.getValue());
+            entity.setValidFrom(new Date());
+            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
+            entity.setProductAttributePKEntity(pkEntity);
+            productAttributeRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean editAttribute(ProductAttributeEditDto editDto,String product,String attribute) throws Exception {
+        try{
+            ProductAttributePKEntity entityPk = new ProductAttributePKEntity();
+            entityPk.setProduct(product);
+            entityPk.setAttribute(attribute);
+            ProductAttributeEntity entity = productAttributeRepository.getById(entityPk);
+            if(editDto.getValue() != null){
+                entity.setValue(editDto.getValue());
+            }
+            if(editDto.getValidFrom() != null){
+                entity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
+            }
+            if(editDto.getValidTo() != null){
+                entity.setValidTo(Conversion.stringToDate(editDto.getValidTo()));
+            }
+            productAttributeRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+
+    }
+
+    @Override
+    public boolean deleteAttribute(ProductAttributePKEntity pkEntity) throws Exception {
+        try{
+            productAttributeRepository.deleteById(pkEntity);
+            return true;
+        }catch(Exception e){
+           throw new RuntimeException(e);
+        }
+
+    }
+
     private Specification<ProductEntity> findByCriteria(ProductQueryDto productQuery) {
         return (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
@@ -233,5 +311,27 @@ public class ProductService implements ProductDao {
             }
             return predicate;
         };
+    }
+
+    private Specification<ProductAttributeEntity> findByAttribute(ProductAttributeQueryDto attributeQuery){
+       return(root,query,cb) ->{
+           Predicate predicate = cb.conjunction();
+           if(attributeQuery.getAttribute() != null){
+              predicate = cb.and(predicate,cb.equal(root.get("productAttributePKEntity").get("attribute"),attributeQuery.getAttribute()));
+           }
+           if(attributeQuery.getProduct() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("productAttributePKEntity").get("product"),attributeQuery.getProduct()));
+           }
+           if(attributeQuery.getValue() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("value"),attributeQuery.getValue()));
+           }
+           if(attributeQuery.getValidTo() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("validTo"),attributeQuery.getValidTo()));
+           }
+           if(attributeQuery.getValidFrom() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("validFrom"),attributeQuery.getValidFrom()));
+           }
+           return predicate;
+       };
     }
 }

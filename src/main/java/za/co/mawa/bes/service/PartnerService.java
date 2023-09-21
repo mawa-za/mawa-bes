@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
@@ -51,6 +52,8 @@ public class PartnerService implements PartnerDao {
     PartnerResourceApiRepository partnerResourceApiRepository;
     @Autowired
     PartnerAttachmentRepository partnerAttachmentRepository;
+    @Autowired
+    PartnerAttributeRepository partnerAttributeRepository;
     @Autowired
     UserService userService;
     @Autowired
@@ -1835,6 +1838,76 @@ public class PartnerService implements PartnerDao {
         }
 
     }
+    @Override
+    public ArrayList<PartnerAttribute> getAttributes(PartnerAttributeQueryDto queryDto) {
+       try{
+           ArrayList<PartnerAttribute> attributes = new ArrayList<>();
+           Sort sort = Sort.by("partnerAttributePKEntity").descending();
+           for(PartnerAttributeEntity attributeEntity:partnerAttributeRepository.findAll(findByAttribute(queryDto),sort)){
+               PartnerAttribute attribute = new PartnerAttribute();
+               attribute.setAttribute(attributeEntity.getPartnerAttributePKEntity().getAttribute());
+               attribute.setPartner(attributeEntity.getPartnerAttributePKEntity().getPartner());
+               attribute.setValue(attributeEntity.getValue());
+               attribute.setValidFrom(Conversion.dateToString(attributeEntity.getValidFrom()));
+               attribute.setValidTo(Conversion.dateToString(attributeEntity.getValidTo()));
+               attributes.add(attribute);
+           }
+           return attributes;
+       }catch (Exception ex){
+         throw new RuntimeException(ex);
+       }
+    }
+
+    @Override
+    public boolean addAttribute(PartnerAttributeCreateDto createDto) throws Exception {
+        try{
+            PartnerAttributeEntity entity = new PartnerAttributeEntity();
+            PartnerAttributePKEntity pk = new PartnerAttributePKEntity();
+            pk.setAttribute(createDto.getAttribute());
+            pk.setPartner(createDto.getPartner());
+            entity.setPartnerAttributePKEntity(pk);
+            entity.setValue(createDto.getValue());
+            entity.setValidTo(new Date());
+            entity.setValidFrom(Conversion.stringToDate("9999-12-31"));
+            partnerAttributeRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean editAttribute(PartnerAttributeEditDto editDto, String partner, String attribute) throws Exception {
+        try{
+            PartnerAttributePKEntity pkEntity = new PartnerAttributePKEntity();
+            pkEntity.setAttribute(attribute);
+            pkEntity.setPartner(partner);
+            PartnerAttributeEntity entity = partnerAttributeRepository.getById(pkEntity);
+            if(editDto.getValidFrom() != null){
+              entity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
+            }
+            if(editDto.getValidTo() != null){
+             entity.setValidTo(Conversion.stringToDate(editDto.getValidTo()));
+            }
+            if(editDto.getValue() != null){
+              entity.setValue(editDto.getValue());
+            }
+            partnerAttributeRepository.save(entity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean deleteAttribute(PartnerAttributePKEntity pkEntity) throws Exception {
+        try{
+            partnerAttributeRepository.deleteById(pkEntity);
+            return true;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
+        }
+    }
 
     private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -1956,5 +2029,27 @@ public class PartnerService implements PartnerDao {
             }
             return predicate;
         };
+    }
+    private Specification<PartnerAttributeEntity> findByAttribute(PartnerAttributeQueryDto queryDto){
+       return(root,query,cb)->{
+           Predicate predicate = cb.conjunction();
+           if(queryDto.getPartner() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("partnerAttributePKEntity").get("partner"),queryDto.getPartner()));
+           }
+           if(queryDto.getAttribute() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("partnerAttributePKEntity").get("attribute"),queryDto.getAttribute()));
+           }
+           if(queryDto.getValue() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("value"),queryDto.getValue()));
+           }
+           if(queryDto.getValidTo() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("validTo"),queryDto.getValidTo()));
+           }
+           if(queryDto.getValidFrom() != null){
+               predicate = cb.and(predicate,cb.equal(root.get("validFrom"),queryDto.getValidFrom()));
+           }
+           return predicate;
+
+       };
     }
 }
