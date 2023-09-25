@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
