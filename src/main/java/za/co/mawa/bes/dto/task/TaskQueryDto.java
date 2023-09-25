@@ -8,12 +8,6 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @Setter
-public class TaskQueryDto implements Serializable {
-    private String id;
-    private String number;
-    private String type;
-    private String description;
-    private String employeeResponsibleId;
-    private String plannedStartDate;
-    private String plannedEndDate;
+public class TaskQueryDto extends TaskDto implements Serializable {
+
 }

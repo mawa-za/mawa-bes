@@ -31,7 +31,7 @@ public class TaskController {
     }
 
     @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getServiceRequest() {
+    public ResponseEntity<?> getTasks() {
         try {
             TaskQueryDto taskQueryDto = new TaskQueryDto();
             return ResponseEntity.ok(gson.toJson(taskService.search(taskQueryDto)));
@@ -41,7 +41,7 @@ public class TaskController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getServiceRequest(@PathVariable String id) {
+    public ResponseEntity<?> getTaskById(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(taskService.get(id)));
         } catch (Exception exception) {
@@ -50,7 +50,7 @@ public class TaskController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody TaskEditDto taskEditDto) {
+    public ResponseEntity<?> editTask(@PathVariable String id, @RequestBody TaskEditDto taskEditDto) {
         try {
             taskEditDto.setId(id);
             taskService.edit(taskEditDto);
@@ -61,7 +61,7 @@ public class TaskController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
+    public ResponseEntity<?> deleteTask(@PathVariable String id) {
         try {
             taskService.delete(id);
             return ResponseEntity.ok().build();

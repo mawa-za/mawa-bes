@@ -10,10 +10,18 @@ import java.io.Serializable;
 @Setter
 public class TaskDto implements Serializable {
     private String id;
+    private String parentId;
     private String number;
     private String type;
     private String description;
+    private String customerId;
+    private String customer;
     private String employeeResponsibleId;
+    private String employeeResponsible;
     private String plannedStartDate;
     private String plannedEndDate;
+    private String actualStartDate;
+    private String actualEndDate;
+    private String status;
 }
+

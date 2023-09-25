@@ -9,10 +9,13 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TaskCreateDto implements Serializable {
+    private String parentId;
     private String type;
     private String description;
+    private String customerId;
     private String employeeResponsibleId;
     private String plannedStartDate;
     private String plannedEndDate;
+
 
 }
