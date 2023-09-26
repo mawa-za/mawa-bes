@@ -1909,6 +1909,27 @@ public class PartnerService implements PartnerDao {
         }
     }
 
+    @Override
+    public boolean contactEdit(PartnerContactPKEntity entity, ContactEditDto editDto) throws Exception {
+        try{
+            PartnerContactEntity contactEntity = partnerContactRepository.getById(entity);
+            if(editDto.getValue() != null && editDto.getValue() != ""){
+                contactEntity.setValue(editDto.getValue());
+            }
+            if(editDto.getValidFrom() != null && editDto.getValidFrom() != ""){
+               contactEntity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
+            }
+            if(editDto.getValidTo() != null && editDto.getValidTo() != ""){
+                contactEntity.setValidTo(Conversion.stringToDate(editDto.getValidTo()));
+            }
+            partnerContactRepository.save(contactEntity);
+            return true;
+        }catch(Exception ex){
+           throw new RuntimeException(ex);
+        }
+
+    }
+
     private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();
