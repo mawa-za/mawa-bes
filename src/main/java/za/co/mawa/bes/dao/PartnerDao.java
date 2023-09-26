@@ -84,4 +84,5 @@ public interface PartnerDao {
     boolean addAttribute(PartnerAttributeCreateDto createDto)throws Exception;
     boolean editAttribute(PartnerAttributeEditDto editDto, String partner, String attribute) throws Exception;
     boolean deleteAttribute(PartnerAttributePKEntity pkEntity) throws Exception;
+    boolean contactEdit(PartnerContactPKEntity entity,ContactEditDto editDto) throws Exception;
 }

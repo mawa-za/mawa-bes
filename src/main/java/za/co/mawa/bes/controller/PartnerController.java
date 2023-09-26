@@ -195,10 +195,14 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/contact", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPartnerContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
+    public ResponseEntity<?> editPartnerContact(@PathVariable String id,
+                                                @RequestBody ContactEditDto contactDto,
+                                                @RequestParam String contactType) {
         try {
-            contactDto.setPartner(id);
-            boolean partnerDto = partnerService.editContact(contactDto);
+             PartnerContactPKEntity entityPk = new PartnerContactPKEntity();
+             entityPk.setType(contactType);
+             entityPk.setPartner(id);
+            boolean partnerDto = partnerService.contactEdit(entityPk,contactDto);
             return ResponseEntity.ok(gson.toJson(partnerDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
