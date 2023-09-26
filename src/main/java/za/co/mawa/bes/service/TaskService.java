@@ -21,15 +21,17 @@ public class TaskService implements TaskDao {
     TransactionService transactionService;
 
     @Override
-    public String create(TaskCreateDto taskCreateDto) {
+    public TaskDto create(TaskCreateDto taskCreateDto) {
         try {
+
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.TASK);
             transactionCreateDto.setSubType(taskCreateDto.getType());
             transactionCreateDto.setDescription(taskCreateDto.getDescription());
             transactionCreateDto.setEmployeeResponsible(taskCreateDto.getEmployeeResponsibleId());
             String taskId = transactionService.create(transactionCreateDto).getId();
-
+            TaskDto taskDto = new TaskDto();
+            taskDto.setId(taskId);
             if (taskCreateDto.getParentId() != null) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(taskCreateDto.getParentId());
@@ -53,7 +55,7 @@ public class TaskService implements TaskDao {
                 transactionDateDto.setValue(Conversion.stringToDate(taskCreateDto.getPlannedEndDate()));
                 transactionService.addDate(transactionDateDto);
             }
-            return taskId;
+            return taskDto;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
