@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderDto;
+import za.co.mawa.bes.dto.purchase.order.PurchaseOrderEditDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
@@ -35,6 +36,8 @@ import java.util.List;
 public class PurchaseOrderController {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    PurchaseOrderService purchaseOrderService;
     @Autowired
     ProductService productService;
     @Autowired
@@ -80,6 +83,13 @@ public class PurchaseOrderController {
                 transactionPartnerDto.setPartner(purchaseOrderCreateDto.getSupplierId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+            if(purchaseOrderCreateDto.getCustomerId() != null){
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setPartner(purchaseOrderCreateDto.getCustomerId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
 
             for (LineItemDto lineItemDto : purchaseOrderCreateDto.getItems()) {
                 lineItemService.add(transactionDto.getId(), lineItemDto);
@@ -95,13 +105,18 @@ public class PurchaseOrderController {
                                                @RequestParam(required = false) String orderDate,
                                                @RequestParam(required = false) String expectedDate,
                                                @RequestParam(required = false) String purchaseNumber,
-                                               @RequestParam(required = false) String status) {
+                                               @RequestParam(required = false) String status,
+                                               @RequestParam(required = false) String customerId) {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.PURCHASE_ORDER);
             if(supplierId != null && supplierId != ""){
                 transactionQueryDto.setPartnerNo(supplierId);
                 transactionQueryDto.setPartnerFunction(PartnerFunction.SUPPLIER);
+            }
+            if(customerId != null && customerId != ""){
+                transactionQueryDto.setPartnerNo(customerId);
+                transactionQueryDto.setPartnerFunction(PartnerFunction.CUSTOMER);
             }
             if(orderDate != null && orderDate != ""){
                 transactionQueryDto.setDateType(DateType.ORDER_DATE);
@@ -137,10 +152,10 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody TransactionEdit transactionDto) {
+    public ResponseEntity<?> editPurchaseOrder(@PathVariable String id, @RequestBody PurchaseOrderEditDto purchaseOrderEditDto) {
         try {
-            transactionDto.setId(id);
-            transactionService.edit(transactionDto);
+            purchaseOrderEditDto.setId(id);
+            purchaseOrderService.edit(purchaseOrderEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -227,7 +242,14 @@ public class PurchaseOrderController {
                         if(partner != null){
                             PO.setSupplierDetails(partner);
                         }
-                        break;
+
+                    }
+                    if(partners.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
+                        PartnerDto partner = partnerService.getOptional(partners.getPartner());
+                        if(partner != null){
+                            PO.setCustomerDetails(partner);
+                        }
+
                     }
                 }
                 for(TransactionDateDto dates:transactionService.getDates(id)){
@@ -277,7 +299,13 @@ public class PurchaseOrderController {
                         if(partner != null){
                             PO.setSupplierDetails(partner);
                         }
-                        break;
+
+                    }
+                    if(partners.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
+                        PartnerDto partner = partnerService.getOptional(partners.getPartner());
+                        if(partner != null){
+                            PO.setCustomerDetails(partner);
+                        }
                     }
                 }
                 for(TransactionDateDto dates:transactionService.getDates(id)){

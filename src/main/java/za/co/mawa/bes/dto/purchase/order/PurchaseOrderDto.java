@@ -30,5 +30,6 @@ public class PurchaseOrderDto implements Serializable {
     private List<LineItemDto> items;
     private ArrayList<ReceiptDto> receipts;
     private String paymentMethod;
+    private PartnerDto customerDetails;
 
 }

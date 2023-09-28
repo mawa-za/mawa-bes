@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -75,18 +76,41 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setCreatedBy(getUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
-            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
-            addAmount(totalIncVat);
-            TransactionAmountDto totalExcVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_EXC_VAT);
-            addAmount(totalExcVat);
-            TransactionAmountDto discountAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_AMOUNT);
-            addAmount(discountAmount);
-            TransactionAmountDto discountPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_PERCENT);
-            addAmount(discountPercentage);
-            TransactionAmountDto VATAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_AMOUNT);
-            addAmount(VATAmount);
-            TransactionAmountDto VATPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_PERCENT);
-            addAmount(VATPercentage);
+            if (transactionCreateDto.getCustomerId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
+                transactionPartnerDto.setPartner(transactionCreateDto.getCustomerId());
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                addPartner(transactionPartnerDto);
+            }
+            if (transactionCreateDto.getSupplierId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
+                transactionPartnerDto.setPartner(transactionCreateDto.getSupplierId());
+                transactionPartnerDto.setFunction(PartnerFunction.SUPPLIER);
+                addPartner(transactionPartnerDto);
+            }
+
+            if (transactionCreateDto.getEmployeeResponsible() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
+                transactionPartnerDto.setPartner(transactionCreateDto.getEmployeeResponsible());
+                transactionPartnerDto.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
+                addPartner(transactionPartnerDto);
+            }
+
+//            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
+//            addAmount(totalIncVat);
+//            TransactionAmountDto totalExcVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_EXC_VAT);
+//            addAmount(totalExcVat);
+//            TransactionAmountDto discountAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_AMOUNT);
+//            addAmount(discountAmount);
+//            TransactionAmountDto discountPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_PERCENT);
+//            addAmount(discountPercentage);
+//            TransactionAmountDto VATAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_AMOUNT);
+//            addAmount(VATAmount);
+//            TransactionAmountDto VATPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_PERCENT);
+//            addAmount(VATPercentage);
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
             throw new RuntimeException("Object number range not found");
@@ -143,30 +167,30 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean addAttachment(TransactionAttachmentEntity entity) throws Exception{
-        try{
+    public boolean addAttachment(TransactionAttachmentEntity entity) throws Exception {
+        try {
             transactionAttachmentRepository.save(entity);
             return true;
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
     @Override
     public boolean removeAttachment(TransactionAttachmentPKEntity transactionAttachmentDto) {
-        try{
+        try {
             transactionAttachmentRepository.deleteById(transactionAttachmentDto);
             return true;
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
     @Override
-    public ArrayList<TransactionAttachmentDto> getAttachments(String id) throws Exception{
-        try{
+    public ArrayList<TransactionAttachmentDto> getAttachments(String id) throws Exception {
+        try {
             ArrayList<TransactionAttachmentDto> attachments = new ArrayList<>();
-            for(TransactionAttachmentEntity attachment:transactionAttachmentRepository.findByTransaction(id)){
+            for (TransactionAttachmentEntity attachment : transactionAttachmentRepository.findByTransaction(id)) {
                 TransactionAttachmentDto attachmentDto = new TransactionAttachmentDto();
                 attachmentDto.setTransaction(attachment.getTransactionAttachmentPKEntity().getTransaction());
                 attachmentDto.setFileType(attachment.getTransactionAttachmentPKEntity().getFileType());
@@ -177,8 +201,8 @@ public class TransactionService implements TransactionDao {
                 attachments.add(attachmentDto);
             }
             return attachments;
-        }catch (Exception ex){
-         throw new RuntimeException(ex);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
     }
 
@@ -328,23 +352,27 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean editAmount(String type,BigDecimal value,String id) throws DoesNotExist, Exception {
-        try{
+    public boolean editDate(TransactionDateDto transactionDateDto) throws DoesNotExist, Exception {
+        return false;
+    }
+
+    @Override
+    public boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist, Exception {
+        try {
             TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
             pkEntity.setTransaction(id);
             pkEntity.setType(type);
             TransactionAmountEntity entity = transactionAmountRepository.getById(pkEntity);
-            if(entity != null){
+            if (entity != null) {
                 entity.setAmount(value);
                 transactionAmountRepository.save(entity);
                 return true;
-            }
-            else{
+            } else {
                 throw new DoesNotExist();
             }
 
-        }catch (Exception ex){
-           throw new RuntimeException(ex);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
 
     }
@@ -447,41 +475,41 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean removePartner(String id, String partnerFunction,String partner) throws Exception {
-        try{
+    public boolean removePartner(String id, String partnerFunction, String partner) throws Exception {
+        try {
             TransactionPartnerPKEntity entityPk = new TransactionPartnerPKEntity();
             entityPk.setFunction(partnerFunction);
             entityPk.setTransaction(id);
             entityPk.setPartner(partner);
             transactionPartnerRepository.deleteById(entityPk);
             return true;
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
     @Override
     public boolean removeAmount(String id, String type) throws Exception {
-        try{
+        try {
             TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
             pkEntity.setTransaction(id);
             pkEntity.setType(type);
             transactionAmountRepository.deleteById(pkEntity);
             return true;
-        }catch (Exception ex){
-          throw new RuntimeException(ex);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
     }
 
     @Override
     public boolean removeDate(String id, String type) throws Exception {
         try {
-          TransactionDatePKEntity pkEntity = new TransactionDatePKEntity();
-          pkEntity.setTransaction(id);
-          pkEntity.setType(type);
-          transactionDateRepository.deleteById(pkEntity);
-          return true;
-        }catch (Exception ex){
+            TransactionDatePKEntity pkEntity = new TransactionDatePKEntity();
+            pkEntity.setTransaction(id);
+            pkEntity.setType(type);
+            transactionDateRepository.deleteById(pkEntity);
+            return true;
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
@@ -711,26 +739,25 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public boolean edit(TransactionEdit transactionDto) throws DoesNotExist, Exception {
-        TransactionEntity entity = transactionRepository.getById(transactionDto.getId());
+    public void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception {
+        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
         if (entity != null) {
             try {
-                if (transactionDto.getStatus() != null) {
-                    entity.setStatus(transactionDto.getStatus());
+                if (transactionEditDto.getStatus() != null) {
+                    entity.setStatus(transactionEditDto.getStatus());
                 }
-                if (transactionDto.getStatusReason() != null) {
-                    entity.setStatusReason(transactionDto.getStatusReason());
+                if (transactionEditDto.getStatusReason() != null) {
+                    entity.setStatusReason(transactionEditDto.getStatusReason());
                 }
-                if (transactionDto.getDescription() != null) {
-                    if (transactionDto.getDescription().length() > 255) {
-                        entity.setDescription(transactionDto.getDescription());
-                    } else if (transactionDto.getDescription().length() <= 255) {
-                        entity.setSubDescription(transactionDto.getDescription());
+                if (transactionEditDto.getDescription() != null) {
+                    if (transactionEditDto.getDescription().length() > 255) {
+                        entity.setDescription(transactionEditDto.getDescription());
+                    } else if (transactionEditDto.getDescription().length() <= 255) {
+                        entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
                 entity.setChangedBy(getUser());
                 transactionRepository.save(entity);
-                return true;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

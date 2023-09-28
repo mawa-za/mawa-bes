@@ -172,19 +172,19 @@ public class MembershipController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            TransactionEdit transactionDto = new TransactionEdit();
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
             TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
             boolean edited = false;
             if(membershipDto.getStatus() != null && membershipDto.getStatus() != ""){
-                transactionDto.setStatus(membershipDto.getStatus());
+                transactionEditDto.setStatus(membershipDto.getStatus());
             }
             if(membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != ""){
-                transactionDto.setStatusReason(membershipDto.getStatusReason());
+                transactionEditDto.setStatusReason(membershipDto.getStatusReason());
             }
-            if(transactionDto.getStatusReason() != null || transactionDto.getStatus() != null)
+            if(transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null)
             {
-                transactionDto.setId(id);
-               edited = transactionService.edit(transactionDto);
+                transactionEditDto.setId(id);
+              transactionService.edit(transactionEditDto);
             }
             if(membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != ""){
               partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
@@ -289,5 +289,61 @@ public class MembershipController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+    @RequestMapping(value = "{id}/tombstone-recipient/{recipientId}", method = RequestMethod.POST , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addTombstoneRecipient(@PathVariable String id,
+                                                   @PathVariable String recipientId){
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setPartner(recipientId);
+            transactionPartnerDto.setFunction(PartnerFunction.TOMBSTONE_RECIPIENT);
+            membershipService.addPartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        }catch (Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
 
+    @RequestMapping(value = "{id}/tombstone-recipient/{recipientId}", method = RequestMethod.DELETE , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> removeTombstoneRecipient(@PathVariable String id,
+                                                      @PathVariable String recipientId){
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setPartner(recipientId);
+            transactionPartnerDto.setFunction(PartnerFunction.TOMBSTONE_RECIPIENT);
+            membershipService.removePartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+
+    }
+    @RequestMapping(value = "{id}/tombstone-recipient", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getTombstoneRecipient(@PathVariable String id) {
+      try{
+          List<TombstoneRecipientDto> tombstoneRecipientDtos = new ArrayList<>();
+          List<TransactionPartnerDto> transactionPartnerDtoList = membershipService.getPartners(id).stream()
+                  .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.TOMBSTONE_RECIPIENT))
+                  .toList();
+          for(TransactionPartnerDto partnerDtos:transactionPartnerDtoList){
+              PartnerDto partnerDto = partnerService.get(partnerDtos.getPartner());
+              if (partnerDto != null) {
+                  TombstoneRecipientDto tombstoneRecipient = new TombstoneRecipientDto();
+                  tombstoneRecipient.setId(partnerDto.getId());
+                  tombstoneRecipient.setFirstName(partnerDto.getName2());
+                  tombstoneRecipient.setMiddleName(partnerDto.getName3());
+                  tombstoneRecipient.setLastName(partnerDto.getName1());
+                  tombstoneRecipient.setGender(partnerDto.getGender());
+                  tombstoneRecipient.setTitle(partnerDto.getTitle());
+                  tombstoneRecipient.setIdNumber(partnerDto.getIdNumber());
+                  tombstoneRecipient.setIdType(partnerDto.getIdType());
+                  tombstoneRecipientDtos.add(tombstoneRecipient);
+              }
+          }
+          return ResponseEntity.ok(gson.toJson(tombstoneRecipientDtos));
+      }catch (Exception ex){
+          return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+      }
+    }
 }
