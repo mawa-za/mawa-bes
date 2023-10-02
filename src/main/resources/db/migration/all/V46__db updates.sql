@@ -10,7 +10,7 @@ CREATE TABLE `notification` (
   `status` VARCHAR(45) NULL,
   PRIMARY KEY (`id`));
 
-CREATE TABLE `mawa`.`notification_log` (
+CREATE TABLE `notification_log` (
   `log_id` INT NOT NULL AUTO_INCREMENT,
   `notification_id` VARCHAR(255) NOT NULL,
   `action` VARCHAR(45) NULL,
