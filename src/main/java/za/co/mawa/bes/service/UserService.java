@@ -356,4 +356,8 @@ public class UserService implements UserDao {
             return predicate;
         };
     }
+
+    private void notifyUser(){
+
+    }
 }
