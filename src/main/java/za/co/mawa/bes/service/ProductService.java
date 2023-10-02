@@ -44,6 +44,8 @@ public class ProductService implements ProductDao {
 
     @Autowired
     NumberRangeService numberRangeService;
+    @Autowired
+    FieldOptionService fieldOptionService;
 
     @Override
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
@@ -98,11 +100,14 @@ public class ProductService implements ProductDao {
             productDto.setDescription(productEntity.getDescription());
             productDto.setCategory(productEntity.getCategory());
             productDto.setBaseUnitOfMeasure(productEntity.getUom());
+            productDto.setCategoryDescription(fieldOptionService.getFieldOptionDescription("PRODUCT-CATEGORY",productEntity.getCategory()));
+            productDto.setBaseUnitOfMeasureDescription(fieldOptionService.getFieldOptionDescription("UOM",productEntity.getUom()));
             for(ProductPricingEntity price : productPricingRepository.findPricing(productEntity.getId())){
-                if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
+               // if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
                     productDto.setSellingPrice(price.getValue());
-                    break;
-                }
+                    productDto.setPriceTypeDescription(fieldOptionService.getFieldOptionDescription("PRICING_TYPE",price.getProductPricingPKEntity().getPricing()));
+               //     break;
+               // }
             }
             productDtoList.add(productDto);
         }
@@ -119,13 +124,16 @@ public class ProductService implements ProductDao {
             productDto.setCode(code);
             productDto.setDescription(productEntity.getDescription());
             productDto.setCategory(productEntity.getCategory());
+            productDto.setCategoryDescription(fieldOptionService.getFieldOptionDescription("PRODUCT-CATEGORY",productEntity.getCategory()));
             productDto.setBaseUnitOfMeasure(productEntity.getUom());
+            productDto.setBaseUnitOfMeasureDescription(fieldOptionService.getFieldOptionDescription("UOM",productEntity.getUom()));
             productDto.setValidTo(Conversion.dateToString(productEntity.getValidTo()));
             productDto.setValidFrom(Conversion.dateToString(productEntity.getValidFrom()));
             for(ProductPricingEntity price : productPricingRepository.findPricing(id)){
               //  if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
                     productDto.setSellingPrice(price.getValue());
                     productDto.setPriceType(price.getProductPricingPKEntity().getPricing());
+                    productDto.setPriceTypeDescription(fieldOptionService.getFieldOptionDescription("PRICING_TYPE",price.getProductPricingPKEntity().getPricing()));
                //     break;
                // }
             }

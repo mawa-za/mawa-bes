@@ -15,11 +15,14 @@ public class ProductDto {
     private String code;
     private String description;
     private String category;
+    private String categoryDescription;
     private BigDecimal sellingPrice;
     private String baseUnitOfMeasure;
+    private String baseUnitOfMeasureDescription;
     private String validTo;
     private String validFrom;
     private String priceType;
+    private String priceTypeDescription;
 
     public ProductDto(ProductEntity productEntity){
         this.id = productEntity.getId();
