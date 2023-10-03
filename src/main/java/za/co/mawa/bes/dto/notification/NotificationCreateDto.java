@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.notification;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -6,16 +6,15 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Properties;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class EmailDto implements Serializable {
-    private String to;
+public class NotificationCreateDto implements Serializable {
+    private String type;
+    private String sender;
+    private String recipient;
     private String subject;
-    private String template;
-    private List<PropertyDto> properties;
-
+    private String body;
 }
