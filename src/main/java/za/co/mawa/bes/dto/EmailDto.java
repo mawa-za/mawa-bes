@@ -1,14 +1,21 @@
 package za.co.mawa.bes.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.List;
-
+import java.util.Properties;
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
 public class EmailDto implements Serializable {
-    private String from;
-    private List<String> to;
-    private List<String> cc;
-    private List<String> bcc;
+    private String to;
     private String subject;
-    private String body;
+    private String template;
+    private List<PropertyDto> properties;
 
 }

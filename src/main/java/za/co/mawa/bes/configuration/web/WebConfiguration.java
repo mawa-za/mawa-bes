@@ -1,14 +1,18 @@
 package za.co.mawa.bes.configuration.web;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.servlet.config.annotation.*;
 import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
 
 @Configuration
 @EnableWebMvc
 public class WebConfiguration  implements WebMvcConfigurer    {
-//public class WebConfiguration extends WebMvcConfigurerAdapter  {
+    private static final String EMAIL_TEMPLATE_ENCODING = "UTF-8";
+
+
     @Autowired
     private TenantRequestInterceptor tenantInterceptor;
 
