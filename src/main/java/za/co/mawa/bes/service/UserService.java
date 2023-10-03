@@ -30,8 +30,8 @@ import java.util.Optional;
 
 @Service
 public class UserService implements UserDao {
-    @Autowired
-    PartnerService partnerService;
+//    @Autowired
+//    PartnerService partnerService;
     @Autowired
     EntityManager entityManager;
     @Autowired
@@ -237,7 +237,7 @@ public class UserService implements UserDao {
         try {
             String password = keyGenerator.generatePassword();
             UserEntity userEntity = userRepository.getById(id);
-            PartnerDto partnerDto = partnerService.get(userEntity.getPartner());
+//            PartnerDto partnerDto = partnerService.get(userEntity.getPartner());
             userEntity.setPassword(encryptionService.encrypt(password, secret).getBytes());
             userRepository.save(userEntity);
 
@@ -246,7 +246,7 @@ public class UserService implements UserDao {
             emailDto.setSubject("Password Reset");
             emailDto.setTemplate("password-reset");
             List<PropertyDto> props = new ArrayList<>();
-            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_FIRST_NAME,partnerDto.getName2()));
+//            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_FIRST_NAME,partnerDto.getName2()));
             props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD,password));
             emailDto.setProperties(props);
             emailService.send(emailDto);
