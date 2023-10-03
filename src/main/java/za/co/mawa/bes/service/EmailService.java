@@ -50,9 +50,9 @@ public class EmailService implements EmailDao {
             email.setFrom(new InternetAddress(mailFrom, mailFromName));
             final Context ctx = new Context(LocaleContextHolder.getLocale());
 
-            for (PropertyDto props : emailDto.getProperties()){
-                ctx.setVariable(props.getKey(), props.getValue());
-            }
+//            for (PropertyDto props : emailDto.getProperties()){
+//                ctx.setVariable(props.getKey(), props.getValue());
+//            }
 
             final String htmlContent = this.htmlTemplateEngine.process(emailDto.getTemplate(), ctx);
             email.setText(htmlContent, true);
