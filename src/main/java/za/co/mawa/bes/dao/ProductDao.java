@@ -8,12 +8,11 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
-import za.co.mawa.bes.entity.ProductAttributeEntity;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.entity.ProductPricingPKEntity;
 import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.exception.ProductDeleteFailure;
-import za.co.mawa.bes.exception.ProductNotFound;
+import za.co.mawa.bes.exception.ProductNotFoundException;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
 
 import java.util.ArrayList;
@@ -22,7 +21,7 @@ import java.util.List;
 public interface ProductDao {
     ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure;
     List<ProductDto> search(ProductQueryDto productQueryDto);
-    ProductDto get(String id) throws ProductNotFound;
+    ProductDto get(String id) throws ProductNotFoundException;
     void edit(ProductDto productDto) throws ProductUpdateFailure;
     void delete(String id) throws ProductDeleteFailure;
     void addPricing(ProductPricingDto productPricingDto) throws Exception;
