@@ -18,7 +18,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.exception.ProductDeleteFailure;
-import za.co.mawa.bes.exception.ProductNotFound;
+import za.co.mawa.bes.exception.ProductNotFoundException;
 import za.co.mawa.bes.exception.ProductUpdateFailure;
 import za.co.mawa.bes.repository.ProductAttributeRepository;
 import za.co.mawa.bes.repository.ProductPricingRepository;
@@ -115,7 +115,7 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public ProductDto get(String id) throws ProductNotFound {
+    public ProductDto get(String id) throws ProductNotFoundException {
         try {
             ProductEntity productEntity = productRepository.getById(id);
             ProductDto productDto = new ProductDto();
@@ -139,7 +139,7 @@ public class ProductService implements ProductDao {
             }
             return productDto;
         } catch (EntityNotFoundException exception) {
-            throw new ProductNotFound();
+            throw new ProductNotFoundException();
         }
     }
 

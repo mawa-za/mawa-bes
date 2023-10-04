@@ -23,7 +23,7 @@ public class PartnerFunction {
     public static String EMPLOYEE = "EMPLOYEE";
     public static String ASSIGNTO = "ASSIGNTO";
     public static String ASSIGNBY = "ASSIGNBY";
-    public static String MAINMEMBER = "MAINMEMBER";
+    public static String MAINMEMBER = "MAIN-MEMBER";
     public static String PROFILE_OWNER = "PROFILEOWNER";
     public static String ADJUSTEDBY = "ADJUSTEDBY";
     public static String OWNEDBY = "OWNEDBY";

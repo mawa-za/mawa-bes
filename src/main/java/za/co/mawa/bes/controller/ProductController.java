@@ -15,7 +15,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
-import za.co.mawa.bes.exception.ProductNotFound;
+import za.co.mawa.bes.exception.ProductNotFoundException;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.utils.PriceType;
 
@@ -56,7 +56,7 @@ public class ProductController {
     public ResponseEntity<?> getProduct(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(productService.get(id)));
-        } catch (ProductNotFound exception) {
+        } catch (ProductNotFoundException exception) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }

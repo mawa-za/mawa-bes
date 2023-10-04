@@ -9,9 +9,7 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.exception.PartnerNotFoundException;
-import za.co.mawa.bes.exception.ProductNotFound;
-import za.co.mawa.bes.exception.TransactionPartnerAddException;
+import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
@@ -30,16 +28,16 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
 
     @Override
-    public MembershipDto create(MembershipCreateDto membershipCreateDto) {
-        try {
+    public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
+
             if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
-                throw new RuntimeException("Membership main member does not exist");
+                throw new PartnerNotFoundException("Membership main member does not exist");
             }
             if (productService.get(membershipCreateDto.getProductId()) == null) {
-                throw new RuntimeException("Membership product does not exist");
+                throw new ProductNotFoundException("Membership product does not exist");
             }
             if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
-                throw new RuntimeException("Membership Sales Representative does not exist");
+                throw new PartnerNotFoundException("Membership Sales Representative does not exist");
             }
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.MEMBERSHIP);
@@ -89,9 +87,7 @@ public class MembershipService implements MembershipDao {
             MembershipDto membershipDto = new MembershipDto();
             membershipDto.setId(transactionDto.getId());
             return membershipDto;
-        } catch (Exception exception) {
-            throw new RuntimeException(exception.getMessage());
-        }
+
     }
 
     @Override
