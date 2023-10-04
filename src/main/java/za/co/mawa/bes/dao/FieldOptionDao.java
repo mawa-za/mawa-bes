@@ -16,5 +16,5 @@ public interface FieldOptionDao {
 
     String getOptionalFieldDescription(String field, String code);
     FieldDto createField(FieldCreateDto Field);
-    boolean deleteFieldOption(String field,String option) throws Exception;
+    void deleteFieldOption(String field,String option) throws Exception;
 }

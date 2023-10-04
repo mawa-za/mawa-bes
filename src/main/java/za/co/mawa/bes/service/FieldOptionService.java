@@ -118,13 +118,14 @@ public class FieldOptionService implements FieldOptionDao {
     }
 
     @Override
-    public boolean deleteFieldOption(String field, String option) throws Exception {
+    public void deleteFieldOption(String field, String option) throws Exception {
         try{
-            FieldOptionPKEntity pkEntity = new FieldOptionPKEntity();
-            pkEntity.setField(field);
-            pkEntity.setCode(option);
-            fieldOptionRepository.deleteById(pkEntity);
-            return true;
+            FieldOptionPKEntity pk = new FieldOptionPKEntity();
+            pk.setCode(option);
+            pk.setField(field);
+            FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
+            fieldOption.setValidTo(new Date());
+            fieldOptionRepository.save(fieldOption);
         }catch (Exception ex){
             throw new RuntimeException(ex);
         }
