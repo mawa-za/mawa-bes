@@ -1,17 +1,12 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.OrganizationDao;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.entity.PartnerEntity;
-import za.co.mawa.bes.exception.PartnerNotFound;
 import za.co.mawa.bes.utils.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class OrganizationService implements OrganizationDao {

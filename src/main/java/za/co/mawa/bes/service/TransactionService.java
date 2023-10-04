@@ -21,6 +21,7 @@ import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.exception.TransactionPartnerAddException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
@@ -75,6 +76,12 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
+
+            TransactionDateDto creationDate = new TransactionDateDto();
+            creationDate.setTransaction(createdTransactionEntity.getId());
+            creationDate.setType(DateType.CREATED);
+            creationDate.setValue(new Date());
+            addDate(creationDate);
 
             if (transactionCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -984,7 +991,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws TransactionPartnerAddException {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
@@ -999,7 +1006,7 @@ public class TransactionService implements TransactionDao {
 
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
-            throw new Exception("Could not add partner to transaction");
+            throw new TransactionPartnerAddException("Could not add partner to transaction");
         }
     }
 

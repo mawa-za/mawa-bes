@@ -7,14 +7,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
 import za.co.mawa.bes.entity.PartnerRoleEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.exception.PartnerNotFound;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.EmploymentRepository;
 import za.co.mawa.bes.repository.PartnerRoleRepository;
 import za.co.mawa.bes.utils.*;
@@ -108,7 +105,7 @@ public class EmploymentService implements EmploymentDao {
                         return true;
                     }
                     else{
-                        throw new PartnerNotFound();
+                        throw new PartnerNotFoundException();
                     }
 
                 } catch (Exception e) {
