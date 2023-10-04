@@ -917,7 +917,7 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setValidFrom(new Date());
             transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
-            calculatePricing(transactionItemDto.getTransaction());
+//            calculatePricing(transactionItemDto.getTransaction());
         } catch (Exception exception) {
             throw new Exception("Error adding item to transaction");
         }
