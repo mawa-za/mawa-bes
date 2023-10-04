@@ -36,9 +36,9 @@ public class MembershipService implements MembershipDao {
         if (productService.get(membershipCreateDto.getProductId()) == null) {
             throw new ProductNotFoundException("Membership product does not exist");
         }
-        if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
-            throw new PartnerNotFoundException("Membership Sales Representative does not exist");
-        }
+//        if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
+//            throw new PartnerNotFoundException("Membership Sales Representative does not exist");
+//        }
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
@@ -81,14 +81,14 @@ public class MembershipService implements MembershipDao {
             System.out.println("Member Added");
         }
 
-        if (membershipCreateDto.getSalesRepresentativeId() != null) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
-            transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
-            transactionService.addPartner(transactionPartnerDto);
-            System.out.println("Rep Added");
-        }
+//        if (membershipCreateDto.getSalesRepresentativeId() != null) {
+//            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//            transactionPartnerDto.setTransaction(transactionDto.getId());
+//            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+//            transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
+//            transactionService.addPartner(transactionPartnerDto);
+//            System.out.println("Rep Added");
+//        }
         MembershipDto membershipDto = new MembershipDto();
         membershipDto.setId(transactionDto.getId());
         return membershipDto;
