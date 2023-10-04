@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
-import za.co.mawa.bes.exception.PartnerNotFound;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PersonService;
 import za.co.mawa.bes.utils.RoleType;
@@ -69,7 +69,7 @@ public class CustomerController {
                             if (partnerDto.getId() != null) {
                                 return new PersonDto(partnerDto);
                             }
-                        } catch (PartnerNotFound e) {
+                        } catch (PartnerNotFoundException e) {
                             throw new RuntimeException(e);
                         }
 

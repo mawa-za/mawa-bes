@@ -1,7 +1,6 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
@@ -9,7 +8,7 @@ import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.dto.PartnerQueryDto;
-import za.co.mawa.bes.exception.PartnerNotFound;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 
 import java.util.ArrayList;
 
@@ -18,7 +17,7 @@ public interface PartnerDao {
     PartnerDto create(PartnerDto object);
     void edit(PersonDto object);
     PartnerEntity findById(String id);
-    PartnerDto get (String id) throws PartnerNotFound;
+    PartnerDto get (String id) throws PartnerNotFoundException;
     boolean removeRole(String partner, String role);
     ArrayList<RelationDto> getRelationByPartner2(String partner2);
     ArrayList<PartnerDto> search(PartnerQueryDto pq);
@@ -68,7 +67,7 @@ public interface PartnerDao {
     PartnerDto getOptional(String id);
     PartnerDto getPartner(String id);
     ArrayList<ContactDto> getContacts(String partner);
-    boolean assignRole(String role, String id) throws PartnerNotFound;
+    boolean assignRole(String role, String id) throws PartnerNotFoundException;
     ArrayList<AddressDto> getPartnerAddress(AddressQueryDto queryDto);
     boolean editPartnerAddress(String id,AddressEditDto addressEditDto) throws Exception;
     ArrayList<ContactGetDto> getPartnerContact(ContactQueryDto queryDto) throws Exception;

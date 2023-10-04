@@ -8,16 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
-import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.dao.PartnerDao;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
-import za.co.mawa.bes.exception.PartnerNotFound;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dto.PartnerQueryDto;
@@ -162,7 +160,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public PartnerDto get(String id) throws PartnerNotFound {
+    public PartnerDto get(String id) throws PartnerNotFoundException {
         try {
             PartnerDto object = null;
             PartnerEntity partner = partnerRepository.getById(id);
@@ -171,7 +169,7 @@ public class PartnerService implements PartnerDao {
             }
             return object;
         } catch (Exception exception) {
-            throw new PartnerNotFound();
+            throw new PartnerNotFoundException();
         }
     }
 
@@ -1457,7 +1455,7 @@ public class PartnerService implements PartnerDao {
                     PartnerDto partner = new PartnerDto();
                     try {
                         partner = get(prtRole.getPartnerRolePK().getId());
-                    } catch (PartnerNotFound e) {
+                    } catch (PartnerNotFoundException e) {
 //                        throw new RuntimeException(e);
                     }
                     partners.add(partner);
@@ -1580,7 +1578,7 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean assignRole(String role, String id) throws PartnerNotFound {
+    public boolean assignRole(String role, String id) throws PartnerNotFoundException {
 
         boolean assign = false;
 
@@ -1831,7 +1829,7 @@ public class PartnerService implements PartnerDao {
                 return true;
             }
             else{
-                throw new PartnerNotFound();
+                throw new PartnerNotFoundException();
             }
         }catch(Exception ex){
             throw new RuntimeException(ex);

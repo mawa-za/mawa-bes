@@ -16,6 +16,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAttachmentPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.exception.TransactionPartnerAddException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ public interface TransactionDao {
     List<TransactionAmountDto> getAmounts(String id);
 
     //Partners
-    void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
+    void addPartner(TransactionPartnerDto transactionPartnerDto) throws TransactionPartnerAddException;
     void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
     List<TransactionPartnerDto> getPartners(String id);
     TransactionPartnerDto getPartner(String transaction, String partnerFunction);

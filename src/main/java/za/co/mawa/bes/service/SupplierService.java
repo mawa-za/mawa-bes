@@ -1,16 +1,13 @@
 package za.co.mawa.bes.service;
 
-import org.hibernate.usertype.UserType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.SupplierDao;
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.user.UserCreateDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.dto.user.UserQueryDto;
 import za.co.mawa.bes.dto.user.UserRoleDto;
-import za.co.mawa.bes.exception.PartnerNotFound;
-import za.co.mawa.bes.utils.IdType;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.RoleType;
 
@@ -44,7 +41,7 @@ public class SupplierService implements SupplierDao {
                         partnerId = userDto.getPartner() ;
                     }
                 } catch (Exception e) {
-                    throw new PartnerNotFound("Partner Not found");
+                    throw new PartnerNotFoundException("Partner Not found");
                 }
 
             }
@@ -128,7 +125,7 @@ public class SupplierService implements SupplierDao {
                             })
                             .orElse(null);
                 })
-                .orElseThrow(() -> new PartnerNotFound("Partner not found"));
+                .orElseThrow(() -> new PartnerNotFoundException("Partner not found"));
 
 
         return supplierDto;
