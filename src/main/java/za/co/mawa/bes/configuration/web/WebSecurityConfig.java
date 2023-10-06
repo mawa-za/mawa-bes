@@ -27,6 +27,7 @@ import za.co.mawa.bes.service.JwtUserDetailsService;
 public class WebSecurityConfig {
     public static final String[] AUTH_WHITELIST = {
             "/authenticate",
+            "/forgot-password"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] TENANT_WHITELIST = {
