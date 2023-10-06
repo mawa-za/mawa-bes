@@ -32,6 +32,7 @@ public class FieldOptionService implements FieldOptionDao {
                 .toList();
         if (!result.isEmpty()) {
             fieldOptionDto.setValidFrom(new Date());
+            fieldOptionDto.setType("TENANT");
             fieldOptionRepository.save(dtoToEntity(fieldOptionDto));
         } else {
             throw new FieldDoesNotExist();
@@ -98,7 +99,8 @@ public class FieldOptionService implements FieldOptionDao {
         try{
             FieldEntity entity = new FieldEntity();
             entity.setDescription(Field.getDescription());
-            entity.setCode(Field.getDescription().toUpperCase().replace(" ","-"));
+            String code = Field.getDescription().toUpperCase().replace(" ","-");
+            entity.setCode(code);
             if(Field.getValidTo() != null && Field.getValidTo() != "") {
                 entity.setValidTo(Field.getValidTo());
             }
@@ -123,6 +125,7 @@ public class FieldOptionService implements FieldOptionDao {
             FieldOptionPKEntity pk = new FieldOptionPKEntity();
             pk.setCode(option);
             pk.setField(field);
+            pk.setType("TENANT");
             FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
             fieldOption.setValidTo(new Date());
             fieldOptionRepository.save(fieldOption);
@@ -136,6 +139,7 @@ public class FieldOptionService implements FieldOptionDao {
         FieldOptionDto fieldOptionDto = new FieldOptionDto();
         fieldOptionDto.setField(fieldOptionEntity.getFieldOptionPKEntity().getField());
         fieldOptionDto.setCode(fieldOptionEntity.getFieldOptionPKEntity().getCode());
+        fieldOptionDto.setType(fieldOptionEntity.getFieldOptionPKEntity().getType());
         fieldOptionDto.setDescription(fieldOptionEntity.getDescription());
         fieldOptionDto.setValidFrom(fieldOptionEntity.getValidFrom());
         fieldOptionDto.setValidTo(fieldOptionEntity.getValidTo());
@@ -154,6 +158,7 @@ public class FieldOptionService implements FieldOptionDao {
         FieldOptionPKEntity fieldOptionPKEntity = new FieldOptionPKEntity();
         fieldOptionPKEntity.setField(fieldOptionDto.getField());
         fieldOptionPKEntity.setCode(fieldOptionDto.getCode());
+        fieldOptionPKEntity.setType(fieldOptionDto.getType());
 
         FieldOptionEntity fieldOptionEntity = new FieldOptionEntity();
         fieldOptionEntity.setFieldOptionPKEntity(fieldOptionPKEntity);
