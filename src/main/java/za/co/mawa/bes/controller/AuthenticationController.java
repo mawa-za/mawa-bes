@@ -48,11 +48,9 @@ public class AuthenticationController {
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
     public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationDto authenticationDto) throws Exception {
         authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
-//        userService.authenticate(userDto);
+
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
-
-        final String token = jwtTokenUtil.generateToken(userDetails);
-
+        final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
