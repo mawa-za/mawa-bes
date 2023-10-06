@@ -107,9 +107,6 @@ INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid
 VALUES ('BIDVEST', 'BANK-NAME', 'Bidvest Bank', CURRENT_DATE, '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
-VALUES ('BIDVEST', 'BANK-NAME', 'Bidvest Bank', CURRENT_DATE, '9999-12-31');
-
-INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
 VALUES ('PERMANENT', 'EMPLOYMENT-TYPE', 'Permanent', CURRENT_DATE, '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
