@@ -107,7 +107,7 @@ public class MembershipController {
                         productId = item.getProduct();
                     }
                 }
-                ProductDto productDto = productService.getOptionalById(productId);
+                ProductDto productDto = productService.get(productId);
                 if (productDto != null) {
                     transactionDto.setProductDetails(productDto);
                 }
