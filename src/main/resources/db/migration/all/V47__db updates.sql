@@ -64,11 +64,6 @@ VALUES ('BRANCH', 'Branch', CURRENT_DATE, '9999-12-31');
 INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
 VALUES ('DEPARTMENT', 'Department', CURRENT_DATE, '9999-12-31');
 
-ALTER TABLE `field_option`
-ADD COLUMN `type` VARCHAR(45) NOT NULL AFTER `description`,
-DROP PRIMARY KEY,
-ADD PRIMARY KEY (`code`, `field`, `type`);
-
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
 VALUES ('CHEQUE', 'BANK-ACCOUNT-TYPE', 'Cheque Account', CURRENT_DATE, '9999-12-31');
 
@@ -107,9 +102,6 @@ VALUES ('INVESTEC', 'BANK-NAME', 'Investec Bank', CURRENT_DATE, '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
 VALUES ('BANK-ZERO', 'BANK-NAME', 'Bank Zero', CURRENT_DATE, '9999-12-31');
-
-INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
-VALUES ('BIDVEST', 'BANK-NAME', 'Bidvest Bank', CURRENT_DATE, '9999-12-31');
 
 INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
 VALUES ('BIDVEST', 'BANK-NAME', 'Bidvest Bank', CURRENT_DATE, '9999-12-31');
