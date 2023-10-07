@@ -57,8 +57,8 @@ public class FieldOptionController {
     @RequestMapping(value = "/field/{field}/option", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteFieldOption(@PathVariable String field, @RequestParam("fieldOption") String fieldOption) {
         try {
-            boolean deleted = fieldOptionService.deleteFieldOption(field,fieldOption);
-            return ResponseEntity.ok().body(deleted);
+            fieldOptionService.deleteFieldOption(field,fieldOption);
+            return ResponseEntity.ok().build();
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }

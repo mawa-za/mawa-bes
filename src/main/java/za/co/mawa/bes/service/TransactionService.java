@@ -18,9 +18,7 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.*;
-import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
-import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
@@ -76,6 +74,12 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setCreatedBy(getUser());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
+            TransactionDateDto creationDate = new TransactionDateDto();
+            creationDate.setTransaction(createdTransactionEntity.getId());
+            creationDate.setType(DateType.CREATED);
+            creationDate.setValue(new Date());
+            addDate(creationDate);
+
             if (transactionCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
@@ -130,7 +134,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addDate(TransactionDateDto transactionDateDto) throws Exception {
+    public void addDate(TransactionDateDto transactionDateDto) throws TransactionDateAddException {
         TransactionDateEntity transactionDateEntity = new TransactionDateEntity(transactionDateDto);
         if (transactionDateDto.getValue() != null) {
             transactionDateEntity.setValue(transactionDateDto.getValue());
@@ -140,7 +144,7 @@ public class TransactionService implements TransactionDao {
         try {
             transactionDateRepository.save(transactionDateEntity);
         } catch (Exception ex) {
-            throw new Exception("Error adding date to transaction");
+            throw new TransactionDateAddException("Error adding date to transaction");
         }
     }
 
@@ -899,7 +903,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addItem(TransactionItemDto transactionItemDto) throws Exception {
+    public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
         try {
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
@@ -910,9 +914,8 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setValidFrom(new Date());
             transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionItemRepository.save(transactionItemEntity);
-            calculatePricing(transactionItemDto.getTransaction());
         } catch (Exception exception) {
-            throw new Exception("Error adding item to transaction");
+            throw new TransactionItemAddException("Error adding item to transaction");
         }
     }
 
@@ -984,7 +987,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
-    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws Exception {
+    public void addPartner(TransactionPartnerDto transactionPartnerDto) throws TransactionPartnerAddException {
         try {
             TransactionPartnerPKEntity transactionPartnerPKEntity = new TransactionPartnerPKEntity();
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
@@ -999,7 +1002,7 @@ public class TransactionService implements TransactionDao {
 
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
-            throw new Exception("Could not add partner to transaction");
+            throw new TransactionPartnerAddException("Could not add partner to transaction");
         }
     }
 
