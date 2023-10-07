@@ -30,6 +30,7 @@ public interface ProductDao {
     ProductDto getOptionalById(String id);
 
     void deletePricing(ProductPricingPKEntity productPricingPK) throws ProductDeleteFailure;
+    ProductAttributeDto getAttribute(ProductAttributeQueryDto productAttributeQueryDto);
     ArrayList<ProductAttributeDto> getAttributes(ProductAttributeQueryDto queryDto);
     boolean addAttribute(ProductAttributeCreateDto createDto)throws Exception;
     boolean editAttribute(ProductAttributeEditDto editDto,String product,String attribute) throws Exception;
