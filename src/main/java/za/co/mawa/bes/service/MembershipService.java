@@ -6,17 +6,18 @@ import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.*;
-import za.co.mawa.bes.utils.DateType;
-import za.co.mawa.bes.utils.PartnerFunction;
-import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class MembershipService implements MembershipDao {
@@ -36,25 +37,24 @@ public class MembershipService implements MembershipDao {
         if (productService.get(membershipCreateDto.getProductId()) == null) {
             throw new ProductNotFoundException("Membership product does not exist");
         }
-//        if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
-//            throw new PartnerNotFoundException("Membership Sales Representative does not exist");
-//        }
+        if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
+            throw new PartnerNotFoundException("Membership Sales Representative does not exist");
+        }
+
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-        if (membershipCreateDto.getProductId() != null) {
-            ProductDto productDto = productService.get(membershipCreateDto.getProductId());
-            TransactionItemDto transactionItemDto = new TransactionItemDto();
-            transactionItemDto.setTransaction(transactionDto.getId());
-            transactionItemDto.setProduct(membershipCreateDto.getProductId());
-            transactionItemDto.setProduct(productDto.getId());
-            transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-            transactionItemDto.setQuantity(new BigDecimal("1"));
-            transactionService.addItem(transactionItemDto);
-            System.out.println("Product Added");
-        }
+        ProductDto productDto = productService.get(membershipCreateDto.getProductId());
+        TransactionItemDto transactionItemDto = new TransactionItemDto();
+        transactionItemDto.setTransaction(transactionDto.getId());
+        transactionItemDto.setProduct(membershipCreateDto.getProductId());
+        transactionItemDto.setProduct(productDto.getId());
+        transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+        transactionItemDto.setQuantity(new BigDecimal("1"));
+        transactionService.addItem(transactionItemDto);
+
 
         if (membershipCreateDto.getDateJoined() != null) {
             TransactionDateDto dateJoined = new TransactionDateDto();
@@ -62,14 +62,34 @@ public class MembershipService implements MembershipDao {
             dateJoined.setType(DateType.JOINED);
             dateJoined.setValue(membershipCreateDto.getDateJoined());
             transactionService.addDate(dateJoined);
-            System.out.println("Joined Date Added");
         } else {
             TransactionDateDto dateJoined = new TransactionDateDto();
             dateJoined.setTransaction(transactionDto.getId());
             dateJoined.setType(DateType.JOINED);
             dateJoined.setValue(new Date());
             transactionService.addDate(dateJoined);
-            System.out.println("Joined Date Added");
+        }
+
+        if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
+            TransactionDateDto dateEffective = new TransactionDateDto();
+            dateEffective.setTransaction(transactionDto.getId());
+            dateEffective.setType(DateType.EFFECTIVE);
+            dateEffective.setValue(new Date());
+            transactionService.addDate(dateEffective);
+        } else {
+            TransactionDateDto dateEffective = new TransactionDateDto();
+            dateEffective.setTransaction(transactionDto.getId());
+            ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
+            productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
+            productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
+            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+            int waitingPeriod = 0;
+            if (productAttributeDto != null){
+                waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
+            }
+            dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
+            transactionService.addDate(dateEffective);
+
         }
 
         if (membershipCreateDto.getMemberId() != null) {
@@ -78,17 +98,23 @@ public class MembershipService implements MembershipDao {
             transactionPartnerDto.setFunction(PartnerFunction.MAINMEMBER);
             transactionPartnerDto.setPartner(membershipCreateDto.getMemberId());
             transactionService.addPartner(transactionPartnerDto);
-            System.out.println("Member Added");
         }
 
-//        if (membershipCreateDto.getSalesRepresentativeId() != null) {
-//            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-//            transactionPartnerDto.setTransaction(transactionDto.getId());
-//            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
-//            transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
-//            transactionService.addPartner(transactionPartnerDto);
-//            System.out.println("Rep Added");
-//        }
+        if (membershipCreateDto.getSalesRepresentativeId() != null) {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+            transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
+            transactionService.addPartner(transactionPartnerDto);
+        }
+
+        if (membershipCreateDto.getPreviousInsurerId() != null) {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.PREVIOUS_INSURER);
+            transactionPartnerDto.setPartner(membershipCreateDto.getPreviousInsurerId());
+            transactionService.addPartner(transactionPartnerDto);
+        }
         MembershipDto membershipDto = new MembershipDto();
         membershipDto.setId(transactionDto.getId());
         return membershipDto;
