@@ -49,7 +49,7 @@ public class ReceiptController {
                                          @RequestParam(required = false) String membershipNumber,
                                          @RequestParam(required = false) String membershipPeriod,
                                          @RequestParam(required = false) String tenderType,
-                                         @RequestParam(required = false) boolean cashedUp,
+                                         @RequestParam(required = false) boolean notCashed,
                                          @RequestParam(name = "user", required = false) String createdBy) {
         try {
             ReceiptSearchDto search = new ReceiptSearchDto();
@@ -72,7 +72,7 @@ public class ReceiptController {
                 search.setCreatedBy(createdBy);
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
-            if (cashedUp) {
+            if (notCashed) {
                 receipts = receiptService.getReceiptsX(search);
             } else {
                 receipts = receiptService.getReceipts(search);
