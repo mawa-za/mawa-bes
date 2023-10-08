@@ -6,11 +6,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.RoleCreateDto;
-import za.co.mawa.bes.dto.RoleDto;
-import za.co.mawa.bes.dto.RoleWorkcenterDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.RoleWorkcenterPKEntity;
 import za.co.mawa.bes.service.RoleService;
+import za.co.mawa.bes.service.WorkcenterService;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 
@@ -58,13 +57,11 @@ public class RoleController {
     }
 
     @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postWorkcenters(@PathVariable String role, @RequestBody List<String> workcenterList) {
+    public ResponseEntity<?> postWorkcenters(@PathVariable String role, @RequestBody List<RoleWorkcenterCreateDto> roleWorkcenterCreateDtoList) {
         try {
-            for(String workcenter: workcenterList){
-                RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
-                roleWorkcenterDto.setRole(role);
-                roleWorkcenterDto.setWorkcenter(workcenter);
-                roleService.addWorkcenter(roleWorkcenterDto);
+            for(RoleWorkcenterCreateDto workcenter: roleWorkcenterCreateDtoList){
+                workcenter.setRole(role);
+                roleService.addWorkcenter(workcenter);
             }
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
