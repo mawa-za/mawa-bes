@@ -15,6 +15,8 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.ProductCreationFailure;
 import za.co.mawa.bes.exception.ProductDeleteFailure;
@@ -187,19 +189,29 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public void editPricing(ProductPricingDto productPricingDto) throws Exception {
+    public void editPricing(ProductPricingEditDto productPricingEditDto) throws Exception {
         try {
             ProductPricingPKEntity pkEntity = new ProductPricingPKEntity();
             ProductPricingEntity entity = new ProductPricingEntity();
-            pkEntity.setProduct(productPricingDto.getProduct());
-            pkEntity.setPricing(productPricingDto.getPricing());
-            entity.setValue(productPricingDto.getValue());
+            pkEntity.setProduct(productPricingEditDto.getProduct());
+            pkEntity.setPricing(productPricingEditDto.getPricing());
+            entity.setValue(productPricingEditDto.getValue());
             entity.setProductPricingPKEntity(pkEntity);
             productPricingRepository.save(entity);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
 
+    }
+
+    @Override
+    public ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) {
+        return null;
+    }
+
+    @Override
+    public List<ProductPricingDto> getPricings(String product) {
+        return null;
     }
 
     @Override
