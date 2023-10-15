@@ -21,7 +21,7 @@ public class ReceiptController {
     @Autowired
     ReceiptService receiptService;
 
-    @RequestMapping(value= "/receipt" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/receipt", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
         try {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
@@ -32,7 +32,7 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value= "/receipt/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/receipt/{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipt(@PathVariable String id) {
         try {
             ReceiptDto receiptDto = receiptService.getReceipt(id);
@@ -43,37 +43,40 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value= "/receipts" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,@RequestParam(required = false) String invoiceNumber
-            ,@RequestParam(required = false) String membershipNumber,@RequestParam(required = false) String membershipPeriod,@RequestParam(required = false) String tenderType,@RequestParam(name ="user",required = false) String createdBy) {
+    @RequestMapping(value = "/receipts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,
+                                         @RequestParam(required = false) String invoiceNumber,
+                                         @RequestParam(required = false) String membershipNumber,
+                                         @RequestParam(required = false) String membershipPeriod,
+                                         @RequestParam(required = false) String tenderType,
+                                         @RequestParam(required = false) boolean notCashed,
+                                         @RequestParam(name = "user", required = false) String createdBy) {
         try {
             ReceiptSearchDto search = new ReceiptSearchDto();
-            if(receiptType != null && receiptType != "")
-            {
+            if (receiptType != null && receiptType != "") {
                 search.setReceiptType(receiptType);
             }
-            if(invoiceNumber != null && invoiceNumber != "")
-            {
+            if (invoiceNumber != null && invoiceNumber != "") {
                 search.setInvoiceNumber(invoiceNumber);
             }
-            if(membershipNumber != null && membershipNumber != "")
-            {
+            if (membershipNumber != null && membershipNumber != "") {
                 search.setMembershipNumber(membershipNumber);
             }
-            if(membershipPeriod != null && membershipPeriod != "")
-            {
+            if (membershipPeriod != null && membershipPeriod != "") {
                 search.setMembershipPeriod(membershipPeriod);
             }
-            if(tenderType != null && tenderType != "")
-            {
+            if (tenderType != null && tenderType != "") {
                 search.setTenderType(tenderType);
             }
-            if(createdBy != null && createdBy != "")
-            {
+            if (createdBy != null && createdBy != "") {
                 search.setCreatedBy(createdBy);
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
-            receipts = receiptService.getReceipts(search);
+            if (notCashed) {
+                receipts = receiptService.getReceiptsX(search);
+            } else {
+                receipts = receiptService.getReceipts(search);
+            }
             return ResponseEntity.ok(gson.toJson(receipts));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

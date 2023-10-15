@@ -23,8 +23,6 @@ public class PasswordController {
     @Autowired
     EncryptionService encryptionService;
     @Autowired
-    private JwtUserDetailsService userDetailsService;
-    @Autowired
     EmailService emailService;
     @Autowired
     UserService userService;

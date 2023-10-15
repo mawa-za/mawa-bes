@@ -13,6 +13,7 @@ import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.FieldRepository;
+import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 
 import java.util.*;
@@ -33,7 +34,19 @@ public class FieldOptionService implements FieldOptionDao {
         if (!result.isEmpty()) {
             fieldOptionDto.setValidFrom(new Date());
             fieldOptionDto.setType("TENANT");
-            fieldOptionRepository.save(dtoToEntity(fieldOptionDto));
+            FieldOptionPKEntity fieldOptionPKEntity = new FieldOptionPKEntity();
+            fieldOptionPKEntity.setField(fieldOptionDto.getField());
+            fieldOptionPKEntity.setType(fieldOptionDto.getType());
+            fieldOptionPKEntity.setCode(fieldOptionDto.getCode());
+            if (fieldOptionRepository.existsById(fieldOptionPKEntity)) {
+                FieldOptionEntity fieldOptionEntity = fieldOptionRepository.getById(fieldOptionPKEntity);
+                fieldOptionEntity.setValidFrom(new Date());
+                fieldOptionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                fieldOptionRepository.save(fieldOptionEntity);
+            } else {
+                FieldOptionEntity fieldOptionEntity = dtoToEntity(fieldOptionDto);
+                fieldOptionRepository.save(fieldOptionEntity);
+            }
         } else {
             throw new FieldDoesNotExist();
         }
@@ -42,11 +55,13 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public List<FieldOptionDto> getFieldOptions(String field) {
-        List<FieldOptionDto> fieldOptionDtos = new ArrayList<>();
+        List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
         for (FieldOptionEntity fieldOptionEntity : fieldOptionRepository.findFieldOptions(field)) {
-            fieldOptionDtos.add(entityToDto(fieldOptionEntity));
+            if (fieldOptionEntity.getValidTo().after(new Date())){
+                fieldOptionDtoList.add(entityToDto(fieldOptionEntity));
+            }
         }
-        return fieldOptionDtos;
+        return fieldOptionDtoList;
     }
 
     @Override
@@ -59,7 +74,7 @@ public class FieldOptionService implements FieldOptionDao {
             fieldDto.setDescription(fieldEntity.getDescription());
             fieldDto.setValidFrom(fieldEntity.getValidFrom());
             fieldDto.setValidTo(fieldEntity.getValidTo());
-            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription(),fieldDto.getValidFrom(),fieldDto.getValidTo()));
+            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription(), fieldDto.getValidFrom(), fieldDto.getValidTo()));
         }
         return fieldDtoList;
     }
@@ -87,8 +102,7 @@ public class FieldOptionService implements FieldOptionDao {
         Optional<FieldOptionEntity> fieldEntity = fieldOptionRepository.findById(pk);
         FieldOptionEntity fieldOption = fieldEntity.orElse(null);
 
-        if(fieldOption != null)
-        {
+        if (fieldOption != null) {
             return fieldOption.getDescription();
         }
         return null;
@@ -96,32 +110,30 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public FieldDto createField(FieldCreateDto Field) {
-        try{
+        try {
             FieldEntity entity = new FieldEntity();
             entity.setDescription(Field.getDescription());
-            String code = Field.getDescription().toUpperCase().replace(" ","-");
+            String code = Field.getDescription().toUpperCase().replace(" ", "-");
             entity.setCode(code);
-            if(Field.getValidTo() != null && Field.getValidTo() != "") {
+            if (Field.getValidTo() != null && Field.getValidTo() != "") {
                 entity.setValidTo(Field.getValidTo());
-            }
-            else{
+            } else {
                 entity.setValidTo("9999-12-31");
             }
-            if(Field.getValidFrom() != null && Field.getValidFrom() != "") {
+            if (Field.getValidFrom() != null && Field.getValidFrom() != "") {
                 entity.setValidFrom(Field.getValidFrom());
-            }
-            else{
+            } else {
                 entity.setValidFrom(Conversion.dateToString(new Date()));
             }
-            return  entityFieldToDto(fieldRepository.save(entity));
-        }catch(Exception ex){
+            return entityFieldToDto(fieldRepository.save(entity));
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
     @Override
     public void deleteFieldOption(String field, String option) throws Exception {
-        try{
+        try {
             FieldOptionPKEntity pk = new FieldOptionPKEntity();
             pk.setCode(option);
             pk.setField(field);
@@ -129,7 +141,7 @@ public class FieldOptionService implements FieldOptionDao {
             FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
             fieldOption.setValidTo(new Date());
             fieldOptionRepository.save(fieldOption);
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
 
@@ -145,6 +157,7 @@ public class FieldOptionService implements FieldOptionDao {
         fieldOptionDto.setValidTo(fieldOptionEntity.getValidTo());
         return fieldOptionDto;
     }
+
     private FieldDto entityFieldToDto(FieldEntity fieldEntity) {
         FieldDto fieldDto = new FieldDto();
         fieldDto.setCode(fieldEntity.getCode());
