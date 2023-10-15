@@ -27,6 +27,7 @@ public class TransactionCreateDto implements Serializable {
     private String category;
     private String priority;
     private String status;
+    private String statusReason;
     private String plannedStartDate;
     private String plannedEndDate;
     public TransactionCreateDto(QuotationCreateDto quotationCreateDto){

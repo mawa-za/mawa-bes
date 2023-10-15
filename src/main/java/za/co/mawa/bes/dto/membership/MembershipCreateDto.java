@@ -21,4 +21,5 @@ public class MembershipCreateDto implements Serializable {
     private String salesArea;
     private Date dateJoined;
     private String previousInsurerId;
+    private Date lastReceiptDate;
 }

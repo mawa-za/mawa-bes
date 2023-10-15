@@ -50,8 +50,6 @@ public class MembershipController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
-            System.out.println("Calling membershipService.create");
-            System.out.println(membershipCreateDto.toString());
             return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());

@@ -260,7 +260,7 @@ public class ProductService implements ProductDao {
             productAttributeDto.setValidTo(Conversion.dateToString(productAttributeEntity.getValidTo()));
             return productAttributeDto;
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            return null;
         }
     }
 
