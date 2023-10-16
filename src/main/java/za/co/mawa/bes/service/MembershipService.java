@@ -45,6 +45,8 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
+        }else{
+            transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
@@ -96,6 +98,7 @@ public class MembershipService implements MembershipDao {
             if (productAttributeDto != null){
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
             }
+            dateEffective.setType(DateType.EFFECTIVE);
             dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
             transactionService.addDate(dateEffective);
         }
