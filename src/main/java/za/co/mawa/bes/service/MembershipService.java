@@ -90,7 +90,8 @@ public class MembershipService implements MembershipDao {
             ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
             productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
             productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+//            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+            ProductAttributeDto productAttributeDto = null;
             int waitingPeriod = 0;
             if (productAttributeDto != null){
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
