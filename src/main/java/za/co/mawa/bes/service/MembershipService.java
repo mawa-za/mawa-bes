@@ -96,6 +96,7 @@ public class MembershipService implements MembershipDao {
             if (productAttributeDto != null){
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
             }
+            dateEffective.setType(DateType.EFFECTIVE);
             dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
             transactionService.addDate(dateEffective);
         }
