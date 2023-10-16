@@ -66,7 +66,10 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setNumber(id);
             if (transactionCreateDto.getStatus() == null) {
                 transactionEntity.setStatus(Status.NEW);
+            } else {
+                transactionEntity.setStatus(transactionCreateDto.getStatus());
             }
+            transactionEntity.setStatus(transactionCreateDto.getStatusReason());
             transactionEntity.setType(transactionCreateDto.getType());
             transactionEntity.setSubType(transactionCreateDto.getSubType());
             transactionEntity.setValidFrom(new Date());

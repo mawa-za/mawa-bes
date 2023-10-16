@@ -27,7 +27,6 @@ public class MembershipService implements MembershipDao {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
-
     @Override
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -43,8 +42,11 @@ public class MembershipService implements MembershipDao {
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
+        if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
+            transactionCreateDto.setStatus(Status.PENDING);
+            transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
+        }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
@@ -54,7 +56,6 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
-
 
         if (membershipCreateDto.getDateJoined() != null) {
             TransactionDateDto dateJoined = new TransactionDateDto();
@@ -69,6 +70,13 @@ public class MembershipService implements MembershipDao {
             dateJoined.setValue(new Date());
             transactionService.addDate(dateJoined);
         }
+        if (membershipCreateDto.getLastReceiptDate() != null) {
+            TransactionDateDto lastReceiptDate = new TransactionDateDto();
+            lastReceiptDate.setTransaction(transactionDto.getId());
+            lastReceiptDate.setType(DateType.LAST_RECEIPT_DATE);
+            lastReceiptDate.setValue(membershipCreateDto.getLastReceiptDate());
+            transactionService.addDate(lastReceiptDate);
+        }
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             TransactionDateDto dateEffective = new TransactionDateDto();
@@ -82,14 +90,14 @@ public class MembershipService implements MembershipDao {
             ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
             productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
             productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+//            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+            ProductAttributeDto productAttributeDto = null;
             int waitingPeriod = 0;
             if (productAttributeDto != null){
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
             }
             dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
             transactionService.addDate(dateEffective);
-
         }
 
         if (membershipCreateDto.getMemberId() != null) {
