@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
@@ -134,7 +135,25 @@ public class MembershipService implements MembershipDao {
 
     @Override
     public MembershipDto get(String id) {
-        return null;
+        MembershipDto membershipDto = null;
+        try {
+            TransactionDto transactionDto = transactionService.get(id);
+            if (!transactionDto.equals(null)) {
+                membershipDto.setNumber(transactionDto.getNumber());
+                membershipDto.setId(transactionDto.getId());
+                if(transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
+                    String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
+                }
+                ProductDto productDto = productService.getOptionalById(productId);
+                if (productDto != null) {
+                    transactionDto.setProductDetails(productDto);
+                }
+            }
+            return membershipDto;
+        } catch (TransactionNotFound e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override
