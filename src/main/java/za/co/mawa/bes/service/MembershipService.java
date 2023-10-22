@@ -143,10 +143,10 @@ public class MembershipService implements MembershipDao {
                 membershipDto.setId(transactionDto.getId());
                 if(transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                     String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                }
-                ProductDto productDto = productService.getOptionalById(productId);
-                if (productDto != null) {
-                    transactionDto.setProductDetails(productDto);
+                    ProductDto productDto = productService.getOptionalById(productId);
+                    if (productDto != null) {
+                        transactionDto.setProductDetails(productDto);
+                    }
                 }
             }
             return membershipDto;
