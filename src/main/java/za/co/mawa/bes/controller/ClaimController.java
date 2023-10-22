@@ -237,7 +237,7 @@ public class ClaimController {
     @RequestMapping(value = "{id}/submit", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submitClaim(@PathVariable String id) {
         try {
-//            claimService.submit(id);
+            claimService.submit(id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
