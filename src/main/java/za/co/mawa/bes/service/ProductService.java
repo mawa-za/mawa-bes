@@ -18,10 +18,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.entity.*;
-import za.co.mawa.bes.exception.ProductCreationFailure;
-import za.co.mawa.bes.exception.ProductDeleteFailure;
-import za.co.mawa.bes.exception.ProductNotFoundException;
-import za.co.mawa.bes.exception.ProductUpdateFailure;
+import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.ProductAttributeRepository;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
@@ -205,13 +202,39 @@ public class ProductService implements ProductDao {
     }
 
     @Override
-    public ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) {
-        return null;
+    public ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) throws DoesNotExist {
+        try {
+            ProductPricingPKEntity productPricingPKEntity = new ProductPricingPKEntity();
+            productPricingPKEntity.setProduct(productPricingQueryDto.getProduct());
+            productPricingPKEntity.setPricing(productPricingQueryDto.getPricing());
+            ProductPricingEntity productPricingEntity = productPricingRepository.getById(productPricingPKEntity);
+            ProductPricingDto productPricingDto = new ProductPricingDto();
+            productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
+            productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+            productPricingDto.setValue(productPricingEntity.getValue());
+            return productPricingDto;
+        } catch (Exception exception) {
+            throw new DoesNotExist();
+        }
     }
 
     @Override
     public List<ProductPricingDto> getPricings(String product) {
-        return null;
+        List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
+        try {
+            List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findPricing(product);
+            for(ProductPricingEntity productPricingEntity: productPricingEntityList){
+                ProductPricingDto productPricingDto = new ProductPricingDto();
+                productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
+                productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+                productPricingDto.setValue(productPricingEntity.getValue());
+                productPricingDtoList.add(productPricingDto);
+            }
+
+        } catch (Exception exception) {
+
+        }
+        return productPricingDtoList;
     }
 
     @Override
