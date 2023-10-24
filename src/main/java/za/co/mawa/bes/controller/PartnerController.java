@@ -324,10 +324,8 @@ public class PartnerController {
     @RequestMapping(value = "{id}/archive", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> ArchivePartner(@PathVariable String id) {
         try {
-
-            boolean partnerDto = partnerService.archive(id);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            partnerService.archive(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -335,10 +333,8 @@ public class PartnerController {
     @RequestMapping(value = "{id}/unarchive", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> UnarchivePartner(@PathVariable String id) {
         try {
-
-            boolean partnerDto = partnerService.unArchive(id);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            partnerService.unArchive(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

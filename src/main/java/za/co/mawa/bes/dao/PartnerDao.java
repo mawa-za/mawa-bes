@@ -38,8 +38,8 @@ public interface PartnerDao {
     boolean removeContact(ContactDto cntct);
     boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception;
     boolean removeRelation(RelationDto rltn);
-    boolean archive(String id);
-    boolean unArchive(String id);
+    void archive(String id);
+    void unArchive(String id);
     ArrayList<RelationDto> getRelations(String partner);
     ArrayList<PartnerRoleDto> getAllRoles();
     boolean addBankAccount(PartnerBankAccountDto partnerBankAccount);
