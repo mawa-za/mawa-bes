@@ -359,10 +359,10 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/attachment",method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> removeAttachPartner(@PathVariable String id,@RequestParam String fileType){
+    public ResponseEntity<?> removeAttachPartner(@PathVariable String id,@RequestParam String documentType){
         try{
             PartnerAttachmentPKEntity pkEntity = new PartnerAttachmentPKEntity();
-            pkEntity.setFileType(fileType);
+            pkEntity.setDocumentType(documentType);
             pkEntity.setPartner(id);
             return ResponseEntity.ok(gson.toJson(partnerService.removeAttachment(pkEntity)));
         }catch(Exception exception){

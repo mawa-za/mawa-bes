@@ -1303,7 +1303,7 @@ public class PartnerService implements PartnerDao {
             for (PartnerAttachmentEntity attachment : partnerAttachmentRepository.findByPartner(partner)) {
                 PartnerAttachmentDto attachmentDto = new PartnerAttachmentDto();
                 attachmentDto.setPartner(attachment.getPartnerAttachmentPKEntity().getPartner());
-                attachmentDto.setFileType(attachment.getPartnerAttachmentPKEntity().getFileType());
+                attachmentDto.setDocumentType(attachment.getPartnerAttachmentPKEntity().getDocumentType());
                 attachmentDto.setFileId(attachment.getFileId());
                 attachmentDto.setStatus(attachment.getStatus());
                 attachmentDto.setValidFrom(Conversion.dateToString(attachment.getValidFrom()));
