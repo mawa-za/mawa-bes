@@ -6,10 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.*;
-import za.co.mawa.bes.dto.AttachmentDto;
+import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.dto.PartnerAttachmentCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionAttachmentCreateDto;
-import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.transaction.TransactionAttachmentEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttachmentPKEntity;
 import za.co.mawa.bes.service.TransactionService;
@@ -22,9 +21,6 @@ import za.co.mawa.bes.utils.Conversion;
 
 import java.util.Base64;
 import java.util.Date;
-import java.time.LocalTime;
-
-import java.util.List;
 
 @RestController
 @CrossOrigin

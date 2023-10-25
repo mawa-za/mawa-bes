@@ -44,15 +44,23 @@ public class PaymentRequestService implements PaymentRequestDao {
                partner.setTransaction(transaction.getId());
                transactionService.addPartner(partner);
            }
-           if(paymentRequest.getBankDetails() != null)
+            if(paymentRequest.getRecipientId() != null && paymentRequest.getRecipientId() != "")
+            {
+                TransactionPartnerDto partner = new TransactionPartnerDto();
+                partner.setFunction(PartnerFunction.RECIPIENT);
+                partner.setPartner(paymentRequest.getRecipientId());
+                partner.setTransaction(transaction.getId());
+                transactionService.addPartner(partner);
+            }
+           if(paymentRequest.getBankAccount() != null)
            {
                TransactionAccountDto account = new TransactionAccountDto();
-               account.setAccountHolder(paymentRequest.getBankDetails().getAccountHolder());
+               account.setAccountHolder(paymentRequest.getBankAccount().getAccountHolder());
                account.setTransaction(transaction.getId());
-               account.setAccountNumber(paymentRequest.getBankDetails().getAccountNumber());
-               account.setBankName(paymentRequest.getBankDetails().getBankName());
-               account.setBranchCode(paymentRequest.getBankDetails().getBranchCode());
-               account.setAccountType(paymentRequest.getBankDetails().getAccountType());
+               account.setAccountNumber(paymentRequest.getBankAccount().getAccountNumber());
+               account.setBankName(paymentRequest.getBankAccount().getBankName());
+               account.setBranchCode(paymentRequest.getBankAccount().getBranchCode());
+               account.setAccountType(paymentRequest.getBankAccount().getAccountType());
                transactionService.addBankAccount(account);
            }
             TransactionDateDto dateDto = new TransactionDateDto();

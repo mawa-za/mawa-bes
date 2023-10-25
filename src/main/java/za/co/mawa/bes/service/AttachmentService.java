@@ -4,17 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.dao.AttachmentDao;
-import za.co.mawa.bes.dto.AttachmentDto;
+import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.utils.SimpleKeyGenerator;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.Base64;
 import java.text.SimpleDateFormat;
 
