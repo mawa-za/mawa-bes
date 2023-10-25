@@ -200,7 +200,7 @@ public class TransactionService implements TransactionDao {
             for (TransactionAttachmentEntity attachment : transactionAttachmentRepository.findByTransaction(id)) {
                 TransactionAttachmentDto attachmentDto = new TransactionAttachmentDto();
                 attachmentDto.setTransaction(attachment.getTransactionAttachmentPKEntity().getTransaction());
-                attachmentDto.setFileType(attachment.getTransactionAttachmentPKEntity().getFileType());
+                attachmentDto.setDocumentType(attachment.getTransactionAttachmentPKEntity().getDocumentType());
                 attachmentDto.setFileId(attachment.getFileId());
                 attachmentDto.setStatus(attachment.getStatus());
                 attachmentDto.setValidFrom(Conversion.dateToString(attachment.getValidFrom()));

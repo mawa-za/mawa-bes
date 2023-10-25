@@ -2,6 +2,8 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.dao.AttachmentDao;
 import za.co.mawa.bes.dto.attachment.AttachmentDto;
@@ -27,102 +29,44 @@ public class AttachmentService implements AttachmentDao {
     @Autowired
     AttachmentRepository attachmentRepository;
     @Override
-    public void save(AttachmentDto attachmentDto) {
-
-    }
-
-    @Override
-    public AttachmentDto saveAttachment(AttachmentDto attachmentDto) throws Exception {
+    public AttachmentDto save(AttachmentCreateDto attachmentCreateDto) throws Exception {
         try {
-            AttachmentEntity entity = new AttachmentEntity();
-           // String id = key.generateUUID();
-            AttachmentDto attach = new AttachmentDto();
-            entity.setFile(Base64.getDecoder().decode(attachmentDto.getFile()));
-            entity.setUploadedBy(getUser());
-            entity.setUploadDate(new Date());
-            entity.setUploadTime(new Date());
-            return entityToDto(attachmentRepository.save(entity));
-
-        }
-        catch (Exception exception)
-        {
+            AttachmentEntity attachmentEntity = new AttachmentEntity();
+            attachmentEntity.setFile(Base64.getDecoder().decode(attachmentCreateDto.getFile()));
+            attachmentEntity.setUploadedBy(UserContext.getCurrentUser());
+            attachmentEntity.setUploadDate(new Date());
+            attachmentEntity.setUploadTime(new Date());
+            return entityToDto(attachmentRepository.save(attachmentEntity));
+        } catch (Exception exception) {
             throw new Exception();
         }
     }
 
     @Override
-    public AttachmentDto saveFileAttachment(byte[] file) throws Exception {
-        try {
-            AttachmentEntity entity = new AttachmentEntity();
-            // String id = key.generateUUID();
-            AttachmentDto attach = new AttachmentDto();
-            byte[] base64Bytes = Base64.getEncoder().encode(file);
-            entity.setFile(base64Bytes);
-            entity.setUploadedBy(getUser());
-            entity.setUploadDate(new Date());
-            entity.setUploadTime(new Date());
-            return entityToDto(attachmentRepository.save(entity));
-
-           }
-        catch (Exception exception)
-         {
-            throw new Exception();
-         }
-    }
-
-    @Override
-    public AttachmentDto getAttachment(String id) throws DoesNotExist {
-        AttachmentEntity entity = attachmentRepository.getById(id);
-        if(entity != null)
-        {
-            entity.setDownloadedBy(getUser());
-            entity.setDownloadDate(new Date());
-            return entityToAttachDto(attachmentRepository.save(entity));
-        }
-        else{
+    public AttachmentDto get(String id) throws DoesNotExist {
+        AttachmentEntity attachmentEntity = attachmentRepository.getById(id);
+        if (attachmentEntity != null) {
+            attachmentEntity.setDownloadBy(UserContext.getCurrentUser());
+            attachmentEntity.setDownloadDate(new Date());
+            return entityToAttachDto(attachmentRepository.save(attachmentEntity));
+        } else {
             throw new DoesNotExist();
-           // return null;
+            // return null;
         }
-
     }
 
-    private AttachmentDto entityToDto(AttachmentEntity attachEntity)
-    {
-         AttachmentDto attach = new AttachmentDto();
-         attach.setId(attachEntity.getId());
-        return attach;
-
-    }
-
-    private AttachmentDto entityToAttachDto(AttachmentEntity attachEntity)
-    {
+    private AttachmentDto entityToDto(AttachmentEntity attachEntity) {
         AttachmentDto attach = new AttachmentDto();
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
-            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
-            String decodedString = Base64.getEncoder().encodeToString(attachEntity.getFile());
-            attach.setId(attachEntity.getId());
-            if(attachEntity.getUploadDate() != null){
-                attach.setUploadDate(formatterDate.format(attachEntity.getUploadDate()));
-            }
-            if(attachEntity.getUploadTime() != null) {
-                attach.setUploadTime(formatterTime.format(attachEntity.getUploadTime()));
-            }
-            attach.setUploadedBy(attachEntity.getUploadedBy());
-            if(attachEntity.getDownloadDate() != null){
-                attach.setDownloadDate(formatter.format(attachEntity.getDownloadDate()));
-            }
-            attach.setFile(decodedString);
-
-        attach.setDownloadedBy(attachEntity.getDownloadedBy());
+        attach.setId(attachEntity.getId());
         return attach;
     }
 
-    private String getUser()
-    {
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUser = userDetails.getUsername();
-        return currentUser;
+    private AttachmentDto entityToAttachDto(AttachmentEntity attachEntity) {
+        AttachmentDto attach = new AttachmentDto();
+        String decodedString = Base64.getEncoder().encodeToString(attachEntity.getFile());
+        attach.setId(attachEntity.getId());
+        attach.setFile(decodedString);
+        return attach;
     }
 
 

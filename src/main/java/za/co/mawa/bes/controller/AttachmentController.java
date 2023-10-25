@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.*;
+import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
 import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.dto.PartnerAttachmentCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionAttachmentCreateDto;
@@ -36,68 +37,55 @@ public class AttachmentController {
     TransactionService transactionService;
 
     @RequestMapping(value = "/attachment", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addAttachment(@RequestBody AttachmentDto attachmentDto) {
+    public ResponseEntity<?> addAttachment(@RequestBody AttachmentCreateDto attachmentCreateDto) {
         try {
-            AttachmentDto attachmentFile = attachmentService.saveAttachment(attachmentDto);
-            return ResponseEntity.ok(gson.toJson(attachmentFile));
+            AttachmentDto attachmentDto = attachmentService.save(attachmentCreateDto);
+            switch (attachmentCreateDto.getObjectType()){
+            case "PARTNER":
+                PartnerAttachmentCreateDto partnerAttachmentCreateDto = new PartnerAttachmentCreateDto();
+                partnerAttachmentCreateDto.setDocumentType(attachmentCreateDto.getDocumentType());
+                partnerAttachmentCreateDto.setPartner(attachmentCreateDto.getObjectId());
+                partnerAttachmentCreateDto.setAttachmentId(attachmentDto.getId());
+                linkAttachmentPartner(partnerAttachmentCreateDto);
+                break;
+            case "TRANSACTION":
+                TransactionAttachmentCreateDto transactionAttachmentCreateDto = new TransactionAttachmentCreateDto();
+                transactionAttachmentCreateDto.setDocumentType(attachmentCreateDto.getDocumentType());
+                transactionAttachmentCreateDto.setTransaction(attachmentCreateDto.getObjectId());
+                transactionAttachmentCreateDto.setAttachmentId(attachmentDto.getId());
+                linkAttachmentTransaction(transactionAttachmentCreateDto);
+                break;
+        }
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-    @RequestMapping(value = "/attachmentfile", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> fileUpload(@RequestParam("file") MultipartFile multipartFile) {
-       // multipartFile.getBytes();
-        try {
-           // String fileName = multipartFile.getOriginalFilename();
-            String fileType = multipartFile.getContentType();
-        if(fileType.equalsIgnoreCase("application/pdf") ||fileType.equalsIgnoreCase("image/png") ||
-                fileType.equalsIgnoreCase("image/jpeg"))
-        {
-
-            byte[] bytesToEncode = multipartFile.getBytes();
-            String base64Content = Base64.getEncoder().encodeToString(bytesToEncode);
-            AttachmentDto attach = new AttachmentDto();
-            attach.setFile(base64Content);
-            AttachmentDto attachmentFile = attachmentService.saveAttachment(attach);
-            return ResponseEntity.ok(gson.toJson(attachmentFile));
-        }
-
-        else {
-            return ResponseEntity.badRequest().body(fileType + " file type not supported");
-        }
-
-        } catch (Exception exception) {
-            return ResponseEntity.badRequest().body(exception);
         }
     }
 
     @RequestMapping(value = "/attachment/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAttachment(@PathVariable String id) {
         try {
-            AttachmentDto attachment = attachmentService.getAttachment(id);
+            AttachmentDto attachment = attachmentService.get(id);
             return ResponseEntity.ok(gson.toJson(attachment));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "/attachment/{id}/transaction", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> linkAttachmentTransaction(@PathVariable String id,@RequestBody TransactionAttachmentCreateDto transactionAttachment) {
+    private void linkAttachmentTransaction(TransactionAttachmentCreateDto transactionAttachmentCreateDto) {
         try {
             TransactionAttachmentPKEntity pkEntity = new TransactionAttachmentPKEntity();
             TransactionAttachmentEntity entity = new TransactionAttachmentEntity();
-            pkEntity.setTransaction(transactionAttachment.getTransaction());
-            pkEntity.setFileType(transactionAttachment.getFileType());
-            entity.setFileId(id);
+            pkEntity.setTransaction(transactionAttachmentCreateDto.getTransaction());
+            pkEntity.setDocumentType(transactionAttachmentCreateDto.getDocumentType());
+            entity.setFileId(transactionAttachmentCreateDto.getAttachmentId());
             entity.setTransactionAttachmentPKEntity(pkEntity);
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            boolean added = transactionService.addAttachment(entity);
-            return ResponseEntity.ok(gson.toJson(added));
+            transactionService.addAttachment(entity);
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+
         }
     }
     @RequestMapping(value = "/attachment/transaction/{transactionId}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
@@ -108,33 +96,21 @@ public class AttachmentController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-    @RequestMapping(value = "/attachment/transaction/{transactionId}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> removeAttachmentTransaction(@PathVariable String transactionId,@RequestParam String fileType) {
-        try {
-            TransactionAttachmentPKEntity entityPk = new TransactionAttachmentPKEntity();
-            entityPk.setTransaction(transactionId);
-            entityPk.setFileType(fileType);
-            return ResponseEntity.ok(gson.toJson(transactionService.removeAttachment(entityPk)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-    @RequestMapping(value = "/attachment/{id}/partner", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> linkAttachmentPartner(@PathVariable String id,@RequestBody PartnerAttachmentCreateDto partnerAttachment) {
+
+    private void linkAttachmentPartner(PartnerAttachmentCreateDto partnerAttachmentCreateDto) {
         try {
             PartnerAttachmentEntity entity = new PartnerAttachmentEntity();
             PartnerAttachmentPKEntity pkEntity = new PartnerAttachmentPKEntity();
-            pkEntity.setPartner(partnerAttachment.getPartner());
-            pkEntity.setFileType(partnerAttachment.getFileType());
-            entity.setFileId(id);
+            pkEntity.setPartner(partnerAttachmentCreateDto.getPartner());
+            pkEntity.setDocumentType(partnerAttachmentCreateDto.getDocumentType());
+            entity.setFileId(partnerAttachmentCreateDto.getAttachmentId());
             entity.setPartnerAttachmentPKEntity(pkEntity);
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            boolean added = partnerService.addAttachment(entity);
-            return ResponseEntity.ok(gson.toJson(added));
+            partnerService.addAttachment(entity);
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+
         }
     }
 

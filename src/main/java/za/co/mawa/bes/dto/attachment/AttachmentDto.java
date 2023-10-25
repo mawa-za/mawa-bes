@@ -12,10 +12,5 @@ import java.io.Serializable;
 @Setter
 public class AttachmentDto implements Serializable {
    private String id;
-   private String uploadDate;
-   private String uploadTime;
-   private String uploadedBy;
-   private String downloadDate;
-   private String downloadedBy;
    private String file;
 }

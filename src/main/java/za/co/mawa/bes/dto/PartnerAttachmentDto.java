@@ -14,7 +14,7 @@ import java.io.Serializable;
 public class PartnerAttachmentDto implements Serializable {
     private String partner;
     private String fileId;
-    private String fileType;
+    private String documentType;
     private String validFrom;
     private String validTo;
     private String status;
