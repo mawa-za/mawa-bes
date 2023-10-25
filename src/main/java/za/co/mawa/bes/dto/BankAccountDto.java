@@ -1,5 +1,4 @@
 package za.co.mawa.bes.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,8 +10,10 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class PartnerAttachmentCreateDto implements Serializable {
-    private String partner;
-    private String documentType;
-    private String attachmentId;
+public class BankAccountDto implements Serializable{
+    private String accountHolder;
+    private String bankName;
+    private String accountNumber;
+    private String branchCode;
+    private String accountType;
 }

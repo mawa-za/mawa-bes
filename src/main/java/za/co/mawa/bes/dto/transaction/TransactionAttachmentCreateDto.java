@@ -13,6 +13,7 @@ import java.io.Serializable;
 @Setter
 public class TransactionAttachmentCreateDto implements Serializable {
     private String transaction;
-    private String fileType;
+    private String documentType;
+    private String attachmentId;
     
 }

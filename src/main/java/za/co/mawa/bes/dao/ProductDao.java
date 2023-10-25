@@ -13,10 +13,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.entity.ProductPricingPKEntity;
-import za.co.mawa.bes.exception.ProductCreationFailure;
-import za.co.mawa.bes.exception.ProductDeleteFailure;
-import za.co.mawa.bes.exception.ProductNotFoundException;
-import za.co.mawa.bes.exception.ProductUpdateFailure;
+import za.co.mawa.bes.exception.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +33,7 @@ public interface ProductDao {
 
     void editPricing(ProductPricingEditDto productPricingEditDto) throws Exception;
 
-    ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto);
+    ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) throws DoesNotExist;
     List<ProductPricingDto> getPricings(String product);
 
     ProductDto getOptionalById(String id);

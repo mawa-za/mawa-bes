@@ -32,8 +32,8 @@ public class AttachmentEntity implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date uploadDate;
 
-    @Column(name = "downnload_by")
-    private String downloadedBy;
+    @Column(name = "download_by")
+    private String downloadBy;
 
     @Column(name = "download_date")
     @Temporal(TemporalType.TIMESTAMP)

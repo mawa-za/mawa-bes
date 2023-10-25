@@ -15,6 +15,6 @@ import java.io.Serializable;
 public class PartnerAttachmentPKEntity implements Serializable {
     @Column(name = "partner")
     private String partner;
-    @Column(name = "file_type")
-    private String fileType;
+    @Column(name = "document_type")
+    private String documentType;
 }
