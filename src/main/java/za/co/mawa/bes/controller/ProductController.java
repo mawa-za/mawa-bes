@@ -170,17 +170,26 @@ public class ProductController {
         }
     }
 
-    @RequestMapping(value = "{id}/pricing", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPricings(@PathVariable String id, @RequestParam String pricing) {
+//    @RequestMapping(value = "{id}/pricing", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPricing(@PathVariable String id, @RequestParam String pricing) {
         try {
             ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
             productPricingQueryDto.setProduct(id);
             productPricingQueryDto.setPricing(pricing);
             if (pricing.isEmpty()) {
                 return ResponseEntity.ok(gson.toJson(productService.getPricings(id)));
-            }else{
+            } else {
                 return ResponseEntity.ok(gson.toJson(productService.getPricing(productPricingQueryDto)));
             }
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/pricing", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPricings(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(productService.getPricings(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
