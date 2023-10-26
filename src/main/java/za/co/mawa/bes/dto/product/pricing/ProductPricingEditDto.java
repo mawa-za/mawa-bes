@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -14,4 +15,6 @@ public class ProductPricingEditDto implements Serializable {
     private String product;
     private String pricing;
     private BigDecimal value;
+    private Date validFrom;
+    private Date validTo;
 }

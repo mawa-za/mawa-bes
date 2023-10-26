@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -13,4 +14,6 @@ public class ProductPricingDto {
     private String product;
     private String pricing;
     private BigDecimal value;
+    private Date validFrom;
+    private Date validTo;
 }
