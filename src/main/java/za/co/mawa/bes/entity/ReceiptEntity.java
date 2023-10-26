@@ -41,6 +41,8 @@ public class ReceiptEntity implements Serializable {
     private String membershipPeriod;
     @Column(name = "tender_type",length = 45)
     private String tenderType;
+    @Column(name = "location")
+    private String location;
     @Column(name = "amount")
     private BigDecimal amount;
 }
