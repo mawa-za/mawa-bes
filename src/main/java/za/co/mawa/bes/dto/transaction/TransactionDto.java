@@ -23,6 +23,7 @@ public class TransactionDto implements Serializable {
     private String type;
     private String subType;
     private String priority;
+    private String category;
     private String description;
     private String subDescription;
     private String customerId;

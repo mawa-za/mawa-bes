@@ -72,9 +72,11 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setStatusReason(transactionCreateDto.getStatusReason());
             transactionEntity.setType(transactionCreateDto.getType());
             transactionEntity.setSubType(transactionCreateDto.getSubType());
+            transactionEntity.setCategory(transactionCreateDto.getCategory());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
+            transactionEntity.setLocation(transactionCreateDto.getLocation());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -783,6 +785,7 @@ public class TransactionService implements TransactionDao {
             transactionDto.setDescription(transactionEntity.getDescription());
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
+            transactionDto.setCategory(transactionEntity.getCategory());
             transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
             if (transactionEntity.getCreatedBy() != null) {
                 transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
