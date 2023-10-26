@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.cashup.CashupDto;
 import za.co.mawa.bes.dto.cashup.CashupEditDto;
 import za.co.mawa.bes.dto.cashup.CashupSearchDto;
@@ -32,9 +33,9 @@ public class CashupController {
     @Autowired
     TransactionService transactionService;
     @RequestMapping(value = "/cashup", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postCashUp() {
+    public ResponseEntity<?> postCashUp(@RequestParam CashupCreateDto cashupCreateDto) {
         try{
-            String id = cashupService.create();
+            String id = cashupService.create(cashupCreateDto);
             CashupDto cashup = new CashupDto();
             if(id != null)
             {

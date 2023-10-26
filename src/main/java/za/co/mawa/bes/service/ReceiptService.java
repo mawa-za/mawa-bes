@@ -49,6 +49,7 @@ public class ReceiptService implements ReceiptDao {
                entity.setMembershipNumber(receipt.getMembershipNumber());
                entity.setMembershipPeriod(receipt.getMembershipPeriod());
            }
+           entity.setLocation(receipt.getLocation());
            entity.setCreationDate(new Date());
            entity.setCreationTime(new Date());
            entity.setCreatedBy(getUser());

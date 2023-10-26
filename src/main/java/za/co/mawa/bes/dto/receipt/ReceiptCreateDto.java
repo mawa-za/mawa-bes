@@ -16,5 +16,6 @@ public class ReceiptCreateDto implements Serializable {
     private String membershipNumber;
     private String membershipPeriod;
     private String tenderType;
+    private String location;
     private String amount;
 }
