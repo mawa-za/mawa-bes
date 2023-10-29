@@ -178,6 +178,8 @@ public class ProductService implements ProductDao {
             pkEntity.setPricing(productPricingDto.getPricing());
             entity.setValue(productPricingDto.getValue());
             entity.setProductPricingPKEntity(pkEntity);
+            entity.setValidFrom(productPricingDto.getValidFrom());
+            entity.setValidTo(productPricingDto.getValidTo());
             productPricingRepository.save(entity);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -194,6 +196,8 @@ public class ProductService implements ProductDao {
             pkEntity.setPricing(productPricingEditDto.getPricing());
             entity.setValue(productPricingEditDto.getValue());
             entity.setProductPricingPKEntity(pkEntity);
+            entity.setValidFrom(productPricingEditDto.getValidFrom());
+            entity.setValidTo(productPricingEditDto.getValidTo());
             productPricingRepository.save(entity);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -212,6 +216,8 @@ public class ProductService implements ProductDao {
             productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
             productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
             productPricingDto.setValue(productPricingEntity.getValue());
+            productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
+            productPricingDto.setValidTo(productPricingEntity.getValidTo());
             return productPricingDto;
         } catch (Exception exception) {
             throw new DoesNotExist();

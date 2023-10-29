@@ -17,11 +17,12 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TransactionCreateDto implements Serializable {
+    private String type;
     private String parentId;
     private String customerId;
     private String supplierId;
     private String employeeResponsible;
-    private String type;
+    private String location;
     private String description;
     private String subType;
     private String category;
