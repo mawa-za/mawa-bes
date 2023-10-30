@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 //import javax.sql.rowset.Predicate;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
+import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 
@@ -16,10 +18,12 @@ import za.co.mawa.bes.dao.ReceiptDao;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
+import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.utils.NumberRangeType;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.utils.ReceiptType;
+import za.co.mawa.bes.utils.TransactionAttribute;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.io.UnsupportedEncodingException;
@@ -38,6 +42,9 @@ public class ReceiptService implements ReceiptDao {
     NumberRangeService numberRangeService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
+
+    @Autowired
+    TransactionAttributeRepository transactionAttributeRepository;
     @Override
     public ReceiptDto createReceipt(ReceiptCreateDto receipt) throws Exception {
         try {
@@ -47,7 +54,7 @@ public class ReceiptService implements ReceiptDao {
            if(receipt.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP))
            {
                entity.setMembershipNumber(receipt.getMembershipNumber());
-               entity.setMembershipPeriod(receipt.getMembershipPeriod());
+               entity.setMembershipPeriod(determinePeriod(receipt.getMembershipNumber()));
            }
            entity.setLocation(receipt.getLocation());
            entity.setCreationDate(new Date());
@@ -56,7 +63,6 @@ public class ReceiptService implements ReceiptDao {
            entity.setInvoiceNumber(receipt.getInvoiceNumber());
            entity.setTenderType(receipt.getTenderType().toUpperCase());
            entity.setAmount(new BigDecimal(receipt.getAmount()));
-
            return entityIDtoDto(receiptRepository.save(entity));
         }
         catch (Exception e)
@@ -209,5 +215,21 @@ public class ReceiptService implements ReceiptDao {
             throw new Exception();
         }
     }
-
+    private String determinePeriod(String id){
+        TransactionAttributePKEntity transactionAttributePKEntity = new TransactionAttributePKEntity();
+        transactionAttributePKEntity.setTransaction(id);
+        transactionAttributePKEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+        TransactionAttributeEntity transactionAttributeEntity = transactionAttributeRepository.getById(transactionAttributePKEntity);
+        if (transactionAttributeEntity != null){
+            return transactionAttributeEntity.getValue();
+        }else{
+            transactionAttributeEntity = new TransactionAttributeEntity();
+            transactionAttributeEntity.setTransactionAttributePKEntity(transactionAttributePKEntity);
+            int year = new Date().getYear();
+            int month = new Date().getMonth();
+            transactionAttributeEntity.setValue(Integer.toString(year) + Integer.toString(month));
+            transactionAttributeRepository.save(transactionAttributeEntity);
+            return transactionAttributeEntity.getValue();
+        }
+    }
 }
