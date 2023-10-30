@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Entity
-@Table(name = "partner_attribute")
+@Table(name = "transaction_attribute")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
