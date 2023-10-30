@@ -11,3 +11,6 @@ CREATE TABLE `transaction_attribute` (
 
   INSERT INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
   VALUES ('LAST-PREMIUM-PERIOD', 'TRANSACTION-ATTRIBUTE', 'Last Premium Period', CURRENT_DATE, '9999-12-31');
+
+INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
+VALUES ('CLAIM-DISPUTE-REASON', 'Claim Dispute Reason', CURRENT_DATE, '9999-12-31');
