@@ -1,7 +1,6 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
@@ -9,6 +8,8 @@ import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -28,6 +29,7 @@ public class MembershipService implements MembershipDao {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+
     @Override
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -47,7 +49,7 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-        }else{
+        } else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
@@ -56,7 +58,15 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setTransaction(transactionDto.getId());
         transactionItemDto.setProduct(membershipCreateDto.getProductId());
         transactionItemDto.setProduct(productDto.getId());
-        transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+        try {
+            ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
+            productPricingQueryDto.setProduct(membershipCreateDto.getProductId());
+            productPricingQueryDto.setPricing(ProductPricing.MONTHLY_PREMIUM);
+            ProductPricingDto productPricingDto = productService.getPricing(productPricingQueryDto);
+            transactionItemDto.setUnitPrice(productPricingDto.getValue());
+        } catch (Exception exception) {
+
+        }
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
@@ -97,7 +107,7 @@ public class MembershipService implements MembershipDao {
 //            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
             ProductAttributeDto productAttributeDto = null;
             int waitingPeriod = 0;
-            if (productAttributeDto != null){
+            if (productAttributeDto != null) {
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
             }
             dateEffective.setType(DateType.EFFECTIVE);
@@ -142,7 +152,7 @@ public class MembershipService implements MembershipDao {
             if (!transactionDto.equals(null)) {
                 membershipDto.setNumber(transactionDto.getNumber());
                 membershipDto.setId(transactionDto.getId());
-                if(transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
+                if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                     String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
                     ProductDto productDto = productService.getOptionalById(productId);
                     if (productDto != null) {
