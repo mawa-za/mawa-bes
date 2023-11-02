@@ -33,7 +33,7 @@ public class CashupController {
     @Autowired
     TransactionService transactionService;
     @RequestMapping(value = "/cashup", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postCashUp(@RequestParam CashupCreateDto cashupCreateDto) {
+    public ResponseEntity<?> postCashUp(@RequestBody CashupCreateDto cashupCreateDto) {
         try{
             String id = cashupService.create(cashupCreateDto);
             CashupDto cashup = new CashupDto();
