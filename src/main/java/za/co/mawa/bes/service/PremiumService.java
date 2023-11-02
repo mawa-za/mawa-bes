@@ -32,6 +32,7 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -150,19 +151,36 @@ public class PremiumService {
         };
     }
 
-    private String determinePeriod(String id){
-        TransactionAttributePKEntity transactionAttributePKEntity = new TransactionAttributePKEntity();
-        transactionAttributePKEntity.setTransaction(id);
-        transactionAttributePKEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
-        TransactionAttributeEntity transactionAttributeEntity = transactionAttributeRepository.getById(transactionAttributePKEntity);
-        if (transactionAttributeEntity != null){
+    private String determinePeriod(String id) {
+        try {
+            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(id,TransactionAttribute.LAST_PREMIUM_PERIOD);
+            TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
+            String previousPeriod =  transactionAttributeEntity.getValue();
+            String yearString = previousPeriod.substring(0,4);
+            String monthString = previousPeriod.substring(4,6);
+            if (Integer.parseInt(monthString) == 12){
+                yearString = (Integer.toString(Integer.parseInt(yearString) + 1));
+                monthString = "01";
+            }else{
+                int month = Integer.parseInt(monthString) + 1;
+                monthString = String.format("%02d", month);
+            }
+            transactionAttributeEntity.setValue(yearString + monthString);
+            transactionAttributeEntity.setValidTo(new Date());
+            transactionAttributeEntity.setValidFrom(new Date());
+            transactionAttributeRepository.save(transactionAttributeEntity);
             return transactionAttributeEntity.getValue();
-        }else{
-            transactionAttributeEntity = new TransactionAttributeEntity();
-            transactionAttributeEntity.setTransactionAttributePKEntity(transactionAttributePKEntity);
-            int year = new Date().getYear();
-            int month = new Date().getMonth();
-            transactionAttributeEntity.setValue(Integer.toString(year) + Integer.toString(month));
+        } catch (Exception exception) {
+            TransactionAttributeEntity transactionAttributeEntity = new TransactionAttributeEntity();
+            transactionAttributeEntity.setTransaction(id);
+            transactionAttributeEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH) + 1;
+            String monthString = String.format("%02d", month);
+            transactionAttributeEntity.setValue(Integer.toString(year) + monthString);
+            transactionAttributeEntity.setValidTo(new Date());
+            transactionAttributeEntity.setValidFrom(new Date());
             transactionAttributeRepository.save(transactionAttributeEntity);
             return transactionAttributeEntity.getValue();
         }

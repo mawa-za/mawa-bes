@@ -11,12 +11,14 @@ import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.ReceiptService;
 import za.co.mawa.bes.utils.TenderType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -27,16 +29,21 @@ public class ReceiptController {
     ReceiptService receiptService;
     @Autowired
     CashupService cashupService;
+    @Autowired
+    private ReceiptRepository receiptRepository;
 
     @RequestMapping(value = "/receipt", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
         try {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
-            if (receiptCreateDto.getTenderType() == TenderType.EFT || receiptCreateDto.getTenderType() == TenderType.CARD){
+            if (receiptCreateDto.getTenderType().equals(TenderType.EFT)){
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
                 cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy());
                 cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(receiptCreateDto.getAmount()));
+                List<String> receipts = new ArrayList<>();
+                receipts.add(receiptDto.getId());
+                cashupCreateDto.setReceipts(receipts);
                 cashupService.createNoCash(cashupCreateDto);
             }
             return ResponseEntity.ok(gson.toJson(receiptDto));
