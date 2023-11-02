@@ -50,6 +50,7 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("payment-request","Payment Request","search"));
         workcenterDtoList.add(new WorkcenterDto("claim-approval","Claim Approvals","search"));
         workcenterDtoList.add(new WorkcenterDto("voucher","Vouchers","search"));
+        workcenterDtoList.add(new WorkcenterDto("group-society","Group Society","search"));
         return workcenterDtoList;
     }
 
