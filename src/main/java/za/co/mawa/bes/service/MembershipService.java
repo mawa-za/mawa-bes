@@ -11,8 +11,10 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
 
@@ -70,6 +72,12 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
+
+        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
+        transactionAmountDto.setTransaction(transactionDto.getId());
+        transactionAmountDto.setType(TransactionAmount.MONTHLY_PREMIUM);
+        transactionAmountDto.setAmount(transactionItemDto.getUnitPrice());
+        transactionService.addAmount(transactionAmountDto);
 
         if (membershipCreateDto.getDateJoined() != null) {
             TransactionDateDto dateJoined = new TransactionDateDto();
@@ -159,6 +167,10 @@ public class MembershipService implements MembershipDao {
                         transactionDto.setProductDetails(productDto);
                     }
                 }
+                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                transactionAmountPKEntity.setTransaction(transactionDto.getId());
+                transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
+                membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
             }
             return membershipDto;
         } catch (TransactionNotFound e) {
