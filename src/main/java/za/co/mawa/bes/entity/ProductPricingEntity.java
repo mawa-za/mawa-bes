@@ -1,11 +1,10 @@
 package za.co.mawa.bes.entity;
 
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 @Entity
 @Table(name = "product_pricing")
@@ -19,4 +18,10 @@ public class ProductPricingEntity {
     @EmbeddedId
     protected ProductPricingPKEntity productPricingPKEntity;
     private BigDecimal value;
+    @Column(name = "valid_from")
+    @Temporal(TemporalType.DATE)
+    private Date validFrom;
+    @Column(name = "valid_to")
+    @Temporal(TemporalType.DATE)
+    private Date validTo;
 }

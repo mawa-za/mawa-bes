@@ -17,6 +17,8 @@ import java.util.List;
 @Getter
 @Setter
 public class MembershipDto {
+    private String id;
+    private String number;
     private String memberId;
     private String member;
     private String salesRepresentativeId;
@@ -28,7 +30,6 @@ public class MembershipDto {
     private Date dateEffective;
     private String status;
     private String statusReason;
-
     private PersonDto mainMember;
     private PersonDto salesRep;
     List<DependentDto> dependentDtoList;

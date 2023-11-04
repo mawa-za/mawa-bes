@@ -47,6 +47,8 @@ public class TransactionEntity implements Serializable {
     private String subStatus;
     @Column(name = "location")
     private String location;
+    @Column(name = "category")
+    private String category;
     @Lob
     @Column(name = "sub_description")
     private String subDescription;

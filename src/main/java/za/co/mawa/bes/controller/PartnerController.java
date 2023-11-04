@@ -195,10 +195,14 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/contact", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPartnerContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
+    public ResponseEntity<?> editPartnerContact(@PathVariable String id,
+                                                @RequestBody ContactEditDto contactDto,
+                                                @RequestParam String contactType) {
         try {
-            contactDto.setPartner(id);
-            boolean partnerDto = partnerService.editContact(contactDto);
+             PartnerContactPKEntity entityPk = new PartnerContactPKEntity();
+             entityPk.setType(contactType);
+             entityPk.setPartner(id);
+            boolean partnerDto = partnerService.contactEdit(entityPk,contactDto);
             return ResponseEntity.ok(gson.toJson(partnerDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -320,10 +324,8 @@ public class PartnerController {
     @RequestMapping(value = "{id}/archive", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> ArchivePartner(@PathVariable String id) {
         try {
-
-            boolean partnerDto = partnerService.archive(id);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            partnerService.archive(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -331,10 +333,8 @@ public class PartnerController {
     @RequestMapping(value = "{id}/unarchive", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> UnarchivePartner(@PathVariable String id) {
         try {
-
-            boolean partnerDto = partnerService.unArchive(id);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            partnerService.unArchive(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -359,14 +359,51 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/attachment",method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> removeAttachPartner(@PathVariable String id,@RequestParam String fileType){
+    public ResponseEntity<?> removeAttachPartner(@PathVariable String id,@RequestParam String documentType){
         try{
             PartnerAttachmentPKEntity pkEntity = new PartnerAttachmentPKEntity();
-            pkEntity.setFileType(fileType);
+            pkEntity.setDocumentType(documentType);
             pkEntity.setPartner(id);
             return ResponseEntity.ok(gson.toJson(partnerService.removeAttachment(pkEntity)));
         }catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
+    }
+    @RequestMapping(value ="{id}/attribute",method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addPartnerAttribute(@PathVariable String id,@RequestBody PartnerAttributeCreateDto createDto){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.addAttribute(createDto)));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+    @RequestMapping(value ="{id}/attribute",method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> removeAttribute(@PathVariable String id,@RequestParam String attribute){
+        try{
+            PartnerAttributePKEntity pkEntity = new PartnerAttributePKEntity();
+            pkEntity.setAttribute(attribute);
+            pkEntity.setPartner(id);
+            return ResponseEntity.ok(gson.toJson(partnerService.deleteAttribute(pkEntity)));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+    @RequestMapping(value = "{id}/attribute" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editAttribute(@PathVariable String id,@RequestBody PartnerAttributeEditDto editDto,@RequestParam String attribute){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.editAttribute(editDto,id,attribute)));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+    @RequestMapping(value = "{id}/attribute" , method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAttribute(@PathVariable String id){
+      try{
+          PartnerAttributeQueryDto queryDto = new PartnerAttributeQueryDto();
+          queryDto.setPartner(id);
+          return ResponseEntity.ok(gson.toJson(partnerService.getAttributes(queryDto)));
+      }catch (Exception ex){
+          return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+      }
     }
 }

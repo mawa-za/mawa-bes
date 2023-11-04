@@ -16,6 +16,11 @@ import java.util.Date;
 public class MembershipCreateDto implements Serializable {
     private String memberId;
     private String salesRepresentativeId;
+    private String membershipType;
     private String productId;
+    private String creationType;
+    private String salesArea;
     private Date dateJoined;
+    private String previousInsurerId;
+    private Date lastReceiptDate;
 }

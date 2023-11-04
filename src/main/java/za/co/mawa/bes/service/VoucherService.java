@@ -170,17 +170,17 @@ public class VoucherService implements VoucherDao {
     @Override
     public boolean edit(VoucherEditDto edit,String id) {
         try{
-            TransactionEdit transactionDto = new TransactionEdit();
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
             boolean edited = false;
             if(edit.getStatusReason() != null && edit.getStatusReason() != ""){
-                transactionDto.setStatusReason(edit.getStatusReason());
+                transactionEditDto.setStatusReason(edit.getStatusReason());
             }
             if(edit.getStatus() != null && edit.getStatus() != ""){
-               transactionDto.setStatus(edit.getStatus());
+                transactionEditDto.setStatus(edit.getStatus());
             }
-            if(transactionDto != null){
-                transactionDto.setId(id);
-                edited =  transactionService.edit(transactionDto);
+            if(transactionEditDto != null){
+                transactionEditDto.setId(id);
+                transactionService.edit(transactionEditDto);
             }
             if(edit.getExpiryDate() != null && edit.getExpiryDate() != ""){
                 TransactionDateEdit transactionDate = new TransactionDateEdit();

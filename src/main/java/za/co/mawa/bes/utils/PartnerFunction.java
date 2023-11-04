@@ -3,7 +3,7 @@ package za.co.mawa.bes.utils;
 public class PartnerFunction {
     public static String POLICY_HOLDER = "MAIN-MEMBER";
     public static String DEPENDENT = "DEPENDENT";
-    public static String SALES_REPRESENTATIVE = "SALES-REPRESENTANTIVE";
+    public static String SALES_REPRESENTATIVE = "SALES-REPRESENTATIVE";
     public static String DECEASED = "DECEASED";
     public static String TOMBSTONE_RECIPIENT = "TOMBSTONE-RECIPIENT";
     public static String CLAIMANT = "CLAIMANT";
@@ -11,6 +11,7 @@ public class PartnerFunction {
     public static String APPROVER = "APPROVER";
     public static String APPROVERID = "APPROVERID";
     public static String REQUESTOR = "REQUESTOR";
+
     public static String CUSTOMER = "CUSTOMER";
     public static String EMPLOYEE_RESPONSIBLE = "EMPLOYEE-RESPONSIBLE";
     public static String ORGANIZATION_RESPONSIBLE = "ORGANIZATION-RESPONSIBLE";
@@ -23,13 +24,14 @@ public class PartnerFunction {
     public static String EMPLOYEE = "EMPLOYEE";
     public static String ASSIGNTO = "ASSIGNTO";
     public static String ASSIGNBY = "ASSIGNBY";
-    public static String MAINMEMBER = "MAINMEMBER";
+    public static String MAINMEMBER = "MAIN-MEMBER";
     public static String PROFILE_OWNER = "PROFILEOWNER";
     public static String ADJUSTEDBY = "ADJUSTEDBY";
     public static String OWNEDBY = "OWNEDBY";
     public static String DELETEDBY = "DELETEDBY";
     public static String SCHEDULEDTO = "SCHEDULEDTO";
-    public static String SCHEDULEDBY = "SCHEDULEDBY";
+    public static String SCHEDULEDBY = "SCHEDULED-BY";
     public static String SUPPLIER = "SUPPLIER";
-    public static String ASSIGNED_APPROVER = "ASSIGNEDAPPROVER";
+    public static String ASSIGNED_APPROVER = "ASSIGNED-APPROVER";
+    public static String PREVIOUS_INSURER = "PREVIOUS-INSURER";
 }

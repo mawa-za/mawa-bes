@@ -4,13 +4,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
+import java.io.Serializable;
 
 @NoArgsConstructor
 @Getter
 @Setter
-public class ProductPricingUpdateDto {
+public class ProductPricingQueryDto implements Serializable {
     private String product;
     private String pricing;
-    private BigDecimal value;
 }

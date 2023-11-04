@@ -3,7 +3,6 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.OrganizationDto;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PartnerQueryDto;
-import za.co.mawa.bes.exception.PartnerNotFound;
 
 import java.util.List;
 

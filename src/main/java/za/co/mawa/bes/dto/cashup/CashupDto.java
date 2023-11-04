@@ -26,4 +26,6 @@ public class CashupDto implements Serializable{
     private String amountDeposited;
     private Date createdDate;
     private Date lastUpdated;
+    private String salesArea;
+    private String employeeResponsible;
 }

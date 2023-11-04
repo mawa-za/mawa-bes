@@ -10,7 +10,6 @@ import java.io.Serializable;
 @Setter
 public class RoleWorkcenterDto implements Serializable {
     private String role;
-    private String workcenter;
-
+    private WorkcenterDto workcenter;
     private int position;
 }

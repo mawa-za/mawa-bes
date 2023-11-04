@@ -18,6 +18,8 @@ public class TransactionQueryResultDto implements Serializable {
     private String type;
     private String customerId;
     private String customerName;
+    private String employeeResponsibleId;
+    private String employeeResponsibleName;
     private String supplierId;
     private String supplierName;
     private String subType;

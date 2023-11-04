@@ -47,73 +47,28 @@ public class MembershipController {
     PartnerIdentityRepository partnerIdentityRepository;
     Gson gson = new Gson();
 
-    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
-            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
-            transactionCreateDto.setType(TransactionType.MEMBERSHIP);
-            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
-            if (membershipCreateDto.getProductId() != null) {
-                ProductDto productDto = productService.get(membershipCreateDto.getProductId());
-                TransactionItemDto transactionItemDto = new TransactionItemDto();
-                transactionItemDto.setTransaction(transactionDto.getId());
-                transactionItemDto.setProduct(membershipCreateDto.getProductId());
-                transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                transactionItemDto.setQuantity(new BigDecimal("1"));
-                transactionService.addItem(transactionItemDto);
-            }
-
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(transactionDto.getId());
-            creationDate.setType(DateType.CREATED);
-            creationDate.setValue(new Date());
-            transactionService.addDate(creationDate);
-
-            if (membershipCreateDto.getDateJoined() != null) {
-                TransactionDateDto Date = new TransactionDateDto();
-                creationDate.setTransaction(transactionDto.getId());
-                creationDate.setType(DateType.JOINED);
-                creationDate.setValue(membershipCreateDto.getDateJoined());
-                transactionService.addDate(creationDate);
-            }
-
-            if (membershipCreateDto.getMemberId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.MAINMEMBER);
-                transactionPartnerDto.setPartner(membershipCreateDto.getMemberId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-
-            if (membershipCreateDto.getSalesRepresentativeId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
-                transactionPartnerDto.setPartner(membershipCreateDto.getSalesRepresentativeId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            return ResponseEntity.ok(gson.toJson(transactionDto));
+            return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
-    @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
                                             @RequestParam(required = false) String partnerNo,
                                             @RequestParam(required = false) String idNumber) {
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            String partner = partnerNo == null ? "":partnerNo;
-            String function = partnerFunction == null ? "":partnerFunction;
-            String idNo = idNumber == null ? "":idNumber;
+            String partner = partnerNo == null ? "" : partnerNo;
+            String function = partnerFunction == null ? "" : partnerFunction;
+            String idNo = idNumber == null ? "" : idNumber;
             List<TransactionQueryResultDto> results = new ArrayList<>();
-            if(idNumber != "" && function != ""){
-                for(PartnerIdentityEntity identityEntity: partnerIdentityRepository.findPartnerIdentityByValue(idNumber)){
+            if (idNumber != "" && function != "") {
+                for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByValue(idNumber)) {
                     transactionQueryDto.setPartnerNo(identityEntity.getPartner());
                     transactionQueryDto.setPartnerFunction(function);
                     List<TransactionQueryResultDto> result = new ArrayList<>();
@@ -121,14 +76,11 @@ public class MembershipController {
                     result = transactionService.search(transactionQueryDto);
                     results.addAll(result);
                 }
-            }
-            else{
-                if(status != null && status != "")
-                {
+            } else {
+                if (status != null && status != "") {
                     transactionQueryDto.setStatus(status);
                 }
-                if(partner != "" && function != "")
-                {
+                if (partner != "" && function != "") {
                     transactionQueryDto.setPartnerNo(partner);
                     transactionQueryDto.setPartnerFunction(function);
                 }
@@ -141,65 +93,61 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
-            if(transactionDto.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP))
-            {
+            if (transactionDto.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)) {
                 String productId = null;
-                for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
-                   int number =  item.getValidTo().compareTo(new Date());
-                 if(number > 0){
-                    productId = item.getProduct();
-                 }
+                for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
+                    int number = item.getValidTo().compareTo(new Date());
+                    if (number > 0) {
+                        productId = item.getProduct();
+                    }
                 }
-               ProductDto productDto =  productService.getOptionalById(productId);
-                if(productDto != null)
-                {
+                ProductDto productDto = productService.getOptionalById(productId);
+                if (productDto != null) {
                     transactionDto.setProductDetails(productDto);
                 }
                 return ResponseEntity.ok(gson.toJson(transactionDto));
-            }
-            else {
-              return  ResponseEntity.ok(gson.toJson(null));
+            } else {
+                return ResponseEntity.ok(gson.toJson(null));
             }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            TransactionEdit transactionDto = new TransactionEdit();
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
             TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
             boolean edited = false;
-            if(membershipDto.getStatus() != null && membershipDto.getStatus() != ""){
-                transactionDto.setStatus(membershipDto.getStatus());
+            if (membershipDto.getStatus() != null && membershipDto.getStatus() != "") {
+                transactionEditDto.setStatus(membershipDto.getStatus());
             }
-            if(membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != ""){
-                transactionDto.setStatusReason(membershipDto.getStatusReason());
+            if (membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != "") {
+                transactionEditDto.setStatusReason(membershipDto.getStatusReason());
             }
-            if(transactionDto.getStatusReason() != null || transactionDto.getStatus() != null)
-            {
-                transactionDto.setId(id);
-               edited = transactionService.edit(transactionDto);
+            if (transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null) {
+                transactionEditDto.setId(id);
+                transactionService.edit(transactionEditDto);
             }
-            if(membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != ""){
-              partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
-              partnerEdit.setTransaction(id);
-              partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
-              edited = transactionService.partnerEdit(partnerEdit);
+            if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
+                partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
+                partnerEdit.setTransaction(id);
+                partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
+                edited = transactionService.partnerEdit(partnerEdit);
             }
-            if(membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
+            if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
                 editDto.setUnitPrice(membershipDto.getPremium());
                 edited = transactionService.editItem(editDto);
             }
-            if(membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
+            if (membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
@@ -212,7 +160,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteMembership(@PathVariable String id) {
         try {
             transactionService.delete(id);
@@ -222,7 +170,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -236,7 +184,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDependent(@PathVariable String id) {
         try {
             List<DependentDto> dependentDtoList = new ArrayList<>();
@@ -261,7 +209,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/dependent/{dependentId}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/dependent/{dependentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @PathVariable String dependentId) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -275,7 +223,7 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/claims", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/claims", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaims(@PathVariable String id) {
         try {
             List<ClaimDto> claimDtoList = new ArrayList<>();
@@ -290,4 +238,62 @@ public class MembershipController {
         }
     }
 
+    @RequestMapping(value = "{id}/tombstone-recipient/{recipientId}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addTombstoneRecipient(@PathVariable String id,
+                                                   @PathVariable String recipientId) {
+        try {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setPartner(recipientId);
+            transactionPartnerDto.setFunction(PartnerFunction.TOMBSTONE_RECIPIENT);
+            transactionService.addPartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/tombstone-recipient/{recipientId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> removeTombstoneRecipient(@PathVariable String id,
+                                                      @PathVariable String recipientId) {
+        try {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setPartner(recipientId);
+            transactionPartnerDto.setFunction(PartnerFunction.TOMBSTONE_RECIPIENT);
+            transactionService.removePartner(transactionPartnerDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+
+    }
+
+    @RequestMapping(value = "{id}/tombstone-recipient", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getTombstoneRecipient(@PathVariable String id) {
+        try {
+            List<TombstoneRecipientDto> tombstoneRecipientDtos = new ArrayList<>();
+            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
+                    .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.TOMBSTONE_RECIPIENT))
+                    .toList();
+            for (TransactionPartnerDto partnerDtos : transactionPartnerDtoList) {
+                PartnerDto partnerDto = partnerService.get(partnerDtos.getPartner());
+                if (partnerDto != null) {
+                    TombstoneRecipientDto tombstoneRecipient = new TombstoneRecipientDto();
+                    tombstoneRecipient.setId(partnerDto.getId());
+                    tombstoneRecipient.setFirstName(partnerDto.getName2());
+                    tombstoneRecipient.setMiddleName(partnerDto.getName3());
+                    tombstoneRecipient.setLastName(partnerDto.getName1());
+                    tombstoneRecipient.setGender(partnerDto.getGender());
+                    tombstoneRecipient.setTitle(partnerDto.getTitle());
+                    tombstoneRecipient.setIdNumber(partnerDto.getIdNumber());
+                    tombstoneRecipient.setIdType(partnerDto.getIdType());
+                    tombstoneRecipientDtos.add(tombstoneRecipient);
+                }
+            }
+            return ResponseEntity.ok(gson.toJson(tombstoneRecipientDtos));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
 }

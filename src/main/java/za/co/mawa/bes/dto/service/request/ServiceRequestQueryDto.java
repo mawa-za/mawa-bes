@@ -8,4 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ServiceRequestQueryDto {
+    private String customerId;
+    private String status;
 }

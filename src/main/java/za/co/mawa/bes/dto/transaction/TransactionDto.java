@@ -18,9 +18,12 @@ import java.util.List;
 @Setter
 public class TransactionDto implements Serializable {
     private String id;
+    private String no;
     private String number;
     private String type;
     private String subType;
+    private String priority;
+    private String category;
     private String description;
     private String subDescription;
     private String customerId;

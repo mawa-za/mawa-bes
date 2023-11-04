@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.RoleDao;
 import za.co.mawa.bes.dto.RoleDto;
+import za.co.mawa.bes.dto.RoleWorkcenterCreateDto;
 import za.co.mawa.bes.dto.RoleWorkcenterDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.entity.*;
@@ -61,28 +62,32 @@ public class RoleService implements RoleDao {
     }
 
     @Override
-    public List<WorkcenterDto> getRoleWorkcenters(String role) throws RoleDoesNotExist {
-        List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
+    public List<RoleWorkcenterDto> getRoleWorkcenters(String role) throws RoleDoesNotExist {
+        List<RoleWorkcenterDto> workcenterDtoList = new ArrayList<>();
         List<RoleWorkcenterEntity> roleWorkcenterEntities = roleWorkcenterRepository.findRoleWorkcenters(role);
         for (RoleWorkcenterEntity roleWorkcenterEntity : roleWorkcenterEntities) {
+            RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
             String workcenter = roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter();
-            workcenterDtoList.add(workcenterService.getById(workcenter));
+            WorkcenterDto workcenterDto = workcenterService.getById(workcenter);
+            roleWorkcenterDto.setPosition(roleWorkcenterEntity.getPosition());
+            roleWorkcenterDto.setWorkcenter(workcenterDto);
+            workcenterDtoList.add(roleWorkcenterDto);
         }
         return workcenterDtoList;
     }
 
     @Override
-    public void addWorkcenter(RoleWorkcenterDto roleWorkcenterDto) throws Exception {
+    public void addWorkcenter(RoleWorkcenterCreateDto roleWorkcenterCreateDto) throws Exception {
         try {
             RoleWorkcenterPKEntity roleWorkcenterPKEntity = new RoleWorkcenterPKEntity();
-            roleWorkcenterPKEntity.setRole(roleWorkcenterDto.getRole());
-            roleWorkcenterPKEntity.setWorkcenter(roleWorkcenterDto.getWorkcenter());
+            roleWorkcenterPKEntity.setRole(roleWorkcenterCreateDto.getRole());
+            roleWorkcenterPKEntity.setWorkcenter(roleWorkcenterCreateDto.getWorkcenter());
             RoleWorkcenterEntity roleWorkcenterEntity = new RoleWorkcenterEntity();
             roleWorkcenterEntity.setRoleWorkcenterPKEntity(roleWorkcenterPKEntity);
-            roleWorkcenterEntity.setPosition(roleWorkcenterDto.getPosition());
+            roleWorkcenterEntity.setPosition(roleWorkcenterCreateDto.getPosition());
             roleWorkcenterRepository.save(roleWorkcenterEntity);
         } catch (Exception exception) {
-            throw new Exception("Failed to add role:" + roleWorkcenterDto.toString());
+            throw new Exception("Failed to add role:" + roleWorkcenterCreateDto.toString());
         }
     }
 
@@ -99,10 +104,10 @@ public class RoleService implements RoleDao {
     public boolean deleteRole(String role) throws Exception {
         try{
             roleRepository.deleteById(role);
-            for(WorkcenterDto workcenterRole :getRoleWorkcenters(role)){
+            for(RoleWorkcenterDto roleWorkcenterDto :getRoleWorkcenters(role)){
                RoleWorkcenterPKEntity entity = new RoleWorkcenterPKEntity();
                entity.setRole(role);
-               entity.setWorkcenter(workcenterRole.getId());
+               entity.setWorkcenter(roleWorkcenterDto.getWorkcenter().getId());
                deleteWorkcenter(entity);
             }
             for(UserRoleEntity userRole:userRoleRepository.findRoles(role)){
