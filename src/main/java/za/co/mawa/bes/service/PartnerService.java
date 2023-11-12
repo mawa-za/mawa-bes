@@ -1513,19 +1513,15 @@ public class PartnerService implements PartnerDao {
             partnerDto.setName1(partner.getName1());
             partnerDto.setName2(partner.getName2());
             partnerDto.setName3(partner.getName3());
-            partnerDto.setGender(partner.getGender());
-            partnerDto.setTitle(partner.getTitle());
-            partnerDto.setMaritalStatus(partner.getMaritalStatus());
-            partnerDto.setStatus(partner.getStatus());
-
-
+            partnerDto.setGender(fieldOptionService.getFieldOptionDescription(Field.GENDER, partnerDto.getGender()));
+            partnerDto.setTitle(fieldOptionService.getFieldOptionDescription(Field.TITLE, partnerDto.getTitle()));
+            partnerDto.setMaritalStatus(fieldOptionService.getFieldOptionDescription(Field.MARITAL_STATUS, partnerDto.getMaritalStatus()));
+            partnerDto.setStatus(fieldOptionService.getFieldOptionDescription(Field.PARTNER_STATUS, partnerDto.getStatus()));
             PartnerIdentityEntity partnerIdentity = getPartnerIdentityNo(partner.getId());
             if (partnerIdentity != null) {
-                partnerDto.setIdType(fieldOptionService.getFieldOptionDescription("ID-TYPE", partnerIdentity.getPartnerIdentityPK().getType()));
+                partnerDto.setIdType(fieldOptionService.getFieldOptionDescription(Field.ID_TYPE, partnerIdentity.getPartnerIdentityPK().getType()));
                 partnerDto.setIdNumber(partnerIdentity.getPartnerIdentityPK().getValue());
             }
-
-
         }
 
         return partnerDto;
