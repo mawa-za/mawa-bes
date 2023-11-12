@@ -833,57 +833,7 @@ public class TransactionService implements TransactionDao {
                 }
             }
 
-            if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
-                List<TransactionPartnerDto> transactionPartnerDtoList = getPartners(transactionId).stream()
-                        .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
-                        .toList();
-                List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
-                        .map(TransactionPartnerDto::getPartner)
-                        .map(partnerService::getOptional)
-                        .filter(Objects::nonNull)
-                        .map(partnerDto -> {
-                            DependentDto dependentDto = new DependentDto();
-                            dependentDto.setId(partnerDto.getId());
-                            if (partnerDto.getTitle() != null) {
-                                String title = fieldOptionService.getOptionalFieldDescription("TITLE", partnerDto.getTitle());
-                                if (title != null) {
-                                    dependentDto.setTitle(title);
-                                }
-                            }
-                            if (partnerDto.getGender() != null) {
-                                String gender = fieldOptionService.getOptionalFieldDescription("GENDER", partnerDto.getGender());
-                                if (gender != null) {
-                                    dependentDto.setGender(gender);
-                                }
-                            }
-                            dependentDto.setIdType(partnerDto.getIdType());
-                            dependentDto.setIdNumber(partnerDto.getIdNumber());
-                            dependentDto.setLastName(partnerDto.getName1());
-                            dependentDto.setFirstName(partnerDto.getName2());
-                            dependentDto.setMiddleName(partnerDto.getName3());
-                            return dependentDto;
-                        })
-                        .collect(Collectors.toList());
-                membershipDto.setDependentDtoList(dependentDtoList);
-                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-                transactionAmountPKEntity.setTransaction(transactionId);
-                transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
-                TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
-                membershipDto.setPremium(transactionAmountDto.getAmount());
-            }
-
             for (TransactionDateDto transactionDateDto : getDates(transactionId)) {
-
-                if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
-                    if (transactionDateDto.getType().equals(DateType.JOINED)) {
-                        membershipDto.setDateJoined(transactionDateDto.getValue());
-                    }
-                    if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
-                        membershipDto.setDateEffective(transactionDateDto.getValue());
-                    }
-                }
-
-
                 if (transactionDateDto.getType().equals(DateType.ORDER_DATE)) {
                     transactionDto.setOrderDate(transactionDateDto.getValue());
                 }
