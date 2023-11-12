@@ -49,63 +49,7 @@ public class ClaimController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postClaim(@RequestBody ClaimCreateDto claimCreateDto) {
         try {
-            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
-            transactionCreateDto.setType(TransactionType.CLAIM);
-            transactionCreateDto.setSubType(claimCreateDto.getType());
-            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
-            TransactionDateDto creationDate = new TransactionDateDto();
-            creationDate.setTransaction(transactionDto.getId());
-            creationDate.setType(DateType.CREATED);
-            transactionService.addDate(creationDate);
-
-            if (claimCreateDto.getMemberId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.MAINMEMBER);
-                transactionPartnerDto.setPartner(claimCreateDto.getMemberId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            if (claimCreateDto.getDeceasedId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.DECEASED);
-                transactionPartnerDto.setPartner(claimCreateDto.getDeceasedId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            if (claimCreateDto.getClaimantId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CLAIMANT);
-                transactionPartnerDto.setPartner(claimCreateDto.getClaimantId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            if (claimCreateDto.getMembershipId() != null) {
-                TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-
-                transactionLinkDto.setTransaction1(claimCreateDto.getMembershipId());
-                transactionLinkDto.setTransaction2(transactionDto.getId());
-                transactionLinkDto.setType(TransactionType.CLAIM);
-//               transactionLinkDto.setCreationDate(new Date());
-                transactionLinkDto.setCreateBy(getUser());
-                transactionService.addLink(transactionLinkDto);
-            }
-            if (claimCreateDto.getDeathDate() != null) {
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.DEATH_DATE);
-                transactionDateDto.setValue(claimCreateDto.getDeathDate());
-                transactionService.addDate(transactionDateDto);
-            }
-            if (claimCreateDto.getBurialDate() != null) {
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.BURIAL_DATE);
-                transactionDateDto.setValue(claimCreateDto.getBurialDate());
-                transactionService.addDate(transactionDateDto);
-            }
-
-            return ResponseEntity.ok(gson.toJson(transactionDto));
+            return ResponseEntity.ok(gson.toJson(claimService.create(claimCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -171,7 +115,7 @@ public class ClaimController {
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaim(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(getClaimData(id)));
+            return ResponseEntity.ok(gson.toJson(claimService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -323,7 +267,6 @@ public class ClaimController {
             claimDto.setType(transactionDto.getSubType());
             claimDto.setStatus(transactionDto.getStatus());
 
-
             if (transactionDto.getCreatedBy() != null) {
                 claimDto.setCreatedBy(transactionDto.getCreatedBy());
             }
@@ -381,7 +324,7 @@ public class ClaimController {
             TransactionAccountDto transactionAccountDto = transactionService.getOptionalBankAccount(id);
 
             if (transactionAccountDto != null) {
-                claimDto.setBankDetails(transactionAccountDto);
+//                claimDto.setBankDetails(transactionAccountDto);
             }
             return claimDto;
         } catch (TransactionNotFound exception) {
