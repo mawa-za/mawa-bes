@@ -15,6 +15,7 @@ import java.util.Date;
 @Setter
 public class PaymentRequestDto implements Serializable{
     private String id;
+    private String number;
     private String status;
     private String statusReason;
     private String paymentReason;
