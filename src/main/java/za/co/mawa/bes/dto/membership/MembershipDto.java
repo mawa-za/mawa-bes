@@ -26,6 +26,7 @@ public class MembershipDto {
     private String productId;
     private String productDescription;
     private BigDecimal premium;
+    private BigDecimal arrears;
     private Date dateJoined;
     private Date dateEffective;
     private String status;
