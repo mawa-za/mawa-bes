@@ -786,7 +786,8 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setCategory(transactionEntity.getCategory());
-            transactionDto.setStatus(StringConversion.capitalizeFully(transactionEntity.getStatus().replaceAll("_", " ")));
+            transactionDto.setLocation(transactionEntity.getLocation());
+            transactionDto.setStatus(fieldOptionService.getOptionalFieldDescription(Field.TRANSACTION_STATUS, transactionEntity.getStatus()));
             if (transactionEntity.getCreatedBy() != null) {
                 transactionDto.setCreatedBy(transactionEntity.getCreatedBy());
             }

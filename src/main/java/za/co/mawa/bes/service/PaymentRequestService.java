@@ -92,6 +92,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         PaymentRequestDto paymentRequestDto = new PaymentRequestDto();
         TransactionDto transactionDto = transactionService.get(id);
         paymentRequestDto.setId(transactionDto.getId());
+        paymentRequestDto.setNumber(transactionDto.getNumber());
         paymentRequestDto.setStatus(transactionDto.getStatus());
         paymentRequestDto.setCreatedBy(transactionDto.getCreatedBy());
         paymentRequestDto.setPaymentMethod(transactionDto.getSubType());
