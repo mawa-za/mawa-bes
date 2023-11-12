@@ -477,7 +477,6 @@ public class TransactionService implements TransactionDao {
             account.setBankName(bankAccount.getBankName());
             account.setTransaction(bankAccount.getTransaction());
             account.setBranchCode(bankAccount.getBranchCode());
-
             return account;
         }
         return null;

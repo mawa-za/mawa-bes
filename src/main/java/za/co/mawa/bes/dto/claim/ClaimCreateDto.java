@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.claim;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.BankAccountDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -11,12 +12,15 @@ import java.util.Date;
 @Getter
 @Setter
 public class ClaimCreateDto implements Serializable {
+    private String type;
     private String claimantId;
     private String deceasedId;
     private String memberId;
     private String membershipId;
-    private String type;
     private Date deathDate;
     private Date burialDate;
+    private String paymentMethod;
+    private String branch;
+    private BankAccountDto bankAccount;
 
 }

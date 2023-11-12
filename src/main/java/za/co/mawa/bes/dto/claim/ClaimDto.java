@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.claim;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
@@ -22,10 +23,10 @@ public class ClaimDto extends TransactionDto implements Serializable {
     private PersonDto claimant;
     private String deceasedId;
     private PersonDto deceased;
-//    private Date creationDate;
     private Date deathDate;
     private Date burialDate;
-
-    private TransactionAccountDto bankDetails;
+    private String paymentMethod;
+    private String branch;
+    private BankAccountDto bankDetails;
 
 }

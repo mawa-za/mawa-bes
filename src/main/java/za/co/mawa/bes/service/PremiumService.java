@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
@@ -45,9 +46,8 @@ public class PremiumService {
     NumberRangeService numberRangeService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
-
     @Autowired
-    TransactionAttributeRepository transactionAttributeRepository;
+    TransactionAttributeService transactionAttributeService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -153,9 +153,10 @@ public class PremiumService {
 
     private String determinePeriod(String id) {
         try {
-            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(id,TransactionAttribute.LAST_PREMIUM_PERIOD);
-            TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
-            String previousPeriod =  transactionAttributeEntity.getValue();
+            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+            transactionAttributeDto.setTransaction(id);
+            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+            String previousPeriod = transactionAttributeService.get(transactionAttributeDto);
             String yearString = previousPeriod.substring(0,4);
             String monthString = previousPeriod.substring(4,6);
             if (Integer.parseInt(monthString) == 12){
@@ -165,24 +166,20 @@ public class PremiumService {
                 int month = Integer.parseInt(monthString) + 1;
                 monthString = String.format("%02d", month);
             }
-            transactionAttributeEntity.setValue(yearString + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
+            transactionAttributeDto.setValue(yearString + monthString);
+            transactionAttributeService.edit(transactionAttributeDto);
+            return transactionAttributeDto.getValue();
         } catch (Exception exception) {
-            TransactionAttributeEntity transactionAttributeEntity = new TransactionAttributeEntity();
-            transactionAttributeEntity.setTransaction(id);
-            transactionAttributeEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+            transactionAttributeDto.setTransaction(id);
+            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
             Calendar calendar = Calendar.getInstance();
             int year = calendar.get(Calendar.YEAR);
             int month = calendar.get(Calendar.MONTH) + 1;
             String monthString = String.format("%02d", month);
-            transactionAttributeEntity.setValue(Integer.toString(year) + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
+            transactionAttributeDto.setValue(Integer.toString(year) + monthString);
+            transactionAttributeService.add(transactionAttributeDto);
+            return transactionAttributeDto.getValue();
         }
     }
 }
