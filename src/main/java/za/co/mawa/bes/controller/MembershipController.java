@@ -96,23 +96,7 @@ public class MembershipController {
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
-            TransactionDto transactionDto = transactionService.get(id);
-            if (transactionDto.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)) {
-                String productId = null;
-                for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
-                    int number = item.getValidTo().compareTo(new Date());
-                    if (number > 0) {
-                        productId = item.getProduct();
-                    }
-                }
-                ProductDto productDto = productService.getOptionalById(productId);
-                if (productDto != null) {
-                    transactionDto.setProductDetails(productDto);
-                }
-                return ResponseEntity.ok(gson.toJson(transactionDto));
-            } else {
-                return ResponseEntity.ok(gson.toJson(null));
-            }
+            return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
