@@ -6,6 +6,7 @@ import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeCreateDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
+import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.TransactionAttribute;
 
 import java.util.Calendar;
@@ -16,6 +17,8 @@ import java.util.List;
 public class TransactionAttributeService {
     @Autowired
     TransactionAttributeRepository transactionAttributeRepository;
+    @Autowired
+    FieldOptionService fieldOptionService;
 
     public void add(TransactionAttributeDto transactionAttributeDto) {
         try {
@@ -30,16 +33,18 @@ public class TransactionAttributeService {
             throw new RuntimeException();
         }
     }
+
     public String get(TransactionAttributeDto transactionAttributeDto) {
         try {
-            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), TransactionAttribute.LAST_PREMIUM_PERIOD);
+            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), transactionAttributeDto.getAttribute());
             TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
             transactionAttributeDto.setValue(transactionAttributeEntity.getValue());
-            return transactionAttributeDto.getValue();
+            return fieldOptionService.getFieldOptionDescription(transactionAttributeDto.getAttribute(), transactionAttributeDto.getValue());
         } catch (Exception exception) {
-            throw new RuntimeException();
+            return null;
         }
     }
+
     public void edit(TransactionAttributeDto transactionAttributeDto) {
         try {
             List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), TransactionAttribute.LAST_PREMIUM_PERIOD);
@@ -50,6 +55,7 @@ public class TransactionAttributeService {
             throw new RuntimeException();
         }
     }
+
     public void delete(TransactionAttributeDto transactionAttributeDto) {
         try {
             List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), TransactionAttribute.LAST_PREMIUM_PERIOD);
