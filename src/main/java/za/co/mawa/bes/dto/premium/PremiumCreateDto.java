@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto.receipt;
+package za.co.mawa.bes.dto.premium;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,12 +10,11 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class ReceiptCreateDto implements Serializable {
-    private String receiptType;
-    private String invoiceNumber;
+public class PremiumCreateDto implements Serializable {
     private String membershipNumber;
     private String membershipPeriod;
     private String tenderType;
     private String location;
     private String amount;
+    private String terminalId;
 }

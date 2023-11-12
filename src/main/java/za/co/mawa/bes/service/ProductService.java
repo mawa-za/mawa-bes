@@ -104,7 +104,7 @@ public class ProductService implements ProductDao {
             for (ProductPricingEntity price : productPricingRepository.findPricing(productEntity.getId())) {
                 // if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
                 productDto.setSellingPrice(price.getValue());
-                productDto.setPriceTypeDescription(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", price.getProductPricingPKEntity().getPricing()));
+                productDto.setPriceTypeDescription(fieldOptionService.getFieldOptionDescription("PRICING-TYPE", price.getProductPricingPKEntity().getPricing()));
                 //     break;
                 // }
             }
