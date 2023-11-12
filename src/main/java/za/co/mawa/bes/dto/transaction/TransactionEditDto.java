@@ -28,8 +28,7 @@ public class TransactionEditDto implements Serializable {
     private String priority;
     private String status;
     private String statusReason;
-    public TransactionEditDto(QuotationCreateDto quotationCreateDto){
-    }
+    public TransactionEditDto(QuotationCreateDto quotationCreateDto){    }
     public TransactionEditDto(ServiceRequestCreateDto serviceRequestCreateDto){}
     public TransactionEditDto(SalesOrderCreateDto quotationCreateDto){}
     public TransactionEditDto(PurchaseOrderCreateDto purchaseOrderCreateDto){}
