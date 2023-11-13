@@ -11,7 +11,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class PremiumCreateDto implements Serializable {
-    private String membershipNumber;
+    private String membershipId;
     private String membershipPeriod;
     private String tenderType;
     private String location;

@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 @Entity
-@Table(name = "premium")
+@Table(name = "membership_premium")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
@@ -21,8 +21,8 @@ public class PremiumEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "premium_number" , length = 45)
-    private String premiumNumber;
+    @Column(name = "number" , length = 45)
+    private String receiptNumber;
     @Column(name = "creation_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date creationDate;
@@ -31,14 +31,18 @@ public class PremiumEntity implements Serializable {
     private Date creationTime;
     @Column(name = "created_by",length = 45)
     private String createdBy;
-    @Column(name = "membership_number",length = 45)
-    private String membershipNumber;
+    @Column(name = "membership_id",length = 45)
+    private String membershipId;
+//    @Column(name = "membership_number",length = 45)
+//    private String membershipNumber;
     @Column(name = "membership_period",length = 45)
     private String membershipPeriod;
     @Column(name = "tender_type",length = 45)
     private String tenderType;
     @Column(name = "location")
     private String location;
+    @Column(name = "terminal_id")
+    private String terminalId;
     @Column(name = "amount")
     private BigDecimal amount;
 }
