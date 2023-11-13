@@ -39,7 +39,7 @@ public class TransactionAttributeService {
             List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), transactionAttributeDto.getAttribute());
             TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
             transactionAttributeDto.setValue(transactionAttributeEntity.getValue());
-            return fieldOptionService.getFieldOptionDescription(transactionAttributeDto.getAttribute(), transactionAttributeDto.getValue());
+            return transactionAttributeDto.getValue();
         } catch (Exception exception) {
             return null;
         }
