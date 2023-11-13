@@ -78,7 +78,6 @@ public class PremiumService {
         }
     }
 
-
     public ArrayList<PremiumDto> getReceipts(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
         Sort sort = Sort.by("number").descending();
@@ -88,7 +87,6 @@ public class PremiumService {
         }
         return premiumDtoArrayList;
     }
-
 
     public ArrayList<PremiumDto> getReceiptsX(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
