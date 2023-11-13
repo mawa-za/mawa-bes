@@ -36,11 +36,12 @@ public class PremiumController {
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
-            if (premiumCreateDto.getTenderType() == TenderType.EFT || premiumCreateDto.getTenderType() == TenderType.CARD){
+            if (premiumCreateDto.getTenderType().equals(TenderType.EFT) || premiumCreateDto.getTenderType().equals(TenderType.CARD)){
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
                 cashupCreateDto.setEmployeeResponsibleId(premiumDto.getEmployeeResponsible());
                 cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
+                cashupCreateDto.setReceipts(new ArrayList<>());
                 cashupService.createNoCash(cashupCreateDto);
             }
             return ResponseEntity.ok(gson.toJson(premiumDto));
