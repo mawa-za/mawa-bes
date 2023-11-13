@@ -64,15 +64,15 @@ public class PremiumController {
     @RequestMapping(value = "/premiums", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
                                          @RequestParam(required = false) String invoiceNumber,
-                                         @RequestParam(required = false) String membershipNumber,
+                                         @RequestParam(required = false) String membershipId,
                                          @RequestParam(required = false) String membershipPeriod,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
                                          @RequestParam(name = "user", required = false) String createdBy) {
         try {
             PremiumSearchDto search = new PremiumSearchDto();
-            if (membershipNumber != null && membershipNumber != "") {
-                search.setMembershipNumber(membershipNumber);
+            if (membershipId != null && membershipId != "") {
+                search.setMembershipId(membershipId);
             }
             if (membershipPeriod != null && membershipPeriod != "") {
                 search.setMembershipPeriod(membershipPeriod);
