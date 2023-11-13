@@ -36,11 +36,12 @@ public class PremiumController {
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
-            if (premiumCreateDto.getTenderType() == TenderType.EFT || premiumCreateDto.getTenderType() == TenderType.CARD){
+            if (premiumCreateDto.getTenderType().equals(TenderType.EFT) || premiumCreateDto.getTenderType().equals(TenderType.CARD)){
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
                 cashupCreateDto.setEmployeeResponsibleId(premiumDto.getEmployeeResponsible());
                 cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
+                cashupCreateDto.setReceipts(new ArrayList<>());
                 cashupService.createNoCash(cashupCreateDto);
             }
             return ResponseEntity.ok(gson.toJson(premiumDto));
@@ -64,15 +65,15 @@ public class PremiumController {
     @RequestMapping(value = "/premiums", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
                                          @RequestParam(required = false) String invoiceNumber,
-                                         @RequestParam(required = false) String membershipNumber,
+                                         @RequestParam(required = false) String membershipId,
                                          @RequestParam(required = false) String membershipPeriod,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
                                          @RequestParam(name = "user", required = false) String createdBy) {
         try {
             PremiumSearchDto search = new PremiumSearchDto();
-            if (membershipNumber != null && membershipNumber != "") {
-                search.setMembershipNumber(membershipNumber);
+            if (membershipId != null && membershipId != "") {
+                search.setMembershipId(membershipId);
             }
             if (membershipPeriod != null && membershipPeriod != "") {
                 search.setMembershipPeriod(membershipPeriod);
