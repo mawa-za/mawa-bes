@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 @Entity
-@Table(name = "premium")
+@Table(name = "membership_premium")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
@@ -33,8 +33,8 @@ public class PremiumEntity implements Serializable {
     private String createdBy;
     @Column(name = "membership_id",length = 45)
     private String membershipId;
-    @Column(name = "membership_number",length = 45)
-    private String membershipNumber;
+//    @Column(name = "membership_number",length = 45)
+//    private String membershipNumber;
     @Column(name = "membership_period",length = 45)
     private String membershipPeriod;
     @Column(name = "tender_type",length = 45)
