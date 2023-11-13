@@ -159,9 +159,9 @@ public class MembershipService implements MembershipDao {
 
     @Override
     public MembershipDto get(String id) {
-        MembershipDto membershipDto = null;
         try {
             TransactionDto transactionDto = transactionService.get(id);
+            MembershipDto membershipDto = new MembershipDto();
             membershipDto.setNumber(transactionDto.getNumber());
             membershipDto.setId(transactionDto.getId());
             if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
