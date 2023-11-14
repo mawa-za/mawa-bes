@@ -14,7 +14,7 @@ public class ProductCreateDto {
     private String description;
     private String category;
     private String baseUnitOfMeasure;
-    private BigDecimal sellingPrice;
+    private BigDecimal price;
     private String pricingType;
     private String autoGenerateCode;
 }
