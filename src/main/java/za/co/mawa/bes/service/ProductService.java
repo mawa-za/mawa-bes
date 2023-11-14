@@ -62,14 +62,6 @@ public class ProductService implements ProductDao {
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure().toUpperCase());
             ProductDto productDto = new ProductDto(productRepository.save(productEntity));
 
-            if (productCreateDto.getCategory().toUpperCase().equals(ProductCategory.MEMBERSHIP)) {
-                ProductAttributeCreateDto productAttributeCreateDto = new ProductAttributeCreateDto();
-                productAttributeCreateDto.setProduct(productEntity.getId());
-                productAttributeCreateDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-                productAttributeCreateDto.setValue("0");
-                addAttribute(productAttributeCreateDto);
-            }
-
             ProductPricingDto productPricingDto = new ProductPricingDto();
             productPricingDto.setProduct(productEntity.getId());
             if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
@@ -77,7 +69,9 @@ public class ProductService implements ProductDao {
             } else {
                 productPricingDto.setPricing(PriceType.SELLING_PRICE);
             }
-            productPricingDto.setValue(productCreateDto.getSellingPrice());
+            productPricingDto.setValue(productCreateDto.getPrice());
+            productPricingDto.setValidFrom(new Date());
+            productDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             addPricing(productPricingDto);
             return productDto;
         } catch (Exception exception) {
@@ -126,16 +120,18 @@ public class ProductService implements ProductDao {
             productDto.setCategoryDescription(fieldOptionService.getFieldOptionDescription("PRODUCT-CATEGORY", productEntity.getCategory()));
             productDto.setBaseUnitOfMeasure(productEntity.getUom());
             productDto.setBaseUnitOfMeasureDescription(fieldOptionService.getFieldOptionDescription("UOM", productEntity.getUom()));
-            productDto.setValidTo(Conversion.dateToString(productEntity.getValidTo()));
-            productDto.setValidFrom(Conversion.dateToString(productEntity.getValidFrom()));
+            productDto.setValidTo(productEntity.getValidTo());
+            productDto.setValidFrom(productEntity.getValidFrom());
+            List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
             for (ProductPricingEntity price : productPricingRepository.findPricing(id)) {
-                //  if(price.getProductPricingPKEntity().getPricing().equalsIgnoreCase(PriceType.SELLING_PRICE)){
-                productDto.setSellingPrice(price.getValue());
-                productDto.setPriceType(price.getProductPricingPKEntity().getPricing());
-                productDto.setPriceTypeDescription(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", price.getProductPricingPKEntity().getPricing()));
-                //     break;
-                // }
+                ProductPricingDto productPricingDto = new ProductPricingDto();
+                productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", price.getProductPricingPKEntity().getPricing()));
+                productPricingDto.setValue(price.getValue());
+                productPricingDto.setValidFrom(price.getValidFrom());
+                productPricingDto.setValidTo(price.getValidTo());
+                productPricingDtoList.add(productPricingDto);
             }
+            productDto.setPricings(productPricingDtoList);
             return productDto;
         } catch (EntityNotFoundException exception) {
             throw new ProductNotFoundException();
@@ -213,8 +209,7 @@ public class ProductService implements ProductDao {
             productPricingPKEntity.setPricing(productPricingQueryDto.getPricing());
             ProductPricingEntity productPricingEntity = productPricingRepository.getById(productPricingPKEntity);
             ProductPricingDto productPricingDto = new ProductPricingDto();
-            productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
-            productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+            productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
             productPricingDto.setValue(productPricingEntity.getValue());
             productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
             productPricingDto.setValidTo(productPricingEntity.getValidTo());
@@ -229,14 +224,14 @@ public class ProductService implements ProductDao {
         List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
         try {
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findPricing(product);
-            for(ProductPricingEntity productPricingEntity: productPricingEntityList){
+            for(ProductPricingEntity productPricingEntity: productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
-                productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
-                productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+                productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(productPricingEntity.getValue());
+                productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
+                productPricingDto.setValidTo(productPricingEntity.getValidTo());
                 productPricingDtoList.add(productPricingDto);
             }
-
         } catch (Exception exception) {
 
         }
