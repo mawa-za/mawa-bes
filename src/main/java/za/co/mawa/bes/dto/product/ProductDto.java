@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductEntity;
 
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 
 @NoArgsConstructor
@@ -23,8 +24,8 @@ public class ProductDto {
     private BigDecimal sellingPrice;
     private String baseUnitOfMeasure;
     private String baseUnitOfMeasureDescription;
-    private String validTo;
-    private String validFrom;
+    private Date validTo;
+    private Date validFrom;
     private String priceType;
     private String priceTypeDescription;
     private List<ProductPricingDto> pricings;
