@@ -125,7 +125,7 @@ public class ProductService implements ProductDao {
             List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
             for (ProductPricingEntity price : productPricingRepository.findPricing(id)) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
-                productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", price.getProductPricingPKEntity().getPricing()));
+                productPricingDto.setPricingDescription(fieldOptionService.getFieldOptionDescription("PRICING-TYPE", price.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(price.getValue());
                 productPricingDto.setValidFrom(price.getValidFrom());
                 productPricingDto.setValidTo(price.getValidTo());
@@ -209,7 +209,8 @@ public class ProductService implements ProductDao {
             productPricingPKEntity.setPricing(productPricingQueryDto.getPricing());
             ProductPricingEntity productPricingEntity = productPricingRepository.getById(productPricingPKEntity);
             ProductPricingDto productPricingDto = new ProductPricingDto();
-            productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
+            productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+            productPricingDto.setPricingDescription(fieldOptionService.getFieldOptionDescription("PRICING-TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
             productPricingDto.setValue(productPricingEntity.getValue());
             productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
             productPricingDto.setValidTo(productPricingEntity.getValidTo());
@@ -226,7 +227,8 @@ public class ProductService implements ProductDao {
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findPricing(product);
             for(ProductPricingEntity productPricingEntity: productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
-                productPricingDto.setPricing(fieldOptionService.getFieldOptionDescription("PRICING_TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
+                productPricingDto.setPricing(productPricingEntity.getProductPricingPKEntity().getPricing());
+                productPricingDto.setPricingDescription(fieldOptionService.getFieldOptionDescription("PRICING-TYPE", productPricingEntity.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
@@ -278,6 +280,7 @@ public class ProductService implements ProductDao {
             ProductAttributeEntity productAttributeEntity = productAttributeRepository.getById(productAttributePKEntity);
             ProductAttributeDto productAttributeDto = new ProductAttributeDto();
             productAttributeDto.setAttribute(productAttributeEntity.getProductAttributePKEntity().getAttribute());
+            productAttributeDto.setAttributeDescription(fieldOptionService.getFieldOptionDescription(Field.PRODUCT_ATTRIBUTE, productAttributeEntity.getProductAttributePKEntity().getAttribute()));
             productAttributeDto.setProduct(productAttributeEntity.getProductAttributePKEntity().getProduct());
             productAttributeDto.setValue(productAttributeEntity.getValue());
             productAttributeDto.setValidFrom(Conversion.dateToString(productAttributeEntity.getValidFrom()));
@@ -296,6 +299,7 @@ public class ProductService implements ProductDao {
             for (ProductAttributeEntity attributeEntity : productAttributeRepository.findAll(findByAttribute(queryDto), sort)) {
                 ProductAttributeDto productAttributeDto = new ProductAttributeDto();
                 productAttributeDto.setAttribute(attributeEntity.getProductAttributePKEntity().getAttribute());
+                productAttributeDto.setAttributeDescription(fieldOptionService.getFieldOptionDescription(Field.PRODUCT_ATTRIBUTE, attributeEntity.getProductAttributePKEntity().getAttribute()));
                 productAttributeDto.setProduct(attributeEntity.getProductAttributePKEntity().getProduct());
                 productAttributeDto.setValue(attributeEntity.getValue());
                 productAttributeDto.setValidFrom(Conversion.dateToString(attributeEntity.getValidFrom()));
