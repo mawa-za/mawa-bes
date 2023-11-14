@@ -12,6 +12,7 @@ import java.io.Serializable;
 public class ProductAttributeDto implements Serializable {
     private String product;
     private String attribute;
+    private String attributeDescription;
     private String value;
     private String validFrom;
     private String validTo;
