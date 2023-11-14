@@ -292,7 +292,7 @@ public class PartnerService implements PartnerDao {
             List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
             for (PartnerAddressEntity addr : addresses) {
                 if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
-                    String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                    String addressId = addr.getPartnerAddressPK().getAddressId();
                     AddressEntity adr = addressRepository.getById(addressId);
                     if (adr != null) {
                         address.setLine1(adr.getAddressLine1());
@@ -321,7 +321,7 @@ public class PartnerService implements PartnerDao {
             List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
             for (PartnerAddressEntity addr : addresses) {
                 if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
-                    String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                    String addressId = addr.getPartnerAddressPK().getAddressId();
                     AddressEntity adr = addressRepository.getById(addressId);
                     if (adr != null) {
                         objects.setId(adr.getId());
@@ -516,7 +516,7 @@ public class PartnerService implements PartnerDao {
 
             List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(partner);
             for (PartnerAddressEntity addr : addresses) {
-                String addressId = Integer.toString(addr.getPartnerAddressPK().getAddressId());
+                String addressId = addr.getPartnerAddressPK().getAddressId();
                 AddressEntity adr = addressRepository.getById(addressId);
                 if (adr != null) {
                     AddressDto address = new AddressDto();
@@ -795,7 +795,7 @@ public class PartnerService implements PartnerDao {
             partnerAddressPK.setAddressId(adrs.getId());
             adres.setPartnerAddressPK(partnerAddressPK);
 
-            String address = Integer.toString(adres.getPartnerAddressPK().getAddressId());
+            String address = adres.getPartnerAddressPK().getAddressId();
             entityAdress = addressRepository.getById(address);
             entityAdress.setAddressLine1(adrs.getLine1());
             entityAdress.setAddressLine2(adrs.getLine2());
@@ -849,7 +849,7 @@ public class PartnerService implements PartnerDao {
     @Override
     public boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception {
         try {
-            addressRepository.deleteById(Integer.toString(pkEntity.getAddressId()));
+            addressRepository.deleteById(pkEntity.getAddressId());
             partnerAddressRepository.deleteById(pkEntity);
             return true;
         } catch (Exception e) {
@@ -1602,7 +1602,7 @@ public class PartnerService implements PartnerDao {
                 addressDto.setTypeDescription(AddressType);
             }
             AddressEntity address1 = new AddressEntity();
-            address1 = addressRepository.getById(Integer.toString(address.getPartnerAddressPK().getAddressId()));
+            address1 = addressRepository.getById(address.getPartnerAddressPK().getAddressId());
             addressDto.setLine1(address1.getAddressLine1());
             addressDto.setLine2(address1.getAddressLine2());
             addressDto.setLine3(address1.getAddressLine3());
