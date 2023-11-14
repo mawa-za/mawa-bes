@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.cashup.CashupCreateDto;
+import za.co.mawa.bes.dto.deposit.DepositCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
@@ -14,6 +15,7 @@ import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.service.CashupService;
+import za.co.mawa.bes.service.DepositService;
 import za.co.mawa.bes.service.PremiumService;
 import za.co.mawa.bes.service.ReceiptService;
 import za.co.mawa.bes.utils.TenderType;
@@ -26,11 +28,12 @@ import java.util.ArrayList;
 @RequestMapping(value = "premium")
 public class PremiumController {
     Gson gson = new Gson();
-
     @Autowired
     PremiumService premiumService;
     @Autowired
     CashupService cashupService;
+    @Autowired
+    DepositService depositService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
@@ -42,7 +45,11 @@ public class PremiumController {
                 cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
                 cashupCreateDto.setReceipts(new ArrayList<>());
-                cashupService.createNoCash(cashupCreateDto);
+                String cashupId = cashupService.createNoCash(cashupCreateDto);
+                DepositCreateDto depositCreateDto = new DepositCreateDto();
+                depositCreateDto.setTransactionIdLink(cashupId);
+                depositCreateDto.setAmount(premiumCreateDto.getAmount());
+                depositService.create(depositCreateDto);
             }
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {

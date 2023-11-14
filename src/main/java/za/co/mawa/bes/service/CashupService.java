@@ -122,11 +122,6 @@ public class CashupService implements CashupDao {
                 amountDto.setType(PriceType.AMOUNT_COLLECTED);
                 transactionService.addAmount(amountDto);
 
-                amountDto = new TransactionAmountDto();
-                amountDto.setAmount(cashupCreateDto.getAmount());
-                amountDto.setTransaction(transaction.getId());
-                amountDto.setType(PriceType.AMOUNT_DEPOSITED);
-                transactionService.addAmount(amountDto);
                 for (String receipt : cashupCreateDto.getReceipts()) {
                     TransactionLinkDto link = new TransactionLinkDto();
                     link.setTransaction1(transaction.getId());
