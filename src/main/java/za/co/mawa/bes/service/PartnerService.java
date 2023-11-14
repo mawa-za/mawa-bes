@@ -608,8 +608,17 @@ public class PartnerService implements PartnerDao {
             partnerIdentityPK.setType(identity.getIdType());
             PartnerIdentityEntity partnerIdentity = new PartnerIdentityEntity();
             partnerIdentity.setPartner(identity.getPartner());
-            partnerIdentity.setValidFrom(new Date());
-            partnerIdentity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            if (identity.getValidFrom() != null) {
+                partnerIdentity.setValidFrom(Conversion.stringToDate(identity.getValidFrom()));
+            } else {
+                partnerIdentity.setValidFrom(new Date());
+            }
+            if (identity.getValidTo() != null) {
+                partnerIdentity.setValidTo(Conversion.stringToDate(identity.getValidTo()));
+            } else {
+                partnerIdentity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            }
+
             partnerIdentity.setPartnerIdentityPK(partnerIdentityPK);
             partnerIdentityRepository.save(partnerIdentity);
             return true;
