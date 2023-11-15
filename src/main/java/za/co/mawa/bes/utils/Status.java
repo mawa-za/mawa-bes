@@ -9,6 +9,8 @@ public class Status {
     public static String CLOSED = "CLOSED";
     public static String SUSPENDED = "SUSPENDED";
     public static String TERMINATED = "TERMINATED";
-
+    public static String VALID = "VALID";
+    public static String EXPIRED = "EXPIRED";
+    public static String INVALID = "INVALID";
 
 }
