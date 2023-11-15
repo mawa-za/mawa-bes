@@ -176,7 +176,7 @@ public class PartnerController {
             PartnerAddressPKEntity pkEntity = new PartnerAddressPKEntity();
             pkEntity.setPartner(id);
             pkEntity.setAddressUsage(type);
-            pkEntity.setAddressId(Integer.parseInt(addressId));
+            pkEntity.setAddressId(addressId);
             boolean partnerDto = partnerService.removeAddress(pkEntity);
             return ResponseEntity.ok(gson.toJson(partnerDto));
         } catch (Exception exception) {
