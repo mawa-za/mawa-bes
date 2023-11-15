@@ -2,6 +2,7 @@ package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -16,11 +17,9 @@ import java.util.Date;
 public class AddressEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Basic(optional = false)
-    @Column(name = "id")
-    private Integer id;
-    //@Size(max = 45)
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
+    private String id;
     @Column(name = "address_line_1", length = 45)
     private String addressLine1;
     //@Size(max = 45)
