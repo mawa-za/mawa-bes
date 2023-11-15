@@ -1699,12 +1699,36 @@ public class PartnerService implements PartnerDao {
 
     @Override
     public ArrayList<IdentityDto> getPartnerIdentities(IdentityQueryDto queryDto) throws Exception {
+        Date validFrom = null;
+        Date validTo = null;
+        Date currentDate = new Date();
+        String status = "";
+
         try {
             ArrayList<IdentityDto> identities = new ArrayList<>();
             Sort sort = Sort.by("partner").descending();
             for (PartnerIdentityEntity identity : partnerIdentityRepository.findAll(findByIdentity(queryDto), sort)) {
                 IdentityDto id = new IdentityDto();
                 id.setPartner(identity.getPartner());
+                validFrom = identity.getValidFrom();
+                validTo = identity.getValidTo();
+
+                currentDate =   DateTime.resetTime(currentDate);
+                int comparison = currentDate.compareTo(validFrom);
+                int compareValidTo = currentDate.compareTo(validTo);
+                if (comparison >= 0) {
+                    if (compareValidTo > 0) {
+                        status = Status.EXPIRED;
+                    } else {
+                        status = Status.VALID;
+                    }
+//                    status = Status.VALID;
+
+                } else if (comparison < 0) {
+
+                    status = Status.INVALID;
+                }
+                id.setStatus(status.toUpperCase().charAt(0) + status.substring(1, status.length()).toLowerCase());
                 id.setValidFrom(Conversion.dateToString(identity.getValidFrom()));
                 id.setValidTo(Conversion.dateToString(identity.getValidTo()));
                 id.setIdNumber(identity.getPartnerIdentityPK().getValue());

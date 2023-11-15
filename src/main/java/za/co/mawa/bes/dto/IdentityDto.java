@@ -16,5 +16,7 @@ public class IdentityDto implements Serializable {
     private String idNumber;
     private String typeDescription;
 
+    private String status;
+
 
 }
