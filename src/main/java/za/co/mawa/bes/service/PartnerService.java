@@ -940,45 +940,36 @@ public class PartnerService implements PartnerDao {
         try {
             PartnerBankingDetailsEntity partnerBankDetails = new PartnerBankingDetailsEntity();
             PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
-            if (partnerBankAccount.getPartner() != null && partnerBankAccount.getAccountNumber() != null && partnerBankAccount.getType() != null) {
+            if (partnerBankAccount.getPartner() != null && partnerBankAccount.getAccountNumber() != null) {
 
                 partnerBankDetailsPK.setAccountNumber(partnerBankAccount.getAccountNumber());
                 partnerBankDetailsPK.setPartner(partnerBankAccount.getPartner());
                 partnerBankDetailsPK.setType(partnerBankAccount.getType());
                 partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
-
                 if (partnerBankAccount.getAccountHolder() != null) {
                     partnerBankDetails.setAccountHolder(partnerBankAccount.getAccountHolder());
-
                 } else {
                     PartnerEntity partner = partnerRepository.getById(partnerBankAccount.getPartner());
                     if (partner != null) {
-
                         partnerBankDetails.setAccountHolder(partner.getName1());
                     }
                 }
-
                 if (partnerBankAccount.getAccountType() != null) {
-
                     partnerBankDetails.setAccountType(partnerBankAccount.getAccountType());
                 }
-
                 if (partnerBankAccount.getBankName() != null) {
                     partnerBankDetails.setBankName(partnerBankAccount.getBankName());
 
                 }
                 if (partnerBankAccount.getBranchCode() != null) {
                     partnerBankDetails.setBranchCode(partnerBankAccount.getBranchCode());
-
                 }
 
                 if (partnerBankAccount.getBranchName() != null) {
-
                     partnerBankDetails.setBranchName(partnerBankAccount.getBranchName());
                 }
 
                 partnerBankDetails.setValidFrom(new Date());
-
                 if (partnerBankAccount.getValidTo() != null) {
                     partnerBankDetails.setValidTo(Conversion.stringToDate(partnerBankAccount.getValidTo()));
 
@@ -1713,7 +1704,7 @@ public class PartnerService implements PartnerDao {
                 validFrom = identity.getValidFrom();
                 validTo = identity.getValidTo();
 
-                currentDate =   DateTime.resetTime(currentDate);
+                currentDate = DateTime.resetTime(currentDate);
                 int comparison = currentDate.compareTo(validFrom);
                 int compareValidTo = currentDate.compareTo(validTo);
                 if (comparison >= 0) {

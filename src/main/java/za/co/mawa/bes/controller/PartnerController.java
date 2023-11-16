@@ -406,4 +406,26 @@ public class PartnerController {
           return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
       }
     }
+
+    @RequestMapping(value ="{id}/bank",method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addPartnerBankAccount(@PathVariable String id,@RequestBody PartnerBankAccountDto createBankAccountDto){
+        try{
+            createBankAccountDto.setPartner(id);
+            createBankAccountDto.setType(createBankAccountDto.getAccountType());
+            boolean accountAdded = partnerService.addBankAccount(createBankAccountDto);
+            return ResponseEntity.ok(gson.toJson(accountAdded));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/bank",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartnerBankDetails(@PathVariable String id){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.getBankAccounts(id)));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 }
