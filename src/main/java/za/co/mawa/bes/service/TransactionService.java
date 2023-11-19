@@ -644,26 +644,6 @@ public class TransactionService implements TransactionDao {
 
                 for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
 
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
-                        membershipDto.setMemberId(transactionPartnerDto.getPartner());
-                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        if (personDto != null) {
-                            membershipDto.setMainMember(personDto);
-                        }
-
-
-                    }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-
-                        membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
-                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        if (personDto != null) {
-                            membershipDto.setSalesRep(personDto);
-                        }
-
-                    }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                         object.setCustomerId(transactionPartnerDto.getPartner());
                     }
@@ -716,17 +696,12 @@ public class TransactionService implements TransactionDao {
 
                     if (productId != null) {
                         ProductDto productDto = productService.getOptionalById(productId);
-                        if (productDto != null) {
-                            membershipDto.setProductId(productDto.getId());
-                            membershipDto.setProductDescription(productDto.getDescription());
-                        }
                         TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
                         transactionAmountPKEntity.setTransaction(transactionId);
                         transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
                         TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
                         membershipDto.setPremium(transactionAmountDto.getAmount());
                     }
-
 
                     object.setMembershipHolder(membershipDto);
                 }
@@ -796,32 +771,6 @@ public class TransactionService implements TransactionDao {
             }
             MembershipDto membershipDto = new MembershipDto();
             for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
-
-                if (transactionEntity.getType().equals(TransactionType.MEMBERSHIP)) {
-
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
-                        membershipDto.setMemberId(transactionPartnerDto.getPartner());
-                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        if (partnerDto != null) {
-
-                            PersonDto personDto = new PersonDto(partnerDto);
-                            membershipDto.setMainMember(personDto);
-                        }
-
-                    }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-
-                        membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
-                        PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                        if (partnerDto != null) {
-
-                            PersonDto personDto = new PersonDto(partnerDto);
-                            membershipDto.setSalesRep(personDto);
-                        }
-
-                    }
-
-                }
 
                 if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                     transactionDto.setCustomerId(transactionPartnerDto.getPartner());
@@ -947,7 +896,6 @@ public class TransactionService implements TransactionDao {
             transactionPartnerPKEntity.setTransaction(transactionPartnerDto.getTransaction());
             transactionPartnerPKEntity.setFunction(transactionPartnerDto.getFunction());
             transactionPartnerPKEntity.setPartner(transactionPartnerDto.getPartner());
-
             TransactionPartnerEntity transactionPartnerEntity = new TransactionPartnerEntity();
             transactionPartnerEntity.setTransactionPartnerPKEntity(transactionPartnerPKEntity);
             transactionPartnerEntity.setValidFrom(new Date());
