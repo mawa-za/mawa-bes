@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
@@ -28,6 +29,6 @@ public class MembershipDto {
     private BigDecimal premium;
     private Date dateJoined;
     private Date dateEffective;
-    private String status;
-    private String statusReason;
+    private FieldOptionDto status;
+    private FieldOptionDto statusReason;
 }
