@@ -1,14 +1,12 @@
 package za.co.mawa.bes.service;
 
-import jakarta.transaction.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.VoucherDao;
-import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
-import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.dto.voucher.VoucherDto;

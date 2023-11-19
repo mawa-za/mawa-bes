@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
+import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.product.ProductCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
@@ -123,7 +124,23 @@ public class ProductService implements ProductDao {
             throw new ProductNotFoundException();
         }
     }
-
+    public ProductBasicDto getBasic(String id) throws ProductNotFoundException {
+        try {
+            ProductEntity productEntity = productRepository.getById(id);
+            ProductBasicDto productBasicDto = new ProductBasicDto();
+            productBasicDto.setId(productEntity.getId());
+            String code = productEntity.getCode() == null ? "" : productEntity.getCode();
+            productBasicDto.setCode(code);
+            productBasicDto.setDescription(productEntity.getDescription());
+            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+            productBasicDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
+            productBasicDto.setValidTo(productEntity.getValidTo());
+            productBasicDto.setValidFrom(productEntity.getValidFrom());
+            return productBasicDto;
+        } catch (EntityNotFoundException exception) {
+            throw new ProductNotFoundException();
+        }
+    }
     @Override
     public void edit(ProductDto productDto) throws ProductUpdateFailure {
         try {

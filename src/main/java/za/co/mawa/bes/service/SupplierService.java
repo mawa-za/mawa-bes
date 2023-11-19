@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.SupplierDao;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.dto.user.UserQueryDto;
 import za.co.mawa.bes.dto.user.UserRoleDto;

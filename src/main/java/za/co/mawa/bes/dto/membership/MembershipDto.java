@@ -5,8 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.DependentDto;
-import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.product.ProductDto;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -34,4 +34,5 @@ public class MembershipDto {
     private PersonDto mainMember;
     private PersonDto salesRep;
     List<DependentDto> dependentDtoList;
+    private ProductDto productDetails;
 }
