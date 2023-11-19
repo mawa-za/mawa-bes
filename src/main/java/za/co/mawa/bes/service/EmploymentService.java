@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
 import za.co.mawa.bes.entity.PartnerRoleEntity;

@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 
