@@ -176,7 +176,7 @@ public class MembershipService {
                         membershipDto.setMember(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-                        membershipDto.setMember(partnerService.get(transactionPartnerDto.getPartner()));
+                        membershipDto.setSalesRepresentative(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                 } catch (PartnerNotFoundException e) {
 
@@ -194,6 +194,8 @@ public class MembershipService {
             transactionAmountPKEntity.setTransaction(transactionDto.getId());
             transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
             membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
+            membershipDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
+            membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
