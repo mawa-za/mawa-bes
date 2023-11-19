@@ -16,4 +16,5 @@ public class Field {
     public static String PRODUCT_PRICING = "PRODUCT-PRICING";
     public static String PRICING_TYPE = "PRICING-TYPE";
     public static String UOM = "UOM";
+    public static String STATUS = "STATUS";
 }

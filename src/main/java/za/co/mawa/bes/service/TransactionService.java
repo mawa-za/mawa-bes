@@ -681,30 +681,6 @@ public class TransactionService implements TransactionDao {
                     }
                 }
 
-                if (transactionQueryDto.getType().equals(TransactionType.MEMBERSHIP)) {
-
-                    membershipDto.setStatus(transactionDto.getStatus());
-                    membershipDto.setStatusReason(transactionDto.getStatusReason());
-
-                    List<TransactionItemDto> transactionItemDtoList = getItems(transactionId);
-
-
-                    String productId = transactionItemDtoList.stream()
-                            .map(TransactionItemDto::getProduct)
-                            .findFirst()
-                            .orElse(null);
-
-                    if (productId != null) {
-                        ProductDto productDto = productService.getOptionalById(productId);
-                        TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-                        transactionAmountPKEntity.setTransaction(transactionId);
-                        transactionAmountPKEntity.setType(PriceType.TOTAL_INC_VAT);
-                        TransactionAmountDto transactionAmountDto = getAmount(transactionAmountPKEntity);
-                        membershipDto.setPremium(transactionAmountDto.getAmount());
-                    }
-
-                    object.setMembershipHolder(membershipDto);
-                }
                 if (transactionType != "") {
                     if (object.getType().equalsIgnoreCase(transactionType)) {
                         transactionQueryResultDtoList.add(object);
