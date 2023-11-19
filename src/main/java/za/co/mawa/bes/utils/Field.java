@@ -12,4 +12,8 @@ public class Field {
     public static String PAYMENT_METHOD = "PAYMENT-METHOD";
     public static String TRANSACTION_ATTRIBUTE = "TRANSACTION-ATTRIBUTE";
     public static String PRODUCT_ATTRIBUTE = "PRODUCT-ATTRIBUTE";
+    public static String PRODUCT_CATEGORY = "PRODUCT-CATEGORY";
+    public static String PRODUCT_PRICING = "PRODUCT-PRICING";
+    public static String PRICING_TYPE = "PRICING-TYPE";
+    public static String UOM = "UOM";
 }

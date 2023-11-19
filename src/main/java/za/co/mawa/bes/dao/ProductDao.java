@@ -29,7 +29,7 @@ public interface ProductDao {
 
     void delete(String id) throws ProductDeleteFailure;
 
-    void addPricing(ProductPricingDto productPricingDto) throws Exception;
+    void addPricing(ProductPricingCreateDto productPricingCreateDto) throws Exception;
 
     void editPricing(ProductPricingEditDto productPricingEditDto) throws Exception;
 
@@ -43,6 +43,8 @@ public interface ProductDao {
     ProductAttributeDto getAttribute(ProductAttributeQueryDto productAttributeQueryDto);
 
     ArrayList<ProductAttributeDto> getAttributes(ProductAttributeQueryDto queryDto);
+
+    ArrayList<ProductAttributeDto> getAttributes(String id);
 
     boolean addAttribute(ProductAttributeCreateDto createDto) throws Exception;
 

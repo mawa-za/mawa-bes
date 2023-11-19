@@ -14,7 +14,7 @@ import java.util.List;
 public interface ProductPricingRepository extends JpaRepository<ProductPricingEntity, ProductPricingPKEntity>
 {
     @Query("SELECT p FROM ProductPricingEntity p WHERE p.productPricingPKEntity.product = :productId")
-    List<ProductPricingEntity>findPricing(String productId);
+    List<ProductPricingEntity>findByProduct(String productId);
     @Modifying
     @Query("DELETE from ProductPricingEntity p WHERE p.productPricingPKEntity.product = :productId")
     void deleteByProductId(String productId);
