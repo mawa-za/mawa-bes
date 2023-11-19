@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
+import za.co.mawa.bes.dto.membership.MembershipQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
@@ -17,10 +18,7 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
-import za.co.mawa.bes.service.MembershipService;
-import za.co.mawa.bes.service.PartnerService;
-import za.co.mawa.bes.service.ProductService;
-import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
@@ -38,6 +36,8 @@ public class MembershipController {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    DependentService dependentService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
     Gson gson = new Gson();
@@ -57,32 +57,8 @@ public class MembershipController {
                                             @RequestParam(required = false) String partnerNo,
                                             @RequestParam(required = false) String idNumber) {
         try {
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            String partner = partnerNo == null ? "" : partnerNo;
-            String function = partnerFunction == null ? "" : partnerFunction;
-            String idNo = idNumber == null ? "" : idNumber;
-            List<TransactionQueryResultDto> results = new ArrayList<>();
-            if (idNumber != "" && function != "") {
-                for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByValue(idNumber)) {
-                    transactionQueryDto.setPartnerNo(identityEntity.getPartner());
-                    transactionQueryDto.setPartnerFunction(function);
-                    List<TransactionQueryResultDto> result = new ArrayList<>();
-                    transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-                    result = transactionService.search(transactionQueryDto);
-                    results.addAll(result);
-                }
-            } else {
-                if (status != null && status != "") {
-                    transactionQueryDto.setStatus(status);
-                }
-                if (partner != "" && function != "") {
-                    transactionQueryDto.setPartnerNo(partner);
-                    transactionQueryDto.setPartnerFunction(function);
-                }
-                transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-                results = transactionService.search(transactionQueryDto);
-            }
-            return ResponseEntity.ok(gson.toJson(results));
+            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+            return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -166,23 +142,7 @@ public class MembershipController {
     @RequestMapping(value = "{id}/dependent", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDependent(@PathVariable String id) {
         try {
-            List<DependentDto> dependentDtoList = new ArrayList<>();
-            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
-                    .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
-                    .toList();
-            for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtoList) {
-                PartnerDto partnerDto = partnerService.get(transactionPartnerDto.getPartner());
-                if (partnerDto != null) {
-                    DependentDto dependentDto = new DependentDto();
-                    dependentDto.setIdType(partnerDto.getIdType());
-                    dependentDto.setIdNumber(partnerDto.getIdNumber());
-                    dependentDto.setLastName(partnerDto.getName1());
-                    dependentDto.setFirstName(partnerDto.getName2());
-                    dependentDto.setMiddleName(partnerDto.getName3());
-                    dependentDtoList.add(dependentDto);
-                }
-            }
-            return ResponseEntity.ok(gson.toJson(dependentDtoList));
+            return ResponseEntity.ok(gson.toJson(dependentService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

@@ -157,133 +157,6 @@ public class MembershipService {
 
     }
 
-    public MembershipBasicDto getBasic(String id) {
-        try {
-            TransactionDto transactionDto = transactionService.get(id);
-            MembershipBasicDto membershipBasicDto = new MembershipBasicDto();
-            membershipBasicDto.setNumber(transactionDto.getNumber());
-            membershipBasicDto.setId(transactionDto.getId());
-            if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
-                String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                try {
-                    membershipBasicDto.setProduct(productService.getBasic(productId));
-                } catch (ProductNotFoundException e) {
-                }
-            }
-            for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
-                try {
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
-                        membershipBasicDto.setMember(partnerService.getBasic(transactionPartnerDto.getPartner()));
-                    }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-                        membershipBasicDto.setMember(partnerService.getBasic(transactionPartnerDto.getPartner()));
-                    }
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equals(DateType.JOINED)) {
-                    membershipBasicDto.setDateJoined(transactionDateDto.getValue());
-                }
-                if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
-                    membershipBasicDto.setDateEffective(transactionDateDto.getValue());
-                }
-            }
-            TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-            transactionAmountPKEntity.setTransaction(transactionDto.getId());
-            transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
-            membershipBasicDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
-            return membershipBasicDto;
-        } catch (TransactionNotFound e) {
-            throw new RuntimeException(e);
-        }
-
-    }
-
-    public MembershipDto getFull(String id) {
-        try {
-            TransactionDto transactionDto = transactionService.get(id);
-            MembershipDto membershipDto = new MembershipDto();
-            membershipDto.setNumber(transactionDto.getNumber());
-            membershipDto.setId(transactionDto.getId());
-            if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
-                String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                ProductDto productDto = productService.getOptionalById(productId);
-                if (productDto != null) {
-                    transactionDto.setProductDetails(productDto);
-                }
-            }
-            for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
-                if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
-                    membershipDto.setMemberId(transactionPartnerDto.getPartner());
-                    PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                    if (partnerDto != null) {
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        membershipDto.setMainMember(personDto);
-                    }
-                }
-                if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-                    membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
-                    PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                    if (partnerDto != null) {
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        membershipDto.setSalesRep(personDto);
-                    }
-                }
-            }
-
-            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equals(DateType.JOINED)) {
-                    membershipDto.setDateJoined(transactionDateDto.getValue());
-                }
-                if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
-                    membershipDto.setDateEffective(transactionDateDto.getValue());
-                }
-            }
-            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
-                    .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
-                    .toList();
-            List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
-                    .map(TransactionPartnerDto::getPartner)
-                    .map(partnerService::getOptional)
-                    .filter(Objects::nonNull)
-                    .map(partnerDto -> {
-                        DependentDto dependentDto = new DependentDto();
-                        dependentDto.setId(partnerDto.getId());
-                        if (partnerDto.getTitle() != null) {
-                            String title = fieldOptionService.getFieldOptionDescription(Field.TITLE, partnerDto.getTitle());
-                            if (title != null) {
-                                dependentDto.setTitle(title);
-                            }
-                        }
-                        if (partnerDto.getGender() != null) {
-                            String gender = fieldOptionService.getFieldOptionDescription(Field.GENDER, partnerDto.getGender());
-                            if (gender != null) {
-                                dependentDto.setGender(gender);
-                            }
-                        }
-                        dependentDto.setIdType(partnerDto.getIdType());
-                        dependentDto.setIdNumber(partnerDto.getIdNumber());
-                        dependentDto.setLastName(partnerDto.getName1());
-                        dependentDto.setFirstName(partnerDto.getName2());
-                        dependentDto.setMiddleName(partnerDto.getName3());
-                        return dependentDto;
-                    })
-                    .collect(Collectors.toList());
-            membershipDto.setDependentDtoList(dependentDtoList);
-
-            TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-            transactionAmountPKEntity.setTransaction(transactionDto.getId());
-            transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
-            membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
-            return membershipDto;
-        } catch (TransactionNotFound e) {
-            throw new RuntimeException(e);
-        }
-
-    }
-
     public MembershipDto get(String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
@@ -292,30 +165,23 @@ public class MembershipService {
             membershipDto.setId(transactionDto.getId());
             if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                 String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                ProductDto productDto = productService.getOptionalById(productId);
-                if (productDto != null) {
-                    membershipDto.setProductDetails(productDto);
+                try {
+                    membershipDto.setProduct(productService.getBasic(productId));
+                } catch (ProductNotFoundException e) {
                 }
             }
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
-                if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
-                    membershipDto.setMemberId(transactionPartnerDto.getPartner());
-                    PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                    if (partnerDto != null) {
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        membershipDto.setMainMember(personDto);
+                try {
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
+                        membershipDto.setMember(partnerService.get(transactionPartnerDto.getPartner()));
                     }
-                }
-                if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-                    membershipDto.setSalesRepresentativeId(transactionPartnerDto.getPartner());
-                    PartnerDto partnerDto = partnerService.getOptional(transactionPartnerDto.getPartner());
-                    if (partnerDto != null) {
-                        PersonDto personDto = new PersonDto(partnerDto);
-                        membershipDto.setSalesRep(personDto);
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
+                        membershipDto.setMember(partnerService.get(transactionPartnerDto.getPartner()));
                     }
+                } catch (PartnerNotFoundException e) {
+
                 }
             }
-
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
                 if (transactionDateDto.getType().equals(DateType.JOINED)) {
                     membershipDto.setDateJoined(transactionDateDto.getValue());
@@ -324,38 +190,6 @@ public class MembershipService {
                     membershipDto.setDateEffective(transactionDateDto.getValue());
                 }
             }
-            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
-                    .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
-                    .toList();
-            List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
-                    .map(TransactionPartnerDto::getPartner)
-                    .map(partnerService::getOptional)
-                    .filter(Objects::nonNull)
-                    .map(partnerDto -> {
-                        DependentDto dependentDto = new DependentDto();
-                        dependentDto.setId(partnerDto.getId());
-                        if (partnerDto.getTitle() != null) {
-                            String title = fieldOptionService.getFieldOptionDescription(Field.TITLE, partnerDto.getTitle());
-                            if (title != null) {
-                                dependentDto.setTitle(title);
-                            }
-                        }
-                        if (partnerDto.getGender() != null) {
-                            String gender = fieldOptionService.getFieldOptionDescription(Field.GENDER, partnerDto.getGender());
-                            if (gender != null) {
-                                dependentDto.setGender(gender);
-                            }
-                        }
-                        dependentDto.setIdType(partnerDto.getIdType());
-                        dependentDto.setIdNumber(partnerDto.getIdNumber());
-                        dependentDto.setLastName(partnerDto.getName1());
-                        dependentDto.setFirstName(partnerDto.getName2());
-                        dependentDto.setMiddleName(partnerDto.getName3());
-                        return dependentDto;
-                    })
-                    .collect(Collectors.toList());
-            membershipDto.setDependentDtoList(dependentDtoList);
-
             TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
             transactionAmountPKEntity.setTransaction(transactionDto.getId());
             transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
@@ -367,28 +201,19 @@ public class MembershipService {
 
     }
 
-    public List<MembershipBasicDto> search(MembershipQueryDto membershipQueryDto) {
-        List<MembershipBasicDto> membershipQueryResultDtoList = new ArrayList<>();
+    public List<MembershipDto> search(MembershipQueryDto membershipQueryDto) {
+        List<MembershipDto> membershipDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.MEMBERSHIP);
         List<TransactionQueryResultDto> transactionQueryResultDtoList = transactionService.search(transactionQueryDto);
         for (TransactionQueryResultDto transactionQueryResultDto : transactionQueryResultDtoList) {
-            membershipQueryResultDtoList.add(getBasic(transactionQueryResultDto.getId()));
+            membershipDtoList.add(get(transactionQueryResultDto.getId()));
         }
-        return membershipQueryResultDtoList;
+        return membershipDtoList;
     }
 
     public void edit(MembershipEditDto membershipEditDto) {
 
     }
-
-    public void addDependent(DependentDto dependentDto) {
-
-    }
-
-    public void removeDependent(DependentDto dependentDto) {
-
-    }
-
 
 }
