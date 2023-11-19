@@ -5,13 +5,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PersonService;
 import za.co.mawa.bes.utils.RoleType;
-import za.co.mawa.bes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 
 import java.util.ArrayList;
 import java.util.List;

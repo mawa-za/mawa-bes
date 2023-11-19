@@ -8,15 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemEditDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderEditDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
-import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.service.*;
@@ -27,7 +24,6 @@ import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @RestController

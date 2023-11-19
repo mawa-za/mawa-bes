@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
@@ -18,7 +19,6 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-import za.co.mawa.bes.dto.PartnerQueryDto;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -156,6 +156,23 @@ public class PartnerService implements PartnerDao {
     @Override
     public PartnerEntity findById(String id) {
         return null;
+    }
+
+    public PartnerBasicDto getBasic(String id) throws PartnerNotFoundException {
+        try {
+            PartnerEntity partner = partnerRepository.getById(id);
+            PartnerBasicDto partnerBasicDto = new PartnerBasicDto();
+            partnerBasicDto.setId(partner.getId());
+            partnerBasicDto.setNumber(partner.getNo());
+            partnerBasicDto.setType(partner.getType());
+            partnerBasicDto.setName1(partner.getName1());
+            partnerBasicDto.setName2(partner.getName2());
+            partnerBasicDto.setName3(partner.getName3());
+            return partnerBasicDto;
+        } catch (Exception exception) {
+            throw new PartnerNotFoundException();
+        }
+
     }
 
     @Override
