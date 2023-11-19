@@ -24,7 +24,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class PartnerService implements PartnerDao {
+public class PartnerService {
 
     @Autowired
     PartnerRoleRepository partnerRoleRepository;
@@ -56,12 +56,8 @@ public class PartnerService implements PartnerDao {
     UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
-    // @Override
-//    public String create(PartnerEntity partnerEntity) {
-//        return null;
-//    }
 
-    @Override
+
     public PartnerDto create(PartnerDto partnerDto) {
 
         try {
@@ -109,39 +105,38 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
-    public void edit(PersonDto object) {
+    public void edit(PartnerDto partnerDto) {
 
         try {
-            PartnerEntity partner = partnerRepository.getById(object.getId());
+            PartnerEntity partner = partnerRepository.getById(partnerDto.getId());
             if (partner != null) {
-                if (object.getLastName() != null) {
-                    partner.setName1(object.getLastName().toUpperCase());
+                if (partnerDto.getName1() != null) {
+                    partner.setName1(partnerDto.getName1().toUpperCase());
                 }
-                if (object.getFirstName() != null) {
-                    partner.setName2(object.getFirstName().toUpperCase());
+                if (partnerDto.getName2() != null) {
+                    partner.setName2(partnerDto.getName2().toUpperCase());
                 }
 
-                if (object.getMiddleName() != null) {
-                    partner.setName3(object.getMiddleName().toUpperCase());
+                if (partnerDto.getName3() != null) {
+                    partner.setName3(partnerDto.getName3().toUpperCase());
                 }
-                if (object.getBirthDate() != null) {
-                    partner.setBirthDate(Conversion.stringToDate(object.getBirthDate()));
+                if (partnerDto.getBirthDate() != null) {
+                    partner.setBirthDate(Conversion.stringToDate(partnerDto.getBirthDate()));
                 }
-                if (object.getGender() != null) {
-                    partner.setGender(object.getGender());
+                if (partnerDto.getGender() != null) {
+                    partner.setGender(partnerDto.getGender());
                 }
-                if (object.getLanguage() != null) {
-                    partner.setLanguage(object.getLanguage());
+                if (partnerDto.getLanguage() != null) {
+                    partner.setLanguage(partnerDto.getLanguage());
                 }
-                if (object.getMaritalStatus() != null) {
-                    partner.setMaritalStatus(object.getMaritalStatus());
+                if (partnerDto.getMaritalStatus() != null) {
+                    partner.setMaritalStatus(partnerDto.getMaritalStatus());
                 }
-                if (object.getTitle() != null) {
-                    partner.setTitle(object.getTitle());
+                if (partnerDto.getTitle() != null) {
+                    partner.setTitle(partnerDto.getTitle());
                 }
-                if (object.getStatus() != null) {
-                    partner.setStatus(object.getStatus());
+                if (partnerDto.getStatus() != null) {
+                    partner.setStatus(partnerDto.getStatus());
                 }
                 partnerRepository.save(partner);
             } else {
@@ -152,38 +147,21 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-
-    @Override
     public PartnerEntity findById(String id) {
         return null;
     }
 
-    public PartnerBasicDto getBasic(String id) throws PartnerNotFoundException {
-        try {
-            PartnerEntity partner = partnerRepository.getById(id);
-            PartnerBasicDto partnerBasicDto = new PartnerBasicDto();
-            partnerBasicDto.setId(partner.getId());
-            partnerBasicDto.setNumber(partner.getNo());
-            partnerBasicDto.setType(partner.getType());
-            partnerBasicDto.setName1(partner.getName1());
-            partnerBasicDto.setName2(partner.getName2());
-            partnerBasicDto.setName3(partner.getName3());
-            return partnerBasicDto;
-        } catch (Exception exception) {
-            throw new PartnerNotFoundException();
-        }
-
-    }
-
-    @Override
     public PartnerDto get(String id) throws PartnerNotFoundException {
         try {
-            PartnerDto object = null;
             PartnerEntity partner = partnerRepository.getById(id);
-            if (partner != null) {
-                object = entityToObject(partner);
-            }
-            return object;
+            PartnerDto partnerDto = new PartnerDto();
+            partnerDto.setId(partner.getId());
+            partnerDto.setNumber(partner.getNo());
+            partnerDto.setType(partner.getType());
+            partnerDto.setName1(partner.getName1());
+            partnerDto.setName2(partner.getName2());
+            partnerDto.setName3(partner.getName3());
+            return partnerDto;
         } catch (Exception exception) {
             throw new PartnerNotFoundException();
         }
@@ -269,7 +247,6 @@ public class PartnerService implements PartnerDao {
         return contact;
     }
 
-    @Override
     public boolean removeRole(String partner, String role) {
         boolean removed = false;
         try {
@@ -287,7 +264,6 @@ public class PartnerService implements PartnerDao {
         return removed;
     }
 
-    @Override
     public ArrayList<RelationDto> getRelationByPartner2(String partner2) {
         ArrayList<RelationDto> relations = new ArrayList<>();
         List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner2(partner2);
@@ -356,7 +332,7 @@ public class PartnerService implements PartnerDao {
         return objects;
     }
 
-    @Override
+
     public ArrayList<PartnerDto> search(PartnerQueryDto pq) {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
         ArrayList<PartnerDto> filteredList = new ArrayList<>();
@@ -526,7 +502,7 @@ public class PartnerService implements PartnerDao {
         return finalList;
     }
 
-    @Override
+
     public ArrayList<AddressDto> getAddresses(String partner) {
         ArrayList<AddressDto> partnerAddresses = new ArrayList<>();
         try {
@@ -556,7 +532,7 @@ public class PartnerService implements PartnerDao {
         return partnerAddresses;
     }
 
-    @Override
+
     public ArrayList<IdentityDto> getIdentities(String partner) {
         ArrayList<IdentityDto> partnerIdentities = new ArrayList<>();
         List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partner);
@@ -574,7 +550,7 @@ public class PartnerService implements PartnerDao {
         return partnerIdentities;
     }
 
-    @Override
+
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
@@ -584,7 +560,7 @@ public class PartnerService implements PartnerDao {
         return partnerRoles;
     }
 
-    @Override
+
     public boolean addRole(String partner, String role) {
         boolean added = false;
         ArrayList<String> roles = getRoles(partner);
@@ -611,7 +587,7 @@ public class PartnerService implements PartnerDao {
         return added;
     }
 
-    @Override
+
     public boolean addIdentity(IdentityDto identity) {
 
         try {
@@ -645,7 +621,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public boolean addContact(ContactDto contact) {
         boolean created = false;
         try {
@@ -666,7 +642,7 @@ public class PartnerService implements PartnerDao {
         return created;
     }
 
-    @Override
+
     public boolean addAddress(AddressDto address) {
         boolean created = false;
         try {
@@ -699,7 +675,7 @@ public class PartnerService implements PartnerDao {
         return created;
     }
 
-    @Override
+
     public boolean addRelation(RelationDto relation) {
         boolean created = false;
         try {
@@ -720,12 +696,12 @@ public class PartnerService implements PartnerDao {
         return created;
     }
 
-    @Override
+
     public boolean editRole(RoleDto role) {
         return false;
     }
 
-    @Override
+
     public boolean editIdentity(IdentityDto idnt) {
         boolean edited = false;
         try {
@@ -765,7 +741,7 @@ public class PartnerService implements PartnerDao {
         return edited;
     }
 
-    @Override
+
     public boolean editContact(ContactDto contact) {
         boolean created = false;
         try {
@@ -789,7 +765,7 @@ public class PartnerService implements PartnerDao {
         return created;
     }
 
-    @Override
+
     public boolean editAddress(AddressDto adrs) {
         boolean edited = false;
         try {
@@ -832,12 +808,12 @@ public class PartnerService implements PartnerDao {
         return edited;
     }
 
-    @Override
+
     public boolean editRelation(RelationDto rltn) {
         return false;
     }
 
-    @Override
+
     public boolean removeIdentity(PartnerIdentityPKEntity pkEntity) {
         try {
             partnerIdentityRepository.deleteById(pkEntity);
@@ -848,7 +824,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public boolean removeContact(ContactDto cntct) {
         boolean removed = false;
         try {
@@ -863,7 +839,7 @@ public class PartnerService implements PartnerDao {
         return removed;
     }
 
-    @Override
+
     public boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception {
         try {
             addressRepository.deleteById(pkEntity.getAddressId());
@@ -874,7 +850,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean removeRelation(RelationDto rltn) {
         boolean removed = false;
         try {
@@ -890,7 +866,7 @@ public class PartnerService implements PartnerDao {
         return removed;
     }
 
-    @Override
+
     public void archive(String id) {
         try {
             PartnerEntity partner = partnerRepository.getById(id);
@@ -905,7 +881,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public void unArchive(String id) {
         try {
             PartnerEntity partner = partnerRepository.getById(id);
@@ -919,7 +895,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public ArrayList<RelationDto> getRelations(String partner) {
         ArrayList<RelationDto> relations = new ArrayList<>();
         List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner);
@@ -936,7 +912,7 @@ public class PartnerService implements PartnerDao {
         return relations;
     }
 
-    @Override
+
     public ArrayList<PartnerRoleDto> getAllRoles() {
         ArrayList<PartnerRoleDto> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findAll();
@@ -951,7 +927,7 @@ public class PartnerService implements PartnerDao {
         return partnerRoles;
     }
 
-    @Override
+
     public boolean addBankAccount(PartnerBankAccountDto partnerBankAccount) {
         boolean added = false;
         try {
@@ -1012,7 +988,7 @@ public class PartnerService implements PartnerDao {
         return added;
     }
 
-    @Override
+
     public ArrayList<PartnerBankAccountDto> getBankAccounts(String partner) {
         List<PartnerBankingDetailsEntity> bankDetails = partnerBankAccountRepository.findByPartner(partner);
         ArrayList<PartnerBankAccountDto> bankingDetails = new ArrayList<>();
@@ -1033,12 +1009,12 @@ public class PartnerService implements PartnerDao {
         return bankingDetails;
     }
 
-    @Override
+
     public ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj) {
         return null;
     }
 
-    @Override
+
     public boolean editBankAccount(PartnerBankAccountDto partnerBankAccount) {
         boolean edited = false;
         try {
@@ -1090,7 +1066,7 @@ public class PartnerService implements PartnerDao {
         return edited;
     }
 
-    @Override
+
     public PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount) {
         PartnerBankAccountDto bankAccountObj = new PartnerBankAccountDto();
         if (bankAccount.getAccountNumber() != null && bankAccount.getType() != null && bankAccount.getPartner() != null) {
@@ -1141,7 +1117,7 @@ public class PartnerService implements PartnerDao {
         return bankAccountObj;
     }
 
-    @Override
+
     public String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound {
         String resourceID = numberRangeService.generateNumber(OrderType.RESOURCE_API);
         if (resourceID != null) {
@@ -1203,7 +1179,7 @@ public class PartnerService implements PartnerDao {
         return resourceID;
     }
 
-    @Override
+
     public ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource) {
         ArrayList<PartnerResourceApiResultDto> partnerUrlList = new ArrayList<>();
         if (partnerResource.getPartnerID() != null) {
@@ -1218,7 +1194,7 @@ public class PartnerService implements PartnerDao {
         return partnerUrlList;
     }
 
-    @Override
+
     public PartnerResourceApiResultDto getResourceApi(String resource_id) {
         PartnerResourceApiResultDto partnerResourceResult = new PartnerResourceApiResultDto();
         if (resource_id != null) {
@@ -1241,7 +1217,7 @@ public class PartnerService implements PartnerDao {
         return partnerResourceResult;
     }
 
-    @Override
+
     public boolean editResourceApi(PartnerResourceApiDto partnerResourceObj) {
         boolean edited = false;
         PartnerResourceApiEntity partnerResourceApi = partnerResourceApiRepository.getById(partnerResourceObj.getId());
@@ -1278,7 +1254,7 @@ public class PartnerService implements PartnerDao {
         return edited;
     }
 
-    @Override
+
     public boolean addAttachment(PartnerAttachmentEntity attachment) {
         try {
             partnerAttachmentRepository.save(attachment);
@@ -1289,7 +1265,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public boolean removeAttachment(PartnerAttachmentPKEntity attachment) {
         try {
             partnerAttachmentRepository.deleteById(attachment);
@@ -1300,7 +1276,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public ArrayList<PartnerAttachmentDto> getAttachments(String partner) throws Exception {
         try {
             ArrayList<PartnerAttachmentDto> partnerAttachments = new ArrayList<>();
@@ -1321,7 +1297,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public boolean addDate(PartnerDateDto date) {
         boolean created = false;
         try {
@@ -1348,7 +1324,7 @@ public class PartnerService implements PartnerDao {
         return created;
     }
 
-    @Override
+
     public boolean editDate(PartnerDateDto date) {
         boolean edited = true;
         PartnerDatePKEntity ptnDatePK = new PartnerDatePKEntity();
@@ -1366,7 +1342,7 @@ public class PartnerService implements PartnerDao {
         return edited;
     }
 
-    @Override
+
     public PartnerDateDto getDate(String partnerNo, String dateType) {
         PartnerDateDto partnerDateObj = null;
         PartnerDatePKEntity partnerDatePK = new PartnerDatePKEntity();
@@ -1385,7 +1361,7 @@ public class PartnerService implements PartnerDao {
         return partnerDateObj;
     }
 
-    @Override
+
     public ArrayList<PartnerDateDto> getDates(String partnerNo) {
         ArrayList<PartnerDateDto> dates = new ArrayList<>();
         List<PartnerDateEntity> dateList = partnerDateRepository.findByPartner(partnerNo);
@@ -1401,7 +1377,7 @@ public class PartnerService implements PartnerDao {
         return dates;
     }
 
-    @Override
+
     public ArrayList<PartnerDateDto> getAllDates() {
         ArrayList<PartnerDateDto> dates = new ArrayList<>();
         List<PartnerDateEntity> dateList = partnerDateRepository.findAll();
@@ -1418,7 +1394,7 @@ public class PartnerService implements PartnerDao {
         return dates;
     }
 
-    @Override
+
     public ArrayList<RelationDto> getRelationByPartner1(String partner1) {
         ArrayList<RelationDto> relations = new ArrayList<>();
         List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner1);
@@ -1432,7 +1408,7 @@ public class PartnerService implements PartnerDao {
         return relations;
     }
 
-    @Override
+
     public ArrayList<PartnerDto> getPartners(String partnerRole) {
         ArrayList<PartnerDto> partners = new ArrayList();
         List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerRole);
@@ -1453,7 +1429,7 @@ public class PartnerService implements PartnerDao {
         return partners;
     }
 
-    @Override
+
     public ProspectDto getProspect(String id) throws DoesNotExist {
         PartnerEntity partner = partnerRepository.getById(id);
         if (partner != null) {
@@ -1468,7 +1444,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception {
         ArrayList<ProspectDto> prospectDtoArrayList = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
@@ -1477,7 +1453,7 @@ public class PartnerService implements PartnerDao {
         return prospectDtoArrayList;
     }
 
-    @Override
+
     public boolean editProspect(String id, ProspectEditDto editDto) throws DoesNotExist, Exception {
         PartnerEntity entity = partnerRepository.getById(id);
         if (entity != null) {
@@ -1504,7 +1480,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public PartnerDto getOptional(String id) {
 
         Optional<PartnerEntity> partnerEntity = partnerRepository.findById(id);
@@ -1531,7 +1507,7 @@ public class PartnerService implements PartnerDao {
         return partnerDto;
     }
 
-    @Override
+
     public PartnerDto getPartner(String id) {
         Optional<PartnerEntity> partner = partnerRepository.findById(id);
         PartnerDto object = new PartnerDto();
@@ -1544,7 +1520,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public ArrayList<ContactDto> getContacts(String partner) {
         List<ContactDto> contactDtos = partnerContactRepository.findContactsByPartner(partner)
                 .stream()
@@ -1561,7 +1537,7 @@ public class PartnerService implements PartnerDao {
         return (ArrayList<ContactDto>) contactDtos;
     }
 
-    @Override
+
     public boolean assignRole(String role, String id) throws PartnerNotFoundException {
 
         boolean assign = false;
@@ -1582,7 +1558,7 @@ public class PartnerService implements PartnerDao {
         return assign;
     }
 
-    @Override
+
     public ArrayList<AddressDto> getPartnerAddress(AddressQueryDto queryDto) {
         ArrayList<AddressDto> addressDtos = new ArrayList<>();
         Sort sort = Sort.by("partnerAddressPK").descending();
@@ -1617,7 +1593,7 @@ public class PartnerService implements PartnerDao {
         return addressDtos;
     }
 
-    @Override
+
     public boolean editPartnerAddress(String id, AddressEditDto addressEditDto) throws Exception {
         try {
             AddressEntity entity = addressRepository.getById(id);
@@ -1643,7 +1619,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public ArrayList<ContactGetDto> getPartnerContact(ContactQueryDto queryDto) throws Exception {
         ArrayList<ContactGetDto> contacts = new ArrayList<>();
         Sort sort = Sort.by("partnerContactPK").descending();
@@ -1664,7 +1640,7 @@ public class PartnerService implements PartnerDao {
         return contacts;
     }
 
-    @Override
+
     public boolean removePartnerContact(PartnerContactPKEntity pkEntity) throws Exception {
         try {
             partnerContactRepository.deleteById(pkEntity);
@@ -1674,7 +1650,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean addPartnerContact(String id, ContactCreateDto contact) throws Exception {
         try {
             PartnerContactEntity entity = new PartnerContactEntity();
@@ -1692,7 +1668,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public ArrayList<IdentityDto> getPartnerIdentities(IdentityQueryDto queryDto) throws Exception {
         try {
             ArrayList<IdentityDto> identities = new ArrayList<>();
@@ -1714,7 +1690,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean editPartnerIdentity(IdentityEditDto editDto, String type, String partner) throws Exception {
         try {
             PartnerIdentityEntity entity = partnerIdentityRepository.findPartnerIdentityByTypeAndPartner(type, partner);
@@ -1739,7 +1715,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public ArrayList<RoleDto> getPartnerRoles(String id) throws Exception {
         try {
             ArrayList<RoleDto> roles = new ArrayList<>();
@@ -1757,7 +1733,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public void addPartnersRole(RolePartnerDto rolePartnerDto) throws Exception {
         try {
             PartnerRolePKEntity pkEntity = new PartnerRolePKEntity();
@@ -1773,7 +1749,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean deleteRoles(PartnerRolePKEntity rolePKEntity) throws Exception {
         try {
             partnerRoleRepository.deleteById(rolePKEntity);
@@ -1783,7 +1759,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean editPartner(PartnerEditDto editDto, String id) throws Exception {
         try {
             PartnerEntity entity = partnerRepository.getById(id);
@@ -1820,7 +1796,7 @@ public class PartnerService implements PartnerDao {
 
     }
 
-    @Override
+
     public ArrayList<PartnerAttribute> getAttributes(PartnerAttributeQueryDto queryDto) {
         try {
             ArrayList<PartnerAttribute> attributes = new ArrayList<>();
@@ -1840,7 +1816,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean addAttribute(PartnerAttributeCreateDto createDto) throws Exception {
         try {
             PartnerAttributeEntity entity = new PartnerAttributeEntity();
@@ -1858,7 +1834,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean editAttribute(PartnerAttributeEditDto editDto, String partner, String attribute) throws Exception {
         try {
             PartnerAttributePKEntity pkEntity = new PartnerAttributePKEntity();
@@ -1881,7 +1857,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean deleteAttribute(PartnerAttributePKEntity pkEntity) throws Exception {
         try {
             partnerAttributeRepository.deleteById(pkEntity);
@@ -1891,7 +1867,7 @@ public class PartnerService implements PartnerDao {
         }
     }
 
-    @Override
+
     public boolean contactEdit(PartnerContactPKEntity entity, ContactEditDto editDto) throws Exception {
         try {
             PartnerContactEntity contactEntity = partnerContactRepository.getById(entity);
