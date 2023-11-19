@@ -939,13 +939,10 @@ public class PartnerService implements PartnerDao {
         boolean added = false;
         try {
             PartnerBankingDetailsEntity partnerBankDetails = new PartnerBankingDetailsEntity();
-            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
             if (partnerBankAccount.getPartner() != null && partnerBankAccount.getAccountNumber() != null && partnerBankAccount.getType() != null) {
 
-                partnerBankDetailsPK.setAccountNumber(partnerBankAccount.getAccountNumber());
-                partnerBankDetailsPK.setPartner(partnerBankAccount.getPartner());
-                partnerBankDetailsPK.setType(partnerBankAccount.getType());
-                partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
+                partnerBankDetails.setAccountNumber(partnerBankAccount.getAccountNumber());
+                partnerBankDetails.setPartner(partnerBankAccount.getPartner());
 
                 if (partnerBankAccount.getAccountHolder() != null) {
                     partnerBankDetails.setAccountHolder(partnerBankAccount.getAccountHolder());
@@ -1000,26 +997,19 @@ public class PartnerService implements PartnerDao {
 
     @Override
     public ArrayList<PartnerBankAccountDto> getBankAccounts(String partner) {
-        List<PartnerBankingDetailsEntity> bankDetails = partnerBankAccountRepository.findPartnerBankByPartner(partner);
+        List<PartnerBankingDetailsEntity> bankDetails = partnerBankAccountRepository.findByPartner(partner);
         ArrayList<PartnerBankAccountDto> bankingDetails = new ArrayList<>();
         if (!bankDetails.isEmpty()) {
             for (PartnerBankingDetailsEntity bankDetail : bankDetails) {
 
                 PartnerBankAccountDto partnerBankObj = new PartnerBankAccountDto();
-                if (bankDetail.getPartnerBankingDetailsPk().getAccountNumber() != null) {
-                    partnerBankObj.setAccountNumber(bankDetail.getPartnerBankingDetailsPk().getAccountNumber());
+                if (bankDetail.getAccountNumber() != null) {
+                    partnerBankObj.setAccountNumber(bankDetail.getAccountNumber());
                 }
 
-                if (bankDetail.getPartnerBankingDetailsPk().getPartner() != null) {
-                    partnerBankObj.setPartner(bankDetail.getPartnerBankingDetailsPk().getPartner());
+                if (bankDetail.getPartner() != null) {
+                    partnerBankObj.setPartner(bankDetail.getPartner());
                 }
-
-                if (bankDetail.getPartnerBankingDetailsPk().getType() != null) {
-
-                    partnerBankObj.setType(bankDetail.getPartnerBankingDetailsPk().getType());
-
-                }
-
                 bankingDetails.add(getBankAccount(partnerBankObj));
             }
         }
@@ -1039,9 +1029,8 @@ public class PartnerService implements PartnerDao {
             partnerBankDetailsPK.setAccountNumber(partnerBankAccount.getAccountNumber());
             partnerBankDetailsPK.setPartner(partnerBankAccount.getPartner());
             partnerBankDetailsPK.setType(partnerBankAccount.getType());
-            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
+            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankAccount.getId());
             if (partnerBankDetails != null) {
-                partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
 
                 if (partnerBankAccount.getAccountHolder() != null) {
 
@@ -1088,12 +1077,7 @@ public class PartnerService implements PartnerDao {
     public PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount) {
         PartnerBankAccountDto bankAccountObj = new PartnerBankAccountDto();
         if (bankAccount.getAccountNumber() != null && bankAccount.getType() != null && bankAccount.getPartner() != null) {
-            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
-            partnerBankDetailsPK.setAccountNumber(bankAccount.getAccountNumber());
-            partnerBankDetailsPK.setPartner(bankAccount.getPartner());
-            partnerBankDetailsPK.setType(bankAccount.getType());
-            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
-
+            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(bankAccount.getId());
             if (partnerBankDetails != null) {
 
                 if (partnerBankDetails.getAccountHolder() != null) {
@@ -1126,18 +1110,12 @@ public class PartnerService implements PartnerDao {
 
                 }
 
-                if (partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber() != null) {
-                    bankAccountObj.setAccountNumber(partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber());
+                if (partnerBankDetails.getAccountNumber() != null) {
+                    bankAccountObj.setAccountNumber(partnerBankDetails.getAccountNumber());
                 }
 
-                if (partnerBankDetails.getPartnerBankingDetailsPk().getPartner() != null) {
-                    bankAccountObj.setPartner(partnerBankDetails.getPartnerBankingDetailsPk().getPartner());
-                }
-
-                if (partnerBankDetails.getPartnerBankingDetailsPk().getType() != null) {
-
-                    bankAccountObj.setType(partnerBankDetails.getPartnerBankingDetailsPk().getType());
-
+                if (partnerBankDetails.getPartner() != null) {
+                    bankAccountObj.setPartner(partnerBankDetails.getPartner());
                 }
 
             }
