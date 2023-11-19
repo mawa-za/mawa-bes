@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -14,8 +15,11 @@ public class DependentDto implements Serializable {
     private String title;
     private String idType;
     private String idNumber;
-    private String lastName;
-    private String firstName;
-    private String middleName;
+    private String name1;
+    private String name2;
+    private String name3;
     private String gender;
+    private Date dateAdded;
+    private Date dateEffective;
+    private String status;
 }

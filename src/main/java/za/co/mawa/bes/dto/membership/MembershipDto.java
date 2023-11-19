@@ -6,6 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.partner.PartnerBasicDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 
 import java.math.BigDecimal;
@@ -19,20 +22,12 @@ import java.util.List;
 public class MembershipDto {
     private String id;
     private String number;
-    private String memberId;
-    private String member;
-    private String salesRepresentativeId;
-    private String salesRepresentative;
-    private String productId;
-    private String productDescription;
+    private PartnerDto member;
+    private PartnerDto salesRepresentative;
+    private ProductBasicDto product;
     private BigDecimal premium;
-    private BigDecimal arrears;
     private Date dateJoined;
     private Date dateEffective;
     private String status;
     private String statusReason;
-    private PersonDto mainMember;
-    private PersonDto salesRep;
-    List<DependentDto> dependentDtoList;
-    private ProductDto productDetails;
 }
