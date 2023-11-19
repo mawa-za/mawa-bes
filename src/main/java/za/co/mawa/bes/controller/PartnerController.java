@@ -1,14 +1,13 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
@@ -389,7 +388,7 @@ public class PartnerController {
         }
     }
     @RequestMapping(value = "{id}/attribute" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editAttribute(@PathVariable String id,@RequestBody PartnerAttributeEditDto editDto,@RequestParam String attribute){
+    public ResponseEntity<?> editAttribute(@PathVariable String id, @RequestBody PartnerAttributeEditDto editDto, @RequestParam String attribute){
         try{
             return ResponseEntity.ok(gson.toJson(partnerService.editAttribute(editDto,id,attribute)));
         }catch (Exception ex){

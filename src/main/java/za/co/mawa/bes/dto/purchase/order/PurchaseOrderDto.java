@@ -4,13 +4,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.LineItemDto;
-import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @NoArgsConstructor

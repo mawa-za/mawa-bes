@@ -9,13 +9,10 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
-import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
-import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
-import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
@@ -24,11 +21,9 @@ import za.co.mawa.bes.service.MembershipService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
-import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
-import java.math.BigDecimal;
 import java.util.*;
 
 @RestController

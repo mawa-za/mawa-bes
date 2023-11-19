@@ -92,6 +92,16 @@ public class FieldOptionService implements FieldOptionDao {
         }
     }
 
+    public FieldOptionDto getFieldOption(String field, String code) {
+        List<FieldOptionDto> fieldOptionDtoList = getFieldOptions(field).stream()
+                .filter(a -> Objects.equals(a.getCode(), code))
+                .toList();
+        if (!fieldOptionDtoList.isEmpty()) {
+            return fieldOptionDtoList.iterator().next();
+        } else {
+            return null;
+        }
+    }
     @Override
     public String getOptionalFieldDescription(String field, String code) {
         return getFieldOptionDescription(field, code);
