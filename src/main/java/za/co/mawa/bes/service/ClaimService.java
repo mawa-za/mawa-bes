@@ -148,20 +148,20 @@ public class ClaimService {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.MAINMEMBER)) {
                         claimDto.setMemberId(transactionPartnerDto.getPartner());
-                        if (partnerService.getPartner(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setMember((new PersonDto(partnerService.getPartner(transactionPartnerDto.getPartner()))));
+                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                            claimDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.DECEASED)) {
                         claimDto.setDeceasedId(transactionPartnerDto.getPartner());
-                        if (partnerService.getPartner(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setDeceased((new PersonDto(partnerService.getPartner(transactionPartnerDto.getPartner()))));
+                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                            claimDto.setDeceased((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CLAIMANT)) {
                         claimDto.setClaimantId(transactionPartnerDto.getPartner());
-                        if (partnerService.getPartner(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setClaimant((new PersonDto(partnerService.getPartner(transactionPartnerDto.getPartner()))));
+                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                            claimDto.setClaimant((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                 }

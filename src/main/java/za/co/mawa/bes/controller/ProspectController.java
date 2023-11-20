@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.partner.PartnerCreateDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.prospect.ProspectCreateDto;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
@@ -26,27 +27,27 @@ public class ProspectController {
     @RequestMapping(value= "/prospect" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ProspectCreateDto prospectCreateDto) {
         try {
-            PartnerDto createDto = new PartnerDto();
-            createDto.setType(prospectCreateDto.getPartnerType());
+            PartnerCreateDto partnerCreateDto = new PartnerCreateDto();
+//            createDto.setType(prospectCreateDto.getPartnerType());
             if(prospectCreateDto.getPartnerType().equalsIgnoreCase(PartnerType.ORGANIZATION))
             {
-                createDto.setName1(prospectCreateDto.getOrganisationName());
+                partnerCreateDto.setName1(prospectCreateDto.getOrganisationName());
             }
             else {
                 if(prospectCreateDto.getFirstName() != null && prospectCreateDto.getFirstName() != "")
                 {
-                    createDto.setName2(prospectCreateDto.getFirstName());
+                    partnerCreateDto.setName2(prospectCreateDto.getFirstName());
                 }
                 if(prospectCreateDto.getMiddleName() != null && prospectCreateDto.getMiddleName() != "")
                 {
-                    createDto.setName3(prospectCreateDto.getMiddleName());
+                    partnerCreateDto.setName3(prospectCreateDto.getMiddleName());
                 }
                 if(prospectCreateDto.getSurname() != null && prospectCreateDto.getSurname() != "")
                 {
-                    createDto.setName1(prospectCreateDto.getSurname());
+                    partnerCreateDto.setName1(prospectCreateDto.getSurname());
                 }
             }
-            PartnerDto partner = partnerService.create(createDto);
+            PartnerDto partner = partnerService.create(partnerCreateDto);
             return ResponseEntity.ok(gson.toJson(partner));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

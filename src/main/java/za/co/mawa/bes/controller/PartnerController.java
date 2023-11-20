@@ -34,34 +34,10 @@ public class PartnerController {
                 if(role != null && role != ""){
                     partnerQueryDto.setRole(role);
                 }
-        ArrayList<PartnerDto> objects = partnerService.search(partnerQueryDto);
-        ArrayList<PersonDto> persons = new ArrayList<>();
-        for (PartnerDto object : objects) {
-            ArrayList<ContactDto> contactDtos = partnerService.getContacts(object.getId());
-            PersonDto person = new PersonDto(object);
-            persons.add(person);
-        }
-        String response = gson.toJson(persons);
+        String response = gson.toJson(partnerService.search(partnerQueryDto));
         return ResponseEntity.ok(response);
         }catch (Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-    @RequestMapping(value = "/customer", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getCustomer() throws Exception {
-        try{
-        PartnerQueryDto query = new PartnerQueryDto();
-        query.setRole(RoleType.CUSTOMER);
-        ArrayList<PartnerDto> objects = partnerService.search(query);
-        ArrayList<PersonDto> persons = new ArrayList<>();
-        for (PartnerDto object : objects) {
-            PersonDto person = new PersonDto(object);
-            persons.add(person);
-        }
-        String response = gson.toJson(persons);
-        return ResponseEntity.ok(response);
-        }catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
 

@@ -218,7 +218,12 @@ public class EmploymentService implements EmploymentDao {
         if (empType != null) {
             object.setType(empType);
         }
-        PartnerDto partner = partnerService.getOptional(entity.getEmploymentPK().getEmployeeId());
+        PartnerDto partner = null;
+        try {
+            partner = partnerService.getOptional(entity.getEmploymentPK().getEmployeeId());
+        } catch (PartnerNotFoundException e) {
+            throw new RuntimeException(e);
+        }
         if(partner != null){
             object.setEmployee(partner);
         }

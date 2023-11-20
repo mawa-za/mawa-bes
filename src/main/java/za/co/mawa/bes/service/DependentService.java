@@ -8,6 +8,7 @@ import za.co.mawa.bes.exception.TransactionPartnerAddException;
 import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.PartnerFunction;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -25,33 +26,34 @@ public class DependentService {
         List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id).stream()
                 .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.DEPENDENT))
                 .toList();
-        List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
-                .map(TransactionPartnerDto::getPartner)
-                .map(partnerService::getOptional)
-                .filter(Objects::nonNull)
-                .map(partnerDto -> {
-                    DependentDto dependentDto = new DependentDto();
-                    dependentDto.setId(partnerDto.getId());
-                    if (partnerDto.getTitle() != null) {
-                        String title = fieldOptionService.getFieldOptionDescription(Field.TITLE, partnerDto.getTitle());
-                        if (title != null) {
-                            dependentDto.setTitle(title);
-                        }
-                    }
-                    if (partnerDto.getGender() != null) {
-                        String gender = fieldOptionService.getFieldOptionDescription(Field.GENDER, partnerDto.getGender());
-                        if (gender != null) {
-                            dependentDto.setGender(gender);
-                        }
-                    }
-                    dependentDto.setIdType(partnerDto.getIdType());
-                    dependentDto.setIdNumber(partnerDto.getIdNumber());
-                    dependentDto.setName1(partnerDto.getName1());
-                    dependentDto.setName2(partnerDto.getName2());
-                    dependentDto.setName3(partnerDto.getName3());
-                    return dependentDto;
-                })
-                .collect(Collectors.toList());
+        List<DependentDto> dependentDtoList = new ArrayList<>();
+//        List<DependentDto> dependentDtoList = transactionPartnerDtoList.stream()
+//                .map(TransactionPartnerDto::getPartner)
+//                .map(partnerService::get)
+//                .filter(Objects::nonNull)
+//                .map(partnerDto -> {
+//                    DependentDto dependentDto = new DependentDto();
+//                    dependentDto.setId(partnerDto.getId());
+//                    if (partnerDto.getTitle() != null) {
+//                        String title = fieldOptionService.getFieldOptionDescription(Field.TITLE, partnerDto.getTitle().getDescription());
+//                        if (title != null) {
+//                            dependentDto.setTitle(title);
+//                        }
+//                    }
+//                    if (partnerDto.getGender() != null) {
+//                        String gender = fieldOptionService.getFieldOptionDescription(Field.GENDER, partnerDto.getGender().getDescription());
+//                        if (gender != null) {
+//                            dependentDto.setGender(gender);
+//                        }
+//                    }
+////                    dependentDto.setIdType(partnerDto.getIdType());
+////                    dependentDto.setIdNumber(partnerDto.getIdNumber());
+//                    dependentDto.setName1(partnerDto.getName1());
+//                    dependentDto.setName2(partnerDto.getName2());
+//                    dependentDto.setName3(partnerDto.getName3());
+//                    return dependentDto;
+//                })
+//                .collect(Collectors.toList());
         return dependentDtoList;
     }
 
