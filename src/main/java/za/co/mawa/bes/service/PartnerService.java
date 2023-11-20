@@ -289,7 +289,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partnerType.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -303,11 +303,12 @@ public class PartnerService {
                     try {
                         initialList.add(get(partnerEntity.getId()));
                     } catch (PartnerNotFoundException e) {
-                        throw new RuntimeException(e);
+
                     }
                 }
             }
         }
+
 
         if (partnerQueryDto.getIdNumber() != null) {
             List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByValue(partnerQueryDto.getIdNumber());
@@ -317,7 +318,7 @@ public class PartnerService {
                     try {
                         initialList.add(get(partner.getId()));
                     } catch (PartnerNotFoundException e) {
-                        throw new RuntimeException(e);
+
                     }
                 }
             }
@@ -334,8 +335,21 @@ public class PartnerService {
                     try {
                         initialList.add(get(partner.getId()));
                     } catch (PartnerNotFoundException e) {
-                        throw new RuntimeException(e);
+
                     }
+                }
+            }
+
+        }
+
+        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
+            List<PartnerAttributeEntity> partnerAttributeEntities
+                    = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+            for (PartnerAttributeEntity partnerAttributeEntity : partnerAttributeEntities) {
+                try {
+                    initialList.add(get(partnerAttributeEntity.getPartnerAttributePKEntity().getPartner()));
+                } catch (PartnerNotFoundException e) {
+
                 }
             }
 
@@ -348,7 +362,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -360,7 +374,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -371,7 +385,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -381,7 +395,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -392,7 +406,7 @@ public class PartnerService {
                 try {
                     initialList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
         }
@@ -403,7 +417,7 @@ public class PartnerService {
                 try {
                     finalList.add(get(partner.getId()));
                 } catch (PartnerNotFoundException e) {
-                    throw new RuntimeException(e);
+
                 }
             }
             return finalList;

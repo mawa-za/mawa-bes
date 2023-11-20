@@ -22,7 +22,8 @@ public class PartnerQueryDto {
     private String cellphone;
     private String email;
     private String role;
-    private String attribute;
+    private String attributeName;
+    private String attributeValue;
     private String filter;
     private Date validFrom;
     private Date validTo;
