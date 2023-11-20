@@ -412,7 +412,7 @@ public class PartnerController {
         try{
             createBankAccountDto.setPartner(id);
             createBankAccountDto.setType(createBankAccountDto.getAccountType());
-            boolean accountAdded = partnerService.addBankAccount(createBankAccountDto);
+            String accountAdded = partnerService.addBankAccount(createBankAccountDto);
             return ResponseEntity.ok(gson.toJson(accountAdded));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
@@ -425,6 +425,17 @@ public class PartnerController {
             return ResponseEntity.ok(gson.toJson(partnerService.getBankAccounts(id)));
         }catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+
+    @RequestMapping(value = "{id}/bank" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editBankDetails(@PathVariable String id,@RequestBody PartnerBankAccountEditDto editBankDetailsDto,
+                                             @RequestParam String partner,@RequestParam String accountNumber,@RequestParam String type){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.editBankAccount(editBankDetailsDto,id,accountNumber)));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
 
