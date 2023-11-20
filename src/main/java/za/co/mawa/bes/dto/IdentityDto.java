@@ -16,5 +16,7 @@ public class IdentityDto implements Serializable {
     private String validFrom;
     private String validTo;
 
+    private String status;
+
 
 }
