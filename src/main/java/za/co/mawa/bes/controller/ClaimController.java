@@ -159,24 +159,6 @@ public class ClaimController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "{id}/cancel", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> cancelClaim(@PathVariable String id,
-                                         @RequestParam(required = true) String statusReason,
-                                         @RequestParam(required = false) String description) {
-        try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(ClaimStatus.CANCELLED);
-            transactionEditDto.setStatusReason(statusReason);
-            if (description != null && description != "") {
-                transactionEditDto.setDescription(description);
-            }
-            transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
 
     @RequestMapping(value = "{id}/submit", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submitClaim(@PathVariable String id) {
