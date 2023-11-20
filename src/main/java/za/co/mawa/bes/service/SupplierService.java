@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.SupplierDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.dto.user.UserQueryDto;
@@ -25,6 +26,7 @@ public class SupplierService implements SupplierDao {
     @Autowired
     PartnerService partnerService;
 
+    PartnerIdentityService partnerIdentityService;
     @Override
     public String assignSupplier(SupplierDto supplierDto) throws Exception {
         String partnerId = "";
@@ -98,7 +100,7 @@ public class SupplierService implements SupplierDao {
                                                         SupplierDto supplier = new SupplierDto();
                                                         supplier.setPartnerId(partnerDto.getId());
                                                         supplier.setUsername(username);
-                                                        supplier.setSupplierType(partnerDto.getType());
+                                                        supplier.setSupplierType(partnerDto.getType().getType());
                                                         if (partnerDto.getType().equals(PartnerType.ORGANIZATION)) {
                                                             supplier.setOrganizationName(partnerDto.getName1());
                                                         } else {
@@ -114,7 +116,7 @@ public class SupplierService implements SupplierDao {
                                                         if (!contacts.isEmpty()) {
                                                             supplier.setContactDto(contacts);
                                                         }
-                                                        ArrayList<IdentityDto> Identities = partnerService.getIdentities(partnerDto.getId());
+                                                        ArrayList<PartnerIdentityDto> Identities = partnerIdentityService.getAll(partnerDto.getId());
 
                                                         if (!Identities.isEmpty()) {
                                                             supplier.setIdentityDto(Identities);
@@ -156,7 +158,7 @@ public class SupplierService implements SupplierDao {
                             if (userRole.equals(RoleType.SUPPLIER)) {
 
                                 supplierDto.setUsername(user.getUsername());
-                                supplierDto.setSupplierType(partner.getType());
+                                supplierDto.setSupplierType(partner.getType().getType());
                                 supplierDto.setPartnerId(partner.getId());
                                 if (partner.getType().equals(PartnerType.ORGANIZATION)) {
                                     supplierDto.setOrganizationName(partner.getName1());
@@ -176,7 +178,7 @@ public class SupplierService implements SupplierDao {
                                     supplierDto.setContactDto(contacts);
                                 }
 
-                                ArrayList<IdentityDto> Identities = partnerService.getIdentities(partner.getId());
+                                ArrayList<PartnerIdentityDto> Identities = partnerIdentityService.getAll(partner.getId());
 
                                 if (!Identities.isEmpty()) {
                                     supplierDto.setIdentityDto(Identities);

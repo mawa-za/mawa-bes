@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.IdentityDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityCreateDto;
+import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
 
 @RestController
@@ -15,13 +17,16 @@ public class PartnerIdentityController {
     @Autowired
     PartnerService partnerService;
 
+    @Autowired
+    PartnerIdentityService partnerIdentityService;
+
     @RequestMapping(value = "/identity/{id}", method = RequestMethod.POST)
-    public ResponseEntity<?> addIdentity (@PathVariable String id, @RequestBody  IdentityDto identity) throws Exception{
-        try{
-            identity.setPartner(id);
-            Boolean Identity = partnerService.addIdentity(identity);
-                return ResponseEntity.ok(gson.toJson(Identity));
-        }  catch (Exception exception) {
+    public ResponseEntity<?> addIdentity(@PathVariable String id, @RequestBody PartnerIdentityCreateDto partnerIdentityCreateDto) throws Exception {
+        try {
+            partnerIdentityCreateDto.setPartner(id);
+            partnerIdentityService.add(partnerIdentityCreateDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
