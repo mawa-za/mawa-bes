@@ -1,0 +1,116 @@
+package za.co.mawa.bes.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.IdentityDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityCreateDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityEditDto;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
+import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.utils.Constant;
+import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.Field;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+
+@Service
+public class PartnerIdentityService {
+    @Autowired
+    PartnerIdentityRepository partnerIdentityRepository;
+    @Autowired
+    FieldOptionService fieldOptionService;
+    public void add(PartnerIdentityCreateDto partnerIdentityCreateDto) {
+        try {
+            for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByPartner(partnerIdentityCreateDto.getPartner())) {
+                if (identityEntity.getPartnerIdentityPK().getType().equals(partnerIdentityCreateDto.getType())) {
+                    throw new RuntimeException("Duplicate identity type found for partner");
+                }
+            }
+            PartnerIdentityPKEntity partnerIdentityPK = new PartnerIdentityPKEntity();
+            partnerIdentityPK.setValue(partnerIdentityCreateDto.getNumber());
+            partnerIdentityPK.setType(partnerIdentityCreateDto.getType());
+            PartnerIdentityEntity partnerIdentity = new PartnerIdentityEntity();
+            partnerIdentity.setPartner(partnerIdentityCreateDto.getPartner());
+            if (partnerIdentityCreateDto.getValidFrom() != null) {
+                partnerIdentity.setValidFrom(partnerIdentityCreateDto.getValidFrom());
+            } else {
+                partnerIdentity.setValidFrom(new Date());
+            }
+            if (partnerIdentityCreateDto.getValidTo() != null) {
+                partnerIdentity.setValidTo(partnerIdentityCreateDto.getValidTo());
+            } else {
+                partnerIdentity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            }
+            partnerIdentity.setPartnerIdentityPK(partnerIdentityPK);
+            partnerIdentityRepository.save(partnerIdentity);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    public PartnerIdentityDto get(String partner) {
+        try {
+            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partner);
+            Iterator it = identityList.iterator();
+            PartnerIdentityEntity partnerIdentityEntity = (PartnerIdentityEntity) it.next();
+            PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
+            partnerIdentityDto.setPartner(partnerIdentityEntity.getPartner());
+            partnerIdentityDto.setNumber(partnerIdentityEntity.getPartnerIdentityPK().getValue());
+            partnerIdentityDto.setType(fieldOptionService.getFieldOption(Field.ID_TYPE, partnerIdentityEntity.getPartnerIdentityPK().getType()));
+            return partnerIdentityDto;
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+    public void edit(PartnerIdentityEditDto partnerIdentityEditDto) {
+        try {
+            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partnerIdentityEditDto.getPartner());
+            if (identityList != null) {
+                for (PartnerIdentityEntity partnerIdentity : identityList) {
+                    String validFrom = Conversion.dateToString(partnerIdentity.getValidFrom());
+                    if (partnerIdentity.getPartnerIdentityPK().getType().equals(partnerIdentityEditDto.getType())
+                            && validFrom.equals(partnerIdentityEditDto.getValidFrom())) {
+                        PartnerIdentityPKEntity partneridentityPK = new PartnerIdentityPKEntity();
+                        partneridentityPK.setType(partnerIdentityEditDto.getType());
+                        partneridentityPK.setValue(partnerIdentity.getPartnerIdentityPK().getValue());
+                        partnerIdentityRepository.deleteById(partneridentityPK);
+                        partneridentityPK.setType(partnerIdentityEditDto.getType());
+                        partneridentityPK.setValue(partnerIdentityEditDto.getNumber());
+                        if (partnerIdentityEditDto.getValidTo() != null) {
+                            partnerIdentity.setValidTo(partnerIdentityEditDto.getValidTo());
+                        } else {
+                            partnerIdentity.setValidTo(partnerIdentity.getValidTo());
+                        }
+                        partnerIdentity.setValidFrom(Conversion.stringToDate(validFrom));
+                        partnerIdentity.setPartner(partnerIdentityEditDto.getPartner());
+                        partnerIdentity.setPartnerIdentityPK(partneridentityPK);
+                        partnerIdentityRepository.save(partnerIdentity);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public ArrayList<PartnerIdentityDto> getAll(String partner) {
+        ArrayList<PartnerIdentityDto> partnerIdentities = new ArrayList<>();
+        List<PartnerIdentityEntity> partnerIdentityEntities = partnerIdentityRepository.findByPartner(partner);
+        for (PartnerIdentityEntity partnerIdentityEntity : partnerIdentityEntities) {
+            PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
+            partnerIdentityDto.setType(fieldOptionService.getFieldOption(Field.ID_TYPE, partnerIdentityEntity.getPartnerIdentityPK().getType()));
+            partnerIdentityDto.setNumber(partnerIdentityEntity.getPartnerIdentityPK().getValue());
+            partnerIdentityDto.setPartner(partnerIdentityEntity.getPartner());
+            partnerIdentityDto.setValidFrom(partnerIdentityEntity.getValidFrom());
+            partnerIdentityDto.setValidTo(partnerIdentityEntity.getValidTo());
+            partnerIdentities.add(partnerIdentityDto);
+        }
+        return partnerIdentities;
+    }
+}

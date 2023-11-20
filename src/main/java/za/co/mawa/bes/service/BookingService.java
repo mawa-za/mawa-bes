@@ -132,7 +132,7 @@ public class BookingService implements BookingDao {
                 ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
                 queryDto.setProduct(productId);
                 //queryDto.setAttribute("");
-                for(ProductAttributeDto attributeDto: productService.getAttributes(queryDto)){
+                for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
                   if(attributeDto.getAttribute().equalsIgnoreCase("DURATION")){
                       bookingDto.setDuration(attributeDto.getValue());
                       break;
