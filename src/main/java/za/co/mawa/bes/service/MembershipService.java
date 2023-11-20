@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -11,26 +13,31 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
-public class MembershipService implements MembershipDao {
+public class MembershipService {
     @Autowired
     TransactionService transactionService;
     @Autowired
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    FieldOptionService fieldOptionService;
 
-    @Override
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
@@ -70,6 +77,12 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
+
+        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
+        transactionAmountDto.setTransaction(transactionDto.getId());
+        transactionAmountDto.setType(TransactionAmount.MONTHLY_PREMIUM);
+        transactionAmountDto.setAmount(transactionItemDto.getUnitPrice());
+        transactionService.addAmount(transactionAmountDto);
 
         if (membershipCreateDto.getDateJoined() != null) {
             TransactionDateDto dateJoined = new TransactionDateDto();
@@ -144,22 +157,45 @@ public class MembershipService implements MembershipDao {
 
     }
 
-    @Override
     public MembershipDto get(String id) {
-        MembershipDto membershipDto = null;
         try {
             TransactionDto transactionDto = transactionService.get(id);
-            if (!transactionDto.equals(null)) {
-                membershipDto.setNumber(transactionDto.getNumber());
-                membershipDto.setId(transactionDto.getId());
-                if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
-                    String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                    ProductDto productDto = productService.getOptionalById(productId);
-                    if (productDto != null) {
-                        transactionDto.setProductDetails(productDto);
-                    }
+            MembershipDto membershipDto = new MembershipDto();
+            membershipDto.setNumber(transactionDto.getNumber());
+            membershipDto.setId(transactionDto.getId());
+            if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
+                String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
+                try {
+                    membershipDto.setProduct(productService.getBasic(productId));
+                } catch (ProductNotFoundException e) {
                 }
             }
+            for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+                try {
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.MAINMEMBER)) {
+                        membershipDto.setMember(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
+                        membershipDto.setSalesRepresentative(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+                if (transactionDateDto.getType().equals(DateType.JOINED)) {
+                    membershipDto.setDateJoined(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equals(DateType.EFFECTIVE)) {
+                    membershipDto.setDateEffective(transactionDateDto.getValue());
+                }
+            }
+            TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+            transactionAmountPKEntity.setTransaction(transactionDto.getId());
+            transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
+            membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
+            membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
@@ -167,25 +203,19 @@ public class MembershipService implements MembershipDao {
 
     }
 
-    @Override
-    public List<MembershipQueryResultDto> search(MembershipQueryDto membershipQueryDto) {
-        return null;
+    public List<MembershipDto> search(MembershipQueryDto membershipQueryDto) {
+        List<MembershipDto> membershipDtoList = new ArrayList<>();
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionQueryResultDto> transactionQueryResultDtoList = transactionService.search(transactionQueryDto);
+        for (TransactionQueryResultDto transactionQueryResultDto : transactionQueryResultDtoList) {
+            membershipDtoList.add(get(transactionQueryResultDto.getId()));
+        }
+        return membershipDtoList;
     }
 
-    @Override
     public void edit(MembershipEditDto membershipEditDto) {
 
     }
-
-    @Override
-    public void addDependent(DependentDto dependentDto) {
-
-    }
-
-    @Override
-    public void removeDependent(DependentDto dependentDto) {
-
-    }
-
 
 }

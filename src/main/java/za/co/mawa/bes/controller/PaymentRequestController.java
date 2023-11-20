@@ -28,7 +28,7 @@ public class PaymentRequestController {
     @Autowired
     TransactionService transactionService;
     @RequestMapping(value = "/payment-request", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createPayment(@RequestBody PaymentRequestCreateDto paymentRequest) {
+    public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
         try{
             PaymentRequestDto payment = new PaymentRequestDto();
             String id = paymentRequestService.create(paymentRequest);

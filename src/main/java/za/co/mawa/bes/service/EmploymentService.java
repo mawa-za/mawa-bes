@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
 import za.co.mawa.bes.entity.EmploymentPKEntity;
 import za.co.mawa.bes.entity.PartnerRoleEntity;
@@ -217,7 +218,12 @@ public class EmploymentService implements EmploymentDao {
         if (empType != null) {
             object.setType(empType);
         }
-        PartnerDto partner = partnerService.getOptional(entity.getEmploymentPK().getEmployeeId());
+        PartnerDto partner = null;
+        try {
+            partner = partnerService.getOptional(entity.getEmploymentPK().getEmployeeId());
+        } catch (PartnerNotFoundException e) {
+            throw new RuntimeException(e);
+        }
         if(partner != null){
             object.setEmployee(partner);
         }

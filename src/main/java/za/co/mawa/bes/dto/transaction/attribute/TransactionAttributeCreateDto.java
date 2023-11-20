@@ -1,6 +1,5 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction.attribute;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,11 +7,11 @@ import lombok.Setter;
 import java.io.Serializable;
 
 @NoArgsConstructor
-@AllArgsConstructor
 @Getter
 @Setter
-public class PartnerAttributeCreateDto implements Serializable {
-    private String partner;
+public class TransactionAttributeCreateDto implements Serializable {
+    private String transaction;
     private String attribute;
     private String value;
+
 }

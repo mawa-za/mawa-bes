@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.partner;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,12 +22,13 @@ public class PartnerQueryDto {
     private String cellphone;
     private String email;
     private String role;
+    private String attributeName;
+    private String attributeValue;
     private String filter;
-
-   private Date validFrom;
-   private Date validTo;
-   private String createdBy;
-   private Date creationDate;
-   private String number;
+    private Date validFrom;
+    private Date validTo;
+    private String createdBy;
+    private Date creationDate;
+    private String number;
 
 }

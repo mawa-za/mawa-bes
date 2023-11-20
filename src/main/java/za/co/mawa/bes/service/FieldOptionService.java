@@ -57,7 +57,7 @@ public class FieldOptionService implements FieldOptionDao {
     public List<FieldOptionDto> getFieldOptions(String field) {
         List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
         for (FieldOptionEntity fieldOptionEntity : fieldOptionRepository.findFieldOptions(field)) {
-            if (fieldOptionEntity.getValidTo().after(new Date())){
+            if (fieldOptionEntity.getValidTo().after(new Date())) {
                 fieldOptionDtoList.add(entityToDto(fieldOptionEntity));
             }
         }
@@ -82,30 +82,29 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public String getFieldOptionDescription(String field, String code) {
-        FieldOptionPKEntity pk = new FieldOptionPKEntity();
-        pk.setCode(code);
-        pk.setField(field);
-        Optional<FieldOptionEntity> fieldOption = fieldOptionRepository.findById(pk);
-        if (!fieldOption.isEmpty()) {
-            return fieldOption.get().getDescription();
+        List<FieldOptionDto> fieldOptionDtoList = getFieldOptions(field).stream()
+                .filter(a -> Objects.equals(a.getCode(), code))
+                .toList();
+        if (!fieldOptionDtoList.isEmpty()) {
+            return fieldOptionDtoList.iterator().next().getDescription();
         } else {
             return null;
         }
     }
 
+    public FieldOptionDto getFieldOption(String field, String code) {
+        List<FieldOptionDto> fieldOptionDtoList = getFieldOptions(field).stream()
+                .filter(a -> Objects.equals(a.getCode(), code))
+                .toList();
+        if (!fieldOptionDtoList.isEmpty()) {
+            return fieldOptionDtoList.iterator().next();
+        } else {
+            return null;
+        }
+    }
     @Override
     public String getOptionalFieldDescription(String field, String code) {
-
-        FieldOptionPKEntity pk = new FieldOptionPKEntity();
-        pk.setCode(code);
-        pk.setField(field);
-        Optional<FieldOptionEntity> fieldEntity = fieldOptionRepository.findById(pk);
-        FieldOptionEntity fieldOption = fieldEntity.orElse(null);
-
-        if (fieldOption != null) {
-            return fieldOption.getDescription();
-        }
-        return null;
+        return getFieldOptionDescription(field, code);
     }
 
     @Override

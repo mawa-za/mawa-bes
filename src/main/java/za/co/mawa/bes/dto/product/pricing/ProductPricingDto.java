@@ -13,6 +13,7 @@ import java.util.Date;
 public class ProductPricingDto {
     private String product;
     private String pricing;
+    private String pricingDescription;
     private BigDecimal value;
     private Date validFrom;
     private Date validTo;

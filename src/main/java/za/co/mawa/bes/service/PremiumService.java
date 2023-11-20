@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
@@ -24,10 +25,7 @@ import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
-import za.co.mawa.bes.utils.NumberRangeType;
-import za.co.mawa.bes.utils.ReceiptType;
-import za.co.mawa.bes.utils.TransactionAttribute;
-import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -45,17 +43,17 @@ public class PremiumService {
     NumberRangeService numberRangeService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
-
     @Autowired
-    TransactionAttributeRepository transactionAttributeRepository;
+    TransactionAttributeService transactionAttributeService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
-            entity.setPremiumNumber(numberRangeService.generateNumber(NumberRangeType.PREMIUM));
-            entity.setMembershipNumber(premiumCreateDto.getMembershipNumber());
-            entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipNumber()));
+            entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
+            entity.setMembershipId(premiumCreateDto.getMembershipId());
+            entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
+            entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
             entity.setCreationTime(new Date());
@@ -74,56 +72,34 @@ public class PremiumService {
     public PremiumDto get(String id) throws DoesNotExist {
         PremiumEntity entity = premiumRepository.getById(id);
         if (entity != null) {
-            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
-            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
-            PremiumDto premiumDto = new PremiumDto();
-            premiumDto.setId(entity.getId());
-            premiumDto.setReceiptNumber(entity.getPremiumNumber());
-            premiumDto.setMembershipNumber(entity.getMembershipNumber());
-            premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
-            premiumDto.setTenderType(entity.getTenderType());
-            premiumDto.setAmount(entity.getAmount().toString());
-            premiumDto.setEmployeeResponsible(entity.getCreatedBy());
-            premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            premiumDto.setCreationDate(formatterTime.format(entity.getCreationTime()));
-            return premiumDto;
+            return new PremiumDto(entity);
         } else {
             throw new DoesNotExist();
         }
     }
 
-
     public ArrayList<PremiumDto> getReceipts(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
-        List<PremiumEntity> receipts = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        Sort sort = Sort.by("number").descending();
+        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        for(PremiumEntity premiumEntity: premiumEntities){
+            premiumDtoArrayList.add(new PremiumDto(premiumEntity));
+        }
         return premiumDtoArrayList;
     }
 
-
     public ArrayList<PremiumDto> getReceiptsX(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
+        Sort sort = Sort.by("number").descending();
         List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         List<PremiumEntity> premiumEntitiesNotCashed = new ArrayList<>();
         for (PremiumEntity premiumEntity : premiumEntities) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
             if (linkEntity == null) {
-                premiumEntitiesNotCashed.add(premiumEntity);
+                premiumDtoArrayList.add(new PremiumDto(premiumEntity));
             }
         }
         return premiumDtoArrayList;
-    }
-
-    private ReceiptDto entityIDtoDto(ReceiptEntity entity) throws Exception {
-        try {
-            ReceiptDto receipt = new ReceiptDto();
-            receipt.setId(entity.getId());
-            return receipt;
-        } catch (Exception e) {
-            throw new Exception();
-        }
-
     }
 
     private String getUser() {
@@ -138,8 +114,8 @@ public class PremiumService {
             if (premiumSearchDto.getEmployeeResponsible() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("createdBy"), premiumSearchDto.getEmployeeResponsible()));
             }
-            if (premiumSearchDto.getMembershipNumber() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("membershipNumber"), premiumSearchDto.getMembershipNumber()));
+            if (premiumSearchDto.getMembershipId() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("membershipId"), premiumSearchDto.getMembershipId()));
             }
             if (premiumSearchDto.getMembershipPeriod() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("membershipPeriod"), premiumSearchDto.getMembershipPeriod()));
@@ -153,9 +129,10 @@ public class PremiumService {
 
     private String determinePeriod(String id) {
         try {
-            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(id,TransactionAttribute.LAST_PREMIUM_PERIOD);
-            TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
-            String previousPeriod =  transactionAttributeEntity.getValue();
+            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+            transactionAttributeDto.setTransaction(id);
+            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+            String previousPeriod = transactionAttributeService.get(transactionAttributeDto);
             String yearString = previousPeriod.substring(0,4);
             String monthString = previousPeriod.substring(4,6);
             if (Integer.parseInt(monthString) == 12){
@@ -165,24 +142,20 @@ public class PremiumService {
                 int month = Integer.parseInt(monthString) + 1;
                 monthString = String.format("%02d", month);
             }
-            transactionAttributeEntity.setValue(yearString + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
+            transactionAttributeDto.setValue(yearString + monthString);
+            transactionAttributeService.edit(transactionAttributeDto);
+            return transactionAttributeDto.getValue();
         } catch (Exception exception) {
-            TransactionAttributeEntity transactionAttributeEntity = new TransactionAttributeEntity();
-            transactionAttributeEntity.setTransaction(id);
-            transactionAttributeEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
+            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+            transactionAttributeDto.setTransaction(id);
+            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
             Calendar calendar = Calendar.getInstance();
             int year = calendar.get(Calendar.YEAR);
             int month = calendar.get(Calendar.MONTH) + 1;
             String monthString = String.format("%02d", month);
-            transactionAttributeEntity.setValue(Integer.toString(year) + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
+            transactionAttributeDto.setValue(Integer.toString(year) + monthString);
+            transactionAttributeService.add(transactionAttributeDto);
+            return transactionAttributeDto.getValue();
         }
     }
 }

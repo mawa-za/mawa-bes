@@ -9,12 +9,14 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class IdentityDto implements Serializable {
+
+    private String partner;
+    private FieldOptionDto type;
+    private String number;
     private String validFrom;
     private String validTo;
-    private String partner;
-    private String idType;
-    private String idNumber;
-    private String typeDescription;
+
+    private String status;
 
 
 }
