@@ -22,12 +22,12 @@ public class PartnerQueryDto {
     private String cellphone;
     private String email;
     private String role;
+    private String attribute;
     private String filter;
-
-   private Date validFrom;
-   private Date validTo;
-   private String createdBy;
-   private Date creationDate;
-   private String number;
+    private Date validFrom;
+    private Date validTo;
+    private String createdBy;
+    private Date creationDate;
+    private String number;
 
 }

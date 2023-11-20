@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
 
@@ -22,16 +23,18 @@ public class PartnerController {
     Gson gson = new Gson();
     @Autowired
     PartnerService partnerService;
-
+    @Autowired
+    PartnerIdentityService partnerIdentityService;
 
     @RequestMapping( method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartner(@RequestParam(required = false) String role) throws Exception {
+    public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
+                                        @RequestParam(required = false) String attribute) throws Exception {
         try{
-            PartnerQueryDto pq = new PartnerQueryDto();
+            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
                 if(role != null && role != ""){
-                    pq.setRole(role);
+                    partnerQueryDto.setRole(role);
                 }
-        ArrayList<PartnerDto> objects = partnerService.search(pq);
+        ArrayList<PartnerDto> objects = partnerService.search(partnerQueryDto);
         ArrayList<PersonDto> persons = new ArrayList<>();
         for (PartnerDto object : objects) {
             ArrayList<ContactDto> contactDtos = partnerService.getContacts(object.getId());
@@ -63,19 +66,25 @@ public class PartnerController {
     }
 
     @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postCustomer(@RequestBody PartnerDto partnerDto) throws Exception {
+    public ResponseEntity<?> postCustomer(@RequestBody PartnerCreateDto partnerCreateDto) throws Exception {
         try {
-            String personDto = partnerService.create(partnerDto).getId();
+            String personDto = partnerService.create(partnerCreateDto).getId();
             return ResponseEntity.ok(gson.toJson(personDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(method = RequestMethod.PUT)
-    public String putCustomer() throws Exception {
-        return null;
+    @RequestMapping(value = "{id}",method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editPartner(@PathVariable String id,@RequestBody PartnerEditDto partnerEditDto){
+        try{
+            partnerService.edit(partnerEditDto);
+            return ResponseEntity.ok().build();
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
     }
+
     @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartnerById(@PathVariable String id) {
         try {
@@ -253,12 +262,11 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/identity", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addPartnerIdentity(@PathVariable String id, @RequestBody IdentityDto identityDto) {
+    public ResponseEntity<?> addPartnerIdentity(@PathVariable String id, @RequestBody PartnerIdentityCreateDto partnerIdentityCreateDto) {
         try {
-            identityDto.setPartner(id);
-            boolean partnerDto = partnerService.addIdentity(identityDto);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            partnerIdentityCreateDto.setPartner(id);
+            partnerIdentityService.add(partnerIdentityCreateDto);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -277,49 +285,24 @@ public class PartnerController {
     }
     @RequestMapping(value = "{id}/identity", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editPartnerIdentity(@PathVariable String id,
-                                                 @RequestParam(required = true) String idType,
-                                                 @RequestBody IdentityEditDto editDto) {
+                                                 @RequestBody PartnerIdentityEditDto partnerIdentityEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(partnerService.editPartnerIdentity(editDto,idType,id)));
+            partnerIdentityService.edit(partnerIdentityEditDto);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
     @RequestMapping(value = "{id}/identity", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnerIdentity(@PathVariable String id,
-                                                @RequestParam(required = false) String idType,
-                                                @RequestParam(required = false) String idNumber) {
+    public ResponseEntity<?> getPartnerIdentity(@PathVariable String id) {
         try {
-            IdentityQueryDto query = new IdentityQueryDto();
-            query.setPartner(id);
-            if(idType != null && idType != ""){
-                query.setType(idType);
-            }
-            if(idNumber != null && idNumber != ""){
-                query.setValue(idNumber);
-            }
-            return ResponseEntity.ok(gson.toJson(partnerService.getPartnerIdentities(query)));
+            return ResponseEntity.ok(gson.toJson(partnerIdentityService.getAll(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-    @RequestMapping(value = "/identity", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnersIdentity(@RequestParam(required = false) String idType,
-                                                @RequestParam(required = false) String idNumber) {
-        try {
-            IdentityQueryDto query = new IdentityQueryDto();
-            if(idType != null && idType != ""){
-                query.setType(idType);
-            }
-            if(idNumber != null && idNumber != ""){
-                query.setValue(idNumber);
-            }
-            return ResponseEntity.ok(gson.toJson(partnerService.getPartnerIdentities(query)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
+
     @RequestMapping(value = "{id}/archive", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> ArchivePartner(@PathVariable String id) {
         try {
@@ -335,15 +318,6 @@ public class PartnerController {
             partnerService.unArchive(id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-    @RequestMapping(value = "{id}",method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editPartner(@PathVariable String id,@RequestBody PartnerEditDto editPartner){
-        try{
-            return ResponseEntity.ok(gson.toJson(gson.toJson(partnerService.editPartner(editPartner,id))));
-        }catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
