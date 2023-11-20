@@ -7,6 +7,7 @@ public class Field {
     public static String MARITAL_STATUS = "MARITAL-STATUS";
     public static String TRANSACTION_STATUS = "TRANSACTION-STATUS";
     public static String PARTNER_STATUS = "PARTNER-STATUS";
+    public static String PARTNER_TYPE = "PARTNER-TYPE";
     public static String STATUS_REASON = "STATUS-REASON";
     public static String PAYMENT_REASON = "PAYMENT-REASON";
     public static String PAYMENT_METHOD = "PAYMENT-METHOD";
@@ -17,4 +18,5 @@ public class Field {
     public static String PRICING_TYPE = "PRICING-TYPE";
     public static String UOM = "UOM";
     public static String STATUS = "STATUS";
+    public static String LANGUAGE = "LANGUAGE";
 }

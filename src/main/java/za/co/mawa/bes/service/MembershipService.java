@@ -194,7 +194,7 @@ public class MembershipService {
             transactionAmountPKEntity.setTransaction(transactionDto.getId());
             transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
             membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
-            membershipDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
+            membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             return membershipDto;
         } catch (TransactionNotFound e) {

@@ -19,6 +19,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
 
@@ -40,6 +41,9 @@ public class MembershipController {
     DependentService dependentService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
+
+    @Autowired
+    FieldOptionService fieldOptionService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -223,10 +227,8 @@ public class MembershipController {
                     tombstoneRecipient.setFirstName(partnerDto.getName2());
                     tombstoneRecipient.setMiddleName(partnerDto.getName3());
                     tombstoneRecipient.setLastName(partnerDto.getName1());
-                    tombstoneRecipient.setGender(partnerDto.getGender());
-                    tombstoneRecipient.setTitle(partnerDto.getTitle());
-                    tombstoneRecipient.setIdNumber(partnerDto.getIdNumber());
-                    tombstoneRecipient.setIdType(partnerDto.getIdType());
+                    tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
+                    tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
                     tombstoneRecipientDtos.add(tombstoneRecipient);
                 }
             }
