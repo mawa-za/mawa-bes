@@ -419,10 +419,10 @@ public class PartnerController {
         }
     }
 
-    @RequestMapping(value = "{id}/bank",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnerBankDetails(@PathVariable String id){
+    @RequestMapping(value = "{partner}/bank",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartnerBankDetails(@PathVariable String partner){
         try{
-            return ResponseEntity.ok(gson.toJson(partnerService.getBankAccounts(id)));
+            return ResponseEntity.ok(gson.toJson(partnerService.getBankAccounts(partner)));
         }catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -430,12 +430,21 @@ public class PartnerController {
 
 
     @RequestMapping(value = "{id}/bank" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editBankDetails(@PathVariable String id,@RequestBody PartnerBankAccountEditDto editBankDetailsDto,
-                                             @RequestParam String partner,@RequestParam String accountNumber,@RequestParam String type){
+    public ResponseEntity<?> editBankDetails(@PathVariable String id,@RequestBody PartnerBankAccountEditDto editBankDetailsDto){
         try{
-            return ResponseEntity.ok(gson.toJson(partnerService.editBankAccount(editBankDetailsDto,id,accountNumber)));
+            return ResponseEntity.ok(gson.toJson(partnerService.editBankAccount(editBankDetailsDto,id)));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/bank", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteBankDetails(@PathVariable String id)  {
+        try {
+
+            return ResponseEntity.ok(partnerService.deleteBankDetails(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 

@@ -952,8 +952,7 @@ public class PartnerService implements PartnerDao {
             }
 
 
-            if (partnerBankAccount.getAccountNumber() != null)
-            {
+            if (partnerBankAccount.getAccountNumber() != null) {
                 partnerBankAccountEntity.setAccountNumber(partnerBankAccount.getAccountNumber());
             }
 
@@ -995,10 +994,16 @@ public class PartnerService implements PartnerDao {
     }
 
     @Override
-    public boolean deleteBankDetails(PartnerBankingDetailsPKEntity partnerBankDetailsPK) throws Exception {
+    public boolean deleteBankDetails(String id)  {
+        boolean delete = false;
+        try {
+            partnerBankAccountRepository.deleteById(id);
+            delete = true;
 
-
-        return false;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return delete;
     }
 
     @Override
@@ -1007,9 +1012,10 @@ public class PartnerService implements PartnerDao {
         ArrayList<PartnerBankAccountDto> bankingDetails = new ArrayList<>();
         PartnerBankAccountGetDto bankAccountGetDto = new PartnerBankAccountGetDto();
         if (!bankDetails.isEmpty()) {
-                bankAccountGetDto.setPartner(partner);
+            bankAccountGetDto.setPartner(partner);
             for (PartnerBankAccountEntity bankDetail : bankDetails) {
-                PartnerBankAccountDto partnerBankObj = entityBankToDto(bankDetail);;
+                PartnerBankAccountDto partnerBankObj = entityBankToDto(bankDetail);
+
                 bankingDetails.add(partnerBankObj);
             }
 
@@ -1024,67 +1030,68 @@ public class PartnerService implements PartnerDao {
         return null;
     }
 
-    private PartnerBankAccountDto entityBankToDto(PartnerBankAccountEntity bankDetail)
-    {
+    private PartnerBankAccountDto entityBankToDto(PartnerBankAccountEntity bankDetail) {
         PartnerBankAccountDto partnerBankAccountDto = new PartnerBankAccountDto();
         partnerBankAccountDto.setBankName(bankDetail.getBankName());
         partnerBankAccountDto.setAccountType(bankDetail.getAccountType());
         partnerBankAccountDto.setStatus(bankDetail.getStatus());
         partnerBankAccountDto.setAccountNumber(bankDetail.getAccountNumber());
-        partnerBankAccountDto.setValidTo( Conversion.dateTimeToString(bankDetail.getValidTo()) );
+        partnerBankAccountDto.setValidTo(Conversion.dateTimeToString(bankDetail.getValidTo()));
         partnerBankAccountDto.setBranchName(bankDetail.getBranchName());
         partnerBankAccountDto.setValidFrom(Conversion.dateTimeToString(bankDetail.getValidFrom()));
         partnerBankAccountDto.setBranchCode(bankDetail.getBranchCode());
-       return partnerBankAccountDto;
+        partnerBankAccountDto.setId(bankDetail.getId());
+        partnerBankAccountDto.setAccountHolder(bankDetail.getAccountHolder());
+        return partnerBankAccountDto;
     }
 
     @Override
-    public boolean editBankAccount(PartnerBankAccountEditDto partnerBankAccount, String partner, String accountNumber) {
+    public boolean editBankAccount(PartnerBankAccountEditDto partnerBankAccount, String id) {
         boolean edited = false;
         try {
-//            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
-//            partnerBankDetailsPK.setAccountNumber(accountNumber);
-//            partnerBankDetailsPK.setPartner(partner);
-//            partnerBankDetailsPK.setType(partnerBankAccount.getType());
 
 
-//            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
-//            if (partnerBankDetails != null) {
-////                partnerBankDetails.setPartnerBankingDetailsPk(partnerBankDetailsPK);
-////
-////                if (partnerBankAccount.getAccountHolder() != null) {
-////
-////                    partnerBankDetails.setAccountHolder(partnerBankAccount.getAccountHolder());
-////                }
-////
-////                if (partnerBankAccount.getAccountType() != null) {
-////                    partnerBankDetails.setAccountType(partnerBankAccount.getAccountType());
-////                }
-////
-////                if (partnerBankAccount.getBankName() != null) {
-////
-////                    partnerBankDetails.setBankName(partnerBankAccount.getBankName());
-////                }
-////
-////                if (partnerBankAccount.getBranchCode() != null) {
-////                    partnerBankDetails.setBranchCode(partnerBankAccount.getBranchCode());
-////
-////                }
-////                if (partnerBankAccount.getBranchName() != null) {
-////
-////                    partnerBankDetails.setBranchName(partnerBankAccount.getBranchName());
-////
-////                }
-////
-////                if (partnerBankAccount.getValidTo() != null) {
-////
-////                    partnerBankDetails.setValidTo(Conversion.stringToDate(partnerBankAccount.getValidTo()));
-////
-////                }
-////
-////                partnerBankAccountRepository.save(partnerBankDetails);
-////                edited = true;
-//            }
+            PartnerBankAccountEntity partnerBankAccountEntity = partnerBankAccountRepository.getReferenceById(id);
+            if (partnerBankAccountEntity != null) {
+                if (partnerBankAccount.getAccountHolder() != null) {
+
+                    partnerBankAccountEntity.setAccountHolder(partnerBankAccount.getAccountHolder());
+                }
+
+                if (partnerBankAccount.getAccountType() != null) {
+                    partnerBankAccountEntity.setAccountType(partnerBankAccount.getAccountType());
+                }
+
+                if (partnerBankAccount.getBankName() != null) {
+
+                    partnerBankAccountEntity.setBankName(partnerBankAccount.getBankName());
+                }
+                if (partnerBankAccount.getBranchCode() != null) {
+                    partnerBankAccountEntity.setBranchCode(partnerBankAccount.getBranchCode());
+
+                }
+
+                if (partnerBankAccount.getValidTo() != null) {
+
+                    partnerBankAccountEntity.setValidTo(Conversion.stringToDate(partnerBankAccount.getValidTo()));
+
+                }
+                if (partnerBankAccount.getValidFrom() != null) {
+                    partnerBankAccountEntity.setValidFrom(Conversion.stringToDate(partnerBankAccount.getValidFrom()));
+                }
+
+                if (partnerBankAccount.getAccountNumber() != null) {
+                    partnerBankAccountEntity.setAccountNumber(partnerBankAccount.getAccountNumber());
+                }
+                if (partnerBankAccount.getPartner() != null) {
+                    partnerBankAccountEntity.setPartner(partnerBankAccount.getPartner());
+                }
+
+
+                partnerBankAccountRepository.save(partnerBankAccountEntity);
+                edited = true;
+            }
+
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -1096,61 +1103,7 @@ public class PartnerService implements PartnerDao {
     @Override
     public PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount) {
         PartnerBankAccountDto bankAccountObj = new PartnerBankAccountDto();
-        if (bankAccount.getAccountNumber() != null && bankAccount.getType() != null && bankAccount.getPartner() != null) {
-            PartnerBankingDetailsPKEntity partnerBankDetailsPK = new PartnerBankingDetailsPKEntity();
-            partnerBankDetailsPK.setAccountNumber(bankAccount.getAccountNumber());
-            partnerBankDetailsPK.setPartner(bankAccount.getPartner());
-            partnerBankDetailsPK.setType(bankAccount.getType());
-//            PartnerBankingDetailsEntity partnerBankDetails = partnerBankAccountRepository.getById(partnerBankDetailsPK);
 
-//            if (partnerBankDetails != null) {
-//
-//                if (partnerBankDetails.getAccountHolder() != null) {
-//                    bankAccountObj.setAccountHolder(partnerBankDetails.getAccountHolder());
-//
-//                }
-//                if (partnerBankDetails.getAccountType() != null) {
-//                    bankAccountObj.setAccountType(partnerBankDetails.getAccountType());
-//                }
-//                if (partnerBankDetails.getBankName() != null) {
-//                    bankAccountObj.setBankName(partnerBankDetails.getBankName());
-//                }
-//                if (partnerBankDetails.getBranchCode() != null) {
-//                    bankAccountObj.setBranchCode(partnerBankDetails.getBranchCode());
-//                }
-//
-//                if (partnerBankDetails.getBranchName() != null) {
-//
-//                    bankAccountObj.setBranchName(partnerBankDetails.getBranchName());
-//
-//                }
-//
-//                if (partnerBankDetails.getValidFrom() != null) {
-//                    bankAccountObj.setValidFrom(Conversion.dateToString(partnerBankDetails.getValidFrom()));
-//                }
-//
-//                if (partnerBankDetails.getValidTo() != null) {
-//
-//                    bankAccountObj.setValidTo(Conversion.dateToString(partnerBankDetails.getValidTo()));
-//
-//                }
-//
-//                if (partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber() != null) {
-//                    bankAccountObj.setAccountNumber(partnerBankDetails.getPartnerBankingDetailsPk().getAccountNumber());
-//                }
-//
-//                if (partnerBankDetails.getPartnerBankingDetailsPk().getPartner() != null) {
-//                    bankAccountObj.setPartner(partnerBankDetails.getPartnerBankingDetailsPk().getPartner());
-//                }
-//
-//                if (partnerBankDetails.getPartnerBankingDetailsPk().getType() != null) {
-//
-//                    bankAccountObj.setType(partnerBankDetails.getPartnerBankingDetailsPk().getType());
-//
-//                }
-
-//            }
-        }
 
         return bankAccountObj;
     }

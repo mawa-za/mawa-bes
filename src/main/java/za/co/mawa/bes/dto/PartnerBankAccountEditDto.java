@@ -20,4 +20,7 @@ public class PartnerBankAccountEditDto implements Serializable
     private String validFrom;
     private String validTo;
     private String status;
+
+    private String accountNumber;
+    private String partner;
 }

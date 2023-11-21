@@ -43,10 +43,10 @@ public interface PartnerDao {
     ArrayList<RelationDto> getRelations(String partner);
     ArrayList<PartnerRoleDto> getAllRoles();
     String addBankAccount(PartnerBankAccountDto partnerBankAccount);
-    boolean deleteBankDetails(PartnerBankingDetailsPKEntity partnerBankDetailsPK ) throws Exception;
+    boolean deleteBankDetails(String id ) throws Exception;
     PartnerBankAccountGetDto getBankAccounts(String partner);
     ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj);
-    boolean editBankAccount(PartnerBankAccountEditDto partnerBankAccount,String partner,String accountNumber);
+    boolean editBankAccount(PartnerBankAccountEditDto partnerBankAccount,String id);
     PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
     String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound;
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);

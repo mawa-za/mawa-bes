@@ -22,6 +22,7 @@ public class PartnerBankAccountDto implements Serializable {
     private String validTo;
     private String type;
     private String status;
+    private String id;
 
 
 
