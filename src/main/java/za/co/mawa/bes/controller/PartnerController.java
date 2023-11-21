@@ -372,4 +372,46 @@ public class PartnerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+
+    @RequestMapping(value ="{id}/bank",method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addPartnerBankAccount(@PathVariable String id,@RequestBody PartnerBankAccountDto createBankAccountDto){
+        try{
+            createBankAccountDto.setPartner(id);
+            createBankAccountDto.setType(createBankAccountDto.getAccountType());
+            String accountAdded = partnerService.addBankAccount(createBankAccountDto);
+            return ResponseEntity.ok(gson.toJson(accountAdded));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{partner}/bank",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartnerBankDetails(@PathVariable String partner){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.getBankAccounts(partner)));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+
+    @RequestMapping(value = "{id}/bank" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editBankDetails(@PathVariable String id,@RequestBody PartnerBankAccountEditDto editBankDetailsDto){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerService.editBankAccount(editBankDetailsDto,id)));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/bank", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteBankDetails(@PathVariable String id)  {
+        try {
+
+            return ResponseEntity.ok(partnerService.deleteBankDetails(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 }

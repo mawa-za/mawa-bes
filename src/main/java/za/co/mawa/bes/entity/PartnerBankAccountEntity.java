@@ -41,4 +41,7 @@ public class PartnerBankAccountEntity implements Serializable {
     @Column(name = "status")
     private String status;
 
+    @Column(name = "account_number")
+    private String accountNumber;
+
 }
