@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.TombstoneRecipientDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
+import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -49,7 +50,7 @@ public class GroupSocietyController {
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postMembership(@RequestBody GroupSocietyCreateDto groupSocietyCreateDto) {
+    public ResponseEntity<?> postGroupSociety(@RequestBody GroupSocietyCreateDto groupSocietyCreateDto) {
         try {
             return ResponseEntity.ok(gson.toJson(groupSocietyService.create(groupSocietyCreateDto)));
         } catch (Exception exception) {
@@ -57,5 +58,13 @@ public class GroupSocietyController {
         }
     }
 
-
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> searchGroupSociety() {
+        try {
+            GroupSocietyQueryDto groupSocietyQueryDto = new GroupSocietyQueryDto();
+            return ResponseEntity.ok(gson.toJson(groupSocietyService.search(groupSocietyQueryDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
 }

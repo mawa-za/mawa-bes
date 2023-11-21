@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.product.ProductBasicDto;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -13,15 +16,12 @@ import java.util.Date;
 @Getter
 @Setter
 public class GroupSocietyQueryDto {
-    private String memberId;
-    private String member;
-    private String salesRepresentativeId;
+    private String id;
+    private String number;
+    private String customer;
     private String salesRepresentative;
-    private String productId;
-    private String productDescription;
-    private BigDecimal premium;
-    private Date dateJoined;
-    private Date dateEffective;
+    private String product;
+    private Date dateCreated;
     private String status;
     private String statusReason;
 }
