@@ -18,4 +18,5 @@ public class TransactionType {
     public static String LAYBY = "LAY-BY";
     public static String BOOKING = "BOOKING";
     public static String TASK = "TASK";
+    public static String GROUP_SOCIETY = "GROUP-SOCIETY";
 }
