@@ -1,13 +1,13 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
 import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
-import za.co.mawa.bes.dto.PartnerQueryDto;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 
 import java.util.ArrayList;

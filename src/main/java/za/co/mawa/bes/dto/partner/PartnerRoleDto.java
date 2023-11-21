@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.partner;
 
 public class PartnerRoleDto {
     private String role;

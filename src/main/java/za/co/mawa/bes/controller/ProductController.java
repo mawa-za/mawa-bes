@@ -161,9 +161,9 @@ public class ProductController {
     }
 
     @RequestMapping(value = "{id}/pricing", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addPricing(@PathVariable String id, @RequestBody ProductPricingDto productPricingDto) {
+    public ResponseEntity<?> addPricing(@PathVariable String id, @RequestBody ProductPricingCreateDto productPricingCreateDto) {
         try {
-            productService.addPricing(productPricingDto);
+            productService.addPricing(productPricingCreateDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -210,13 +210,8 @@ public class ProductController {
 
     @RequestMapping(value = "/{id}/pricing", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editPricing(@PathVariable String id,
-                                         @RequestParam String attribute,
-                                         @RequestParam String value) {
+                                         @RequestBody ProductPricingEditDto productPricingEditDto) {
         try {
-            ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
-            productPricingEditDto.setProduct(id);
-            productPricingEditDto.setPricing(attribute);
-            productPricingEditDto.setValue(new BigDecimal(value));
             productService.editPricing(productPricingEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {

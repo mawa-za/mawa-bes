@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;

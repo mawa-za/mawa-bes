@@ -4,27 +4,24 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.io.Serializable;
 import java.util.Date;
-
-@Entity
-@Table(name = "partner_bank_account")
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
 @Getter
 @Setter
-public class PartnerBankAccountEntity {
-
+@EqualsAndHashCode
+@ToString
+@Entity
+@Table(name = "partner_bank_account")
+public class PartnerBankAccountEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-
-    @Column(unique = true, name = "partner", length = 20)
+    @Column(name = "partner")
     private String partner;
-
-
     @Column(name = "account_holder")
     private String accountHolder;
     @Column(name = "account_type")
@@ -33,7 +30,6 @@ public class PartnerBankAccountEntity {
     private String bankName;
     @Column(name = "branch_code")
     private String branchCode;
-
     @Column(name = "branch_name")
     private String branchName;
     @Column(name = "valid_from")
@@ -45,6 +41,4 @@ public class PartnerBankAccountEntity {
     @Column(name = "status")
     private String status;
 
-    @Column(name = "account_number")
-    private String accountNumber;
 }

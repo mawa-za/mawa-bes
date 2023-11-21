@@ -5,10 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.*;
 import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
 import za.co.mawa.bes.dto.attachment.AttachmentDto;
-import za.co.mawa.bes.dto.PartnerAttachmentCreateDto;
+import za.co.mawa.bes.dto.partner.PartnerAttachmentCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionAttachmentCreateDto;
 import za.co.mawa.bes.entity.transaction.TransactionAttachmentEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttachmentPKEntity;
@@ -20,7 +19,6 @@ import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.Conversion;
 
-import java.util.Base64;
 import java.util.Date;
 
 @RestController

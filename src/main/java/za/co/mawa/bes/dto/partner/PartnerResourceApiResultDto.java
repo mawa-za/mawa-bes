@@ -1,24 +1,22 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.partner;
 
 import java.io.Serializable;
 
-public class PartnerResourceApiDto implements Serializable {
-    private String id;
+public class PartnerResourceApiResultDto implements Serializable {
+    private String resourceID;
     private String partnerID;
     private String partnerUrl;
     private String validFrom;
     private String validTo;
     private String status;
     private String statusReason;
-    private String portNumber;
-    private String resourceName;
 
-    public String getId() {
-        return id;
+    public String getResourceID() {
+        return resourceID;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setResourceID(String resourceID) {
+        this.resourceID = resourceID;
     }
 
     public String getPartnerID() {
@@ -67,21 +65,5 @@ public class PartnerResourceApiDto implements Serializable {
 
     public void setStatusReason(String statusReason) {
         this.statusReason = statusReason;
-    }
-
-    public String getPortNumber() {
-        return portNumber;
-    }
-
-    public void setPortNumber(String portNumber) {
-        this.portNumber = portNumber;
-    }
-
-    public String getResourceName() {
-        return resourceName;
-    }
-
-    public void setResourceName(String resourceName) {
-        this.resourceName = resourceName;
     }
 }

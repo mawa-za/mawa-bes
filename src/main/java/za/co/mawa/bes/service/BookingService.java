@@ -1,11 +1,9 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.BookingDao;
-import za.co.mawa.bes.dto.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.booking.BookingCreateDto;
 import za.co.mawa.bes.dto.booking.BookingDto;
 import za.co.mawa.bes.dto.booking.BookingEditDto;
@@ -21,7 +19,6 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -135,7 +132,7 @@ public class BookingService implements BookingDao {
                 ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
                 queryDto.setProduct(productId);
                 //queryDto.setAttribute("");
-                for(ProductAttributeDto attributeDto: productService.getAttributes(queryDto)){
+                for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
                   if(attributeDto.getAttribute().equalsIgnoreCase("DURATION")){
                       bookingDto.setDuration(attributeDto.getValue());
                       break;

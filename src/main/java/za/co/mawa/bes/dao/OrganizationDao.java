@@ -1,8 +1,8 @@
 package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.OrganizationDto;
-import za.co.mawa.bes.dto.PartnerDto;
-import za.co.mawa.bes.dto.PartnerQueryDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 
 import java.util.List;
 

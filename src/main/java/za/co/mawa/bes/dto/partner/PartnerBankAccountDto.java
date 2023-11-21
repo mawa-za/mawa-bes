@@ -1,16 +1,16 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.partner;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.io.Serializable;
-import java.util.List;
-
 @NoArgsConstructor
+@AllArgsConstructor
 @Getter
 @Setter
-public class PartnerBankAccountDto implements Serializable {
+public class PartnerBankAccountDto {
+    private String id;
     private String partner;
     private String accountHolder;
     private String accountNumber;
@@ -22,9 +22,5 @@ public class PartnerBankAccountDto implements Serializable {
     private String validTo;
     private String type;
     private String status;
-    private String id;
-
-
-
 
 }

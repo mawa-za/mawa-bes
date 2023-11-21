@@ -4,10 +4,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -18,11 +17,11 @@ import java.util.Date;
 public class ClaimDto extends TransactionDto implements Serializable {
     private String membershipId;
     private String memberId;
-    private PersonDto member;
+    private PartnerDto member;
     private String claimantId;
-    private PersonDto claimant;
+    private PartnerDto claimant;
     private String deceasedId;
-    private PersonDto deceased;
+    private PartnerDto deceased;
     private Date deathDate;
     private Date burialDate;
     private String paymentMethod;

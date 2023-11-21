@@ -6,11 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.EmailDto;
-import za.co.mawa.bes.dto.PartnerDto;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
@@ -26,7 +24,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class UserService implements UserDao {
