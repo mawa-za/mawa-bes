@@ -13,13 +13,9 @@ import java.util.Date;
 @Getter
 @Setter
 public class GroupSocietyCreateDto implements Serializable {
-    private String memberId;
-    private String salesRepresentativeId;
-    private String membershipType;
-    private String productId;
-    private String creationType;
+    private String customer;
+    private String salesRepresentative;
+    private String product;
     private String salesArea;
     private Date dateJoined;
-    private String previousInsurerId;
-    private Date lastReceiptDate;
 }
