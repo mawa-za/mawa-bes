@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimEditDto;
+import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
@@ -68,47 +69,38 @@ public class ClaimController {
                                        @RequestParam(required = false) String burialDate,
                                        @RequestParam(required = false) String status) {
         try {
-            List<ClaimDto> claimDtoList = new ArrayList<>();
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
+            ClaimQueryDto claimQueryDto = new ClaimQueryDto();
             if (status != null && status != "") {
-                transactionQueryDto.setStatus(status);
+                claimQueryDto.setStatus(status);
             }
             if (no != null && no != "") {
-                transactionQueryDto.setNumber(no);
+                claimQueryDto.setNumber(no);
             }
             if (claimant != null & claimant != "") {
-                transactionQueryDto.setPartnerNo(claimant);
-                transactionQueryDto.setPartnerFunction(PartnerFunction.CLAIMANT);
+                claimQueryDto.setClaimant(claimant);
             }
             if (deceased != null && deceased != "") {
-                transactionQueryDto.setPartnerNo(deceased);
-                transactionQueryDto.setPartnerFunction(PartnerFunction.DECEASED);
+                claimQueryDto.setDeceased(deceased);
             }
             if (member != null && member != "") {
-                transactionQueryDto.setPartnerNo(member);
-                transactionQueryDto.setPartnerFunction(PartnerFunction.MAINMEMBER);
+                claimQueryDto.setMember(member);
             }
             if (type != null && type != "") {
-                transactionQueryDto.setSubtype(type);
+                claimQueryDto.setType(type);
             }
             if (deathDate != null && deathDate != "") {
                 Date death = new SimpleDateFormat("yyyy-MM-dd").parse(deathDate);
-                transactionQueryDto.setValue(death);
-                transactionQueryDto.setDateType(DateType.DEATH_DATE);
+                claimQueryDto.setDeathDate(death);
             }
             if (burialDate != null && burialDate != "") {
                 Date burial = new SimpleDateFormat("yyyy-MM-dd").parse(burialDate);
-                transactionQueryDto.setValue(burial);
-                transactionQueryDto.setDateType(DateType.BURIAL_DATE);
+                claimQueryDto.setBurialDate(burial);
             }
             if (membership != null && membership != "") {
-                transactionQueryDto.setTransactionlink1(membership);
+                claimQueryDto.setMembership(membership);
             }
-            transactionQueryDto.setType(TransactionType.CLAIM);
-            for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
-                claimDtoList.add(claimService.get(transactionDto.getId()));
-            }
-            return ResponseEntity.ok(gson.toJson(claimDtoList));
+            return ResponseEntity.ok(gson.toJson(claimService.search(claimQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
