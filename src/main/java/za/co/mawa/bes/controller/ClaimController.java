@@ -22,6 +22,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.service.ClaimService;
+import za.co.mawa.bes.service.MembershipService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
@@ -44,7 +45,7 @@ public class ClaimController {
     @Autowired
     TransactionService transactionService;
     @Autowired
-    PartnerService partnerService;
+    MembershipService membershipService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -105,7 +106,7 @@ public class ClaimController {
             }
             transactionQueryDto.setType(TransactionType.CLAIM);
             for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
-                claimDtoList.add(getClaimData(transactionDto.getId()));
+                claimDtoList.add(claimService.get(transactionDto.getId()));
             }
             return ResponseEntity.ok(gson.toJson(claimDtoList));
         } catch (Exception exception) {
@@ -128,9 +129,8 @@ public class ClaimController {
             TransactionDto transactionDto = transactionService.get(id);
             List<ClaimDto> claimDtoList = new ArrayList<>();
 
-
             for (TransactionLinkDto transactionLinkDto : transactionService.getLinks(id)) {
-                claimDtoList.add(getClaimData(transactionLinkDto.getTransaction2()));
+                claimDtoList.add(claimService.get(transactionLinkDto.getTransaction2()));
                 transactionDto.setClaimDtoList(claimDtoList);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
@@ -271,77 +271,4 @@ public class ClaimController {
         return currentUser;
     }
 
-    private ClaimDto getClaimData(String id) throws TransactionNotFound {
-        try {
-            TransactionDto transactionDto = transactionService.get(id);
-            ClaimDto claimDto = new ClaimDto();
-            claimDto.setId(transactionDto.getId());
-            claimDto.setNumber(transactionDto.getNumber());
-            claimDto.setType(transactionDto.getSubType());
-            claimDto.setStatus(transactionDto.getStatus());
-
-            if (transactionDto.getCreatedBy() != null) {
-                claimDto.setCreatedBy(transactionDto.getCreatedBy());
-            }
-            if (transactionDto.getChangedBy() != null) {
-                claimDto.setChangedBy(transactionDto.getChangedBy());
-            }
-            if (transactionDto.getDescription() != null) {
-                claimDto.setDescription(transactionDto.getDescription());
-            }
-            if (transactionDto.getStatusReason() != null) {
-                claimDto.setStatusReason(transactionDto.getStatusReason());
-            }
-            if (transactionDto.getSubDescription() != null) {
-                claimDto.setSubDescription(transactionDto.getSubDescription());
-            }
-            TransactionLinkEntity transactionLink = transactionService.getTransaction(TransactionType.CLAIM, id);
-            if (transactionLink != null) {
-                claimDto.setMembershipId(transactionLink.getTransactionLinkPKEntity().getTransaction1());
-            }
-            try {
-                for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
-                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.MAINMEMBER)) {
-                        claimDto.setMemberId(transactionPartnerDto.getPartner());
-                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
-                        }
-                    }
-                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.DECEASED)) {
-                        claimDto.setDeceasedId(transactionPartnerDto.getPartner());
-                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setDeceased((partnerService.get(transactionPartnerDto.getPartner())));
-                        }
-                    }
-                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CLAIMANT)) {
-                        claimDto.setClaimantId(transactionPartnerDto.getPartner());
-                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setClaimant(partnerService.get(transactionPartnerDto.getPartner()));
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (Objects.equals(transactionDateDto.getType(), DateType.CREATED)) {
-                    claimDto.setCreationDate(transactionDateDto.getValue());
-                }
-                if (Objects.equals(transactionDateDto.getType(), DateType.BURIAL_DATE)) {
-                    claimDto.setBurialDate(transactionDateDto.getValue());
-                }
-                if (Objects.equals(transactionDateDto.getType(), DateType.DEATH_DATE)) {
-                    claimDto.setDeathDate(transactionDateDto.getValue());
-                }
-            }
-            TransactionAccountDto transactionAccountDto = transactionService.getOptionalBankAccount(id);
-
-            if (transactionAccountDto != null) {
-//                claimDto.setBankDetails(transactionAccountDto);
-            }
-            return claimDto;
-        } catch (TransactionNotFound exception) {
-            throw new RuntimeException(new TransactionNotFound("Claim not found"));
-        }
-    }
 }
