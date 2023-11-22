@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.ClaimDisputeDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
@@ -19,6 +20,10 @@ import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.*;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -33,6 +38,9 @@ public class ClaimService {
     TransactionAttributeService transactionAttributeService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    MembershipService membershipService;
+
     public ClaimDto create(ClaimCreateDto claimCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -45,7 +53,7 @@ public class ClaimService {
             creationDate.setTransaction(transactionDto.getId());
             creationDate.setType(DateType.CREATED);
             transactionService.addDate(creationDate);
-            if (claimCreateDto.getPaymentMethod() != null){
+            if (claimCreateDto.getPaymentMethod() != null) {
                 TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
                 transactionAttributeDto.setTransaction(transactionDto.getId());
                 transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
@@ -112,55 +120,38 @@ public class ClaimService {
         }
     }
 
-    public ClaimDto get(String id){
+    public ClaimDto get(String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
             ClaimDto claimDto = new ClaimDto();
             claimDto.setId(transactionDto.getId());
             claimDto.setNumber(transactionDto.getNumber());
-            claimDto.setType(transactionDto.getSubType());
-            claimDto.setStatus(transactionDto.getStatus());
-            claimDto.setBranch(transactionDto.getLocation());
-            if (transactionDto.getCreatedBy() != null) {
-                claimDto.setCreatedBy(transactionDto.getCreatedBy());
-            }
-            if (transactionDto.getChangedBy() != null) {
-                claimDto.setChangedBy(transactionDto.getChangedBy());
-            }
-            if (transactionDto.getDescription() != null) {
-                claimDto.setDescription(transactionDto.getDescription());
-            }
-            if (transactionDto.getStatusReason() != null) {
-                claimDto.setStatusReason(transactionDto.getStatusReason());
-            }
-            if (transactionDto.getSubDescription() != null) {
-                claimDto.setSubDescription(transactionDto.getSubDescription());
-            }
+            claimDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            claimDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+            claimDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
+            claimDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
-            claimDto.setPaymentMethod(transactionAttributeService.get(transactionAttributeDto));
+            claimDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionAttributeService.get(transactionAttributeDto)));
 
             TransactionLinkEntity transactionLink = transactionService.getTransaction(TransactionType.CLAIM, id);
             if (transactionLink != null) {
-                claimDto.setMembershipId(transactionLink.getTransactionLinkPKEntity().getTransaction1());
+                claimDto.setMembership(membershipService.get(transactionLink.getTransactionLinkPKEntity().getTransaction1()));
             }
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.MAINMEMBER)) {
-                        claimDto.setMemberId(transactionPartnerDto.getPartner());
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
                             claimDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.DECEASED)) {
-                        claimDto.setDeceasedId(transactionPartnerDto.getPartner());
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
                             claimDto.setDeceased((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CLAIMANT)) {
-                        claimDto.setClaimantId(transactionPartnerDto.getPartner());
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
                             claimDto.setClaimant((partnerService.get(transactionPartnerDto.getPartner())));
                         }
@@ -195,6 +186,52 @@ public class ClaimService {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
         }
     }
+
+    public List<ClaimDto> search(ClaimQueryDto claimQueryDto) {
+        List<ClaimDto> claimDtoList = new ArrayList<>();
+        try {
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            if (claimQueryDto.getStatus() != null && claimQueryDto.getStatus() != "") {
+                transactionQueryDto.setStatus(claimQueryDto.getStatus());
+            }
+            if (claimQueryDto.getNumber() != null && claimQueryDto.getNumber() != "") {
+                transactionQueryDto.setNumber(claimQueryDto.getNumber());
+            }
+            if (claimQueryDto.getClaimant() != null & claimQueryDto.getClaimant() != "") {
+                transactionQueryDto.setPartnerNo(claimQueryDto.getClaimant());
+                transactionQueryDto.setPartnerFunction(PartnerFunction.CLAIMANT);
+            }
+            if (claimQueryDto.getDeceased() != null && claimQueryDto.getDeceased() != "") {
+                transactionQueryDto.setPartnerNo(claimQueryDto.getDeceased());
+                transactionQueryDto.setPartnerFunction(PartnerFunction.DECEASED);
+            }
+            if (claimQueryDto.getMember() != null && claimQueryDto.getMember() != "") {
+                transactionQueryDto.setPartnerNo(claimQueryDto.getMember());
+                transactionQueryDto.setPartnerFunction(PartnerFunction.MAINMEMBER);
+            }
+            if (claimQueryDto.getType() != null && claimQueryDto.getType() != "") {
+                transactionQueryDto.setSubtype(claimQueryDto.getType());
+            }
+            if (claimQueryDto.getDeathDate() != null) {
+                transactionQueryDto.setValue(claimQueryDto.getDeathDate());
+                transactionQueryDto.setDateType(DateType.DEATH_DATE);
+            }
+            if (claimQueryDto.getBurialDate() != null) {
+                transactionQueryDto.setValue(claimQueryDto.getBurialDate());
+                transactionQueryDto.setDateType(DateType.BURIAL_DATE);
+            }
+            if (claimQueryDto.getMembership() != null && claimQueryDto.getMembership() != "") {
+                transactionQueryDto.setTransactionlink1(claimQueryDto.getMembership());
+            }
+            transactionQueryDto.setType(TransactionType.CLAIM);
+            for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
+                claimDtoList.add(get(transactionDto.getId()));
+            }
+        } catch (Exception exception) {
+        }
+        return claimDtoList;
+    }
+
     public void submit(String id) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();

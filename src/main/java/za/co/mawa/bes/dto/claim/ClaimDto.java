@@ -4,7 +4,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.BankAccountDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 
@@ -14,18 +16,21 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ClaimDto extends TransactionDto implements Serializable {
-    private String membershipId;
-    private String memberId;
+public class ClaimDto implements Serializable {
+    private String id;
+    private String number;
+    private FieldOptionDto type;
+    private MembershipDto membership;
     private PartnerDto member;
-    private String claimantId;
     private PartnerDto claimant;
-    private String deceasedId;
     private PartnerDto deceased;
     private Date deathDate;
     private Date burialDate;
-    private String paymentMethod;
-    private String branch;
+    private Date creationDate;
+    private FieldOptionDto paymentMethod;
+    private FieldOptionDto branch;
+    private FieldOptionDto status;
+    private FieldOptionDto statusReason;
     private BankAccountDto bankDetails;
 
 }

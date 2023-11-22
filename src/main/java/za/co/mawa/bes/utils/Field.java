@@ -2,6 +2,7 @@ package za.co.mawa.bes.utils;
 
 public class Field {
     public static String ID_TYPE = "ID-TYPE";
+    public static String CLAIM_TYPE = "CLAIM-TYPE";
     public static String GENDER = "GENDER";
     public static String TITLE = "TITLE";
     public static String MARITAL_STATUS = "MARITAL-STATUS";
@@ -12,6 +13,7 @@ public class Field {
     public static String PAYMENT_REASON = "PAYMENT-REASON";
     public static String PAYMENT_METHOD = "PAYMENT-METHOD";
     public static String TRANSACTION_ATTRIBUTE = "TRANSACTION-ATTRIBUTE";
+    public static String TRANSACTION_SUBTYPE = "TRANSACTION-SUBTYPE";
     public static String PRODUCT_ATTRIBUTE = "PRODUCT-ATTRIBUTE";
     public static String PRODUCT_CATEGORY = "PRODUCT-CATEGORY";
     public static String PRODUCT_PRICING = "PRODUCT-PRICING";
@@ -19,4 +21,6 @@ public class Field {
     public static String UOM = "UOM";
     public static String STATUS = "STATUS";
     public static String LANGUAGE = "LANGUAGE";
+
+    public static String BRANCH = "BRANCH";
 }
