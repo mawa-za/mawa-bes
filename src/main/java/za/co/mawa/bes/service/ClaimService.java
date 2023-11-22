@@ -128,7 +128,7 @@ public class ClaimService {
             claimDto.setNumber(transactionDto.getNumber());
             claimDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             claimDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-            claimDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_SUBTYPE, transactionDto.getSubType()));
+            claimDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
