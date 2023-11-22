@@ -2,6 +2,7 @@ package za.co.mawa.bes.utils;
 
 public class Field {
     public static String ID_TYPE = "ID-TYPE";
+    public static String CLAIM_TYPE = "CLAIM-TYPE";
     public static String GENDER = "GENDER";
     public static String TITLE = "TITLE";
     public static String MARITAL_STATUS = "MARITAL-STATUS";
