@@ -212,57 +212,6 @@ public class PartnerService {
         return relations;
     }
 
-    private AddressDto getAddress(AddressDto address) {
-        try {
-            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
-            partnerAddressPK.setAddressUsage(address.getType());
-            partnerAddressPK.setPartner(address.getPartner());
-            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
-            for (PartnerAddressEntity addr : addresses) {
-                if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
-                    String addressId = addr.getPartnerAddressPK().getAddressId();
-                    AddressEntity adr = addressRepository.getById(addressId);
-                    if (adr != null) {
-                        address.setLine1(adr.getAddressLine1());
-                        address.setLine2(adr.getAddressLine2());
-                        address.setLine3(adr.getAddressLine3());
-                        address.setLine4(adr.getAddressLine4());
-                        address.setPostalCode(adr.getPostalCode());
-                    }
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return address;
-    }
-
-    private PartnerAddressDto getAddressID(AddressDto address) {
-        PartnerAddressDto objects = new PartnerAddressDto();
-        try {
-            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
-            partnerAddressPK.setAddressUsage(address.getType());
-            partnerAddressPK.setPartner(address.getPartner());
-            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(address.getPartner());
-            for (PartnerAddressEntity addr : addresses) {
-                if (addr.getPartnerAddressPK().getAddressUsage().equals(address.getType())) {
-                    String addressId = addr.getPartnerAddressPK().getAddressId();
-                    AddressEntity adr = addressRepository.getById(addressId);
-                    if (adr != null) {
-                        objects.setId(adr.getId());
-                        objects.setPatner(address.getPartner());
-                        objects.setType(address.getType());
-                    }
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return objects;
-    }
-
     public ArrayList<PartnerDto> search(PartnerQueryDto partnerQueryDto) {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
         ArrayList<PartnerDto> filteredList = new ArrayList<>();
@@ -473,33 +422,7 @@ public class PartnerService {
         return finalList;
     }
 
-    public ArrayList<AddressDto> getAddresses(String partner) {
-        ArrayList<AddressDto> partnerAddresses = new ArrayList<>();
-        try {
-            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(partner);
-            for (PartnerAddressEntity addr : addresses) {
-                String addressId = addr.getPartnerAddressPK().getAddressId();
-                AddressEntity adr = addressRepository.getById(addressId);
-                if (adr != null) {
-                    AddressDto address = new AddressDto();
-                    address.setType(addr.getPartnerAddressPK().getAddressUsage());
-                    address.setLine1(adr.getAddressLine1());
-                    address.setLine2(adr.getAddressLine2());
-                    address.setLine3(adr.getAddressLine3());
-                    address.setLine4(adr.getAddressLine4());
-                    address.setPostalCode(adr.getPostalCode());
-                    address.setId(adr.getId());
-                    address.setTypeDescription(fieldOptionService.getOptionalFieldDescription("ADDRESSTYPE", address.getType()));
-                    address.setLine3Description(fieldOptionService.getOptionalFieldDescription("SUBURB", adr.getAddressLine3()));
-                    address.setLine4Description(fieldOptionService.getOptionalFieldDescription("TOWN", adr.getAddressLine4()));
-                    partnerAddresses.add(address);
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return partnerAddresses;
-    }
+
 
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
@@ -559,39 +482,6 @@ public class PartnerService {
     }
 
 
-    public boolean addAddress(AddressDto address) {
-        boolean created = false;
-        try {
-
-            AddressEntity adr = new AddressEntity();
-            adr.setAddressLine1(address.getLine1());
-            adr.setAddressLine2(address.getLine2());
-            adr.setAddressLine3(address.getLine3());
-            adr.setAddressLine4(address.getLine4());
-            adr.setPostalCode(address.getPostalCode());
-            adr.setValidFrom(new Date());
-            adr.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            adr = addressRepository.save(adr);
-
-            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
-            partnerAddressPK.setAddressUsage(address.getType());
-            partnerAddressPK.setPartner(address.getPartner());
-            partnerAddressPK.setAddressId(adr.getId());
-            PartnerAddressEntity partnerAddress = new PartnerAddressEntity();
-            partnerAddress.setPartnerAddressPK(partnerAddressPK);
-
-            partnerAddress.setValidFrom(new Date());
-            partnerAddress.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            partnerAddressRepository.save(partnerAddress);
-
-            created = true;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return created;
-    }
-
-
     public boolean addRelation(RelationDto relation) {
         boolean created = false;
         try {
@@ -641,49 +531,6 @@ public class PartnerService {
     }
 
 
-    public boolean editAddress(AddressDto adrs) {
-        boolean edited = false;
-        try {
-            PartnerAddressEntity adres = new PartnerAddressEntity();
-            AddressEntity entityAdress;
-            PartnerAddressPKEntity partnerAddressPK = new PartnerAddressPKEntity();
-            List<PartnerAddressEntity> addresses = partnerAddressRepository.findPartnerAddressByPartner(adrs.getPartner());
-            for (PartnerAddressEntity addr : addresses) {
-                if (addr.getPartnerAddressPK().getAddressId() == adrs.getId()) {
-                    partnerAddressPK.setAddressUsage(addr.getPartnerAddressPK().getAddressUsage());
-                    partnerAddressPK.setPartner(addr.getPartnerAddressPK().getPartner());
-                    partnerAddressPK.setAddressId(adrs.getId());
-                    partnerAddressRepository.deleteById(partnerAddressPK);
-                    break;
-                }
-            }
-
-            partnerAddressPK.setAddressUsage(adrs.getType());
-            partnerAddressPK.setPartner(adrs.getPartner());
-            partnerAddressPK.setAddressId(adrs.getId());
-            adres.setPartnerAddressPK(partnerAddressPK);
-
-            String address = adres.getPartnerAddressPK().getAddressId();
-            entityAdress = addressRepository.getById(address);
-            entityAdress.setAddressLine1(adrs.getLine1());
-            entityAdress.setAddressLine2(adrs.getLine2());
-            entityAdress.setAddressLine3(adrs.getLine3());
-            entityAdress.setAddressLine4(adrs.getLine4());
-            entityAdress.setPostalCode(adrs.getPostalCode());
-
-            addressRepository.save(entityAdress);
-            adres.setValidFrom(entityAdress.getValidFrom());
-            adres.setValidTo(entityAdress.getValidTo());
-            partnerAddressRepository.save(adres);
-            edited = true;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        return edited;
-    }
-
-
     public boolean editRelation(RelationDto rltn) {
         return false;
     }
@@ -712,17 +559,6 @@ public class PartnerService {
             throw new RuntimeException(e);
         }
         return removed;
-    }
-
-
-    public boolean removeAddress(PartnerAddressPKEntity pkEntity) throws Exception {
-        try {
-            addressRepository.deleteById(pkEntity.getAddressId());
-            partnerAddressRepository.deleteById(pkEntity);
-            return true;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
 
@@ -1395,67 +1231,6 @@ public class PartnerService {
         }
 
         return assign;
-    }
-
-
-    public ArrayList<AddressDto> getPartnerAddress(AddressQueryDto queryDto) {
-        ArrayList<AddressDto> addressDtos = new ArrayList<>();
-        Sort sort = Sort.by("partnerAddressPK").descending();
-        List<PartnerAddressEntity> addressEntities = partnerAddressRepository.findAll(findByAddress(queryDto), sort);
-        for (PartnerAddressEntity address : addressEntities) {
-            AddressDto addressDto = new AddressDto();
-            addressDto.setPartner(address.getPartnerAddressPK().getPartner());
-            addressDto.setType(address.getPartnerAddressPK().getAddressUsage());
-            addressDto.setId(address.getPartnerAddressPK().getAddressId());
-            String AddressType = fieldOptionService.getOptionalFieldDescription("ADDRESSES", address.getPartnerAddressPK().getAddressUsage());
-            if (AddressType != null) {
-                addressDto.setTypeDescription(AddressType);
-            }
-            AddressEntity address1 = new AddressEntity();
-            address1 = addressRepository.getById(address.getPartnerAddressPK().getAddressId());
-            addressDto.setLine1(address1.getAddressLine1());
-            addressDto.setLine2(address1.getAddressLine2());
-            addressDto.setLine3(address1.getAddressLine3());
-            String line3 = fieldOptionService.getOptionalFieldDescription("SUBURB", address1.getAddressLine3());
-            if (line3 != null) {
-                addressDto.setLine3Description(line3);
-            }
-            String line4 = fieldOptionService.getOptionalFieldDescription("TOWN", address1.getAddressLine4());
-            if (line4 != null) {
-                addressDto.setLine4Description(line4);
-            }
-            addressDto.setLine4(address1.getAddressLine4());
-            addressDto.setPostalCode(address1.getPostalCode());
-
-            addressDtos.add(addressDto);
-        }
-        return addressDtos;
-    }
-
-
-    public boolean editPartnerAddress(String id, AddressEditDto addressEditDto) throws Exception {
-        try {
-            AddressEntity entity = addressRepository.getById(id);
-            if (addressEditDto.getLine1() != null && addressEditDto.getLine1() != "") {
-                entity.setAddressLine1(addressEditDto.getLine1());
-            }
-            if (addressEditDto.getLine2() != null && addressEditDto.getLine2() != "") {
-                entity.setAddressLine2(addressEditDto.getLine2());
-            }
-            if (addressEditDto.getLine3() != null && addressEditDto.getLine3() != "") {
-                entity.setAddressLine3(addressEditDto.getLine3());
-            }
-            if (addressEditDto.getLine4() != null && addressEditDto.getLine4() != "") {
-                entity.setAddressLine4(addressEditDto.getLine4());
-            }
-            if (addressEditDto.getPostalCode() != null && addressEditDto.getPostalCode() != "") {
-                entity.setPostalCode(addressEditDto.getPostalCode());
-            }
-            addressRepository.save(entity);
-            return true;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }
 
 

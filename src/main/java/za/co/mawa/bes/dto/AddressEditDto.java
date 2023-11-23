@@ -10,6 +10,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class AddressEditDto implements Serializable {
+    private String id;
     private String line1;
     private String line2;
     private String line3;
