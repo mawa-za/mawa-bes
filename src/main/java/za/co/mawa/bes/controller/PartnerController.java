@@ -375,7 +375,6 @@ public class PartnerController {
         }
     }
 
-
     @RequestMapping(value ="{id}/bank",method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addPartnerBankAccount(@PathVariable String id,@RequestBody PartnerBankAccountDto createBankAccountDto){
         try{

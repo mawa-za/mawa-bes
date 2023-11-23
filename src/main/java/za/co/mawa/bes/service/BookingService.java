@@ -112,7 +112,7 @@ public class BookingService implements BookingDao {
                if(partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)){
                    try{
                        PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setCustomer(partnerDto);
+                       bookingDto.setEmployeeResponsible(partnerDto);
                    }catch(PartnerNotFoundException ex){
 
                    }
