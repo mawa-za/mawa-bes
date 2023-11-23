@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.service.PartnerBankAccountService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
@@ -25,6 +26,8 @@ public class PartnerController {
     PartnerService partnerService;
     @Autowired
     PartnerIdentityService partnerIdentityService;
+    @Autowired
+    PartnerBankAccountService partnerBankAccountService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
@@ -372,4 +375,50 @@ public class PartnerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+
+    @RequestMapping(value ="{id}/bank",method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addPartnerBankAccount(@PathVariable String id,@RequestBody PartnerBankAccountDto createBankAccountDto){
+        try{
+            createBankAccountDto.setPartner(id);
+            createBankAccountDto.setType(createBankAccountDto.getAccountType());
+            String accountAdded = partnerBankAccountService.addBankAccount(createBankAccountDto);
+            return ResponseEntity.ok(gson.toJson(accountAdded));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{partner}/bank",method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartnerBankDetails(@PathVariable String partner){
+        try{
+            return ResponseEntity.ok(gson.toJson(partnerBankAccountService.getBankAccounts(partner)));
+        }catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+
+    @RequestMapping(value = "{id}/bank" , method = RequestMethod.PUT , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editBankDetails(@PathVariable String id,@RequestBody PartnerBankAccountEditDto editBankDetailsDto){
+        try{
+//            return ResponseEntity.ok(gson.toJson());
+            partnerBankAccountService.editBankAccount(editBankDetailsDto,id);
+            return ResponseEntity.ok().build();
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/bank", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteBankDetails(@PathVariable String id)  {
+        try {
+
+//            return ResponseEntity.ok(partnerService.deleteBankDetails(id));
+            partnerBankAccountService.deleteBankDetails(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 }
