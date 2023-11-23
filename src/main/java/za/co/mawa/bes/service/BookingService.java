@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -98,17 +99,22 @@ public class BookingService implements BookingDao {
         if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
            bookingDto.setId(transactionDto.getId());
            bookingDto.setNumber(transactionDto.getNumber());
+
            for(TransactionPartnerDto partner:transactionService.getPartners(id)){
                if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
-                   PartnerDto partnerDto = partnerService.getOptional(partner.getPartner());
-                   if(partnerDto != null){
+                   try{
+                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
                        bookingDto.setCustomer(partnerDto);
+                   }catch(PartnerNotFoundException ex){
+
                    }
                }
                if(partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)){
-                   PartnerDto partnerDto = partnerService.getOptional(partner.getPartner());
-                   if(partnerDto != null){
-                       bookingDto.setEmployeeResponsible(partnerDto);
+                   try{
+                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                       bookingDto.setCustomer(partnerDto);
+                   }catch(PartnerNotFoundException ex){
+
                    }
                }
            }
@@ -119,6 +125,8 @@ public class BookingService implements BookingDao {
                  break;
              }
            }
+
+
             String productId = "";
             for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
                 int number =  item.getValidTo().compareTo(new Date());

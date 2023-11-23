@@ -10,6 +10,8 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.PartnerBankAccountService;
+import za.co.mawa.bes.service.AddressService;
+import za.co.mawa.bes.service.PartnerAddressService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.RoleType;
@@ -28,6 +30,10 @@ public class PartnerController {
     PartnerIdentityService partnerIdentityService;
     @Autowired
     PartnerBankAccountService partnerBankAccountService;
+    @Autowired
+    PartnerAddressService partnerAddressService;
+    @Autowired
+    AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
@@ -114,65 +120,58 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/address", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addPartnerAddress(@PathVariable String id, @RequestBody AddressDto addressDto) {
+    public ResponseEntity<?> addPartnerAddress(@PathVariable String id, @RequestBody AddressCreateDto addressCreateDto) {
         try {
-            addressDto.setPartner(id);
-            boolean partnerDto = partnerService.addAddress(addressDto);
-
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            AddressDto addressDto = addressService.add(addressCreateDto);
+            PartnerAddressCreateDto partnerAddressCreateDto = new PartnerAddressCreateDto();
+            partnerAddressCreateDto.setPartner(addressCreateDto.getPartner());
+            partnerAddressCreateDto.setType(addressCreateDto.getType());
+            partnerAddressCreateDto.setId(addressDto.getId());
+            partnerAddressService.add(partnerAddressCreateDto);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "/address/{addressId}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/address/{addressId}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editPartnerAddress(@PathVariable String addressId, @RequestBody AddressEditDto addressEditDto) {
         try {
-            boolean partnerDto = partnerService.editPartnerAddress(addressId, addressEditDto);
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            addressService.edit(addressEditDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/address/{addressId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartnerAddress(@PathVariable String id, @PathVariable String addressId) {
+        try {
+            return ResponseEntity.ok(gson.toJson(addressService.get(addressId)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
     @RequestMapping(value = "{id}/address", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnerAddress(@PathVariable String id, @RequestParam(required = false) String type) {
+    public ResponseEntity<?> getPartnerAddresses(@RequestParam(required = false) String id) {
         try {
-            AddressQueryDto query = new AddressQueryDto();
-            query.setPartnerId(id);
-            if (type != null && type != "") {
-                query.setType(type);
-            }
-            return ResponseEntity.ok(gson.toJson(partnerService.getPartnerAddress(query)));
+            return ResponseEntity.ok(gson.toJson(partnerAddressService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "address", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllPartnerAddress(@RequestParam(required = false) String type) {
+    @RequestMapping(value = "{id}/address/{addressId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteAddress(@PathVariable String id, @RequestParam(required = true) String addressId, @RequestParam(required = true) String type) {
         try {
-            AddressQueryDto query = new AddressQueryDto();
-            if (type != null && type != "") {
-                query.setType(type);
-            }
-            return ResponseEntity.ok(gson.toJson(partnerService.getPartnerAddress(query)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-    @RequestMapping(value = "{id}/address", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteAddress(@PathVariable String id, @RequestParam(required = true) String addressId,
-                                           @RequestParam(required = true) String type
-    ) {
-        try {
-            PartnerAddressPKEntity pkEntity = new PartnerAddressPKEntity();
-            pkEntity.setPartner(id);
-            pkEntity.setAddressUsage(type);
-            pkEntity.setAddressId(addressId);
-            boolean partnerDto = partnerService.removeAddress(pkEntity);
-            return ResponseEntity.ok(gson.toJson(partnerDto));
+            PartnerAddressDeleteDto partnerAddressDeleteDto = new PartnerAddressDeleteDto();
+            partnerAddressDeleteDto.setPartner(id);
+            partnerAddressDeleteDto.setAddressId(addressId);
+            partnerAddressDeleteDto.setType(type);
+            partnerAddressService.delete(partnerAddressDeleteDto);
+            addressService.delete(addressId);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

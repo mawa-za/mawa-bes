@@ -21,6 +21,8 @@ public class Field {
     public static String UOM = "UOM";
     public static String STATUS = "STATUS";
     public static String LANGUAGE = "LANGUAGE";
-
     public static String BRANCH = "BRANCH";
+    public static String SUBURB = "SUBURB";
+    public static String CITY = "CITY";
+    public static String ADDRESS_TYPE = "ADDRESS-TYPE";
 }
