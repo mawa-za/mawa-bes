@@ -42,10 +42,11 @@ public interface PartnerDao {
     void unArchive(String id);
     ArrayList<RelationDto> getRelations(String partner);
     ArrayList<PartnerRoleDto> getAllRoles();
-    boolean addBankAccount(PartnerBankAccountDto partnerBankAccount);
-    ArrayList<PartnerBankAccountDto> getBankAccounts(String partner);
+    String addBankAccount(PartnerBankAccountDto partnerBankAccount);
+    boolean deleteBankDetails(String id ) throws Exception;
+    PartnerBankAccountGetDto getBankAccounts(String partner);
     ArrayList<PartnerBankAccountDto> searchBankAccounts(PartnerBankAccountDto partnerBankObj);
-    boolean editBankAccount(PartnerBankAccountDto partnerBankAccount);
+    boolean editBankAccount(PartnerBankAccountEditDto partnerBankAccount,String id);
     PartnerBankAccountDto getBankAccount(PartnerBankAccountDto bankAccount);
     String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound;
     ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource);
