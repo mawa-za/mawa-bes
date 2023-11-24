@@ -225,7 +225,10 @@ public class ClaimService {
             }
             transactionQueryDto.setType(TransactionType.CLAIM);
             for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
-                claimDtoList.add(get(transactionDto.getId()));
+                try {
+                    claimDtoList.add(get(transactionDto.getId()));
+                } catch (Exception exception) {
+                }
             }
         } catch (Exception exception) {
         }
