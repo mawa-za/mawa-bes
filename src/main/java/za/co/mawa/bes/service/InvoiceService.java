@@ -11,18 +11,18 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.util.List;
 
 @Service
-public class InvoiceService extends TransactionService {
+public class InvoiceService {
     @Autowired
     TransactionService transactionService;
-    @Override
-    public TransactionDto create(TransactionCreateDto transactionCreateDto) {
-        transactionCreateDto.setType(TransactionType.INVOICE);
-        return super.create(transactionCreateDto);
-    }
-    @Override
-    public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto){
-        transactionQueryDto.setType(TransactionType.INVOICE);
-        return super.search(transactionQueryDto);
-    }
+//    @Override
+//    public TransactionDto create(TransactionCreateDto transactionCreateDto) {
+//        transactionCreateDto.setType(TransactionType.INVOICE);
+//        return super.create(transactionCreateDto);
+//    }
+//    @Override
+//    public List<TransactionQueryResultDto> search(TransactionQueryDto transactionQueryDto){
+//        transactionQueryDto.setType(TransactionType.INVOICE);
+//        return super.search(transactionQueryDto);
+//    }
 
 }

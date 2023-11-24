@@ -89,9 +89,9 @@ public class CashupController {
             {
                 transactionQueryDto.setChangedBy(changedBy);
             }
-            for(TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto))
+            for(String id : transactionService.search(transactionQueryDto))
             {
-                cashups.add(cashupService.get(transactionDto.getId()));
+                cashups.add(cashupService.get(id));
             }
             return ResponseEntity.ok().body(gson.toJson(cashups));
         } catch (Exception exception) {

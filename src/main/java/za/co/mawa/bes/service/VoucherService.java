@@ -126,9 +126,9 @@ public class VoucherService implements VoucherDao {
                    queryDto.setType(TransactionType.VOUCHER);
                    queryDto.setPartnerNo(identityEntity.getPartner());
                    queryDto.setPartnerFunction(PartnerFunction.RECIPIENT);
-                   for(TransactionQueryResultDto results:transactionService.search(queryDto)){
+                   for(String id: transactionService.search(queryDto)){
                        VoucherDto voucher = new VoucherDto();
-                       voucher = get(results.getId());
+                       voucher = get(id);
                        voucherDtos.add(voucher);
                    }
                }
@@ -154,9 +154,9 @@ public class VoucherService implements VoucherDao {
                     queryDto.setPartnerNo(query.getCustomerId());
                     queryDto.setPartnerFunction(PartnerFunction.RECIPIENT);
                 }
-                for(TransactionQueryResultDto results:transactionService.search(queryDto)){
+                for(String id:transactionService.search(queryDto)){
                     VoucherDto voucher = new VoucherDto();
-                    voucher = get(results.getId());
+                    voucher = get(id);
                     voucherDtos.add(voucher);
                 }
             }

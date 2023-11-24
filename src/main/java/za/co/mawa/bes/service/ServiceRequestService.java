@@ -60,16 +60,15 @@ public class ServiceRequestService implements ServiceRequestDao {
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
         transactionQueryDto.setStatus(serviceRequestQueryDto.getStatus());
-        List<TransactionQueryResultDto> transactionQueryResultDtoList = transactionService.search(transactionQueryDto);
-        for(TransactionQueryResultDto transactionQueryResultDto: transactionQueryResultDtoList){
+        for(String id: transactionService.search(transactionQueryDto)){
             ServiceRequestQueryResultDto serviceRequestQueryResultDto = new ServiceRequestQueryResultDto();
-            serviceRequestQueryResultDto.setId(transactionQueryResultDto.getId());
-            serviceRequestQueryResultDto.setNo(transactionQueryResultDto.getNumber());
-            serviceRequestQueryResultDto.setCustomerId(transactionQueryResultDto.getCustomerId());
-            serviceRequestQueryResultDto.setCustomerName(transactionQueryResultDto.getCustomerName());
-            serviceRequestQueryResultDto.setEmployeeResponsibleId(transactionQueryResultDto.getEmployeeResponsibleId());
-            serviceRequestQueryResultDto.setDescription(transactionQueryResultDto.getDescription());
-            serviceRequestQueryResultDto.setStatus(transactionQueryResultDto.getStatus());
+//            serviceRequestQueryResultDto.setId(transactionQueryResultDto.getId());
+//            serviceRequestQueryResultDto.setNo(transactionQueryResultDto.getNumber());
+//            serviceRequestQueryResultDto.setCustomerId(transactionQueryResultDto.getCustomerId());
+//            serviceRequestQueryResultDto.setCustomerName(transactionQueryResultDto.getCustomerName());
+//            serviceRequestQueryResultDto.setEmployeeResponsibleId(transactionQueryResultDto.getEmployeeResponsibleId());
+//            serviceRequestQueryResultDto.setDescription(transactionQueryResultDto.getDescription());
+//            serviceRequestQueryResultDto.setStatus(transactionQueryResultDto.getStatus());
             serviceRequestQueryResultDtos.add(serviceRequestQueryResultDto);
         }
         return serviceRequestQueryResultDtos;
