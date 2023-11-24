@@ -361,17 +361,17 @@ public class PartnerService {
             }
         }
 
-        if (initialList.size() < 1) {
-            List<PartnerEntity> partnerList = partnerRepository.findAll();
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    finalList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-            return finalList;
-        }
+//        if (initialList.size() < 1) {
+//            List<PartnerEntity> partnerList = partnerRepository.findAll();
+//            for (PartnerEntity partner : partnerList) {
+//                try {
+//                    finalList.add(get(partner.getId()));
+//                } catch (PartnerNotFoundException e) {
+//
+//                }
+//            }
+//            return finalList;
+//        }
 
         for (PartnerDto pqr : initialList) {
             if (partnerQueryDto.getIdType() != null && !"".equals(partnerQueryDto.getIdType())) {
