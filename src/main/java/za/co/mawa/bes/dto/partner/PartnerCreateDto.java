@@ -21,10 +21,5 @@ public class PartnerCreateDto {
     private String maritalStatus;
     private String gender;
     private String language;
-    private String status;
-    private String createdBy;
-    private String modifiedBy;
-    private Date validFrom;
-    private Date validTo;
 
 }
