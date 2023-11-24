@@ -37,12 +37,16 @@ public class PartnerController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
+                                        @RequestParam(required = false) String type,
                                         @RequestParam(required = false) String attributeName,
                                         @RequestParam(required = false) String attributeValue) throws Exception {
         try {
             PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
             if (role != null && role != "") {
                 partnerQueryDto.setRole(role);
+            }
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
             }
             partnerQueryDto.setAttributeValue(attributeName);
             partnerQueryDto.setAttributeValue(attributeValue);
