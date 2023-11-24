@@ -94,7 +94,8 @@ public class PartnerService {
             entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             entity.setCreationDate(new Date());
             entity.setCreatedBy(getUser());
-            return entityIdToDto(partnerRepository.save(entity));
+            entity = partnerRepository.save(entity);
+            return get(entity.getId());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
