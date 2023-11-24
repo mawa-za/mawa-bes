@@ -22,10 +22,10 @@ public class QuotationService extends TransactionService {
         return super.create(transactionCreateDto);
     }
 
-    public List<TransactionQueryResultDto> search(QuotationQueryDto quotationQueryDto){
-        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-        transactionQueryDto.setType(TransactionType.QUOTATION);
-        return super.search(transactionQueryDto);
-    }
+//    public List<TransactionQueryResultDto> search(QuotationQueryDto quotationQueryDto){
+//        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+//        transactionQueryDto.setType(TransactionType.QUOTATION);
+//        return super.search(transactionQueryDto);
+//    }
 
 }

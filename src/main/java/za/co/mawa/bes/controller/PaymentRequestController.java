@@ -55,8 +55,8 @@ public class PaymentRequestController {
             TransactionQueryDto query = new TransactionQueryDto();
             ArrayList<PaymentRequestDto> requests = new ArrayList<>();
             query.setType(TransactionType.PAYMENT_REQUEST);
-            for(TransactionQueryResultDto request:transactionService.search(query)) {
-                requests.add(paymentRequestService.get(request.getId()));
+            for(String id:transactionService.search(query)) {
+                requests.add(paymentRequestService.get(id));
             }
             return ResponseEntity.ok().body(gson.toJson(requests));
         }catch (Exception ex){

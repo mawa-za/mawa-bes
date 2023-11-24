@@ -24,7 +24,7 @@ import java.util.List;
 
 public interface TransactionDao {
     TransactionDto create(TransactionCreateDto transactionCreateDto);
-    List<TransactionQueryResultDto> search(TransactionQueryDto query);
+    List<String> search(TransactionQueryDto query);
     void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception;
     void delete(String id) throws Exception;
     TransactionDto get(String transactionId) throws TransactionNotFound;

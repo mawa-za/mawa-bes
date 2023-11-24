@@ -207,9 +207,8 @@ public class MembershipService {
         List<MembershipDto> membershipDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-        List<TransactionQueryResultDto> transactionQueryResultDtoList = transactionService.search(transactionQueryDto);
-        for (TransactionQueryResultDto transactionQueryResultDto : transactionQueryResultDtoList) {
-            membershipDtoList.add(get(transactionQueryResultDto.getId()));
+        for (String id : transactionService.search(transactionQueryDto)) {
+            membershipDtoList.add(get(id));
         }
         return membershipDtoList;
     }

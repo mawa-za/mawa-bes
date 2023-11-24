@@ -172,7 +172,7 @@ public class MembershipController {
             List<ClaimDto> claimDtoList = new ArrayList<>();
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
-            for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
+            for (String claimId : transactionService.search(transactionQueryDto)) {
 //                claimDtoList.add(getClaimData(transactionDto.getId()));
             }
             return ResponseEntity.ok(gson.toJson(claimDtoList));

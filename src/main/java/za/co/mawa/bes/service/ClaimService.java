@@ -224,9 +224,9 @@ public class ClaimService {
                 transactionQueryDto.setTransactionlink1(claimQueryDto.getMembership());
             }
             transactionQueryDto.setType(TransactionType.CLAIM);
-            for (TransactionQueryResultDto transactionDto : transactionService.search(transactionQueryDto)) {
+            for (String id : transactionService.search(transactionQueryDto)) {
                 try {
-                    claimDtoList.add(get(transactionDto.getId()));
+                    claimDtoList.add(get(id));
                 } catch (Exception exception) {
                 }
             }
