@@ -640,86 +640,6 @@ public class PartnerService {
     }
 
 
-
-
-
-    public String addResource(PartnerResourceApiDto partnerResource) throws NumberRangeObjectNotFound {
-        String resourceID = numberRangeService.generateNumber(OrderType.RESOURCE_API);
-        if (resourceID != null) {
-            PartnerRolePKEntity partnerRolePk = new PartnerRolePKEntity();
-            partnerRolePk.setRole(RoleType.ORGANIZATION);
-            partnerRolePk.setId(partnerResource.getPartnerID());
-            PartnerRoleEntity partnerRole = partnerRoleRepository.getById(partnerRolePk);
-            if (partnerRole != null) {
-                try {
-                    PartnerResourceApiEntity partnerResourceApi = new PartnerResourceApiEntity();
-                    partnerResourceApi.setResource_id(resourceID);
-                    partnerResourceApi.setPartner_no(partnerResource.getPartnerID());
-                    partnerResourceApi.setPartner_url(partnerResource.getPartnerUrl());
-                    if (partnerResource.getValidFrom() != null) {
-                        partnerResourceApi.setValidFrom(Conversion.stringToDate(partnerResource.getValidFrom()));
-
-                    } else {
-
-                        partnerResourceApi.setValidFrom(new Date());
-                    }
-
-                    if (partnerResource.getValidTo() != null) {
-                        partnerResourceApi.setValidTo(Conversion.stringToDate(partnerResource.getValidTo()));
-
-                    } else {
-                        partnerResourceApi.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-
-                    }
-
-                    if (partnerResource.getStatus() != null) {
-                        partnerResourceApi.setStatus(partnerResource.getStatus());
-
-                    } else {
-
-                        partnerResourceApi.setStatus(Status.INACTIVE);
-                    }
-
-                    if (partnerResource.getStatusReason() != null) {
-                        partnerResourceApi.setStatus_reason(partnerResource.getStatusReason());
-                    } else {
-                        partnerResourceApi.setStatus_reason(StatusReason.INACTIVE);
-
-                    }
-
-                    partnerResourceApi.setPort_number(partnerResource.getPortNumber());
-
-                    if (partnerResource.getResourceName() != null) {
-
-                        partnerResourceApi.setResource_name(partnerResource.getResourceName());
-
-                    }
-
-                    partnerResourceApiRepository.save(partnerResourceApi);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        return resourceID;
-    }
-
-
-    public ArrayList<PartnerResourceApiResultDto> searchResourcesApi(PartnerResourceApiResultDto partnerResource) {
-        ArrayList<PartnerResourceApiResultDto> partnerUrlList = new ArrayList<>();
-        if (partnerResource.getPartnerID() != null) {
-            List<PartnerResourceApiEntity> partnerResourcesList = partnerResourceApiRepository.findByPartner(partnerResource.getPartnerID());
-            if (!partnerResourcesList.isEmpty()) {
-                for (PartnerResourceApiEntity partnerResourceObject : partnerResourcesList) {
-                    PartnerResourceApiResultDto partnerUrl = getResourceApi(partnerResourceObject.getResource_id());
-                    partnerUrlList.add(partnerUrl);
-                }
-            }
-        }
-        return partnerUrlList;
-    }
-
-
     public PartnerResourceApiResultDto getResourceApi(String resource_id) {
         PartnerResourceApiResultDto partnerResourceResult = new PartnerResourceApiResultDto();
         if (resource_id != null) {
@@ -741,44 +661,6 @@ public class PartnerService {
         }
         return partnerResourceResult;
     }
-
-
-    public boolean editResourceApi(PartnerResourceApiDto partnerResourceObj) {
-        boolean edited = false;
-        PartnerResourceApiEntity partnerResourceApi = partnerResourceApiRepository.getById(partnerResourceObj.getId());
-        if (partnerResourceApi != null) {
-            try {
-                if (partnerResourceObj.getPartnerUrl() != null) {
-                    partnerResourceApi.setPartner_url(partnerResourceObj.getPartnerUrl());
-                }
-                if (partnerResourceObj.getPortNumber() != null) {
-                    partnerResourceApi.setPort_number(partnerResourceObj.getPortNumber());
-                }
-                if (partnerResourceObj.getResourceName() != null) {
-                    partnerResourceApi.setResource_name(partnerResourceObj.getResourceName());
-                }
-                if (partnerResourceObj.getStatus() != null) {
-                    partnerResourceApi.setStatus(partnerResourceObj.getStatus());
-                }
-                if (partnerResourceObj.getStatusReason() != null) {
-                    partnerResourceApi.setStatus_reason(partnerResourceObj.getStatusReason());
-                }
-                if (partnerResourceObj.getValidFrom() != null) {
-                    partnerResourceApi.setValidFrom(Conversion.stringToDate(partnerResourceObj.getValidFrom()));
-                }
-                if (partnerResourceObj.getValidTo() != null) {
-                    partnerResourceApi.setValidTo(Conversion.stringToDate(partnerResourceObj.getValidTo()));
-                }
-
-                partnerResourceApiRepository.save(partnerResourceApi);
-                edited = true;
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return edited;
-    }
-
 
     public boolean addAttachment(PartnerAttachmentEntity attachment) {
         try {
