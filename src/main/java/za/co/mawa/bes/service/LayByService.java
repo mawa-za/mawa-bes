@@ -178,13 +178,13 @@ public class LayByService implements LayByDao {
                 transactionQueryDto.setDateType(DateType.CREATED);
                 transactionQueryDto.setValue(Conversion.stringToDate(queryDto.getDateCreated()));
             }
-            for(TransactionQueryResultDto queryResults:transactionService.search(transactionQueryDto)){
+            for(String id :transactionService.search(transactionQueryDto)){
                 LayByGetDto layby = new LayByGetDto();
-                layby.setId(queryResults.getId());
-                layby.setNumber(queryResults.getNumber());
-                layby.setStatus(queryResults.getStatus());
-                layby.setStatusReason(queryResults.getStatusReason());
-                for(TransactionPartnerDto partnerDto:transactionService.getPartners(queryResults.getId())){
+//                layby.setId(queryResults.getId());
+//                layby.setNumber(queryResults.getNumber());
+//                layby.setStatus(queryResults.getStatus());
+//                layby.setStatusReason(queryResults.getStatusReason());
+                for(TransactionPartnerDto partnerDto:transactionService.getPartners(id)){
                     if(partnerDto.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
                         PartnerDto partner = partnerService.getOptional(partnerDto.getPartner());
                         if(partner != null){
@@ -193,13 +193,13 @@ public class LayByService implements LayByDao {
                         break;
                     }
                 }
-                for(TransactionAmountDto amount:transactionService.getAmounts(queryResults.getId())){
+                for(TransactionAmountDto amount:transactionService.getAmounts(id)){
                     if(amount.getType().equalsIgnoreCase(PriceType.TOTAL_INC_VAT)){
                       layby.setAmount(amount.getAmount());
                       break;
                     }
                 }
-                for(TransactionDateDto dates:transactionService.getDates(queryResults.getId())){
+                for(TransactionDateDto dates:transactionService.getDates(id)){
                    if(dates.getType().equalsIgnoreCase(DateType.CREATED)){
                        layby.setDateCreated(Conversion.dateToString(dates.getValue()));
                    }

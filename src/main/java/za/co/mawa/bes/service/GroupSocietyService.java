@@ -86,9 +86,8 @@ public class GroupSocietyService {
         List<GroupSocietyDto> groupSocietyDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.GROUP_SOCIETY);
-        List<TransactionQueryResultDto> transactionQueryResultDtoList = transactionService.search(transactionQueryDto);
-        for (TransactionQueryResultDto transactionQueryResultDto : transactionQueryResultDtoList) {
-            groupSocietyDtoList.add(get(transactionQueryResultDto.getId()));
+        for (String id : transactionService.search(transactionQueryDto)) {
+            groupSocietyDtoList.add(get(id));
         }
         return groupSocietyDtoList;
     }

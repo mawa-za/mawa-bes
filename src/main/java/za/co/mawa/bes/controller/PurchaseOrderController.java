@@ -129,8 +129,8 @@ public class PurchaseOrderController {
                 transactionQueryDto.setStatus(status);
             }
             ArrayList<PurchaseOrderDto> purchaseOrder = new ArrayList<>();
-            for(TransactionQueryResultDto POs:transactionService.search(transactionQueryDto)){
-               purchaseOrder.add(getPOOverview(POs.getId()));
+            for(String id:transactionService.search(transactionQueryDto)){
+               purchaseOrder.add(getPOOverview(id));
             }
             return ResponseEntity.ok(gson.toJson(purchaseOrder));
         } catch (Exception exception) {
