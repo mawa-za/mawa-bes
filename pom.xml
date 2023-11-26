@@ -36,11 +36,24 @@
             </properties>
         </profile>
         <profile>
-            <id>qas</id>
+            <id>alpha</id>
             <properties>
-                <spring.profiles.active>qas</spring.profiles.active>
+                <spring.profiles.active>alpha</spring.profiles.active>
             </properties>
         </profile>
+        <profile>
+            <id>beta</id>
+            <properties>
+                <spring.profiles.active>beta</spring.profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>prep</id>
+            <properties>
+                <spring.profiles.active>prep</spring.profiles.active>
+            </properties>
+        </profile>
+
         <profile>
             <id>prod</id>
             <properties>
