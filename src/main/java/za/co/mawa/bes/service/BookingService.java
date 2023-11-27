@@ -173,8 +173,8 @@ public class BookingService implements BookingDao {
             if(queryDto.getStatus() != null){
                query.setStatus(queryDto.getStatus());
             }
-            for(TransactionQueryResultDto resultDto:transactionService.search(query)){
-                BookingDto booking = getBooking(resultDto.getId());
+            for(String id:transactionService.search(query)){
+                BookingDto booking = getBooking(id);
                 bookings.add(booking);
             }
             return bookings;

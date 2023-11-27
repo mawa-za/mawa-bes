@@ -140,9 +140,9 @@ public class DepositService implements DepositDao {
             if(searchDto.getStatus() != null) {
                 transactionQueryDto.setStatus(searchDto.getStatus());
             }
-            for(TransactionQueryResultDto resultDto:transactionService.search(transactionQueryDto)) {
+            for(String id:transactionService.search(transactionQueryDto)) {
                 DepositDto depositDto = new DepositDto();
-                depositDto = get(resultDto.getId());
+                depositDto = get(id);
                 deposits.add(depositDto);
             }
             return deposits;
