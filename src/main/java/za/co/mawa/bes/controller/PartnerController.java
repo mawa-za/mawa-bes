@@ -48,7 +48,7 @@ public class PartnerController {
             if (type != null && type != "") {
                 partnerQueryDto.setType(type);
             }
-            partnerQueryDto.setAttributeValue(attributeName);
+            partnerQueryDto.setAttributeName(attributeName);
             partnerQueryDto.setAttributeValue(attributeValue);
             String response = gson.toJson(partnerService.search(partnerQueryDto));
             return ResponseEntity.ok(response);

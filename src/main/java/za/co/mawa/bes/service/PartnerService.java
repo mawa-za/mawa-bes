@@ -293,8 +293,8 @@ public class PartnerService {
         }
 
         if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
-            List<PartnerAttributeEntity> partnerAttributeEntities
-                    = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+//            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByAttributeValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeValue());
             for (PartnerAttributeEntity partnerAttributeEntity : partnerAttributeEntities) {
                 try {
                     initialList.add(get(partnerAttributeEntity.getPartnerAttributePKEntity().getPartner()));
