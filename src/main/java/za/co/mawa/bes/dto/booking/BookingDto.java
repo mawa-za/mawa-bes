@@ -22,4 +22,5 @@ public class BookingDto implements Serializable {
     private ProductDto productDto;
     private String id;
     private String number;
+    private String status;
 }
