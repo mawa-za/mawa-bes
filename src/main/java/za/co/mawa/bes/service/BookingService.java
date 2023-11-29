@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -36,7 +37,7 @@ public class BookingService implements BookingDao {
         try{
             TransactionCreateDto transactionCreate = new TransactionCreateDto();
             transactionCreate.setType(TransactionType.APPOINTMENT);
-            transactionCreate.setStatus(Status.NEW);
+            transactionCreate.setStatus(Status.BOOKED);
             TransactionDto transactionDto = transactionService.create(transactionCreate);
             if(transactionDto.getId() != null){
                 String bookTime = createDto.getBookTime() == null ? "": createDto.getBookTime();
@@ -99,7 +100,7 @@ public class BookingService implements BookingDao {
         if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
            bookingDto.setId(transactionDto.getId());
            bookingDto.setNumber(transactionDto.getNumber());
-
+           bookingDto.setStatus(transactionDto.getStatus());
            for(TransactionPartnerDto partner:transactionService.getPartners(id)){
                if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
                    try{
@@ -201,6 +202,12 @@ public class BookingService implements BookingDao {
                 bookEdit.setValue(Conversion.dateTimeToString2(bookTimeDate));
                 transactionService.dateEdit(bookEdit);
             }
+            if(editDto.getStatus() != null){
+                TransactionEditDto edit = new TransactionEditDto();
+                edit.setId(id);
+                edit.setStatus(editDto.getStatus());
+                transactionService.edit(edit);
+            }
             return true;
         }catch (Exception ex){
             throw new RuntimeException(ex);
@@ -210,16 +217,11 @@ public class BookingService implements BookingDao {
     @Override
     public boolean removeBooking(String id) throws Exception {
         try{
-            transactionService.delete(id);
-            for(TransactionDateDto dates:transactionService.getDates(id)){
-                transactionService.removeDate(dates);
-            }
-            for(TransactionPartnerDto partners: transactionService.getPartners(id)){
-                transactionService.removePartner(partners);
-            }
-            for(TransactionItemDto items: transactionService.getItems(id)){
-                transactionService.removeItem(items);
-            }
+            TransactionEditDto edit = new TransactionEditDto();
+            edit.setId(id);
+            edit.setStatus(Status.CANCELLED);
+            transactionService.edit(edit);
+
             return true;
         }catch (Exception ex){
            throw new RuntimeException(ex);
