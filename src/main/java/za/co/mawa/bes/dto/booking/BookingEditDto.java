@@ -15,5 +15,6 @@ public class BookingEditDto implements Serializable {
     private String bookTime;
     private String bookDate;
     private String employeeId;
+    private String status;
 
 }
