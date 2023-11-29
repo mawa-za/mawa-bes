@@ -12,5 +12,9 @@ public class Status {
     public static String VALID = "VALID";
     public static String EXPIRED = "EXPIRED";
     public static String INVALID = "INVALID";
+    public static String BOOKED = "BOOKED";
+    public static String MISSED = "MISSED";
+    public static String CANCELLED = "CANCELLED";
+    public static String PROCESSED = "PROCESSED";
 
 }
