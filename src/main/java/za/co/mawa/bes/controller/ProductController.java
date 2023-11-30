@@ -129,9 +129,7 @@ public class ProductController {
     @RequestMapping(value = "{id}/attribute", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAttribute(@PathVariable String id) {
         try {
-            ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
-            queryDto.setProduct(id);
-            return ResponseEntity.ok(gson.toJson(productService.getAttributes(queryDto)));
+            return ResponseEntity.ok(gson.toJson(productService.getAttributes(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
