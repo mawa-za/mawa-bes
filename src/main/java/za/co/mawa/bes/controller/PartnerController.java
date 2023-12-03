@@ -48,8 +48,10 @@ public class PartnerController {
             if (type != null && type != "") {
                 partnerQueryDto.setType(type);
             }
-            partnerQueryDto.setAttributeName(attributeName);
-            partnerQueryDto.setAttributeValue(attributeValue);
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
             String response = gson.toJson(partnerService.search(partnerQueryDto));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
