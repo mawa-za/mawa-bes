@@ -23,4 +23,5 @@ public class BookingDto implements Serializable {
     private String id;
     private String number;
     private String status;
+    private String createdOn;
 }
