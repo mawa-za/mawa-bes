@@ -12,6 +12,7 @@ import java.io.Serializable;
 public class EmploymentEditDto implements Serializable {
     private String type;
     private String endDate;
+    private String startDate;
     private String position;
     private String branch;
     private String department;

@@ -35,20 +35,22 @@ public class EmploymentService implements EmploymentDao {
 
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    NumberRangeService numberRangeService;
 
     @Override
-    public boolean terminate(String id,String startDate) throws Exception{
+    public boolean terminate(String id,String partner) throws Exception{
         try{
             EmploymentPKEntity employPK = new EmploymentPKEntity();
             employPK.setEmployeeId(id);
-            employPK.setStartDate(Conversion.stringToDate(startDate));
+            employPK.setPartner(partner);
             EmploymentEntity employ = employmentRepository.getById(employPK);
             if (employ != null) {
                 employ.setStatus(Status.TERMINATED);
                 employ.setEndDate(new Date());
                 employmentRepository.save(employ);
                 boolean removeRole = false;
-                for(String role:partnerService.getRoles(id)){
+                for(String role:partnerService.getRoles(partner)){
                     if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                         removeRole = true;
                     }
@@ -68,18 +70,13 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean hire(EmploymentCreateDto employment,String id) throws Exception{
+    public boolean hire(EmploymentCreateDto employment) throws Exception{
                 try {
-                    PartnerDto partnerDto = partnerService.get(id);
+                    PartnerDto partnerDto = partnerService.get(employment.getPartner());
                     if(partnerDto != null){
                         EmploymentPKEntity employPK = new EmploymentPKEntity();
-                        employPK.setEmployeeId(id);
-                        if(employment.getStartDate() != null && employment.getStartDate() != ""){
-                            employPK.setStartDate(Conversion.stringToDate(employment.getStartDate()));
-                        }
-                        else{
-                            employPK.setStartDate(new Date());
-                        }
+                        String id = numberRangeService.generateNumber(NumberRangeType.EMPLOYEE);
+                        employPK.setPartner(employment.getPartner());
                         EmploymentEntity employ = new EmploymentEntity();
                         employ.setEmploymentPK(employPK);
                         employ.setType(employment.getType());
@@ -89,19 +86,26 @@ public class EmploymentService implements EmploymentDao {
                         else{
                             employ.setEndDate(Conversion.stringToDate("9999-12-31"));
                         }
+                        if(employment.getStartDate() != null && employment.getStartDate() != ""){
+                            employ.setStartDate(Conversion.stringToDate(employment.getStartDate()));
+                        }
+                        else{
+                            employ.setStartDate(new Date());
+                        }
                         employ.setPosition(employment.getPosition());
                         employ.setStatus(Status.ACTIVE);
                         employ.setBranch(employment.getBranch());
                         employ.setDepartment(employment.getDepartment());
+                        employ.setNumber(id);
                         employmentRepository.save(employ);
                         boolean addRole = true;
-                        for(String role:partnerService.getRoles(id)){
+                        for(String role:partnerService.getRoles(employment.getPartner())){
                             if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                                 addRole = false;
                             }
                         }
                         if(addRole){
-                            partnerService.addRole(id,RoleType.EMPLOYEE);
+                            partnerService.addRole(employment.getPartner(),RoleType.EMPLOYEE);
                         }
                         return true;
                     }
@@ -110,16 +114,16 @@ public class EmploymentService implements EmploymentDao {
                     }
 
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    throw new PartnerNotFoundException();
                 }
             }
 
     @Override
-    public boolean suspend(String id,String startDate) throws Exception{
+    public boolean suspend(String id,String partner) throws Exception{
         try{
             EmploymentPKEntity employPK = new EmploymentPKEntity();
             employPK.setEmployeeId(id);
-            employPK.setStartDate(Conversion.stringToDate(startDate));
+            employPK.setPartner(partner);
             EmploymentEntity employ = employmentRepository.getById(employPK);
             if (employ != null) {
                 employ.setStatus(Status.SUSPENDED);
@@ -136,11 +140,11 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean rehire(String id,String startDate,String endDate) throws Exception{
+    public boolean rehire(String id,String partner,String startDate,String endDate) throws Exception{
         try{
             EmploymentPKEntity employPK = new EmploymentPKEntity();
             employPK.setEmployeeId(id);
-            employPK.setStartDate(Conversion.stringToDate(startDate));
+            employPK.setPartner(partner);
             EmploymentEntity employ = employmentRepository.getById(employPK);
             if (employ != null) {
                 employ.setStatus(Status.ACTIVE);
@@ -150,9 +154,15 @@ public class EmploymentService implements EmploymentDao {
                 else{
                     employ.setEndDate(Conversion.stringToDate("9999-12-31"));
                 }
+                if(startDate != null && startDate != ""){
+                    employ.setStartDate(Conversion.stringToDate(endDate));
+                }
+                else{
+                    employ.setStartDate(new Date());
+                }
                 employmentRepository.save(employ);
                 boolean addRole = true;
-                for(String role:partnerService.getRoles(id)){
+                for(String role:partnerService.getRoles(partner)){
                     if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                         addRole = false;
                     }
@@ -208,21 +218,22 @@ public class EmploymentService implements EmploymentDao {
         }
         object.setEmployeeId(entity.getEmploymentPK().getEmployeeId());
         object.setEndDate(Conversion.dateToString(entity.getEndDate()));
-        String title = fieldOptionService.getOptionalFieldDescription("JOBTITLE", entity.getPosition());
+        String title = fieldOptionService.getOptionalFieldDescription("JOB-TITLE", entity.getPosition());
         if (title != null) {
             object.setPosition(title);
         }
-        object.setStartDate(Conversion.dateToString(entity.getEmploymentPK().getStartDate()));
+        object.setStartDate(Conversion.dateToString(entity.getStartDate()));
         object.setStatus(StringConversion.capitalizeFully(entity.getStatus()));
-        String empType = fieldOptionService.getOptionalFieldDescription("EMPLOYMENTTYPE", entity.getType());
+        object.setNumber(entity.getNumber());
+        String empType = fieldOptionService.getOptionalFieldDescription("EMPLOYMENT-TYPE", entity.getType());
         if (empType != null) {
             object.setType(empType);
         }
         PartnerDto partner = null;
         try {
-            partner = partnerService.getOptional(entity.getEmploymentPK().getEmployeeId());
+            partner = partnerService.getOptional(entity.getEmploymentPK().getPartner());
         } catch (PartnerNotFoundException e) {
-            throw new RuntimeException(e);
+           // throw new RuntimeException(e);
         }
         if(partner != null){
             object.setEmployee(partner);
@@ -231,10 +242,10 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean edit(EmploymentEditDto employment,String id,String startDate) throws Exception {
+    public boolean edit(EmploymentEditDto employment,String id,String partner) throws Exception {
         try{
             EmploymentPKEntity pkEntity = new EmploymentPKEntity();
-            pkEntity.setStartDate(Conversion.stringToDate(startDate));
+            pkEntity.setPartner(partner);
             pkEntity.setEmployeeId(id);
             EmploymentEntity entity = employmentRepository.getById(pkEntity);
             if(entity != null)
@@ -254,6 +265,9 @@ public class EmploymentService implements EmploymentDao {
                 if(employment.getEndDate() != null && employment.getEndDate() != ""){
                     entity.setEndDate(Conversion.stringToDate(employment.getEndDate()));
                 }
+                if(employment.getStartDate() != null && employment.getStartDate() != ""){
+                    entity.setStartDate(Conversion.stringToDate(employment.getStartDate()));
+                }
                 employmentRepository.save(entity);
                 return true;
             }
@@ -267,11 +281,11 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean deleteEmployment(String id, String startDate) throws Exception {
+    public boolean deleteEmployment(String id, String partner) throws Exception {
         try{
             EmploymentPKEntity pkEntity = new EmploymentPKEntity();
             pkEntity.setEmployeeId(id);
-            pkEntity.setStartDate(Conversion.stringToDate(startDate));
+            pkEntity.setPartner(partner);
             employmentRepository.deleteById(pkEntity);
             return true;
         }catch(Exception ex){
@@ -298,13 +312,19 @@ public class EmploymentService implements EmploymentDao {
         return(root,query,cb) ->{
             Predicate predicate = cb.conjunction();
             if(searchDto.getStartDate() != null){
-                predicate = cb.and(predicate,cb.equal(root.get("employmentPK").get("startDate"),searchDto.getStartDate()));
+                predicate = cb.and(predicate,cb.equal(root.get("startDate"),searchDto.getStartDate()));
             }
             if(searchDto.getDepartment() != null){
                 predicate = cb.and(predicate,cb.equal(root.get("department"),searchDto.getDepartment()));
             }
             if(searchDto.getEmployeeId() != null){
                 predicate = cb.and(predicate,cb.equal(root.get("employmentPK").get("employeeId"),searchDto.getEmployeeId()));
+            }
+            if(searchDto.getPartner() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("employmentPK").get("partner"),searchDto.getPartner()));
+            }
+            if(searchDto.getNumber() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("number"),searchDto.getNumber()));
             }
             if(searchDto.getEndDate() != null){
                 predicate = cb.and(predicate,cb.equal(root.get("endDate"),searchDto.getEndDate()));

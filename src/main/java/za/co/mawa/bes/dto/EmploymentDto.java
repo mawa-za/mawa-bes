@@ -12,6 +12,7 @@ import java.io.Serializable;
 @Setter
 public class EmploymentDto implements Serializable {
     private String employeeId;
+    private String number;
     private PartnerDto employee;
     private String type;
     private String startDate;
