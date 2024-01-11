@@ -66,7 +66,8 @@ public class NotificationService implements NotificationDao {
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.NOTIFICATION);
-        transactionCreateDto.setSubType(notificationCreateDto.getType());
+
+        transactionCreateDto.setSubType(notificationCreateDto.getSubType());
 
 
         transactionCreateDto.setStatus(Status.NEW);
