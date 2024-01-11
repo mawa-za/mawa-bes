@@ -75,6 +75,7 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
             transactionEntity.setLocation(transactionCreateDto.getLocation());
+            transactionEntity.setSubDescription(transactionCreateDto.getSubDescription());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -518,6 +519,23 @@ public class TransactionService implements TransactionDao {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    @Override
+    public List<TransactionPartnerDto> getPartnerType(String partner, String type) {
+
+        List<TransactionPartnerDto> transactionPartnerDtos = new ArrayList<>();
+        List<TransactionPartnerEntity> transactionPartnerEntityList = transactionPartnerRepository.findPartnerByPartnerAndType(partner, type);
+
+        if (!transactionPartnerEntityList.isEmpty()) {
+
+            for(TransactionPartnerEntity partnerEntity:transactionPartnerEntityList )
+            {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(partnerEntity);
+                transactionPartnerDtos.add(transactionPartnerDto);
+            }
+        }
+        return transactionPartnerDtos;
     }
 
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
