@@ -9,7 +9,6 @@ import za.co.mawa.bes.dao.EmploymentDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.entity.EmploymentEntity;
-import za.co.mawa.bes.entity.EmploymentPKEntity;
 import za.co.mawa.bes.entity.PartnerRoleEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
@@ -39,18 +38,16 @@ public class EmploymentService implements EmploymentDao {
     NumberRangeService numberRangeService;
 
     @Override
-    public boolean terminate(String id,String partner) throws Exception{
+    public boolean terminate(String id) throws Exception{
         try{
-            EmploymentPKEntity employPK = new EmploymentPKEntity();
-            employPK.setEmployeeId(id);
-            employPK.setPartner(partner);
-            EmploymentEntity employ = employmentRepository.getById(employPK);
+
+            EmploymentEntity employ = employmentRepository.getById(id);
             if (employ != null) {
                 employ.setStatus(Status.TERMINATED);
                 employ.setEndDate(new Date());
                 employmentRepository.save(employ);
                 boolean removeRole = false;
-                for(String role:partnerService.getRoles(partner)){
+                for(String role:partnerService.getRoles(employ.getPartnerId())){
                     if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                         removeRole = true;
                     }
@@ -70,15 +67,12 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean hire(EmploymentCreateDto employment) throws Exception{
+    public String hire(EmploymentCreateDto employment) throws Exception{
                 try {
-                    PartnerDto partnerDto = partnerService.get(employment.getPartner());
+                    PartnerDto partnerDto = partnerService.get(employment.getPartnerId());
                     if(partnerDto != null){
-                        EmploymentPKEntity employPK = new EmploymentPKEntity();
-                        String id = numberRangeService.generateNumber(NumberRangeType.EMPLOYEE);
-                        employPK.setPartner(employment.getPartner());
                         EmploymentEntity employ = new EmploymentEntity();
-                        employ.setEmploymentPK(employPK);
+                        employ.setPartnerId(employment.getPartnerId());
                         employ.setType(employment.getType());
                         if(employment.getEndDate() != null && employment.getEndDate() != ""){
                             employ.setEndDate(Conversion.stringToDate(employment.getEndDate()));
@@ -96,18 +90,21 @@ public class EmploymentService implements EmploymentDao {
                         employ.setStatus(Status.ACTIVE);
                         employ.setBranch(employment.getBranch());
                         employ.setDepartment(employment.getDepartment());
-                        employ.setNumber(id);
-                        employmentRepository.save(employ);
+                        if(employment.getEmployeeNumber() != null && employment.getEmployeeNumber() != ""){
+                            employ.setEmployeeNumber(employment.getEmployeeNumber());
+                        }
+                        EmploymentEntity created = employmentRepository.save(employ);
                         boolean addRole = true;
-                        for(String role:partnerService.getRoles(employment.getPartner())){
+                        for(String role:partnerService.getRoles(employment.getPartnerId())){
                             if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                                 addRole = false;
                             }
                         }
                         if(addRole){
-                            partnerService.addRole(employment.getPartner(),RoleType.EMPLOYEE);
+                            partnerService.addRole(employment.getPartnerId(),RoleType.EMPLOYEE);
                         }
-                        return true;
+
+                        return created.getId();
                     }
                     else{
                         throw new PartnerNotFoundException();
@@ -119,12 +116,9 @@ public class EmploymentService implements EmploymentDao {
             }
 
     @Override
-    public boolean suspend(String id,String partner) throws Exception{
+    public boolean suspend(String id) throws Exception{
         try{
-            EmploymentPKEntity employPK = new EmploymentPKEntity();
-            employPK.setEmployeeId(id);
-            employPK.setPartner(partner);
-            EmploymentEntity employ = employmentRepository.getById(employPK);
+            EmploymentEntity employ = employmentRepository.getById(id);
             if (employ != null) {
                 employ.setStatus(Status.SUSPENDED);
                 employ.setEndDate(new Date());
@@ -140,12 +134,10 @@ public class EmploymentService implements EmploymentDao {
     }
 
     @Override
-    public boolean rehire(String id,String partner,String startDate,String endDate) throws Exception{
+    public boolean rehire(String id,String startDate,String endDate) throws Exception{
         try{
-            EmploymentPKEntity employPK = new EmploymentPKEntity();
-            employPK.setEmployeeId(id);
-            employPK.setPartner(partner);
-            EmploymentEntity employ = employmentRepository.getById(employPK);
+
+            EmploymentEntity employ = employmentRepository.getById(id);
             if (employ != null) {
                 employ.setStatus(Status.ACTIVE);
                 if(endDate != null && endDate != ""){
@@ -162,7 +154,7 @@ public class EmploymentService implements EmploymentDao {
                 }
                 employmentRepository.save(employ);
                 boolean addRole = true;
-                for(String role:partnerService.getRoles(partner)){
+                for(String role:partnerService.getRoles(employ.getPartnerId())){
                     if(role.equalsIgnoreCase(RoleType.EMPLOYEE)){
                         addRole = false;
                     }
@@ -182,7 +174,7 @@ public class EmploymentService implements EmploymentDao {
     @Override
     public List<EmploymentDto> getAll(EmploymentSearchDto search) throws Exception{
         try {
-            Sort sort = Sort.by("employmentPK").descending();
+            Sort sort = Sort.by("id").descending();
             List<EmploymentDto> employments = new ArrayList<>();
             for (EmploymentEntity employment : employmentRepository.findAll(findByCriteria(search), sort)) {
                 EmploymentDto emp = new EmploymentDto();
@@ -195,98 +187,74 @@ public class EmploymentService implements EmploymentDao {
         }
     }
     @Override
-    public EmploymentDto get(String employee) {
-        EmploymentDto currentEmployment = null;
-        for (EmploymentEntity employment : employmentRepository.findEmploymentById(employee)) {
-            if (employment.getEndDate().after(new Date())) {
-                currentEmployment = entityToObject(employment);
-            }
+    public EmploymentDto get(String id) {
+        try{
+            EmploymentDto employmentDto = entityToObject(employmentRepository.findById(id).get());
+            return employmentDto;
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
         }
-        return currentEmployment;
     }
 
     private EmploymentDto entityToObject(EmploymentEntity entity) {
         EmploymentDto object = new EmploymentDto();
-
-        String branch = fieldOptionService.getOptionalFieldDescription("BRANCH", entity.getBranch());
-        if (branch != null) {
-            object.setBranch(branch);
-        }
-        String department = fieldOptionService.getOptionalFieldDescription("DEPARTMENT", entity.getDepartment());
-        if (department != null) {
-            object.setDepartment(department);
-        }
-        object.setEmployeeId(entity.getEmploymentPK().getEmployeeId());
+        object.setId(entity.getId());
+        object.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, entity.getBranch()));
+        object.setDepartment(fieldOptionService.getFieldOption(Field.DEPARTMENT,entity.getDepartment()));
+        object.setPosition(entity.getPosition());
+        object.setType(fieldOptionService.getFieldOption(Field.EMPLOYMENT_TYPE, entity.getType()));
         object.setEndDate(Conversion.dateToString(entity.getEndDate()));
-        String title = fieldOptionService.getOptionalFieldDescription("JOB-TITLE", entity.getPosition());
-        if (title != null) {
-            object.setPosition(title);
-        }
         object.setStartDate(Conversion.dateToString(entity.getStartDate()));
         object.setStatus(StringConversion.capitalizeFully(entity.getStatus()));
-        object.setNumber(entity.getNumber());
-        String empType = fieldOptionService.getOptionalFieldDescription("EMPLOYMENT-TYPE", entity.getType());
-        if (empType != null) {
-            object.setType(empType);
-        }
-        PartnerDto partner = null;
+        object.setEmployeeNumber(entity.getEmployeeNumber());
         try {
-            partner = partnerService.getOptional(entity.getEmploymentPK().getPartner());
+            PartnerDto  partner = partnerService.getOptional(entity.getPartnerId());
+            object.setEmployee(partner);
         } catch (PartnerNotFoundException e) {
            // throw new RuntimeException(e);
-        }
-        if(partner != null){
-            object.setEmployee(partner);
         }
         return object;
     }
 
     @Override
-    public boolean edit(EmploymentEditDto employment,String id,String partner) throws Exception {
+    public boolean edit(EmploymentEditDto employment,String id) throws Exception {
         try{
-            EmploymentPKEntity pkEntity = new EmploymentPKEntity();
-            pkEntity.setPartner(partner);
-            pkEntity.setEmployeeId(id);
-            EmploymentEntity entity = employmentRepository.getById(pkEntity);
-            if(entity != null)
-            {
-                if(employment.getBranch() != null && employment.getBranch() != ""){
-                    entity.setBranch(employment.getBranch());
-                }
-                if(employment.getDepartment() != null && employment.getDepartment() != ""){
-                    entity.setDepartment(employment.getDepartment());
-                }
-                if(employment.getPosition() != null && employment.getPosition() != ""){
-                    entity.setPosition(employment.getPosition());
-                }
-                if(employment.getType() != null && employment.getType() != ""){
-                    entity.setType(employment.getType());
-                }
-                if(employment.getEndDate() != null && employment.getEndDate() != ""){
-                    entity.setEndDate(Conversion.stringToDate(employment.getEndDate()));
-                }
-                if(employment.getStartDate() != null && employment.getStartDate() != ""){
-                    entity.setStartDate(Conversion.stringToDate(employment.getStartDate()));
-                }
-                employmentRepository.save(entity);
-                return true;
+            EmploymentEntity entity = employmentRepository.getById(id);
+            if(employment.getBranch() != null && employment.getBranch() != ""){
+                entity.setBranch(employment.getBranch());
             }
-            else {
-                throw new DoesNotExist();
+            if(employment.getDepartment() != null && employment.getDepartment() != ""){
+                entity.setDepartment(employment.getDepartment());
             }
-
+            if(employment.getPosition() != null && employment.getPosition() != ""){
+                entity.setPosition(employment.getPosition());
+            }
+            if(employment.getType() != null && employment.getType() != ""){
+                entity.setType(employment.getType());
+            }
+            if(employment.getEndDate() != null && employment.getEndDate() != ""){
+                entity.setEndDate(Conversion.stringToDate(employment.getEndDate()));
+            }
+            if(employment.getStartDate() != null && employment.getStartDate() != ""){
+                entity.setStartDate(Conversion.stringToDate(employment.getStartDate()));
+            }
+            if(employment.getEmployeeNumber() != null && employment.getEmployeeNumber() != ""){
+                entity.setEmployeeNumber(employment.getEmployeeNumber());
+            }
+            employmentRepository.save(entity);
+            return true;
         }catch(Exception ex){
             throw new RuntimeException(ex);
+
         }
+
     }
 
     @Override
-    public boolean deleteEmployment(String id, String partner) throws Exception {
+    public boolean deleteEmployment(String id) throws Exception {
         try{
-            EmploymentPKEntity pkEntity = new EmploymentPKEntity();
-            pkEntity.setEmployeeId(id);
-            pkEntity.setPartner(partner);
-            employmentRepository.deleteById(pkEntity);
+
+            employmentRepository.deleteById(id);
             return true;
         }catch(Exception ex){
             throw new RuntimeException(ex);
@@ -317,14 +285,12 @@ public class EmploymentService implements EmploymentDao {
             if(searchDto.getDepartment() != null){
                 predicate = cb.and(predicate,cb.equal(root.get("department"),searchDto.getDepartment()));
             }
-            if(searchDto.getEmployeeId() != null){
-                predicate = cb.and(predicate,cb.equal(root.get("employmentPK").get("employeeId"),searchDto.getEmployeeId()));
+
+            if(searchDto.getPartnerId() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("partnerId"),searchDto.getPartnerId()));
             }
-            if(searchDto.getPartner() != null){
-                predicate = cb.and(predicate,cb.equal(root.get("employmentPK").get("partner"),searchDto.getPartner()));
-            }
-            if(searchDto.getNumber() != null){
-                predicate = cb.and(predicate,cb.equal(root.get("number"),searchDto.getNumber()));
+            if(searchDto.getEmployeeNumber() != null){
+                predicate = cb.and(predicate,cb.equal(root.get("employeeNumber"),searchDto.getEmployeeNumber()));
             }
             if(searchDto.getEndDate() != null){
                 predicate = cb.and(predicate,cb.equal(root.get("endDate"),searchDto.getEndDate()));

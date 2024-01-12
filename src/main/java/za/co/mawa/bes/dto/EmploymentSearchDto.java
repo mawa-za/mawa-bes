@@ -11,9 +11,8 @@ import java.util.Date;
 @Getter
 @Setter
 public class EmploymentSearchDto implements Serializable {
-    private String employeeId;
-    private String number;
-    private String partner;
+    private String employeeNumber;
+    private String partnerId;
     private Date startDate;
     private Date endDate;
     private String position;

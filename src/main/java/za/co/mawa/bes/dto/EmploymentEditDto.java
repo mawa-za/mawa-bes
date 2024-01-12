@@ -16,4 +16,5 @@ public class EmploymentEditDto implements Serializable {
     private String position;
     private String branch;
     private String department;
+    private String employeeNumber;
 }

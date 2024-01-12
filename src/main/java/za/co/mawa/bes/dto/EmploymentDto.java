@@ -11,14 +11,14 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class EmploymentDto implements Serializable {
-    private String employeeId;
-    private String number;
+    private String id;
+    private String employeeNumber;
     private PartnerDto employee;
-    private String type;
+    private FieldOptionDto type;
     private String startDate;
     private String endDate;
     private String position;
     private String status;
-    private String branch;
-    private String department;
+    private FieldOptionDto branch;
+    private FieldOptionDto department;
 }
