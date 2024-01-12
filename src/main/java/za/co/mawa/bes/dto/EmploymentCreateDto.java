@@ -16,4 +16,6 @@ public class EmploymentCreateDto implements Serializable {
     private String position;
     private String branch;
     private String department;
+    private String partnerId;
+    private String employeeNumber;
 }
