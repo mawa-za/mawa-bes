@@ -807,7 +807,12 @@ public class TransactionService implements TransactionDao {
             transactionPartnerEntity.setValidFrom(new Date());
             transactionPartnerEntity.setCreatedBy(getUser());
             transactionPartnerEntity.setStatus(transactionPartnerDto.getStatus());
-
+            if(transactionPartnerDto.getDateAdded() != null){
+             transactionPartnerEntity.setDateAdded(Conversion.stringToDate(transactionPartnerDto.getDateAdded()));
+            }
+            if(transactionPartnerDto.getDateEffective() != null){
+                transactionPartnerEntity.setDateEffective(Conversion.stringToDate(transactionPartnerDto.getDateEffective()));
+            }
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
             throw new TransactionPartnerAddException("Could not add partner to transaction");
