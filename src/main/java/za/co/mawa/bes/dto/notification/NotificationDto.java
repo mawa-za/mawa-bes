@@ -31,6 +31,8 @@ public class NotificationDto implements Serializable {
     private String category;
     private String subDescription;
 
+    private  String location;
+
     private ArrayList<NotificationDto> notificationDtos;
 
 }

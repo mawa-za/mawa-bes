@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.notification.NotificationEntity;
 import za.co.mawa.bes.entity.notification.NotificationLogEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.NotificationLogRepository;
@@ -66,7 +67,7 @@ public class NotificationService implements NotificationDao {
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.NOTIFICATION);
-
+        transactionCreateDto.setLocation(notificationCreateDto.getLocation());
         transactionCreateDto.setSubType(notificationCreateDto.getSubType());
 
 
@@ -163,6 +164,14 @@ public class NotificationService implements NotificationDao {
             notificationDto.setStatusReason(transactionDto.getStatusReason());
             notificationDto.setDescription(transactionDto.getDescription());
             notificationDto.setCategory(transactionDto.getCategory());
+            notificationDto.setLocation(transactionDto.getLocation());
+            TransactionLinkEntity transactionLinkEntity = transactionService.getTransaction(TransactionType.NOTIFICATION, id);
+
+            if (transactionLinkEntity != null) {
+                notificationDto.setTransactionId(transactionLinkEntity.getTransactionLinkPKEntity().getTransaction1());
+
+            }
+
             List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
 
             if (!transactionPartnerDtoList.isEmpty()) {

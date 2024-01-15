@@ -22,4 +22,6 @@ public class NotificationCreate1Dto {
     private String processor;
 
     private String recipient;
+
+    private String location;
 }
