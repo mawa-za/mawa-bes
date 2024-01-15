@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.EmploymentCreateDto;
+import za.co.mawa.bes.dto.EmploymentDto;
 import za.co.mawa.bes.dto.EmploymentEditDto;
 import za.co.mawa.bes.dto.EmploymentSearchDto;
 import za.co.mawa.bes.service.EmploymentService;
@@ -19,10 +20,12 @@ public class EmploymentController {
     @Autowired
     EmploymentService employmentService;
 
-    @RequestMapping(value = "/employment/{id}", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> createEmployee(@PathVariable String id,@RequestBody EmploymentCreateDto employmentDto){
+    @RequestMapping(value = "/employment", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public  ResponseEntity<?> createEmployee(@RequestBody EmploymentCreateDto employmentDto){
         try{
-            return ResponseEntity.ok(gson.toJson(employmentService.hire(employmentDto,id)));
+            EmploymentDto employee = new EmploymentDto();
+            employee.setId(employmentService.hire(employmentDto));
+            return ResponseEntity.ok(gson.toJson(employee));
         }catch(Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
@@ -44,7 +47,8 @@ public class EmploymentController {
                                           @RequestParam(required = false) String position,
                                           @RequestParam(required = false) String type,
                                           @RequestParam(required = false) String status,
-                                          @RequestParam(required = false) String employeeId){
+                                          @RequestParam(required = false) String partnerId,
+                                          @RequestParam(required = false) String employeeNumber){
         try{
             EmploymentSearchDto search = new EmploymentSearchDto();
             if(startDate != null && startDate != ""){
@@ -68,8 +72,11 @@ public class EmploymentController {
             if(status != null && status != ""){
                 search.setStatus(status);
             }
-            if(employeeId != null && employeeId != ""){
-                search.setEmployeeId(employeeId);
+            if(partnerId != null && partnerId != ""){
+                search.setPartnerId(partnerId);
+            }
+            if(employeeNumber != null && employeeNumber != ""){
+                search.setEmployeeNumber(employeeNumber);
             }
             return ResponseEntity.ok(gson.toJson(employmentService.getAll(search)));
         }catch(Exception ex){
@@ -78,11 +85,9 @@ public class EmploymentController {
     }
 
     @RequestMapping(value = "/employment/{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> editEmployee(@PathVariable String id,
-                                           @RequestParam(required = true) String startDate,
-                                           @RequestBody EmploymentEditDto employmentDto){
+    public  ResponseEntity<?> editEmployee(@PathVariable String id, @RequestBody EmploymentEditDto employmentDto){
         try{
-            return ResponseEntity.ok(employmentService.edit(employmentDto,id,startDate));
+            return ResponseEntity.ok(employmentService.edit(employmentDto,id));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
@@ -90,18 +95,18 @@ public class EmploymentController {
     }
 
     @RequestMapping(value = "/employment/{id}/terminate", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> terminate(@PathVariable String id,@RequestParam(required = true) String startDate){
+    public  ResponseEntity<?> terminate(@PathVariable String id){
         try{
-            return ResponseEntity.ok(gson.toJson(employmentService.terminate(id,startDate)));
+            return ResponseEntity.ok(gson.toJson(employmentService.terminate(id)));
         }catch(Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
 
     @RequestMapping(value = "/employment/{id}/suspend", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> suspend(@PathVariable String id,@RequestParam(required = true) String startDate){
+    public  ResponseEntity<?> suspend(@PathVariable String id){
         try{
-            return ResponseEntity.ok(gson.toJson(employmentService.suspend(id,startDate)));
+            return ResponseEntity.ok(gson.toJson(employmentService.suspend(id)));
         }catch(Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
@@ -109,7 +114,7 @@ public class EmploymentController {
 
     @RequestMapping(value = "/employment/{id}/rehire", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public  ResponseEntity<?> rehire(@PathVariable String id,
-                                     @RequestParam(required = true) String startDate,
+                                     @RequestParam(required = false) String startDate,
                                      @RequestParam(required = false) String endDate){
         try{
             return ResponseEntity.ok(gson.toJson(employmentService.rehire(id,startDate,endDate)));
@@ -118,9 +123,9 @@ public class EmploymentController {
         }
     }
     @RequestMapping(value = "/employment/{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> delete(@PathVariable String id, @RequestParam(required = true) String startDate){
+    public  ResponseEntity<?> delete(@PathVariable String id, @RequestParam(required = true) String partner){
         try{
-            return ResponseEntity.ok(gson.toJson(employmentService.deleteEmployment(id,startDate)));
+            return ResponseEntity.ok(gson.toJson(employmentService.deleteEmployment(id)));
         }catch(Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }

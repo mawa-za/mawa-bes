@@ -34,6 +34,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @Service
 public class CashupService implements CashupDao {
@@ -45,15 +47,24 @@ public class CashupService implements CashupDao {
     TransactionRepository transactionRepository;
     @Autowired
     TransactionAmountRepository transactionAmountRepository;
+    @Autowired
+    UserService userService;
 
     @Override
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
+        ArrayList<ReceiptDto> receiptsFiltered = new ArrayList<>();
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
         searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
         ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
         String id = null;
-        if (receipts.size() > 0) {
+        if(cashupCreateDto.getReceipts().size() > 0){
+            receiptsFiltered = receipts.stream().filter(obj -> cashupCreateDto.getReceipts().contains(obj.getId())).collect(Collectors.toCollection(ArrayList::new));
+        }
+        else{
+            receiptsFiltered = receipts;
+        }
+        if (receiptsFiltered.size() > 0) {
             BigDecimal amount = BigDecimal.ZERO;
             for (ReceiptDto receipt : receipts) {
                 amount = amount.add(new BigDecimal(receipt.getAmount()));
@@ -85,6 +96,13 @@ public class CashupService implements CashupDao {
                         link.setCreateBy(getUser());
                         transactionService.addLink(link);
                     }
+                    TransactionPartnerDto employee = new TransactionPartnerDto();
+                    employee.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
+                    employee.setTransaction(transaction.getId());
+                    employee.setPartner(cashupCreateDto.getEmployeeResponsibleId());
+                    employee.setStatus(Status.ACTIVE);
+                    transactionService.addPartner(employee);
+
                     TransactionDateDto date = new TransactionDateDto();
                     date.setType(DateType.CREATED);
                     date.setTransaction(id);
@@ -154,8 +172,11 @@ public class CashupService implements CashupDao {
             try {
                 CashupDto cashupDto = new CashupDto();
                 ArrayList<ReceiptDto> receipts = new ArrayList<>();
+                String partner = userService.getUserByName(transactionDto.getCreatedBy()).getPartner();
+                if(partner != null){
+                    cashupDto.setCreatedBy(partner);
+                }
                 cashupDto.setId(transactionDto.getId());
-                cashupDto.setCreatedBy(transactionDto.getCreatedBy());
                 cashupDto.setChangedBy(transactionDto.getChangedBy());
                 cashupDto.setNumber(transactionDto.getNumber());
                 cashupDto.setStatus(transactionDto.getStatus());

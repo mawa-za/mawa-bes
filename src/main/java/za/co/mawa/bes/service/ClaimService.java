@@ -46,6 +46,7 @@ public class ClaimService {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.CLAIM);
             transactionCreateDto.setSubType(claimCreateDto.getType());
+            transactionCreateDto.setLocation(claimCreateDto.getBranch());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             ClaimDto claimDto = new ClaimDto();
             claimDto.setId(transactionDto.getId());

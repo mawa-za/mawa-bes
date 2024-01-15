@@ -3,6 +3,7 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.PaymentRequestDao;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.transaction.*;
@@ -10,6 +11,7 @@ import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 
 import java.util.Date;
@@ -18,6 +20,10 @@ import java.util.Date;
 public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    UserService userService;
+    @Autowired
+    PartnerService partnerService;
 
     @Override
     public String create(PaymentRequestCreateDto paymentRequest) throws Exception {
@@ -102,6 +108,9 @@ public class PaymentRequestService implements PaymentRequestDao {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
                 paymentRequestDto.setDueDate(transactionDateDto.getValue());
             }
+            if(transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)){
+                paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
+            }
         }
         for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
             if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
@@ -126,6 +135,13 @@ public class PaymentRequestService implements PaymentRequestDao {
                 break;
             }
         }
+        try{
+            PartnerDto partnerDto = partnerService.get(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+            paymentRequestDto.setCreatedByDetails(partnerDto);
+        }catch(PartnerNotFoundException ex){
+
+        }
+
         return paymentRequestDto;
     }
 }

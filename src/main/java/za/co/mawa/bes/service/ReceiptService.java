@@ -46,6 +46,8 @@ public class ReceiptService implements ReceiptDao {
 
     @Autowired
     TransactionAttributeRepository transactionAttributeRepository;
+    @Autowired
+    UserService userService;
 
     @Override
     public ReceiptDto createReceipt(ReceiptCreateDto receipt) throws Exception {
@@ -60,7 +62,7 @@ public class ReceiptService implements ReceiptDao {
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
-            entity.setCreatedBy(getUser());
+            entity.setCreatedBy(userService.getUserByName(getUser()).getPartner());
             entity.setInvoiceNumber(receipt.getInvoiceNumber());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(receipt.getAmount()));

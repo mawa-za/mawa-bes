@@ -17,4 +17,5 @@ public class NotificationCreateDto implements Serializable {
     private String recipient;
     private String subject;
     private String body;
+    private String transactionId;
 }
