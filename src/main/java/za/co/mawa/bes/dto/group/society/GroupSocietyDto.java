@@ -25,6 +25,8 @@ public class GroupSocietyDto {
     private PartnerDto salesRepresentative;
     private ProductBasicDto product;
     private Date dateCreated;
+    private Date dateJoined;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
+    private FieldOptionDto salesArea;
 }

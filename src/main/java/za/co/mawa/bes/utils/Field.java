@@ -25,4 +25,5 @@ public class Field {
     public static String SUBURB = "SUBURB";
     public static String CITY = "CITY";
     public static String ADDRESS_TYPE = "ADDRESS-TYPE";
+    public static String SALES_AREA = "SALES-AREA";
 }
