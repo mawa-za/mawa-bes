@@ -51,8 +51,8 @@ public class PartnerService {
     PartnerAttachmentRepository partnerAttachmentRepository;
     @Autowired
     PartnerAttributeRepository partnerAttributeRepository;
-    @Autowired
-    UserService userService;
+//    @Autowired
+//    UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
     @Autowired
