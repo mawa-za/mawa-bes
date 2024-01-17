@@ -57,6 +57,13 @@ public class BookingService implements BookingDao {
                     dates.setValue(Conversion.dateTimeToString2(bookTimeDate));
                     transactionService.addDate(dates);
                 }
+
+                TransactionDateDto dates = new TransactionDateDto();
+                dates.setType(DateType.CREATED);
+                dates.setTransaction(transactionDto.getId());
+                dates.setValue(new Date());
+                transactionService.addDate(dates);
+
                 if(createDto.getCustomerId() != null){
                     TransactionPartnerDto customer = new TransactionPartnerDto();
                     customer.setTransaction(transactionDto.getId());
@@ -123,7 +130,10 @@ public class BookingService implements BookingDao {
              if(dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)){
                  bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
                  bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
-                 break;
+                 //break;
+             }
+             if(dates.getType().equalsIgnoreCase(DateType.CREATED)){
+                 bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
              }
            }
 

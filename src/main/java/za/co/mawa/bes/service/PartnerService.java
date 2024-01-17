@@ -51,8 +51,8 @@ public class PartnerService {
     PartnerAttachmentRepository partnerAttachmentRepository;
     @Autowired
     PartnerAttributeRepository partnerAttributeRepository;
-    @Autowired
-    UserService userService;
+//    @Autowired
+//    UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
     @Autowired
@@ -293,8 +293,8 @@ public class PartnerService {
         }
 
         if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
-            List<PartnerAttributeEntity> partnerAttributeEntities
-                    = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+//            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByAttributeValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeValue());
             for (PartnerAttributeEntity partnerAttributeEntity : partnerAttributeEntities) {
                 try {
                     initialList.add(get(partnerAttributeEntity.getPartnerAttributePKEntity().getPartner()));
@@ -361,17 +361,17 @@ public class PartnerService {
             }
         }
 
-        if (initialList.size() < 1) {
-            List<PartnerEntity> partnerList = partnerRepository.findAll();
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    finalList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-            return finalList;
-        }
+//        if (initialList.size() < 1) {
+//            List<PartnerEntity> partnerList = partnerRepository.findAll();
+//            for (PartnerEntity partner : partnerList) {
+//                try {
+//                    finalList.add(get(partner.getId()));
+//                } catch (PartnerNotFoundException e) {
+//
+//                }
+//            }
+//            return finalList;
+//        }
 
         for (PartnerDto pqr : initialList) {
             if (partnerQueryDto.getIdType() != null && !"".equals(partnerQueryDto.getIdType())) {
