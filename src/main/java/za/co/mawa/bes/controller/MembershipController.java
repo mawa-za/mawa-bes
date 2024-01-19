@@ -19,6 +19,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
@@ -58,10 +59,11 @@ public class MembershipController {
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
-                                            @RequestParam(required = false) String partnerNo,
+                                            @RequestParam(required = false) String partnerId,
                                             @RequestParam(required = false) String idNumber) {
         try {
             MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -77,6 +79,42 @@ public class MembershipController {
         }
     }
 
+    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
+                                                     @RequestParam(required = false) String partnerFunction,
+                                                     @RequestParam(required = false) String memberId,
+                                                     @RequestParam(required = false) String idNumber,
+                                                     @RequestParam(required = false) String productId,
+                                                     @RequestParam(required = false) String dateJoined) {
+        try {
+            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+
+            if (status != null) {
+                membershipQueryDto.setStatus(status);
+            }
+            if (partnerFunction != null) {
+                membershipQueryDto.setPartnerFunction(partnerFunction);
+            }
+            if (memberId != null) {
+
+                membershipQueryDto.setMemberId(memberId);
+            }
+            if (idNumber != null) {
+                membershipQueryDto.setIdNumber(idNumber);
+            }
+            if (productId != null) {
+                membershipQueryDto.setProductId(productId);
+            }
+            if (dateJoined != null) {
+
+                membershipQueryDto.setDateJoined(Conversion.stringToDate(dateJoined));
+            }
+            return ResponseEntity.ok(gson.toJson(membershipService.getByFilter(membershipQueryDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+//    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
