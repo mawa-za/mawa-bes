@@ -70,9 +70,13 @@ public interface TransactionDao {
     boolean removeAmount(String id,String type) throws Exception;
     boolean removeDate(String id,String type) throws Exception;
 
+
     List<TransactionPartnerDto> getPartnersByFunction(String partnerFunction)  throws  Exception ;
 
     List<TransactionItemDto> getItemsBy(TransactionItemDto transactionItemDto) throws  Exception;
 
+
+
+    List<TransactionPartnerDto> getPartnerType(String partner, String partnerFunction);
 
 }

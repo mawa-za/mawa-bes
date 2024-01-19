@@ -76,6 +76,7 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
             transactionEntity.setLocation(transactionCreateDto.getLocation());
+            transactionEntity.setSubDescription(transactionCreateDto.getSubDescription());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -522,6 +523,7 @@ public class TransactionService implements TransactionDao {
     }
 
     @Override
+
     public List<TransactionPartnerDto> getPartnersByFunction(String partnerFunction) throws Exception {
 
         List<TransactionPartnerEntity> transactionPartnerEntityList = transactionPartnerRepository.findPartnerByType(partnerFunction);
@@ -553,6 +555,22 @@ public class TransactionService implements TransactionDao {
         }
 
         return transactionItemDtos;
+    }
+    public List<TransactionPartnerDto> getPartnerType(String partner, String type) {
+
+        List<TransactionPartnerDto> transactionPartnerDtos = new ArrayList<>();
+        List<TransactionPartnerEntity> transactionPartnerEntityList = transactionPartnerRepository.findPartnerByPartnerAndType(partner, type);
+
+        if (!transactionPartnerEntityList.isEmpty()) {
+
+            for(TransactionPartnerEntity partnerEntity:transactionPartnerEntityList )
+            {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(partnerEntity);
+                transactionPartnerDtos.add(transactionPartnerDto);
+            }
+        }
+        return transactionPartnerDtos;
+
     }
 
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
@@ -842,7 +860,12 @@ public class TransactionService implements TransactionDao {
             transactionPartnerEntity.setValidFrom(new Date());
             transactionPartnerEntity.setCreatedBy(getUser());
             transactionPartnerEntity.setStatus(transactionPartnerDto.getStatus());
-
+            if(transactionPartnerDto.getDateAdded() != null){
+             transactionPartnerEntity.setDateAdded(Conversion.stringToDate(transactionPartnerDto.getDateAdded()));
+            }
+            if(transactionPartnerDto.getDateEffective() != null){
+                transactionPartnerEntity.setDateEffective(Conversion.stringToDate(transactionPartnerDto.getDateEffective()));
+            }
             transactionPartnerRepository.save(transactionPartnerEntity);
         } catch (Exception exception) {
             throw new TransactionPartnerAddException("Could not add partner to transaction");

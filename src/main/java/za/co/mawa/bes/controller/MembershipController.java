@@ -168,13 +168,9 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentDto dependentDto) {
+    public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentCreateDto dependentDto) {
         try {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(id);
-            transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);
-            transactionPartnerDto.setPartner(dependentDto.getId());
-            transactionService.addPartner(transactionPartnerDto);
+            dependentService.add(dependentDto,id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
