@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.*;
@@ -518,6 +519,40 @@ public class TransactionService implements TransactionDao {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    @Override
+    public List<TransactionPartnerDto> getPartnersByFunction(String partnerFunction) throws Exception {
+
+        List<TransactionPartnerEntity> transactionPartnerEntityList = transactionPartnerRepository.findPartnerByType(partnerFunction);
+        List<TransactionPartnerDto> transactionPartnerDtos = new ArrayList<>();
+        if (!transactionPartnerEntityList.isEmpty()) {
+            for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntityList) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(transactionPartnerEntity);
+                transactionPartnerDtos.add(transactionPartnerDto);
+            }
+        }
+
+
+        return transactionPartnerDtos;
+    }
+
+    @Override
+    public List<TransactionItemDto> getItemsBy(TransactionItemDto transactionItemDto) throws Exception {
+        List<TransactionItemDto> transactionItemDtos = new ArrayList<>();
+        if (transactionItemDto.getProduct() != null) {
+            List<TransactionItemEntity> transactionItemEntities = transactionItemRepository.findItemBy(transactionItemDto.getProduct());
+            if(!transactionItemEntities.isEmpty())
+            {
+                for (TransactionItemEntity transactionItemEntity : transactionItemEntities) {
+                    transactionItemDtos.add(new TransactionItemDto(transactionItemEntity));
+                }
+            }
+
+
+        }
+
+        return transactionItemDtos;
     }
 
     private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {

@@ -24,4 +24,7 @@ public class MembershipQueryDto {
     private Date dateEffective;
     private String status;
     private String statusReason;
+    private String partnerFunction;
+
+    private String idNumber;
 }

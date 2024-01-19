@@ -10,10 +10,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAttachmentEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAttachmentPKEntity;
-import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.exception.TransactionPartnerAddException;
@@ -72,4 +69,10 @@ public interface TransactionDao {
     boolean removePartner(String id,String partnerFunction,String partner) throws Exception;
     boolean removeAmount(String id,String type) throws Exception;
     boolean removeDate(String id,String type) throws Exception;
+
+    List<TransactionPartnerDto> getPartnersByFunction(String partnerFunction)  throws  Exception ;
+
+    List<TransactionItemDto> getItemsBy(TransactionItemDto transactionItemDto) throws  Exception;
+
+
 }

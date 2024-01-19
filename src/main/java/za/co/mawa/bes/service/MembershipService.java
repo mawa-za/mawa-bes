@@ -7,6 +7,7 @@ import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.membership.*;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
@@ -17,14 +18,12 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,6 +48,29 @@ public class MembershipService {
         if (partnerService.get(membershipCreateDto.getSalesRepresentativeId()) == null) {
             throw new PartnerNotFoundException("Membership Sales Representative does not exist");
         }
+
+//        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+//        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+//        transactionQueryDto.setSubtype(membershipCreateDto.getMembershipType());
+//        List<String> transactionQueries = transactionService.search(transactionQueryDto);
+//
+//        if (!transactionQueries.isEmpty()) {
+//            for (String transactionQuery : transactionQueries) {
+//                TransactionPartnerDto transactionPartnerDto = transactionService.getPartner(transactionQuery, PartnerFunction.MAINMEMBER);
+//                if (transactionPartnerDto != null) {
+//                    if (transactionPartnerDto.getPartner().equals(membershipCreateDto.getMemberId())) {
+//                        throw new TransactionPartnerAddException("Membership id with the same membership type already exist");
+//                    }
+//                }
+//
+//            }
+//        }
+//        TransactionPartnerDto transactionPartnerDto = transactionService.getPartner(,);
+//        if(transactionService.getPartner(t,p))
+//        {
+//
+//
+//        }
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
@@ -206,6 +228,7 @@ public class MembershipService {
     public List<MembershipDto> search(MembershipQueryDto membershipQueryDto) {
         List<MembershipDto> membershipDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
         transactionQueryDto.setType(TransactionType.MEMBERSHIP);
         for (String id : transactionService.search(transactionQueryDto)) {
             membershipDtoList.add(get(id));
@@ -215,6 +238,116 @@ public class MembershipService {
 
     public void edit(MembershipEditDto membershipEditDto) {
 
+    }
+
+    public List<MembershipDto> getByFilter(MembershipQueryDto membershipQueryDto) throws Exception {
+        List<MembershipDto> membershipDtoList = new ArrayList<>();
+        List<String> transactionList = new ArrayList<>();
+        if (membershipQueryDto.getPartnerFunction() != null || membershipQueryDto.getMemberId() != null) {
+
+            List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartnersByFunction(PartnerFunction.MAINMEMBER);
+
+            if (!transactionPartnerDtos.isEmpty()) {
+                for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos) {
+                    String transaction = "";
+
+                    if (membershipQueryDto.getMemberId() != null) {
+                        if (transactionPartnerDto.getPartner().equals(membershipQueryDto.getMemberId())) {
+                            transaction = transactionPartnerDto.getTransaction();
+                        }
+                    } else {
+                        transaction = transactionPartnerDto.getTransaction();
+                    }
+
+                    transactionList.add(transaction);
+
+                }
+
+            }
+
+        }
+
+        List<TransactionItemDto> transactionItemDtos = new ArrayList<>();
+        if (!transactionList.isEmpty() && membershipQueryDto.getProductId() != null) {
+
+            Iterator<String> iterator = transactionList.iterator();
+
+            while (iterator.hasNext()) {
+                String transaction = iterator.next();
+                transactionItemDtos = transactionService.getItems(transaction);
+
+                if (!transactionItemDtos.isEmpty()) {
+                    for (TransactionItemDto transactionItemDto : transactionItemDtos) {
+                        if (!transactionItemDto.getProduct().equals(membershipQueryDto.getProductId())) {
+                            iterator.remove();
+                        }
+                    }
+                }
+            }
+
+        } else if (membershipQueryDto.getProductId() != null) {
+
+            Iterator<String> iterator = transactionList.iterator();
+            TransactionItemDto transactionItemDto = new TransactionItemDto();
+            transactionItemDto.setProduct(membershipQueryDto.getProductId());
+            List<TransactionItemDto> transactionItemDtoList = transactionService.getItemsBy(transactionItemDto);
+
+
+            if (!transactionItemDtoList.isEmpty()) {
+                for (TransactionItemDto transactionItemDto1 : transactionItemDtoList) {
+                    while (iterator.hasNext()) {
+                        String transaction = iterator.next();
+                        if (!transaction.equals(transactionItemDto1.getTransaction())) {
+                            iterator.remove();
+                        }
+
+                    }
+
+                }
+
+            }
+        }
+
+
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
+        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        for (String id : transactionService.search(transactionQueryDto)) {
+
+            if (transactionList.isEmpty()) {
+                MembershipDto membershipDto = get(id);
+                if (membershipQueryDto.getStatus() != null) {
+                    if (membershipDto.getStatus().getCode().equals(membershipQueryDto.getStatus())) {
+                        membershipDtoList.add(membershipDto);
+                    }
+
+                } else {
+                    membershipDtoList.add(membershipDto);
+                }
+
+            } else {
+                Iterator<String> iterator = transactionList.iterator();
+                while (iterator.hasNext()) {
+                    String transaction = iterator.next();
+                    if (transaction.equals(id)) {
+                        MembershipDto membershipDto = get(transaction);
+
+                        if (membershipQueryDto.getStatus() != null) {
+                            if (membershipDto.getStatus().getCode().equals(membershipQueryDto.getStatus())) {
+                                membershipDtoList.add(membershipDto);
+                            }
+
+                        } else {
+                            membershipDtoList.add(membershipDto);
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+        return membershipDtoList;
     }
 
 }
