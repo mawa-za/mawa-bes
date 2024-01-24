@@ -256,6 +256,19 @@ public class PartnerController {
             partnerIdentityService.add(partnerIdentityCreateDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
+            String errorMessage = exception.getMessage();
+            int index = errorMessage.indexOf(":");
+            String exceptionMessage = (index != -1) ? errorMessage.substring(index + 1).trim() : errorMessage;
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionMessage);
+        }
+    }
+
+    @RequestMapping(value = "/identity", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
+                                         @RequestParam("idNumber") String idValue) throws Exception {
+        try {
+           return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
