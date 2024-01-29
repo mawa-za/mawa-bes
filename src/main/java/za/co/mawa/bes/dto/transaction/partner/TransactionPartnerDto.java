@@ -23,6 +23,8 @@ public class TransactionPartnerDto implements Serializable {
     private String createdBy;
     private String createdDate;
     private String changedBy;
+    private String dateAdded;
+    private String dateEffective;
     public TransactionPartnerDto(TransactionPartnerEntity transactionPartnerEntity) {
         this.transaction = transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction();
         this.partner = transactionPartnerEntity.getTransactionPartnerPKEntity().getPartner();

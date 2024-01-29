@@ -51,8 +51,8 @@ public class PartnerService {
     PartnerAttachmentRepository partnerAttachmentRepository;
     @Autowired
     PartnerAttributeRepository partnerAttributeRepository;
-    @Autowired
-    UserService userService;
+//    @Autowired
+//    UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
     @Autowired
@@ -360,7 +360,6 @@ public class PartnerService {
                 }
             }
         }
-
         for (PartnerDto pqr : initialList) {
             if (partnerQueryDto.getIdType() != null && !"".equals(partnerQueryDto.getIdType())) {
                 if (!pqr.getIdentity().getType().equals(partnerQueryDto.getIdType())) {
@@ -1152,21 +1151,7 @@ public class PartnerService {
         return prospectDto;
     }
 
-    private Specification<PartnerIdentityEntity> findByIdentity(IdentityQueryDto queryDto) {
-        return (root, query, cb) -> {
-            Predicate predicate = cb.conjunction();
-            if (queryDto.getPartner() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("partner"), queryDto.getPartner()));
-            }
-            if (queryDto.getValue() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("partnerIdentityPK").get("value"), queryDto.getValue()));
-            }
-            if (queryDto.getType() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("partnerIdentityPK").get("type"), queryDto.getType()));
-            }
-            return predicate;
-        };
-    }
+
 
     private Specification<PartnerContactEntity> findByContact(ContactQueryDto queryDto) {
         return (root, query, cb) -> {

@@ -42,6 +42,7 @@ public class GroupSocietyService {
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.GROUP_SOCIETY);
+        transactionCreateDto.setLocation(groupSocietyCreateDto.getSalesArea());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
         ProductDto productDto = productService.get(groupSocietyCreateDto.getProduct());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -57,6 +58,25 @@ public class GroupSocietyService {
             transactionPartnerDto.setPartner(groupSocietyCreateDto.getCustomer());
             transactionService.addPartner(transactionPartnerDto);
         }
+        if(groupSocietyCreateDto.getSalesRepresentative() != null){
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+            transactionPartnerDto.setPartner(groupSocietyCreateDto.getSalesRepresentative());
+            transactionService.addPartner(transactionPartnerDto);
+        }
+        if(groupSocietyCreateDto.getDateJoined() != null){
+            TransactionDateDto transactionDateDto = new TransactionDateDto();
+            transactionDateDto.setTransaction(transactionDto.getId());
+            transactionDateDto.setType(DateType.JOINED);
+            transactionDateDto.setValue(groupSocietyCreateDto.getDateJoined());
+            transactionService.addDate(transactionDateDto);
+        }
+        TransactionDateDto transactionDateDto = new TransactionDateDto();
+        transactionDateDto.setValue(new Date());
+        transactionDateDto.setType(DateType.CREATED);
+        transactionDateDto.setTransaction(transactionDto.getId());
+        transactionService.addDate(transactionDateDto);
 
         TransactionAmountDto amountDto = new TransactionAmountDto();
         amountDto.setAmount(new BigDecimal(0));
@@ -110,17 +130,24 @@ public class GroupSocietyService {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                         groupSocietyDto.setCustomer(partnerService.get(transactionPartnerDto.getPartner()));
                     }
+                    if(transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)){
+                        groupSocietyDto.setSalesRepresentative(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
                 } catch (PartnerNotFoundException e) {
 
                 }
             }
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
                 if (transactionDateDto.getType().equals(DateType.JOINED)) {
+                    groupSocietyDto.setDateJoined(transactionDateDto.getValue());
+                }
+                if(transactionDateDto.getType().equals(DateType.CREATED)){
                     groupSocietyDto.setDateCreated(transactionDateDto.getValue());
                 }
             }
             groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+            groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
             return groupSocietyDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
