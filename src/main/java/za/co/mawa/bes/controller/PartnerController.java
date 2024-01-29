@@ -160,7 +160,7 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/address", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnerAddresses(@RequestParam(required = false) String id) {
+    public ResponseEntity<?> getPartnerAddresses(@PathVariable(required = false) String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerAddressService.get(id)));
         } catch (Exception exception) {
