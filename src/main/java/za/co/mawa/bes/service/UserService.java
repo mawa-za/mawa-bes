@@ -27,7 +27,7 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
-//    @Autowired
+    //    @Autowired
 //    PartnerService partnerService;
     @Autowired
     EntityManager entityManager;
@@ -68,7 +68,6 @@ public class UserService implements UserDao {
     public UserDto create(UserCreateDto userCreateDto) throws Exception {
         try {
             UserEntity userEntity = new UserEntity();
-//            userEntity.setId(userCreateDto.getId());
             userEntity.setPartner(userCreateDto.getPartnerId());
             userEntity.setUsername(userCreateDto.getUsername());
             userEntity.setEmail(userCreateDto.getEmail());
@@ -78,13 +77,21 @@ public class UserService implements UserDao {
             userEntity.setPasswordStatus(PasswordStatus.INITIAL);
             userEntity.setValidFrom(new Date());
             userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            if (userCreateDto.getPassword() != null) {
-                userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
-            } else if (userCreateDto.getPassword() == null) {
-                String password = keyGenerator.generatePassword();
-                userEntity.setPassword(encryptionService.encrypt(password, secret).getBytes());
+            if (userCreateDto.getPassword() == null) {
+                userCreateDto.setPassword(keyGenerator.generatePassword());
             }
-            return entityToDto(userRepository.save(userEntity));
+            userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+            UserDto userDto = entityToDto(userRepository.save(userEntity));
+            EmailDto emailDto = new EmailDto();
+            emailDto.setTo(userEntity.getEmail());
+            emailDto.setSubject("New user");
+            emailDto.setTemplate("new-user");
+            List<PropertyDto> props = new ArrayList<>();
+            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
+            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
+            emailDto.setProperties(props);
+            emailService.send(emailDto);
+            return userDto;
         } catch (Exception exception) {
             throw new Exception();
         }
@@ -244,7 +251,7 @@ public class UserService implements UserDao {
             emailDto.setTemplate("password-reset");
             List<PropertyDto> props = new ArrayList<>();
 //            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_FIRST_NAME,partnerDto.getName2()));
-            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD,password));
+            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, password));
             emailDto.setProperties(props);
             emailService.send(emailDto);
             return password;
