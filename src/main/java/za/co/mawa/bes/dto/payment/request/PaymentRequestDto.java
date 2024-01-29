@@ -3,6 +3,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
 import java.io.Serializable;
@@ -22,10 +23,12 @@ public class PaymentRequestDto implements Serializable{
     private String reference;
     private BigDecimal amount;
     private Date dueDate;
+    private Date createdDate;
     private String type;
     private String paymentMethod;
     private String branch;
     private String createdBy;
+    private PartnerDto createdByDetails;
     private String changedBy;
     private String recipientId;
     private String employeeResponsibleId;

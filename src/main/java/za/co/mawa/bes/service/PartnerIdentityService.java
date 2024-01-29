@@ -1,22 +1,25 @@
 package za.co.mawa.bes.service;
 
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.IdentityDto;
+import za.co.mawa.bes.dto.IdentityQueryDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.partner.PartnerIdentityCreateDto;
 import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.partner.PartnerIdentityEditDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Field;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class PartnerIdentityService {
@@ -24,12 +27,20 @@ public class PartnerIdentityService {
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
     FieldOptionService fieldOptionService;
-    public void add(PartnerIdentityCreateDto partnerIdentityCreateDto) {
+    public void add(PartnerIdentityCreateDto partnerIdentityCreateDto) throws DuplicateCreationException {
         try {
-            for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByPartner(partnerIdentityCreateDto.getPartner())) {
-                if (identityEntity.getPartnerIdentityPK().getType().equals(partnerIdentityCreateDto.getType())) {
-                    throw new RuntimeException("Duplicate identity type found for partner");
-                }
+//            for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByPartner(partnerIdentityCreateDto.getPartner())) {
+//                if (identityEntity.getPartnerIdentityPK().getType().equals(partnerIdentityCreateDto.getType())) {
+//                    throw new RuntimeException("Duplicate identity type found for partner");
+//                }
+//            }
+            Sort sort = Sort.by("partnerIdentityPK").descending();
+            IdentityQueryDto query = new IdentityQueryDto();
+            query.setValue(partnerIdentityCreateDto.getNumber());
+            query.setType(partnerIdentityCreateDto.getType());
+            List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findAll(findByIdentity(query),sort);
+            if(identityEntities.size() > 0){
+                throw new DuplicateCreationException("Duplicate identity type found");
             }
             PartnerIdentityPKEntity partnerIdentityPK = new PartnerIdentityPKEntity();
             partnerIdentityPK.setValue(partnerIdentityCreateDto.getNumber());
@@ -66,6 +77,11 @@ public class PartnerIdentityService {
             return null;
         }
     }
+    public PartnerIdentityDto queryIdentity(){
+        PartnerIdentityDto identityDto = new PartnerIdentityDto();
+
+        return identityDto;
+    }
     public void edit(PartnerIdentityEditDto partnerIdentityEditDto) {
         try {
             List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partnerIdentityEditDto.getPartner());
@@ -98,6 +114,21 @@ public class PartnerIdentityService {
         }
 
     }
+    public PartnerIdentityDto getIdentity(String type,String value){
+        PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
+       PartnerIdentityPKEntity pk = new PartnerIdentityPKEntity();
+       pk.setValue(value);
+       pk.setType(type);
+       Optional<PartnerIdentityEntity> id = partnerIdentityRepository.findById(pk);
+      if (!id.isEmpty()){
+          partnerIdentityDto.setType(fieldOptionService.getFieldOption(Field.ID_TYPE, id.get().getPartnerIdentityPK().getType()));
+          partnerIdentityDto.setNumber(id.get().getPartnerIdentityPK().getValue());
+          partnerIdentityDto.setPartner(id.get().getPartner());
+          partnerIdentityDto.setValidFrom(id.get().getValidFrom());
+          partnerIdentityDto.setValidTo(id.get().getValidTo());
+      }
+       return partnerIdentityDto;
+    }
 
     public ArrayList<PartnerIdentityDto> getAll(String partner) {
         ArrayList<PartnerIdentityDto> partnerIdentities = new ArrayList<>();
@@ -112,5 +143,20 @@ public class PartnerIdentityService {
             partnerIdentities.add(partnerIdentityDto);
         }
         return partnerIdentities;
+    }
+    private Specification<PartnerIdentityEntity> findByIdentity(IdentityQueryDto queryDto) {
+        return (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (queryDto.getPartner() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("partner"), queryDto.getPartner()));
+            }
+            if (queryDto.getValue() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("partnerIdentityPK").get("value"), queryDto.getValue()));
+            }
+            if (queryDto.getType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("partnerIdentityPK").get("type"), queryDto.getType()));
+            }
+            return predicate;
+        };
     }
 }
