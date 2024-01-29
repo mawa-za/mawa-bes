@@ -14,11 +14,13 @@ import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.PartnerService;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -41,6 +43,8 @@ public class UserService implements UserDao {
     EncryptionService encryptionService;
     @Autowired
     SimpleKeyGenerator keyGenerator;
+    @Autowired
+    PartnerService partnerService;
     private String secret;
     public static final String ADMIN_USER = "admin";
     public static final String DEFAULT_ADMIN_PASSWORD = "admin";
@@ -58,6 +62,7 @@ public class UserService implements UserDao {
             String storedPassword = new String(userEntity.getPassword());
             String enteredPassword = userDto.getPassword();
             authenticated = validatePassword(enteredPassword, storedPassword);
+
         } else {
             throw new DoesNotExist();
         }
@@ -337,6 +342,10 @@ public class UserService implements UserDao {
             userDto.setValidTo(userEntity.getValidTo());
             userDto.setPartner(userEntity.getPartner());
             userDto.setStatusReason(userEntity.getStatusReason());
+            try{
+                userDto.setPartnerDetails(partnerService.get(userEntity.getPartner()));
+            }catch (PartnerNotFoundException exception){
+            }
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }

@@ -37,6 +37,7 @@ public class PartnerController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
+                                        @RequestParam(required = false) String type,
                                         @RequestParam(required = false) String attributeName,
                                         @RequestParam(required = false) String attributeValue) throws Exception {
         try {
@@ -44,8 +45,13 @@ public class PartnerController {
             if (role != null && role != "") {
                 partnerQueryDto.setRole(role);
             }
-            partnerQueryDto.setAttributeValue(attributeName);
-            partnerQueryDto.setAttributeValue(attributeValue);
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
+            }
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
             String response = gson.toJson(partnerService.search(partnerQueryDto));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
@@ -154,7 +160,7 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "{id}/address", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartnerAddresses(@RequestParam(required = false) String id) {
+    public ResponseEntity<?> getPartnerAddresses(@PathVariable(required = false) String id) {
         try {
             return ResponseEntity.ok(gson.toJson(partnerAddressService.get(id)));
         } catch (Exception exception) {
@@ -255,6 +261,19 @@ public class PartnerController {
             partnerIdentityCreateDto.setPartner(id);
             partnerIdentityService.add(partnerIdentityCreateDto);
             return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            String errorMessage = exception.getMessage();
+            int index = errorMessage.indexOf(":");
+            String exceptionMessage = (index != -1) ? errorMessage.substring(index + 1).trim() : errorMessage;
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionMessage);
+        }
+    }
+
+    @RequestMapping(value = "/identity", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
+                                         @RequestParam("idNumber") String idValue) throws Exception {
+        try {
+           return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

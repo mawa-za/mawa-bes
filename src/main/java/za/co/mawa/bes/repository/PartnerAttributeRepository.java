@@ -15,6 +15,8 @@ import java.util.List;
 @Repository
 public interface PartnerAttributeRepository extends JpaRepository<PartnerAttributeEntity, PartnerAttributePKEntity> {
   @Query("SELECT p FROM PartnerAttributeEntity p WHERE p.partnerAttributePKEntity.attribute = :attribute and p.value = :value")
-  List<PartnerAttributeEntity> findByValue(String attribute,String value);
+  List<PartnerAttributeEntity> findByAttributeValue(String attribute,String value);
+  @Query("SELECT p FROM PartnerAttributeEntity p WHERE p.value = :value")
+  List<PartnerAttributeEntity> findByValue(String value);
   List<PartnerAttributeEntity> findAll(Specification<PartnerAttributeEntity> byCriteria, Sort sort);
 }
