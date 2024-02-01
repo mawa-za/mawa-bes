@@ -177,6 +177,7 @@ public class CashupService implements CashupDao {
                     cashupDto.setCreatedBy(partner);
                 }
                 cashupDto.setId(transactionDto.getId());
+                cashupDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
                 cashupDto.setChangedBy(transactionDto.getChangedBy());
                 cashupDto.setNumber(transactionDto.getNumber());
                 cashupDto.setStatus(transactionDto.getStatus());
