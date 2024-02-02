@@ -13,6 +13,7 @@ public class Field {
     public static String PAYMENT_REASON = "PAYMENT-REASON";
     public static String PAYMENT_METHOD = "PAYMENT-METHOD";
     public static String TRANSACTION_ATTRIBUTE = "TRANSACTION-ATTRIBUTE";
+    public static String TRANSACTION_AMOUNT = "TRANSACTION-AMOUNT";
     public static String TRANSACTION_SUBTYPE = "TRANSACTION-SUBTYPE";
     public static String PRODUCT_ATTRIBUTE = "PRODUCT-ATTRIBUTE";
     public static String PRODUCT_CATEGORY = "PRODUCT-CATEGORY";

@@ -3,6 +3,7 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
+import za.co.mawa.bes.dto.AmountDto;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
@@ -144,6 +145,13 @@ public class GroupSocietyService {
                 if(transactionDateDto.getType().equals(DateType.CREATED)){
                     groupSocietyDto.setDateCreated(transactionDateDto.getValue());
                 }
+            }
+
+            for (TransactionAmountDto transactionAmountDto: transactionService.getAmounts(id)){
+                AmountDto amountDto = new AmountDto();
+                amountDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_AMOUNT, transactionAmountDto.getType()));
+                amountDto.setAmount(transactionAmountDto.getAmount());
+                groupSocietyDto.getAmounts().add(amountDto);
             }
             groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
