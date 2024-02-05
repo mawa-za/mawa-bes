@@ -164,7 +164,7 @@ public class GroupSocietyService {
             groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
 
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
-            receiptSearchDto.setInvoiceNumber(id);
+            receiptSearchDto.setTransaction(id);
             groupSocietyDto.setReceipts(receiptService.getReceipts(receiptSearchDto));
 
             ClaimQueryDto claimQueryDto = new ClaimQueryDto();
