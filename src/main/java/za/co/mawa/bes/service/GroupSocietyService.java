@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
@@ -44,6 +45,7 @@ public class GroupSocietyService {
     ReceiptService receiptService;
     @Autowired
     ClaimService claimService;
+
     public GroupSocietyDto create(GroupSocietyCreateDto groupSocietyCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -64,14 +66,14 @@ public class GroupSocietyService {
             transactionPartnerDto.setPartner(groupSocietyCreateDto.getCustomer());
             transactionService.addPartner(transactionPartnerDto);
         }
-        if(groupSocietyCreateDto.getSalesRepresentative() != null){
+        if (groupSocietyCreateDto.getSalesRepresentative() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
             transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
             transactionPartnerDto.setPartner(groupSocietyCreateDto.getSalesRepresentative());
             transactionService.addPartner(transactionPartnerDto);
         }
-        if(groupSocietyCreateDto.getDateJoined() != null){
+        if (groupSocietyCreateDto.getDateJoined() != null) {
             TransactionDateDto transactionDateDto = new TransactionDateDto();
             transactionDateDto.setTransaction(transactionDto.getId());
             transactionDateDto.setType(DateType.JOINED);
@@ -120,6 +122,7 @@ public class GroupSocietyService {
 
     public GroupSocietyDto get(String id) {
         try {
+            calculateBalance(id);
             TransactionDto transactionDto = transactionService.get(id);
             GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
             groupSocietyDto.setNumber(transactionDto.getNumber());
@@ -136,7 +139,7 @@ public class GroupSocietyService {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
                         groupSocietyDto.setCustomer(partnerService.get(transactionPartnerDto.getPartner()));
                     }
-                    if(transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)){
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
                         groupSocietyDto.setSalesRepresentative(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                 } catch (PartnerNotFoundException e) {
@@ -147,12 +150,12 @@ public class GroupSocietyService {
                 if (transactionDateDto.getType().equals(DateType.JOINED)) {
                     groupSocietyDto.setDateJoined(transactionDateDto.getValue());
                 }
-                if(transactionDateDto.getType().equals(DateType.CREATED)){
+                if (transactionDateDto.getType().equals(DateType.CREATED)) {
                     groupSocietyDto.setDateCreated(transactionDateDto.getValue());
                 }
             }
 
-            for (TransactionAmountDto transactionAmountDto: transactionService.getAmounts(id)){
+            for (TransactionAmountDto transactionAmountDto : transactionService.getAmounts(id)) {
                 AmountDto amountDto = new AmountDto();
                 amountDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_AMOUNT, transactionAmountDto.getType()));
                 amountDto.setAmount(transactionAmountDto.getAmount());
@@ -173,6 +176,39 @@ public class GroupSocietyService {
 
             return groupSocietyDto;
         } catch (TransactionNotFound e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void calculateBalance(String id) {
+        try {
+            BigDecimal totalDeposited = new BigDecimal('0');
+            BigDecimal totalWithdrawn = new BigDecimal('0');
+            BigDecimal availableBalance = new BigDecimal('0');
+            ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
+            receiptSearchDto.setTransaction(id);
+            for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
+                totalDeposited.add(new BigDecimal(receiptDto.getAmount()));
+            }
+
+            TransactionAmountDto amountDto = new TransactionAmountDto();
+            amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+            amountDto.setTransaction(id);
+            amountDto.setType(AmountType.AVAILABLE_BALANCE);
+            transactionService.editAmount(amountDto);
+
+            amountDto = new TransactionAmountDto();
+            amountDto.setAmount(totalDeposited);
+            amountDto.setTransaction(id);
+            amountDto.setType(AmountType.TOTAL_DEPOSITED);
+            transactionService.editAmount(amountDto);
+
+            amountDto = new TransactionAmountDto();
+            amountDto.setAmount(totalWithdrawn);
+            amountDto.setTransaction(id);
+            amountDto.setType(AmountType.TOTAL_WITHDRAWN);
+            transactionService.editAmount(amountDto);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

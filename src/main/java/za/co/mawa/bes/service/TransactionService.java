@@ -386,6 +386,25 @@ public class TransactionService implements TransactionDao {
 
     }
 
+    public boolean editAmount(TransactionAmountDto transactionAmountDto) throws DoesNotExist, Exception {
+        try {
+            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
+            pkEntity.setTransaction(transactionAmountDto.getTransaction());
+            pkEntity.setType(transactionAmountDto.getType());
+            TransactionAmountEntity entity = transactionAmountRepository.getById(pkEntity);
+            if (entity != null) {
+                entity.setAmount(transactionAmountDto.getAmount());
+                transactionAmountRepository.save(entity);
+                return true;
+            } else {
+                throw new DoesNotExist();
+            }
+
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+
+    }
     @Override
     public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
         boolean edited = false;
