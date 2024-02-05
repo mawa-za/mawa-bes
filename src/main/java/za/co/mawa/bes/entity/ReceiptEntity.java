@@ -33,6 +33,8 @@ public class ReceiptEntity implements Serializable {
     private Date creationTime;
     @Column(name = "created_by",length = 45)
     private String createdBy;
+    @Column(name = "transaction_id",length = 45)
+    private String transaction;
     @Column(name = "invoice_number",length = 45)
     private String invoiceNumber;
     @Column(name = "membership_number",length = 45)

@@ -13,6 +13,7 @@ import java.io.Serializable;
 @Setter
 public class ReceiptSearchDto implements Serializable{
     private String receiptType;
+    private String transaction;
     private String invoiceNumber;
     private String membershipNumber;
     private String membershipPeriod;
