@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.AmountDto;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
@@ -14,6 +15,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
@@ -38,7 +40,10 @@ public class GroupSocietyService {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-
+    @Autowired
+    ReceiptService receiptService;
+    @Autowired
+    ClaimService claimService;
     public GroupSocietyDto create(GroupSocietyCreateDto groupSocietyCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -153,9 +158,19 @@ public class GroupSocietyService {
                 amountDto.setAmount(transactionAmountDto.getAmount());
                 groupSocietyDto.getAmounts().add(amountDto);
             }
+
             groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
+
+            ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
+            receiptSearchDto.setTransaction(id);
+            groupSocietyDto.setReceipts(receiptService.getReceipts(receiptSearchDto));
+
+            ClaimQueryDto claimQueryDto = new ClaimQueryDto();
+            claimQueryDto.setMembership(id);
+            groupSocietyDto.setClaims(claimService.search(claimQueryDto));
+
             return groupSocietyDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);

@@ -92,7 +92,7 @@ public class ReceiptService implements ReceiptDao {
     }
 
     @Override
-    public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) throws Exception {
+    public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
@@ -161,13 +161,13 @@ public class ReceiptService implements ReceiptDao {
         };
     }
 
-    private ArrayList<ReceiptDto> entityArrayToDto(List<ReceiptEntity> receipts) throws Exception {
+    private ArrayList<ReceiptDto> entityArrayToDto(List<ReceiptEntity> receipts) {
         ArrayList<ReceiptDto> receiptDt = new ArrayList<>();
         for (ReceiptEntity receipt : receipts) {
             try {
                 receiptDt.add(entityToDto(receipt));
             } catch (Exception e) {
-                throw new RuntimeException(e);
+//                throw new RuntimeException(e);
             }
         }
         return receiptDt;
