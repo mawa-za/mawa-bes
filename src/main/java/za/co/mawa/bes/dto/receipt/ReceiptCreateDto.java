@@ -12,6 +12,7 @@ import java.io.Serializable;
 @Setter
 public class ReceiptCreateDto implements Serializable {
     private String receiptType;
+    private String transaction;
     private String invoiceNumber;
     private String membershipNumber;
     private String membershipPeriod;

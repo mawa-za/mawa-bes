@@ -55,15 +55,11 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if (receipt.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP)) {
-                entity.setMembershipNumber(receipt.getMembershipNumber());
-                entity.setMembershipPeriod(determinePeriod(receipt.getMembershipNumber()));
-            }
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
             entity.setCreatedBy(userService.getUserByName(getUser()).getPartner());
-            entity.setInvoiceNumber(receipt.getInvoiceNumber());
+            entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(receipt.getAmount()));
             return entityIDtoDto(receiptRepository.save(entity));
@@ -81,12 +77,8 @@ public class ReceiptService implements ReceiptDao {
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
-            receipt.setInvoiceNumber(entity.getInvoiceNumber());
+            receipt.setTransaction(entity.getTransaction());
             receipt.setReceiptType(entity.getReceiptType());
-            if (entity.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP)) {
-                receipt.setMembershipNumber(entity.getMembershipNumber());
-                receipt.setMembershipPeriod(entity.getMembershipPeriod());
-            }
             receipt.setTenderType(entity.getTenderType());
             receipt.setAmount(entity.getAmount().toString());
             receipt.setCreatedBy(entity.getCreatedBy());
@@ -144,6 +136,9 @@ public class ReceiptService implements ReceiptDao {
     private Specification<ReceiptEntity> findByCriteria(ReceiptSearchDto receiptSearchDto) {
         return (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
+            if (receiptSearchDto.getTransaction() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("transaction"), receiptSearchDto.getTransaction()));
+            }
             if (receiptSearchDto.getReceiptType() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("receiptType"), receiptSearchDto.getReceiptType()));
             }
@@ -182,16 +177,11 @@ public class ReceiptService implements ReceiptDao {
         try {
             SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
             SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
-
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
-            receipt.setInvoiceNumber(entity.getInvoiceNumber());
+            receipt.setTransaction(entity.getTransaction());
             receipt.setReceiptType(entity.getReceiptType());
-            if (entity.getReceiptType().equalsIgnoreCase(ReceiptType.MEMBERSHIP)) {
-                receipt.setMembershipNumber(entity.getMembershipNumber());
-                receipt.setMembershipPeriod(entity.getMembershipPeriod());
-            }
             receipt.setTenderType(entity.getTenderType());
             receipt.setAmount(entity.getAmount().toString());
             receipt.setCreatedBy(entity.getCreatedBy());
