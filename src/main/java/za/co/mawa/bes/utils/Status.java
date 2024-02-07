@@ -16,7 +16,7 @@ public class Status {
     public static String MISSED = "MISSED";
     public static String CANCELLED = "CANCELLED";
     public static String PROCESSED = "PROCESSED";
-
     public  static  String READ = "READ";
-
+    public static String APPROVED = "APPROVED";
+    public static String REJECTED = "REJECTED";
 }
