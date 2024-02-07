@@ -11,56 +11,145 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dao.PaymentRequestDao;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.utils.ClaimStatus;
+import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
 
 @RestController
 @CrossOrigin
+@RequestMapping(value = "payment-request")
 public class PaymentRequestController {
     Gson gson = new Gson();
     @Autowired
     PaymentRequestService paymentRequestService;
     @Autowired
     TransactionService transactionService;
-    @RequestMapping(value = "/payment-request", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
-        try{
+        try {
             PaymentRequestDto payment = new PaymentRequestDto();
             String id = paymentRequestService.create(paymentRequest);
-            if(id != null)
-            {
+            if (id != null) {
                 payment.setId(id);
             }
             return ResponseEntity.ok().body(gson.toJson(payment));
-        }catch (Exception ex){
+        } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value = "/payment-request/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPaymentRequest(@PathVariable String id) {
-        try{
+        try {
             return ResponseEntity.ok().body(gson.toJson(paymentRequestService.get(id)));
-        }catch (Exception ex){
+        } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value = "/payment-request", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPaymentRequests() {
-        try{
+        try {
             TransactionQueryDto query = new TransactionQueryDto();
             ArrayList<PaymentRequestDto> requests = new ArrayList<>();
             query.setType(TransactionType.PAYMENT_REQUEST);
-            for(String id:transactionService.search(query)) {
+            for (String id : transactionService.search(query)) {
                 requests.add(paymentRequestService.get(id));
             }
             return ResponseEntity.ok().body(gson.toJson(requests));
-        }catch (Exception ex){
+        } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/approve", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> approve(@PathVariable String id,
+                                     @RequestParam(required = false) String statusReason,
+                                     @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.APPROVED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/reject", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> reject(@PathVariable String id,
+                                    @RequestParam(required = false) String statusReason,
+                                    @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.REJECTED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/cancel", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> cancel(@PathVariable String id,
+                                    @RequestParam(required = false) String statusReason,
+                                    @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CANCELLED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    @RequestMapping(value = "{id}/complete", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> complete(@PathVariable String id,
+                                    @RequestParam(required = false) String statusReason,
+                                    @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.PROCESSED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 }
