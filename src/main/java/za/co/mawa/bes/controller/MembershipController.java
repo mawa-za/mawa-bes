@@ -19,10 +19,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
-import za.co.mawa.bes.utils.Conversion;
-import za.co.mawa.bes.utils.Field;
-import za.co.mawa.bes.utils.PartnerFunction;
-import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.utils.*;
 
 import java.util.*;
 
@@ -269,6 +266,69 @@ public class MembershipController {
             return ResponseEntity.ok(gson.toJson(tombstoneRecipientDtos));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/activate", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> approve(@PathVariable String id,
+                                     @RequestParam(required = false) String statusReason,
+                                     @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.ACTIVE);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/de-activate", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> reject(@PathVariable String id,
+                                    @RequestParam(required = false) String statusReason,
+                                    @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.INACTIVE);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/cancel", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> cancel(@PathVariable String id,
+                                    @RequestParam(required = false) String statusReason,
+                                    @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CANCELLED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != null) {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 }
