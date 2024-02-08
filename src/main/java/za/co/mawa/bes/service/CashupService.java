@@ -172,9 +172,9 @@ public class CashupService implements CashupDao {
             try {
                 CashupDto cashupDto = new CashupDto();
                 ArrayList<ReceiptDto> receipts = new ArrayList<>();
-                String partner = userService.getUserByName(transactionDto.getCreatedBy()).getPartner();
-                if (partner != null) {
-                    cashupDto.setCreatedBy(partner);
+                UserDto userDto = userService.getUserByName(transactionDto.getCreatedBy());
+                if (userDto != null) {
+                    cashupDto.setCreatedBy(userDto.getPartner());
                 }
                 cashupDto.setId(transactionDto.getId());
                 cashupDto.setChangedBy(transactionDto.getChangedBy());
