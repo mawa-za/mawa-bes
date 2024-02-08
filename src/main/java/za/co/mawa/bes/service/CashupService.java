@@ -18,6 +18,7 @@ import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
@@ -58,10 +59,9 @@ public class CashupService implements CashupDao {
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
         ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
         String id = null;
-        if(cashupCreateDto.getReceipts().size() > 0){
+        if (cashupCreateDto.getReceipts().size() > 0) {
             receiptsFiltered = receipts.stream().filter(obj -> cashupCreateDto.getReceipts().contains(obj.getId())).collect(Collectors.toCollection(ArrayList::new));
-        }
-        else{
+        } else {
             receiptsFiltered = receipts;
         }
         if (receiptsFiltered.size() > 0) {
@@ -172,12 +172,11 @@ public class CashupService implements CashupDao {
             try {
                 CashupDto cashupDto = new CashupDto();
                 ArrayList<ReceiptDto> receipts = new ArrayList<>();
-                String partner = userService.getUserByName(transactionDto.getCreatedBy()).getPartner();
-                if(partner != null){
-                    cashupDto.setCreatedBy(partner);
+                UserDto userDto = userService.getUserByName(transactionDto.getCreatedBy());
+                if (userDto != null) {
+                    cashupDto.setCreatedBy(userDto.getPartner());
                 }
                 cashupDto.setId(transactionDto.getId());
-                cashupDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
                 cashupDto.setChangedBy(transactionDto.getChangedBy());
                 cashupDto.setNumber(transactionDto.getNumber());
                 cashupDto.setStatus(transactionDto.getStatus());
@@ -195,7 +194,6 @@ public class CashupService implements CashupDao {
                         cashupDto.setEmployeeResponsible(transactionPartner.getPartner());
                     }
                 }
-
                 for (TransactionAmountDto amount : transactionService.getAmounts(id)) {
                     if (amount.getType().equalsIgnoreCase(PriceType.AMOUNT_COLLECTED)) {
                         cashupDto.setAmountCollected(amount.getAmount().toString());
