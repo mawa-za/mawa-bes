@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.exception.UserExistException;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.dao.UserDao;
@@ -72,6 +73,18 @@ public class UserService implements UserDao {
     @Override
     public UserDto create(UserCreateDto userCreateDto) throws Exception {
         try {
+            UserEntity userFound = userRepository.getByName(userCreateDto.getUsername());
+            if (userFound != null) {
+                throw new UserExistException("Username already exist");
+            }
+            userFound = userRepository.getByEmail(userCreateDto.getEmail());
+            if (userFound != null) {
+                throw new UserExistException("Email already assigned to user");
+            }
+            userFound = userRepository.getByCellphone(userCreateDto.getCellphone());
+            if (userFound != null) {
+                throw new UserExistException("Cellphone number already assigned to user");
+            }
             UserEntity userEntity = new UserEntity();
             userEntity.setPartner(userCreateDto.getPartnerId());
             userEntity.setUsername(userCreateDto.getUsername());
@@ -98,7 +111,7 @@ public class UserService implements UserDao {
             emailService.send(emailDto);
             return userDto;
         } catch (Exception exception) {
-            throw new Exception();
+            throw new Exception(exception.getMessage());
         }
     }
 
@@ -342,9 +355,9 @@ public class UserService implements UserDao {
             userDto.setValidTo(userEntity.getValidTo());
             userDto.setPartner(userEntity.getPartner());
             userDto.setStatusReason(userEntity.getStatusReason());
-            try{
+            try {
                 userDto.setPartnerDetails(partnerService.get(userEntity.getPartner()));
-            }catch (PartnerNotFoundException exception){
+            } catch (PartnerNotFoundException exception) {
             }
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
@@ -387,4 +400,5 @@ public class UserService implements UserDao {
     private void notifyUser() {
 
     }
+
 }
