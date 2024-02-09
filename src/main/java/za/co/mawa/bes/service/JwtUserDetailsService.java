@@ -12,6 +12,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.exception.UserLockedException;
+import za.co.mawa.bes.utils.Status;
 
 @Component
 public class JwtUserDetailsService implements UserDetailsService {
@@ -24,13 +26,20 @@ public class JwtUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserDto userDto = null;
+        boolean enabled = true;
+        boolean accountNonExpired = true;
+        boolean credentialsNonExpired = true;
+        boolean accountNonLocked = true;
         try {
-            userDto = userService.getUserByName(username);
+            UserDto userDto = userService.getUserByName(username);
             if (userDto != null) {
+                if (userDto.getStatus().equals(Status.LOCKED)){
+                    accountNonLocked = false;
+                }
                 String decryptedPassword = encryptionService.decrypt(userDto.getPassword().toString(), secret);
-                String bcrypt = new BCryptPasswordEncoder().encode(decryptedPassword);
-                return new User(userDto.getUsername(), new BCryptPasswordEncoder().encode(decryptedPassword), new ArrayList<>());
+                User user = new User(userDto.getUsername(), new BCryptPasswordEncoder().encode(decryptedPassword),
+                enabled, accountNonExpired, credentialsNonExpired, accountNonLocked, new ArrayList<>());
+                return user;
             } else {
                 throw new UsernameNotFoundException("User not found with username: " + username);
             }
