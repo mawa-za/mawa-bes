@@ -2,6 +2,7 @@ package za.co.mawa.bes.utils;
 
 public class Status {
     public static String NEW = "NEW";
+    public static String LOCKED = "LOCKED";
     public static String PENDING = "PENDING";
     public static String ACTIVE = "ACTIVE";
     public static String INACTIVE = "INACTIVE";
