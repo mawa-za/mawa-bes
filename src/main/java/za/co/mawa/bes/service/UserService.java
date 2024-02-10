@@ -71,8 +71,7 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public UserDto create(UserCreateDto userCreateDto) throws Exception {
-        try {
+    public UserDto create(UserCreateDto userCreateDto) throws UserExistException {
             UserEntity userFound = userRepository.getByName(userCreateDto.getUsername());
             if (userFound != null) {
                 throw new UserExistException("Username already exist");
@@ -110,9 +109,6 @@ public class UserService implements UserDao {
             emailDto.setProperties(props);
             emailService.send(emailDto);
             return userDto;
-        } catch (Exception exception) {
-            throw new Exception(exception.getMessage());
-        }
     }
 
     @Override
