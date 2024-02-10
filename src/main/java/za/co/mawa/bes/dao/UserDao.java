@@ -3,13 +3,14 @@ package za.co.mawa.bes.dao;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.UserExistException;
 
 import java.util.List;
 
 public interface UserDao {
     boolean authenticate(UserDto userDto) throws DoesNotExist;
 
-    UserDto create(UserCreateDto userDto) throws Exception;
+    UserDto create(UserCreateDto userDto) throws UserExistException;
 
     void reset(UserDto userDto);
 
