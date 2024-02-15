@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
@@ -332,6 +333,11 @@ public class UserService implements UserDao {
         }
     }
 
+    @Override
+    public PartnerDto getPartner(String user) {
+        return null;
+    }
+
     private boolean validatePassword(String enteredPassword, String storedPassword) {
         return encryptionService.encrypt(enteredPassword, secret).equals(storedPassword);
     }
@@ -349,7 +355,11 @@ public class UserService implements UserDao {
             userDto.setPasswordStatus(userEntity.getPasswordStatus());
             userDto.setValidFrom(userEntity.getValidFrom());
             userDto.setValidTo(userEntity.getValidTo());
-            userDto.setPartner(userEntity.getPartner());
+            try {
+                userDto.setPartner(partnerService.get(userEntity.getPartner()));
+            } catch (PartnerNotFoundException e) {
+
+            }
             userDto.setStatusReason(userEntity.getStatusReason());
             try {
                 userDto.setPartnerDetails(partnerService.get(userEntity.getPartner()));
