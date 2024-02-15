@@ -44,6 +44,7 @@ public class AttachmentService implements AttachmentDao {
             attachmentEntity.setUploadTime(new Date());
             attachmentEntity.setDocumentType(attachmentCreateDto.getDocumentType());
             attachmentEntity.setObjectId(attachmentCreateDto.getObjectId());
+            attachmentEntity.setExtension(attachmentCreateDto.getExtension());
             attachmentRepository.save(attachmentEntity);
         } catch (Exception exception) {
             throw new Exception();
@@ -76,6 +77,7 @@ public class AttachmentService implements AttachmentDao {
             attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
             attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
             attachmentDto.setUploadBy(attachmentEntity.getUploadBy());
+            attachmentDto.setExtension(attachmentEntity.getExtension());
             attachmentDtoList.add(attachmentDto);
         }
         return attachmentDtoList;

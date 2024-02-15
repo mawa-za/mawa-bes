@@ -16,6 +16,7 @@ import java.util.Date;
 public class AttachmentDto implements Serializable {
    private String id;
    private FieldOptionDto documentType;
+   private String extension;
    private String objectId;
    private Date uploadDate;
    private Date uploadTime;

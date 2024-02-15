@@ -45,4 +45,7 @@ public class AttachmentEntity implements Serializable {
     @Lob
     @Column(name = "file")
     private byte[] file;
+
+    @Column(name = "extension")
+    private String extension;
 }
