@@ -9,13 +9,16 @@ import za.co.mawa.bes.dao.AttachmentDao;
 import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.repository.AttachmentRepository;
+import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.SimpleKeyGenerator;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Base64;
 import java.text.SimpleDateFormat;
+import java.util.List;
 
 @Service
 public class AttachmentService implements AttachmentDao {
@@ -28,45 +31,56 @@ public class AttachmentService implements AttachmentDao {
 
     @Autowired
     AttachmentRepository attachmentRepository;
+    @Autowired
+    FieldOptionService fieldOptionService;
+
     @Override
-    public AttachmentDto save(AttachmentCreateDto attachmentCreateDto) throws Exception {
+    public void save(AttachmentCreateDto attachmentCreateDto) throws Exception {
         try {
             AttachmentEntity attachmentEntity = new AttachmentEntity();
             attachmentEntity.setFile(Base64.getDecoder().decode(attachmentCreateDto.getFile()));
             attachmentEntity.setUploadedBy(UserContext.getCurrentUser());
             attachmentEntity.setUploadDate(new Date());
             attachmentEntity.setUploadTime(new Date());
-            return entityToDto(attachmentRepository.save(attachmentEntity));
+            attachmentEntity.setDocumentType(attachmentCreateDto.getDocumentType());
+            attachmentEntity.setObjectId(attachmentCreateDto.getObjectId());
+            attachmentRepository.save(attachmentEntity);
         } catch (Exception exception) {
             throw new Exception();
         }
     }
 
     @Override
-    public AttachmentDto get(String id) throws DoesNotExist {
+    public String get(String id) throws DoesNotExist {
         AttachmentEntity attachmentEntity = attachmentRepository.getById(id);
         if (attachmentEntity != null) {
             attachmentEntity.setDownloadBy(UserContext.getCurrentUser());
             attachmentEntity.setDownloadDate(new Date());
-            return entityToAttachDto(attachmentRepository.save(attachmentEntity));
+            String base64String = Base64.getEncoder().encodeToString(attachmentEntity.getFile());
+            attachmentRepository.save(attachmentEntity);
+            return base64String;
         } else {
             throw new DoesNotExist();
             // return null;
         }
     }
 
-    private AttachmentDto entityToDto(AttachmentEntity attachEntity) {
-        AttachmentDto attach = new AttachmentDto();
-        attach.setId(attachEntity.getId());
-        return attach;
+    @Override
+    public List<AttachmentDto> getAll(String objectId) {
+        List<AttachmentDto> attachmentDtoList = new ArrayList<>();
+        List<AttachmentEntity> attachmentEntityList = attachmentRepository.findByObjectId(objectId);
+        for (AttachmentEntity attachmentEntity : attachmentEntityList) {
+            AttachmentDto attachmentDto = new AttachmentDto();
+            attachmentDto.setId(attachmentEntity.getId());
+            attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE, attachmentEntity.getDocumentType()));
+            attachmentDtoList.add(attachmentDto);
+        }
+        return attachmentDtoList;
     }
 
-    private AttachmentDto entityToAttachDto(AttachmentEntity attachEntity) {
-        AttachmentDto attach = new AttachmentDto();
-        String decodedString = Base64.getEncoder().encodeToString(attachEntity.getFile());
-        attach.setId(attachEntity.getId());
-        attach.setFile(decodedString);
-        return attach;
+    @Override
+    public void delete(String id) throws DoesNotExist {
+        attachmentRepository.deleteById(id);
     }
 
 

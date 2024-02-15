@@ -23,6 +23,7 @@ import java.util.Date;
 
 @RestController
 @CrossOrigin
+@RequestMapping(value = "attachment")
 public class AttachmentController {
 
     Gson gson = new Gson();
@@ -34,82 +35,44 @@ public class AttachmentController {
     @Autowired
     TransactionService transactionService;
 
-    @RequestMapping(value = "/attachment", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addAttachment(@RequestBody AttachmentCreateDto attachmentCreateDto) {
         try {
-            AttachmentDto attachmentDto = attachmentService.save(attachmentCreateDto);
-            switch (attachmentCreateDto.getObjectType()){
-            case "PARTNER":
-                PartnerAttachmentCreateDto partnerAttachmentCreateDto = new PartnerAttachmentCreateDto();
-                partnerAttachmentCreateDto.setDocumentType(attachmentCreateDto.getDocumentType());
-                partnerAttachmentCreateDto.setPartner(attachmentCreateDto.getObjectId());
-                partnerAttachmentCreateDto.setAttachmentId(attachmentDto.getId());
-                linkAttachmentPartner(partnerAttachmentCreateDto);
-                break;
-            case "TRANSACTION":
-                TransactionAttachmentCreateDto transactionAttachmentCreateDto = new TransactionAttachmentCreateDto();
-                transactionAttachmentCreateDto.setDocumentType(attachmentCreateDto.getDocumentType());
-                transactionAttachmentCreateDto.setTransaction(attachmentCreateDto.getObjectId());
-                transactionAttachmentCreateDto.setAttachmentId(attachmentDto.getId());
-                linkAttachmentTransaction(transactionAttachmentCreateDto);
-                break;
-        }
+            attachmentService.save(attachmentCreateDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "/attachment/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.MULTIPART_MIXED_VALUE)
     public ResponseEntity<?> getAttachment(@PathVariable String id) {
         try {
-            AttachmentDto attachment = attachmentService.get(id);
-            return ResponseEntity.ok(gson.toJson(attachment));
+            String file = attachmentService.get(id);
+            return ResponseEntity.ok(file);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    private void linkAttachmentTransaction(TransactionAttachmentCreateDto transactionAttachmentCreateDto) {
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteAttachment(@PathVariable String id) {
         try {
-            TransactionAttachmentPKEntity pkEntity = new TransactionAttachmentPKEntity();
-            TransactionAttachmentEntity entity = new TransactionAttachmentEntity();
-            pkEntity.setTransaction(transactionAttachmentCreateDto.getTransaction());
-            pkEntity.setDocumentType(transactionAttachmentCreateDto.getDocumentType());
-            entity.setFileId(transactionAttachmentCreateDto.getAttachmentId());
-            entity.setTransactionAttachmentPKEntity(pkEntity);
-            entity.setStatus(Status.ACTIVE);
-            entity.setValidFrom(new Date());
-            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            transactionService.addAttachment(entity);
-        } catch (Exception exception) {
-
-        }
-    }
-    @RequestMapping(value = "/attachment/transaction/{transactionId}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAttachmentTransaction(@PathVariable String transactionId) {
-        try {
-            return ResponseEntity.ok(gson.toJson(transactionService.getAttachments(transactionId)));
+             attachmentService.delete(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    private void linkAttachmentPartner(PartnerAttachmentCreateDto partnerAttachmentCreateDto) {
+    @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAttachments(@RequestParam(required = true) String objectId) {
         try {
-            PartnerAttachmentEntity entity = new PartnerAttachmentEntity();
-            PartnerAttachmentPKEntity pkEntity = new PartnerAttachmentPKEntity();
-            pkEntity.setPartner(partnerAttachmentCreateDto.getPartner());
-            pkEntity.setDocumentType(partnerAttachmentCreateDto.getDocumentType());
-            entity.setFileId(partnerAttachmentCreateDto.getAttachmentId());
-            entity.setPartnerAttachmentPKEntity(pkEntity);
-            entity.setStatus(Status.ACTIVE);
-            entity.setValidFrom(new Date());
-            entity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            partnerService.addAttachment(entity);
+            return ResponseEntity.ok(gson.toJson(attachmentService.getAll(objectId)));
         } catch (Exception exception) {
-
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
 
 }
