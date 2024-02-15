@@ -21,4 +21,5 @@ public class AttachmentDto implements Serializable {
    private Date uploadDate;
    private Date uploadTime;
    private String uploadBy;
+   private String createdBy;
 }
