@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -20,6 +21,6 @@ public class AttachmentDto implements Serializable {
    private String objectId;
    private Date uploadDate;
    private Date uploadTime;
-   private String uploadBy;
-   private String createdBy;
+   private PartnerDto uploadBy;
+   private PartnerDto createdBy;
 }
