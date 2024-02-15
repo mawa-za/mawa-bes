@@ -147,11 +147,6 @@ public class PaymentRequestService implements PaymentRequestDao {
                 break;
             }
         }
-        try {
-            PartnerDto partnerDto = partnerService.get(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
-        } catch (PartnerNotFoundException ex) {
-
-        }
         return paymentRequestDto;
     }
 
