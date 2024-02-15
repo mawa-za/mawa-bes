@@ -89,7 +89,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
         }
 
-//        UserContext.setCurrentUser(username);
+        UserContext.setCurrentUser(username);
 
         chain.doFilter(request, response);
     }
