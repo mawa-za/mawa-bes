@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.dao.AttachmentDao;
 import za.co.mawa.bes.dto.attachment.AttachmentDto;
@@ -76,8 +78,16 @@ public class AttachmentService implements AttachmentDao {
             attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE, attachmentEntity.getDocumentType()));
             attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
             attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
-            attachmentDto.setUploadBy(attachmentEntity.getUploadBy());
-            attachmentDto.setCreatedBy(attachmentEntity.getUploadBy());
+            try {
+                attachmentDto.setUploadBy(userService.getUserByName(attachmentEntity.getUploadBy()).getPartner());
+            } catch (Exception e) {
+
+            }
+            try {
+                attachmentDto.setCreatedBy(userService.getUserByName(attachmentEntity.getUploadBy()).getPartner());
+            } catch (Exception e) {
+
+            }
             attachmentDto.setExtension(attachmentEntity.getExtension());
             attachmentDtoList.add(attachmentDto);
         }

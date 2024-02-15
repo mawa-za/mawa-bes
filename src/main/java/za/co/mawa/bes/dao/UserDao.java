@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dao;
 
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
@@ -9,15 +10,10 @@ import java.util.List;
 
 public interface UserDao {
     boolean authenticate(UserDto userDto) throws DoesNotExist;
-
     UserDto create(UserCreateDto userDto) throws UserExistException;
-
     void reset(UserDto userDto);
-
     UserDto update(UserUpdateDto userUpdateDto);
-
     UserDto updatePassword(UserUpdateDto userUpdateDto);
-
     UserDto getUserByName(String username) throws Exception;
     List<UserDto> getAll(UserQueryDto query);
     List<String> getRoles(String user);
@@ -30,4 +26,5 @@ public interface UserDao {
     boolean deleteUser(String id) throws Exception;
     boolean editUser(String id,UserEditDto edit) throws Exception;
     UserDto getUserById(String id) throws Exception;
+    PartnerDto getPartner(String user);
 }

@@ -19,7 +19,7 @@ public class UserDto implements Serializable {
     private String cellphone;
     private String type;
     private String status;
-    private String partner;
+    private PartnerDto partner;
     private PartnerDto partnerDetails;
     private String passwordStatus;
     private Date validFrom;
