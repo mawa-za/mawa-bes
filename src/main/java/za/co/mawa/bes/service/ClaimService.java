@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
+import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.entity.FieldOptionEntity;
@@ -40,6 +41,8 @@ public class ClaimService {
     FieldOptionService fieldOptionService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    TransactionBankAccountService transactionBankAccountService;
 
     public ClaimDto create(ClaimCreateDto claimCreateDto) {
         try {
@@ -172,14 +175,14 @@ public class ClaimService {
                     claimDto.setDeathDate(transactionDateDto.getValue());
                 }
             }
-            TransactionAccountDto transactionAccountDto = transactionService.getOptionalBankAccount(id);
-            if (transactionAccountDto != null) {
+            TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
+            if (transactionBankAccountDto != null) {
                 BankAccountDto bankAccountDto = new BankAccountDto();
-                bankAccountDto.setAccountHolder(transactionAccountDto.getAccountHolder());
-                bankAccountDto.setBankName(transactionAccountDto.getBankName());
-                bankAccountDto.setBranchCode(transactionAccountDto.getBranchCode());
-                bankAccountDto.setAccountType(transactionAccountDto.getAccountType());
-                bankAccountDto.setAccountNumber(transactionAccountDto.getAccountNumber());
+                bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
+                bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
+                bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
+                bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
+                bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimDto.setBankDetails(bankAccountDto);
             }
             return claimDto;

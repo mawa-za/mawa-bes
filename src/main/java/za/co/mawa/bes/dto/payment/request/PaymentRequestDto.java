@@ -3,6 +3,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.BankAccountDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
@@ -17,21 +19,20 @@ import java.util.Date;
 public class PaymentRequestDto implements Serializable{
     private String id;
     private String number;
-    private String status;
-    private String statusReason;
-    private String paymentReason;
+    private FieldOptionDto status;
+    private FieldOptionDto statusReason;
+    private FieldOptionDto paymentReason;
     private String reference;
     private BigDecimal amount;
     private Date dueDate;
     private Date createdDate;
-    private String type;
-    private String paymentMethod;
-    private String branch;
+    private FieldOptionDto type;
+    private FieldOptionDto paymentMethod;
+    private FieldOptionDto branch;
     private String createdBy;
-    private PartnerDto createdByDetails;
     private String changedBy;
-    private String recipientId;
-    private String employeeResponsibleId;
-    private TransactionAccountDto bankDetails;
+    private PartnerDto recipient;
+    private PartnerDto employeeResponsible;
+    private BankAccountDto bankAccount;
 
 }
