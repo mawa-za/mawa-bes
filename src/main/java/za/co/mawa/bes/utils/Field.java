@@ -29,4 +29,5 @@ public class Field {
     public static String SALES_AREA = "SALES-AREA";
     public static String EMPLOYMENT_TYPE = "EMPLOYMENT-TYPE";
     public static String DEPARTMENT = "DEPARTMENT";
+    public static String DOCUMENT_TYPE = "DOCUMENT-TYPE";
 }
