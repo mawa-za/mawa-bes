@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.jpa.domain.Specification;
 //import javax.sql.rowset.Predicate;
 import jakarta.persistence.criteria.Predicate;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
@@ -58,7 +59,7 @@ public class ReceiptService implements ReceiptDao {
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
-            entity.setCreatedBy(userService.getUserByName(getUser()).getPartner());
+            entity.setCreatedBy(UserContext.getCurrentUser());
             entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(receipt.getAmount()));
