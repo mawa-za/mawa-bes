@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dao.PaymentRequestDao;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
@@ -58,13 +59,8 @@ public class PaymentRequestController {
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPaymentRequests() {
         try {
-            TransactionQueryDto query = new TransactionQueryDto();
-            ArrayList<PaymentRequestDto> requests = new ArrayList<>();
-            query.setType(TransactionType.PAYMENT_REQUEST);
-            for (String id : transactionService.search(query)) {
-                requests.add(paymentRequestService.get(id));
-            }
-            return ResponseEntity.ok().body(gson.toJson(requests));
+            PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
+            return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAll(paymentRequestQueryDto)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }

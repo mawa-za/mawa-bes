@@ -1,19 +1,19 @@
-package za.co.mawa.bes.dto;
+package za.co.mawa.bes.dto.transaction.bank.account;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.io.Serializable;
+import za.co.mawa.bes.dto.FieldOptionDto;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class BankAccountDto implements Serializable{
+public class TransactionBankAccountCreateDto {
     private String accountHolder;
-    private FieldOptionDto bankName;
+    private String bankName;
     private String accountNumber;
     private String branchCode;
-    private FieldOptionDto accountType;
+    private String accountType;
 }

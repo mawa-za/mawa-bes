@@ -30,7 +30,6 @@ public interface TransactionDao {
     void addItem(TransactionItemDto transactionItemDto) throws Exception;
     void removeItem(TransactionItemDto transactionItemDto) throws Exception;
     List<TransactionItemDto> getItems(String id);
-
     //Amounts
     void addAmount(TransactionAmountDto transactionAmountDto);
     void removeAmount(TransactionAmountDto transactionAmountDto) throws Exception;
@@ -74,8 +73,6 @@ public interface TransactionDao {
     List<TransactionPartnerDto> getPartnersByFunction(String partnerFunction)  throws  Exception ;
 
     List<TransactionItemDto> getItemsBy(TransactionItemDto transactionItemDto) throws  Exception;
-
-
 
     List<TransactionPartnerDto> getPartnerType(String partner, String partnerFunction);
 
