@@ -1,6 +1,5 @@
 ALTER TABLE `attachment`
-ADD COLUMN `object_id` VARCHAR(255) NULL AFTER `id`,
-ADD COLUMN `document_type` VARCHAR(45) NULL AFTER `object_id`;
+ADD COLUMN `extension` VARCHAR(45) NULL AFTER `file`;
 
 INSERT INTO `field` (`code`, `description`, `valid_from`, `valid_to`)
   VALUES ('FILE-EXTENSION', 'File Extension', CURRENT_DATE, '9999-12-31');
