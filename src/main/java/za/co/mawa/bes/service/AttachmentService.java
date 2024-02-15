@@ -77,6 +77,7 @@ public class AttachmentService implements AttachmentDao {
             attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
             attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
             attachmentDto.setUploadBy(attachmentEntity.getUploadBy());
+            attachmentDto.setCreatedBy(attachmentEntity.getUploadBy());
             attachmentDto.setExtension(attachmentEntity.getExtension());
             attachmentDtoList.add(attachmentDto);
         }
@@ -87,6 +88,5 @@ public class AttachmentService implements AttachmentDao {
     public void delete(String id) throws DoesNotExist {
         attachmentRepository.deleteById(id);
     }
-
 
 }
