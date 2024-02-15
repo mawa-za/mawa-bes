@@ -22,6 +22,10 @@ public class AttachmentEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
+    @Column(name = "object_id")
+    private String objectId;
+    @Column(name = "document_type")
+    private String documentType;
     @Column(name = "upload_by")
     private String uploadedBy;
     @Column(name = "upload_time")

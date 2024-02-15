@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.FieldOptionDto;
 
 import java.io.Serializable;
 @NoArgsConstructor
@@ -12,5 +13,6 @@ import java.io.Serializable;
 @Setter
 public class AttachmentDto implements Serializable {
    private String id;
-   private String file;
+   private FieldOptionDto documentType;
+   private String objectId;
 }
