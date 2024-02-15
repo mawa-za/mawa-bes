@@ -53,6 +53,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             TenantContext.setCurrentTenant(tenant);
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
+                UserContext.setCurrentUser(username);
             } catch (IllegalArgumentException e) {
                 System.out.println("Unable to get JWT Token");
             } catch (ExpiredJwtException ex) {
@@ -88,8 +89,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
             }
         }
-
-        UserContext.setCurrentUser(username);
 
         chain.doFilter(request, response);
     }
