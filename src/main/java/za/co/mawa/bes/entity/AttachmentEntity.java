@@ -27,7 +27,7 @@ public class AttachmentEntity implements Serializable {
     @Column(name = "document_type")
     private String documentType;
     @Column(name = "upload_by")
-    private String uploadedBy;
+    private String uploadBy;
     @Column(name = "upload_time")
     @Temporal(TemporalType.TIMESTAMP)
     private Date uploadTime;
@@ -45,4 +45,7 @@ public class AttachmentEntity implements Serializable {
     @Lob
     @Column(name = "file")
     private byte[] file;
+
+    @Column(name = "extension")
+    private String extension;
 }

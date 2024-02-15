@@ -39,11 +39,12 @@ public class AttachmentService implements AttachmentDao {
         try {
             AttachmentEntity attachmentEntity = new AttachmentEntity();
             attachmentEntity.setFile(Base64.getDecoder().decode(attachmentCreateDto.getFile()));
-            attachmentEntity.setUploadedBy(UserContext.getCurrentUser());
+            attachmentEntity.setUploadBy(UserContext.getCurrentUser());
             attachmentEntity.setUploadDate(new Date());
             attachmentEntity.setUploadTime(new Date());
             attachmentEntity.setDocumentType(attachmentCreateDto.getDocumentType());
             attachmentEntity.setObjectId(attachmentCreateDto.getObjectId());
+            attachmentEntity.setExtension(attachmentCreateDto.getExtension());
             attachmentRepository.save(attachmentEntity);
         } catch (Exception exception) {
             throw new Exception();
@@ -73,6 +74,10 @@ public class AttachmentService implements AttachmentDao {
             AttachmentDto attachmentDto = new AttachmentDto();
             attachmentDto.setId(attachmentEntity.getId());
             attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE, attachmentEntity.getDocumentType()));
+            attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
+            attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
+            attachmentDto.setUploadBy(attachmentEntity.getUploadBy());
+            attachmentDto.setExtension(attachmentEntity.getExtension());
             attachmentDtoList.add(attachmentDto);
         }
         return attachmentDtoList;

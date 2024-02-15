@@ -13,6 +13,7 @@ import java.io.Serializable;
 @Setter
 public class AttachmentCreateDto implements Serializable {
     private String file;
+    private String extension;
     private String documentType;
     private String objectType;
     private String objectId;
