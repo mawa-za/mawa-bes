@@ -4,10 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.BankAccountCreateDto;
 import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.transaction.account.TransactionAccountCreateDto;
-import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -17,7 +14,7 @@ import java.util.Date;
 @AllArgsConstructor
 @Getter
 @Setter
-public class PaymentRequestCreateDto implements Serializable{
+public class PaymentRequestQueryDto implements Serializable{
     private String recipientId;
     private String paymentReason;
     private String reference;
@@ -27,5 +24,5 @@ public class PaymentRequestCreateDto implements Serializable{
     private String paymentMethod;
     private String employeeResponsibleId;
     private String branch;
-    private BankAccountCreateDto bankAccount;
+    private BankAccountDto bankAccount;
 }

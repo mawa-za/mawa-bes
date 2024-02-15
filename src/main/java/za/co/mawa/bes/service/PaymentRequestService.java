@@ -3,9 +3,11 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.PaymentRequestDao;
+import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
@@ -14,7 +16,9 @@ import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class PaymentRequestService implements PaymentRequestDao {
@@ -24,46 +28,48 @@ public class PaymentRequestService implements PaymentRequestDao {
     UserService userService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    FieldOptionService fieldOptionService;
 
     @Override
-    public String create(PaymentRequestCreateDto paymentRequest) throws Exception {
+    public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.PAYMENT_REQUEST);
-        transactionCreateDto.setSubType(paymentRequest.getPaymentMethod());
-        transactionCreateDto.setCategory(paymentRequest.getPaymentReason());
+        transactionCreateDto.setSubType(paymentRequestCreateDto.getPaymentMethod());
+        transactionCreateDto.setCategory(paymentRequestCreateDto.getPaymentReason());
         transactionCreateDto.setStatus(Status.NEW);
-        transactionCreateDto.setLocation(paymentRequest.getBranch());
+        transactionCreateDto.setLocation(paymentRequestCreateDto.getBranch());
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
-            if (paymentRequest.getAmount() != null) {
+            if (paymentRequestCreateDto.getAmount() != null) {
                 TransactionAmountDto amount = new TransactionAmountDto();
-                amount.setAmount(paymentRequest.getAmount());
+                amount.setAmount(paymentRequestCreateDto.getAmount());
                 amount.setTransaction(transaction.getId());
                 amount.setType(PriceType.PAYMENT_AMOUNT);
                 transactionService.addAmount(amount);
             }
-            if (paymentRequest.getEmployeeResponsibleId() != null && paymentRequest.getEmployeeResponsibleId() != "") {
+            if (paymentRequestCreateDto.getEmployeeResponsibleId() != null && paymentRequestCreateDto.getEmployeeResponsibleId() != "") {
                 TransactionPartnerDto partner = new TransactionPartnerDto();
                 partner.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
-                partner.setPartner(paymentRequest.getEmployeeResponsibleId());
+                partner.setPartner(paymentRequestCreateDto.getEmployeeResponsibleId());
                 partner.setTransaction(transaction.getId());
                 transactionService.addPartner(partner);
             }
-            if (paymentRequest.getRecipientId() != null && paymentRequest.getRecipientId() != "") {
+            if (paymentRequestCreateDto.getRecipientId() != null && paymentRequestCreateDto.getRecipientId() != "") {
                 TransactionPartnerDto partner = new TransactionPartnerDto();
                 partner.setFunction(PartnerFunction.RECIPIENT);
-                partner.setPartner(paymentRequest.getRecipientId());
+                partner.setPartner(paymentRequestCreateDto.getRecipientId());
                 partner.setTransaction(transaction.getId());
                 transactionService.addPartner(partner);
             }
-            if (paymentRequest.getBankAccount() != null) {
+            if (paymentRequestCreateDto.getBankAccount() != null) {
                 TransactionAccountDto account = new TransactionAccountDto();
-                account.setAccountHolder(paymentRequest.getBankAccount().getAccountHolder());
+                account.setAccountHolder(paymentRequestCreateDto.getBankAccount().getAccountHolder());
                 account.setTransaction(transaction.getId());
-                account.setAccountNumber(paymentRequest.getBankAccount().getAccountNumber());
-                account.setBankName(paymentRequest.getBankAccount().getBankName());
-                account.setBranchCode(paymentRequest.getBankAccount().getBranchCode());
-                account.setAccountType(paymentRequest.getBankAccount().getAccountType());
+                account.setAccountNumber(paymentRequestCreateDto.getBankAccount().getAccountNumber());
+                account.setBankName(paymentRequestCreateDto.getBankAccount().getBankName());
+                account.setBranchCode(paymentRequestCreateDto.getBankAccount().getBranchCode());
+                account.setAccountType(paymentRequestCreateDto.getBankAccount().getAccountType());
                 transactionService.addBankAccount(account);
             }
             TransactionDateDto dateDto = new TransactionDateDto();
@@ -71,18 +77,18 @@ public class PaymentRequestService implements PaymentRequestDao {
             dateDto.setTransaction(transaction.getId());
             dateDto.setType(DateType.CREATED);
             transactionService.addDate(dateDto);
-            if (paymentRequest.getDueDate() != null) {
+            if (paymentRequestCreateDto.getDueDate() != null) {
                 dateDto = new TransactionDateDto();
-                dateDto.setValue(paymentRequest.getDueDate());
+                dateDto.setValue(paymentRequestCreateDto.getDueDate());
                 dateDto.setTransaction(transaction.getId());
                 dateDto.setType(DateType.DUE_DATE);
                 transactionService.addDate(dateDto);
 
             }
-            if (paymentRequest.getReference() != null && paymentRequest.getReference() != "") {
+            if (paymentRequestCreateDto.getReference() != null && paymentRequestCreateDto.getReference() != "") {
                 TransactionLinkDto linkDto = new TransactionLinkDto();
                 linkDto.setTransaction1(transaction.getId());
-                linkDto.setTransaction2(paymentRequest.getReference());
+                linkDto.setTransaction2(paymentRequestCreateDto.getReference());
                 linkDto.setType(TransactionType.PAYMENT_REQUEST);
                 transactionService.addLink(linkDto);
             }
@@ -99,30 +105,36 @@ public class PaymentRequestService implements PaymentRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         paymentRequestDto.setId(transactionDto.getId());
         paymentRequestDto.setNumber(transactionDto.getNumber());
-        paymentRequestDto.setStatus(transactionDto.getStatus());
         paymentRequestDto.setCreatedBy(transactionDto.getCreatedBy());
-        paymentRequestDto.setPaymentMethod(transactionDto.getSubType());
-        paymentRequestDto.setPaymentReason(transactionDto.getCategory());
-        paymentRequestDto.setBranch(transactionDto.getLocation());
+        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
+        paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
+        paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
+        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
                 paymentRequestDto.setDueDate(transactionDateDto.getValue());
             }
-            if(transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)){
+            if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
                 paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
             }
         }
         for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
             if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                paymentRequestDto.setEmployeeResponsibleId(transactionPartner.getPartner());
+                paymentRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
             }
             if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
-                paymentRequestDto.setRecipientId(transactionPartner.getPartner());
+                paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
             }
         }
         TransactionAccountDto account = transactionService.getBankAccount(id);
         if (account != null) {
-            paymentRequestDto.setBankDetails(account);
+            BankAccountDto bankAccountDto = new BankAccountDto();
+            bankAccountDto.setBankName(fieldOptionService.getFieldOption(Field.BANK_NAME, account.getBankName()));
+            bankAccountDto.setAccountType(fieldOptionService.getFieldOption(Field.BANK_ACCOUNT_TYPE, account.getAccountType()));
+            bankAccountDto.setAccountHolder(account.getAccountHolder());
+            bankAccountDto.setAccountNumber(account.getAccountNumber());
+            bankAccountDto.setBranchCode(account.getBranchCode());
+            paymentRequestDto.setBankAccount(bankAccountDto);
         }
         for (TransactionLinkDto link : transactionService.getLinks(id)) {
             if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
@@ -135,13 +147,27 @@ public class PaymentRequestService implements PaymentRequestDao {
                 break;
             }
         }
-        try{
+        try {
             PartnerDto partnerDto = partnerService.get(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
-            paymentRequestDto.setCreatedByDetails(partnerDto);
-        }catch(PartnerNotFoundException ex){
+        } catch (PartnerNotFoundException ex) {
 
         }
-
         return paymentRequestDto;
+    }
+
+    @Override
+    public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
+        TransactionQueryDto query = new TransactionQueryDto();
+        List<PaymentRequestDto> requests = new ArrayList<>();
+        for (String id : transactionService.search(query)) {
+            query.setType(TransactionType.PAYMENT_REQUEST);
+            try {
+                requests.add(get(id));
+            } catch (Exception e) {
+
+            }
+        }
+        return requests;
+
     }
 }
