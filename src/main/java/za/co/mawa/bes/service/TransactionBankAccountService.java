@@ -17,7 +17,7 @@ public class TransactionBankAccountService {
     @Autowired
     FieldOptionService fieldOptionService;
     public TransactionBankAccountDto get(String id) {
-        TransactionBankAccount transactionBankAccount = transactionBankAccountRepository.getById(id);
+        TransactionBankAccount transactionBankAccount = transactionBankAccountRepository.getBankAccount(id);
         TransactionBankAccountDto transactionBankAccountDto = new TransactionBankAccountDto();
         transactionBankAccountDto.setAccountHolder(transactionBankAccount.getAccountHolder());
         transactionBankAccountDto.setAccountNumber(transactionBankAccount.getAccountNumber());
