@@ -7,6 +7,7 @@ public class Field {
     public static String TITLE = "TITLE";
     public static String MARITAL_STATUS = "MARITAL-STATUS";
     public static String TRANSACTION_STATUS = "TRANSACTION-STATUS";
+    public static String TRANSACTION_STATUS_REASON = "TRANSACTION-STATUS-REASON";
     public static String PARTNER_STATUS = "PARTNER-STATUS";
     public static String PARTNER_TYPE = "PARTNER-TYPE";
     public static String STATUS_REASON = "STATUS-REASON";
