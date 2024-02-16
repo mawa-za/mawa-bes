@@ -9,6 +9,6 @@ import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
 import java.util.List;
 
 public interface BankAccountRepository extends JpaRepository<BankAccountEntity, String> {
-    @Query("SELECT b FROM BankAccountEntity b WHERE b.objectId = :id ")
+    @Query("SELECT b FROM BankAccountEntity b WHERE b.objectId = :objectId")
     BankAccountEntity getByObjectId(String objectId);
 }
