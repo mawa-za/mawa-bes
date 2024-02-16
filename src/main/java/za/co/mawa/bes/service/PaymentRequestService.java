@@ -153,9 +153,9 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Override
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
         TransactionQueryDto query = new TransactionQueryDto();
+        query.setType(TransactionType.PAYMENT_REQUEST);
         List<PaymentRequestDto> requests = new ArrayList<>();
         for (String id : transactionService.search(query)) {
-            query.setType(TransactionType.PAYMENT_REQUEST);
             try {
                 requests.add(get(id));
             } catch (Exception e) {
