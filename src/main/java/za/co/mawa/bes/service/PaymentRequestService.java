@@ -139,16 +139,16 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
             }
         }
-        TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
-        if (transactionBankAccountDto != null) {
-            BankAccountDto bankAccountDto = new BankAccountDto();
-            bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
-            bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
-            bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
-            bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
-            bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
-            paymentRequestDto.setBankAccount(bankAccountDto);
-        }
+//        TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
+//        if (transactionBankAccountDto != null) {
+//            BankAccountDto bankAccountDto = new BankAccountDto();
+//            bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
+//            bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
+//            bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
+//            bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
+//            bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
+//            paymentRequestDto.setBankAccount(bankAccountDto);
+//        }
         for (TransactionLinkDto link : transactionService.getLinks(id)) {
             if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
                 paymentRequestDto.setReference(link.getTransaction2());
