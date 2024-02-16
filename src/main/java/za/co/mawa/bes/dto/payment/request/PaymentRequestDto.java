@@ -29,8 +29,8 @@ public class PaymentRequestDto implements Serializable{
     private FieldOptionDto type;
     private FieldOptionDto paymentMethod;
     private FieldOptionDto branch;
-    private String createdBy;
-    private String changedBy;
+    private PartnerDto createdBy;
+    private PartnerDto changedBy;
     private PartnerDto recipient;
     private PartnerDto employeeResponsible;
     private BankAccountDto bankAccount;

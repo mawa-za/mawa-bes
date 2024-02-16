@@ -11,7 +11,9 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
@@ -30,6 +32,8 @@ public class PaymentRequestService implements PaymentRequestDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionBankAccountService transactionBankAccountService;
 
     @Override
     public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
@@ -105,8 +109,12 @@ public class PaymentRequestService implements PaymentRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         paymentRequestDto.setId(transactionDto.getId());
         paymentRequestDto.setNumber(transactionDto.getNumber());
-        paymentRequestDto.setCreatedBy(transactionDto.getCreatedBy());
-        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
+        try {
+            paymentRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+        } catch (Exception e) {
+
+        }
+        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
         paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
         paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
@@ -126,14 +134,14 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
             }
         }
-        TransactionAccountDto account = transactionService.getBankAccount(id);
-        if (account != null) {
+        TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
+        if (transactionBankAccountDto != null) {
             BankAccountDto bankAccountDto = new BankAccountDto();
-            bankAccountDto.setBankName(fieldOptionService.getFieldOption(Field.BANK_NAME, account.getBankName()));
-            bankAccountDto.setAccountType(fieldOptionService.getFieldOption(Field.BANK_ACCOUNT_TYPE, account.getAccountType()));
-            bankAccountDto.setAccountHolder(account.getAccountHolder());
-            bankAccountDto.setAccountNumber(account.getAccountNumber());
-            bankAccountDto.setBranchCode(account.getBranchCode());
+            bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
+            bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
+            bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
+            bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
+            bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
             paymentRequestDto.setBankAccount(bankAccountDto);
         }
         for (TransactionLinkDto link : transactionService.getLinks(id)) {
