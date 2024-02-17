@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class BankAccountCreateDto implements Serializable{
+    private String objectId;
     private String accountHolder;
     private String bankName;
     private String accountNumber;
