@@ -57,7 +57,7 @@ public class AddressController {
         }
     }
 
-    @RequestMapping(value = "{id}",method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}",method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteAddress(@PathVariable String id) {
         try {
             addressService.delete(id);
