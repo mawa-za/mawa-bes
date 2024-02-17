@@ -20,18 +20,27 @@ public class AddressEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
-    @Column(name = "address_line_1", length = 45)
+    @Column(name = "type")
+    private String type;
+    @Column(name = "object_id")
+    private String objectId;
+    @Column(name = "address_line_1")
     private String addressLine1;
     //@Size(max = 45)
-    @Column(name = "address_line_2", length = 45)
+    @Column(name = "address_line_2")
     private String addressLine2;
-    //@Size(max = 45)
     @Column(name = "address_line_3", length = 45)
     private String addressLine3;
-    // @Size(max = 45)
     @Column(name = "address_line_4", length = 45)
     private String addressLine4;
-    // @Size(max = 5)
+    @Column(name = "suburb", length = 45)
+    private String suburb;
+    @Column(name = "town", length = 45)
+    private String town;
+    @Column(name = "city", length = 45)
+    private String city;
+    @Column(name = "province", length = 45)
+    private String province;
     @Column(name = "postal_code", length = 20)
     private String postalCode;
     @Column(name = "valid_from")

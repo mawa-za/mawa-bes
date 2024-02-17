@@ -10,11 +10,15 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class AddressCreateDto implements Serializable {
-    private String partner;
+    private String objectId;
     private String type;
     private String line1;
     private String line2;
     private String line3;
     private String line4;
+    private String suburb;
+    private String town;
+    private String city;
+    private String province;
     private String postalCode;
 }

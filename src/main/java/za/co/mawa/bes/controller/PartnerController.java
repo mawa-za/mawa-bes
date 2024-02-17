@@ -130,7 +130,7 @@ public class PartnerController {
         try {
             AddressDto addressDto = addressService.add(addressCreateDto);
             PartnerAddressCreateDto partnerAddressCreateDto = new PartnerAddressCreateDto();
-            partnerAddressCreateDto.setPartner(addressCreateDto.getPartner());
+//            partnerAddressCreateDto.setPartner(addressCreateDto.getPartner());
             partnerAddressCreateDto.setType(addressCreateDto.getType());
             partnerAddressCreateDto.setId(addressDto.getId());
             partnerAddressService.add(partnerAddressCreateDto);
