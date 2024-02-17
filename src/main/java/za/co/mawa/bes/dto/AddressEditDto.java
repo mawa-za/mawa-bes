@@ -15,5 +15,9 @@ public class AddressEditDto implements Serializable {
     private String line2;
     private String line3;
     private String line4;
+    private String suburb;
+    private String town;
+    private String city;
+    private String province;
     private String postalCode;
 }
