@@ -1,0 +1,7 @@
+ALTER TABLE `address`
+ADD COLUMN `object_id` VARCHAR(255) NULL AFTER `id`,
+ADD COLUMN `type` VARCHAR(45) NULL AFTER `object_id`,
+ADD COLUMN `suburb` VARCHAR(45) NULL AFTER `postal_code`,
+ADD COLUMN `town` VARCHAR(45) NULL AFTER `suburb`,
+ADD COLUMN `city` VARCHAR(45) NULL AFTER `town`,
+ADD COLUMN `province` VARCHAR(45) NULL AFTER `city`;
