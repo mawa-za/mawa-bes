@@ -10,12 +10,11 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class BankAccountDto implements Serializable{
+public class BankAccountEditDto implements Serializable{
     private String id;
     private String accountHolder;
-    private FieldOptionDto bankName;
+    private String bankName;
     private String accountNumber;
     private String branchCode;
-    private FieldOptionDto accountType;
-    private FieldOptionDto status;
+    private String accountType;
 }
