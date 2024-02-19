@@ -35,7 +35,7 @@ public class BankAccountService {
         bankAccountEntity.setBranchCode(bankAccountCreateDto.getBranchCode());
         bankAccountEntity.setStatus(Status.ACTIVE);
         bankAccountEntity.setValidFrom(new Date());
-        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
+//        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
         bankAccountRepository.save(bankAccountEntity);
     }
     public void edit(BankAccountEditDto bankAccountEditDto) {
