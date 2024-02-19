@@ -10,5 +10,5 @@ import java.util.List;
 
 public interface BankAccountRepository extends JpaRepository<BankAccountEntity, String> {
     @Query("SELECT b FROM BankAccountEntity b WHERE b.objectId = :objectId")
-    BankAccountEntity getByObjectId(String objectId);
+    List<BankAccountEntity> getByObjectId(String objectId);
 }
