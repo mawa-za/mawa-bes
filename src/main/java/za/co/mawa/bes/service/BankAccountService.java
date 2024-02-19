@@ -26,18 +26,23 @@ public class BankAccountService {
     FieldOptionService fieldOptionService;
 
     public void add(BankAccountCreateDto bankAccountCreateDto) {
-        BankAccountEntity bankAccountEntity = new BankAccountEntity();
-        bankAccountEntity.setObjectId(bankAccountCreateDto.getObjectId());
-        bankAccountEntity.setAccountHolder(bankAccountCreateDto.getAccountHolder());
-        bankAccountEntity.setAccountType(bankAccountCreateDto.getAccountType());
-        bankAccountEntity.setBankName(bankAccountCreateDto.getBankName());
-        bankAccountEntity.setAccountNumber(bankAccountCreateDto.getAccountNumber());
-        bankAccountEntity.setBranchCode(bankAccountCreateDto.getBranchCode());
-        bankAccountEntity.setStatus(Status.ACTIVE);
-        bankAccountEntity.setValidFrom(new Date());
-//        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
-        bankAccountRepository.save(bankAccountEntity);
+        try {
+            BankAccountEntity bankAccountEntity = new BankAccountEntity();
+            bankAccountEntity.setObjectId(bankAccountCreateDto.getObjectId());
+            bankAccountEntity.setAccountHolder(bankAccountCreateDto.getAccountHolder());
+            bankAccountEntity.setAccountType(bankAccountCreateDto.getAccountType());
+            bankAccountEntity.setBankName(bankAccountCreateDto.getBankName());
+            bankAccountEntity.setAccountNumber(bankAccountCreateDto.getAccountNumber());
+            bankAccountEntity.setBranchCode(bankAccountCreateDto.getBranchCode());
+            bankAccountEntity.setStatus(Status.ACTIVE);
+            bankAccountEntity.setValidFrom(new Date());
+            bankAccountEntity.setValidTo(new Date());
+            bankAccountRepository.save(bankAccountEntity);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
     public void edit(BankAccountEditDto bankAccountEditDto) {
         BankAccountEntity bankAccountEntity = bankAccountRepository.getById(bankAccountEditDto.getId());
         bankAccountEntity.setAccountHolder(bankAccountEditDto.getAccountHolder());
@@ -47,9 +52,10 @@ public class BankAccountService {
         bankAccountEntity.setBranchCode(bankAccountEditDto.getBranchCode());
 //        bankAccountEntity.setStatus(Status.ACTIVE);
         bankAccountEntity.setValidFrom(new Date());
-        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
+//        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
         bankAccountRepository.save(bankAccountEntity);
     }
+
     public List<BankAccountDto> getList(String objectId) {
         List<BankAccountDto> bankAccountDtoList = new ArrayList<>();
         List<BankAccountEntity> bankAccountEntityList = bankAccountRepository.getByObjectId(objectId);
