@@ -1,5 +1,6 @@
 package za.co.mawa.bes.controller;
 
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 import com.nimbusds.jose.shaded.gson.Gson;
@@ -63,6 +64,19 @@ public class PaymentRequestController {
             return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAll(paymentRequestQueryDto)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
+    @RequestMapping(value = "{id}/submit", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> submit(@PathVariable String id) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
