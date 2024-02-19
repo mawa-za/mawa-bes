@@ -167,14 +167,6 @@ public class GroupSocietyService {
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
 
-            ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
-            receiptSearchDto.setTransaction(id);
-            groupSocietyDto.setReceipts(receiptService.getReceipts(receiptSearchDto));
-
-            ClaimQueryDto claimQueryDto = new ClaimQueryDto();
-            claimQueryDto.setMembership(id);
-            groupSocietyDto.setClaims(claimService.search(claimQueryDto));
-
             return groupSocietyDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
