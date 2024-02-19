@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
@@ -122,7 +123,7 @@ public class GroupSocietyService {
 
     public GroupSocietyDto get(String id) {
         try {
-            calculateBalance(id);
+           // calculateBalance(id);
             TransactionDto transactionDto = transactionService.get(id);
             GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
             groupSocietyDto.setNumber(transactionDto.getNumber());
@@ -190,26 +191,50 @@ public class GroupSocietyService {
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
                 totalDeposited.add(new BigDecimal(receiptDto.getAmount()));
             }
+            try {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.AVAILABLE_BALANCE);
+                transactionService.editAmount(amountDto);
+            } catch (Exception exception) {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.AVAILABLE_BALANCE);
+                transactionService.addAmount(amountDto);
+            }
 
-            TransactionAmountDto amountDto = new TransactionAmountDto();
-            amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
-            amountDto.setTransaction(id);
-            amountDto.setType(AmountType.AVAILABLE_BALANCE);
-            transactionService.editAmount(amountDto);
-
-            amountDto = new TransactionAmountDto();
-            amountDto.setAmount(totalDeposited);
-            amountDto.setTransaction(id);
-            amountDto.setType(AmountType.TOTAL_DEPOSITED);
-            transactionService.editAmount(amountDto);
-
-            amountDto = new TransactionAmountDto();
-            amountDto.setAmount(totalWithdrawn);
-            amountDto.setTransaction(id);
-            amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-            transactionService.editAmount(amountDto);
+            try {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalDeposited);
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.TOTAL_DEPOSITED);
+                transactionService.editAmount(amountDto);
+            } catch (Exception exception) {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.TOTAL_DEPOSITED);
+                transactionService.addAmount(amountDto);
+            }
+            try {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalWithdrawn);
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
+                transactionService.editAmount(amountDto);
+            } catch (Exception exception) {
+                TransactionAmountDto amountDto = new TransactionAmountDto();
+                amountDto.setAmount(totalWithdrawn);
+                amountDto.setTransaction(id);
+                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
+                transactionService.addAmount(amountDto);
+            }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+
         }
     }
 }
