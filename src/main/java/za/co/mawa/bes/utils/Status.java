@@ -4,6 +4,7 @@ public class Status {
     public static String NEW = "NEW";
     public static String LOCKED = "LOCKED";
     public static String PENDING = "PENDING";
+
     public static String ACTIVE = "ACTIVE";
     public static String INACTIVE = "INACTIVE";
     public static String OPEN = "OPEN";
@@ -20,4 +21,5 @@ public class Status {
     public  static  String READ = "READ";
     public static String APPROVED = "APPROVED";
     public static String REJECTED = "REJECTED";
+    public static String AWAITING_APPROVAL = "AWAITING-APPROVAL";
 }
