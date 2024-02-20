@@ -139,7 +139,6 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
             }
         }
-        paymentRequestDto.setBankAccount(bankAccountService.get(id));
 
         for (TransactionLinkDto link : transactionService.getLinks(id)) {
             if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
