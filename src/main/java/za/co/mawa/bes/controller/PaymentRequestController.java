@@ -58,9 +58,10 @@ public class PaymentRequestController {
     }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPaymentRequests() {
+    public ResponseEntity<?> getPaymentRequests(@RequestParam(required = false) String status) {
         try {
             PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
+            paymentRequestQueryDto.setStatus(status);
             return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAll(paymentRequestQueryDto)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
