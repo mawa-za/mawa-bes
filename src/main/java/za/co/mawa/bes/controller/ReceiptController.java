@@ -66,7 +66,7 @@ public class ReceiptController {
 
     @RequestMapping(value = "/receipts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,
-                                         @RequestParam(required = false) String invoiceNumber,
+//                                         @RequestParam(required = false) String invoiceNumber,
                                          @RequestParam(required = false) String transaction,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
@@ -76,9 +76,9 @@ public class ReceiptController {
             if (receiptType != null && receiptType != "") {
                 search.setReceiptType(receiptType);
             }
-            if (invoiceNumber != null && invoiceNumber != "") {
-                search.setInvoiceNumber(invoiceNumber);
-            }
+//            if (invoiceNumber != null && invoiceNumber != "") {
+//                search.setInvoiceNumber(invoiceNumber);
+//            }
             if (transaction != null && transaction != "") {
                 search.setTransaction(transaction);
             }
