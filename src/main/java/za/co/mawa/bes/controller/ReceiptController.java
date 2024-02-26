@@ -64,7 +64,7 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value = "/receipts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/receipt", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,
 //                                         @RequestParam(required = false) String invoiceNumber,
                                          @RequestParam(required = false) String transaction,
