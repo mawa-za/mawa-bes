@@ -177,7 +177,6 @@ public class GroupSocietyService {
         try {
             BigDecimal totalDeposited = new BigDecimal('0');
             BigDecimal totalWithdrawn = new BigDecimal('0');
-            BigDecimal availableBalance = new BigDecimal('0');
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
@@ -199,21 +198,19 @@ public class GroupSocietyService {
 
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto = new TransactionAmountDto();
                 amountDto.setAmount(totalDeposited);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_DEPOSITED);
                 transactionService.editAmount(amountDto);
             } catch (Exception exception) {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setAmount(totalDeposited);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_DEPOSITED);
                 transactionService.addAmount(amountDto);
             }
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto = new TransactionAmountDto();
                 amountDto.setAmount(totalWithdrawn);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_WITHDRAWN);
