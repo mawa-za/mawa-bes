@@ -14,7 +14,7 @@ import java.util.Date;
 @AllArgsConstructor
 @Getter
 @Setter
-public class PaymentRequestQueryDto implements Serializable{
+public class PaymentRequestQueryDto implements Serializable {
     private String recipientId;
     private String paymentReason;
     private String reference;
@@ -24,5 +24,5 @@ public class PaymentRequestQueryDto implements Serializable{
     private String paymentMethod;
     private String employeeResponsibleId;
     private String branch;
-    private BankAccountDto bankAccount;
+    private String status;
 }

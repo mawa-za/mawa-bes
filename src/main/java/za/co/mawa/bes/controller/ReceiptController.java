@@ -64,11 +64,10 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value = "/receipts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/receipt", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,
-                                         @RequestParam(required = false) String invoiceNumber,
-                                         @RequestParam(required = false) String membershipNumber,
-                                         @RequestParam(required = false) String membershipPeriod,
+//                                         @RequestParam(required = false) String invoiceNumber,
+                                         @RequestParam(required = false) String transaction,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
                                          @RequestParam(name = "user", required = false) String createdBy) {
@@ -77,14 +76,11 @@ public class ReceiptController {
             if (receiptType != null && receiptType != "") {
                 search.setReceiptType(receiptType);
             }
-            if (invoiceNumber != null && invoiceNumber != "") {
-                search.setInvoiceNumber(invoiceNumber);
-            }
-            if (membershipNumber != null && membershipNumber != "") {
-                search.setMembershipNumber(membershipNumber);
-            }
-            if (membershipPeriod != null && membershipPeriod != "") {
-                search.setMembershipPeriod(membershipPeriod);
+//            if (invoiceNumber != null && invoiceNumber != "") {
+//                search.setInvoiceNumber(invoiceNumber);
+//            }
+            if (transaction != null && transaction != "") {
+                search.setTransaction(transaction);
             }
             if (tenderType != null && tenderType != "") {
                 search.setTenderType(tenderType);
