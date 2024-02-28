@@ -49,8 +49,8 @@ public class UserService implements UserDao {
     @Autowired
     PartnerService partnerService;
     private String secret;
-    public static final String ADMIN_USER = "admin";
-    public static final String DEFAULT_ADMIN_PASSWORD = "admin";
+    public static final String SYSTEM_USER = "system";
+    public static final String DEFAULT_SYSTEM_PASSWORD = "system";
 
     @Value("${jwt.secret}")
     public void setSecret(String secret) {
@@ -109,7 +109,11 @@ public class UserService implements UserDao {
         props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
         props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
         emailDto.setProperties(props);
-        emailService.send(emailDto);
+        try {
+            emailService.send(emailDto);
+        } catch (Exception ex) {
+
+        }
         return userDto;
     }
 
@@ -145,21 +149,21 @@ public class UserService implements UserDao {
             UserEntity userEntity = userRepository.getByName(username);
             if (userEntity == null) {
                 UserDto userDto = null;
-                if (username.equals(ADMIN_USER)) {
+                if (username.equals(SYSTEM_USER)) {
                     PartnerCreateDto partnerCreateDto = new PartnerCreateDto();
                     partnerCreateDto.setType(PartnerType.INDIVIDUAL);
                     partnerCreateDto.setName1("SYSTEM");
-                    partnerCreateDto.setName2("ADMINISTRATOR");
+                    partnerCreateDto.setName2("USER");
                     PartnerDto partnerDto = partnerService.create(partnerCreateDto);
                     UserCreateDto userCreateDto = new UserCreateDto();
                     userCreateDto.setPartnerId(partnerDto.getId());
-                    userCreateDto.setUsername(ADMIN_USER);
-                    userCreateDto.setPassword(DEFAULT_ADMIN_PASSWORD);
+                    userCreateDto.setUsername(SYSTEM_USER);
+                    userCreateDto.setPassword(DEFAULT_SYSTEM_PASSWORD);
                     userCreateDto.setUserType(UserType.ADMIN);
                     userDto = create(userCreateDto);
                     UserRoleDto userRoleDto = new UserRoleDto();
                     userRoleDto.setUser(userDto.getId());
-                    userRoleDto.setRole("SYSADMIN");
+                    userRoleDto.setRole("SYSTEM");
                     addRole(userRoleDto);
                 }
                 return userDto;

@@ -51,7 +51,7 @@ public class PartnerService {
     PartnerAttachmentRepository partnerAttachmentRepository;
     @Autowired
     PartnerAttributeRepository partnerAttributeRepository;
-//    @Autowired
+    //    @Autowired
 //    UserService userService;
     @Autowired
     PartnerDateRepository partnerDateRepository;
@@ -409,7 +409,6 @@ public class PartnerService {
         }
         return finalList;
     }
-
 
 
     public ArrayList<String> getRoles(String id) {
@@ -1098,9 +1097,13 @@ public class PartnerService {
     }
 
     private String getUser() {
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUser = userDetails.getUsername();
-        return currentUser;
+        try {
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            String currentUser = userDetails.getUsername();
+            return currentUser;
+        } catch (Exception ex) {
+            return "SYSTEM";
+        }
     }
 
     private PartnerDto entityIdToDto(PartnerEntity partnerEntity) throws Exception {
@@ -1150,7 +1153,6 @@ public class PartnerService {
         }
         return prospectDto;
     }
-
 
 
     private Specification<PartnerContactEntity> findByContact(ContactQueryDto queryDto) {
