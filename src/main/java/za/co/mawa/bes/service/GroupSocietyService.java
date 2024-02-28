@@ -123,7 +123,7 @@ public class GroupSocietyService {
 
     public GroupSocietyDto get(String id) {
         try {
-           // calculateBalance(id);
+            calculateBalance(id);
             TransactionDto transactionDto = transactionService.get(id);
             GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
             groupSocietyDto.setNumber(transactionDto.getNumber());
@@ -175,13 +175,13 @@ public class GroupSocietyService {
 
     public void calculateBalance(String id) {
         try {
-            BigDecimal totalDeposited = new BigDecimal('0');
-            BigDecimal totalWithdrawn = new BigDecimal('0');
-            BigDecimal availableBalance = new BigDecimal('0');
+            BigDecimal totalDeposited = new BigDecimal("0.00");
+            BigDecimal totalWithdrawn = new BigDecimal("0.00");
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                totalDeposited.add(new BigDecimal(receiptDto.getAmount()));
+                BigDecimal amount =  new BigDecimal(receiptDto.getAmount());
+                totalDeposited = totalDeposited.add(amount);
             }
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
@@ -199,21 +199,19 @@ public class GroupSocietyService {
 
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto = new TransactionAmountDto();
                 amountDto.setAmount(totalDeposited);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_DEPOSITED);
                 transactionService.editAmount(amountDto);
             } catch (Exception exception) {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setAmount(totalDeposited);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_DEPOSITED);
                 transactionService.addAmount(amountDto);
             }
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto = new TransactionAmountDto();
                 amountDto.setAmount(totalWithdrawn);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.TOTAL_WITHDRAWN);
