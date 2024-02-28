@@ -116,7 +116,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
         paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         try {
-            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS_REASON, transactionDto.getStatusReason()));
+            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
 
         }
@@ -158,6 +158,7 @@ public class PaymentRequestService implements PaymentRequestDao {
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
         TransactionQueryDto query = new TransactionQueryDto();
         query.setType(TransactionType.PAYMENT_REQUEST);
+        query.setStatus(paymentRequestQueryDto.getStatus());
         List<PaymentRequestDto> requests = new ArrayList<>();
         for (String id : transactionService.search(query)) {
             try {
