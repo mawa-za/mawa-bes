@@ -175,12 +175,13 @@ public class GroupSocietyService {
 
     public void calculateBalance(String id) {
         try {
-            BigDecimal totalDeposited = new BigDecimal('0');
-            BigDecimal totalWithdrawn = new BigDecimal('0');
+            BigDecimal totalDeposited = new BigDecimal("0.00");
+            BigDecimal totalWithdrawn = new BigDecimal("0.00");
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                totalDeposited.add(new BigDecimal(receiptDto.getAmount()));
+                BigDecimal amount =  new BigDecimal(receiptDto.getAmount());
+                totalDeposited = totalDeposited.add(amount);
             }
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
