@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
+import za.co.mawa.bes.dto.partner.PartnerCreateDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
@@ -73,43 +74,43 @@ public class UserService implements UserDao {
 
     @Override
     public UserDto create(UserCreateDto userCreateDto) throws UserExistException {
-            UserEntity userFound = userRepository.getByName(userCreateDto.getUsername());
-            if (userFound != null) {
-                throw new UserExistException("Username already exist");
-            }
-            userFound = userRepository.getByEmail(userCreateDto.getEmail());
-            if (userFound != null) {
-                throw new UserExistException("Email already assigned to user");
-            }
-            userFound = userRepository.getByCellphone(userCreateDto.getCellphone());
-            if (userFound != null) {
-                throw new UserExistException("Cellphone number already assigned to user");
-            }
-            UserEntity userEntity = new UserEntity();
-            userEntity.setPartner(userCreateDto.getPartnerId());
-            userEntity.setUsername(userCreateDto.getUsername());
-            userEntity.setEmail(userCreateDto.getEmail());
-            userEntity.setCellphone(userCreateDto.getCellphone());
-            userEntity.setUserType(userCreateDto.getUserType().toUpperCase());
-            userEntity.setStatus(UserStatus.ACTIVE);
-            userEntity.setPasswordStatus(PasswordStatus.INITIAL);
-            userEntity.setValidFrom(new Date());
-            userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            if (userCreateDto.getPassword() == null) {
-                userCreateDto.setPassword(keyGenerator.generatePassword());
-            }
-            userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
-            UserDto userDto = entityToDto(userRepository.save(userEntity));
-            EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userEntity.getEmail());
-            emailDto.setSubject("New user");
-            emailDto.setTemplate("new-user");
-            List<PropertyDto> props = new ArrayList<>();
-            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
-            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
-            emailDto.setProperties(props);
-            emailService.send(emailDto);
-            return userDto;
+        UserEntity userFound = userRepository.getByName(userCreateDto.getUsername());
+        if (userFound != null) {
+            throw new UserExistException("Username already exist");
+        }
+        userFound = userRepository.getByEmail(userCreateDto.getEmail());
+        if (userFound != null) {
+            throw new UserExistException("Email already assigned to user");
+        }
+        userFound = userRepository.getByCellphone(userCreateDto.getCellphone());
+        if (userFound != null) {
+            throw new UserExistException("Cellphone number already assigned to user");
+        }
+        UserEntity userEntity = new UserEntity();
+        userEntity.setPartner(userCreateDto.getPartnerId());
+        userEntity.setUsername(userCreateDto.getUsername());
+        userEntity.setEmail(userCreateDto.getEmail());
+        userEntity.setCellphone(userCreateDto.getCellphone());
+        userEntity.setUserType(userCreateDto.getUserType().toUpperCase());
+        userEntity.setStatus(UserStatus.ACTIVE);
+        userEntity.setPasswordStatus(PasswordStatus.INITIAL);
+        userEntity.setValidFrom(new Date());
+        userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+        if (userCreateDto.getPassword() == null) {
+            userCreateDto.setPassword(keyGenerator.generatePassword());
+        }
+        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+        UserDto userDto = entityToDto(userRepository.save(userEntity));
+        EmailDto emailDto = new EmailDto();
+        emailDto.setTo(userEntity.getEmail());
+        emailDto.setSubject("New user");
+        emailDto.setTemplate("new-user");
+        List<PropertyDto> props = new ArrayList<>();
+        props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
+        props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
+        emailDto.setProperties(props);
+        emailService.send(emailDto);
+        return userDto;
     }
 
     @Override
@@ -145,7 +146,13 @@ public class UserService implements UserDao {
             if (userEntity == null) {
                 UserDto userDto = null;
                 if (username.equals(ADMIN_USER)) {
+                    PartnerCreateDto partnerCreateDto = new PartnerCreateDto();
+                    partnerCreateDto.setType(PartnerType.INDIVIDUAL);
+                    partnerCreateDto.setName1("SYSTEM");
+                    partnerCreateDto.setName2("ADMINISTRATOR");
+                    PartnerDto partnerDto = partnerService.create(partnerCreateDto);
                     UserCreateDto userCreateDto = new UserCreateDto();
+                    userCreateDto.setPartnerId(partnerDto.getId());
                     userCreateDto.setUsername(ADMIN_USER);
                     userCreateDto.setPassword(DEFAULT_ADMIN_PASSWORD);
                     userCreateDto.setUserType(UserType.ADMIN);
