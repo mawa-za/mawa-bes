@@ -158,6 +158,7 @@ public class PaymentRequestService implements PaymentRequestDao {
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
         TransactionQueryDto query = new TransactionQueryDto();
         query.setType(TransactionType.PAYMENT_REQUEST);
+        query.setStatus(paymentRequestQueryDto.getStatus());
         List<PaymentRequestDto> requests = new ArrayList<>();
         for (String id : transactionService.search(query)) {
             try {
