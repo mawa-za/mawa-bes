@@ -116,7 +116,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
         paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         try {
-            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS_REASON, transactionDto.getStatusReason()));
+            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
 
         }
