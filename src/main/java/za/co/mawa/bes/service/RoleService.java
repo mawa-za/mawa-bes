@@ -63,17 +63,31 @@ public class RoleService implements RoleDao {
 
     @Override
     public List<RoleWorkcenterDto> getRoleWorkcenters(String role) throws RoleDoesNotExist {
-        List<RoleWorkcenterDto> workcenterDtoList = new ArrayList<>();
-        List<RoleWorkcenterEntity> roleWorkcenterEntities = roleWorkcenterRepository.findRoleWorkcenters(role);
-        for (RoleWorkcenterEntity roleWorkcenterEntity : roleWorkcenterEntities) {
-            RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
-            String workcenter = roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter();
-            WorkcenterDto workcenterDto = workcenterService.getById(workcenter);
-            roleWorkcenterDto.setPosition(roleWorkcenterEntity.getPosition());
-            roleWorkcenterDto.setWorkcenter(workcenterDto);
-            workcenterDtoList.add(roleWorkcenterDto);
+        if (role.equals("SYSTEM")) {
+            int i = 0;
+            List<RoleWorkcenterDto> roleWorkcenterDtoList = new ArrayList<>();
+            List<WorkcenterDto> workcenterDtoList = workcenterService.getAll();
+            for(WorkcenterDto workcenterDto: workcenterDtoList){
+                RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
+                roleWorkcenterDto.setPosition(i);
+                roleWorkcenterDto.setWorkcenter(workcenterDto);
+                roleWorkcenterDtoList.add(roleWorkcenterDto);
+                i++;
+            }
+            return roleWorkcenterDtoList;
+        } else {
+            List<RoleWorkcenterDto> workcenterDtoList = new ArrayList<>();
+            List<RoleWorkcenterEntity> roleWorkcenterEntities = roleWorkcenterRepository.findRoleWorkcenters(role);
+            for (RoleWorkcenterEntity roleWorkcenterEntity : roleWorkcenterEntities) {
+                RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
+                String workcenter = roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter();
+                WorkcenterDto workcenterDto = workcenterService.getById(workcenter);
+                roleWorkcenterDto.setPosition(roleWorkcenterEntity.getPosition());
+                roleWorkcenterDto.setWorkcenter(workcenterDto);
+                workcenterDtoList.add(roleWorkcenterDto);
+            }
+            return workcenterDtoList;
         }
-        return workcenterDtoList;
     }
 
     @Override
@@ -93,28 +107,29 @@ public class RoleService implements RoleDao {
 
     @Override
     public boolean deleteWorkcenter(RoleWorkcenterPKEntity entity) throws Exception {
-        try{
+        try {
             roleWorkcenterRepository.deleteById(entity);
             return true;
-        }catch(Exception ex){
-           throw new RuntimeException(ex);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
     }
+
     @Override
     public boolean deleteRole(String role) throws Exception {
-        try{
+        try {
             roleRepository.deleteById(role);
-            for(RoleWorkcenterDto roleWorkcenterDto :getRoleWorkcenters(role)){
-               RoleWorkcenterPKEntity entity = new RoleWorkcenterPKEntity();
-               entity.setRole(role);
-               entity.setWorkcenter(roleWorkcenterDto.getWorkcenter().getId());
-               deleteWorkcenter(entity);
+            for (RoleWorkcenterDto roleWorkcenterDto : getRoleWorkcenters(role)) {
+                RoleWorkcenterPKEntity entity = new RoleWorkcenterPKEntity();
+                entity.setRole(role);
+                entity.setWorkcenter(roleWorkcenterDto.getWorkcenter().getId());
+                deleteWorkcenter(entity);
             }
-            for(UserRoleEntity userRole:userRoleRepository.findRoles(role)){
+            for (UserRoleEntity userRole : userRoleRepository.findRoles(role)) {
                 userService.deleteRole(userRole.getUserRolePKEntity());
             }
             return true;
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
