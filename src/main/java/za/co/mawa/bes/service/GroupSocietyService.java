@@ -123,7 +123,7 @@ public class GroupSocietyService {
 
     public GroupSocietyDto get(String id) {
         try {
-           // calculateBalance(id);
+            calculateBalance(id);
             TransactionDto transactionDto = transactionService.get(id);
             GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
             groupSocietyDto.setNumber(transactionDto.getNumber());
