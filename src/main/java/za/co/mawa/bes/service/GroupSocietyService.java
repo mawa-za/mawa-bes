@@ -127,6 +127,7 @@ public class GroupSocietyService {
             TransactionDto transactionDto = transactionService.get(id);
             GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
             groupSocietyDto.setNumber(transactionDto.getNumber());
+            groupSocietyDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             groupSocietyDto.setId(transactionDto.getId());
             if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                 String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
