@@ -22,6 +22,7 @@ import java.util.List;
 @Setter
 public class MembershipDto {
     private String id;
+    private FieldOptionDto type;
     private String number;
     private PartnerDto member;
     private PartnerDto salesRepresentative;
