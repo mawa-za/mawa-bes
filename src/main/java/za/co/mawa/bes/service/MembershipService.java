@@ -185,6 +185,7 @@ public class MembershipService {
             MembershipDto membershipDto = new MembershipDto();
             membershipDto.setNumber(transactionDto.getNumber());
             membershipDto.setId(transactionDto.getId());
+            membershipDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                 String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
                 try {
