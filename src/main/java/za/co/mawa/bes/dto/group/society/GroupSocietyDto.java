@@ -37,6 +37,4 @@ public class GroupSocietyDto {
     private FieldOptionDto statusReason;
     private FieldOptionDto salesArea;
     private List<AmountDto> amounts = new ArrayList<>();
-    private List<ReceiptDto> receipts = new ArrayList<>();
-    private List<ClaimDto> claims = new ArrayList<>();
 }
