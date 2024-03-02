@@ -627,70 +627,99 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public List<String> search(TransactionQueryDto transactionQueryDto) {
+        List<String> searchTerms = new ArrayList<>();
+        Map<String, String> resultList = new HashMap<>();
         List<String> transactionListId = new ArrayList<>();
         List<String> finalList = new ArrayList<>();
         if (transactionQueryDto.getType() != null) {
+            searchTerms.add("TYPE");
             List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("TYPE-"+transactionEntity.getId(),transactionEntity.getId());
             }
         }
 
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
+            searchTerms.add("PARTNER-FUNCTION");
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getPartnerNo());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
                 if (transactionPartnerEntity.getTransactionPartnerPKEntity().getFunction().equals(transactionQueryDto.getPartnerFunction())) {
                     transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                    resultList.put("PARTNER-FUNCTION-"+transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(),transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
                 }
             }
         }
 
         if (transactionQueryDto.getStatus() != null) {
+            searchTerms.add("STATUS");
             List<TransactionEntity> transactions = transactionRepository.findTransactionByStatus(transactionQueryDto.getStatus());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("STATUS-"+transactionEntity.getId(),transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getChangedBy() != null && transactionQueryDto.getType() != null) {
+            searchTerms.add("CHANGED-BY");
             List<TransactionEntity> transactions = transactionRepository.findTransactionByChangedBy(transactionQueryDto.getChangedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("CHANGED-BY-"+ transactionEntity.getId(),transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getCreatedBy() != null && transactionQueryDto.getType() != null) {
+            searchTerms.add("CREATED-BY");
             List<TransactionEntity> transactions = transactionRepository.findTransactionByCreatedBy(transactionQueryDto.getCreatedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("CREATED-BY-"+transactionEntity.getId(),transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getSubtype() != null) {
+            searchTerms.add("SUB-TYPE");
             List<TransactionEntity> transactions = transactionRepository.findTransactionBySubType(transactionQueryDto.getSubtype());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("SUB-TYPE-"+transactionEntity.getId(),transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getNumber() != null) {
+            searchTerms.add("NUMBER");
             List<TransactionEntity> transactions = transactionRepository.findTransactionByNumber(transactionQueryDto.getNumber());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
+                resultList.put("NUMBER-"+transactionEntity.getId(),transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getValue() != null && transactionQueryDto.getDateType() != null) {
+            searchTerms.add("DATE");
             List<TransactionDateEntity> transactions = transactionDateRepository.findByDateType(transactionQueryDto.getValue(), transactionQueryDto.getDateType());
             for (TransactionDateEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionDatePKEntity().getTransaction());
+                resultList.put("DATE-"+transactionEntity.getTransactionDatePKEntity().getTransaction(),transactionEntity.getTransactionDatePKEntity().getTransaction());
             }
         }
-        if (transactionQueryDto.getTransactionlink1() != null) {
-            List<TransactionLinkEntity> transactions = transactionLinkRepository.getTransactionLinks(transactionQueryDto.getTransactionlink1());
+        if (transactionQueryDto.getTransactionlink() != null) {
+            searchTerms.add("LINK");
+            List<TransactionLinkEntity> transactions = transactionLinkRepository.getTransactionLinks(transactionQueryDto.getTransactionlink());
             for (TransactionLinkEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionLinkPKEntity().getTransaction2());
+                resultList.put("LINK-"+transactionEntity.getTransactionLinkPKEntity().getTransaction2(),transactionEntity.getTransactionLinkPKEntity().getTransaction2());
             }
         }
+
         String searchStr = "";
+        boolean found = false;
         for (String id : transactionListId) {
-            if (!searchStr.contains(id + '|')) {
-                searchStr = searchStr + id + '|';
+            for(String term: searchTerms){
+                String key = term+"-"+id;
+                if (resultList.containsKey(key)){
+                    found = true;
+                }else{
+                    found = false;
+                }
+            }
+            if(found){
                 finalList.add(id);
             }
         }
