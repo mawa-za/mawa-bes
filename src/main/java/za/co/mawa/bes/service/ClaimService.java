@@ -225,7 +225,7 @@ public class ClaimService {
                 transactionQueryDto.setDateType(DateType.BURIAL_DATE);
             }
             if (claimQueryDto.getMembership() != null && claimQueryDto.getMembership() != "") {
-                transactionQueryDto.setTransactionlink1(claimQueryDto.getMembership());
+                transactionQueryDto.setTransactionlink(claimQueryDto.getMembership());
             }
             transactionQueryDto.setType(TransactionType.CLAIM);
             for (String id : transactionService.search(transactionQueryDto)) {
