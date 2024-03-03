@@ -4,6 +4,8 @@ public class PartnerFunction {
     public static String POLICY_HOLDER = "MAIN-MEMBER";
     public static String DEPENDENT = "DEPENDENT";
     public static String SALES_REPRESENTATIVE = "SALES-REPRESENTATIVE";
+    public static String REPRESENTATIVE = "REPRESENTATIVE";
+    public static String PERSON_RESPONSIBLE = "PERSON-RESPONSIBLE";
     public static String DECEASED = "DECEASED";
     public static String TOMBSTONE_RECIPIENT = "TOMBSTONE-RECIPIENT";
     public static String CLAIMANT = "CLAIMANT";
