@@ -29,29 +29,29 @@ public class DependentService {
     public ArrayList<PartnerDto> get(String id) {
         List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
         ArrayList<PartnerDto> dependentDtoList = new ArrayList<>();
-        for(TransactionPartnerDto partners : transactionPartnerDtoList){
-            if(partners.getFunction().equalsIgnoreCase(PartnerFunction.DEPENDENT)){
-            try {
-                dependentDtoList.add(partnerService.get(partners.getPartner()));
-            } catch (Exception ex){
+        for (TransactionPartnerDto partners : transactionPartnerDtoList) {
+            if (partners.getFunction().equalsIgnoreCase(PartnerFunction.DEPENDENT)) {
+                try {
+                    dependentDtoList.add(partnerService.get(partners.getPartner()));
+                } catch (Exception ex) {
 
-            }
+                }
             }
         }
         return dependentDtoList;
     }
 
-    public void add(DependentCreateDto dependentDto,String id) {
+    public void add(DependentCreateDto dependentDto, String id) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(id);
             transactionPartnerDto.setFunction(PartnerFunction.DEPENDENT);
             transactionPartnerDto.setPartner(dependentDto.getPartnerId());
-            if(dependentDto.getDateAdded() != null){
-              transactionPartnerDto.setDateAdded(dependentDto.getDateAdded());
+            if (dependentDto.getDateAdded() != null) {
+                transactionPartnerDto.setDateAdded(dependentDto.getDateAdded());
             }
-            if(dependentDto.getDateEffective() != null){
-             transactionPartnerDto.setDateEffective(dependentDto.getDateEffective());
+            if (dependentDto.getDateEffective() != null) {
+                transactionPartnerDto.setDateEffective(dependentDto.getDateEffective());
             }
             transactionService.addPartner(transactionPartnerDto);
         } catch (TransactionPartnerAddException e) {
