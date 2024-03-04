@@ -50,6 +50,10 @@ public class CashupService implements CashupDao {
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     UserService userService;
+    @Autowired
+    FieldOptionService fieldOptionService;
+    @Autowired
+    PartnerService partnerService;
 
     @Override
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
@@ -172,15 +176,20 @@ public class CashupService implements CashupDao {
             try {
                 CashupDto cashupDto = new CashupDto();
                 ArrayList<ReceiptDto> receipts = new ArrayList<>();
-                UserDto userDto = userService.getUserByName(transactionDto.getCreatedBy());
-                if (userDto != null) {
-                    cashupDto.setCreatedBy(transactionDto.getCreatedBy());
+                try {
+                    cashupDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+                } catch (Exception e) {
+
+                }
+                try {
+                    cashupDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
+                } catch (Exception e) {
+
                 }
                 cashupDto.setId(transactionDto.getId());
-                cashupDto.setChangedBy(transactionDto.getChangedBy());
                 cashupDto.setNumber(transactionDto.getNumber());
-                cashupDto.setStatus(transactionDto.getStatus());
-                cashupDto.setSalesArea(transactionDto.getLocation());
+                cashupDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+                cashupDto.setSalesArea(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
                 for (TransactionLinkDto link : links) {
                     ReceiptDto receipt = new ReceiptDto();
@@ -191,15 +200,15 @@ public class CashupService implements CashupDao {
 
                 for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
                     if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                        cashupDto.setEmployeeResponsible(transactionPartner.getPartner());
+                        cashupDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
                     }
                 }
                 for (TransactionAmountDto amount : transactionService.getAmounts(id)) {
                     if (amount.getType().equalsIgnoreCase(PriceType.AMOUNT_COLLECTED)) {
-                        cashupDto.setAmountCollected(amount.getAmount().toString());
+                        cashupDto.setAmountCollected(amount.getAmount());
                     }
                     if (amount.getType().equalsIgnoreCase(PriceType.AMOUNT_DEPOSITED)) {
-                        cashupDto.setAmountDeposited(amount.getAmount().toString());
+                        cashupDto.setAmountDeposited(amount.getAmount());
                     }
                 }
                 for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {

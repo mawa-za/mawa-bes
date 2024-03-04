@@ -72,9 +72,9 @@ public class DepositService implements DepositDao {
                 if(transactionLink.getType().equalsIgnoreCase(TransactionType.CASHUP)){
                     CashupEditDto edit = new CashupEditDto();
                     CashupDto cashupDto = cashupService.get(transactionLink.getId());
-                    BigDecimal total = new BigDecimal(cashupDto.getAmountDeposited()).add(amount);
+                    BigDecimal total = cashupDto.getAmountDeposited().add(amount);
                     edit.setAmountDeposited(total.toString());
-                    if(total.compareTo(new BigDecimal(cashupDto.getAmountCollected())) == 0){
+                    if(total.compareTo(cashupDto.getAmountCollected()) == 0){
                         edit.setStatus(Status.CLOSED);
                     }
                     cashupService.edit(edit,transactionLink.getId());
@@ -183,13 +183,12 @@ public class DepositService implements DepositDao {
             transactionService.delete(id);
             TransactionDto transactionDto = transactionService.get(transaction);
             if(transactionDto.getType().equalsIgnoreCase(TransactionType.CASHUP)){
-                CashupDto cashupDto = new CashupDto();
-                cashupDto = cashupService.get(transaction);
-                BigDecimal total = new BigDecimal(cashupDto.getAmountDeposited()).subtract(amount);
+                CashupDto cashupDto = cashupService.get(transaction);
+                BigDecimal total = cashupDto.getAmountDeposited().subtract(amount);
 
                 CashupEditDto edit = new CashupEditDto();
                 edit.setAmountDeposited(total.toString());
-                if(new BigDecimal(cashupDto.getAmountCollected()).compareTo(total) > 0){
+                if(cashupDto.getAmountCollected().compareTo(total) > 0){
                     edit.setStatus(Status.OPEN);
                 }
                 cashupService.edit(edit,transaction);
