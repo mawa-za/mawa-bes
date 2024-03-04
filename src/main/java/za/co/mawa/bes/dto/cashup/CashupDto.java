@@ -3,9 +3,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -17,15 +20,15 @@ public class CashupDto implements Serializable{
 
     private String id;
     private String number;
-    private String status;
-    private String createdBy;
-    private String changedBy;
+    private FieldOptionDto status;
+    private PartnerDto createdBy;
+    private PartnerDto changedBy;
     private ArrayList<ReceiptDto> receipts;
-    private String amountCollected;
+    private BigDecimal amountCollected;
    // private String amountCollected;
-    private String amountDeposited;
+    private BigDecimal amountDeposited;
     private Date createdDate;
     private Date lastUpdated;
-    private String salesArea;
-    private String employeeResponsible;
+    private FieldOptionDto salesArea;
+    private PartnerDto employeeResponsible;
 }
