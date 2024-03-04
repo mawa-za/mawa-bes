@@ -22,6 +22,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin
+@RequestMapping(value = "receipt")
 public class ReceiptController {
     Gson gson = new Gson();
 
@@ -32,13 +33,13 @@ public class ReceiptController {
     @Autowired
     private ReceiptRepository receiptRepository;
 
-    @RequestMapping(value = "/receipt", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
         try {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy());
+                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
                 cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(receiptCreateDto.getAmount()));
                 List<String> receipts = new ArrayList<>();
@@ -53,7 +54,7 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value = "/receipt/{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipt(@PathVariable String id) {
         try {
             ReceiptDto receiptDto = receiptService.getReceipt(id);
@@ -64,9 +65,9 @@ public class ReceiptController {
 
     }
 
-    @RequestMapping(value = "/receipt", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping( method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReceipts(@RequestParam(required = false) String receiptType,
-//                                         @RequestParam(required = false) String invoiceNumber,
+                                         @RequestParam(required = false) String location,
                                          @RequestParam(required = false) String transaction,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
@@ -76,9 +77,9 @@ public class ReceiptController {
             if (receiptType != null && receiptType != "") {
                 search.setReceiptType(receiptType);
             }
-//            if (invoiceNumber != null && invoiceNumber != "") {
-//                search.setInvoiceNumber(invoiceNumber);
-//            }
+            if (location != null && location != "") {
+                search.setLocation(location);
+            }
             if (transaction != null && transaction != "") {
                 search.setTransaction(transaction);
             }

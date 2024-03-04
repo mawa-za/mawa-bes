@@ -372,10 +372,6 @@ public class UserService implements UserDao {
 
             }
             userDto.setStatusReason(userEntity.getStatusReason());
-            try {
-                userDto.setPartnerDetails(partnerService.get(userEntity.getPartner()));
-            } catch (PartnerNotFoundException exception) {
-            }
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }

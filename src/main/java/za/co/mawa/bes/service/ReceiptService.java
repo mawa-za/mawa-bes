@@ -82,7 +82,11 @@ public class ReceiptService implements ReceiptDao {
             receipt.setReceiptType(entity.getReceiptType());
             receipt.setTenderType(entity.getTenderType());
             receipt.setAmount(entity.getAmount().toString());
-            receipt.setCreatedBy(entity.getCreatedBy());
+            try {
+                receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+            } catch (Exception e) {
+
+            }
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
             receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
 
@@ -149,11 +153,8 @@ public class ReceiptService implements ReceiptDao {
             if (receiptSearchDto.getCreatedBy() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("createdBy"), receiptSearchDto.getCreatedBy()));
             }
-            if (receiptSearchDto.getMembershipNumber() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("membershipNumber"), receiptSearchDto.getMembershipNumber()));
-            }
-            if (receiptSearchDto.getMembershipPeriod() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("membershipPeriod"), receiptSearchDto.getMembershipPeriod()));
+            if (receiptSearchDto.getLocation() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("location"), receiptSearchDto.getLocation()));
             }
             if (receiptSearchDto.getTenderType() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("tenderType"), receiptSearchDto.getTenderType()));
@@ -185,10 +186,13 @@ public class ReceiptService implements ReceiptDao {
             receipt.setReceiptType(entity.getReceiptType());
             receipt.setTenderType(entity.getTenderType());
             receipt.setAmount(entity.getAmount().toString());
-            receipt.setCreatedBy(entity.getCreatedBy());
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
             receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
+            try {
+                receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+            } catch (Exception e) {
 
+            }
             return receipt;
         } catch (Exception e) {
             throw new Exception();
