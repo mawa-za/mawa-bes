@@ -776,7 +776,7 @@ public class TransactionService implements TransactionDao {
             if (transactionEntity.getStatusReason() != null) {
                 transactionDto.setStatusReason(StringConversion.capitalizeFully(transactionEntity.getStatusReason().replaceAll("_", " ")));
             }
-            MembershipDto membershipDto = new MembershipDto();
+
             for (TransactionPartnerDto transactionPartnerDto : getPartners(transactionId)) {
 
                 if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
@@ -804,7 +804,7 @@ public class TransactionService implements TransactionDao {
                     transactionDto.setDueDate(transactionDateDto.getValue());
                 }
             }
-            transactionDto.setMembershipHolder(membershipDto);
+
             return transactionDto;
         } else {
             throw new TransactionNotFound("Transaction not found");
