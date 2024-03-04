@@ -149,11 +149,8 @@ public class ReceiptService implements ReceiptDao {
             if (receiptSearchDto.getCreatedBy() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("createdBy"), receiptSearchDto.getCreatedBy()));
             }
-            if (receiptSearchDto.getMembershipNumber() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("membershipNumber"), receiptSearchDto.getMembershipNumber()));
-            }
-            if (receiptSearchDto.getMembershipPeriod() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("membershipPeriod"), receiptSearchDto.getMembershipPeriod()));
+            if (receiptSearchDto.getLocation() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("location"), receiptSearchDto.getLocation()));
             }
             if (receiptSearchDto.getTenderType() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("tenderType"), receiptSearchDto.getTenderType()));
