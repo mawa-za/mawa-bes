@@ -39,7 +39,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy());
+                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
                 cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
                 cashupCreateDto.setAmount(new BigDecimal(receiptCreateDto.getAmount()));
                 List<String> receipts = new ArrayList<>();
