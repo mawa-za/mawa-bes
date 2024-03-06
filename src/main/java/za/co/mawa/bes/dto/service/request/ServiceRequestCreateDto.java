@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 public class ServiceRequestCreateDto implements Serializable {
-    private String customerId;
+    private String customer;
     private String description;
     private String category;
     private String priority;

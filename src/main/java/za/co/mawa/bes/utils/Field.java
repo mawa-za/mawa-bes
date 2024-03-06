@@ -37,4 +37,7 @@ public class Field {
     public static String BANK_NAME = "BANK-NAME";
     public static String BANK_ACCOUNT_TYPE = "BANK-ACCOUNT-TYPE";
     public static String PAYMENT_REQUEST_STATUS_REASON = "PAYMENT-REQUEST-STATUS-REASON";
+    public static String SERVICE_REQUEST_STATUS_REASON = "SERVICE-REQUEST-STATUS-REASON";
+    public static String SERVICE_REQUEST_CATEGORY = "SERVICE-REQUEST-CATEGORY";
+    public static String SERVICE_REQUEST_PRIORITY = "SERVICE-REQUEST-PRIORITY";
 }
