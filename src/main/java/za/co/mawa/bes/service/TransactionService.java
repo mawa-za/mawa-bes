@@ -755,6 +755,7 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setCategory(transactionEntity.getCategory());
+            transactionDto.setPriority(transactionEntity.getPriority());
             transactionDto.setLocation(transactionEntity.getLocation());
             transactionDto.setStatus(transactionEntity.getStatus());
             if (transactionEntity.getCreatedBy() != null) {
