@@ -52,8 +52,8 @@ public class ItemsController {
             TransactionItemDto transactionItemDto = new TransactionItemDto();
             transactionItemDto.setTransaction(transaction);
             transactionItemDto.setProduct(productDto.getId());
-            transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+            transactionItemDto.setUnitPrice(lineItemDto.getUnitPrice());
+            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
             transactionItemDto.setQuantity(lineItemDto.getQuantity());
             transactionService.addItem(transactionItemDto);
         } catch (Exception e) {

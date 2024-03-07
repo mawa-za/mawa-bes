@@ -96,7 +96,7 @@ public class MembershipService {
         } catch (Exception exception) {
 
         }
-        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
 

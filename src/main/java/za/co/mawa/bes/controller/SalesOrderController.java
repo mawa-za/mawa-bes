@@ -73,8 +73,8 @@ public class SalesOrderController {
                 TransactionItemDto transactionItemDto = new TransactionItemDto();
                 transactionItemDto.setTransaction(transactionDto.getId());
                 transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                transactionItemDto.setUnitPrice(item.getUnitPrice());
+                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
                 transactionItemDto.setQuantity(item.getQuantity());
                 transactionService.addItem(transactionItemDto);
             }

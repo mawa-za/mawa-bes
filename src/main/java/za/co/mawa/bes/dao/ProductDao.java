@@ -2,6 +2,7 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.product.ProductCreateDto;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.ProductEditDto;
 import za.co.mawa.bes.dto.product.ProductQueryDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -25,7 +26,7 @@ public interface ProductDao {
 
     ProductDto get(String id) throws ProductNotFoundException;
 
-    void edit(ProductDto productDto) throws ProductUpdateFailure;
+    void edit(ProductEditDto productEditDto) throws ProductUpdateFailure;
 
     void delete(String id) throws ProductDeleteFailure;
 

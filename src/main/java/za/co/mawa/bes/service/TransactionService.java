@@ -418,9 +418,9 @@ public class TransactionService implements TransactionDao {
                     TransactionItemDto transactionItemDto = new TransactionItemDto();
                     transactionItemDto.setTransaction(item.getTransaction());
                     transactionItemDto.setProduct(productDto.getId());
-                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                    transactionItemDto.setQuantity(new BigDecimal("1"));
-                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                    transactionItemDto.setUnitPrice(item.getUnitPrice());
+                    transactionItemDto.setQuantity(item.getQuantity());
+                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
                     addItem(transactionItemDto);
                     edited = true;
                 } catch (Exception e) {

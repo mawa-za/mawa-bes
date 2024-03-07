@@ -19,6 +19,7 @@ public class ProductBasicDto {
     private String id;
     private String code;
     private String description;
+    private FieldOptionDto type;
     private FieldOptionDto category;
     private BigDecimal sellingPrice;
     private FieldOptionDto baseUnitOfMeasure;
