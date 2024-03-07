@@ -223,7 +223,8 @@ public class ProductService implements ProductDao {
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(product);
             for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
-                productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRODUCT_PRICING, productPricingEntity.getProductPricingPKEntity().getPricing()));
+                productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
+                productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRICING_TYPE, productPricingEntity.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
