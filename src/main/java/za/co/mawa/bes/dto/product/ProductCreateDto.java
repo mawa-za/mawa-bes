@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 public class ProductCreateDto {
     private String code;
     private String description;
+    private String type;
     private String category;
     private String baseUnitOfMeasure;
     private BigDecimal price;

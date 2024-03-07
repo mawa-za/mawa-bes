@@ -9,11 +9,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ProductUpdateDto {
+public class ProductEditDto {
+    private String id;
     private String code;
     private String description;
     private String category;
-   private String baseUnitOfMeasure;
-   private BigDecimal price;
-    private String pricingType;
+    private String baseUnitOfMeasure;
 }

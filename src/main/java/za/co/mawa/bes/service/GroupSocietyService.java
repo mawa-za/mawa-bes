@@ -57,7 +57,7 @@ public class GroupSocietyService {
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
         transactionItemDto.setProduct(groupSocietyCreateDto.getProduct());
-        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
         if (groupSocietyCreateDto.getCustomer() != null) {
