@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.product.ProductCreateDto;
-import za.co.mawa.bes.dto.product.ProductDto;
-import za.co.mawa.bes.dto.product.ProductQueryDto;
-import za.co.mawa.bes.dto.product.ProductUpdateDto;
+import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
@@ -69,38 +66,9 @@ public class ProductController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductUpdateDto productUpdateDto) {
+    public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductEditDto productEditDto) {
         try {
-            ProductDto productDto = productService.get(id);
-            if (productUpdateDto.getCode() != null && productUpdateDto.getCode() != "") {
-                productDto.setCode(productUpdateDto.getCode());
-            }
-            if (productUpdateDto.getCategory() != null && productUpdateDto.getCategory() != "") {
-                productDto.setCategory(productUpdateDto.getCategory());
-            }
-            if (productUpdateDto.getDescription() != null && productUpdateDto.getDescription() != "") {
-                productDto.setDescription(productUpdateDto.getDescription());
-            }
-            if (productUpdateDto.getCode() != null && productUpdateDto.getCode() != "") {
-                productDto.setCode(productUpdateDto.getCode());
-            }
-            if (productUpdateDto.getBaseUnitOfMeasure() != null && productUpdateDto.getBaseUnitOfMeasure() != "") {
-                productDto.setBaseUnitOfMeasure(productUpdateDto.getBaseUnitOfMeasure());
-            }
-            productService.edit(productDto);
-
-            if (productUpdateDto.getPrice() != null) {
-                ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
-                productPricingEditDto.setProduct(id);
-                if (productUpdateDto.getPricingType() == null || productUpdateDto.getPricingType() == "") {
-                    productPricingEditDto.setPricing(PriceType.SELLING_PRICE);
-                } else {
-                    productPricingEditDto.setPricing(productUpdateDto.getPricingType());
-                }
-
-                productPricingEditDto.setValue(productUpdateDto.getPrice());
-                productService.editPricing(productPricingEditDto);
-            }
+            productService.edit(productEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());

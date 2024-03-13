@@ -84,8 +84,8 @@ public class BookingService implements BookingDao {
                     transactionItemDto.setProduct(productDto.getId());
                     transactionItemDto.setTransaction(transactionDto.getId());
                     transactionItemDto.setQuantity(new BigDecimal("1"));
-                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
-                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
+                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+//                    transactionItemDto.setUnitPrice(productDto.getSellingPrice());
                     transactionService.addItem(transactionItemDto);
                 }
                 return transactionDto.getId();
@@ -152,7 +152,7 @@ public class BookingService implements BookingDao {
                 queryDto.setProduct(productId);
                 //queryDto.setAttribute("");
                 for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
-                  if(attributeDto.getAttribute().equalsIgnoreCase("DURATION")){
+                  if(attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")){
                       bookingDto.setDuration(attributeDto.getValue());
                       break;
                   }

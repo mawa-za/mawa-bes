@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.layby.LayByEditDto;
 import za.co.mawa.bes.dto.layby.LayByQueryDto;
 import za.co.mawa.bes.dto.layby.LayByGetDto;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
@@ -46,8 +47,8 @@ public class LayByService implements LayByDao {
                 transactionItemDto.setTransaction(transactionDto.getId());
                 transactionItemDto.setProduct(layByCreateDto.getProductId());
                 transactionItemDto.setProduct(productDto.getId());
-                transactionItemDto.setUnitPrice(productDto.getSellingPrice());
-                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure());
+                transactionItemDto.setUnitPrice(productService.getPricing(new ProductPricingQueryDto(productDto.getId(),PriceType.SELLING_PRICE)).getValue());
+                transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
                 transactionItemDto.setQuantity(new BigDecimal("1"));
                 transactionService.addItem(transactionItemDto);
             }
