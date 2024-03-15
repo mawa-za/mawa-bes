@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.product.attribute;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.FieldOptionDto;
 
 import java.io.Serializable;
 
@@ -11,8 +12,7 @@ import java.io.Serializable;
 @Setter
 public class ProductAttributeDto implements Serializable {
     private String product;
-    private String attribute;
-    private String attributeDescription;
+    private FieldOptionDto attribute;
     private String value;
     private String validFrom;
     private String validTo;
