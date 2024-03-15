@@ -37,10 +37,4 @@ public class ProductEntity implements Serializable {
     @Temporal(TemporalType.DATE)
     private Date validTo;
 
-    public ProductEntity(ProductDto productDto){
-        this.code = productDto.getCode();
-        this.description = productDto.getDescription();
-        this.category = productDto.getCategory();
-    }
-
 }
