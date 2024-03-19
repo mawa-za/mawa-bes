@@ -71,7 +71,7 @@ public class CashupService implements CashupDao {
         if (receiptsFiltered.size() > 0) {
             BigDecimal amount = BigDecimal.ZERO;
             for (ReceiptDto receipt : receipts) {
-                amount = amount.add(new BigDecimal(receipt.getAmount()));
+                amount = amount.add(receipt.getAmount());
             }
             if (!BigDecimal.ZERO.equals(amount)) {
                 TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
