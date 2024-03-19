@@ -173,7 +173,7 @@ public class CaseService {
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                BigDecimal amount =  new BigDecimal(receiptDto.getAmount());
+                BigDecimal amount =  receiptDto.getAmount();
                 totalDeposited = totalDeposited.add(amount);
             }
             try {
