@@ -9,4 +9,5 @@ public class HtmlTemplateVariableKey {
     public static String USER_EMAIL = "user.email";
     public static String USER_NAME = "username";
     public static String USER_FIRST_NAME = "firstname";
+    public static String NUMBER = "number";
 }

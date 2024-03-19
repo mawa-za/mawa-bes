@@ -57,6 +57,9 @@ public class TransactionEntity implements Serializable {
     @Column(name = "changedBy")
     private String changedBy;
 
+    @Column(name = "priority")
+    private String priority;
+
     public TransactionEntity(TransactionDto transactionDto) {
         this.number = transactionDto.getNumber();
         this.type = transactionDto.getType();

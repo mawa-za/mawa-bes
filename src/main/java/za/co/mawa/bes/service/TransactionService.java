@@ -72,10 +72,12 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setType(transactionCreateDto.getType());
             transactionEntity.setSubType(transactionCreateDto.getSubType());
             transactionEntity.setCategory(transactionCreateDto.getCategory());
+            transactionEntity.setPriority(transactionCreateDto.getPriority());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
             transactionEntity.setLocation(transactionCreateDto.getLocation());
+            transactionEntity.setDescription(transactionCreateDto.getDescription());
             transactionEntity.setSubDescription(transactionCreateDto.getSubDescription());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
@@ -108,18 +110,6 @@ public class TransactionService implements TransactionDao {
                 addPartner(transactionPartnerDto);
             }
 
-//            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
-//            addAmount(totalIncVat);
-//            TransactionAmountDto totalExcVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_EXC_VAT);
-//            addAmount(totalExcVat);
-//            TransactionAmountDto discountAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_AMOUNT);
-//            addAmount(discountAmount);
-//            TransactionAmountDto discountPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_PERCENT);
-//            addAmount(discountPercentage);
-//            TransactionAmountDto VATAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_AMOUNT);
-//            addAmount(VATAmount);
-//            TransactionAmountDto VATPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_PERCENT);
-//            addAmount(VATPercentage);
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
             throw new RuntimeException("Object number range not found");
@@ -128,7 +118,33 @@ public class TransactionService implements TransactionDao {
         }
 
     }
-
+    @Override
+    public void edit(TransactionEditDto transactionEditDto) throws Exception {
+        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
+        if (entity != null) {
+            try {
+                if (transactionEditDto.getStatus() != null) {
+                    entity.setStatus(transactionEditDto.getStatus());
+                }
+                if (transactionEditDto.getStatusReason() != null) {
+                    entity.setStatusReason(transactionEditDto.getStatusReason());
+                }
+                if (transactionEditDto.getDescription() != null) {
+                    if (transactionEditDto.getDescription().length() > 255) {
+                        entity.setDescription(transactionEditDto.getDescription());
+                    } else if (transactionEditDto.getDescription().length() <= 255) {
+                        entity.setSubDescription(transactionEditDto.getDescription());
+                    }
+                }
+                entity.setChangedBy(getUser());
+                transactionRepository.save(entity);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            throw new DoesNotExist();
+        }
+    }
     @Override
     public void delete(String id) throws Exception {
         try {
@@ -726,33 +742,7 @@ public class TransactionService implements TransactionDao {
         return finalList;
     }
 
-    @Override
-    public void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception {
-        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
-        if (entity != null) {
-            try {
-                if (transactionEditDto.getStatus() != null) {
-                    entity.setStatus(transactionEditDto.getStatus());
-                }
-                if (transactionEditDto.getStatusReason() != null) {
-                    entity.setStatusReason(transactionEditDto.getStatusReason());
-                }
-                if (transactionEditDto.getDescription() != null) {
-                    if (transactionEditDto.getDescription().length() > 255) {
-                        entity.setDescription(transactionEditDto.getDescription());
-                    } else if (transactionEditDto.getDescription().length() <= 255) {
-                        entity.setSubDescription(transactionEditDto.getDescription());
-                    }
-                }
-                entity.setChangedBy(getUser());
-                transactionRepository.save(entity);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new DoesNotExist();
-        }
-    }
+
 
     @Override
     public TransactionDto get(String transactionId) throws TransactionNotFound {
@@ -765,6 +755,7 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setCategory(transactionEntity.getCategory());
+            transactionDto.setPriority(transactionEntity.getPriority());
             transactionDto.setLocation(transactionEntity.getLocation());
             transactionDto.setStatus(transactionEntity.getStatus());
             if (transactionEntity.getCreatedBy() != null) {
