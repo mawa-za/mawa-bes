@@ -62,8 +62,8 @@ public class ReceiptService implements ReceiptDao {
             entity.setCreatedBy(UserContext.getCurrentUser());
             entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
-            entity.setAmount(new BigDecimal(receipt.getAmount()));
-            return entityIDtoDto(receiptRepository.save(entity));
+            entity.setAmount(receipt.getAmount());
+            return entityToDto(receiptRepository.save(entity));
         } catch (Exception e) {
             throw new Exception();
         }
@@ -81,7 +81,7 @@ public class ReceiptService implements ReceiptDao {
             receipt.setTransaction(entity.getTransaction());
             receipt.setReceiptType(entity.getReceiptType());
             receipt.setTenderType(entity.getTenderType());
-            receipt.setAmount(entity.getAmount().toString());
+            receipt.setAmount(entity.getAmount());
             try {
                 receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
             } catch (Exception e) {
@@ -119,17 +119,6 @@ public class ReceiptService implements ReceiptDao {
         }
         receiptDtos = entityArrayToDto(receiptsNotCashed);
         return receiptDtos;
-    }
-
-    private ReceiptDto entityIDtoDto(ReceiptEntity entity) throws Exception {
-        try {
-            ReceiptDto receipt = new ReceiptDto();
-            receipt.setId(entity.getId());
-            return receipt;
-        } catch (Exception e) {
-            throw new Exception();
-        }
-
     }
 
     private String getUser() {
@@ -185,7 +174,7 @@ public class ReceiptService implements ReceiptDao {
             receipt.setTransaction(entity.getTransaction());
             receipt.setReceiptType(entity.getReceiptType());
             receipt.setTenderType(entity.getTenderType());
-            receipt.setAmount(entity.getAmount().toString());
+            receipt.setAmount(entity.getAmount());
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
             receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {

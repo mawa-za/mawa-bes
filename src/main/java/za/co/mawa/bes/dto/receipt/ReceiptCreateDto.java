@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,5 +19,5 @@ public class ReceiptCreateDto implements Serializable {
     private String membershipPeriod;
     private String tenderType;
     private String location;
-    private String amount;
+    private BigDecimal amount;
 }
