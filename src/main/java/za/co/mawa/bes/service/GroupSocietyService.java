@@ -52,6 +52,13 @@ public class GroupSocietyService {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.GROUP_SOCIETY);
         transactionCreateDto.setLocation(groupSocietyCreateDto.getSalesArea());
+//        if (Objects.equals(groupSocietyCreateDto.getCreationType(), "EXISTING")) {
+//            transactionCreateDto.setStatus(Status.PENDING);
+////            transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
+//        } else {
+//            transactionCreateDto.setStatus(Status.NEW);
+//        }
+        transactionCreateDto.setStatus(Status.ACTIVE);
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
         ProductDto productDto = productService.get(groupSocietyCreateDto.getProduct());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -88,21 +95,9 @@ public class GroupSocietyService {
         transactionService.addDate(transactionDateDto);
 
         TransactionAmountDto amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
+        amountDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
         amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.AVAILABLE_BALANCE);
-        transactionService.addAmount(amountDto);
-
-        amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.TOTAL_DEPOSITED);
-        transactionService.addAmount(amountDto);
-
-        amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.TOTAL_WITHDRAWN);
+        amountDto.setType(AmountType.OPENING_BALANCE);
         transactionService.addAmount(amountDto);
 
         GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
@@ -178,21 +173,33 @@ public class GroupSocietyService {
         try {
             BigDecimal totalDeposited = new BigDecimal("0.00");
             BigDecimal totalWithdrawn = new BigDecimal("0.00");
+            BigDecimal openingBalance = new BigDecimal("0.00");
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                BigDecimal amount =  new BigDecimal(receiptDto.getAmount());
+                BigDecimal amount = new BigDecimal(receiptDto.getAmount());
                 totalDeposited = totalDeposited.add(amount);
             }
+
+            try {
+                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
+                transactionAmountPKEntity.setType(AmountType.OPENING_BALANCE);
+                transactionAmountPKEntity.setTransaction(id);
+                TransactionAmountDto amountDto = transactionService.getAmount(transactionAmountPKEntity);
+                openingBalance = amountDto.getAmount();
+            } catch (Exception exception) {
+            }
+
+            BigDecimal availableBalance = (totalDeposited.subtract(totalWithdrawn)).add(openingBalance);
             try {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setAmount(availableBalance);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.AVAILABLE_BALANCE);
                 transactionService.editAmount(amountDto);
             } catch (Exception exception) {
                 TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
+                amountDto.setAmount(availableBalance);
                 amountDto.setTransaction(id);
                 amountDto.setType(AmountType.AVAILABLE_BALANCE);
                 transactionService.addAmount(amountDto);
