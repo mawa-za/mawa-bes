@@ -3,9 +3,14 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.AmountDto;
+import za.co.mawa.bes.dto.DateDto;
+import za.co.mawa.bes.dto.cas.CaseCreateDto;
+import za.co.mawa.bes.dto.cas.CaseDto;
+import za.co.mawa.bes.dto.cas.CaseQueryDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
+import za.co.mawa.bes.dto.participant.ParticipantDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
@@ -39,185 +44,84 @@ public class CaseService {
     @Autowired
     ClaimService claimService;
 
-    public GroupSocietyDto create(GroupSocietyCreateDto groupSocietyCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
+    public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
-        transactionCreateDto.setType(TransactionType.GROUP_SOCIETY);
-        transactionCreateDto.setLocation(groupSocietyCreateDto.getSalesArea());
+        transactionCreateDto.setType(TransactionType.CASE);
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-        ProductDto productDto = productService.get(groupSocietyCreateDto.getProduct());
+        ProductDto productDto = productService.get(caseCreateDto.getService());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
-        transactionItemDto.setProduct(groupSocietyCreateDto.getProduct());
+        transactionItemDto.setProduct(caseCreateDto.getService());
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
-        if (groupSocietyCreateDto.getCustomer() != null) {
+        if (caseCreateDto.getClient() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-            transactionPartnerDto.setPartner(groupSocietyCreateDto.getCustomer());
+            transactionPartnerDto.setFunction(PartnerFunction.CLIENT);
+            transactionPartnerDto.setPartner(caseCreateDto.getClient());
             transactionService.addPartner(transactionPartnerDto);
         }
-        if (groupSocietyCreateDto.getSalesRepresentative() != null) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
-            transactionPartnerDto.setPartner(groupSocietyCreateDto.getSalesRepresentative());
-            transactionService.addPartner(transactionPartnerDto);
-        }
-        if (groupSocietyCreateDto.getDateJoined() != null) {
-            TransactionDateDto transactionDateDto = new TransactionDateDto();
-            transactionDateDto.setTransaction(transactionDto.getId());
-            transactionDateDto.setType(DateType.JOINED);
-            transactionDateDto.setValue(groupSocietyCreateDto.getDateJoined());
-            transactionService.addDate(transactionDateDto);
-        }
-        TransactionDateDto transactionDateDto = new TransactionDateDto();
-        transactionDateDto.setValue(new Date());
-        transactionDateDto.setType(DateType.CREATED);
-        transactionDateDto.setTransaction(transactionDto.getId());
-        transactionService.addDate(transactionDateDto);
-
-        TransactionAmountDto amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.AVAILABLE_BALANCE);
-        transactionService.addAmount(amountDto);
-
-        amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.TOTAL_DEPOSITED);
-        transactionService.addAmount(amountDto);
-
-        amountDto = new TransactionAmountDto();
-        amountDto.setAmount(new BigDecimal(0));
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-        transactionService.addAmount(amountDto);
-
-        GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
-        groupSocietyDto.setId(transactionDto.getId());
-        return groupSocietyDto;
+        CaseDto caseDto = new CaseDto();
+        caseDto.setId(transactionDto.getId());
+        return caseDto;
 
     }
 
-    public List<GroupSocietyDto> search(GroupSocietyQueryDto groupSocietyQueryDto) {
-        List<GroupSocietyDto> groupSocietyDtoList = new ArrayList<>();
+    public List<CaseDto> search(CaseQueryDto caseQueryDto) {
+        List<CaseDto> caseDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-        transactionQueryDto.setType(TransactionType.GROUP_SOCIETY);
+        transactionQueryDto.setType(TransactionType.CASE);
         for (String id : transactionService.search(transactionQueryDto)) {
-            groupSocietyDtoList.add(get(id));
+            caseDtoList.add(get(id));
         }
-        return groupSocietyDtoList;
+        return caseDtoList;
     }
 
-    public GroupSocietyDto get(String id) {
+    public CaseDto get(String id) {
         try {
-            calculateBalance(id);
             TransactionDto transactionDto = transactionService.get(id);
-            GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
-            groupSocietyDto.setNumber(transactionDto.getNumber());
-            groupSocietyDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
-            groupSocietyDto.setId(transactionDto.getId());
+            CaseDto caseDto = new CaseDto();
+            caseDto.setNumber(transactionDto.getNumber());
+            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+            caseDto.setId(transactionDto.getId());
             if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
                 String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
                 try {
-                    groupSocietyDto.setProduct(productService.getBasic(productId));
+                    caseDto.setService(productService.getBasic(productId));
                 } catch (ProductNotFoundException e) {
                 }
             }
+            List<ParticipantDto> participantDtoList = new ArrayList<>();
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                 try {
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.CUSTOMER)) {
-                        groupSocietyDto.setCustomer(partnerService.get(transactionPartnerDto.getPartner()));
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.CLIENT)) {
+                        caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
+                        continue;
                     }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SALES_REPRESENTATIVE)) {
-                        groupSocietyDto.setSalesRepresentative(partnerService.get(transactionPartnerDto.getPartner()));
-                    }
+                    ParticipantDto participantDto = new ParticipantDto();
+                    participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));
+                    participantDto.setFunction(fieldOptionService.getFieldOption(Field.PARTNER_FUNCTION, transactionPartnerDto.getFunction()));
+                    participantDtoList.add(participantDto);
                 } catch (PartnerNotFoundException e) {
 
                 }
             }
+            caseDto.setParticipants(participantDtoList);
+            List<DateDto> dateDtoList = new ArrayList<>();
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equals(DateType.JOINED)) {
-                    groupSocietyDto.setDateJoined(transactionDateDto.getValue());
-                }
-                if (transactionDateDto.getType().equals(DateType.CREATED)) {
-                    groupSocietyDto.setDateCreated(transactionDateDto.getValue());
-                }
+                DateDto dateDto = new DateDto();
+                dateDto.setValue(transactionDateDto.getValue());
+                dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
+                dateDtoList.add(dateDto);
             }
-
-            for (TransactionAmountDto transactionAmountDto : transactionService.getAmounts(id)) {
-                AmountDto amountDto = new AmountDto();
-                amountDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_AMOUNT, transactionAmountDto.getType()));
-                amountDto.setAmount(transactionAmountDto.getAmount());
-                groupSocietyDto.getAmounts().add(amountDto);
-            }
-
-            groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-            groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
-
-            return groupSocietyDto;
+            caseDto.setDates(dateDtoList);
+            caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+            return caseDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public void calculateBalance(String id) {
-        try {
-            BigDecimal totalDeposited = new BigDecimal("0.00");
-            BigDecimal totalWithdrawn = new BigDecimal("0.00");
-            ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
-            receiptSearchDto.setTransaction(id);
-            for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                BigDecimal amount =  receiptDto.getAmount();
-                totalDeposited = totalDeposited.add(amount);
-            }
-            try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.AVAILABLE_BALANCE);
-                transactionService.editAmount(amountDto);
-            } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited.subtract(totalWithdrawn));
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.AVAILABLE_BALANCE);
-                transactionService.addAmount(amountDto);
-            }
-
-            try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_DEPOSITED);
-                transactionService.editAmount(amountDto);
-            } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_DEPOSITED);
-                transactionService.addAmount(amountDto);
-            }
-            try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalWithdrawn);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-                transactionService.editAmount(amountDto);
-            } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalWithdrawn);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-                transactionService.addAmount(amountDto);
-            }
-        } catch (Exception e) {
-
         }
     }
 }
