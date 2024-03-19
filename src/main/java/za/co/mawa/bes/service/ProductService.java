@@ -66,7 +66,7 @@ public class ProductService implements ProductDao {
                 productPricingCreateDto.setPricing(productCreateDto.getPricingType());
                 productPricingCreateDto.setValue(productCreateDto.getPrice());
                 productPricingCreateDto.setValidFrom(new Date());
-                productDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                productPricingCreateDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                 addPricing(productPricingCreateDto);
             }
             return productDto;
