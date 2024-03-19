@@ -41,7 +41,7 @@ public class ReceiptController {
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
                 cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
                 cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
-                cashupCreateDto.setAmount(new BigDecimal(receiptCreateDto.getAmount()));
+                cashupCreateDto.setAmount(receiptCreateDto.getAmount());
                 List<String> receipts = new ArrayList<>();
                 receipts.add(receiptDto.getId());
                 cashupCreateDto.setReceipts(receipts);

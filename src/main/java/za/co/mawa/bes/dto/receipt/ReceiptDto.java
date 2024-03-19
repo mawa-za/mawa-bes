@@ -7,6 +7,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,7 +23,7 @@ public class ReceiptDto implements Serializable {
     private String transaction;
     private String location;
     private String tenderType;
-    private String amount;
+    private BigDecimal amount;
     private String cashupId;
     private String cashupNumber;
 }
