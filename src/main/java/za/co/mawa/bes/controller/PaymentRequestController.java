@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dao.PaymentRequestDao;
+import za.co.mawa.bes.dto.TransactionProcessDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
@@ -20,6 +21,7 @@ import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.TransactionAction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
@@ -86,17 +88,18 @@ public class PaymentRequestController {
                                      @RequestParam(required = false) String statusReason,
                                      @RequestParam(required = false) String description) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(Status.APPROVED);
+            TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
+            transactionProcessDto.setId(id);
+            transactionProcessDto.setStatus(TransactionAction.APPROVE);
+            transactionProcessDto.setStatus(Status.APPROVED);
             if (statusReason != null && statusReason != "") {
-                transactionEditDto.setStatusReason(statusReason);
+                transactionProcessDto.setReason(statusReason);
             }
             if (description != null && description != null) {
-                transactionEditDto.setDescription(description);
+                transactionProcessDto.setNotes(description);
             }
-            transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            paymentRequestService.action(transactionProcessDto);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

@@ -40,4 +40,6 @@ public class Field {
     public static String SERVICE_REQUEST_STATUS_REASON = "SERVICE-REQUEST-STATUS-REASON";
     public static String SERVICE_REQUEST_CATEGORY = "SERVICE-REQUEST-CATEGORY";
     public static String SERVICE_REQUEST_PRIORITY = "SERVICE-REQUEST-PRIORITY";
+    public static String DATE_TYPE = "DATE-TYPE";
+    public static String PARTNER_FUNCTION = "PARTNER-FUNCTION";
 }
