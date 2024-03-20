@@ -108,18 +108,6 @@ public class TransactionService implements TransactionDao {
                 addPartner(transactionPartnerDto);
             }
 
-//            TransactionAmountDto totalIncVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_INC_VAT);
-//            addAmount(totalIncVat);
-//            TransactionAmountDto totalExcVat = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.TOTAL_EXC_VAT);
-//            addAmount(totalExcVat);
-//            TransactionAmountDto discountAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_AMOUNT);
-//            addAmount(discountAmount);
-//            TransactionAmountDto discountPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.DISCOUNT_PERCENT);
-//            addAmount(discountPercentage);
-//            TransactionAmountDto VATAmount = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_AMOUNT);
-//            addAmount(VATAmount);
-//            TransactionAmountDto VATPercentage = new TransactionAmountDto(createdTransactionEntity.getId(), PriceType.VAT_PERCENT);
-//            addAmount(VATPercentage);
             return new TransactionDto(createdTransactionEntity);
         } catch (NumberRangeObjectNotFound ex) {
             throw new RuntimeException("Object number range not found");
@@ -731,6 +719,13 @@ public class TransactionService implements TransactionDao {
         TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
         if (entity != null) {
             try {
+
+                if (transactionEditDto.getCategory() != null) {
+                    entity.setStatus(transactionEditDto.getCategory());
+                }
+                if (transactionEditDto.getPriority() != null) {
+                    entity.setStatus(transactionEditDto.getPriority());
+                }
                 if (transactionEditDto.getStatus() != null) {
                     entity.setStatus(transactionEditDto.getStatus());
                 }
