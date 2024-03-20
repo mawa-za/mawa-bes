@@ -8,6 +8,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ServiceRequestQueryDto {
-    private String customerId;
+    private String customer;
     private String status;
+    private String category;
+    private String priority;
+    private String dueDate;
+    private String creationDate;
 }

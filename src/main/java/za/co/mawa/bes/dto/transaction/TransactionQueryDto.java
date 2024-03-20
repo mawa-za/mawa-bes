@@ -21,6 +21,7 @@ import java.util.Date;
 @Setter
 public class TransactionQueryDto implements Serializable {
     private String type;
+    private String category;
     private String subtype;
     private String status;
     private String partnerFunction;
