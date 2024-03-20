@@ -21,4 +21,5 @@ public class TransactionType {
     public static String GROUP_SOCIETY = "GROUP-SOCIETY";
 
     public static  String NOTIFICATION = "NOTIFICATION";
+    public static  String CASE = "CASE";
 }

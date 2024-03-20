@@ -33,7 +33,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
-//            transactionCreateDto.setSubType(serviceRequestCreateDto.getCategory());
+            transactionCreateDto.setSubType(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
@@ -49,6 +49,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setDescription(serviceRequestEditDto.getDescription());
+            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());
             transactionEditDto.setCategory(serviceRequestEditDto.getCategory());
             transactionEditDto.setPriority(serviceRequestEditDto.getPriority());
 //            transactionEditDto.setCustomerId(serviceRequestEditDto.getCustomer());

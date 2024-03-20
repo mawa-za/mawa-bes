@@ -8,20 +8,24 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
 @Setter
 public class ServiceRequestDto implements Serializable {
     private String id;
-    private String no;
+    private String number;
+    private FieldOptionDto subType;
     private PartnerDto customer;
-    private PartnerDto employeeResponsible;
-    private PartnerDto createdBy;
     private String description;
     private FieldOptionDto category;
     private FieldOptionDto priority;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
+    private PartnerDto createdBy;
+    private PartnerDto employeeResponsible;
+    private Date creationDate;
+    private Date dueDate;
 
 }

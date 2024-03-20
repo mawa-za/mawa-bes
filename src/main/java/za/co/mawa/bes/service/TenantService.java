@@ -8,13 +8,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.TenantDao;
 import za.co.mawa.bes.dto.JwtRequest;
+import za.co.mawa.bes.dto.TenantCreateDto;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.TenantPropertyDto;
+import za.co.mawa.bes.dto.partner.PartnerCreateDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.TenantEntity;
 import za.co.mawa.bes.entity.TenantPropertyEntity;
 import za.co.mawa.bes.entity.TenantPropertyPKEntity;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.TenantPropertyRepository;
 import za.co.mawa.bes.repository.TenantRepository;
+import za.co.mawa.bes.utils.PartnerType;
 import za.co.mawa.bes.utils.Status;
 
 
@@ -38,6 +44,8 @@ public class TenantService implements TenantDao {
     TenantPropertyRepository tenantPropertyRepository;
     @Autowired
     SettingService settingService;
+    @Autowired
+    PartnerService partnerService;
     @Override
     public TenantDto create(TenantDto tenantDto) throws Exception {
         try {
@@ -97,4 +105,24 @@ public class TenantService implements TenantDao {
         }
         return properties;
     }
+
+    public PartnerDto addTenantPartner(TenantCreateDto createDto,String tenant){
+        try{
+           PartnerCreateDto partner = new PartnerCreateDto();
+           partner.setName1(createDto.getTenantName());
+           partner.setType(PartnerType.TENANT);
+           PartnerDto partnerTenant = partnerService.create(partner);
+           if(partnerTenant.getId() != null){
+               TenantPropertyDto propertyDto = new TenantPropertyDto();
+               propertyDto.setTenant(tenant);
+               propertyDto.setValue(partnerTenant.getId());
+               propertyDto.setProperty("PARTNER-ID");
+               addProperty(propertyDto);
+           };
+            return  partnerTenant;
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+
+    };
 }

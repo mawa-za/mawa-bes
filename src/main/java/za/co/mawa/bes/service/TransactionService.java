@@ -72,10 +72,12 @@ public class TransactionService implements TransactionDao {
             transactionEntity.setType(transactionCreateDto.getType());
             transactionEntity.setSubType(transactionCreateDto.getSubType());
             transactionEntity.setCategory(transactionCreateDto.getCategory());
+            transactionEntity.setPriority(transactionCreateDto.getPriority());
             transactionEntity.setValidFrom(new Date());
             transactionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             transactionEntity.setCreatedBy(getUser());
             transactionEntity.setLocation(transactionCreateDto.getLocation());
+            transactionEntity.setDescription(transactionCreateDto.getDescription());
             transactionEntity.setSubDescription(transactionCreateDto.getSubDescription());
             TransactionEntity createdTransactionEntity = transactionRepository.save(transactionEntity);
 
@@ -116,7 +118,33 @@ public class TransactionService implements TransactionDao {
         }
 
     }
-
+    @Override
+    public void edit(TransactionEditDto transactionEditDto) throws Exception {
+        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
+        if (entity != null) {
+            try {
+                if (transactionEditDto.getStatus() != null) {
+                    entity.setStatus(transactionEditDto.getStatus());
+                }
+                if (transactionEditDto.getStatusReason() != null) {
+                    entity.setStatusReason(transactionEditDto.getStatusReason());
+                }
+                if (transactionEditDto.getDescription() != null) {
+                    if (transactionEditDto.getDescription().length() > 255) {
+                        entity.setDescription(transactionEditDto.getDescription());
+                    } else if (transactionEditDto.getDescription().length() <= 255) {
+                        entity.setSubDescription(transactionEditDto.getDescription());
+                    }
+                }
+                entity.setChangedBy(getUser());
+                transactionRepository.save(entity);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            throw new DoesNotExist();
+        }
+    }
     @Override
     public void delete(String id) throws Exception {
         try {
@@ -714,40 +742,7 @@ public class TransactionService implements TransactionDao {
         return finalList;
     }
 
-    @Override
-    public void edit(TransactionEditDto transactionEditDto) throws DoesNotExist, Exception {
-        TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
-        if (entity != null) {
-            try {
 
-                if (transactionEditDto.getCategory() != null) {
-                    entity.setStatus(transactionEditDto.getCategory());
-                }
-                if (transactionEditDto.getPriority() != null) {
-                    entity.setStatus(transactionEditDto.getPriority());
-                }
-                if (transactionEditDto.getStatus() != null) {
-                    entity.setStatus(transactionEditDto.getStatus());
-                }
-                if (transactionEditDto.getStatusReason() != null) {
-                    entity.setStatusReason(transactionEditDto.getStatusReason());
-                }
-                if (transactionEditDto.getDescription() != null) {
-                    if (transactionEditDto.getDescription().length() > 255) {
-                        entity.setDescription(transactionEditDto.getDescription());
-                    } else if (transactionEditDto.getDescription().length() <= 255) {
-                        entity.setSubDescription(transactionEditDto.getDescription());
-                    }
-                }
-                entity.setChangedBy(getUser());
-                transactionRepository.save(entity);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new DoesNotExist();
-        }
-    }
 
     @Override
     public TransactionDto get(String transactionId) throws TransactionNotFound {
@@ -760,6 +755,7 @@ public class TransactionService implements TransactionDao {
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setCategory(transactionEntity.getCategory());
+            transactionDto.setPriority(transactionEntity.getPriority());
             transactionDto.setLocation(transactionEntity.getLocation());
             transactionDto.setStatus(transactionEntity.getStatus());
             if (transactionEntity.getCreatedBy() != null) {

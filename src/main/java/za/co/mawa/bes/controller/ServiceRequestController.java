@@ -34,9 +34,18 @@ public class ServiceRequestController {
     }
 
     @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getServiceRequest() {
+    public ResponseEntity<?> getServiceRequests(@RequestParam(required = false) String status,
+                                                @RequestParam(required = false) String customer,
+                                                @RequestParam(required = false) String priority,
+                                                @RequestParam(required = false) String category,
+                                                @RequestParam(required = false) String dueDate,
+                                                @RequestParam(required = false) String creationDate) {
         try {
             ServiceRequestQueryDto serviceRequestQueryDto = new ServiceRequestQueryDto();
+            serviceRequestQueryDto.setStatus(status);
+            serviceRequestQueryDto.setCustomer(customer);
+            serviceRequestQueryDto.setCategory(category);
+            serviceRequestQueryDto.setPriority(priority);
             return ResponseEntity.ok(gson.toJson(serviceRequestService.search(serviceRequestQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
