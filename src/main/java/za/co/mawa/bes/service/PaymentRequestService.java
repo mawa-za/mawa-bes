@@ -1,9 +1,19 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import za.co.mawa.bes.dao.PaymentRequestDao;
 import za.co.mawa.bes.dto.BankAccountDto;
+import za.co.mawa.bes.dto.EmailDto;
+import za.co.mawa.bes.dto.PropertyDto;
+import za.co.mawa.bes.dto.TransactionProcessDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -16,6 +26,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.util.ArrayList;
@@ -34,6 +45,10 @@ public class PaymentRequestService implements PaymentRequestDao {
     FieldOptionService fieldOptionService;
     @Autowired
     BankAccountService bankAccountService;
+    @Autowired
+    EmailService emailService;
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @Override
     public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
@@ -170,4 +185,29 @@ public class PaymentRequestService implements PaymentRequestDao {
         return requests;
 
     }
+
+    public void action(TransactionProcessDto transactionProcessDto) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(transactionProcessDto.getId());
+            transactionEditDto.setStatus(Status.APPROVED);
+            if (transactionProcessDto.getReason() != null && transactionProcessDto.getReason() != "") {
+                transactionEditDto.setStatusReason(transactionProcessDto.getReason());
+            }
+            transactionService.edit(transactionEditDto);
+            TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
+            EmailDto emailDto = new EmailDto();
+            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
+            emailDto.setSubject("Payment Request Approved");
+            emailDto.setTemplate("payment-request-approved");
+            List<PropertyDto> props = new ArrayList<>();
+            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
+            emailDto.setProperties(props);
+            emailService.send(emailDto);
+        } catch (Exception exception) {
+            throw new RuntimeException();
+        }
+    }
+
+
 }
