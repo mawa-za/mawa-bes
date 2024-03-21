@@ -4,11 +4,13 @@ import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
+import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
@@ -36,7 +38,9 @@ public class InvoiceController {
     PricingService pricingService;
     @Autowired
     LineItemService lineItemService;
-    @RequestMapping(method = RequestMethod.POST)
+    @Autowired
+    InvoiceService invoiceService;
+    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -77,37 +81,36 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity<?> getInvoices() {
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status) {
         try {
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            transactionQueryDto.setType(TransactionType.INVOICE);
-            return ResponseEntity.ok(gson.toJson(transactionService.search(transactionQueryDto)));
+            InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
+            invoiceQueryDto.setStatus(status);
+            return ResponseEntity.ok(gson.toJson( invoiceService.search(invoiceQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
+            return ResponseEntity.ok(gson.toJson(invoiceService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> editInvoice(@PathVariable String id, @RequestBody TransactionDto transactionDto) {
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editInvoice(@PathVariable String id) {
         try {
-            //transactionService.edit(transactionDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteInvoice(@PathVariable String id) {
         try {
             transactionService.delete(id);
@@ -117,7 +120,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "/{id}/items", method = RequestMethod.GET)
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  getItems(@PathVariable String id) {
         try {
             List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
@@ -127,7 +130,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
+    @RequestMapping(value = "{id}/items", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
         try {
             lineItemService.add(id,lineItemDto);
@@ -137,7 +140,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "{id}/items", method = RequestMethod.PUT)
+    @RequestMapping(value = "{id}/items", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
         try {
             //lineItemService.edit();
@@ -146,7 +149,7 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  deleteItem(@PathVariable String id) {
         try {
             lineItemService.delete(id);
