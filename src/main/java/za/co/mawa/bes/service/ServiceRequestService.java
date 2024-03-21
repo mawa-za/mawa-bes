@@ -49,7 +49,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setDescription(serviceRequestEditDto.getDescription());
-            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());
+//            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());
             transactionEditDto.setCategory(serviceRequestEditDto.getCategory());
             transactionEditDto.setPriority(serviceRequestEditDto.getPriority());
 //            transactionEditDto.setCustomerId(serviceRequestEditDto.getCustomer());
@@ -61,16 +61,18 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     @Override
-    public List<ServiceRequestQueryResultDto> search(ServiceRequestQueryDto serviceRequestQueryDto) {
-        List<ServiceRequestQueryResultDto> serviceRequestQueryResultDtos = new ArrayList<>();
+    public List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto) {
+        List<ServiceRequestDto> serviceRequestDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
         transactionQueryDto.setStatus(serviceRequestQueryDto.getStatus());
         for (String id : transactionService.search(transactionQueryDto)) {
-            ServiceRequestQueryResultDto serviceRequestQueryResultDto = new ServiceRequestQueryResultDto();
-            serviceRequestQueryResultDtos.add(serviceRequestQueryResultDto);
+            try {
+                serviceRequestDtoList.add(get(id));
+            } catch (Exception ex) {
+            }
         }
-        return serviceRequestQueryResultDtos;
+        return serviceRequestDtoList;
     }
 
     @Override
@@ -78,7 +80,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         ServiceRequestDto serviceRequestDto = new ServiceRequestDto();
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
-        serviceRequestDto.setNo(transactionDto.getNo());
+        serviceRequestDto.setNumber(transactionDto.getNo());
         serviceRequestDto.setDescription(transactionDto.getDescription());
 //        serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.TRANSACTION_SUBTYPE, transactionDto.getSubType()));
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
