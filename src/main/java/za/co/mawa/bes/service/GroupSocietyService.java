@@ -99,10 +99,7 @@ public class GroupSocietyService {
         amountDto.setTransaction(transactionDto.getId());
         amountDto.setType(AmountType.OPENING_BALANCE);
         transactionService.addAmount(amountDto);
-
-        GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
-        groupSocietyDto.setId(transactionDto.getId());
-        return groupSocietyDto;
+        return get(transactionDto.getId());
 
     }
 
