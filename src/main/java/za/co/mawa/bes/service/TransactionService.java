@@ -861,7 +861,7 @@ public class TransactionService implements TransactionDao {
             }
             transactionAmountRepository.save(transactionAmountEntity);
         } catch (Exception exception) {
-
+            System.out.println(exception.getMessage());
         }
     }
 
