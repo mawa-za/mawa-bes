@@ -2,6 +2,7 @@ package za.co.mawa.bes.entity.transaction;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 
 import java.io.Serializable;
@@ -14,20 +15,21 @@ import java.math.BigDecimal;
 @ToString
 @Getter
 @Setter
+@EqualsAndHashCode
 public class TransactionAmountEntity implements Serializable {
     private static final long serialVersionUID = 1L;
-    @EmbeddedId
-    protected TransactionAmountPKEntity transactionAmountPKEntity;
+    @Id
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
+    private String id;
+    @Column(name = "transaction")
+    private String transaction;
+    @Column(name = "type")
+    private String type;
     @Column(name = "amount")
     private BigDecimal amount;
     @Column(name = "created_by")
     private String createdBy;
     @Column(name = "changed_by")
     private String changedBy;
-
-    public TransactionAmountEntity(TransactionAmountDto transactionAmountDto) {
-        this.transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());
-        this.transactionAmountPKEntity.setType(transactionAmountDto.getType());
-        this.amount = transactionAmountDto.getAmount();
-    }
 }

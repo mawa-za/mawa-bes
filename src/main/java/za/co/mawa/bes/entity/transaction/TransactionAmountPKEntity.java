@@ -12,6 +12,7 @@ import java.util.Objects;
 @ToString
 @Getter
 @Setter
+@EqualsAndHashCode
 public class TransactionAmountPKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;
