@@ -2,7 +2,6 @@ package za.co.mawa.bes.dao;
 
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.date.TransactionDateEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
@@ -30,11 +29,6 @@ public interface TransactionDao {
     void addItem(TransactionItemDto transactionItemDto) throws Exception;
     void removeItem(TransactionItemDto transactionItemDto) throws Exception;
     List<TransactionItemDto> getItems(String id);
-    //Amounts
-    void addAmount(TransactionAmountDto transactionAmountDto);
-    void removeAmount(TransactionAmountDto transactionAmountDto) throws Exception;
-    List<TransactionAmountDto> getAmounts(String id);
-
     //Partners
     void addPartner(TransactionPartnerDto transactionPartnerDto) throws TransactionPartnerAddException;
     void removePartner(TransactionPartnerDto transactionPartnerDto) throws Exception;
@@ -54,19 +48,16 @@ public interface TransactionDao {
     void addLink(TransactionLinkDto transactionLinkDto) throws Exception;
     void removeLink(TransactionLinkDto transactionLinkDto);
     List<TransactionLinkDto> getLinks(String id);
-    TransactionAmountDto getAmount(TransactionAmountPKEntity id);
     TransactionLinkEntity getTransaction(String type,String transaction1);
     boolean partnerEdit(TransactionPartnerEdit transaction) throws DoesNotExist, Exception;
     boolean dateEdit(TransactionDateEdit transaction) throws DoesNotExist, Exception;
     boolean editDate(TransactionDateDto transactionDateDto) throws DoesNotExist, Exception;
-    boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist,Exception;
     boolean editItem(TransactionItemEditDto transactionItemEditDto) throws DoesNotExist,Exception;
     void addBankAccount(TransactionAccountDto accountDto) throws Exception;
     boolean editBankAccount(TransactionAccountDto accountDto) throws Exception;
     TransactionAccountDto getBankAccount(String id);
     TransactionAccountDto getOptionalBankAccount(String id);
     boolean removePartner(String id,String partnerFunction,String partner) throws Exception;
-    boolean removeAmount(String id,String type) throws Exception;
     boolean removeDate(String id,String type) throws Exception;
 
 

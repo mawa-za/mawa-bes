@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
@@ -30,6 +31,8 @@ import java.util.stream.Collectors;
 public class MembershipService {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
     @Autowired
     ProductService productService;
     @Autowired
@@ -100,12 +103,15 @@ public class MembershipService {
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
 
-        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
-        transactionAmountDto.setTransaction(transactionDto.getId());
-        transactionAmountDto.setType(TransactionAmount.MONTHLY_PREMIUM);
-        transactionAmountDto.setAmount(transactionItemDto.getUnitPrice());
-        transactionService.addAmount(transactionAmountDto);
+        try {
+            TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(transactionItemDto.getUnitPrice());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(TransactionAmount.MONTHLY_PREMIUM);
+            transactionAmountService.save(transactionAmountInboundDto);
+        } catch (Exception exception) {
 
+        }
         if (membershipCreateDto.getDateJoined() != null) {
             TransactionDateDto dateJoined = new TransactionDateDto();
             dateJoined.setTransaction(transactionDto.getId());
@@ -213,10 +219,13 @@ public class MembershipService {
                     membershipDto.setDateEffective(transactionDateDto.getValue());
                 }
             }
-            TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-            transactionAmountPKEntity.setTransaction(transactionDto.getId());
-            transactionAmountPKEntity.setType(TransactionAmount.MONTHLY_PREMIUM);
-            membershipDto.setPremium(transactionService.getAmount(transactionAmountPKEntity).getAmount());
+
+            try {
+                membershipDto.setPremium(transactionAmountService.getByTransaction(id).stream()
+                        .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.MONTHLY_PREMIUM))
+                        .toList().iterator().next().getAmount());
+            } catch (Exception exception) {
+            }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             return membershipDto;

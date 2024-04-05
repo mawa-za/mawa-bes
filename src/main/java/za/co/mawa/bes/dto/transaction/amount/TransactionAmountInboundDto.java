@@ -5,18 +5,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
-import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class TransactionAmountDto implements Serializable {
+public class TransactionAmountInboundDto implements Serializable {
     private String id;
     private String transaction;
-    private FieldOptionDto type;
+    private String type;
     private BigDecimal amount = new BigDecimal("0.00");
     private String createdBy;
     private String changedBy;
