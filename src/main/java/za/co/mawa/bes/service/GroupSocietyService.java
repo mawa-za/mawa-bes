@@ -186,7 +186,7 @@ public class GroupSocietyService {
             }
             try {
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(availableBalance);
+                transactionAmountInboundDto.setAmount(totalDeposited);
                 transactionAmountInboundDto.setTransaction(id);
                 transactionAmountInboundDto.setType(AmountType.TOTAL_DEPOSITED);
                 transactionAmountService.save(transactionAmountInboundDto);
@@ -195,7 +195,7 @@ public class GroupSocietyService {
             }
             try {
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(availableBalance);
+                transactionAmountInboundDto.setAmount(totalWithdrawn);
                 transactionAmountInboundDto.setTransaction(id);
                 transactionAmountInboundDto.setType(AmountType.TOTAL_WITHDRAWN);
                 transactionAmountService.save(transactionAmountInboundDto);
