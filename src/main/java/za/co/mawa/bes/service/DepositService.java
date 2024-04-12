@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.deposit.DepositEditDto;
 import za.co.mawa.bes.dto.deposit.DepositSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionDatePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
@@ -27,11 +28,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class DepositService implements DepositDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
     @Autowired
     CashupService cashupService;
     @Autowired
@@ -54,13 +58,16 @@ public class DepositService implements DepositDao {
                 date.setTransaction(transaction.getId());
                 date.setValue(new Date());
                 transactionService.addDate(date);
-
-                TransactionAmountDto amountDto = new TransactionAmountDto();
                 BigDecimal amount = new BigDecimal(depositCreate.getAmount());
-                amountDto.setAmount(amount);
-                amountDto.setTransaction(transaction.getId());
-                amountDto.setType(PriceType.DEPOSIT_AMOUNT);
-                transactionService.addAmount(amountDto);
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(amount);
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.DEPOSIT_AMOUNT);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
                 TransactionDto transactionLink = transactionService.get(depositCreate.getTransactionIdLink());
 
                 TransactionLinkDto linkDto = new TransactionLinkDto();
@@ -109,11 +116,11 @@ public class DepositService implements DepositDao {
                     break;
                 }
             }
-            for(TransactionAmountDto amountDto:transactionService.getAmounts(id)){
-                if(amountDto.getType().equalsIgnoreCase(PriceType.DEPOSIT_AMOUNT)){
-                    depositDto.setAmount(amountDto.getAmount().toString());
-                    break;
-                }
+            try {
+                depositDto.setAmount(transactionAmountService.getByTransaction(id).stream()
+                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.DEPOSIT_AMOUNT))
+                        .toList().iterator().next().getAmount().toString());
+            } catch (Exception exception) {
             }
             //depositDto.setAmount();
             return depositDto;
@@ -160,15 +167,7 @@ public class DepositService implements DepositDao {
                 transactionDateRepository.deleteById(transactionDatePKEntity);
             }
              BigDecimal amount =  BigDecimal.ZERO;
-            for(TransactionAmountDto amountDto: transactionService.getAmounts(id)){
-                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-                transactionAmountPKEntity.setTransaction(id);
-                transactionAmountPKEntity.setType(amountDto.getType());
-                if(amountDto.getType().equalsIgnoreCase(PriceType.DEPOSIT_AMOUNT)){
-                    amount = amountDto.getAmount();
-                }
-                transactionAmountRepository.deleteById(transactionAmountPKEntity);
-            }
+
             String transaction = "";
             for(TransactionLinkDto link:transactionService.getLinks(id)){
                 if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT)){

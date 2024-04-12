@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.utils.TransactionAmount;
 
 import java.math.BigDecimal;
@@ -36,5 +37,5 @@ public class GroupSocietyDto {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private FieldOptionDto salesArea;
-    private List<AmountDto> amounts = new ArrayList<>();
+    private List<TransactionAmountOutboundDto> amounts = new ArrayList<>();
 }

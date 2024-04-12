@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.user.UserDto;
@@ -35,6 +36,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -42,6 +44,8 @@ import java.util.stream.Collectors;
 public class CashupService implements CashupDao {
     @Autowired
     ReceiptService receiptService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -81,17 +85,26 @@ public class CashupService implements CashupDao {
                 TransactionDto transaction = transactionService.create(transactionCreateDto);
                 if (transaction.getId() != null) {
                     id = transaction.getId();
-                    TransactionAmountDto amountDto = new TransactionAmountDto();
-                    amountDto.setAmount(amount);
-                    amountDto.setTransaction(transaction.getId());
-                    amountDto.setType(PriceType.AMOUNT_COLLECTED);
-                    transactionService.addAmount(amountDto);
 
-                    amountDto = new TransactionAmountDto();
-                    amountDto.setAmount(BigDecimal.ZERO);
-                    amountDto.setTransaction(transaction.getId());
-                    amountDto.setType(PriceType.AMOUNT_DEPOSITED);
-                    transactionService.addAmount(amountDto);
+                    try {
+                        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                        transactionAmountInboundDto.setAmount(amount);
+                        transactionAmountInboundDto.setTransaction(transaction.getId());
+                        transactionAmountInboundDto.setType(AmountType.AMOUNT_COLLECTED);
+                        transactionAmountService.save(transactionAmountInboundDto);
+                    } catch (Exception exception) {
+
+                    }
+
+                    try {
+                        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                        transactionAmountInboundDto.setAmount(BigDecimal.ZERO);
+                        transactionAmountInboundDto.setTransaction(transaction.getId());
+                        transactionAmountInboundDto.setType(AmountType.AMOUNT_DEPOSITED);
+                        transactionAmountService.save(transactionAmountInboundDto);
+                    } catch (Exception exception) {
+
+                    }
                     for (ReceiptDto receipt : receipts) {
                         TransactionLinkDto link = new TransactionLinkDto();
                         link.setTransaction1(transaction.getId());
@@ -137,12 +150,15 @@ public class CashupService implements CashupDao {
             transactionCreateDto.setStatus(Status.CLOSED);
             TransactionDto transaction = transactionService.create(transactionCreateDto);
             if (transaction.getId() != null) {
-                id = transaction.getId();
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(cashupCreateDto.getAmount());
-                amountDto.setTransaction(transaction.getId());
-                amountDto.setType(PriceType.AMOUNT_COLLECTED);
-                transactionService.addAmount(amountDto);
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(cashupCreateDto.getAmount());
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.AMOUNT_COLLECTED);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
 
                 for (String receipt : cashupCreateDto.getReceipts()) {
                     TransactionLinkDto link = new TransactionLinkDto();
@@ -203,14 +219,19 @@ public class CashupService implements CashupDao {
                         cashupDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
                     }
                 }
-                for (TransactionAmountDto amount : transactionService.getAmounts(id)) {
-                    if (amount.getType().equalsIgnoreCase(PriceType.AMOUNT_COLLECTED)) {
-                        cashupDto.setAmountCollected(amount.getAmount());
-                    }
-                    if (amount.getType().equalsIgnoreCase(PriceType.AMOUNT_DEPOSITED)) {
-                        cashupDto.setAmountDeposited(amount.getAmount());
-                    }
+                try {
+                    cashupDto.setAmountCollected(transactionAmountService.getByTransaction(id).stream()
+                            .filter(a -> Objects.equals(a.getType().getCode(), AmountType.AMOUNT_COLLECTED))
+                            .toList().iterator().next().getAmount());
+                } catch (Exception exception) {
                 }
+                try {
+                    cashupDto.setAmountDeposited(transactionAmountService.getByTransaction(id).stream()
+                            .filter(a -> Objects.equals(a.getType().getCode(), AmountType.AMOUNT_DEPOSITED))
+                            .toList().iterator().next().getAmount());
+                } catch (Exception exception) {
+                }
+
                 for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
                     if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
                         cashupDto.setCreatedDate(transactionDateDto.getValue());
@@ -246,10 +267,15 @@ public class CashupService implements CashupDao {
                     entity.setStatus(edit.getStatus());
                 }
                 if (edit.getAmountDeposited() != null) {
-                    TransactionAmountEntity amountEntity = transactionAmountRepository.getTransactionAmount(id, PriceType.AMOUNT_DEPOSITED);
-                    amountEntity.setChangedBy(getUser());
-                    amountEntity.setAmount(new BigDecimal(edit.getAmountDeposited()));
-                    transactionAmountRepository.save(amountEntity);
+                    try {
+                        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                        transactionAmountInboundDto.setAmount(new BigDecimal(edit.getAmountDeposited()));
+                        transactionAmountInboundDto.setTransaction(id);
+                        transactionAmountInboundDto.setType(AmountType.AMOUNT_DEPOSITED);
+                        transactionAmountService.save(transactionAmountInboundDto);
+                    } catch (Exception exception) {
+
+                    }
                 }
                 TransactionDateEdit editDate = new TransactionDateEdit();
                 editDate.setTransaction(id);
