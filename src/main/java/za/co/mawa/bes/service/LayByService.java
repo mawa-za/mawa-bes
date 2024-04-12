@@ -24,11 +24,14 @@ import java.util.Calendar;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Objects;
 
 @Service
 public class LayByService implements LayByDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
     @Autowired
     ReceiptService receiptService;
     @Autowired
@@ -129,10 +132,13 @@ public class LayByService implements LayByDao {
             receiptSearch.setReceiptType(TransactionType.LAYBY);
             receiptSearch.setInvoiceNumber(layByDetails.getNumber());
             layByDetails.setReceipts(receiptService.getReceipts(receiptSearch));
-            for(TransactionAmountDto amount: transactionService.getAmounts(id)){
-                if(amount.getType().equalsIgnoreCase(PriceType.TOTAL_INC_VAT)){
-                    layByDetails.setAmount(amount.getAmount());
-                }
+            try {
+                BigDecimal voucherAmount = transactionAmountService.getByTransaction(id).stream()
+                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.TOTAL_INC_VAT))
+                        .toList().iterator().next().getAmount();
+                layByDetails.setAmount(voucherAmount);
+            } catch (Exception exception) {
+
             }
             String productId = null;
             for(TransactionItemDto item:transactionService.getItems(id)){
@@ -194,11 +200,13 @@ public class LayByService implements LayByDao {
                         break;
                     }
                 }
-                for(TransactionAmountDto amount:transactionService.getAmounts(id)){
-                    if(amount.getType().equalsIgnoreCase(PriceType.TOTAL_INC_VAT)){
-                      layby.setAmount(amount.getAmount());
-                      break;
-                    }
+                try {
+                    BigDecimal voucherAmount = transactionAmountService.getByTransaction(id).stream()
+                            .filter(a -> Objects.equals(a.getType().getCode(), AmountType.TOTAL_INC_VAT))
+                            .toList().iterator().next().getAmount();
+                    layby.setAmount(voucherAmount);
+                } catch (Exception exception) {
+
                 }
                 for(TransactionDateDto dates:transactionService.getDates(id)){
                    if(dates.getType().equalsIgnoreCase(DateType.CREATED)){

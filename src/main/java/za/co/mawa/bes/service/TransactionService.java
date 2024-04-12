@@ -11,6 +11,8 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountEditDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountQueryDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
@@ -268,20 +270,6 @@ public class TransactionService implements TransactionDao {
 //        return null;
     }
 
-    @Override
-    public TransactionAmountDto getAmount(TransactionAmountPKEntity id) {
-
-        Optional<TransactionAmountEntity> transactionAmountPKEntity = transactionAmountRepository.findById(id);
-        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
-        TransactionAmountEntity transactionAmountEntity = transactionAmountPKEntity.orElse(null);
-        if (transactionAmountEntity != null) {
-            transactionAmountDto = EntityToDto(transactionAmountPKEntity);
-
-        }
-
-
-        return transactionAmountDto;
-    }
 
     @Override
     public TransactionLinkEntity getTransaction(String type, String transaction1) {
@@ -381,35 +369,11 @@ public class TransactionService implements TransactionDao {
         return false;
     }
 
-    @Override
-    public boolean editAmount(String type, BigDecimal value, String id) throws DoesNotExist, Exception {
+    public boolean editAmount(TransactionAmountEditDto transactionAmountEditDto) throws DoesNotExist, Exception {
         try {
-            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
-            pkEntity.setTransaction(id);
-            pkEntity.setType(type);
-            TransactionAmountEntity entity = transactionAmountRepository.getById(pkEntity);
+            TransactionAmountEntity entity = transactionAmountRepository.getById(transactionAmountEditDto.getId());
             if (entity != null) {
-                entity.setAmount(value);
-                transactionAmountRepository.save(entity);
-                return true;
-            } else {
-                throw new DoesNotExist();
-            }
-
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-
-    }
-
-    public boolean editAmount(TransactionAmountDto transactionAmountDto) throws DoesNotExist, Exception {
-        try {
-            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
-            pkEntity.setTransaction(transactionAmountDto.getTransaction());
-            pkEntity.setType(transactionAmountDto.getType());
-            TransactionAmountEntity entity = transactionAmountRepository.getById(pkEntity);
-            if (entity != null) {
-                entity.setAmount(transactionAmountDto.getAmount());
+                entity.setAmount(transactionAmountEditDto.getAmount());
                 transactionAmountRepository.save(entity);
                 return true;
             } else {
@@ -531,18 +495,6 @@ public class TransactionService implements TransactionDao {
         }
     }
 
-    @Override
-    public boolean removeAmount(String id, String type) throws Exception {
-        try {
-            TransactionAmountPKEntity pkEntity = new TransactionAmountPKEntity();
-            pkEntity.setTransaction(id);
-            pkEntity.setType(type);
-            transactionAmountRepository.deleteById(pkEntity);
-            return true;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
 
     @Override
     public boolean removeDate(String id, String type) throws Exception {
@@ -606,15 +558,6 @@ public class TransactionService implements TransactionDao {
         }
         return transactionPartnerDtos;
 
-    }
-
-    private TransactionAmountDto EntityToDto(Optional<TransactionAmountEntity> transactionAmountEntity) {
-
-        TransactionAmountDto transactionAmountDto = new TransactionAmountDto();
-        transactionAmountDto.setTransaction(transactionAmountEntity.get().getTransactionAmountPKEntity().getTransaction());
-        transactionAmountDto.setType(transactionAmountEntity.get().getTransactionAmountPKEntity().getType());
-        transactionAmountDto.setAmount(transactionAmountEntity.get().getAmount());
-        return transactionAmountDto;
     }
 
     @Override
@@ -842,47 +785,20 @@ public class TransactionService implements TransactionDao {
         return transactionItemDtos;
     }
 
-    @Override
-    public void addAmount(TransactionAmountDto transactionAmountDto) {
+    public void removeAmount(String id) throws Exception {
         try {
-            TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-            transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());
-            transactionAmountPKEntity.setType(transactionAmountDto.getType());
-            TransactionAmountEntity transactionAmountEntity = new TransactionAmountEntity();
-            transactionAmountEntity.setTransactionAmountPKEntity(transactionAmountPKEntity);
-            transactionAmountEntity.setAmount(transactionAmountDto.getAmount());
-            if (transactionAmountDto.getCreatedBy() != null) {
-                transactionAmountEntity.setCreatedBy(transactionAmountDto.getCreatedBy());
-            } else {
-                transactionAmountEntity.setCreatedBy(getUser());
-            }
-            if (transactionAmountDto.getChangedBy() != null) {
-                transactionAmountEntity.setChangedBy(transactionAmountDto.getChangedBy());
-            }
-            transactionAmountRepository.save(transactionAmountEntity);
-        } catch (Exception exception) {
-
-        }
-    }
-
-    @Override
-    public void removeAmount(TransactionAmountDto transactionAmountDto) throws Exception {
-        TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-        transactionAmountPKEntity.setTransaction(transactionAmountDto.getTransaction());
-        transactionAmountPKEntity.setType(transactionAmountDto.getType());
-        try {
-            transactionAmountRepository.deleteById(transactionAmountPKEntity);
+            transactionAmountRepository.deleteById(id);
         } catch (Exception ex) {
             throw new Exception("");
         }
     }
 
-    @Override
+
     public List<TransactionAmountDto> getAmounts(String id) {
         List<TransactionAmountDto> transactionAmountDtos = new ArrayList<>();
-        List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getTransactionAmounts(id);
+        List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
         for (TransactionAmountEntity transactionAmountEntity : transactionAmountEntities) {
-            transactionAmountDtos.add(new TransactionAmountDto(transactionAmountEntity));
+//            transactionAmountDtos.add(new TransactionAmountDto(transactionAmountEntity));
         }
         return transactionAmountDtos;
     }
@@ -943,29 +859,29 @@ public class TransactionService implements TransactionDao {
 
             List<TransactionAmountDto> transactionAmountDtoList = getAmounts(id);
 
-            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(), getUser(), null);
-            removeAmount(totalIncVat);
-            addAmount(totalIncVat);
-
-            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(), getUser(), null);
-            removeAmount(totalExcVat);
-            addAmount(totalExcVat);
-
-            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(), getUser(), null);
-            removeAmount(discountAmount);
-            addAmount(discountAmount);
-
-            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(), getUser(), null);
-            removeAmount(discountPercentage);
-            addAmount(discountPercentage);
-
-            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(), getUser(), null);
-            removeAmount(VATAmount);
-            addAmount(VATAmount);
-
-            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(), getUser(), null);
-            removeAmount(VATPercentage);
-            addAmount(VATPercentage);
+//            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(), getUser(), null);
+//            removeAmount(totalIncVat);
+//            addAmount(totalIncVat);
+//
+//            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(), getUser(), null);
+//            removeAmount(totalExcVat);
+//            addAmount(totalExcVat);
+//
+//            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(), getUser(), null);
+//            removeAmount(discountAmount);
+//            addAmount(discountAmount);
+//
+//            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(), getUser(), null);
+//            removeAmount(discountPercentage);
+//            addAmount(discountPercentage);
+//
+//            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(), getUser(), null);
+//            removeAmount(VATAmount);
+//            addAmount(VATAmount);
+//
+//            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(), getUser(), null);
+//            removeAmount(VATPercentage);
+//            addAmount(VATPercentage);
 
         } catch (Exception exception) {
             throw new Exception("Pricing Engine Failure");

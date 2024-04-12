@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.AmountDto;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
@@ -19,7 +20,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
@@ -37,6 +38,8 @@ public class GroupSocietyService {
     @Autowired
     TransactionService transactionService;
     @Autowired
+    TransactionAmountService transactionAmountService;
+    @Autowired
     ProductService productService;
     @Autowired
     PartnerService partnerService;
@@ -52,12 +55,6 @@ public class GroupSocietyService {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.GROUP_SOCIETY);
         transactionCreateDto.setLocation(groupSocietyCreateDto.getSalesArea());
-//        if (Objects.equals(groupSocietyCreateDto.getCreationType(), "EXISTING")) {
-//            transactionCreateDto.setStatus(Status.PENDING);
-////            transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-//        } else {
-//            transactionCreateDto.setStatus(Status.NEW);
-//        }
         transactionCreateDto.setStatus(Status.ACTIVE);
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
         ProductDto productDto = productService.get(groupSocietyCreateDto.getProduct());
@@ -94,15 +91,12 @@ public class GroupSocietyService {
         transactionDateDto.setTransaction(transactionDto.getId());
         transactionService.addDate(transactionDateDto);
 
-        TransactionAmountDto amountDto = new TransactionAmountDto();
-        amountDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
-        amountDto.setTransaction(transactionDto.getId());
-        amountDto.setType(AmountType.OPENING_BALANCE);
-        transactionService.addAmount(amountDto);
-
-        GroupSocietyDto groupSocietyDto = new GroupSocietyDto();
-        groupSocietyDto.setId(transactionDto.getId());
-        return groupSocietyDto;
+        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
+        transactionAmountInboundDto.setTransaction(transactionDto.getId());
+        transactionAmountInboundDto.setType(AmountType.OPENING_BALANCE);
+        transactionAmountService.save(transactionAmountInboundDto);
+        return get(transactionDto.getId());
 
     }
 
@@ -151,14 +145,7 @@ public class GroupSocietyService {
                     groupSocietyDto.setDateCreated(transactionDateDto.getValue());
                 }
             }
-
-            for (TransactionAmountDto transactionAmountDto : transactionService.getAmounts(id)) {
-                AmountDto amountDto = new AmountDto();
-                amountDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_AMOUNT, transactionAmountDto.getType()));
-                amountDto.setAmount(transactionAmountDto.getAmount());
-                groupSocietyDto.getAmounts().add(amountDto);
-            }
-
+            groupSocietyDto.setAmounts(transactionAmountService.getByTransaction(id));
             groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
@@ -182,54 +169,38 @@ public class GroupSocietyService {
             }
 
             try {
-                TransactionAmountPKEntity transactionAmountPKEntity = new TransactionAmountPKEntity();
-                transactionAmountPKEntity.setType(AmountType.OPENING_BALANCE);
-                transactionAmountPKEntity.setTransaction(id);
-                TransactionAmountDto amountDto = transactionService.getAmount(transactionAmountPKEntity);
-                openingBalance = amountDto.getAmount();
+                openingBalance = transactionAmountService.getByTransaction(id).stream()
+                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
+                        .toList().iterator().next().getAmount();
             } catch (Exception exception) {
             }
-
             BigDecimal availableBalance = (totalDeposited.subtract(totalWithdrawn)).add(openingBalance);
             try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(availableBalance);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.AVAILABLE_BALANCE);
-                transactionService.editAmount(amountDto);
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(availableBalance);
+                transactionAmountInboundDto.setTransaction(id);
+                transactionAmountInboundDto.setType(AmountType.AVAILABLE_BALANCE);
+                transactionAmountService.save(transactionAmountInboundDto);
             } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(availableBalance);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.AVAILABLE_BALANCE);
-                transactionService.addAmount(amountDto);
-            }
 
-            try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_DEPOSITED);
-                transactionService.editAmount(amountDto);
-            } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalDeposited);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_DEPOSITED);
-                transactionService.addAmount(amountDto);
             }
             try {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalWithdrawn);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-                transactionService.editAmount(amountDto);
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(totalDeposited);
+                transactionAmountInboundDto.setTransaction(id);
+                transactionAmountInboundDto.setType(AmountType.TOTAL_DEPOSITED);
+                transactionAmountService.save(transactionAmountInboundDto);
             } catch (Exception exception) {
-                TransactionAmountDto amountDto = new TransactionAmountDto();
-                amountDto.setAmount(totalWithdrawn);
-                amountDto.setTransaction(id);
-                amountDto.setType(AmountType.TOTAL_WITHDRAWN);
-                transactionService.addAmount(amountDto);
+
+            }
+            try {
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(totalWithdrawn);
+                transactionAmountInboundDto.setTransaction(id);
+                transactionAmountInboundDto.setType(AmountType.TOTAL_WITHDRAWN);
+                transactionAmountService.save(transactionAmountInboundDto);
+            } catch (Exception exception) {
+
             }
         } catch (Exception e) {
 
