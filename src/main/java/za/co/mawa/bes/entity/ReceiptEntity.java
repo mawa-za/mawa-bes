@@ -23,6 +23,8 @@ public class ReceiptEntity implements Serializable {
     private String id;
     @Column(name = "receipt_number" , length = 45)
     private String receiptNumber;
+    @Column(name = "ext_receipt_number",length = 45)
+    private String extReceiptNumber;
     @Column(name = "receipt_type",length = 45)
     private String receiptType;
     @Column(name = "creation_date")
