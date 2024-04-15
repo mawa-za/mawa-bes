@@ -19,6 +19,7 @@ public class Field {
     public static String TRANSACTION_SUBTYPE = "TRANSACTION-SUBTYPE";
     public static String PRODUCT_ATTRIBUTE = "PRODUCT-ATTRIBUTE";
     public static String PRODUCT_CATEGORY = "PRODUCT-CATEGORY";
+    public static String PRODUCT_TYPE = "PRODUCT-TYPE";
     public static String PRODUCT_PRICING = "PRODUCT-PRICING";
     public static String PRICING_TYPE = "PRICING-TYPE";
     public static String UOM = "UOM";
