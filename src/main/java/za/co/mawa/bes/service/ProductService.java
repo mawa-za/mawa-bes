@@ -61,7 +61,7 @@ public class ProductService implements ProductDao {
             }
             productEntity.setDescription(productCreateDto.getDescription());
             productEntity.setType(productCreateDto.getType().toUpperCase());
-            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
+//            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
             productEntity.setValidFrom(new Date());
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure().toUpperCase());
@@ -105,7 +105,7 @@ public class ProductService implements ProductDao {
             productDto.setCode(code);
             productDto.setDescription(productEntity.getDescription());
             productDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
-            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+//            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
             productDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productDto.setValidTo(productEntity.getValidTo());
             productDto.setValidFrom(productEntity.getValidFrom());
@@ -127,7 +127,7 @@ public class ProductService implements ProductDao {
             productBasicDto.setCode(code);
             productBasicDto.setDescription(productEntity.getDescription());
             productBasicDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
-            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+//            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
             productBasicDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productBasicDto.setValidTo(productEntity.getValidTo());
             productBasicDto.setValidFrom(productEntity.getValidFrom());
@@ -145,7 +145,7 @@ public class ProductService implements ProductDao {
                 productEntity.setCode(productEditDto.getCode());
             }
             if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
-                productEntity.setCategory(productEditDto.getCategory());
+//                productEntity.setCategory(productEditDto.getCategory());
             }
             if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
                 productEntity.setDescription(productEditDto.getDescription());
