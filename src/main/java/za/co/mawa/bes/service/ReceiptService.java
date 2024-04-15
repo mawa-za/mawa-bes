@@ -56,6 +56,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
+            entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -78,6 +79,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
+            receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
             receipt.setTransaction(entity.getTransaction());
             receipt.setReceiptType(entity.getReceiptType());
             receipt.setTenderType(entity.getTenderType());

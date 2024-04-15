@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 public class ReceiptDto implements Serializable {
     private String id;
     private String receiptNumber;
+    private String externalReceiptNo;
     private String receiptType;
     private String creationDate;
     private String creationTime;
@@ -26,4 +27,5 @@ public class ReceiptDto implements Serializable {
     private BigDecimal amount;
     private String cashupId;
     private String cashupNumber;
+
 }

@@ -20,4 +20,5 @@ public class ReceiptCreateDto implements Serializable {
     private String tenderType;
     private String location;
     private BigDecimal amount;
+    private String externalReceiptNo;
 }

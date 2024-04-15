@@ -27,12 +27,14 @@ public class PremiumDto implements Serializable {
     private String amount;
     private String cashupId;
     private String terminalId;
+    private String externalReceiptNo;
 
     public PremiumDto(PremiumEntity premiumEntity){
         SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
         SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
         this.setId(premiumEntity.getId());
         this.setReceiptNumber(premiumEntity.getReceiptNumber());
+        this.setExternalReceiptNo(premiumEntity.getExtReceiptNumber());
         this.setMembershipId(premiumEntity.getMembershipId());
         this.setMembershipPeriod(premiumEntity.getMembershipPeriod());
         this.setAmount(premiumEntity.getAmount().toString());
