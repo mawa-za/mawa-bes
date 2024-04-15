@@ -6,6 +6,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductEntity;
 
@@ -27,5 +28,5 @@ public class ProductDto {
     private Date validFrom;
     private List<ProductPricingDto> pricings;
     private List<ProductAttributeDto> attributes;
-
+    private List<ProductCategoryDto> categories;
 }
