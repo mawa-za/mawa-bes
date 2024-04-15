@@ -28,8 +28,6 @@ public class ProductEntity implements Serializable {
     private String description;
     @Column(name = "type")
     private String type;
-    @Column(name = "type")
-    private String category;
     @Column(name = "uom")
     private String uom;
     @Column(name = "valid_from")
