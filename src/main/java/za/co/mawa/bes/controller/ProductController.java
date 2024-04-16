@@ -42,7 +42,8 @@ public class ProductController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
-                                         @RequestParam(required = false) String category) {
+                                         @RequestParam(required = false) String category,
+                                         @RequestParam(required = false) String type) {
         try {
             ProductQueryDto productQueryDto = new ProductQueryDto();
             if (code != null && code != "") {
@@ -50,6 +51,9 @@ public class ProductController {
             }
             if (category != null && category != "") {
                 productQueryDto.setCategory(category);
+            }
+            if (type != null && type != "") {
+                productQueryDto.setType(type);
             }
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {

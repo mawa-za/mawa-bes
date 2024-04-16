@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
+import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -27,10 +28,7 @@ import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class ProductService implements ProductDao {
@@ -89,6 +87,18 @@ public class ProductService implements ProductDao {
         for (ProductEntity productEntity : productEntityList) {
             try {
                 productDtoList.add(get(productEntity.getId()));
+            } catch (Exception exception) {
+            }
+        }
+        for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.findByCategory(productQueryDto.getCategory())) {
+            try {
+                List<ProductDto> filteredList = productDtoList.stream()
+                        .filter(a -> Objects.equals(a.getId(), productCategoryEntity.getId()))
+                        .toList();
+                if (!filteredList.isEmpty()) {
+                    productDtoList.add(get(productCategoryEntity.getId()));
+                }
+
             } catch (Exception exception) {
             }
         }
@@ -324,6 +334,7 @@ public class ProductService implements ProductDao {
             throw new RuntimeException(ex);
         }
     }
+
     public void addCategory(ProductCategoryCreateDto productCategoryCreateDto) throws Exception {
         try {
             ProductCategoryEntity productCategoryEntity = new ProductCategoryEntity();
@@ -336,6 +347,7 @@ public class ProductService implements ProductDao {
             throw new RuntimeException(ex);
         }
     }
+
     public ArrayList<ProductCategoryDto> getCategories(String id) {
         try {
             ArrayList<ProductCategoryDto> categoryDtoArrayList = new ArrayList<>();
@@ -352,6 +364,7 @@ public class ProductService implements ProductDao {
             throw new RuntimeException(ex);
         }
     }
+
     public void deleteCategory(String id) throws Exception {
         try {
             productCategoryRepository.deleteById(id);
@@ -360,6 +373,7 @@ public class ProductService implements ProductDao {
         }
 
     }
+
     @Override
     public boolean editAttribute(ProductAttributeEditDto editDto, String product, String attribute) throws Exception {
         try {
@@ -401,8 +415,8 @@ public class ProductService implements ProductDao {
             if (productQuery.getCode() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("code"), productQuery.getCode()));
             }
-            if (productQuery.getCategory() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("category"), productQuery.getCategory()));
+            if (productQuery.getType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("type"), productQuery.getType()));
             }
             return predicate;
         };
