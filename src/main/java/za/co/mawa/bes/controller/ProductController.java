@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
@@ -191,9 +192,12 @@ public class ProductController {
     }
 
     @RequestMapping(value = "{id}/category", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addCategory(@PathVariable String id, @RequestBody ProductCategoryCreateDto productCategoryCreateDto) {
+    public ResponseEntity<?> addCategory(@PathVariable String id, @RequestParam String category) {
         try {
-            productService.addCategory(productCategoryCreateDto);
+            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+            productCategoryProcessDto.setProduct(id);
+            productCategoryProcessDto.setCategory(category);
+            productService.addCategory(productCategoryProcessDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -209,10 +213,13 @@ public class ProductController {
         }
     }
 
-    @RequestMapping(value = "{id}/categoryId", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteCategory(@PathVariable String id, @RequestParam String categoryId) {
+    @RequestMapping(value = "{id}/category", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteCategory(@PathVariable String id, @RequestParam String category) {
         try {
-            productService.deleteCategory(categoryId);
+            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+            productCategoryProcessDto.setProduct(id);
+            productCategoryProcessDto.setCategory(category);
+            productService.deleteCategory(productCategoryProcessDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
@@ -335,11 +336,11 @@ public class ProductService implements ProductDao {
         }
     }
 
-    public void addCategory(ProductCategoryCreateDto productCategoryCreateDto) throws Exception {
+    public void addCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
         try {
             ProductCategoryEntity productCategoryEntity = new ProductCategoryEntity();
-            productCategoryEntity.setProduct(productCategoryCreateDto.getProduct());
-            productCategoryEntity.setCategory(productCategoryCreateDto.getCategory());
+            productCategoryEntity.setProduct(productCategoryProcessDto.getProduct());
+            productCategoryEntity.setCategory(productCategoryProcessDto.getCategory());
             productCategoryEntity.setValidFrom(new Date());
             productCategoryEntity.setValidTo(Conversion.stringToDate("9999-12-31"));
             productCategoryRepository.save(productCategoryEntity);
@@ -365,11 +366,13 @@ public class ProductService implements ProductDao {
         }
     }
 
-    public void deleteCategory(String id) throws Exception {
+    public void deleteCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
         try {
-            productCategoryRepository.deleteById(id);
+            for(ProductCategoryEntity productCategoryEntity: productCategoryRepository.find(productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())){
+                productCategoryRepository.deleteById(productCategoryEntity.getId());
+            }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+
         }
 
     }
