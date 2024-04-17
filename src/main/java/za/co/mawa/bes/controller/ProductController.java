@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.entity.ProductPricingPKEntity;
 import za.co.mawa.bes.exception.ProductNotFoundException;
@@ -23,6 +24,7 @@ import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.utils.PriceType;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -192,12 +194,14 @@ public class ProductController {
     }
 
     @RequestMapping(value = "{id}/category", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addCategory(@PathVariable String id, @RequestParam String category) {
+    public ResponseEntity<?> addCategory(@PathVariable String id, @RequestBody List<String> categoryList) {
         try {
-            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
-            productCategoryProcessDto.setProduct(id);
-            productCategoryProcessDto.setCategory(category);
-            productService.addCategory(productCategoryProcessDto);
+            for (String category : categoryList) {
+                ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+                productCategoryProcessDto.setProduct(id);
+                productCategoryProcessDto.setCategory(category);
+                productService.addCategory(productCategoryProcessDto);
+            }
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
