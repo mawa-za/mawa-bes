@@ -17,4 +17,6 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
     List<ProductCategoryEntity>findByProduct(String product);
     @Query("SELECT p FROM ProductCategoryEntity p WHERE p.category = :category")
     List<ProductCategoryEntity>findByCategory(String category);
+    @Query("SELECT p FROM ProductCategoryEntity p WHERE p.category = :category and p.product = :product")
+    List<ProductCategoryEntity>find(String product, String category);
 }
