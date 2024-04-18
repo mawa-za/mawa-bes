@@ -43,4 +43,6 @@ public class Field {
     public static String SERVICE_REQUEST_PRIORITY = "SERVICE-REQUEST-PRIORITY";
     public static String DATE_TYPE = "DATE-TYPE";
     public static String PARTNER_FUNCTION = "PARTNER-FUNCTION";
+    public static String RECEIPT_TYPE = "RECEIPT-TYPE";
+    public static String TENDER_TYPE = "TENDER-TYPE";
 }
