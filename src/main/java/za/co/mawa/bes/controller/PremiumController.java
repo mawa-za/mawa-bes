@@ -39,18 +39,18 @@ public class PremiumController {
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
-            if (premiumCreateDto.getTenderType().equals(TenderType.EFT) || premiumCreateDto.getTenderType().equals(TenderType.CARD)){
-                CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                cashupCreateDto.setEmployeeResponsibleId(premiumDto.getEmployeeResponsible());
-                cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
-                cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
-                cashupCreateDto.setReceipts(new ArrayList<>());
-                String cashupId = cashupService.createNoCash(cashupCreateDto);
-                DepositCreateDto depositCreateDto = new DepositCreateDto();
-                depositCreateDto.setTransactionIdLink(cashupId);
-                depositCreateDto.setAmount(premiumCreateDto.getAmount());
-                depositService.create(depositCreateDto);
-            }
+//            if (premiumCreateDto.getTenderType().equals(TenderType.EFT) || premiumCreateDto.getTenderType().equals(TenderType.CARD)){
+//                CashupCreateDto cashupCreateDto = new CashupCreateDto();
+//                cashupCreateDto.setEmployeeResponsibleId(premiumDto.getEmployeeResponsible());
+//                cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
+//                cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
+//                cashupCreateDto.setReceipts(new ArrayList<>());
+//                String cashupId = cashupService.createNoCash(cashupCreateDto);
+//                DepositCreateDto depositCreateDto = new DepositCreateDto();
+//                depositCreateDto.setTransactionIdLink(cashupId);
+//                depositCreateDto.setAmount(premiumCreateDto.getAmount());
+//                depositService.create(depositCreateDto);
+//            }
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

@@ -21,11 +21,8 @@ import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
-import za.co.mawa.bes.utils.NumberRangeType;
+import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.repository.ReceiptRepository;
-import za.co.mawa.bes.utils.ReceiptType;
-import za.co.mawa.bes.utils.TransactionAttribute;
-import za.co.mawa.bes.utils.TransactionType;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -44,11 +41,14 @@ public class ReceiptService implements ReceiptDao {
     NumberRangeService numberRangeService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
-
+    @Autowired
+    FieldOptionService fieldOptionService;
     @Autowired
     TransactionAttributeRepository transactionAttributeRepository;
     @Autowired
     UserService userService;
+    @Autowired
+    TransactionService transactionService;
 
     @Override
     public ReceiptDto createReceipt(ReceiptCreateDto receipt) throws Exception {
@@ -64,7 +64,8 @@ public class ReceiptService implements ReceiptDao {
             entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(receipt.getAmount());
-            return entityToDto(receiptRepository.save(entity));
+            ReceiptEntity newEntity = receiptRepository.save(entity);
+            return getReceipt(newEntity.getId());
         } catch (Exception e) {
             throw new Exception();
         }
@@ -80,11 +81,11 @@ public class ReceiptService implements ReceiptDao {
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
             receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
-            receipt.setTransaction(entity.getTransaction());
-            receipt.setReceiptType(entity.getReceiptType());
-            receipt.setTenderType(entity.getTenderType());
+            receipt.setReceiptType(fieldOptionService.getFieldOption(Field.RECEIPT_TYPE, entity.getReceiptType()));
+            receipt.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
             receipt.setAmount(entity.getAmount());
             try {
+                receipt.setTransaction(transactionService.get(entity.getTransaction()));
                 receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
             } catch (Exception e) {
 
@@ -103,7 +104,13 @@ public class ReceiptService implements ReceiptDao {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
-        receiptDtos = entityArrayToDto(receipts);
+        for (ReceiptEntity receiptEntity : receipts) {
+            try {
+                receiptDtos.add(getReceipt(receiptEntity.getId()));
+            } catch (Exception e) {
+
+            }
+        }
         return receiptDtos;
     }
 
@@ -112,21 +119,17 @@ public class ReceiptService implements ReceiptDao {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
-        List<ReceiptEntity> receiptsNotCashed = new ArrayList<>();
         for (ReceiptEntity receipt : receipts) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
             if (linkEntity == null) {
-                receiptsNotCashed.add(receipt);
+                try {
+                    receiptDtos.add(getReceipt(receipt.getId()));
+                } catch (Exception e) {
+
+                }
             }
         }
-        receiptDtos = entityArrayToDto(receiptsNotCashed);
         return receiptDtos;
-    }
-
-    private String getUser() {
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUser = userDetails.getUsername();
-        return currentUser;
     }
 
     private Specification<ReceiptEntity> findByCriteria(ReceiptSearchDto receiptSearchDto) {
@@ -154,74 +157,15 @@ public class ReceiptService implements ReceiptDao {
         };
     }
 
-    private ArrayList<ReceiptDto> entityArrayToDto(List<ReceiptEntity> receipts) {
-        ArrayList<ReceiptDto> receiptDt = new ArrayList<>();
-        for (ReceiptEntity receipt : receipts) {
-            try {
-                receiptDt.add(entityToDto(receipt));
-            } catch (Exception e) {
-//                throw new RuntimeException(e);
-            }
-        }
-        return receiptDt;
-    }
-
-    private ReceiptDto entityToDto(ReceiptEntity entity) throws Exception {
-        try {
-            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
-            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
-            ReceiptDto receipt = new ReceiptDto();
-            receipt.setId(entity.getId());
-            receipt.setReceiptNumber(entity.getReceiptNumber());
-            receipt.setTransaction(entity.getTransaction());
-            receipt.setReceiptType(entity.getReceiptType());
-            receipt.setTenderType(entity.getTenderType());
-            receipt.setAmount(entity.getAmount());
-            receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
-            try {
-                receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
-            } catch (Exception e) {
-
-            }
-            return receipt;
-        } catch (Exception e) {
-            throw new Exception();
-        }
-    }
-
-    private String determinePeriod(String id) {
-        try {
-            List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(id,TransactionAttribute.LAST_PREMIUM_PERIOD);
-            TransactionAttributeEntity transactionAttributeEntity = transactionAttributeEntityList.iterator().next();
-            String previousPeriod =  transactionAttributeEntity.getValue();
-            String yearString = previousPeriod.substring(0,4);
-            String monthString = previousPeriod.substring(4,6);
-            if (Integer.parseInt(monthString) == 12){
-                yearString = (Integer.toString(Integer.parseInt(yearString) + 1));
-                monthString = "01";
-            }else{
-                int month = Integer.parseInt(monthString) + 1;
-                monthString = String.format("%02d", month);
-            }
-            transactionAttributeEntity.setValue(yearString + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
-        } catch (Exception exception) {
-            TransactionAttributeEntity transactionAttributeEntity = new TransactionAttributeEntity();
-            transactionAttributeEntity.setTransaction(id);
-            transactionAttributeEntity.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
-            Calendar calendar = Calendar.getInstance();
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH) + 1;
-            String monthString = String.format("%02d", month);
-            transactionAttributeEntity.setValue(Integer.toString(year) + monthString);
-            transactionAttributeEntity.setValidTo(new Date());
-            transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
-            return transactionAttributeEntity.getValue();
-        }
-    }
+//    private ArrayList<ReceiptDto> entityArrayToDto(List<ReceiptEntity> receipts) {
+//        ArrayList<ReceiptDto> receiptDt = new ArrayList<>();
+//        for (ReceiptEntity receipt : receipts) {
+//            try {
+//                receiptDt.add(entityToDto(receipt));
+//            } catch (Exception e) {
+////                throw new RuntimeException(e);
+//            }
+//        }
+//        return receiptDt;
+//    }
 }

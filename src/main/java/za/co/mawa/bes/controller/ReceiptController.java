@@ -37,16 +37,16 @@ public class ReceiptController {
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
         try {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
-            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
-                cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
-                cashupCreateDto.setAmount(receiptCreateDto.getAmount());
-                List<String> receipts = new ArrayList<>();
-                receipts.add(receiptDto.getId());
-                cashupCreateDto.setReceipts(receipts);
-                cashupService.createNoCash(cashupCreateDto);
-            }
+//            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
+//                CashupCreateDto cashupCreateDto = new CashupCreateDto();
+//                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
+//                cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
+//                cashupCreateDto.setAmount(receiptCreateDto.getAmount());
+//                List<String> receipts = new ArrayList<>();
+//                receipts.add(receiptDto.getId());
+//                cashupCreateDto.setReceipts(receipts);
+//                cashupService.createNoCash(cashupCreateDto);
+//            }
             return ResponseEntity.ok(gson.toJson(receiptDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
