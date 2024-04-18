@@ -36,7 +36,7 @@ public class BankAccountController {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+//    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBankAccount(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(bankAccountService.get(id)));
