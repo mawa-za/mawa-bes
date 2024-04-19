@@ -6,7 +6,6 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.ClaimCancelDto;
 import za.co.mawa.bes.dto.ClaimDisputeDto;
-import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
@@ -18,16 +17,17 @@ import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
-import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.*;
 
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
 @Service
-public class ClaimService {
+public class GroupClaimService {
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -46,7 +46,7 @@ public class ClaimService {
     VoucherService voucherService;
     @Autowired
     TransactionAmountService transactionAmountService;
-    List<String> voucherClaimTypeList = Arrays.asList("FUNERAL","GROUP-SOCIETY-FUNERAL");
+
     public ClaimDto create(ClaimCreateDto claimCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -75,13 +75,6 @@ public class ClaimService {
                 transactionPartnerDto.setPartner(claimCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            if (claimCreateDto.getMemberId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                transactionPartnerDto.setPartner(claimCreateDto.getMemberId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
             if (claimCreateDto.getDeceasedId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -99,14 +92,6 @@ public class ClaimService {
             if (claimCreateDto.getMembershipId() != null) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(claimCreateDto.getMembershipId());
-                transactionLinkDto.setTransaction2(transactionDto.getId());
-                transactionLinkDto.setType(TransactionType.CLAIM);
-                transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-                transactionService.addLink(transactionLinkDto);
-            }
-            if (claimCreateDto.getContractId() != null) {
-                TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-                transactionLinkDto.setTransaction1(claimCreateDto.getContractId());
                 transactionLinkDto.setTransaction2(transactionDto.getId());
                 transactionLinkDto.setType(TransactionType.CLAIM);
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
@@ -165,7 +150,6 @@ public class ClaimService {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setCustomer((partnerService.get(transactionPartnerDto.getPartner())));
                             claimDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
@@ -228,10 +212,6 @@ public class ClaimService {
                 transactionQueryDto.setPartnerNo(claimQueryDto.getDeceased());
                 transactionQueryDto.setPartnerFunction(PartnerFunction.DECEASED);
             }
-            if (claimQueryDto.getMember() != null && claimQueryDto.getMember() != "") {
-                transactionQueryDto.setPartnerNo(claimQueryDto.getMember());
-                transactionQueryDto.setPartnerFunction(PartnerFunction.CUSTOMER);
-            }
             if (claimQueryDto.getCustomer() != null && claimQueryDto.getCustomer() != "") {
                 transactionQueryDto.setPartnerNo(claimQueryDto.getCustomer());
                 transactionQueryDto.setPartnerFunction(PartnerFunction.CUSTOMER);
@@ -280,8 +260,7 @@ public class ClaimService {
             transactionEditDto.setStatus(ClaimStatus.APPROVED);
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
-
-            if (voucherClaimTypeList.contains(transactionDto.getType())) {
+            if (transactionDto.getType() == "GROUP-SOCIETY-FUNERAL") {
                 VoucherCreateDto voucherCreate = new VoucherCreateDto();
                 voucherCreate.setType(transactionDto.getType());
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);

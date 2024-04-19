@@ -120,6 +120,7 @@ public class TransactionService implements TransactionDao {
         }
 
     }
+
     @Override
     public void edit(TransactionEditDto transactionEditDto) throws Exception {
         TransactionEntity entity = transactionRepository.getById(transactionEditDto.getId());
@@ -147,6 +148,7 @@ public class TransactionService implements TransactionDao {
             throw new DoesNotExist();
         }
     }
+
     @Override
     public void delete(String id) throws Exception {
         try {
@@ -385,6 +387,7 @@ public class TransactionService implements TransactionDao {
         }
 
     }
+
     @Override
     public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
         boolean edited = false;
@@ -531,8 +534,7 @@ public class TransactionService implements TransactionDao {
         List<TransactionItemDto> transactionItemDtos = new ArrayList<>();
         if (transactionItemDto.getProduct() != null) {
             List<TransactionItemEntity> transactionItemEntities = transactionItemRepository.findItemBy(transactionItemDto.getProduct());
-            if(!transactionItemEntities.isEmpty())
-            {
+            if (!transactionItemEntities.isEmpty()) {
                 for (TransactionItemEntity transactionItemEntity : transactionItemEntities) {
                     transactionItemDtos.add(new TransactionItemDto(transactionItemEntity));
                 }
@@ -543,6 +545,7 @@ public class TransactionService implements TransactionDao {
 
         return transactionItemDtos;
     }
+
     public List<TransactionPartnerDto> getPartnerType(String partner, String type) {
 
         List<TransactionPartnerDto> transactionPartnerDtos = new ArrayList<>();
@@ -550,8 +553,7 @@ public class TransactionService implements TransactionDao {
 
         if (!transactionPartnerEntityList.isEmpty()) {
 
-            for(TransactionPartnerEntity partnerEntity:transactionPartnerEntityList )
-            {
+            for (TransactionPartnerEntity partnerEntity : transactionPartnerEntityList) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto(partnerEntity);
                 transactionPartnerDtos.add(transactionPartnerDto);
             }
@@ -595,7 +597,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("TYPE-"+transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("TYPE-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
 
@@ -605,7 +607,7 @@ public class TransactionService implements TransactionDao {
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
                 if (transactionPartnerEntity.getTransactionPartnerPKEntity().getFunction().equals(transactionQueryDto.getPartnerFunction())) {
                     transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
-                    resultList.put("PARTNER-FUNCTION-"+transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(),transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                    resultList.put("PARTNER-FUNCTION-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
                 }
             }
         }
@@ -615,7 +617,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByStatus(transactionQueryDto.getStatus());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("STATUS-"+transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("STATUS-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getChangedBy() != null && transactionQueryDto.getType() != null) {
@@ -623,7 +625,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByChangedBy(transactionQueryDto.getChangedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("CHANGED-BY-"+ transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("CHANGED-BY-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getCreatedBy() != null && transactionQueryDto.getType() != null) {
@@ -631,7 +633,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByCreatedBy(transactionQueryDto.getCreatedBy(), transactionQueryDto.getType());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("CREATED-BY-"+transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("CREATED-BY-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getSubtype() != null) {
@@ -639,7 +641,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionBySubType(transactionQueryDto.getSubtype());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("SUB-TYPE-"+transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("SUB-TYPE-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getNumber() != null) {
@@ -647,7 +649,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionEntity> transactions = transactionRepository.findTransactionByNumber(transactionQueryDto.getNumber());
             for (TransactionEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getId());
-                resultList.put("NUMBER-"+transactionEntity.getId(),transactionEntity.getId());
+                resultList.put("NUMBER-" + transactionEntity.getId(), transactionEntity.getId());
             }
         }
         if (transactionQueryDto.getValue() != null && transactionQueryDto.getDateType() != null) {
@@ -655,7 +657,7 @@ public class TransactionService implements TransactionDao {
             List<TransactionDateEntity> transactions = transactionDateRepository.findByDateType(transactionQueryDto.getValue(), transactionQueryDto.getDateType());
             for (TransactionDateEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionDatePKEntity().getTransaction());
-                resultList.put("DATE-"+transactionEntity.getTransactionDatePKEntity().getTransaction(),transactionEntity.getTransactionDatePKEntity().getTransaction());
+                resultList.put("DATE-" + transactionEntity.getTransactionDatePKEntity().getTransaction(), transactionEntity.getTransactionDatePKEntity().getTransaction());
             }
         }
         if (transactionQueryDto.getTransactionlink() != null) {
@@ -663,28 +665,27 @@ public class TransactionService implements TransactionDao {
             List<TransactionLinkEntity> transactions = transactionLinkRepository.getTransactionLinks(transactionQueryDto.getTransactionlink());
             for (TransactionLinkEntity transactionEntity : transactions) {
                 transactionListId.add(transactionEntity.getTransactionLinkPKEntity().getTransaction2());
-                resultList.put("LINK-"+transactionEntity.getTransactionLinkPKEntity().getTransaction2(),transactionEntity.getTransactionLinkPKEntity().getTransaction2());
+                resultList.put("LINK-" + transactionEntity.getTransactionLinkPKEntity().getTransaction2(), transactionEntity.getTransactionLinkPKEntity().getTransaction2());
             }
         }
 
         String searchStr = "";
         boolean found = false;
         for (String id : transactionListId) {
-            for(String term: searchTerms){
-                String key = term+"-"+id;
-                if (resultList.containsKey(key)){
+            for (String term : searchTerms) {
+                String key = term + "-" + id;
+                if (resultList.containsKey(key)) {
                     found = true;
-                }else{
+                } else {
                     found = false;
                 }
             }
-            if(found){
+            if (found) {
                 finalList.add(id);
             }
         }
         return finalList;
     }
-
 
 
     @Override
@@ -815,10 +816,10 @@ public class TransactionService implements TransactionDao {
             transactionPartnerEntity.setValidFrom(new Date());
             transactionPartnerEntity.setCreatedBy(getUser());
             transactionPartnerEntity.setStatus(transactionPartnerDto.getStatus());
-            if(transactionPartnerDto.getDateAdded() != null){
-             transactionPartnerEntity.setDateAdded(Conversion.stringToDate(transactionPartnerDto.getDateAdded()));
+            if (transactionPartnerDto.getDateAdded() != null) {
+                transactionPartnerEntity.setDateAdded(Conversion.stringToDate(transactionPartnerDto.getDateAdded()));
             }
-            if(transactionPartnerDto.getDateEffective() != null){
+            if (transactionPartnerDto.getDateEffective() != null) {
                 transactionPartnerEntity.setDateEffective(Conversion.stringToDate(transactionPartnerDto.getDateEffective()));
             }
             transactionPartnerRepository.save(transactionPartnerEntity);

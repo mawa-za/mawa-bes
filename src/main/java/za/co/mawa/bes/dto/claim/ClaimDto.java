@@ -6,6 +6,7 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.contract.ContractDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
@@ -21,7 +22,9 @@ public class ClaimDto implements Serializable {
     private String number;
     private FieldOptionDto type;
     private MembershipDto membership;
+    private ContractDto contract;
     private PartnerDto member;
+    private PartnerDto customer;
     private PartnerDto claimant;
     private PartnerDto deceased;
     private Date deathDate;

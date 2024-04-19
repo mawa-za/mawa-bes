@@ -10,4 +10,5 @@ public class AmountType {
     public static String DEPOSIT_AMOUNT = "DEPOSIT-AMOUNT";
     public static String AMOUNT_DEPOSITED = "AMOUNT-DEPOSITED";
     public static String AMOUNT_COLLECTED = "AMOUNT-COLLECTED";
+    public static String SERVICE_AMOUNT = "SERVICE-AMOUNT";
 }
