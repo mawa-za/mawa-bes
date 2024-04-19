@@ -136,17 +136,8 @@ public class ClaimController {
                                           @RequestParam(required = false) String statusReason,
                                           @RequestParam(required = false) String description) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(ClaimStatus.APPROVED);
-            if (statusReason != null && statusReason != "") {
-                transactionEditDto.setStatusReason(statusReason);
-            }
-            if (description != null && description != null) {
-                transactionEditDto.setDescription(description);
-            }
-            transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            claimService.approve(id);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -255,12 +246,6 @@ public class ClaimController {
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
-    }
-
-    private String getUser() {
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUser = userDetails.getUsername();
-        return currentUser;
     }
 
 }

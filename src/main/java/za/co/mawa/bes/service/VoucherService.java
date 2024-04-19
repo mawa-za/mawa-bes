@@ -39,6 +39,7 @@ public class VoucherService implements VoucherDao {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.VOUCHER);
             transactionCreateDto.setSubType(createDto.getType());
+            transactionCreateDto.setStatus(Status.ACTIVE);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             try {
@@ -52,7 +53,7 @@ public class VoucherService implements VoucherDao {
             }
 
             TransactionPartnerDto partner = new TransactionPartnerDto();
-            partner.setPartner(createDto.getCustomerId());
+            partner.setPartner(createDto.getRecipientId());
             partner.setFunction(PartnerFunction.RECIPIENT);
             partner.setTransaction(transactionDto.getId());
             transactionService.addPartner(partner);
@@ -65,9 +66,6 @@ public class VoucherService implements VoucherDao {
 
             TransactionDateDto dateDto = new TransactionDateDto();
             dateDto.setValue(Conversion.stringToDate("9999-12-31"));
-            if (createDto.getExpiryDate() != null && createDto.getExpiryDate() != "") {
-                dateDto.setValue(Conversion.stringToDate(createDto.getExpiryDate()));
-            }
             dateDto.setTransaction(transactionDto.getId());
             dateDto.setType(DateType.EXPIRY_DATE);
             transactionService.addDate(dateDto);
@@ -113,7 +111,7 @@ public class VoucherService implements VoucherDao {
                     if (partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
                         PartnerDto partnerDetails = partnerService.getOptional(partner.getPartner());
                         if (partnerDetails != null) {
-                            voucher.setCustomer(partnerDetails);
+                            voucher.setRecipient(partnerDetails);
                         }
                         break;
                     }
@@ -131,7 +129,6 @@ public class VoucherService implements VoucherDao {
     public ArrayList<VoucherDto> search(VoucherQuery query) throws Exception {
         try {
             ArrayList<VoucherDto> voucherDtos = new ArrayList<>();
-
             if (query.getIdNumber() != null && query.getIdNumber() != "") {
                 for (PartnerIdentityEntity identityEntity : partnerIdentityRepository.findPartnerIdentityByValue(query.getIdNumber())) {
                     TransactionQueryDto queryDto = new TransactionQueryDto();
@@ -161,8 +158,8 @@ public class VoucherService implements VoucherDao {
                 if (query.getNumber() != null && query.getNumber() != "") {
                     queryDto.setNumber(query.getNumber());
                 }
-                if (query.getCustomerId() != null && query.getCustomerId() != "") {
-                    queryDto.setPartnerNo(query.getCustomerId());
+                if (query.getRecipient() != null && query.getRecipient() != "") {
+                    queryDto.setPartnerNo(query.getRecipient());
                     queryDto.setPartnerFunction(PartnerFunction.RECIPIENT);
                 }
                 for (String id : transactionService.search(queryDto)) {

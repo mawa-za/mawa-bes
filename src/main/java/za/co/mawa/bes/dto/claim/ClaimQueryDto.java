@@ -12,6 +12,8 @@ import java.util.Date;
 @Setter
 public class ClaimQueryDto implements Serializable {
     private String number;
+    private String customer;
+    private String contract;
     private String claimant;
     private String deceased;
     private String member;

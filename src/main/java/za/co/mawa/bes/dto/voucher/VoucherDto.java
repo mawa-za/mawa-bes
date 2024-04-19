@@ -15,7 +15,7 @@ public class VoucherDto implements Serializable {
     private String id;
     private String number;
     private String type;
-    private PartnerDto customer;
+    private PartnerDto recipient;
     private String dateCreated;
     private String expiryDate;
     private String status;
