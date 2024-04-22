@@ -64,6 +64,16 @@ public class GroupSocietyService {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionService.addItem(transactionItemDto);
+        List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream()
+                .filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
+                .toList();
+        if (productPricingDtoList.iterator().hasNext()){
+            TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
+            transactionAmountService.save(transactionAmountInboundDto);
+        }
         if (groupSocietyCreateDto.getCustomer() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
