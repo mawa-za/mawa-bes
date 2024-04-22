@@ -40,7 +40,7 @@ public class VoucherController {
 
     @RequestMapping(value= "/voucher" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVouchers(@RequestParam(required = false) String status,
-                                         @RequestParam(required = false) String customerId,
+                                         @RequestParam(required = false) String recipient,
                                          @RequestParam(required = false) String number,
                                          @RequestParam(required = false) String dateCreated,
                                          @RequestParam(required = false) String expiryDate,
@@ -50,8 +50,8 @@ public class VoucherController {
             if(status != null && status != ""){
                 query.setStatus(status);
             }
-            if(customerId != null && customerId != ""){
-                query.setCustomerId(customerId);
+            if(recipient != null && recipient != ""){
+                query.setRecipient(recipient);
             }
             if(number != null && number != ""){
                 query.setNumber(number);
