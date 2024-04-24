@@ -23,6 +23,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.dto.voucher.VoucherDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
@@ -49,6 +50,8 @@ public class GroupSocietyService {
     ReceiptService receiptService;
     @Autowired
     ClaimService claimService;
+    @Autowired
+    VoucherService voucherService;
 
     public GroupSocietyDto create(GroupSocietyCreateDto groupSocietyCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -67,7 +70,7 @@ public class GroupSocietyService {
         List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream()
                 .filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
                 .toList();
-        if (productPricingDtoList.iterator().hasNext()){
+        if (productPricingDtoList.iterator().hasNext()) {
             TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
             transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
             transactionAmountInboundDto.setTransaction(transactionDto.getId());
@@ -178,6 +181,11 @@ public class GroupSocietyService {
                 totalDeposited = totalDeposited.add(amount);
             }
 
+//
+//            for (VoucherDto voucherDto : voucherService.search(receiptSearchDto)) {
+//                BigDecimal amount = receiptDto.getAmount();
+//                totalDeposited = totalDeposited.add(amount);
+//            }
             try {
                 openingBalance = transactionAmountService.getByTransaction(id).stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
