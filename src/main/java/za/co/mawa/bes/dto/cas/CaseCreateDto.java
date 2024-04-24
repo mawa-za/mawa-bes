@@ -8,6 +8,7 @@ import lombok.Setter;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,5 +16,9 @@ import java.util.Date;
 @Setter
 public class CaseCreateDto implements Serializable {
     private String client;
-    private String service;
+    private String type;
+    private String court;
+    private String description;
+    private List<String> applicants;
+    private List<String> defendants;
 }
