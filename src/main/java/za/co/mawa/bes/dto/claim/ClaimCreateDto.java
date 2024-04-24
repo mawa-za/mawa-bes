@@ -17,6 +17,7 @@ public class ClaimCreateDto implements Serializable {
     private String customerId;
     private String contractId;
     private String claimantId;
+    private String informantId;
     private String deceasedId;
     private String memberId;
     private String membershipId;

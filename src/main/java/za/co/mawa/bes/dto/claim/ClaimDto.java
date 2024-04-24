@@ -26,6 +26,7 @@ public class ClaimDto implements Serializable {
     private PartnerDto member;
     private PartnerDto customer;
     private PartnerDto claimant;
+    private PartnerDto informant;
     private PartnerDto deceased;
     private Date deathDate;
     private Date burialDate;

@@ -96,6 +96,13 @@ public class ClaimService {
                 transactionPartnerDto.setPartner(claimCreateDto.getClaimantId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+            if (claimCreateDto.getInformantId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.INFORMANT);
+                transactionPartnerDto.setPartner(claimCreateDto.getInformantId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
             if (claimCreateDto.getMembershipId() != null) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(claimCreateDto.getMembershipId());
@@ -179,6 +186,11 @@ public class ClaimService {
                             claimDto.setClaimant((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
+                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.INFORMANT)) {
+                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                            claimDto.setInformant((partnerService.get(transactionPartnerDto.getPartner())));
+                        }
+                    }
                 }
             } catch (Exception e) {
 //                throw new RuntimeException(e);
@@ -223,6 +235,10 @@ public class ClaimService {
             if (claimQueryDto.getClaimant() != null & claimQueryDto.getClaimant() != "") {
                 transactionQueryDto.setPartnerNo(claimQueryDto.getClaimant());
                 transactionQueryDto.setPartnerFunction(PartnerFunction.CLAIMANT);
+            }
+            if (claimQueryDto.getInformant() != null & claimQueryDto.getInformant() != "") {
+                transactionQueryDto.setPartnerNo(claimQueryDto.getInformant());
+                transactionQueryDto.setPartnerFunction(PartnerFunction.INFORMANT);
             }
             if (claimQueryDto.getDeceased() != null && claimQueryDto.getDeceased() != "") {
                 transactionQueryDto.setPartnerNo(claimQueryDto.getDeceased());
