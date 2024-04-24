@@ -103,12 +103,25 @@ public class GroupSocietyService {
         transactionDateDto.setType(DateType.CREATED);
         transactionDateDto.setTransaction(transactionDto.getId());
         transactionService.addDate(transactionDateDto);
+//
+//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
+//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
+//        transactionAmountInboundDto.setType(AmountType.OPENING_BALANCE);
+//        transactionAmountService.save(transactionAmountInboundDto);
+//
+//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getTotalDeposited());
+//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
+//        transactionAmountInboundDto.setType(AmountType.OPENING_DEPOSIT);
+//        transactionAmountService.save(transactionAmountInboundDto);
+//
+//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getTotalWithdrawn());
+//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
+//        transactionAmountInboundDto.setType(AmountType.OPENING_WITHDRAWAL);
+//        transactionAmountService.save(transactionAmountInboundDto);
 
-        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
-        transactionAmountInboundDto.setTransaction(transactionDto.getId());
-        transactionAmountInboundDto.setType(AmountType.OPENING_BALANCE);
-        transactionAmountService.save(transactionAmountInboundDto);
         return get(transactionDto.getId());
 
     }
@@ -181,18 +194,13 @@ public class GroupSocietyService {
                 totalDeposited = totalDeposited.add(amount);
             }
 
-//
-//            for (VoucherDto voucherDto : voucherService.search(receiptSearchDto)) {
-//                BigDecimal amount = receiptDto.getAmount();
-//                totalDeposited = totalDeposited.add(amount);
+//            try {
+//                openingBalance = transactionAmountService.getByTransaction(id).stream()
+//                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
+//                        .toList().iterator().next().getAmount();
+//            } catch (Exception exception) {
 //            }
-            try {
-                openingBalance = transactionAmountService.getByTransaction(id).stream()
-                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
-                        .toList().iterator().next().getAmount();
-            } catch (Exception exception) {
-            }
-            BigDecimal availableBalance = (totalDeposited.subtract(totalWithdrawn)).add(openingBalance);
+            BigDecimal availableBalance = totalDeposited.subtract(totalWithdrawn);
             try {
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                 transactionAmountInboundDto.setAmount(availableBalance);
