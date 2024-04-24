@@ -36,4 +36,6 @@ public class PartnerFunction {
     public static String SUPPLIER = "SUPPLIER";
     public static String ASSIGNED_APPROVER = "ASSIGNED-APPROVER";
     public static String PREVIOUS_INSURER = "PREVIOUS-INSURER";
+    public static String APPLICANT = "APPLICANT";
+    public static String DEFENDANT = "DEFENDANT";
 }

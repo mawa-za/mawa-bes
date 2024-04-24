@@ -45,4 +45,5 @@ public class Field {
     public static String PARTNER_FUNCTION = "PARTNER-FUNCTION";
     public static String RECEIPT_TYPE = "RECEIPT-TYPE";
     public static String TENDER_TYPE = "TENDER-TYPE";
+    public static String COURT = "COURT";
 }
