@@ -15,6 +15,7 @@ public class ClaimQueryDto implements Serializable {
     private String customer;
     private String contract;
     private String claimant;
+    private String informant;
     private String deceased;
     private String member;
     private String membership;
