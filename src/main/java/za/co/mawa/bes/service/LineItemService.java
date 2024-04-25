@@ -3,17 +3,16 @@ package za.co.mawa.bes.service;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import za.co.mawa.bes.controller.ItemsController;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemEditDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
+import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemPKEntity;
 import za.co.mawa.bes.repository.TransactionItemRepository;
+import za.co.mawa.bes.utils.Field;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -29,63 +28,62 @@ public class LineItemService {
     PricingService pricingService;
     @Autowired
     TransactionItemRepository transactionItemRepository;
+    @Autowired
+    FieldOptionService fieldOptionService;
     private String id;
 
-    public List<LineItemDto> getAll(String transaction) {
+    public List<LineItemOutboundDto> getAll(String transaction) {
         try{
-            List<LineItemDto> lineItemDtoList = new ArrayList<>();
+            List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
             List<TransactionItemDto> transactionItemDtoList = transactionService.getItems(transaction);
             for(TransactionItemDto transactionItemDto: transactionItemDtoList){
-                LineItemDto lineItemDto = new LineItemDto();
-                lineItemDto.setTransaction(transactionItemDto.getTransaction());
-                lineItemDto.setItemId(transactionItemDto.getItem());
-                lineItemDto.setProductId(transactionItemDto.getProduct());
-                ProductDto productDto = new ProductDto();
-                productDto = productService.get(lineItemDto.getProductId());
-                lineItemDto.setDescription(productDto.getDescription());
-                lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
-                lineItemDto.setQuantity(transactionItemDto.getQuantity());
-                lineItemDto.setUom(transactionItemDto.getBaseUnitOfMeasure());
-                if(lineItemDto.getUnitPrice() != null){
-                    lineItemDto.setLineTotal(lineItemDto.getQuantity().multiply(lineItemDto.getUnitPrice()));
+                LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
+                lineItemOutboundDto.setTransaction(transactionItemDto.getTransaction());
+                lineItemOutboundDto.setItem(transactionItemDto.getItem());
+                lineItemOutboundDto.setProduct(productService.get(transactionItemDto.getProduct()));
+                lineItemOutboundDto.setUnitPrice(transactionItemDto.getUnitPrice());
+                lineItemOutboundDto.setQuantity(transactionItemDto.getQuantity());
+                fieldOptionService.getFieldOption(Field.UOM, transactionItemDto.getBaseUnitOfMeasure());
+                if(lineItemOutboundDto.getUnitPrice() != null){
+                    lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
                 }
-                lineItemDtoList.add(lineItemDto);
+                lineItemOutboundDtoList.add(lineItemOutboundDto);
             }
-            return lineItemDtoList;
+            return lineItemOutboundDtoList;
         }catch (Exception ex){
             throw new RuntimeException(ex);
         }
 
     }
-    public void add( String transaction, LineItemDto lineItemDto) {
+    public void add(LineItemInboundDto lineItemInboundDto) {
         try {
-            ProductDto productDto = productService.get(lineItemDto.getProductId());
+            ProductDto productDto = productService.get(lineItemInboundDto.getProductId());
             TransactionItemDto transactionItemDto = new TransactionItemDto();
-            transactionItemDto.setTransaction(transaction);
+            transactionItemDto.setTransaction(lineItemInboundDto.getTransaction());
             transactionItemDto.setProduct(productDto.getId());
-            transactionItemDto.setUnitPrice(lineItemDto.getUnitPrice());
-            transactionItemDto.setBaseUnitOfMeasure(lineItemDto.getUom());
-            transactionItemDto.setQuantity(lineItemDto.getQuantity());
+            transactionItemDto.setUnitPrice(lineItemInboundDto.getUnitPrice());
+            transactionItemDto.setBaseUnitOfMeasure(lineItemInboundDto.getUom());
+            transactionItemDto.setQuantity(lineItemInboundDto.getQuantity());
             transactionService.addItem(transactionItemDto);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
     }
-    public void edit(LineItemEditDto lineItemEditDto,String id,String itemId) {
+    public void edit(LineItemInboundDto lineItemInboundDto) {
         try{
             TransactionItemPKEntity pkEntity = new TransactionItemPKEntity();
-            pkEntity.setTransaction(id);
-            pkEntity.setItem(itemId);
+            pkEntity.setTransaction(lineItemInboundDto.getTransaction());
+            pkEntity.setItem(lineItemInboundDto.getItemId());
             TransactionItemEntity entity = transactionItemRepository.getById(pkEntity);
-            if(!lineItemEditDto.getQuantity().equals(BigDecimal.ZERO)){
-                entity.setQuantity(lineItemEditDto.getQuantity());
+            if(!lineItemInboundDto.getQuantity().equals(BigDecimal.ZERO)){
+                entity.setQuantity(lineItemInboundDto.getQuantity());
             }
-            if(lineItemEditDto.getUom() != null && lineItemEditDto.getUom() != ""){
-                entity.setUnitOfMeasure(lineItemEditDto.getUom());
+            if(lineItemInboundDto.getUom() != null && lineItemInboundDto.getUom() != ""){
+                entity.setUnitOfMeasure(lineItemInboundDto.getUom());
             }
-            if(!lineItemEditDto.getUnitPrice().equals(BigDecimal.ZERO)){
-                entity.setUnitPrice(lineItemEditDto.getUnitPrice());
+            if(!lineItemInboundDto.getUnitPrice().equals(BigDecimal.ZERO)){
+                entity.setUnitPrice(lineItemInboundDto.getUnitPrice());
             }
             transactionItemRepository.save(entity);
         }catch(Exception ex){

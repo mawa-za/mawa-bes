@@ -68,6 +68,13 @@ public class InvoiceService {
                 transactionPartnerDto.setPartner(invoiceCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+            if (invoiceCreateDto.getSalesRepresentative() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+                transactionPartnerDto.setPartner(invoiceCreateDto.getSalesRepresentative());
+                transactionService.addPartner(transactionPartnerDto);
+            }
             if (!invoiceCreateDto.getItems().isEmpty()) {
                 PricingDto pricingDto = pricingService.calculate(invoiceCreateDto.getItems());
                 for (LineItemDto lineItemDto : pricingDto.getItems()) {
@@ -110,7 +117,7 @@ public class InvoiceService {
                     invoiceDto.setDueDate(transactionDateDto.getValue());
                 }
             }
-
+            invoiceDto.setItems(lineItemService.getAll(id));
         } catch (TransactionNotFound exception) {
 
         }

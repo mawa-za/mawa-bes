@@ -14,6 +14,7 @@ import java.util.List;
 @Setter
 public class InvoiceCreateDto implements Serializable {
     private String customerId;
+    private String salesRepresentative;
     private Date dueDate;
     private Date invoiceDate;
     private String paymentTerms;
