@@ -43,7 +43,7 @@ public class LineItemService {
                 lineItemOutboundDto.setProduct(productService.get(transactionItemDto.getProduct()));
                 lineItemOutboundDto.setUnitPrice(transactionItemDto.getUnitPrice());
                 lineItemOutboundDto.setQuantity(transactionItemDto.getQuantity());
-                fieldOptionService.getFieldOption(Field.UOM, transactionItemDto.getBaseUnitOfMeasure());
+                lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, transactionItemDto.getBaseUnitOfMeasure()));
                 if(lineItemOutboundDto.getUnitPrice() != null){
                     lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
                 }
