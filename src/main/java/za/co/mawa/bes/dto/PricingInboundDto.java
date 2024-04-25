@@ -17,5 +17,5 @@ public class PricingInboundDto {
     private BigDecimal discountPercentage = new BigDecimal("0");
     private BigDecimal VATAmount = new BigDecimal("0");
     private BigDecimal VATPercentage = new BigDecimal("0");
-
+    private List<LineItemInboundDto> items;
 }
