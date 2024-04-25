@@ -9,6 +9,7 @@ public class PartnerFunction {
     public static String DECEASED = "DECEASED";
     public static String TOMBSTONE_RECIPIENT = "TOMBSTONE-RECIPIENT";
     public static String CLAIMANT = "CLAIMANT";
+    public static String INFORMANT = "INFORMANT";
     public static String PROCESSOR = "PROCESSOR";
     public static String APPROVER = "APPROVER";
     public static String APPROVERID = "APPROVERID";
