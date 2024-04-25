@@ -49,8 +49,6 @@ public class TransactionService implements TransactionDao {
     @Autowired
     FieldOptionService fieldOptionService;
     @Autowired
-    PricingService pricingService;
-    @Autowired
     ProductService productService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;

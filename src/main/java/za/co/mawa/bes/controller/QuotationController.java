@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.quotation.QuotationCreateDto;
 import za.co.mawa.bes.dto.quotation.QuotationDto;
@@ -76,8 +77,8 @@ public class QuotationController {
                 transactionService.addPartner(transactionPartnerDto);
             }
 
-            for (LineItemDto lineItemDto: quotationCreateDto.getItems()) {
-                lineItemService.add(transactionDto.getId(),lineItemDto);
+            for (LineItemInboundDto lineItemInboundDto: quotationCreateDto.getItems()) {
+                lineItemService.add(lineItemInboundDto);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
@@ -128,17 +129,17 @@ public class QuotationController {
     @RequestMapping(value = "/{id}/items", method = RequestMethod.GET)
     public ResponseEntity<?>  getItems(@PathVariable String id) {
         try {
-            List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
-            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
+            return ResponseEntity.ok(gson.toJson(lineItemService.getAll(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.POST)
-    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
-            lineItemService.add(id,lineItemDto);
+            lineItemInboundDto.setTransaction(id);
+            lineItemService.add(lineItemInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
