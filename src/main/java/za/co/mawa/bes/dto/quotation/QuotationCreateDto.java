@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -18,5 +19,5 @@ public class QuotationCreateDto implements Serializable {
     private Date quotationDate;
     private String deliveryAddress;
     private Date expiryDate;
-    private List<LineItemDto> items;
+    private List<LineItemInboundDto> items;
 }

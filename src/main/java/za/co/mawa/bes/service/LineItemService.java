@@ -25,8 +25,6 @@ public class LineItemService {
     @Autowired
     ProductService productService;
     @Autowired
-    PricingService pricingService;
-    @Autowired
     TransactionItemRepository transactionItemRepository;
     @Autowired
     FieldOptionService fieldOptionService;
