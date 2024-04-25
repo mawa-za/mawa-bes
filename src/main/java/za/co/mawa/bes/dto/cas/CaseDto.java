@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.participant.ParticipantDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 
 import java.util.ArrayList;
@@ -22,12 +23,17 @@ import java.util.List;
 @Setter
 public class CaseDto {
     private String id;
-    private FieldOptionDto type;
     private String number;
+    private String description;
+    private FieldOptionDto type;
     private PartnerDto client;
-    private ProductBasicDto service;
+    private FieldOptionDto court;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private List<ParticipantDto> participants = new ArrayList<>();
+    private List<PartnerDto> applicants = new ArrayList<>();
+    private List<PartnerDto> defendants = new ArrayList<>();
     private List<DateDto> dates  = new ArrayList<>();
+    private List<TaskDto> tasks  = new ArrayList<>();
+    private PartnerDto createdBy;
 }
