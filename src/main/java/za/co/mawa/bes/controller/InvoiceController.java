@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
@@ -43,39 +44,7 @@ public class InvoiceController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
         try {
-            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
-            transactionCreateDto.setType(TransactionType.INVOICE);
-            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
-            if (invoiceCreateDto.getInvoiceDate() != null){
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.INVOICE_DATE);
-                transactionDateDto.setValue(invoiceCreateDto.getInvoiceDate());
-                transactionService.addDate(transactionDateDto);
-            }
-            if (invoiceCreateDto.getDueDate() != null){
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.DUE_DATE);
-                transactionDateDto.setValue(invoiceCreateDto.getDueDate());
-                transactionService.addDate(transactionDateDto);
-            }
-
-            if (invoiceCreateDto.getCustomerId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                transactionPartnerDto.setPartner(invoiceCreateDto.getCustomerId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            if (!invoiceCreateDto.getItems().isEmpty()) {
-                PricingDto pricingDto = pricingService.calculate(invoiceCreateDto.getItems());
-                for (LineItemDto lineItemDto : pricingDto.getItems()) {
-                    lineItemService.add(transactionDto.getId(),lineItemDto);
-                }
-            }
-            return ResponseEntity.ok(gson.toJson(transactionDto));
+            return ResponseEntity.ok(gson.toJson(invoiceService.create(invoiceCreateDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -123,17 +92,17 @@ public class InvoiceController {
     @RequestMapping(value = "/{id}/items", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  getItems(@PathVariable String id) {
         try {
-            List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
-            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
+            return ResponseEntity.ok(gson.toJson(lineItemService.getAll(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
-            lineItemService.add(id,lineItemDto);
+            lineItemInboundDto.setTransaction(id);
+            lineItemService.add(lineItemInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -141,9 +110,10 @@ public class InvoiceController {
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
-            //lineItemService.edit();
+            lineItemInboundDto.setTransaction(id);
+            lineItemService.edit(lineItemInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
