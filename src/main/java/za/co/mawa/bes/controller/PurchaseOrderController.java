@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemEditDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderCreateDto;
 import za.co.mawa.bes.dto.purchase.order.PurchaseOrderDto;
@@ -79,16 +80,9 @@ public class PurchaseOrderController {
                 transactionPartnerDto.setPartner(purchaseOrderCreateDto.getSupplierId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            if(purchaseOrderCreateDto.getCustomerId() != null){
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                transactionPartnerDto.setPartner(purchaseOrderCreateDto.getCustomerId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
 
-            for (LineItemDto lineItemDto : purchaseOrderCreateDto.getItems()) {
-                lineItemService.add(transactionDto.getId(), lineItemDto);
+            for (LineItemInboundDto lineItemInboundDto : purchaseOrderCreateDto.getItems()) {
+                lineItemService.add(lineItemInboundDto);
             }
             return ResponseEntity.ok(gson.toJson(transactionDto));
         } catch (Exception exception) {
@@ -172,17 +166,17 @@ public class PurchaseOrderController {
     @RequestMapping(value = "/{id}/items", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getItems(@PathVariable String id) {
         try {
-            List<LineItemDto> lineItemDtoList = lineItemService.getAll(id);
-            return ResponseEntity.ok(gson.toJson(lineItemDtoList));
+            return ResponseEntity.ok(gson.toJson(lineItemService.getAll(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemDto lineItemDto) {
+    public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
-            lineItemService.add(id, lineItemDto);
+            lineItemInboundDto.setTransaction(id);
+            lineItemService.add(lineItemInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -190,9 +184,10 @@ public class PurchaseOrderController {
     }
 
     @RequestMapping(value = "{id}/items", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemEditDto lineItemDto,@RequestParam String itemId) {
+    public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
-            lineItemService.edit(lineItemDto,id,itemId);
+            lineItemInboundDto.setTransaction(id);
+            lineItemService.edit(lineItemInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -228,9 +223,9 @@ public class PurchaseOrderController {
                     PO.setPaymentMethod(paymentMethod);
                 }
 
-                for(LineItemDto items:lineItemService.getAll(id)){
-                    amount = amount.add(items.getLineTotal());
-                }
+//                for(LineItemDto items:lineItemService.getAll(id)){
+//                    amount = amount.add(items.getLineTotal());
+//                }
                 PO.setAmount(amount);
                 for(TransactionPartnerDto partners:transactionService.getPartners(id)){
                     if(partners.getFunction().equalsIgnoreCase(PartnerFunction.SUPPLIER)){
@@ -285,9 +280,9 @@ public class PurchaseOrderController {
                   PO.setPaymentMethod(paymentMethod);
              }
 
-                for(LineItemDto items:lineItemService.getAll(id)){
-                    amount = amount.add(items.getLineTotal());
-                }
+//                for(LineItemDto items:lineItemService.getAll(id)){
+//                    amount = amount.add(items.getLineTotal());
+//                }
                 PO.setAmount(amount);
                 for(TransactionPartnerDto partners:transactionService.getPartners(id)){
                     if(partners.getFunction().equalsIgnoreCase(PartnerFunction.SUPPLIER)){

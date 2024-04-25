@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
+import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
@@ -42,9 +43,9 @@ public class InvoiceController {
     @Autowired
     InvoiceService invoiceService;
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postInvoice(@RequestBody InvoiceCreateDto invoiceCreateDto) {
+    public ResponseEntity<?> postInvoice(@RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(invoiceService.create(invoiceCreateDto)));
+            return ResponseEntity.ok(gson.toJson(invoiceService.create(invoiceInboundDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

@@ -17,8 +17,6 @@ public class PricingService {
     ProductService productService;
     @Autowired
     FieldOptionService fieldOptionService;
-    @Autowired
-    LineItemService lineItemService;
     public PricingOutboundDto calculate(List<LineItemInboundDto> lineItemInboundDtoList) {
         List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
         PricingOutboundDto pricingOutboundDto = new PricingOutboundDto();
