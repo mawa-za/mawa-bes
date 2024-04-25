@@ -34,33 +34,37 @@ public class CaseService {
     @Autowired
     TransactionService transactionService;
     @Autowired
-    ProductService productService;
-    @Autowired
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-    @Autowired
-    ReceiptService receiptService;
-    @Autowired
-    ClaimService claimService;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.CASE);
+        transactionCreateDto.setLocation(caseCreateDto.getCourt());
+        transactionCreateDto.setSubType(caseCreateDto.getType());
+        transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-        ProductDto productDto = productService.get(caseCreateDto.getService());
-        TransactionItemDto transactionItemDto = new TransactionItemDto();
-        transactionItemDto.setTransaction(transactionDto.getId());
-        transactionItemDto.setProduct(caseCreateDto.getService());
-        transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
-        transactionItemDto.setQuantity(new BigDecimal("1"));
-        transactionService.addItem(transactionItemDto);
         if (caseCreateDto.getClient() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
             transactionPartnerDto.setFunction(PartnerFunction.CLIENT);
             transactionPartnerDto.setPartner(caseCreateDto.getClient());
+            transactionService.addPartner(transactionPartnerDto);
+        }
+        for (String applicant : caseCreateDto.getApplicants()) {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.APPLICANT);
+            transactionPartnerDto.setPartner(applicant);
+            transactionService.addPartner(transactionPartnerDto);
+        }
+        for (String defendant : caseCreateDto.getApplicants()) {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
+            transactionPartnerDto.setPartner(defendant);
             transactionService.addPartner(transactionPartnerDto);
         }
         CaseDto caseDto = new CaseDto();
@@ -83,22 +87,22 @@ public class CaseService {
         try {
             TransactionDto transactionDto = transactionService.get(id);
             CaseDto caseDto = new CaseDto();
-            caseDto.setNumber(transactionDto.getNumber());
-            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             caseDto.setId(transactionDto.getId());
-            if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
-                String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
-                try {
-                    caseDto.setService(productService.getBasic(productId));
-                } catch (ProductNotFoundException e) {
-                }
-            }
+            caseDto.setNumber(transactionDto.getNumber());
+            caseDto.setDescription(transactionDto.getNumber());
+            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+            caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
             List<ParticipantDto> participantDtoList = new ArrayList<>();
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                 try {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CLIENT)) {
                         caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
-                        continue;
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.APPLICANT)) {
+                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
+                        caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));

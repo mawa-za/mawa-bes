@@ -29,4 +29,5 @@ public class ProductDto {
     private List<ProductPricingDto> pricings;
     private List<ProductAttributeDto> attributes;
     private List<ProductCategoryDto> categories;
+//    private List<String> barcodes;
 }
