@@ -40,13 +40,12 @@ public class InvoiceService {
     @Autowired
     TransactionAmountService transactionAmountService;
 
-    public InvoiceDto create(InvoiceInboundDto invoiceInboundDto) {
+    public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
             transactionCreateDto.setStatus(Status.DRAFT);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-            InvoiceDto invoiceDto = new InvoiceDto();
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
                 transactionDateDto.setTransaction(transactionDto.getId());
@@ -77,6 +76,7 @@ public class InvoiceService {
                 transactionService.addPartner(transactionPartnerDto);
             }
             for (LineItemInboundDto lineItemInboundDto : invoiceInboundDto.getItems()) {
+                lineItemInboundDto.setTransaction(transactionDto.getId());
                 lineItemService.add(lineItemInboundDto);
             }
 
@@ -116,7 +116,7 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            return invoiceDto;
+            return get(transactionDto.getId());
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
