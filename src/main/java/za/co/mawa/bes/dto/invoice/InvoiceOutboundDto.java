@@ -22,6 +22,7 @@ public class InvoiceOutboundDto implements Serializable {
     private FieldOptionDto type;
     private String number;
     private PartnerDto customer;
+    private PartnerDto salesRepresentative;
     private Date dueDate;
     private Date invoiceDate;
     private FieldOptionDto paymentTerms;
