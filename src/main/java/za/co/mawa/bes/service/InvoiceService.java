@@ -40,13 +40,12 @@ public class InvoiceService {
     @Autowired
     TransactionAmountService transactionAmountService;
 
-    public InvoiceDto create(InvoiceInboundDto invoiceInboundDto) {
+    public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
             transactionCreateDto.setStatus(Status.DRAFT);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-            InvoiceDto invoiceDto = new InvoiceDto();
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
                 transactionDateDto.setTransaction(transactionDto.getId());
@@ -77,6 +76,7 @@ public class InvoiceService {
                 transactionService.addPartner(transactionPartnerDto);
             }
             for (LineItemInboundDto lineItemInboundDto : invoiceInboundDto.getItems()) {
+                lineItemInboundDto.setTransaction(transactionDto.getId());
                 lineItemService.add(lineItemInboundDto);
             }
 
@@ -116,7 +116,7 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            return invoiceDto;
+            return get(transactionDto.getId());
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
@@ -130,15 +130,20 @@ public class InvoiceService {
             invoiceOutboundDto.setNumber(transactionDto.getNumber());
             invoiceOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
-            transactionAttributeDto.setTransaction(transactionDto.getId());
-            transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
-            invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
+//            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+//            transactionAttributeDto.setTransaction(transactionDto.getId());
+//            transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
+//            invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
                             invoiceOutboundDto.setCustomer((partnerService.get(transactionPartnerDto.getPartner())));
+                        }
+                    }
+                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.SALES_REPRESENTATIVE)) {
+                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                            invoiceOutboundDto.setSalesRepresentative((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                 }
