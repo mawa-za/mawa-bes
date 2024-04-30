@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -14,9 +15,10 @@ import java.util.List;
 @Setter
 public class InvoiceCreateDto implements Serializable {
     private String customerId;
+    private String salesRepresentative;
     private Date dueDate;
     private Date invoiceDate;
     private String paymentTerms;
-    private List<LineItemDto> items;
+    private List<LineItemInboundDto> items;
 
 }

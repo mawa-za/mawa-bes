@@ -49,8 +49,6 @@ public class TransactionService implements TransactionDao {
     @Autowired
     FieldOptionService fieldOptionService;
     @Autowired
-    PricingService pricingService;
-    @Autowired
     ProductService productService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
@@ -416,7 +414,6 @@ public class TransactionService implements TransactionDao {
             if (transactionItem != null) {
                 transactionItem.setUnitPrice(item.getUnitPrice());
                 transactionItemRepository.save(transactionItem);
-                calculatePricing(item.getTransaction());
                 edited = true;
 
             }
@@ -838,54 +835,6 @@ public class TransactionService implements TransactionDao {
             transactionPartnerRepository.deleteById(transactionPartnerPKEntity);
         } catch (Exception ex) {
             throw new Exception("Could not remove partner to transaction");
-        }
-    }
-
-    private void calculatePricing(String id) throws Exception {
-        try {
-            List<LineItemDto> lineItemDtoList = new ArrayList<>();
-            for (TransactionItemDto transactionItemDto : getItems(id)) {
-                Date currentDate = new Date();
-                int compare = currentDate.compareTo(transactionItemDto.getValidTo());
-                if (compare < 0 && compare != 0) {
-                    LineItemDto lineItemDto = new LineItemDto();
-                    lineItemDto.setQuantity(transactionItemDto.getQuantity());
-                    lineItemDto.setUnitPrice(transactionItemDto.getUnitPrice());
-                    lineItemDtoList.add(lineItemDto);
-                }
-
-            }
-
-            PricingDto pricingDto = pricingService.calculate(lineItemDtoList);
-
-            List<TransactionAmountDto> transactionAmountDtoList = getAmounts(id);
-
-//            TransactionAmountDto totalIncVat = new TransactionAmountDto(id, PriceType.TOTAL_INC_VAT, pricingDto.getTotalIncVat(), getUser(), null);
-//            removeAmount(totalIncVat);
-//            addAmount(totalIncVat);
-//
-//            TransactionAmountDto totalExcVat = new TransactionAmountDto(id, PriceType.TOTAL_EXC_VAT, pricingDto.getTotalExcVat(), getUser(), null);
-//            removeAmount(totalExcVat);
-//            addAmount(totalExcVat);
-//
-//            TransactionAmountDto discountAmount = new TransactionAmountDto(id, PriceType.DISCOUNT_AMOUNT, pricingDto.getDiscountAmount(), getUser(), null);
-//            removeAmount(discountAmount);
-//            addAmount(discountAmount);
-//
-//            TransactionAmountDto discountPercentage = new TransactionAmountDto(id, PriceType.DISCOUNT_PERCENT, pricingDto.getDiscountPercentage(), getUser(), null);
-//            removeAmount(discountPercentage);
-//            addAmount(discountPercentage);
-//
-//            TransactionAmountDto VATAmount = new TransactionAmountDto(id, PriceType.VAT_AMOUNT, pricingDto.getVATAmount(), getUser(), null);
-//            removeAmount(VATAmount);
-//            addAmount(VATAmount);
-//
-//            TransactionAmountDto VATPercentage = new TransactionAmountDto(id, PriceType.VAT_PERCENT, pricingDto.getVATPercentage(), getUser(), null);
-//            removeAmount(VATPercentage);
-//            addAmount(VATPercentage);
-
-        } catch (Exception exception) {
-            throw new Exception("Pricing Engine Failure");
         }
     }
 
