@@ -9,15 +9,18 @@ import za.co.mawa.bes.dto.ClaimDisputeDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
+import za.co.mawa.bes.dto.transaction.link.TransactionLinkOutboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
+import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
@@ -46,16 +49,19 @@ public class ClaimService {
     VoucherService voucherService;
     @Autowired
     TransactionAmountService transactionAmountService;
-    List<String> voucherClaimTypeList = Arrays.asList("FUNERAL","GROUP-SOCIETY-FUNERAL");
-    public ClaimDto create(ClaimCreateDto claimCreateDto) {
+    @Autowired
+    TransactionLinkService transactionLinkService;
+    List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-SOCIETY-FUNERAL");
+
+    public ClaimOutboundDto create(ClaimCreateDto claimCreateDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.CLAIM);
             transactionCreateDto.setSubType(claimCreateDto.getType());
             transactionCreateDto.setLocation(claimCreateDto.getBranch());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-            ClaimDto claimDto = new ClaimDto();
-            claimDto.setId(transactionDto.getId());
+            ClaimOutboundDto claimOutboundDto = new ClaimOutboundDto();
+            claimOutboundDto.setId(transactionDto.getId());
             TransactionDateDto creationDate = new TransactionDateDto();
             creationDate.setTransaction(transactionDto.getId());
             creationDate.setType(DateType.CREATED);
@@ -136,59 +142,60 @@ public class ClaimService {
             if (claimCreateDto.getBankAccount() != null) {
                 TransactionAccountDto account = new TransactionAccountDto();
                 account.setAccountHolder(claimCreateDto.getBankAccount().getAccountHolder());
-                account.setTransaction(claimDto.getId());
+                account.setTransaction(claimOutboundDto.getId());
                 account.setAccountNumber(claimCreateDto.getBankAccount().getAccountNumber());
                 account.setBankName(claimCreateDto.getBankAccount().getBankName());
                 account.setBranchCode(claimCreateDto.getBankAccount().getBranchCode());
                 account.setAccountType(claimCreateDto.getBankAccount().getAccountType());
                 transactionService.addBankAccount(account);
             }
-            return claimDto;
+            return get(claimOutboundDto.getId());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public ClaimDto get(String id) {
+    public ClaimOutboundDto get(String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
-            ClaimDto claimDto = new ClaimDto();
-            claimDto.setId(transactionDto.getId());
-            claimDto.setNumber(transactionDto.getNumber());
-            claimDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            claimDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-            claimDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
-            claimDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
+            ClaimOutboundDto claimOutboundDto = new ClaimOutboundDto();
+            claimOutboundDto.setId(transactionDto.getId());
+            claimOutboundDto.setNumber(transactionDto.getNumber());
+            claimOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+            claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
+            claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
-            claimDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionAttributeService.get(transactionAttributeDto)));
-
-            TransactionLinkEntity transactionLink = transactionService.getTransaction(TransactionType.CLAIM, id);
-            if (transactionLink != null) {
-                claimDto.setMembership(membershipService.get(transactionLink.getTransactionLinkPKEntity().getTransaction1()));
+            claimOutboundDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionAttributeService.get(transactionAttributeDto)));
+            if (transactionLinkService.getParent(id).iterator().hasNext()) {
+                TransactionLinkOutboundDto transactionLinkOutboundDto = transactionLinkService.getParent(id).iterator().next();
+                claimOutboundDto.setMembership(membershipService.get(transactionLinkOutboundDto.getParent()));
+                claimOutboundDto.setParent(transactionService.get(transactionLinkOutboundDto.getParent()));
             }
+
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setCustomer((partnerService.get(transactionPartnerDto.getPartner())));
-                            claimDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
+                            claimOutboundDto.setCustomer((partnerService.get(transactionPartnerDto.getPartner())));
+                            claimOutboundDto.setMember((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.DECEASED)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setDeceased((partnerService.get(transactionPartnerDto.getPartner())));
+                            claimOutboundDto.setDeceased((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CLAIMANT)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setClaimant((partnerService.get(transactionPartnerDto.getPartner())));
+                            claimOutboundDto.setClaimant((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.INFORMANT)) {
                         if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            claimDto.setInformant((partnerService.get(transactionPartnerDto.getPartner())));
+                            claimOutboundDto.setInformant((partnerService.get(transactionPartnerDto.getPartner())));
                         }
                     }
                 }
@@ -197,13 +204,13 @@ public class ClaimService {
             }
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
                 if (Objects.equals(transactionDateDto.getType(), DateType.CREATED)) {
-                    claimDto.setCreationDate(transactionDateDto.getValue());
+                    claimOutboundDto.setCreationDate(transactionDateDto.getValue());
                 }
                 if (Objects.equals(transactionDateDto.getType(), DateType.BURIAL_DATE)) {
-                    claimDto.setBurialDate(transactionDateDto.getValue());
+                    claimOutboundDto.setBurialDate(transactionDateDto.getValue());
                 }
                 if (Objects.equals(transactionDateDto.getType(), DateType.DEATH_DATE)) {
-                    claimDto.setDeathDate(transactionDateDto.getValue());
+                    claimOutboundDto.setDeathDate(transactionDateDto.getValue());
                 }
             }
             TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
@@ -214,16 +221,16 @@ public class ClaimService {
                 bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
                 bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
-                claimDto.setBankDetails(bankAccountDto);
+                claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            return claimDto;
+            return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
         }
     }
 
-    public List<ClaimDto> search(ClaimQueryDto claimQueryDto) {
-        List<ClaimDto> claimDtoList = new ArrayList<>();
+    public List<ClaimOutboundDto> search(ClaimQueryDto claimQueryDto) {
+        List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
         try {
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             if (claimQueryDto.getStatus() != null && claimQueryDto.getStatus() != "") {
@@ -266,16 +273,19 @@ public class ClaimService {
             if (claimQueryDto.getMembership() != null && claimQueryDto.getMembership() != "") {
                 transactionQueryDto.setTransactionlink(claimQueryDto.getMembership());
             }
+            if (claimQueryDto.getParent() != null && claimQueryDto.getParent() != "") {
+                transactionQueryDto.setTransactionlink(claimQueryDto.getParent());
+            }
             transactionQueryDto.setType(TransactionType.CLAIM);
             for (String id : transactionService.search(transactionQueryDto)) {
                 try {
-                    claimDtoList.add(get(id));
+                    claimOutboundDtoList.add(get(id));
                 } catch (Exception exception) {
                 }
             }
         } catch (Exception exception) {
         }
-        return claimDtoList;
+        return claimOutboundDtoList;
     }
 
     public void submit(String id) {
@@ -296,17 +306,15 @@ public class ClaimService {
             transactionEditDto.setStatus(ClaimStatus.APPROVED);
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
-
             if (voucherClaimTypeList.contains(transactionDto.getType())) {
-                VoucherCreateDto voucherCreate = new VoucherCreateDto();
-                voucherCreate.setType(transactionDto.getType());
+                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherCreate.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -314,9 +322,10 @@ public class ClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherCreate.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherService.create(voucherCreate);
+                voucherInboundDto.setContractId(id);
+                voucherService.create(voucherInboundDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
