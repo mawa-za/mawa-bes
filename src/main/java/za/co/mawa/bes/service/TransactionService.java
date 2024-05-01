@@ -257,11 +257,8 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public List<TransactionLinkDto> getLinks(String id) {
-
-
         List<TransactionLinkDto> transactionLinkDtos = new ArrayList<>();
         List<TransactionLinkEntity> transactionLinkEntities = transactionLinkRepository.getTransactionLinks(id);
-
         for (TransactionLinkEntity transactionLinkEntity : transactionLinkEntities) {
             transactionLinkDtos.add(new TransactionLinkDto(transactionLinkEntity));
         }
@@ -666,6 +663,14 @@ public class TransactionService implements TransactionDao {
             }
         }
 
+        if (transactionQueryDto.getParent() != null) {
+            searchTerms.add("CHILD");
+            for (TransactionLinkEntity transactionLinkEntity: transactionLinkRepository.getChildren(transactionQueryDto.getParent())){
+                transactionListId.add(transactionLinkEntity.getTransactionLinkPKEntity().getTransaction2());
+                resultList.put("CHILD-" + transactionLinkEntity.getTransactionLinkPKEntity().getTransaction2(), transactionLinkEntity.getTransactionLinkPKEntity().getTransaction2());
+            }
+        }
+
         String searchStr = "";
         boolean found = false;
         for (String id : transactionListId) {
@@ -683,7 +688,6 @@ public class TransactionService implements TransactionDao {
         }
         return finalList;
     }
-
 
     @Override
     public TransactionDto get(String transactionId) throws TransactionNotFound {
