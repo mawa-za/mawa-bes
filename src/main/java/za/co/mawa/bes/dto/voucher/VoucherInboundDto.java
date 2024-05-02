@@ -11,7 +11,7 @@ import java.util.Date;
 @NoArgsConstructor
 @Getter
 @Setter
-public class VoucherCreateDto implements Serializable {
+public class VoucherInboundDto implements Serializable {
     private BigDecimal amount;
     private String recipientId;
     private Date expiryDate;

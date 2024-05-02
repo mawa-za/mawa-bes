@@ -17,6 +17,7 @@ import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
+import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.*;
@@ -261,15 +262,15 @@ public class GroupClaimService {
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
             if (transactionDto.getType() == "GROUP-SOCIETY-FUNERAL") {
-                VoucherCreateDto voucherCreate = new VoucherCreateDto();
-                voucherCreate.setType(transactionDto.getType());
+                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
+                voucherInboundDto.setType(transactionDto.getType());
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherCreate.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -277,9 +278,9 @@ public class GroupClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherCreate.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherService.create(voucherCreate);
+                voucherService.create(voucherInboundDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

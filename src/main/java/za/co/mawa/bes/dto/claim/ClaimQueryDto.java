@@ -13,7 +13,7 @@ import java.util.Date;
 public class ClaimQueryDto implements Serializable {
     private String number;
     private String customer;
-    private String contract;
+    private String parent;
     private String claimant;
     private String informant;
     private String deceased;
