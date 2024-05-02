@@ -106,24 +106,6 @@ public class GroupSocietyService {
         transactionDateDto.setType(DateType.CREATED);
         transactionDateDto.setTransaction(transactionDto.getId());
         transactionService.addDate(transactionDateDto);
-//
-//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getOpeningBalance());
-//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
-//        transactionAmountInboundDto.setType(AmountType.OPENING_BALANCE);
-//        transactionAmountService.save(transactionAmountInboundDto);
-//
-//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getTotalDeposited());
-//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
-//        transactionAmountInboundDto.setType(AmountType.OPENING_DEPOSIT);
-//        transactionAmountService.save(transactionAmountInboundDto);
-//
-//        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-//        transactionAmountInboundDto.setAmount(groupSocietyCreateDto.getTotalWithdrawn());
-//        transactionAmountInboundDto.setTransaction(transactionDto.getId());
-//        transactionAmountInboundDto.setType(AmountType.OPENING_WITHDRAWAL);
-//        transactionAmountService.save(transactionAmountInboundDto);
 
         return get(transactionDto.getId());
 
@@ -180,6 +162,7 @@ public class GroupSocietyService {
             groupSocietyDto.setAmounts(transactionAmountService.getByTransaction(id));
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
+            transactionQueryDto.setParent(id);
             for (String claimId : transactionService.search(transactionQueryDto)) {
                 try {
                     groupSocietyDto.getClaims().add(claimService.get(claimId));
