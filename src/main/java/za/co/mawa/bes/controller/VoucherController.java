@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
-import za.co.mawa.bes.dto.voucher.VoucherDto;
-import za.co.mawa.bes.dto.voucher.VoucherEditDto;
-import za.co.mawa.bes.dto.voucher.VoucherQuery;
+import za.co.mawa.bes.dto.voucher.*;
 import za.co.mawa.bes.service.VoucherService;
 
 @RestController
@@ -20,11 +17,9 @@ public class VoucherController {
     VoucherService voucherService;
 
     @RequestMapping(value= "/voucher" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createVoucher(@RequestBody VoucherCreateDto voucherCreate){
+    public ResponseEntity<?> createVoucher(@RequestBody VoucherInboundDto voucherInboundDto){
         try{
-            VoucherDto voucher = new VoucherDto();
-            voucher.setId(voucherService.create(voucherCreate));
-           return ResponseEntity.ok(gson.toJson(voucher));
+           return ResponseEntity.ok(gson.toJson(voucherService.create(voucherInboundDto)));
         }catch (Exception ex){
            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
@@ -71,9 +66,9 @@ public class VoucherController {
         }
     }
     @RequestMapping(value= "/voucher/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto editDto){
+    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherInboundDto voucherInboundDto){
         try{
-            return ResponseEntity.ok(gson.toJson(voucherService.edit(editDto,id)));
+            return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherInboundDto)));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
