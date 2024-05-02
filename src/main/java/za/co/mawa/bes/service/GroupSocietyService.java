@@ -7,6 +7,7 @@ import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.AmountDto;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
@@ -24,6 +25,8 @@ import za.co.mawa.bes.dto.transaction.amount.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.voucher.VoucherDto;
+import za.co.mawa.bes.dto.voucher.VoucherOutboundDto;
+import za.co.mawa.bes.dto.voucher.VoucherQuery;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
@@ -171,11 +174,21 @@ public class GroupSocietyService {
                     groupSocietyDto.setDateCreated(transactionDateDto.getValue());
                 }
             }
-            groupSocietyDto.setAmounts(transactionAmountService.getByTransaction(id));
             groupSocietyDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             groupSocietyDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             groupSocietyDto.setSalesArea(fieldOptionService.getFieldOption(Field.SALES_AREA, transactionDto.getLocation()));
-
+            groupSocietyDto.setAmounts(transactionAmountService.getByTransaction(id));
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.CLAIM);
+            for (String claimId : transactionService.search(transactionQueryDto)) {
+                try {
+                    groupSocietyDto.getClaims().add(claimService.get(claimId));
+                    VoucherQuery voucherQuery = new VoucherQuery();
+                    voucherQuery.setParent(claimId);
+                    groupSocietyDto.setVouchers(voucherService.search(voucherQuery));
+                } catch (Exception exception) {
+                }
+            }
             return groupSocietyDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
@@ -190,16 +203,27 @@ public class GroupSocietyService {
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
             for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                BigDecimal amount = receiptDto.getAmount();
-                totalDeposited = totalDeposited.add(amount);
+                try {
+                    BigDecimal amount = receiptDto.getAmount();
+                    totalDeposited = totalDeposited.add(amount);
+                } catch (Exception exception) {
+                }
+            }
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.CLAIM);
+            for (String claimId : transactionService.search(transactionQueryDto)) {
+                try {
+                    VoucherQuery voucherQuery = new VoucherQuery();
+                    voucherQuery.setParent(claimId);
+                    for (VoucherOutboundDto voucherOutboundDto : voucherService.search(voucherQuery)) {
+                        BigDecimal amount = voucherOutboundDto.getAmount();
+                        totalWithdrawn = totalWithdrawn.add(amount);
+                    }
+
+                } catch (Exception exception) {
+                }
             }
 
-//            try {
-//                openingBalance = transactionAmountService.getByTransaction(id).stream()
-//                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
-//                        .toList().iterator().next().getAmount();
-//            } catch (Exception exception) {
-//            }
             BigDecimal availableBalance = totalDeposited.subtract(totalWithdrawn);
             try {
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();

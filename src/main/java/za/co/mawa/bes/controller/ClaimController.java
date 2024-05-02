@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.ClaimCancelDto;
 import za.co.mawa.bes.dto.ClaimDisputeDto;
 import za.co.mawa.bes.dto.PersonDto;
-import za.co.mawa.bes.dto.claim.ClaimCreateDto;
-import za.co.mawa.bes.dto.claim.ClaimDto;
-import za.co.mawa.bes.dto.claim.ClaimEditDto;
-import za.co.mawa.bes.dto.claim.ClaimQueryDto;
+import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
@@ -119,13 +116,12 @@ public class ClaimController {
     public ResponseEntity<?> getClaimByMember(@PathVariable String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
-            List<ClaimDto> claimDtoList = new ArrayList<>();
+            List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
 
             for (TransactionLinkDto transactionLinkDto : transactionService.getLinks(id)) {
-                claimDtoList.add(claimService.get(transactionLinkDto.getTransaction2()));
-                transactionDto.setClaimDtoList(claimDtoList);
+                claimOutboundDtoList.add(claimService.get(transactionLinkDto.getTransaction2()));
             }
-            return ResponseEntity.ok(gson.toJson(transactionDto));
+            return ResponseEntity.ok(gson.toJson(claimOutboundDtoList));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

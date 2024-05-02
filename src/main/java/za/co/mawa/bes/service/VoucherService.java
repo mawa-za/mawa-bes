@@ -18,6 +18,7 @@ import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -127,9 +128,9 @@ public class VoucherService {
         }
     }
 
-    public ArrayList<VoucherOutboundDto> search(VoucherQuery query) throws Exception {
+    public List<VoucherOutboundDto> search(VoucherQuery query) throws Exception {
         try {
-            ArrayList<VoucherOutboundDto> voucherOutboundDtoArrayList = new ArrayList<>();
+            List<VoucherOutboundDto> voucherOutboundDtoArrayList = new ArrayList<>();
             TransactionQueryDto queryDto = new TransactionQueryDto();
             queryDto.setType(TransactionType.VOUCHER);
             for (String id : transactionService.search(queryDto)) {

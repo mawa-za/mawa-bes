@@ -52,6 +52,7 @@ public class ClaimService {
     @Autowired
     TransactionLinkService transactionLinkService;
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-SOCIETY-FUNERAL");
+    List<String> autoApprovalTypeList = Arrays.asList("FUNERAL", "GROUP-SOCIETY-FUNERAL");
 
     public ClaimOutboundDto create(ClaimCreateDto claimCreateDto) {
         try {
@@ -290,10 +291,19 @@ public class ClaimService {
 
     public void submit(String id) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(ClaimStatus.AWAITING_APPROVAL);
-            transactionService.edit(transactionEditDto);
+            TransactionDto transactionDto = transactionService.get(id);
+            if (autoApprovalTypeList.contains(transactionDto.getType())) {
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(id);
+                transactionEditDto.setStatus(ClaimStatus.APPROVED);
+                transactionService.edit(transactionEditDto);
+                approve(id);
+            }else{
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(id);
+                transactionEditDto.setStatus(ClaimStatus.AWAITING_APPROVAL);
+                transactionService.edit(transactionEditDto);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
