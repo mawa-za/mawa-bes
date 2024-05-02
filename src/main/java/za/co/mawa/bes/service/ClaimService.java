@@ -51,8 +51,8 @@ public class ClaimService {
     TransactionAmountService transactionAmountService;
     @Autowired
     TransactionLinkService transactionLinkService;
-    List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-SOCIETY-FUNERAL");
-    List<String> autoApprovalTypeList = Arrays.asList("FUNERAL", "GROUP-SOCIETY-FUNERAL");
+    List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
+    List<String> autoApprovalTypeList = Arrays.asList("GROUP-FUNERAL");
 
     public ClaimOutboundDto create(ClaimCreateDto claimCreateDto) {
         try {
