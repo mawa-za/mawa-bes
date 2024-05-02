@@ -34,31 +34,11 @@ public class VoucherController {
     }
 
     @RequestMapping(value= "/voucher" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getVouchers(@RequestParam(required = false) String status,
-                                         @RequestParam(required = false) String recipient,
-                                         @RequestParam(required = false) String number,
-                                         @RequestParam(required = false) String dateCreated,
-                                         @RequestParam(required = false) String expiryDate,
-                                         @RequestParam(required = false) String IdNumber){
+    public ResponseEntity<?> getVouchers(@RequestParam(required = false) String parent){
         try{
             VoucherQuery query = new VoucherQuery();
-            if(status != null && status != ""){
-                query.setStatus(status);
-            }
-            if(recipient != null && recipient != ""){
-                query.setRecipient(recipient);
-            }
-            if(number != null && number != ""){
-                query.setNumber(number);
-            }
-            if(dateCreated != null && dateCreated != ""){
-                query.setDateCreated(dateCreated);
-            }
-            if(expiryDate != null && expiryDate != ""){
-                query.setExpiryDate(expiryDate);
-            }
-            if(IdNumber != null && IdNumber != ""){
-                query.setIdNumber(IdNumber);
+            if(parent != null && parent != ""){
+                query.setStatus(parent);
             }
             return ResponseEntity.ok(gson.toJson(voucherService.search(query)));
         }catch (Exception ex){
