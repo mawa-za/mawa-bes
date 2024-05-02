@@ -16,4 +16,5 @@ public class VoucherQuery implements Serializable {
     private String dateCreated;
     private String expiryDate;
     private String IdNumber;
+    private String parent;
 }
