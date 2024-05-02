@@ -292,7 +292,7 @@ public class ClaimService {
     public void submit(String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
-            if (autoApprovalTypeList.contains(transactionDto.getType())) {
+            if (autoApprovalTypeList.contains(transactionDto.getSubType())) {
                 TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(id);
                 transactionEditDto.setStatus(ClaimStatus.APPROVED);
@@ -316,7 +316,7 @@ public class ClaimService {
             transactionEditDto.setStatus(ClaimStatus.APPROVED);
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
-            if (voucherClaimTypeList.contains(transactionDto.getType())) {
+            if (voucherClaimTypeList.contains(transactionDto.getSubType())) {
                 VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
