@@ -21,7 +21,7 @@ public interface TransactionLinkRepository extends JpaRepository<TransactionLink
     List<TransactionLinkEntity> getChildren(String parent);
     @Query("SELECT t FROM TransactionLinkEntity t WHERE t.transactionLinkPKEntity.transaction2 = :child")
     List<TransactionLinkEntity> getParent(String child);
-    @Query("SELECT t FROM TransactionLinkEntity t WHERE t.transactionLinkPKEntity.transaction2 = :transaction2 AND t.transactionLinkPKEntity.type = :type" )
+    @Query("SELECT t FROM TransactionLinkEntity t WHERE t.transactionLinkPKEntity.transaction2 = :child AND t.transactionLinkPKEntity.type = :type" )
     TransactionLinkEntity getLink(String child,String type);
 
 }
