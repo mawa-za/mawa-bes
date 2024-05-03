@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
@@ -52,7 +53,7 @@ public class ClaimService {
     @Autowired
     TransactionLinkService transactionLinkService;
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
-    List<String> autoApprovalTypeList = Arrays.asList("GROUP-FUNERAL");
+    List<String> autoApprovalTypeList = new ArrayList<>();
 
     public ClaimOutboundDto create(ClaimCreateDto claimCreateDto) {
         try {
@@ -149,6 +150,22 @@ public class ClaimService {
                 account.setBranchCode(claimCreateDto.getBankAccount().getBranchCode());
                 account.setAccountType(claimCreateDto.getBankAccount().getAccountType());
                 transactionService.addBankAccount(account);
+            }
+            List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(claimCreateDto.getMembershipId());
+            Iterator iterator = transactionAmountOutboundDtoList.stream()
+                    .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
+                    .toList().iterator();
+            if (iterator.hasNext()) {
+                TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
+                    transactionAmountInboundDto.setTransaction(claimOutboundDto.getId());
+                    transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
             }
             return get(claimOutboundDto.getId());
         } catch (Exception e) {
