@@ -194,49 +194,56 @@ public class GroupSocietyService {
             }
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
+            transactionQueryDto.setParent(id);
             for (String claimId : transactionService.search(transactionQueryDto)) {
                 try {
                     VoucherQuery voucherQuery = new VoucherQuery();
                     voucherQuery.setParent(claimId);
                     for (VoucherOutboundDto voucherOutboundDto : voucherService.search(voucherQuery)) {
-                        BigDecimal amount = voucherOutboundDto.getAmount();
-                        totalWithdrawn = totalWithdrawn.add(amount);
-                    }
+                        try {
+                            BigDecimal amount = voucherOutboundDto.getAmount();
+                            totalWithdrawn = totalWithdrawn.add(amount);
+                        } catch (Exception exception) {
+                        }
 
-                } catch (Exception exception) {
+                    }
+                }catch(Exception exception){
                 }
             }
 
-            BigDecimal availableBalance = totalDeposited.subtract(totalWithdrawn);
-            try {
-                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(availableBalance);
-                transactionAmountInboundDto.setTransaction(id);
-                transactionAmountInboundDto.setType(AmountType.AVAILABLE_BALANCE);
-                transactionAmountService.save(transactionAmountInboundDto);
-            } catch (Exception exception) {
+                BigDecimal availableBalance = totalDeposited.subtract(totalWithdrawn);
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(availableBalance);
+                    transactionAmountInboundDto.setTransaction(id);
+                    transactionAmountInboundDto.setType(AmountType.AVAILABLE_BALANCE);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(totalDeposited);
+                    transactionAmountInboundDto.setTransaction(id);
+                    transactionAmountInboundDto.setType(AmountType.TOTAL_DEPOSITED);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(totalWithdrawn);
+                    transactionAmountInboundDto.setTransaction(id);
+                    transactionAmountInboundDto.setType(AmountType.TOTAL_WITHDRAWN);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+            } catch(
+                    Exception e)
+
+            {
 
             }
-            try {
-                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(totalDeposited);
-                transactionAmountInboundDto.setTransaction(id);
-                transactionAmountInboundDto.setType(AmountType.TOTAL_DEPOSITED);
-                transactionAmountService.save(transactionAmountInboundDto);
-            } catch (Exception exception) {
-
-            }
-            try {
-                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(totalWithdrawn);
-                transactionAmountInboundDto.setTransaction(id);
-                transactionAmountInboundDto.setType(AmountType.TOTAL_WITHDRAWN);
-                transactionAmountService.save(transactionAmountInboundDto);
-            } catch (Exception exception) {
-
-            }
-        } catch (Exception e) {
-
         }
     }
-}
