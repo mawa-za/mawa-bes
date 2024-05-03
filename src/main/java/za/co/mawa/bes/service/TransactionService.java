@@ -683,7 +683,9 @@ public class TransactionService implements TransactionDao {
                 }
             }
             if (found) {
-                finalList.add(id);
+                if(!finalList.contains(id)){
+                    finalList.add(id);
+                }
             }
         }
         return finalList;
