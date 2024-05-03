@@ -292,7 +292,7 @@ public class ClaimService {
                 transactionQueryDto.setTransactionlink(claimQueryDto.getMembership());
             }
             if (claimQueryDto.getParent() != null && claimQueryDto.getParent() != "") {
-                transactionQueryDto.setTransactionlink(claimQueryDto.getParent());
+                transactionQueryDto.setParent(claimQueryDto.getParent());
             }
             transactionQueryDto.setType(TransactionType.CLAIM);
             for (String id : transactionService.search(transactionQueryDto)) {

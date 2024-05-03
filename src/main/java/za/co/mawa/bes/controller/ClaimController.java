@@ -64,7 +64,8 @@ public class ClaimController {
                                        @RequestParam(required = false) String type,
                                        @RequestParam(required = false) String deathDate,
                                        @RequestParam(required = false) String burialDate,
-                                       @RequestParam(required = false) String status) {
+                                       @RequestParam(required = false) String status,
+                                       @RequestParam(required = false) String parent) {
         try {
 
             ClaimQueryDto claimQueryDto = new ClaimQueryDto();
@@ -96,6 +97,9 @@ public class ClaimController {
             }
             if (membership != null && membership != "") {
                 claimQueryDto.setMembership(membership);
+            }
+            if (parent != null && parent != "") {
+                claimQueryDto.setParent(parent);
             }
             return ResponseEntity.ok(gson.toJson(claimService.search(claimQueryDto)));
         } catch (Exception exception) {

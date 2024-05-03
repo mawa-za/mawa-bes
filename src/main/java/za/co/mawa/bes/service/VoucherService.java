@@ -133,6 +133,7 @@ public class VoucherService {
             List<VoucherOutboundDto> voucherOutboundDtoArrayList = new ArrayList<>();
             TransactionQueryDto queryDto = new TransactionQueryDto();
             queryDto.setType(TransactionType.VOUCHER);
+            queryDto.setParent(query.getParent());
             for (String id : transactionService.search(queryDto)) {
                 voucherOutboundDtoArrayList.add(get(id));
             }
