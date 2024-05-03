@@ -8,6 +8,7 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.voucher.*;
@@ -102,7 +103,8 @@ public class VoucherService {
                     }
                 }
                 try {
-                    BigDecimal voucherAmount = transactionAmountService.getByTransaction(id).stream()
+                    List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList =  transactionAmountService.getByTransaction(id);
+                    BigDecimal voucherAmount = transactionAmountOutboundDtoList.stream()
                             .filter(a -> Objects.equals(a.getType().getCode(), AmountType.VOUCHER_AMOUNT))
                             .toList().iterator().next().getAmount();
                     voucherOutboundDto.setAmount(voucherAmount);
