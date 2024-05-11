@@ -69,7 +69,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
                     transactionAmountInboundDto.setTransaction(transaction.getId());
-                    transactionAmountInboundDto.setType(TransactionAmount.AVAILABLE_BALANCE);
+                    transactionAmountInboundDto.setType(TransactionAmount.PAYMENT_AMOUNT);
                     transactionAmountService.save(transactionAmountInboundDto);
                 } catch (Exception exception) {
 
@@ -170,7 +170,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
         try {
             paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
-                    .filter(a -> Objects.equals(a.getType().getCode(), AmountType.OPENING_BALANCE))
+                    .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
                     .toList().iterator().next().getAmount());
         } catch (Exception exception) {
         }
