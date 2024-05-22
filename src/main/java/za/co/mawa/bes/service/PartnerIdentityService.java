@@ -88,8 +88,7 @@ public class PartnerIdentityService {
             if (identityList != null) {
                 for (PartnerIdentityEntity partnerIdentity : identityList) {
                     String validFrom = Conversion.dateToString(partnerIdentity.getValidFrom());
-                    if (partnerIdentity.getPartnerIdentityPK().getType().equals(partnerIdentityEditDto.getType())
-                            && validFrom.equals(partnerIdentityEditDto.getValidFrom())) {
+                    if (partnerIdentity.getPartnerIdentityPK().getType().equals(partnerIdentityEditDto.getType())) {
                         PartnerIdentityPKEntity partneridentityPK = new PartnerIdentityPKEntity();
                         partneridentityPK.setType(partnerIdentityEditDto.getType());
                         partneridentityPK.setValue(partnerIdentity.getPartnerIdentityPK().getValue());
