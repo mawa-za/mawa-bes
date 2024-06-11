@@ -220,16 +220,20 @@ public class CashupService implements CashupDao {
                     }
                 }
                 try {
-                    cashupDto.setAmountCollected(transactionAmountService.getByTransaction(id).stream()
+                    BigDecimal amountCollected = transactionAmountService.getByTransaction(id).stream()
                             .filter(a -> Objects.equals(a.getType().getCode(), AmountType.AMOUNT_COLLECTED))
-                            .toList().iterator().next().getAmount());
+                            .toList().iterator().next().getAmount();
+                    cashupDto.setAmountCollected(amountCollected);
                 } catch (Exception exception) {
+                    cashupDto.setAmountCollected(new BigDecimal("0.00"));
                 }
                 try {
-                    cashupDto.setAmountDeposited(transactionAmountService.getByTransaction(id).stream()
+                    BigDecimal amountDeposited = transactionAmountService.getByTransaction(id).stream()
                             .filter(a -> Objects.equals(a.getType().getCode(), AmountType.AMOUNT_DEPOSITED))
-                            .toList().iterator().next().getAmount());
+                            .toList().iterator().next().getAmount();
+                    cashupDto.setAmountDeposited(amountDeposited);
                 } catch (Exception exception) {
+                    cashupDto.setAmountDeposited(new BigDecimal("0.00"));
                 }
 
                 for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
