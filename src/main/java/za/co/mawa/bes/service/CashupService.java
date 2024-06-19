@@ -67,7 +67,7 @@ public class CashupService implements CashupDao {
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
         ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
         String id = null;
-        if (cashupCreateDto.getReceipts().size() > 0) {
+        if (cashupCreateDto.getReceipts()!= null && cashupCreateDto.getReceipts().size() > 0) {
             receiptsFiltered = receipts.stream().filter(obj -> cashupCreateDto.getReceipts().contains(obj.getId())).collect(Collectors.toCollection(ArrayList::new));
         } else {
             receiptsFiltered = receipts;
@@ -80,9 +80,12 @@ public class CashupService implements CashupDao {
             if (!BigDecimal.ZERO.equals(amount)) {
                 TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
                 transactionCreateDto.setLocation(cashupCreateDto.getSalesArea());
-                transactionCreateDto.setType(TransactionType.CASHUP);
                 transactionCreateDto.setStatus(Status.OPEN);
+                transactionCreateDto.setType(TransactionType.CASHUP);
+                transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name());
+
                 TransactionDto transaction = transactionService.create(transactionCreateDto);
+
                 if (transaction.getId() != null) {
                     id = transaction.getId();
 
@@ -204,6 +207,8 @@ public class CashupService implements CashupDao {
                 }
                 cashupDto.setId(transactionDto.getId());
                 cashupDto.setNumber(transactionDto.getNumber());
+                //
+                cashupDto.setCashUpType(transactionDto.getSubType());
                 cashupDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
                 cashupDto.setSalesArea(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
                 List<TransactionLinkDto> links = transactionService.getLinks(id);

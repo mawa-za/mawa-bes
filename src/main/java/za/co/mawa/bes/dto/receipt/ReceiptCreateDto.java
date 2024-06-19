@@ -1,4 +1,5 @@
 package za.co.mawa.bes.dto.receipt;
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,4 +22,6 @@ public class ReceiptCreateDto implements Serializable {
     private String location;
     private BigDecimal amount;
     private String externalReceiptNo;
+    //private  String receiptTo;
+    //private  String receiptFrom;
 }

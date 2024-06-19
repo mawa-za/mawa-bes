@@ -40,6 +40,7 @@ public class CashupController {
             if(id != null)
             {
                 cashup.setId(id);
+
             }
         return ResponseEntity.ok().body(gson.toJson(cashup));
     } catch (Exception exception) {
@@ -60,11 +61,16 @@ public class CashupController {
                                         @RequestParam(required = false) String createDate,
                                         @RequestParam(required = false) String lastUpdated,
                                         @RequestParam(required = false) String createdBy,
+                                        @RequestParam(required = false) String cashUpType,
                                         @RequestParam(required = false) String changedBy) {
         try{
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             ArrayList<CashupDto> cashups = new ArrayList<>();
             transactionQueryDto.setType(TransactionType.CASHUP);
+            if(cashUpType != null && cashUpType != ""){
+
+                transactionQueryDto.setSubtype(cashUpType);
+            }
             if(status != null && status != "")
             {
                 transactionQueryDto.setStatus(status);
@@ -91,9 +97,15 @@ public class CashupController {
             }
             for(String id : transactionService.search(transactionQueryDto))
             {
-                cashups.add(cashupService.get(id));
+                CashupDto cashupDto = cashupService.get(id);
+
+                if (cashupDto != null) {
+                    cashups.add(cashupDto);
+                }
+
             }
             return ResponseEntity.ok().body(gson.toJson(cashups));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

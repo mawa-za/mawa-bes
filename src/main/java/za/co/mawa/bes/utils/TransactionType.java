@@ -22,4 +22,5 @@ public class TransactionType {
 
     public static  String NOTIFICATION = "NOTIFICATION";
     public static  String CASE = "CASE";
+
 }

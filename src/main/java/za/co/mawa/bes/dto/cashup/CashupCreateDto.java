@@ -18,4 +18,12 @@ public class CashupCreateDto {
     private String salesArea;
     private BigDecimal amount;
     private List<String> receipts;
+    private CashUpType cashUpType;
+
+    public enum CashUpType {
+        AUTOMATIC,
+        MANUAL,
+        RECEIPT
+    }
+
 }

@@ -31,4 +31,7 @@ public class CashupDto implements Serializable{
     private Date lastUpdated;
     private FieldOptionDto salesArea;
     private PartnerDto employeeResponsible;
+    //changed
+    private String cashUpType;
+
 }
