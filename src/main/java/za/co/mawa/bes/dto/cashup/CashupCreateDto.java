@@ -19,7 +19,8 @@ public class CashupCreateDto {
     private BigDecimal amount;
     private List<String> receipts;
     private CashUpType cashUpType;
-
+    private String receiptFrom;
+    private String receiptTo;
     public enum CashUpType {
         AUTOMATIC,
         MANUAL,

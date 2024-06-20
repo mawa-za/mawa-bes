@@ -1,5 +1,7 @@
 package za.co.mawa.bes.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,29 +17,19 @@ import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.dto.user.UserDto;
-import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
-import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
-import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.TransactionAmountRepository;
-import za.co.mawa.bes.repository.TransactionItemRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collector;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,6 +43,8 @@ public class CashupService implements CashupDao {
     @Autowired
     TransactionRepository transactionRepository;
     @Autowired
+    TransactionAttributeService transactionAttributeService;
+    @Autowired
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     UserService userService;
@@ -63,11 +57,12 @@ public class CashupService implements CashupDao {
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
         ArrayList<ReceiptDto> receiptsFiltered = new ArrayList<>();
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
-        searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
+        //searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
-        ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
+        //ArrayList<ReceiptDto> receipts = receiptService.getReceipts(searchReceipt);
+        ArrayList<ReceiptDto> receipts = receiptService.getReceipts(searchReceipt);
         String id = null;
-        if (cashupCreateDto.getReceipts()!= null && cashupCreateDto.getReceipts().size() > 0) {
+        if (cashupCreateDto.getReceipts().size() > 0) {
             receiptsFiltered = receipts.stream().filter(obj -> cashupCreateDto.getReceipts().contains(obj.getId())).collect(Collectors.toCollection(ArrayList::new));
         } else {
             receiptsFiltered = receipts;
@@ -83,8 +78,19 @@ public class CashupService implements CashupDao {
                 transactionCreateDto.setStatus(Status.OPEN);
                 transactionCreateDto.setType(TransactionType.CASHUP);
                 transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name());
-
                 TransactionDto transaction = transactionService.create(transactionCreateDto);
+
+                TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
+                transactionAttributeFromDto.setTransaction(transaction.getId());
+                transactionAttributeFromDto.setAttribute("RECEIPT-FROM");
+                transactionAttributeFromDto.setValue(cashupCreateDto.getReceiptFrom());
+                transactionAttributeService.add(transactionAttributeFromDto);
+
+                TransactionAttributeDto transactionAttributeToDto = new TransactionAttributeDto();
+                transactionAttributeToDto.setTransaction(transaction.getId());
+                transactionAttributeToDto.setAttribute("RECEIPT-TO");
+                transactionAttributeToDto.setValue(cashupCreateDto.getReceiptTo());
+                transactionAttributeService.add(transactionAttributeToDto);
 
                 if (transaction.getId() != null) {
                     id = transaction.getId();
