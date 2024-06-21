@@ -21,6 +21,7 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
@@ -56,10 +57,11 @@ public class CashupService implements CashupDao {
     @Override
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
         ArrayList<ReceiptDto> receiptsFiltered = new ArrayList<>();
+        /*
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
-        //searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
+        searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
-        //ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
+        ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
         ArrayList<ReceiptDto> receipts = receiptService.getReceipts(searchReceipt);
         String id = null;
         if (cashupCreateDto.getReceipts().size() > 0) {
@@ -67,9 +69,14 @@ public class CashupService implements CashupDao {
         } else {
             receiptsFiltered = receipts;
         }
+        */
+        String id = null;
+        for(String receiptId : cashupCreateDto.getReceipts()){
+            receiptsFiltered.add(receiptService.getReceipt(receiptId));
+        }
         if (receiptsFiltered.size() > 0) {
             BigDecimal amount = BigDecimal.ZERO;
-            for (ReceiptDto receipt : receipts) {
+            for (ReceiptDto receipt : receiptsFiltered) {
                 amount = amount.add(receipt.getAmount());
             }
             if (!BigDecimal.ZERO.equals(amount)) {
@@ -116,7 +123,7 @@ public class CashupService implements CashupDao {
                     } catch (Exception exception) {
 
                     }
-                    for (ReceiptDto receipt : receipts) {
+                    for (ReceiptDto receipt : receiptsFiltered) {
                         TransactionLinkDto link = new TransactionLinkDto();
                         link.setTransaction1(transaction.getId());
                         link.setTransaction2(receipt.getId());
@@ -282,11 +289,13 @@ public class CashupService implements CashupDao {
             try {
                 CashupDto cashupDto = new CashupDto();
                 ArrayList<ReceiptDto> receipts = new ArrayList<>();
+
                 try {
                     cashupDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
                 } catch (Exception e) {
 
                 }
+
                 try {
                     cashupDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
                 } catch (Exception e) {
@@ -294,7 +303,6 @@ public class CashupService implements CashupDao {
                 }
                 cashupDto.setId(transactionDto.getId());
                 cashupDto.setNumber(transactionDto.getNumber());
-                //
                 cashupDto.setCashUpType(transactionDto.getSubType());
                 cashupDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
                 cashupDto.setSalesArea(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
@@ -305,6 +313,10 @@ public class CashupService implements CashupDao {
                     receipts.add(receipt);
                 }
                 cashupDto.setReceipts(receipts);
+
+
+                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(id);
+                cashupDto.setAttributes(attribute);
 
                 for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
                     if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {

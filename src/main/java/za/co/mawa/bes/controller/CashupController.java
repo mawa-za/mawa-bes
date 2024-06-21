@@ -42,13 +42,21 @@ public class CashupController {
             if(cashUpType.equals("RECEIPT")) {
 
                 String id = cashupService.create(cashupCreateDto);
-                if (id != null) {cashup.setId(id);}
+                if (id != null) {
+                    cashup.setId(id);
+                } else {
+                    throw new RuntimeException("Failed to create cashup");
+                }
             }
 
             if(cashUpType.equals("MANUAL")){
 
                 String id = cashupService.createManualCashUp(cashupCreateDto);
-                if (id != null) {cashup.setId(id);}
+                if (id != null) {
+                    cashup.setId(id);
+                } else {
+                    throw new RuntimeException("Failed to create cashup");
+                }
             }
 
             return ResponseEntity.ok().body(gson.toJson(cashup));
