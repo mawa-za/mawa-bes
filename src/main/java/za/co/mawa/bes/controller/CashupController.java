@@ -35,14 +35,24 @@ public class CashupController {
     @RequestMapping(value = "/cashup", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postCashUp(@RequestBody CashupCreateDto cashupCreateDto) {
         try{
-            String id = cashupService.create(cashupCreateDto);
             CashupDto cashup = new CashupDto();
-            if(id != null)
-            {
-                cashup.setId(id);
+            String cashUpType;
+            cashUpType = String.valueOf(cashupCreateDto.getCashUpType()).toUpperCase();
 
+            if(cashUpType.equals("RECEIPT")) {
+
+                String id = cashupService.create(cashupCreateDto);
+                if (id != null) {cashup.setId(id);}
             }
-        return ResponseEntity.ok().body(gson.toJson(cashup));
+
+            if(cashUpType.equals("MANUAL")){
+
+                String id = cashupService.createManualCashUp(cashupCreateDto);
+                if (id != null) {cashup.setId(id);}
+            }
+
+            return ResponseEntity.ok().body(gson.toJson(cashup));
+
     } catch (Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
        }

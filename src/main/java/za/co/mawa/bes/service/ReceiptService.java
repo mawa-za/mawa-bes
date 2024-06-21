@@ -64,11 +64,10 @@ public class ReceiptService implements ReceiptDao {
             entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(receipt.getAmount());
-            //
-            //entity.setReceiptTo(receipt.getReceiptTo());
-            //entity.setReceiptFrom(receipt.getReceiptFrom());
+
             ReceiptEntity newEntity = receiptRepository.save(entity);
             return getReceipt(newEntity.getId());
+
         } catch (Exception e) {
             throw new Exception();
         }

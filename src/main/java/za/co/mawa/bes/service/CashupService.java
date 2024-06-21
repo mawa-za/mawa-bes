@@ -59,7 +59,7 @@ public class CashupService implements CashupDao {
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
         //searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
         searchReceipt.setLocation(cashupCreateDto.getSalesArea());
-        //ArrayList<ReceiptDto> receipts = receiptService.getReceipts(searchReceipt);
+        //ArrayList<ReceiptDto> receipts = receiptService.getReceiptsX(searchReceipt);
         ArrayList<ReceiptDto> receipts = receiptService.getReceipts(searchReceipt);
         String id = null;
         if (cashupCreateDto.getReceipts().size() > 0) {
@@ -77,21 +77,23 @@ public class CashupService implements CashupDao {
                 transactionCreateDto.setLocation(cashupCreateDto.getSalesArea());
                 transactionCreateDto.setStatus(Status.OPEN);
                 transactionCreateDto.setType(TransactionType.CASHUP);
-                transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name());
+                transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name().toUpperCase());
                 TransactionDto transaction = transactionService.create(transactionCreateDto);
 
-                TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
-                transactionAttributeFromDto.setTransaction(transaction.getId());
-                transactionAttributeFromDto.setAttribute("RECEIPT-FROM");
-                transactionAttributeFromDto.setValue(cashupCreateDto.getReceiptFrom());
-                transactionAttributeService.add(transactionAttributeFromDto);
+                if(cashupCreateDto.getReceiptTo() !=null && cashupCreateDto.getReceiptFrom() !=null) {
 
-                TransactionAttributeDto transactionAttributeToDto = new TransactionAttributeDto();
-                transactionAttributeToDto.setTransaction(transaction.getId());
-                transactionAttributeToDto.setAttribute("RECEIPT-TO");
-                transactionAttributeToDto.setValue(cashupCreateDto.getReceiptTo());
-                transactionAttributeService.add(transactionAttributeToDto);
+                    TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
+                    transactionAttributeFromDto.setTransaction(transaction.getId());
+                    transactionAttributeFromDto.setAttribute("RECEIPT-FROM");
+                    transactionAttributeFromDto.setValue(cashupCreateDto.getReceiptFrom());
+                    transactionAttributeService.add(transactionAttributeFromDto);
 
+                    TransactionAttributeDto transactionAttributeToDto = new TransactionAttributeDto();
+                    transactionAttributeToDto.setTransaction(transaction.getId());
+                    transactionAttributeToDto.setAttribute("RECEIPT-TO");
+                    transactionAttributeToDto.setValue(cashupCreateDto.getReceiptTo());
+                    transactionAttributeService.add(transactionAttributeToDto);
+                }
                 if (transaction.getId() != null) {
                     id = transaction.getId();
 
@@ -147,6 +149,82 @@ public class CashupService implements CashupDao {
         return id;
     }
 
+    public String createManualCashUp( CashupCreateDto cashupCreateDto) throws Exception {
+
+        String id = null;
+
+        if (cashupCreateDto.getAmount() !=null) {
+            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
+            transactionCreateDto.setLocation(cashupCreateDto.getSalesArea());
+            transactionCreateDto.setStatus(Status.OPEN);
+            transactionCreateDto.setType(TransactionType.CASHUP);
+            transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name().toUpperCase());
+            TransactionDto transaction = transactionService.create(transactionCreateDto);
+
+
+            if (cashupCreateDto.getReceiptTo() != null && cashupCreateDto.getReceiptFrom() != null) {
+
+                TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
+                transactionAttributeFromDto.setTransaction(transaction.getId());
+                transactionAttributeFromDto.setAttribute("RECEIPT-FROM");
+                transactionAttributeFromDto.setValue(cashupCreateDto.getReceiptFrom());
+                transactionAttributeService.add(transactionAttributeFromDto);
+
+                TransactionAttributeDto transactionAttributeToDto = new TransactionAttributeDto();
+                transactionAttributeToDto.setTransaction(transaction.getId());
+                transactionAttributeToDto.setAttribute("RECEIPT-TO");
+                transactionAttributeToDto.setValue(cashupCreateDto.getReceiptTo());
+                transactionAttributeService.add(transactionAttributeToDto);
+            }
+
+            if (transaction.getId() != null) {
+                id = transaction.getId();
+
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(cashupCreateDto.getAmount());
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.AMOUNT_COLLECTED);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(BigDecimal.ZERO);
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.AMOUNT_DEPOSITED);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+
+                TransactionPartnerDto employee = new TransactionPartnerDto();
+                employee.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
+                employee.setTransaction(transaction.getId());
+                employee.setPartner(cashupCreateDto.getEmployeeResponsibleId());
+                employee.setStatus(Status.ACTIVE);
+                transactionService.addPartner(employee);
+
+                TransactionDateDto date = new TransactionDateDto();
+                date.setType(DateType.CREATED);
+                date.setTransaction(id);
+                date.setValue(new Date());
+                transactionService.addDate(date);
+
+                date = new TransactionDateDto();
+                date.setType(DateType.LAST_UPDATED);
+                date.setTransaction(id);
+                date.setValue(new Date());
+                transactionService.addDate(date);
+            }
+
+        }
+
+        return id;
+    }
+
     public String createNoCash(CashupCreateDto cashupCreateDto) throws Exception {
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
         searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
@@ -156,9 +234,11 @@ public class CashupService implements CashupDao {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setLocation(cashupCreateDto.getSalesArea());
             transactionCreateDto.setType(TransactionType.CASHUP);
+            transactionCreateDto.setSubType(cashupCreateDto.getCashUpType().name().toUpperCase());
             transactionCreateDto.setStatus(Status.CLOSED);
             TransactionDto transaction = transactionService.create(transactionCreateDto);
             if (transaction.getId() != null) {
+                id = transaction.getId();
                 try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(cashupCreateDto.getAmount());
@@ -179,13 +259,13 @@ public class CashupService implements CashupDao {
                 }
                 TransactionDateDto date = new TransactionDateDto();
                 date.setType(DateType.CREATED);
-                date.setTransaction(id);
+                date.setTransaction(transaction.getId());
                 date.setValue(new Date());
                 transactionService.addDate(date);
 
                 date = new TransactionDateDto();
                 date.setType(DateType.LAST_UPDATED);
-                date.setTransaction(id);
+                date.setTransaction(transaction.getId());
                 date.setValue(new Date());
                 transactionService.addDate(date);
 
@@ -193,6 +273,7 @@ public class CashupService implements CashupDao {
         }
         return id;
     }
+
 
     @Override
     public CashupDto get(String id) throws Exception, DoesNotExist {
