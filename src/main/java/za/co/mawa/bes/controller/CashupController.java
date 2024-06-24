@@ -76,6 +76,7 @@ public class CashupController {
     }
     @RequestMapping(value = "/cashup", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getCashUps(@RequestParam(required = false) String status,
+                                        @RequestParam(required = false) String employeeResponsibleId,
                                         @RequestParam(required = false) String createDate,
                                         @RequestParam(required = false) String lastUpdated,
                                         @RequestParam(required = false) String createdBy,
@@ -88,6 +89,10 @@ public class CashupController {
             if(cashUpType != null && cashUpType != ""){
 
                 transactionQueryDto.setSubtype(cashUpType);
+            }
+            if(employeeResponsibleId != null && employeeResponsibleId != ""){
+
+                transactionQueryDto.setEmployeeResponsibleId(employeeResponsibleId);
             }
             if(status != null && status != "")
             {

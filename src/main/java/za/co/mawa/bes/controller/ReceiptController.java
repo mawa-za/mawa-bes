@@ -43,7 +43,7 @@ public class ReceiptController {
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
 
                 CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                //cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
+                //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
                 cashupCreateDto.setEmployeeResponsibleId(String.valueOf(receiptDto.getCreatedBy()));
                 cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
                 cashupCreateDto.setAmount(receiptCreateDto.getAmount());
