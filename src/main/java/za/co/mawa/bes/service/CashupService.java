@@ -57,6 +57,7 @@ public class CashupService implements CashupDao {
     @Override
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
         ArrayList<ReceiptDto> receiptsFiltered = new ArrayList<>();
+        //double unnecessary double calls to the database
         /*
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
         searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());

@@ -41,17 +41,19 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
+                if(receiptCreateDto.getExternalReceiptNo() == null) {
 
-                CashupCreateDto cashupCreateDto = new CashupCreateDto();
-                //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
-                cashupCreateDto.setEmployeeResponsibleId(String.valueOf(receiptDto.getCreatedBy()));
-                cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
-                cashupCreateDto.setAmount(receiptCreateDto.getAmount());
-                cashupCreateDto.setCashUpType(CashupCreateDto.CashUpType.valueOf("AUTOMATIC"));
-                List<String> receipts = new ArrayList<>();
-                receipts.add(receiptDto.getId());
-                cashupCreateDto.setReceipts(receipts);
-                cashUpId = cashupService.createNoCash(cashupCreateDto);
+                    CashupCreateDto cashupCreateDto = new CashupCreateDto();
+                    //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
+                    cashupCreateDto.setEmployeeResponsibleId(String.valueOf(receiptDto.getCreatedBy()));
+                    cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
+                    cashupCreateDto.setAmount(receiptCreateDto.getAmount());
+                    cashupCreateDto.setCashUpType(CashupCreateDto.CashUpType.valueOf("AUTOMATIC"));
+                    List<String> receipts = new ArrayList<>();
+                    receipts.add(receiptDto.getId());
+                    cashupCreateDto.setReceipts(receipts);
+                    cashUpId = cashupService.createNoCash(cashupCreateDto);
+                }
 
            }
             Map<String, Object> responseMap = new HashMap<>();
