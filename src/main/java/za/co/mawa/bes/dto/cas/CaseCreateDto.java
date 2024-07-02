@@ -17,6 +17,8 @@ import java.util.List;
 public class CaseCreateDto implements Serializable {
     private String client;
     private String type;
+    //
+    private String product;
     private String court;
     private String description;
     private List<String> applicants;
