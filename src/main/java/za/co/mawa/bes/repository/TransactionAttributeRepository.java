@@ -16,4 +16,6 @@ public interface TransactionAttributeRepository extends JpaRepository<Transactio
     @Query("SELECT p FROM TransactionAttributeEntity p WHERE p.transaction = :transaction AND p.attribute = :attribute")
     List<TransactionAttributeEntity> find(String transaction, String attribute);
     List<TransactionAttributeEntity> findAll(Specification<TransactionAttributeEntity> byCriteria, Sort sort);
+
+    List<TransactionAttributeEntity> findAllByTransaction(String transactionId);
 }
