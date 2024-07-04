@@ -52,10 +52,12 @@ public class CaseService {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.CASE);
         transactionCreateDto.setLocation(caseCreateDto.getCourt());
+        //this is the case type
         transactionCreateDto.setSubType(caseCreateDto.getType());
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-        //
+
+       //CLASSIFICATION AS PRODUCT
         if(caseCreateDto.getProduct() != null) {
             ProductDto productDto = productService.get(caseCreateDto.getProduct());
             TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -121,10 +123,12 @@ public class CaseService {
             CaseDto caseDto = new CaseDto();
             caseDto.setId(transactionDto.getId());
             caseDto.setNumber(transactionDto.getNumber());
-            //
             caseDto.setDescription(transactionDto.getDescription());
-            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+            //caseDto.setClassification(fieldOptionService.getFieldOption(Field.CLASSIFICATION, transactionDto.getAttribute());
+            caseDto.setType(fieldOptionService.getFieldOption(Field.CASE, transactionDto.getType()));
+            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
+
             List<ParticipantDto> participantDtoList = new ArrayList<>();
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                 try {

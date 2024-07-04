@@ -31,6 +31,8 @@ public class CaseDto {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     //
+    private FieldOptionDto caseType;
+    //private FieldOptionDto classification;    if they need it as a field option
     private ProductBasicDto product;
     private List<ParticipantDto> participants = new ArrayList<>();
     private List<PartnerDto> applicants = new ArrayList<>();
