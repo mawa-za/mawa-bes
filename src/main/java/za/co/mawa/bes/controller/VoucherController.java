@@ -22,12 +22,12 @@ public class VoucherController {
     @RequestMapping(value= "/create" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createVoucher(@RequestBody VoucherInboundDto voucherInboundDto){
         try{
-           return ResponseEntity.ok(gson.toJson(voucherService.create(voucherInboundDto)));
+            return ResponseEntity.ok(gson.toJson(voucherService.create(voucherInboundDto)));
         }catch (Exception ex){
-           return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value= "/{id}/" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVoucher(@PathVariable String id){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.get(id)));
@@ -35,19 +35,6 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-
-//    @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> getVouchers(@RequestParam(required = false) String parent){
-//        try{
-//            VoucherQuery query = new VoucherQuery();
-//            if(parent != null && parent != ""){
-//                query.setStatus(parent);
-//            }
-//            return ResponseEntity.ok(gson.toJson(voucherService.search(query)));
-//        }catch (Exception ex){
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-//        }
-//    }
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVouchers(@RequestParam(required = false) String parent) {
         try {
