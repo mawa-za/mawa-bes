@@ -66,9 +66,9 @@ public class CaseService {
             transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
             transactionItemDto.setQuantity(new BigDecimal("1"));
             transactionService.addItem(transactionItemDto);
-            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream()
+            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
                     //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
-                    .toList();
+                    //.toList();
             if (productPricingDtoList.iterator().hasNext()) {
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                 transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
@@ -92,7 +92,7 @@ public class CaseService {
             transactionPartnerDto.setPartner(applicant);
             transactionService.addPartner(transactionPartnerDto);
         }
-        //
+
         for (String defendant : caseCreateDto.getDefendants()) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -124,7 +124,6 @@ public class CaseService {
             caseDto.setId(transactionDto.getId());
             caseDto.setNumber(transactionDto.getNumber());
             caseDto.setDescription(transactionDto.getDescription());
-            //caseDto.setClassification(fieldOptionService.getFieldOption(Field.CLASSIFICATION, transactionDto.getAttribute());
             caseDto.setType(fieldOptionService.getFieldOption(Field.CASE, transactionDto.getType()));
             caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
