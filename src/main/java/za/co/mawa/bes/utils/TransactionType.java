@@ -22,4 +22,6 @@ public class TransactionType {
 
     public static  String NOTIFICATION = "NOTIFICATION";
     public static  String CASE = "CASE";
+    public static  String LEAVE_REQUEST = "LEAVE-REQUEST";
+
 }
