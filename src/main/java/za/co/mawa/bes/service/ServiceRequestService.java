@@ -88,8 +88,12 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
         serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
         try {
-            serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
-        } catch (Exception e) {
+            if(userService.getUserByName(transactionDto.getCreatedBy()).getPartner() != null){
+                serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+            }
+
+        }
+        catch (Exception e) {
 
         }
         for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
