@@ -29,7 +29,7 @@ public class TransactionAttributeService {
             transactionAttributeEntity.setValue(transactionAttributeDto.getValue());
             transactionAttributeEntity.setValidTo(new Date());
             transactionAttributeEntity.setValidFrom(new Date());
-            TransactionAttributeEntity tran = transactionAttributeRepository.save(transactionAttributeEntity);
+            transactionAttributeRepository.save(transactionAttributeEntity);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
