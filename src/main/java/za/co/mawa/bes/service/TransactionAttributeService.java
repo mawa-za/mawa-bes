@@ -12,6 +12,7 @@ import za.co.mawa.bes.utils.TransactionAttribute;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionAttributeService {
@@ -28,7 +29,7 @@ public class TransactionAttributeService {
             transactionAttributeEntity.setValue(transactionAttributeDto.getValue());
             transactionAttributeEntity.setValidTo(new Date());
             transactionAttributeEntity.setValidFrom(new Date());
-            transactionAttributeRepository.save(transactionAttributeEntity);
+            TransactionAttributeEntity tran = transactionAttributeRepository.save(transactionAttributeEntity);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
@@ -44,6 +45,7 @@ public class TransactionAttributeService {
             return null;
         }
     }
+
 
     public void edit(TransactionAttributeDto transactionAttributeDto) {
         try {
