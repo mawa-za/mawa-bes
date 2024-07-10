@@ -18,7 +18,9 @@ import za.co.mawa.bes.utils.TenderType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin
@@ -37,17 +39,27 @@ public class ReceiptController {
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
         try {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
-//            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-//                CashupCreateDto cashupCreateDto = new CashupCreateDto();
-//                cashupCreateDto.setEmployeeResponsibleId(receiptDto.getCreatedBy().getId());
-//                cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
-//                cashupCreateDto.setAmount(receiptCreateDto.getAmount());
-//                List<String> receipts = new ArrayList<>();
-//                receipts.add(receiptDto.getId());
-//                cashupCreateDto.setReceipts(receipts);
-//                cashupService.createNoCash(cashupCreateDto);
-//            }
-            return ResponseEntity.ok(gson.toJson(receiptDto));
+            String cashUpId = null;
+           if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
+                if(receiptCreateDto.getExternalReceiptNo() == null) {
+
+                    CashupCreateDto cashupCreateDto = new CashupCreateDto();
+                    //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
+                    cashupCreateDto.setEmployeeResponsibleId(String.valueOf(receiptDto.getCreatedBy()));
+                    cashupCreateDto.setSalesArea(receiptCreateDto.getLocation());
+                    cashupCreateDto.setAmount(receiptCreateDto.getAmount());
+                    cashupCreateDto.setCashUpType(CashupCreateDto.CashUpType.valueOf("AUTOMATIC"));
+                    List<String> receipts = new ArrayList<>();
+                    receipts.add(receiptDto.getId());
+                    cashupCreateDto.setReceipts(receipts);
+                    cashUpId = cashupService.createNoCash(cashupCreateDto);
+                }
+
+           }
+            Map<String, Object> responseMap = new HashMap<>();
+            responseMap.put("receipt", receiptDto);
+            responseMap.put("cashup-Id", cashUpId);
+            return ResponseEntity.ok(gson.toJson(responseMap));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

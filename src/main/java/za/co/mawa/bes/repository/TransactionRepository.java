@@ -25,4 +25,5 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity,S
     List<TransactionEntity> findTransactionByLocation(String location,String type);
 
 
+
 }

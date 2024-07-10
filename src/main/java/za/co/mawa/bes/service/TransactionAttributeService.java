@@ -12,7 +12,6 @@ import za.co.mawa.bes.utils.TransactionAttribute;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class TransactionAttributeService {
@@ -46,6 +45,13 @@ public class TransactionAttributeService {
         }
     }
 
+    public List<TransactionAttributeEntity> getByTransactionId(String transactionId) {
+        try {
+            return transactionAttributeRepository.findAllByTransaction(transactionId);
+        } catch (Exception exception) {
+            return null;
+        }
+    }
 
     public void edit(TransactionAttributeDto transactionAttributeDto) {
         try {
