@@ -4,13 +4,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.cashup.CashupEditDto;
 import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.comment.CommentInboundDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.UserEntity;
@@ -22,7 +20,6 @@ import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.utils.*;
 
 
-import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -45,7 +42,7 @@ public class CommentService {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.COMMENT);
         transactionCreateDto.setSubType("GENERAL");
-        //set as the parent transaction for now
+        //set as the parent transaction is set in location for now
         transactionCreateDto.setLocation(commentInboundDto.getParentTransactionId());
         transactionCreateDto.setDescription(commentInboundDto.getDescription());
         TransactionDto transaction = transactionService.create(transactionCreateDto);
@@ -53,11 +50,11 @@ public class CommentService {
         if(transaction.getId() !=null){
 
             id=transaction.getId();
+            //currently logged in user set as employee responsible
             TransactionPartnerDto employee = new TransactionPartnerDto();
             employee.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             employee.setTransaction(transaction.getId());
             employee.setPartner(getUser());
-            //employee.setPartner("ff8080818b18a25a018b18a88f5a0000");
             employee.setStatus(Status.ACTIVE);
             transactionService.addPartner(employee);
 
@@ -140,7 +137,7 @@ public class CommentService {
                 partnerId = partnerService.get(transactionPartner.getPartner()).getId();
             }
         }
-        //if(Objects.equals(getUser(), partnerId)) {
+        if(Objects.equals(getUser(), partnerId)) {
             try {
                 if (entity.getDescription() != null) {
                     entity.setDescription(commentInboundDto.getDescription());
@@ -156,7 +153,7 @@ public class CommentService {
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-        //}
+        }
         return edited;
     }
 
@@ -170,14 +167,14 @@ public class CommentService {
                 partnerId = partnerService.get(transactionPartner.getPartner()).getId();
             }
         }
-        //if(Objects.equals(getUser(), partnerId)) {
+        if(Objects.equals(getUser(), partnerId)) {
             try {
                  transactionRepository.deleteById(id);
                  deleted = true;
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-        //}
+        }
 
         return deleted;
     }
