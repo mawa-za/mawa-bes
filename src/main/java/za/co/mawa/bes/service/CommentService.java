@@ -9,12 +9,15 @@ import za.co.mawa.bes.dto.comment.CommentInboundDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.utils.*;
@@ -30,6 +33,8 @@ public class CommentService {
 
     @Autowired
     TransactionRepository transactionRepository;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
     @Autowired
     UserRepository userRepository;
     @Autowired
@@ -58,6 +63,13 @@ public class CommentService {
             employee.setStatus(Status.ACTIVE);
             transactionService.addPartner(employee);
 
+            TransactionLinkDto link = new TransactionLinkDto();
+            link.setTransaction1(commentInboundDto.getParentTransactionId());
+            link.setTransaction2(transaction.getId());
+            link.setType(TransactionType.COMMENT);
+            link.setCreateBy(getUser());
+            transactionService.addLink(link);
+
             TransactionDateDto date = new TransactionDateDto();
             date.setType(DateType.CREATED);
             date.setTransaction(id);
@@ -76,7 +88,7 @@ public class CommentService {
 
 
 
-    public CommentDto get(String id) throws Exception, DoesNotExist {
+    public CommentDto get(String id) throws Exception {
         TransactionDto transactionDto = transactionService.get(id);
         if (transactionDto.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
             try {
@@ -169,7 +181,11 @@ public class CommentService {
         }
         if(Objects.equals(getUser(), partnerId)) {
             try {
+
+                 TransactionLinkEntity transactionLinkEntity =  transactionLinkRepository.getTransactionLinks(id , "COMMENT");
+                 transactionLinkRepository.deleteById(transactionLinkEntity.getTransactionLinkPKEntity());
                  transactionRepository.deleteById(id);
+
                  deleted = true;
             } catch (Exception ex) {
                 throw new RuntimeException(ex);

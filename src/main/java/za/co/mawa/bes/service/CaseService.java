@@ -7,6 +7,7 @@ import za.co.mawa.bes.dto.DateDto;
 import za.co.mawa.bes.dto.cas.CaseCreateDto;
 import za.co.mawa.bes.dto.cas.CaseDto;
 import za.co.mawa.bes.dto.cas.CaseQueryDto;
+import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
@@ -14,10 +15,7 @@ import za.co.mawa.bes.dto.participant.ParticipantDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
-import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
+import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -37,6 +35,8 @@ public class CaseService {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    CommentService commentService;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -89,7 +89,7 @@ public class CaseService {
             CaseDto caseDto = new CaseDto();
             caseDto.setId(transactionDto.getId());
             caseDto.setNumber(transactionDto.getNumber());
-            caseDto.setDescription(transactionDto.getNumber());
+            caseDto.setDescription(transactionDto.getDescription());
             caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
             List<ParticipantDto> participantDtoList = new ArrayList<>();
@@ -120,11 +120,21 @@ public class CaseService {
                 dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
                 dateDtoList.add(dateDto);
             }
+            List<TransactionLinkDto> links = transactionService.getLinks(id);
+            List<CommentDto> comments = new ArrayList<>();
+            for (TransactionLinkDto link : links) {
+
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                comments.add(comment);
+            }
+            caseDto.setComments(comments);
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             return caseDto;
-        } catch (TransactionNotFound e) {
+
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.cashup.CashupSearchDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
@@ -32,6 +33,7 @@ public class CashupController {
     CashupService cashupService;
     @Autowired
     TransactionService transactionService;
+
     @RequestMapping(value = "/cashup", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postCashUp(@RequestBody CashupCreateDto cashupCreateDto) {
         try{
@@ -141,4 +143,5 @@ public class CashupController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
 }
