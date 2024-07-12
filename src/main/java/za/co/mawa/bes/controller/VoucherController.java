@@ -19,7 +19,7 @@ public class VoucherController {
     @Autowired
     VoucherService voucherService;
 
-    @RequestMapping(value= "/create" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createVoucher(@RequestBody VoucherInboundDto voucherInboundDto){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.create(voucherInboundDto)));
@@ -27,7 +27,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value= "/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVoucher(@PathVariable String id){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.get(id)));
@@ -48,7 +48,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
-    @RequestMapping(value= "/{id}/edit" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "{id}"method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherInboundDto voucherInboundDto){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherInboundDto)));
@@ -56,7 +56,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value= "/{id}/delete" , method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "{id}" , method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteVoucher(@PathVariable String id){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.delete(id)));
