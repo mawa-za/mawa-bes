@@ -19,4 +19,5 @@ public interface UserRepository  extends JpaRepository<UserEntity,String>{
     @Query(value = "SELECT * FROM user u WHERE u.cellphone = :cellphone LIMIT 1", nativeQuery = true)
     UserEntity getByCellphone(String cellphone);
     //
+//
 }

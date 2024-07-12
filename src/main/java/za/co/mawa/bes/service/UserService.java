@@ -312,6 +312,7 @@ public class UserService implements UserDao {
                 }
             }
             ///
+
             if (edit.getCellphone() != null && edit.getCellphone() != "") {
                 UserQueryDto queryDto = new UserQueryDto();
                 queryDto.setCellphone(edit.getCellphone());
