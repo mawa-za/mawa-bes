@@ -31,6 +31,8 @@ public class CaseDto {
     private FieldOptionDto court;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
+    private FieldOptionDto caseType;
+    private ProductBasicDto product;
     private List<ParticipantDto> participants = new ArrayList<>();
     private List<PartnerDto> applicants = new ArrayList<>();
     private List<PartnerDto> defendants = new ArrayList<>();

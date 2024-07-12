@@ -12,11 +12,14 @@ import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
 import za.co.mawa.bes.dto.participant.ParticipantDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.*;
@@ -26,11 +29,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class CaseService {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
+    @Autowired
+    ProductService productService;
     @Autowired
     PartnerService partnerService;
     @Autowired
@@ -40,12 +48,36 @@ public class CaseService {
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
+
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.CASE);
         transactionCreateDto.setLocation(caseCreateDto.getCourt());
+        //this is the case type
         transactionCreateDto.setSubType(caseCreateDto.getType());
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+       //CLASSIFICATION AS PRODUCT
+        if(caseCreateDto.getProduct() != null) {
+            ProductDto productDto = productService.get(caseCreateDto.getProduct());
+            TransactionItemDto transactionItemDto = new TransactionItemDto();
+            transactionItemDto.setTransaction(transactionDto.getId());
+            transactionItemDto.setProduct(caseCreateDto.getProduct());
+            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+            transactionItemDto.setQuantity(new BigDecimal("1"));
+            transactionService.addItem(transactionItemDto);
+            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
+                    //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
+                    //.toList();
+            if (productPricingDtoList.iterator().hasNext()) {
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
+                transactionAmountInboundDto.setTransaction(transactionDto.getId());
+                transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
+                transactionAmountService.save(transactionAmountInboundDto);
+            }
+        }
+
         if (caseCreateDto.getClient() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -60,7 +92,8 @@ public class CaseService {
             transactionPartnerDto.setPartner(applicant);
             transactionService.addPartner(transactionPartnerDto);
         }
-        for (String defendant : caseCreateDto.getApplicants()) {
+
+        for (String defendant : caseCreateDto.getDefendants()) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
             transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
@@ -69,6 +102,7 @@ public class CaseService {
         }
         CaseDto caseDto = new CaseDto();
         caseDto.setId(transactionDto.getId());
+
         return caseDto;
 
     }
@@ -90,8 +124,11 @@ public class CaseService {
             caseDto.setId(transactionDto.getId());
             caseDto.setNumber(transactionDto.getNumber());
             caseDto.setDescription(transactionDto.getDescription());
-            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+
+            caseDto.setType(fieldOptionService.getFieldOption(Field.CASE, transactionDto.getType()));
+            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
+
             List<ParticipantDto> participantDtoList = new ArrayList<>();
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                 try {
@@ -110,6 +147,14 @@ public class CaseService {
                     participantDtoList.add(participantDto);
                 } catch (PartnerNotFoundException e) {
 
+                }
+            }
+            //
+            if (transactionService.getItems(transactionDto.getId()).iterator().hasNext()) {
+                String productId = transactionService.getItems(transactionDto.getId()).iterator().next().getProduct();
+                try {
+                    caseDto.setProduct(productService.getBasic(productId));
+                } catch (ProductNotFoundException e) {
                 }
             }
             caseDto.setParticipants(participantDtoList);
