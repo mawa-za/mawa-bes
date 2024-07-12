@@ -47,6 +47,7 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Override
     public ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto) {
         try {
+
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setDescription(serviceRequestEditDto.getDescription());
 //            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());

@@ -70,6 +70,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
+
             serviceRequestEditDto.setId(id);
             serviceRequestService.edit(serviceRequestEditDto);
             return ResponseEntity.ok().build();

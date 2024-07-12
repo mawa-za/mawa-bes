@@ -21,6 +21,9 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity,S
     List<TransactionEntity> findTransactionByCreatedBy(String createdBy,String type);
     @Query(value = "SELECT * FROM transaction t WHERE t.changed_by = :changedBy AND t.type = :type", nativeQuery = true)
     List<TransactionEntity> findTransactionByChangedBy(String changedBy,String type);
+    @Query(value = "SELECT * FROM transaction t WHERE t.location = :location AND t.type = :type", nativeQuery = true)
+    List<TransactionEntity> findTransactionByLocation(String location,String type);
+
 
 
 }
