@@ -10,7 +10,7 @@ import za.co.mawa.bes.entity.UserEntity;
 import java.util.List;
 
 @Repository
-public interface UserRepository  extends JpaRepository<UserEntity,String>{
+public interface UserRepository extends JpaRepository<UserEntity,String>{
     List<UserEntity> findAll(Specification<UserEntity> byCriteria, Sort sort);
     @Query(value = "SELECT * FROM user u WHERE u.username = :username LIMIT 1", nativeQuery = true)
     UserEntity getByName(String username);
@@ -18,4 +18,6 @@ public interface UserRepository  extends JpaRepository<UserEntity,String>{
     UserEntity getByEmail(String email);
     @Query(value = "SELECT * FROM user u WHERE u.cellphone = :cellphone LIMIT 1", nativeQuery = true)
     UserEntity getByCellphone(String cellphone);
+    @Query(value = "SELECT * FROM user u WHERE u.partner = :partnerId LIMIT 1", nativeQuery = true)
+    UserEntity getByPartner(String partnerId);
 }
