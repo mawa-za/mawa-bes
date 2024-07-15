@@ -44,7 +44,7 @@ public class CommentController {
         }
     }
 
-    @RequestMapping(value = "{id}/edit", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editComment(@PathVariable String id,
                                          @RequestBody CommentInboundDto commentInboundDto) {
         try {
@@ -54,7 +54,7 @@ public class CommentController {
         }
     }
 
-    @RequestMapping(value = "{id}/delete", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteComment(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(commentService.delete(id)));
