@@ -171,7 +171,9 @@ public class CaseService {
 
                 CommentDto comment = new CommentDto();
                 comment = commentService.get(link.getTransaction2());
-                comments.add(comment);
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
+                }
             }
             caseDto.setComments(comments);
             caseDto.setDates(dateDtoList);

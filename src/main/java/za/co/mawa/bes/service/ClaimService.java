@@ -252,7 +252,9 @@ public class ClaimService {
 
                 CommentDto comment = new CommentDto();
                 comment = commentService.get(link.getTransaction2());
-                comments.add(comment);
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
+                }
             }
             claimOutboundDto.setComments(comments);
             return claimOutboundDto;
