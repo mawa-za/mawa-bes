@@ -137,11 +137,11 @@ public class PaymentRequestController {
             if (statusReason != null && statusReason != "") {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && description != "") {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(transactionEditDto.getId())));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -157,11 +157,11 @@ public class PaymentRequestController {
             if (statusReason != null && statusReason != "") {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && description != "") {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(transactionEditDto.getId())));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
