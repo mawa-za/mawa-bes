@@ -7,7 +7,9 @@ import za.co.mawa.bes.dao.TransactionDao;
 import za.co.mawa.bes.dto.service.request.*;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.Status;
@@ -26,6 +28,8 @@ public class ServiceRequestService implements ServiceRequestDao {
     PartnerService partnerService;
     @Autowired
     UserService userService;
+    @Autowired
+    TransactionRepository transactionRepository;
 
     @Override
     public ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto) {
@@ -46,15 +50,29 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto) {
+        return null;
+    }
+
+    public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
+            TransactionEntity entity = transactionRepository.getById(id);
             TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setDescription(serviceRequestEditDto.getDescription());
-//            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());
-            transactionEditDto.setCategory(serviceRequestEditDto.getCategory());
-            transactionEditDto.setPriority(serviceRequestEditDto.getPriority());
-//            transactionEditDto.setCustomerId(serviceRequestEditDto.getCustomer());
-            transactionService.edit(transactionEditDto);
-            return get(serviceRequestEditDto.getId());
+
+            if(entity != null){
+
+                if(serviceRequestEditDto.getDescription() != null){
+                    entity.setDescription(serviceRequestEditDto.getDescription());
+                }
+                if(serviceRequestEditDto.getCategory() != null){
+                    entity.setCategory(serviceRequestEditDto.getCategory());
+                }
+                if(serviceRequestEditDto.getPriority() != null){
+                    entity.setPriority(serviceRequestEditDto.getPriority());
+                }
+                entity.setChangedBy(transactionService.getUser());
+                transactionRepository.save(entity);
+            }
+            return get(id);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
