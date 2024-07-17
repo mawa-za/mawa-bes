@@ -61,25 +61,23 @@ public class ServiceRequestController {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editServiceRequest(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            serviceRequestEditDto.setId(id);
-            serviceRequestService.edit(serviceRequestEditDto);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok().body(gson.toJson(serviceRequestService.edit(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-//    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
-//        try {
-//            serviceRequestService.delete(id);
-//            return ResponseEntity.ok().build();
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//        }
-//    }
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
+        try {
+            serviceRequestService.delete(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 
 }

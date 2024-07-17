@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ServiceRequestDao;
 import za.co.mawa.bes.dao.TransactionDao;
@@ -9,10 +10,13 @@ import za.co.mawa.bes.dto.service.request.*;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +30,13 @@ public class ServiceRequestService implements ServiceRequestDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionRepository transactionRepository;
+
+    @Autowired
+    @Qualifier("transactionService")
+    TransactionService service;
+
     @Override
     public ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto) {
         try {
@@ -36,7 +47,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
-            transactionCreateDto.setStatus(Status.NEW);
+            transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             return get(transactionDto.getId());
         } catch (Exception e) {
@@ -46,15 +57,31 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto) {
+        return  null;
+    }
+
+    public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setDescription(serviceRequestEditDto.getDescription());
-            transactionEditDto.setSubType(serviceRequestEditDto.getCategory());
-            transactionEditDto.setCategory(serviceRequestEditDto.getCategory());
-            transactionEditDto.setPriority(serviceRequestEditDto.getPriority());
-            transactionEditDto.setCustomerId(serviceRequestEditDto.getCustomer());
-            transactionService.edit(transactionEditDto);
-            return get(serviceRequestEditDto.getId());
+            TransactionEntity entity = transactionRepository.getById(id);
+
+            if(entity != null){
+
+                if(serviceRequestEditDto.getDescription() != null){
+                    entity.setDescription(serviceRequestEditDto.getDescription());
+                }
+                if(serviceRequestEditDto.getCategory() != null){
+                    entity.setCategory(serviceRequestEditDto.getCategory());
+                }
+                if(serviceRequestEditDto.getPriority() != null){
+                    entity.setPriority(serviceRequestEditDto.getPriority());
+                }
+                Class<?> tservice = service.getClass();
+                Method privateMethod = tservice.getDeclaredMethod("getUser");
+                privateMethod.setAccessible(true);
+                entity.setChangedBy((String) privateMethod.invoke(service));
+                transactionRepository.save(entity);
+            }
+            return get(id);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -122,7 +149,13 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public void delete(String id) {
-
+        try {
+            transactionService.delete(id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
+
 
 }
