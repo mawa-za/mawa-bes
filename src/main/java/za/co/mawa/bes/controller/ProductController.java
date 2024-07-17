@@ -10,10 +10,13 @@ import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.entity.ProductPricingPKEntity;
 import za.co.mawa.bes.exception.ProductNotFoundException;
@@ -21,6 +24,7 @@ import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.utils.PriceType;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -41,7 +45,8 @@ public class ProductController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
-                                         @RequestParam(required = false) String category) {
+                                         @RequestParam(required = false) String category,
+                                         @RequestParam(required = false) String type) {
         try {
             ProductQueryDto productQueryDto = new ProductQueryDto();
             if (code != null && code != "") {
@@ -49,6 +54,9 @@ public class ProductController {
             }
             if (category != null && category != "") {
                 productQueryDto.setCategory(category);
+            }
+            if (type != null && type != "") {
+                productQueryDto.setType(type);
             }
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {
@@ -184,4 +192,42 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "{id}/category", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addCategory(@PathVariable String id, @RequestBody List<String> categoryList) {
+        try {
+            for (String category : categoryList) {
+                ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+                productCategoryProcessDto.setProduct(id);
+                productCategoryProcessDto.setCategory(category);
+                productService.addCategory(productCategoryProcessDto);
+            }
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/category", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getCategory(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(productService.getCategories(id)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/category", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteCategory(@PathVariable String id, @RequestParam String category) {
+        try {
+            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+            productCategoryProcessDto.setProduct(id);
+            productCategoryProcessDto.setCategory(category);
+            productService.deleteCategory(productCategoryProcessDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 }

@@ -1,9 +1,11 @@
 package za.co.mawa.bes.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.LineItemDto;
-import za.co.mawa.bes.dto.PricingDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.exception.ProductNotFoundException;
+import za.co.mawa.bes.utils.Field;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -11,33 +13,33 @@ import java.util.List;
 
 @Service
 public class PricingService {
-    public PricingDto calculate(List<LineItemDto> items) {
-        List<LineItemDto> lineItemDtoList = new ArrayList<>();
-        PricingDto pricingDto = new PricingDto();
-        pricingDto.setVATPercentage(new BigDecimal("15"));
-        for (LineItemDto lineItemDto : items) {
-            lineItemDto.setLineTotal(lineItemDto.getQuantity().multiply(lineItemDto.getUnitPrice()));
-            pricingDto.setTotalExcVat(pricingDto.getTotalExcVat().add(lineItemDto.getLineTotal()));
-            pricingDto.setVATAmount(pricingDto.getTotalExcVat().multiply(pricingDto.getVATPercentage().divide(new BigDecimal("100"))));
-            pricingDto.setTotalIncVat(pricingDto.getTotalExcVat().add((pricingDto.getVATAmount())));
-            lineItemDtoList.add(lineItemDto);
-        }
-        pricingDto.setItems(lineItemDtoList);
-        return pricingDto;
-    }
+    @Autowired
+    ProductService productService;
+    @Autowired
+    FieldOptionService fieldOptionService;
+    public PricingOutboundDto calculate(List<LineItemInboundDto> lineItemInboundDtoList) {
+        List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
+        PricingOutboundDto pricingOutboundDto = new PricingOutboundDto();
+        pricingOutboundDto.setVATPercentage(new BigDecimal("15"));
+        for (LineItemInboundDto lineItemInboundDto : lineItemInboundDtoList) {
+            LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
+            lineItemOutboundDto.setTransaction(lineItemInboundDto.getTransaction());
+            lineItemOutboundDto.setItem(lineItemInboundDto.getItemId());
+            try {
+                lineItemOutboundDto.setProduct(productService.get(lineItemInboundDto.getProductId()));
+            } catch (ProductNotFoundException e) {
 
-//    public PricingDto calculate(List<TransactionItemDto> items) {
-//        List<LineItemDto> lineItemDtoList = new ArrayList<>();
-//        PricingDto pricingDto = new PricingDto();
-//        pricingDto.setVATPercentage(new BigDecimal("15"));
-//        for (TransactionItemDto transactionItemDto : items) {
-//            transactionItemDto.setLineTotal(transactionItemDto.getQuantity().multiply(transactionItemDto.getUnitPrice()));
-//            pricingDto.setTotalExcVat(pricingDto.getTotalExcVat().add(lineItemDto.getLineTotal()));
-//            pricingDto.setVATAmount(pricingDto.getTotalExcVat().multiply(pricingDto.getVATPercentage().divide(new BigDecimal("100"))));
-//            pricingDto.setTotalIncVat(pricingDto.getTotalExcVat().add((pricingDto.getVATAmount())));
-//            lineItemDtoList.add(transactionItemDto);
-//        }
-//        pricingDto.setItems(lineItemDtoList);
-//        return pricingDto;
-//    }
+            }
+            lineItemOutboundDto.setUnitPrice(lineItemInboundDto.getUnitPrice());
+            lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, lineItemInboundDto.getUom()));
+            lineItemOutboundDto.setBarcode(lineItemInboundDto.getEan());
+            lineItemOutboundDto.setLineTotal(lineItemInboundDto.getQuantity().multiply(lineItemInboundDto.getUnitPrice()));
+            pricingOutboundDto.setTotalExcVat(pricingOutboundDto.getTotalExcVat().add(lineItemInboundDto.getLineTotal()));
+            pricingOutboundDto.setVATAmount(pricingOutboundDto.getTotalExcVat().multiply(pricingOutboundDto.getVATPercentage().divide(new BigDecimal("100"))));
+            pricingOutboundDto.setTotalIncVat(pricingOutboundDto.getTotalExcVat().add((pricingOutboundDto.getVATAmount())));
+            lineItemOutboundDtoList.add(lineItemOutboundDto);
+        }
+        pricingOutboundDto.setItems(lineItemOutboundDtoList);
+        return pricingOutboundDto;
+    }
 }

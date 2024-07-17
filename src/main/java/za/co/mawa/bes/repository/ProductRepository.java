@@ -16,5 +16,4 @@ public interface ProductRepository extends JpaRepository<ProductEntity,String>
 {
     List<ProductEntity> findAll(Specification<ProductEntity>byCriteria, Sort sort);
 
-
 }

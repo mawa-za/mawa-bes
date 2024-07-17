@@ -7,26 +7,29 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
+import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryDto;
+import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.entity.product.ProductCategoryEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.ProductAttributeRepository;
+import za.co.mawa.bes.repository.ProductCategoryRepository;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class ProductService implements ProductDao {
@@ -36,7 +39,8 @@ public class ProductService implements ProductDao {
     ProductPricingRepository productPricingRepository;
     @Autowired
     ProductAttributeRepository productAttributeRepository;
-
+    @Autowired
+    ProductCategoryRepository productCategoryRepository;
     @Autowired
     NumberRangeService numberRangeService;
     @Autowired
@@ -55,7 +59,8 @@ public class ProductService implements ProductDao {
                 }
             }
             productEntity.setDescription(productCreateDto.getDescription());
-            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
+            productEntity.setType(productCreateDto.getType().toUpperCase());
+//            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
             productEntity.setValidFrom(new Date());
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure().toUpperCase());
@@ -86,6 +91,18 @@ public class ProductService implements ProductDao {
             } catch (Exception exception) {
             }
         }
+        for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.findByCategory(productQueryDto.getCategory())) {
+            try {
+                List<ProductDto> filteredList = productDtoList.stream()
+                        .filter(a -> Objects.equals(a.getId(), productCategoryEntity.getId()))
+                        .toList();
+                if (!filteredList.isEmpty()) {
+                    productDtoList.add(get(productCategoryEntity.getId()));
+                }
+
+            } catch (Exception exception) {
+            }
+        }
         return productDtoList;
     }
 
@@ -98,12 +115,14 @@ public class ProductService implements ProductDao {
             String code = productEntity.getCode() == null ? "" : productEntity.getCode();
             productDto.setCode(code);
             productDto.setDescription(productEntity.getDescription());
-            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+            productDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
+//            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
             productDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productDto.setValidTo(productEntity.getValidTo());
             productDto.setValidFrom(productEntity.getValidFrom());
             productDto.setPricings(getPricings(id));
             productDto.setAttributes(getAttributes(id));
+            productDto.setCategories(getCategories(id));
             return productDto;
         } catch (EntityNotFoundException exception) {
             throw new ProductNotFoundException();
@@ -118,7 +137,8 @@ public class ProductService implements ProductDao {
             String code = productEntity.getCode() == null ? "" : productEntity.getCode();
             productBasicDto.setCode(code);
             productBasicDto.setDescription(productEntity.getDescription());
-            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+            productBasicDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
+//            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
             productBasicDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productBasicDto.setValidTo(productEntity.getValidTo());
             productBasicDto.setValidFrom(productEntity.getValidFrom());
@@ -136,7 +156,7 @@ public class ProductService implements ProductDao {
                 productEntity.setCode(productEditDto.getCode());
             }
             if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
-                productEntity.setCategory(productEditDto.getCategory());
+//                productEntity.setCategory(productEditDto.getCategory());
             }
             if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
                 productEntity.setDescription(productEditDto.getDescription());
@@ -316,6 +336,47 @@ public class ProductService implements ProductDao {
         }
     }
 
+    public void addCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
+        try {
+            ProductCategoryEntity productCategoryEntity = new ProductCategoryEntity();
+            productCategoryEntity.setProduct(productCategoryProcessDto.getProduct());
+            productCategoryEntity.setCategory(productCategoryProcessDto.getCategory());
+            productCategoryEntity.setValidFrom(new Date());
+            productCategoryEntity.setValidTo(Conversion.stringToDate("9999-12-31"));
+            productCategoryRepository.save(productCategoryEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public ArrayList<ProductCategoryDto> getCategories(String id) {
+        try {
+            ArrayList<ProductCategoryDto> categoryDtoArrayList = new ArrayList<>();
+            for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.findByProduct(id)) {
+                ProductCategoryDto productCategoryDto = new ProductCategoryDto();
+                productCategoryDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productCategoryEntity.getCategory()));
+                productCategoryDto.setProduct(productCategoryEntity.getProduct());
+                productCategoryDto.setValidFrom(productCategoryEntity.getValidFrom());
+                productCategoryDto.setValidTo(productCategoryEntity.getValidTo());
+                categoryDtoArrayList.add(productCategoryDto);
+            }
+            return categoryDtoArrayList;
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public void deleteCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
+        try {
+            for(ProductCategoryEntity productCategoryEntity: productCategoryRepository.find(productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())){
+                productCategoryRepository.deleteById(productCategoryEntity.getId());
+            }
+        } catch (Exception e) {
+
+        }
+
+    }
+
     @Override
     public boolean editAttribute(ProductAttributeEditDto editDto, String product, String attribute) throws Exception {
         try {
@@ -357,8 +418,8 @@ public class ProductService implements ProductDao {
             if (productQuery.getCode() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("code"), productQuery.getCode()));
             }
-            if (productQuery.getCategory() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("category"), productQuery.getCategory()));
+            if (productQuery.getType() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("type"), productQuery.getType()));
             }
             return predicate;
         };

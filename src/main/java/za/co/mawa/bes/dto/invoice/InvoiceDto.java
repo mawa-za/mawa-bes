@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
@@ -24,6 +25,6 @@ public class InvoiceDto implements Serializable {
     private FieldOptionDto paymentMethod;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
-    private List<LineItemDto> items;
+    private List<LineItemOutboundDto> items;
 
 }

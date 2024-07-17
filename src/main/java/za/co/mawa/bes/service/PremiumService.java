@@ -45,11 +45,18 @@ public class PremiumService {
     TransactionLinkRepository transactionLinkRepository;
     @Autowired
     TransactionAttributeService transactionAttributeService;
+    @Autowired
+    FieldOptionService fieldOptionService;
+    @Autowired
+    UserService userService;
+    @Autowired
+    MembershipService membershipService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
+            entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
@@ -72,9 +79,27 @@ public class PremiumService {
     public PremiumDto get(String id) throws DoesNotExist {
         PremiumEntity entity = premiumRepository.getById(id);
         if (entity != null) {
-            return new PremiumDto(entity);
-        } else {
-            throw new DoesNotExist();
+            PremiumDto premiumDto = new PremiumDto();
+            SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
+            SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
+            premiumDto.setId(entity.getId());
+            premiumDto.setReceiptNumber(entity.getReceiptNumber());
+            premiumDto.setExternalReceiptNo(entity.getExtReceiptNumber());
+            premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
+            premiumDto.setAmount(entity.getAmount());
+            premiumDto.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
+            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
+            premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
+            premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
+            try {
+                premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
+                premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
+            } catch (Exception e) {
+
+            }
+            return premiumDto;
+        }else{
+            return null;
         }
     }
 
@@ -83,7 +108,7 @@ public class PremiumService {
         Sort sort = Sort.by("number").descending();
         List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         for(PremiumEntity premiumEntity: premiumEntities){
-            premiumDtoArrayList.add(new PremiumDto(premiumEntity));
+            premiumDtoArrayList.add(get(premiumEntity.getId()));
         }
         return premiumDtoArrayList;
     }
@@ -96,7 +121,7 @@ public class PremiumService {
         for (PremiumEntity premiumEntity : premiumEntities) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
             if (linkEntity == null) {
-                premiumDtoArrayList.add(new PremiumDto(premiumEntity));
+                premiumDtoArrayList.add(get(premiumEntity.getId()));
             }
         }
         return premiumDtoArrayList;

@@ -30,8 +30,10 @@ public class TransactionQueryDto implements Serializable {
     private Date value;
     private String dateType;
     private String transactionlink;
+    private String parent;
     private String createdBy;
     private String changedBy;
+    private String employeeResponsibleId;
 
 
     public TransactionQueryDto(QuotationQueryDto quotationQueryDto) {

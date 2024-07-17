@@ -13,12 +13,14 @@ public class Field {
     public static String STATUS_REASON = "STATUS-REASON";
     public static String PAYMENT_REASON = "PAYMENT-REASON";
     public static String PAYMENT_METHOD = "PAYMENT-METHOD";
+    public static String PAYMENT_TERMS = "PAYMENT-TERMS";
     public static String TRANSACTION_TYPE = "TRANSACTION-TYPE";
     public static String TRANSACTION_ATTRIBUTE = "TRANSACTION-ATTRIBUTE";
     public static String TRANSACTION_AMOUNT = "TRANSACTION-AMOUNT";
     public static String TRANSACTION_SUBTYPE = "TRANSACTION-SUBTYPE";
     public static String PRODUCT_ATTRIBUTE = "PRODUCT-ATTRIBUTE";
     public static String PRODUCT_CATEGORY = "PRODUCT-CATEGORY";
+    public static String PRODUCT_TYPE = "PRODUCT-TYPE";
     public static String PRODUCT_PRICING = "PRODUCT-PRICING";
     public static String PRICING_TYPE = "PRICING-TYPE";
     public static String UOM = "UOM";
@@ -42,4 +44,9 @@ public class Field {
     public static String SERVICE_REQUEST_PRIORITY = "SERVICE-REQUEST-PRIORITY";
     public static String DATE_TYPE = "DATE-TYPE";
     public static String PARTNER_FUNCTION = "PARTNER-FUNCTION";
+    public static String RECEIPT_TYPE = "RECEIPT-TYPE";
+    public static String TENDER_TYPE = "TENDER-TYPE";
+    public static String COURT = "COURT";
+    public static String CASE = "CASE";
+    public static String CASE_TYPE = "CASE-TYPE";
 }

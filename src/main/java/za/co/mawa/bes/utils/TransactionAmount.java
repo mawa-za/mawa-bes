@@ -14,4 +14,6 @@ public class TransactionAmount {
     public static String DEPOSIT_AMOUNT = "DEPOSIT-AMOUNT";
     public static String VOUCHER_AMOUNT = "VOUCHER-AMOUNT";
     public static String MONTHLY_PREMIUM = "MONTHLY-PREMIUM";
+    public static String AVAILABLE_BALANCE = "AVAILABLE-BALANCE";
+
 }

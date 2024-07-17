@@ -56,8 +56,6 @@ public class ServiceRequestService implements ServiceRequestDao {
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-
             if(entity != null){
 
                 if(serviceRequestEditDto.getDescription() != null){

@@ -21,6 +21,7 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
@@ -32,11 +33,14 @@ import za.co.mawa.bes.utils.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
     @Autowired
     UserService userService;
     @Autowired
@@ -61,11 +65,15 @@ public class PaymentRequestService implements PaymentRequestDao {
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
             if (paymentRequestCreateDto.getAmount() != null) {
-                TransactionAmountDto amount = new TransactionAmountDto();
-                amount.setAmount(paymentRequestCreateDto.getAmount());
-                amount.setTransaction(transaction.getId());
-                amount.setType(PriceType.PAYMENT_AMOUNT);
-                transactionService.addAmount(amount);
+                       try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(TransactionAmount.PAYMENT_AMOUNT);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
             }
             if (paymentRequestCreateDto.getEmployeeResponsibleId() != null && paymentRequestCreateDto.getEmployeeResponsibleId() != "") {
                 TransactionPartnerDto partner = new TransactionPartnerDto();
@@ -160,11 +168,11 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setReference(link.getTransaction2());
             }
         }
-        for (TransactionAmountDto amount : transactionService.getAmounts(id)) {
-            if (amount.getType().equalsIgnoreCase(PriceType.PAYMENT_AMOUNT)) {
-                paymentRequestDto.setAmount(amount.getAmount());
-                break;
-            }
+        try {
+            paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
+                    .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
+                    .toList().iterator().next().getAmount());
+        } catch (Exception exception) {
         }
         return paymentRequestDto;
     }

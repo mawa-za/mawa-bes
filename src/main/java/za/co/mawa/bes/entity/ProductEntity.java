@@ -26,8 +26,8 @@ public class ProductEntity implements Serializable {
     private String code;
     @Column(name = "description")
     private String description;
-    @Column(name = "category")
-    private String category;
+    @Column(name = "type")
+    private String type;
     @Column(name = "uom")
     private String uom;
     @Column(name = "valid_from")

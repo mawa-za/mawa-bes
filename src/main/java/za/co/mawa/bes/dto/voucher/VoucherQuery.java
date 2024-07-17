@@ -11,9 +11,10 @@ import java.io.Serializable;
 @Setter
 public class VoucherQuery implements Serializable {
     private String status;
-    private String customerId;
+    private String recipient;
     private String number;
     private String dateCreated;
     private String expiryDate;
     private String IdNumber;
+    private String parent;
 }

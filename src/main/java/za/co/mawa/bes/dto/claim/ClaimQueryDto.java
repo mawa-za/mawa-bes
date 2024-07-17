@@ -12,7 +12,10 @@ import java.util.Date;
 @Setter
 public class ClaimQueryDto implements Serializable {
     private String number;
+    private String customer;
+    private String parent;
     private String claimant;
+    private String informant;
     private String deceased;
     private String member;
     private String membership;

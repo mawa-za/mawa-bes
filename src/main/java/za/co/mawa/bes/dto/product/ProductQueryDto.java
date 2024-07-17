@@ -13,4 +13,5 @@ public class ProductQueryDto {
     private String code;
     private String description;
     private String category;
+    private String type;
 }
