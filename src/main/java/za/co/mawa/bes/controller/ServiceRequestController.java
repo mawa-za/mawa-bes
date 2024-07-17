@@ -27,10 +27,10 @@ public class ServiceRequestController {
     @Autowired
     ServiceRequestService serviceRequestService;
     @Autowired
-    TransactionService transactionService;
+     TransactionService transactionService;
     Gson gson = new Gson();
 
-    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postServiceRequest(@RequestBody ServiceRequestCreateDto serviceRequestCreateDto) {
         try {
             return ResponseEntity.ok(gson.toJson(serviceRequestService.create(serviceRequestCreateDto)));
@@ -39,7 +39,7 @@ public class ServiceRequestController {
         }
     }
 
-    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getServiceRequests(@RequestParam(required = false) String status,
                                                 @RequestParam(required = false) String customer,
                                                 @RequestParam(required = false) String priority,
@@ -53,12 +53,13 @@ public class ServiceRequestController {
             serviceRequestQueryDto.setCategory(category);
             serviceRequestQueryDto.setPriority(priority);
             return ResponseEntity.ok(gson.toJson(serviceRequestService.search(serviceRequestQueryDto)));
-        } catch (Exception exception) {
+        }
+        catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getServiceRequest(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
@@ -75,7 +76,8 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
         try {
             serviceRequestService.delete(id);
@@ -84,7 +86,7 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/assign/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/assign", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> assign(@PathVariable String id, @RequestBody String assignee) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -98,7 +100,7 @@ public class ServiceRequestController {
         }
     }
 
-    @RequestMapping(value = "/unassign/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/unassign", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> unaAssign(@PathVariable String id, @RequestBody String assignee) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -113,7 +115,7 @@ public class ServiceRequestController {
     }
 
 
-    @RequestMapping(value = "/reject/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/reject", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id,
                                     @RequestParam(required = false) String statusReason,
                                     @RequestParam(required = false) String description) {
@@ -134,7 +136,7 @@ public class ServiceRequestController {
         }
     }
 
-    @RequestMapping(value = "/cancel/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/cancel", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> cancel(@PathVariable String id,
                                     @RequestParam(required = false) String statusReason,
                                     @RequestParam(required = false) String description) {
@@ -154,10 +156,10 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/close/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/close", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> close(@PathVariable String id,
-                                      @RequestParam(required = false) String statusReason,
-                                      @RequestParam(required = false) String description) {
+                                   @RequestParam(required = false) String statusReason,
+                                   @RequestParam(required = false) String description) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
@@ -174,4 +176,5 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
 }

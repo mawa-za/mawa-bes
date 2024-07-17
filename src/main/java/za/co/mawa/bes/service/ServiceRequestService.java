@@ -1,20 +1,22 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ServiceRequestDao;
 import za.co.mawa.bes.dao.TransactionDao;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.service.request.*;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.TransactionRepository;
-import za.co.mawa.bes.utils.Field;
-import za.co.mawa.bes.utils.PartnerFunction;
-import za.co.mawa.bes.utils.Status;
-import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.utils.*;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,13 +25,17 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Autowired
     TransactionService transactionService;
     @Autowired
-    FieldOptionService fieldOptionService;
+    UserService userService;
     @Autowired
     PartnerService partnerService;
     @Autowired
-    UserService userService;
+    FieldOptionService fieldOptionService;
     @Autowired
     TransactionRepository transactionRepository;
+
+    @Autowired
+    @Qualifier("transactionService")
+    TransactionService service;
 
     @Override
     public ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto) {
@@ -41,6 +47,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
+            transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             return get(transactionDto.getId());
         } catch (Exception e) {
@@ -50,12 +57,13 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto) {
-        return null;
+        return  null;
     }
 
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
+
             if(entity != null){
 
                 if(serviceRequestEditDto.getDescription() != null){
@@ -67,7 +75,10 @@ public class ServiceRequestService implements ServiceRequestDao {
                 if(serviceRequestEditDto.getPriority() != null){
                     entity.setPriority(serviceRequestEditDto.getPriority());
                 }
-                entity.setChangedBy(transactionService.getUser());
+                Class<?> tservice = service.getClass();
+                Method privateMethod = tservice.getDeclaredMethod("getUser");
+                privateMethod.setAccessible(true);
+                entity.setChangedBy((String) privateMethod.invoke(service));
                 transactionRepository.save(entity);
             }
             return get(id);
@@ -78,49 +89,62 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto) {
+
         List<ServiceRequestDto> serviceRequestDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
         transactionQueryDto.setStatus(serviceRequestQueryDto.getStatus());
-        for (String id : transactionService.search(transactionQueryDto)) {
+        transactionQueryDto.setCategory(serviceRequestQueryDto.getCategory());
+
+        for(String id: transactionService.search(transactionQueryDto)){
             try {
                 serviceRequestDtoList.add(get(id));
-            } catch (Exception ex) {
+            } catch (Exception e) {
             }
+
         }
         return serviceRequestDtoList;
     }
 
     @Override
-    public ServiceRequestDto get(String id) throws TransactionNotFound {
+    public ServiceRequestDto get(String id) throws Exception{
         ServiceRequestDto serviceRequestDto = new ServiceRequestDto();
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
-        serviceRequestDto.setNumber(transactionDto.getNo());
-        serviceRequestDto.setDescription(transactionDto.getDescription());
-//        serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.TRANSACTION_SUBTYPE, transactionDto.getSubType()));
-        serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
-        serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
-        serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, transactionDto.getStatus()));
-        serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+        serviceRequestDto.setNumber(transactionDto.getNumber());
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
         } catch (Exception e) {
+        }
+        serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+        try {
+            serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
+        } catch (Exception e) {
 
         }
-        for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
-            try {
-                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
-                    serviceRequestDto.setCustomer(partnerService.get(transactionPartner.getPartner()));
-                }
-                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                    serviceRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
-                }
-
-            } catch (Exception e) {
-
+        serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
+        serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
+        for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+            if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
+                serviceRequestDto.setDueDate(transactionDateDto.getValue());
             }
-
+            if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
+                serviceRequestDto.setCreationDate(transactionDateDto.getValue());
+            }
+        }
+        for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+                try {
+                    serviceRequestDto.setCustomer(partnerService.get(transactionPartner.getPartner()));
+                } catch (Exception e) {
+                }
+            }
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                try {
+                    serviceRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
+                } catch (Exception e) {
+                }
+            }
         }
         return serviceRequestDto;
     }
@@ -133,5 +157,4 @@ public class ServiceRequestService implements ServiceRequestDao {
             throw new RuntimeException(e);
         }
     }
-
 }
