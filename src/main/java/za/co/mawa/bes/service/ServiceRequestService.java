@@ -89,11 +89,13 @@ public class ServiceRequestService implements ServiceRequestDao {
 
     @Override
     public List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto) {
+
         List<ServiceRequestDto> serviceRequestDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.SERVICE_REQUEST);
         transactionQueryDto.setStatus(serviceRequestQueryDto.getStatus());
         transactionQueryDto.setCategory(serviceRequestQueryDto.getCategory());
+
         for(String id: transactionService.search(transactionQueryDto)){
             try {
                 serviceRequestDtoList.add(get(id));
@@ -155,7 +157,4 @@ public class ServiceRequestService implements ServiceRequestDao {
             throw new RuntimeException(e);
         }
     }
-
-
-
 }
