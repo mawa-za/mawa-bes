@@ -48,7 +48,7 @@ public class CommentService {
         transactionCreateDto.setType(TransactionType.COMMENT);
         transactionCreateDto.setSubType("GENERAL");
         //set as the parent transaction is set in location for now
-        transactionCreateDto.setLocation(commentInboundDto.getParentTransactionId());
+        ///transactionCreateDto.setLocation(commentInboundDto.getParentTransactionId());
         transactionCreateDto.setDescription(commentInboundDto.getDescription());
         TransactionDto transaction = transactionService.create(transactionCreateDto);
 
@@ -98,7 +98,7 @@ public class CommentService {
                 commentDto.setSubType(transactionDto.getSubType());
                 commentDto.setId(transactionDto.getId());
                 //the id of the parent transaction
-                commentDto.setParentTransactionId(transactionDto.getLocation());
+                //commentDto.setParentTransactionId(transactionDto.getLocation());
                 commentDto.setDescription(transactionDto.getDescription());
 
                 for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
@@ -127,16 +127,15 @@ public class CommentService {
     }
 
     public List<CommentDto> getAll(String id) throws Exception {
-        List<TransactionEntity> transactionEntities = transactionRepository.findTransactionByLocation(id, "COMMENT");
+        List<TransactionLinkDto> links = transactionService.getLinks(id);
+        List<CommentDto> comments = new ArrayList<>();
+        for (TransactionLinkDto link : links) {
 
-        List<CommentDto> commentDtos = new ArrayList<>();
-        for (TransactionEntity transactionEntity : transactionEntities) {
-
-            CommentDto commentDto = get(transactionEntity.getId());
-            commentDtos.add(commentDto);
+            CommentDto comment = new CommentDto();
+            comment = get(link.getTransaction2());
+            comments.add(comment);
         }
-
-        return commentDtos;
+        return comments;
     }
 
 
