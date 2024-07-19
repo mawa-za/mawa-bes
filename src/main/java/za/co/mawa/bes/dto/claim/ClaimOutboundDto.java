@@ -22,6 +22,7 @@ import java.util.List;
 public class ClaimOutboundDto implements Serializable {
     private String id;
     private String number;
+    private String description;
     private FieldOptionDto type;
     private MembershipDto membership;
     private TransactionDto parent;
