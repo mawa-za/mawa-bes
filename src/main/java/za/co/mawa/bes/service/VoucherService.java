@@ -112,15 +112,16 @@ public class VoucherService {
 
                 }
 
-                for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
-                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
-                        PartnerDto partnerDetails = partnerService.getOptional(partner.getPartner());
-                        if (partnerDetails != null) {
-                            voucherOutboundDto.setRecipient(partnerDetails);
-                        }
-                        break;
-                    }
-                }
+                //Still have to fix, some vouchers have missing partners
+//                for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
+//                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
+//                        PartnerDto partnerDetails = partnerService.getOptional(partner.getPartner());
+//                        if (partnerDetails != null) {
+//                            voucherOutboundDto.setRecipient(partnerDetails);
+//                        }
+//                        break;
+//                    }
+//                }
                 return voucherOutboundDto;
             } else {
                 return null;

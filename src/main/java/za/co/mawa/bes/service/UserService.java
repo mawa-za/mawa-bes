@@ -413,5 +413,40 @@ public class UserService implements UserDao {
     private void notifyUser() {
 
     }
+    public UserDto getUserByEmail(String email) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByEmail(email);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given email does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public UserDto getUserByCellphone(String cellphone) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByCellphone(cellphone);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given cellphone number does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public UserDto getUserByPartnerId(String partnerId) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByPartner(partnerId);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given partner ID does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
 }

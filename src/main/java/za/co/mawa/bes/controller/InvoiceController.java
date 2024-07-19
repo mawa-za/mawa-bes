@@ -42,6 +42,7 @@ public class InvoiceController {
     LineItemService lineItemService;
     @Autowired
     InvoiceService invoiceService;
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
@@ -99,7 +100,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "{id}/items", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/items/{id}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
             lineItemInboundDto.setTransaction(id);
@@ -110,7 +111,7 @@ public class InvoiceController {
         }
     }
 
-    @RequestMapping(value = "{id}/items", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/items/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> putItem(@PathVariable String id, @RequestBody LineItemInboundDto lineItemInboundDto) {
         try {
             lineItemInboundDto.setTransaction(id);
@@ -120,7 +121,7 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/items/{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  deleteItem(@PathVariable String id) {
         try {
             lineItemService.delete(id);
