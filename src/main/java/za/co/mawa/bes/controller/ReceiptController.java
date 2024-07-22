@@ -107,7 +107,7 @@ public class ReceiptController {
                 //since the username is saved in createdBy, we need to convert id to username to filter
                 UserEntity user = userRepository.getById(createdBy);
                 search.setCreatedBy(user.getUsername());
-                //search.setCreatedBy(createdBy);
+
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
             if (notCashed) {
