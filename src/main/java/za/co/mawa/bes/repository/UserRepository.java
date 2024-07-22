@@ -10,7 +10,7 @@ import za.co.mawa.bes.entity.UserEntity;
 import java.util.List;
 
 @Repository
-public interface UserRepository  extends JpaRepository<UserEntity,String>{
+public interface UserRepository extends JpaRepository<UserEntity,String>{
     List<UserEntity> findAll(Specification<UserEntity> byCriteria, Sort sort);
     @Query(value = "SELECT * FROM user u WHERE u.username = :username LIMIT 1", nativeQuery = true)
     UserEntity getByName(String username);
