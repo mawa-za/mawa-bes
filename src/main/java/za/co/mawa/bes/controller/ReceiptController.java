@@ -104,6 +104,7 @@ public class ReceiptController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
+                //since the username is saved in createdBy, we need to convert id to username to filter
                 UserEntity user = userRepository.getById(createdBy);
                 search.setCreatedBy(user.getUsername());
                 //search.setCreatedBy(createdBy);
