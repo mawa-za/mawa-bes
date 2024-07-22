@@ -310,6 +310,8 @@ public class UserService implements UserDao {
                     user.setEmail(edit.getEmail());
                 }
             }
+            ///
+
             if (edit.getCellphone() != null && edit.getCellphone() != "") {
                 UserQueryDto queryDto = new UserQueryDto();
                 queryDto.setCellphone(edit.getCellphone());
@@ -447,6 +449,38 @@ public class UserService implements UserDao {
 
     private void notifyUser() {
 
+    }
+        @Override
+    public UserDto getUserById(String id) throws Exception {
+        try {
+            return entityToDto(userRepository.getById(id));
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public UserDto getUserByEmail(String email) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByEmail(email);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given email does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public UserDto getUserByCellphone(String cellphone) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByCellphone(cellphone);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given cellphone number does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
 }
