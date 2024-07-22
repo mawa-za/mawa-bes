@@ -59,38 +59,6 @@ public class UserController {
         }
     }
 
-    @GetMapping(value = "/email/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
-        try {
-            UserDto userDto = userService.getUserByEmail(email);
-            userDto.setPassword(null);
-            return ResponseEntity.ok(gson.toJson(userDto));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
-
-    @GetMapping(value = "/cellphone/{cellphone}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getUserByCellphone(@PathVariable String cellphone) {
-        try {
-            UserDto userDto = userService.getUserByCellphone(cellphone);
-            userDto.setPassword(null);
-            return ResponseEntity.ok(gson.toJson(userDto));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
-
-    @GetMapping(value = "/partner/{partnerId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getUserByPartnerId(@PathVariable String partnerId) {
-        try {
-            UserDto userDto = userService.getUserByPartnerId(partnerId);
-            userDto.setPassword(null);
-            return ResponseEntity.ok(gson.toJson(userDto));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
     public ResponseEntity<?> getUser(@PathVariable String id) {
         try {
             UserDto userDto = userService.getUserById(id);
