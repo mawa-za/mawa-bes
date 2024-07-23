@@ -1,29 +1,28 @@
 package za.co.mawa.bes.service;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import jakarta.persistence.criteria.Predicate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.partner.PartnerCreateDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.user.*;
 import za.co.mawa.bes.entity.UserEntity;
+import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.UserExistException;
 import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.entity.UserRoleEntity;
-import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.*;
-import za.co.mawa.bes.service.PartnerService;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -32,8 +31,7 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
-    //    @Autowired
-//    PartnerService partnerService;
+
     @Autowired
     EntityManager entityManager;
     @Autowired
@@ -336,15 +334,6 @@ public class UserService implements UserDao {
     }
 
     @Override
-    public UserDto getUserById(String id) throws Exception {
-        try {
-            return entityToDto(userRepository.getById(id));
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    @Override
     public PartnerDto getPartner(String user) {
         return null;
     }
@@ -413,5 +402,47 @@ public class UserService implements UserDao {
     private void notifyUser() {
 
     }
+    @Override
+    public UserDto getUserById(String id) throws Exception {
+        try {
+            return entityToDto(userRepository.getById(id));
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
+    public UserDto getUserByEmail(String email) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByEmail(email);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given email does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public UserDto getUserByCellphone(String cellphone) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByCellphone(cellphone);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given cellphone number does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+    public UserDto getUserByPartnerId(String partnerId) throws Exception {
+        try {
+            UserEntity userEntity = userRepository.getByPartner(partnerId);
+            if (userEntity == null) {
+                throw new DoesNotExist("User with the given partner ID does not exist");
+            }
+            return entityToDto(userEntity);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 }
