@@ -23,6 +23,7 @@ public class PaymentRequestDto implements Serializable{
     private FieldOptionDto statusReason;
     private FieldOptionDto paymentReason;
     private String reference;
+    private String description;
     private BigDecimal amount;
     private Date dueDate;
     private Date createdDate;
