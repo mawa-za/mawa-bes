@@ -11,7 +11,9 @@ import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.repository.ReceiptRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.ReceiptService;
 import za.co.mawa.bes.utils.TenderType;
@@ -34,6 +36,9 @@ public class ReceiptController {
     CashupService cashupService;
     @Autowired
     private ReceiptRepository receiptRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
@@ -99,7 +104,10 @@ public class ReceiptController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                search.setCreatedBy(createdBy);
+                //since the username is saved in createdBy, we need to convert id to username to filter
+                UserEntity user = userRepository.getById(createdBy);
+                search.setCreatedBy(user.getUsername());
+
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
             if (notCashed) {

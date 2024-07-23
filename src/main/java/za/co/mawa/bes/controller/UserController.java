@@ -49,7 +49,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{username}/username", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByName(@PathVariable String username) {
         try {
             UserDto userDto = userService.getUserByName(username);
@@ -147,6 +147,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
     @RequestMapping(value = "/email/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         try {
