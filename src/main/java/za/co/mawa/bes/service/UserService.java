@@ -31,8 +31,6 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
-    //    @Autowired
-//    PartnerService partnerService;
     @Autowired
     EntityManager entityManager;
     @Autowired

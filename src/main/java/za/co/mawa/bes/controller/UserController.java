@@ -20,7 +20,8 @@ public class UserController {
     Gson gson = new Gson();
     @Autowired
     UserService userService;
-  
+
+    @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto) {
         try {
             UserDto userDto = userService.create(userCreateDto);
@@ -48,7 +49,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{username}/username", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByName(@PathVariable String username) {
         try {
             UserDto userDto = userService.getUserByName(username);
@@ -69,12 +70,12 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "/{id}/role", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/role", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(userService.getRoles(id));
     }
 
-    @RequestMapping(value = "/{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addRole(@PathVariable String id, @RequestBody List<String> roleList) throws Exception {
         try {
             for (String role : roleList) {
@@ -88,9 +89,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
-    @RequestMapping(value = "/{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
+    @RequestMapping(value = "{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.lockuser(id, reason)));
         } catch (Exception exception) {
@@ -98,7 +98,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "/{id}/unlock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/unlock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> unlockUser(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.unlockuser(id)));
@@ -145,7 +145,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-        @GetMapping(value = "/email/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{email}/email", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         try {
             UserDto userDto = userService.getUserByEmail(email);
@@ -156,7 +156,7 @@ public class UserController {
         }
     }
 
-    @GetMapping(value = "/cellphone/{cellphone}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{cellphone}/cellphone",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByCellphone(@PathVariable String cellphone) {
         try {
             UserDto userDto = userService.getUserByCellphone(cellphone);
@@ -167,7 +167,7 @@ public class UserController {
         }
     }
 
-    @GetMapping(value = "/partner/{partnerId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping (value = "{partnerId}/partner", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByPartnerId(@PathVariable String partnerId) {
         try {
             UserDto userDto = userService.getUserByPartnerId(partnerId);
