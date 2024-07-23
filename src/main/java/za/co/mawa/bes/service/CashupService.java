@@ -55,6 +55,8 @@ public class CashupService implements CashupDao {
     PartnerService partnerService;
 
     @Override
+
+    //receipt cash up
     public String create(CashupCreateDto cashupCreateDto) throws Exception {
         ArrayList<ReceiptDto> receiptsFiltered = new ArrayList<>();
         //double unnecessary double calls to the database
@@ -232,7 +234,7 @@ public class CashupService implements CashupDao {
 
         return id;
     }
-
+//Automatic cash up
     public String createNoCash(CashupCreateDto cashupCreateDto) throws Exception {
         ReceiptSearchDto searchReceipt = new ReceiptSearchDto();
         searchReceipt.setCreatedBy(cashupCreateDto.getEmployeeResponsibleId());
@@ -252,6 +254,16 @@ public class CashupService implements CashupDao {
                     transactionAmountInboundDto.setAmount(cashupCreateDto.getAmount());
                     transactionAmountInboundDto.setTransaction(transaction.getId());
                     transactionAmountInboundDto.setType(AmountType.AMOUNT_COLLECTED);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(cashupCreateDto.getAmount());
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.AMOUNT_DEPOSITED);
                     transactionAmountService.save(transactionAmountInboundDto);
                 } catch (Exception exception) {
 
