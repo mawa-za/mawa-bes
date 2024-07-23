@@ -60,6 +60,7 @@ public class UserController {
         }
     }
 
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUser(@PathVariable String id) {
         try {
             UserDto userDto = userService.getUserById(id);
@@ -89,6 +90,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
     @RequestMapping(value = "{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
         try {
@@ -145,7 +147,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-    @RequestMapping(value = "{email}/email", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "/email/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         try {
             UserDto userDto = userService.getUserByEmail(email);
@@ -156,7 +159,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "{cellphone}/cellphone",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/cellphone/{cellphone}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByCellphone(@PathVariable String cellphone) {
         try {
             UserDto userDto = userService.getUserByCellphone(cellphone);
@@ -167,7 +170,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping (value = "{partnerId}/partner", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/partner/{partnerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByPartnerId(@PathVariable String partnerId) {
         try {
             UserDto userDto = userService.getUserByPartnerId(partnerId);
