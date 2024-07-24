@@ -33,6 +33,7 @@ public class TransactionQueryDto implements Serializable {
     private String parent;
     private String createdBy;
     private String changedBy;
+    private String employeeResponsibleId;
 
 
     public TransactionQueryDto(QuotationQueryDto quotationQueryDto) {

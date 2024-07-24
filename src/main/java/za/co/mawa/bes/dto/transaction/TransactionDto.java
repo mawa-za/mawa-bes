@@ -26,6 +26,7 @@ public class TransactionDto implements Serializable {
     private String category;
     private String description;
     private String subDescription;
+    private String parentId;
     private String customerId;
     private String customerName;
     private String supplierId;
