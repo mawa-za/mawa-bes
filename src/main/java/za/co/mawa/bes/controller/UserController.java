@@ -81,7 +81,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "/{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.lockuser(id, reason)));
