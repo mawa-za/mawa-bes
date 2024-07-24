@@ -117,7 +117,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
     @RequestMapping(value = "{id}/reset", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> restUser(@PathVariable String id) throws Exception {
         try {
