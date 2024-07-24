@@ -13,9 +13,10 @@ import za.co.mawa.bes.service.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
-@RequestMapping(value = "user")
+
 @RestController
 @CrossOrigin
+@RequestMapping(value = "user")
 public class UserController {
     Gson gson = new Gson();
     @Autowired
@@ -48,18 +49,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
-    @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getUserByName(@PathVariable String username) {
-        try {
-            UserDto userDto = userService.getUserByName(username);
-            userDto.setPassword(null);
-            return ResponseEntity.ok(gson.toJson(userDto));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUser(@PathVariable String id) {
         try {
@@ -75,7 +64,6 @@ public class UserController {
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(userService.getRoles(id));
     }
-
     @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addRole(@PathVariable String id, @RequestBody List<String> roleList) throws Exception {
         try {
@@ -91,7 +79,7 @@ public class UserController {
         }
     }
 
-    @RequestMapping(value = "{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/{id}/lock", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.lockuser(id, reason)));
@@ -129,7 +117,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
     @RequestMapping(value = "{id}/reset", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> restUser(@PathVariable String id) throws Exception {
         try {
@@ -147,6 +134,17 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+    @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
+        try {
+            UserDto userDto = userService.getUserByName(username);
+            userDto.setPassword(null);
+            return ResponseEntity.ok(gson.toJson(userDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
     @RequestMapping(value = "/email/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         try {
