@@ -168,7 +168,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
-
     @RequestMapping(value = "/partner/{partnerId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByPartnerId(@PathVariable String partnerId) {
         try {
