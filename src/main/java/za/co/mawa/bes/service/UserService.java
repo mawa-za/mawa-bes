@@ -446,5 +446,4 @@ public class UserService implements UserDao {
             throw new RuntimeException(ex);
         }
     }
-
 }
