@@ -31,7 +31,6 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
-
     @Autowired
     EntityManager entityManager;
     @Autowired
@@ -309,6 +308,8 @@ public class UserService implements UserDao {
                     user.setEmail(edit.getEmail());
                 }
             }
+            ///
+
             if (edit.getCellphone() != null && edit.getCellphone() != "") {
                 UserQueryDto queryDto = new UserQueryDto();
                 queryDto.setCellphone(edit.getCellphone());
