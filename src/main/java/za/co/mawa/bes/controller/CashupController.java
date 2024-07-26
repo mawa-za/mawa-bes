@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.cashup.CashupSearchDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.DateType;
@@ -32,16 +33,36 @@ public class CashupController {
     CashupService cashupService;
     @Autowired
     TransactionService transactionService;
+
     @RequestMapping(value = "/cashup", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postCashUp(@RequestBody CashupCreateDto cashupCreateDto) {
         try{
-            String id = cashupService.create(cashupCreateDto);
             CashupDto cashup = new CashupDto();
-            if(id != null)
-            {
-                cashup.setId(id);
+            String cashUpType;
+            cashUpType = String.valueOf(cashupCreateDto.getCashUpType()).toUpperCase();
+
+            if(cashUpType.equals("RECEIPT")) {
+
+                String id = cashupService.create(cashupCreateDto);
+                if (id != null) {
+                    cashup.setId(id);
+                } else {
+                    throw new RuntimeException("Failed to create cashup");
+                }
             }
-        return ResponseEntity.ok().body(gson.toJson(cashup));
+
+            if(cashUpType.equals("MANUAL")){
+
+                String id = cashupService.createManualCashUp(cashupCreateDto);
+                if (id != null) {
+                    cashup.setId(id);
+                } else {
+                    throw new RuntimeException("Failed to create cashup");
+                }
+            }
+
+            return ResponseEntity.ok().body(gson.toJson(cashup));
+
     } catch (Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
        }
@@ -57,14 +78,24 @@ public class CashupController {
     }
     @RequestMapping(value = "/cashup", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getCashUps(@RequestParam(required = false) String status,
+                                        @RequestParam(required = false) String employeeResponsibleId,
                                         @RequestParam(required = false) String createDate,
                                         @RequestParam(required = false) String lastUpdated,
                                         @RequestParam(required = false) String createdBy,
+                                        @RequestParam(required = false) String cashUpType,
                                         @RequestParam(required = false) String changedBy) {
         try{
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             ArrayList<CashupDto> cashups = new ArrayList<>();
             transactionQueryDto.setType(TransactionType.CASHUP);
+            if(cashUpType != null && cashUpType != ""){
+
+                transactionQueryDto.setSubtype(cashUpType);
+            }
+            if(employeeResponsibleId != null && employeeResponsibleId != ""){
+
+                transactionQueryDto.setEmployeeResponsibleId(employeeResponsibleId);
+            }
             if(status != null && status != "")
             {
                 transactionQueryDto.setStatus(status);
@@ -91,9 +122,15 @@ public class CashupController {
             }
             for(String id : transactionService.search(transactionQueryDto))
             {
-                cashups.add(cashupService.get(id));
+                CashupDto cashupDto = cashupService.get(id);
+
+                if (cashupDto != null) {
+                    cashups.add(cashupDto);
+                }
+
             }
             return ResponseEntity.ok().body(gson.toJson(cashups));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -106,4 +143,5 @@ public class CashupController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
 }
