@@ -15,6 +15,7 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping(value = "voucher")
 public class VoucherController {
+
     Gson gson = new Gson();
     @Autowired
     VoucherService voucherService;
