@@ -424,6 +424,7 @@ public class UserService implements UserDao {
         }
     }
 
+
     public UserDto getUserByCellphone(String cellphone) throws Exception {
         try {
             UserEntity userEntity = userRepository.getByCellphone(cellphone);
@@ -446,5 +447,4 @@ public class UserService implements UserDao {
             throw new RuntimeException(ex);
         }
     }
-
 }
