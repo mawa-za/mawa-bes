@@ -15,6 +15,7 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping(value = "voucher")
 public class VoucherController {
+
     Gson gson = new Gson();
     @Autowired
     VoucherService voucherService;
@@ -49,7 +50,7 @@ public class VoucherController {
         }
     }
     @RequestMapping(value= "{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherInboundDto voucherInboundDto){
+    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto voucherEditDto){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherEditDto, id)));
         }catch (Exception ex){
