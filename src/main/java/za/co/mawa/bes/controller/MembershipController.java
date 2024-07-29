@@ -21,6 +21,7 @@ import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @RestController
@@ -57,9 +58,48 @@ public class MembershipController {
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
                                             @RequestParam(required = false) String partnerId,
+                                            @RequestParam(required = false) String productId,
+                                            @RequestParam(required = false) String salesRepresentativeId,
+                                            @RequestParam(required = false) String dateJoined,
                                             @RequestParam(required = false) String idNumber) {
         try {
             MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+            if(status != null && status != "") {
+                membershipQueryDto.setStatus(status);
+            }
+
+            if(productId != null && productId != "") {
+                membershipQueryDto.setProductId(productId);
+            }
+
+            if(salesRepresentativeId != null && salesRepresentativeId != "") {
+                membershipQueryDto.setSalesRepresentativeId(salesRepresentativeId);
+            }
+
+            if(partnerFunction != null && partnerFunction != "") {
+                membershipQueryDto.setPartnerFunction(partnerFunction);
+            }
+
+            if(partnerId != null && partnerId != "") {
+                membershipQueryDto.setMemberId(partnerId);
+            }
+
+            if(idNumber != null && idNumber != "") {
+                membershipQueryDto.setIdNumber(idNumber);
+            }
+
+            if (dateJoined != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(dateJoined);
+
+                membershipQueryDto.setDateJoined(date);
+
+
+            }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
         } catch (Exception exception) {
