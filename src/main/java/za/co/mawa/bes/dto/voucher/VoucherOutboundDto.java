@@ -20,7 +20,7 @@ public class VoucherOutboundDto implements Serializable {
     private String dateCreated;
     private String expiryDate;
     private String status;
-    private FieldOptionDto statusReason;
+    private String statusReason;
     private BigDecimal amount;
     private PartnerDto createdBy;
     private String changedBy;
