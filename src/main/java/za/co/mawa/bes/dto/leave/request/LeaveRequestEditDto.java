@@ -10,6 +10,6 @@ import java.util.Date;
 @Setter
 public class LeaveRequestEditDto {
     private Date startDate;
-    private Date EndDate;
+    private Date endDate;
     private String status;
 }
