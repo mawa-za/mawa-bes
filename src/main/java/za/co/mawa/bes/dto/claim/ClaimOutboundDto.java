@@ -5,13 +5,16 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.contract.ContractDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
@@ -19,6 +22,7 @@ import java.util.Date;
 public class ClaimOutboundDto implements Serializable {
     private String id;
     private String number;
+    private String description;
     private FieldOptionDto type;
     private MembershipDto membership;
     private TransactionDto parent;
@@ -35,5 +39,6 @@ public class ClaimOutboundDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private BankAccountDto bankDetails;
+    private List<CommentDto> comments  = new ArrayList<>();
 
 }

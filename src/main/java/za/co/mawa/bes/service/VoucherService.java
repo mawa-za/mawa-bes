@@ -116,12 +116,10 @@ public class VoucherService {
                 voucherOutboundDto.setId(transactionDto.getId());
                 voucherOutboundDto.setNumber(transactionDto.getNumber());
                 voucherOutboundDto.setStatus(transactionDto.getStatus());
-//                voucherOutboundDto.setStatusReason(transactionDto.getStatusReason());
 
                 voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
                 voucherOutboundDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
                 voucherOutboundDto.setChangedBy(transactionDto.getChangedBy());
-//                voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON,transactionDto.getStatusReason()));
 
                 voucherOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
                 // Retrieve dates
@@ -190,39 +188,29 @@ public class VoucherService {
     public boolean edit(VoucherEditDto voucherEditDto, String id) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
-            TransactionEntity entity = transactionRepository.getById(id);
+            transactionEditDto.setId(id);
             boolean edited = false;
-            if(entity != null){
-                try{
-                    if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
-
-                        TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                        transactionAmountInboundDto.setTransaction(id);
-                        transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
-                        transactionAmountInboundDto.setType(AmountType.VOUCHER_AMOUNT);
-                        transactionAmountService.save(transactionAmountInboundDto);
-                    }
-                    if (voucherEditDto.getStatus() != null) {
-                        transactionEditDto.setStatus(voucherEditDto.getStatus());
-                        transactionService.edit(transactionEditDto);
-                        entity.setStatus(voucherEditDto.getStatus());
-                    }
-                    if (voucherEditDto.getStatusReason() != null) {
-                        transactionEditDto.setStatusReason(voucherEditDto.getStatusReason());
-                        transactionService.edit(transactionEditDto);
-                    }
-                    if (voucherEditDto.getExpiryDate() != null) {
-                        TransactionDateEdit transactionDate = new TransactionDateEdit();
-                        transactionDate.setTransaction(id);
-                        transactionDate.setType(DateType.EXPIRY_DATE);
-                        transactionDate.setValue(voucherEditDto.getExpiryDate());
-                        edited = transactionService.dateEdit(transactionDate);
-                    }
-                    entity.setChangedBy(getUser());
-                    transactionRepository.save(entity);
-                }
-                catch(Exception e){
-                }
+            if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setTransaction(id);
+                transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
+                transactionAmountInboundDto.setType(AmountType.VOUCHER_AMOUNT);
+                transactionAmountService.save(transactionAmountInboundDto);
+            }
+            if (voucherEditDto.getStatus() != null && voucherEditDto.getStatus() != "") {
+                transactionEditDto.setStatus(voucherEditDto.getStatus());
+                transactionService.edit(transactionEditDto);
+            }
+            if (voucherEditDto.getStatusReason() != null) {
+                transactionEditDto.setStatusReason(voucherEditDto.getStatusReason());
+                transactionService.edit(transactionEditDto);
+            }
+            if (voucherEditDto.getExpiryDate() != null && voucherEditDto.getExpiryDate() != "") {
+                TransactionDateEdit transactionDate = new TransactionDateEdit();
+                transactionDate.setTransaction(id);
+                transactionDate.setType(DateType.EXPIRY_DATE);
+                transactionDate.setValue(Conversion.stringToDate(voucherEditDto.getExpiryDate()));
+                edited = transactionService.dateEdit(transactionDate);
             }
             return edited;
         } catch (Exception ex) {
