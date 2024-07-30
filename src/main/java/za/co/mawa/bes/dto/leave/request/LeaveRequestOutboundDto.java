@@ -13,12 +13,10 @@ import java.util.Date;
 @Getter
 @Setter
 public class LeaveRequestOutboundDto {
-    private String id;
     private FieldOptionDto type;
     private PartnerDto employee;
     private PartnerDto approver;
     private Date startDate;
     private Date endDate;
-    private int days;
-    private FieldOptionDto status;
+    private BigDecimal days;
 }

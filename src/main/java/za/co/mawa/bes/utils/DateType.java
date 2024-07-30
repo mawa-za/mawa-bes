@@ -18,6 +18,4 @@ public class DateType {
     public static String PLANNED_START_DATE = "PLANNED-START-DATE";
     public static String PLANNED_END_DATE = "PLANNED-END-DATE";
     public static String LAST_RECEIPT_DATE = "LAST-RECEIPT-DATE";
-    public static String START_DATE = "START_DATE";
-    public static String END_DATE = "END_DATE";
 }
