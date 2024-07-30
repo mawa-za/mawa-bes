@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.sales.order.SalesOrderCreateDto;
 import za.co.mawa.bes.dto.service.request.ServiceRequestCreateDto;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -32,7 +33,9 @@ public class TransactionCreateDto implements Serializable {
     private String plannedStartDate;
     private String plannedEndDate;
     private String subDescription;
-
+    private String createdBy;
+    private Date endDate;
+    private Date startDate;
 
     public TransactionCreateDto(QuotationCreateDto quotationCreateDto){
     }

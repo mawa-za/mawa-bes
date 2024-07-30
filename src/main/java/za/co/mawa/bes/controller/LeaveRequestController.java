@@ -6,9 +6,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.leave.request.LeaveCancelDto;
+import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionEditDto;
+import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.LeaveRequestService;
+import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.utils.Status;
 
 @RestController
 @CrossOrigin
@@ -17,6 +23,9 @@ public class LeaveRequestController {
     Gson gson = new Gson();
     @Autowired
     LeaveRequestService leaveRequestService;
+    @Autowired
+    TransactionService transactionService;
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> post(@RequestBody LeaveRequestInboundDto leaveRequestInboundDto) {
         try {
@@ -34,64 +43,66 @@ public class LeaveRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> search(@RequestParam(required = false) String status) {
         try {
             LeaveRequestQueryDto leaveRequestQueryDto = new LeaveRequestQueryDto();
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.search(leaveRequestQueryDto)));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.search()));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
     @RequestMapping(value = "{id}",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> put(@RequestBody LeaveRequestInboundDto leaveRequestInboundDto) {
+    public ResponseEntity<?> update(@PathVariable String id,@RequestBody LeaveRequestEditDto leaveRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.create(leaveRequestInboundDto)));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.edit(leaveRequestEditDto, id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}/submit",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submit(@PathVariable String id) {
         try {
-            leaveRequestService.submit(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.submit(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}/reject",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id) {
         try {
-            leaveRequestService.reject(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.reject(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}/approve",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> approve(@PathVariable String id) {
         try {
-            leaveRequestService.approve(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.approve(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}/cancel",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> cancel(@PathVariable String id) {
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestBody LeaveCancelDto leaveCancelDto) {
         try {
-            leaveRequestService.cancel(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.cancel(leaveCancelDto, id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> delete(@PathVariable String id) {
         try {
-            leaveRequestService.delete(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.delete(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
