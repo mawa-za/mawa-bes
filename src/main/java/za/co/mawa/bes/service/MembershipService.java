@@ -271,16 +271,13 @@ public class MembershipService {
                 }
 
                 if(membershipQueryDto.getDateJoined() !=null){
-                      //String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
-                        // Define the formatter for the input string
-                        SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, hh:mm:ss a");
-                        // Parse the string into Date object
-                        Date date = formatter.parse(String.valueOf(membershipDto.getDateJoined()));
 
-                        SimpleDateFormat formatter2 = new SimpleDateFormat("MMM dd, yyyy");
-                        String outputDate = formatter2.format(date);
+                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        match = match && membershipQueryDto.getDateJoined().toString().equals(outputDate);
+                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+
+                        match = match && dateJoined.equals(queryDateJoined);
+
 
                 }
 
