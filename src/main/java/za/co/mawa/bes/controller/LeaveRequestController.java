@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.leave.request.LeaveCancelDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
@@ -65,11 +66,7 @@ public class LeaveRequestController {
     @RequestMapping(value = "{id}/submit",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submit(@PathVariable String id) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
-            transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.submit(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -78,12 +75,7 @@ public class LeaveRequestController {
     @RequestMapping(value = "{id}/reject",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(Status.REJECTED);
-            transactionService.edit(transactionEditDto);
-
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.reject(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -92,26 +84,16 @@ public class LeaveRequestController {
     @RequestMapping(value = "{id}/approve",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> approve(@PathVariable String id) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(Status.APPROVED);
-            transactionService.edit(transactionEditDto);
-
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.approve(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
     @RequestMapping(value = "{id}/cancel",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> cancel(@PathVariable String id) {
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestBody LeaveCancelDto leaveCancelDto) {
         try {
-            TransactionEditDto transactionEditDto =  new TransactionEditDto();
-            transactionEditDto.setId(id);
-            transactionEditDto.setStatus(Status.CANCELLED);
-            transactionService.edit(transactionEditDto);
-
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.cancel(leaveCancelDto, id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -120,8 +102,7 @@ public class LeaveRequestController {
     @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> delete(@PathVariable String id) {
         try {
-            transactionService.delete(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.delete(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
