@@ -116,12 +116,10 @@ public class VoucherService {
                 voucherOutboundDto.setId(transactionDto.getId());
                 voucherOutboundDto.setNumber(transactionDto.getNumber());
                 voucherOutboundDto.setStatus(transactionDto.getStatus());
-//                voucherOutboundDto.setStatusReason(transactionDto.getStatusReason());
 
                 voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
                 voucherOutboundDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
                 voucherOutboundDto.setChangedBy(transactionDto.getChangedBy());
-//                voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON,transactionDto.getStatusReason()));
 
                 voucherOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
                 // Retrieve dates
