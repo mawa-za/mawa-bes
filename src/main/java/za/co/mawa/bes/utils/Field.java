@@ -47,4 +47,5 @@ public class Field {
     public static String RECEIPT_TYPE = "RECEIPT-TYPE";
     public static String TENDER_TYPE = "TENDER-TYPE";
     public static String COURT = "COURT";
+    public static String LEAVE_TYPE = "LEAVE_TYPE";
 }
