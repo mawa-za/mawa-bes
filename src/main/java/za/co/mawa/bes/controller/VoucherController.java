@@ -27,7 +27,6 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-
     @RequestMapping(value= "{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVoucher(@PathVariable String id){
         try{

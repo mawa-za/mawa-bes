@@ -195,7 +195,6 @@ public class VoucherService {
             if(entity != null){
                 try{
                     if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
-
                         TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                         transactionAmountInboundDto.setTransaction(id);
                         transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
