@@ -255,6 +255,11 @@ public class MembershipService {
                     match =  membershipQueryDto.getMemberId().equals(memberId);
                 }
 
+                if(membershipQueryDto.getIdNumber() != null) {
+                    String IdNumber = membershipDto.getMember().getIdentity().getNumber();
+                    match =  match && membershipQueryDto.getIdNumber().equals(IdNumber);
+                }
+
                 if(membershipQueryDto.getProductId() != null){
                     String productId = membershipDto.getProduct().getId();
                     match = match && membershipQueryDto.getProductId().equals(productId);
