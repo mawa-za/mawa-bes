@@ -129,9 +129,8 @@ public class LeaveRequestService {
         return leaveRequestOutboundDto;
     }
 
-    public List<LeaveRequestOutboundDto> search(LeaveRequestQueryDto leaveRequestQueryDto) throws DoesNotExist {
+    public List<LeaveRequestOutboundDto> search() throws DoesNotExist {
         List<LeaveRequestOutboundDto> leaveRequestOutboundDtoList = new ArrayList<>();
-
         try{
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
 
@@ -180,43 +179,33 @@ public class LeaveRequestService {
         }
     }
 
-    public void submit(String id) {
+    public LeaveRequestOutboundDto submit(String id) throws DoesNotExist {
         try{
-            TransactionDto transactionDto = transactionService.get(id);
-            if(autoApprovalTypeList.contains(transactionDto.getSubType())){
-                TransactionEditDto transactionEditDto = new TransactionEditDto();
-                transactionEditDto.setId(id);
-                transactionEditDto.setStatus(Status.APPROVED);
-                transactionService.edit(transactionEditDto);
-                approve(id);
-            }
-            else{
-                TransactionEditDto transactionEditDto = new TransactionEditDto();
-                transactionEditDto.setId(id);
-                transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
-                transactionService.edit(transactionEditDto);
-            }
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
+            transactionService.edit(transactionEditDto);
+
         }
         catch (Exception e){
             throw new RuntimeException(e);
         }
-
+        return get(id);
     }
 
-    public void approve(String id) {
+    public LeaveRequestOutboundDto approve(String id) throws DoesNotExist {
         try{
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.APPROVED);
             transactionService.edit(transactionEditDto);
         }
-
         catch(Exception e){
-
         }
+        return get(id);
     }
 
-    public void reject(String id) {
+    public LeaveRequestOutboundDto reject(String id) throws  DoesNotExist{
         try{
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
@@ -226,9 +215,10 @@ public class LeaveRequestService {
         catch(Exception e){
 
         }
+        return get(id);
     }
 
-    public void cancel(LeaveCancelDto leaveCancelDto) {
+    public LeaveRequestOutboundDto cancel(LeaveCancelDto leaveCancelDto) throws DoesNotExist {
         try{
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(leaveCancelDto.getLeaveRequestId());
@@ -239,21 +229,19 @@ public class LeaveRequestService {
             transactionTextDto.setTransaction(leaveCancelDto.getLeaveRequestId());
             transactionTextDto.setType(TextType.LEAVE_REQUEST_CANCEL);
             transactionTextService.add(transactionTextDto);
+            delete(leaveCancelDto.getLeaveRequestId());
         }
         catch(Exception e){
-
         }
+        return get(leaveCancelDto.getLeaveRequestId());
     }
 
-    public void delete(String id) {
+    public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {
         try {
             transactionService.delete(id);
         } catch (Exception e) {
 
         }
-    }
-
-    public LeaveRequestOutboundDto  edit(LeaveRequestInboundDto leaveRequestInboundDto, String id) {
-        return null;
+        return search();
     }
 }

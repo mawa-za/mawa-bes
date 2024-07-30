@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionEditDto;
@@ -41,23 +42,26 @@ public class LeaveRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> search(@RequestParam(required = false) String status) {
         try {
             LeaveRequestQueryDto leaveRequestQueryDto = new LeaveRequestQueryDto();
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.search(leaveRequestQueryDto)));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.search()));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
     @RequestMapping(value = "{id}",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable String id,@RequestBody LeaveRequestInboundDto leaveRequestInboundDto) {
+    public ResponseEntity<?> update(@PathVariable String id,@RequestBody LeaveRequestEditDto leaveRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.edit(leaveRequestInboundDto, id)));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.edit(leaveRequestEditDto, id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
     @RequestMapping(value = "{id}/submit",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submit(@PathVariable String id) {
         try {
@@ -77,7 +81,6 @@ public class LeaveRequestController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.REJECTED);
-
             transactionService.edit(transactionEditDto);
 
             return ResponseEntity.ok(gson.toJson(transactionEditDto));
