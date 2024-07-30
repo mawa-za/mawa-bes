@@ -15,7 +15,7 @@ import java.util.Date;
 public class LeaveRequestOutboundDto {
     private String id;
     private FieldOptionDto type;
-    private String employee;
+    private PartnerDto employee;
     private PartnerDto approver;
     private Date startDate;
     private Date endDate;
