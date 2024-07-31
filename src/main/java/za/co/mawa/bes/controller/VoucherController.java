@@ -15,6 +15,7 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping(value = "voucher")
 public class VoucherController {
+
     Gson gson = new Gson();
     @Autowired
     VoucherService voucherService;
@@ -48,10 +49,10 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
-    @RequestMapping(value= "{id}"method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherInboundDto voucherInboundDto){
+    @RequestMapping(value= "{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto voucherEditDto){
         try{
-            return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherInboundDto)));
+            return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherEditDto, id)));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
