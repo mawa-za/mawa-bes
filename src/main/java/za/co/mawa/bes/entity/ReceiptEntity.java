@@ -49,4 +49,8 @@ public class ReceiptEntity implements Serializable {
     private String location;
     @Column(name = "amount")
     private BigDecimal amount;
+    //@Column(name = "receipt_to")
+    //private  String receiptTo;
+    //@Column(name = "receipt_from")
+    //private  String receiptFrom;
 }
