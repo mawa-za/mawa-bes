@@ -94,7 +94,7 @@ public class ServiceRequestController {
             transactionPartnerDto.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             transactionPartnerDto.setPartner(assignee);
             transactionService.addPartner(transactionPartnerDto);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -108,12 +108,11 @@ public class ServiceRequestController {
             transactionPartnerDto.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             transactionPartnerDto.setPartner(assignee);
             transactionService.removePartner(transactionPartnerDto);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-
 
     @RequestMapping(value = "{id}/reject", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id,
@@ -130,7 +129,7 @@ public class ServiceRequestController {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -151,7 +150,7 @@ public class ServiceRequestController {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -171,7 +170,7 @@ public class ServiceRequestController {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

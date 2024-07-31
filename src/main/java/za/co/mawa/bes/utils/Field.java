@@ -51,4 +51,6 @@ public class Field {
     public static String CASE = "CASE";
     public static String CASE_TYPE = "CASE-TYPE";
     public static String LEAVE_TYPE = "LEAVE_TYPE";
+    public static String LEAVE_REQUEST = "LEAVE_REQUEST";
+    public static String SERVICE_REQUEST = "SERVICE_REQUEST";
 }

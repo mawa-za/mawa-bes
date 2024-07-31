@@ -44,6 +44,8 @@ public class LineItemService {
                 lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, transactionItemDto.getBaseUnitOfMeasure()));
                 if(lineItemOutboundDto.getUnitPrice() != null){
                     lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
+                    lineItemOutboundDto.setTotalIncVat(lineItemOutboundDto.getUnitPrice().multiply(BigDecimal.valueOf(0.15).plus()));
+                    lineItemOutboundDto.setVATAmount((lineItemOutboundDto.getUnitPrice().multiply(BigDecimal.valueOf(0.15))));
                 }
                 lineItemOutboundDtoList.add(lineItemOutboundDto);
             }

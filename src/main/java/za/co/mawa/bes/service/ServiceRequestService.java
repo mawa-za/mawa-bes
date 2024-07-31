@@ -43,7 +43,6 @@ public class ServiceRequestService implements ServiceRequestDao {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
-            transactionCreateDto.setSubType(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
@@ -63,9 +62,7 @@ public class ServiceRequestService implements ServiceRequestDao {
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
-
             if(entity != null){
-
                 if(serviceRequestEditDto.getDescription() != null){
                     entity.setDescription(serviceRequestEditDto.getDescription());
                 }
@@ -74,6 +71,9 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
                 if(serviceRequestEditDto.getPriority() != null){
                     entity.setPriority(serviceRequestEditDto.getPriority());
+                }
+                if(serviceRequestEditDto.getStatus() != null){
+                    entity.setStatus(serviceRequestEditDto.getStatus());
                 }
                 Class<?> tservice = service.getClass();
                 Method privateMethod = tservice.getDeclaredMethod("getUser");
@@ -101,7 +101,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 serviceRequestDtoList.add(get(id));
             } catch (Exception e) {
             }
-
         }
         return serviceRequestDtoList;
     }
@@ -112,15 +111,15 @@ public class ServiceRequestService implements ServiceRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
+        serviceRequestDto.setDescription(transactionDto.getDescription());
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+
         } catch (Exception e) {
         }
-        serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         try {
-            serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
+            serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         } catch (Exception e) {
-
         }
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
         serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
