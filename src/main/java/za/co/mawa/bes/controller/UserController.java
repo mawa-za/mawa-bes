@@ -13,7 +13,6 @@ import za.co.mawa.bes.service.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
-
 @RestController
 @CrossOrigin
 @RequestMapping(value = "user")
@@ -138,6 +137,7 @@ public class UserController {
         }
     }
 
+
     @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
         try {
@@ -182,3 +182,4 @@ public class UserController {
         }
     }
 }
+
