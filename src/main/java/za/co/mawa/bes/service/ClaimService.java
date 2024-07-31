@@ -180,7 +180,11 @@ public class ClaimService {
             claimOutboundDto.setId(transactionDto.getId());
             claimOutboundDto.setNumber(transactionDto.getNumber());
             claimOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+
+            try {
+                claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
+            }catch (Exception e){}
+
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
