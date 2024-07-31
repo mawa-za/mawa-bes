@@ -24,6 +24,7 @@ import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -239,9 +240,54 @@ public class MembershipService {
         List<MembershipDto> membershipDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
 
+
         transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        transactionQueryDto.setStatus(membershipQueryDto.getStatus());
+
         for (String id : transactionService.search(transactionQueryDto)) {
-            membershipDtoList.add(get(id));
+            try {
+                MembershipDto membershipDto = get(id);
+
+                boolean match = true;
+
+                if(membershipQueryDto.getMemberId() != null) {
+                    String memberId = membershipDto.getMember().getId();
+                    match =  membershipQueryDto.getMemberId().equals(memberId);
+                }
+
+                if(membershipQueryDto.getIdNumber() != null) {
+                    String IdNumber = membershipDto.getMember().getIdentity().getNumber();
+                    match =  match && membershipQueryDto.getIdNumber().equals(IdNumber);
+                }
+
+                if(membershipQueryDto.getProductId() != null){
+                    String productId = membershipDto.getProduct().getId();
+                    match = match && membershipQueryDto.getProductId().equals(productId);
+                }
+
+                if(membershipQueryDto.getSalesRepresentativeId() !=null){
+                    String salesRepresentativeId = membershipDto.getSalesRepresentative().getId();
+                    match = match && membershipQueryDto.getSalesRepresentativeId().equals(salesRepresentativeId);
+                }
+
+                if(membershipQueryDto.getDateJoined() !=null){
+
+                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+
+                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+
+                        match = match && dateJoined.equals(queryDateJoined);
+
+
+                }
+
+                if(match) {
+                    membershipDtoList.add(membershipDto);
+                }
+
+            }catch (Exception e){
+
+            }
         }
         return membershipDtoList;
     }
