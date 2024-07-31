@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
+import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -37,6 +38,8 @@ public class ClaimService {
     @Autowired
     PartnerService partnerService;
     @Autowired
+    CommentService commentService;
+    @Autowired
     TransactionTextService transactionTextService;
     @Autowired
     TransactionAttributeService transactionAttributeService;
@@ -52,6 +55,8 @@ public class ClaimService {
     TransactionAmountService transactionAmountService;
     @Autowired
     TransactionLinkService transactionLinkService;
+
+
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
     List<String> autoApprovalTypeList = new ArrayList<>();
 
@@ -180,15 +185,18 @@ public class ClaimService {
             claimOutboundDto.setId(transactionDto.getId());
             claimOutboundDto.setNumber(transactionDto.getNumber());
             claimOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+
             try {
                 claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
             }catch (Exception e){}
+
 
             if(transactionDto.getDescription() == null ){
                 claimOutboundDto.setDescription(transactionDto.getSubDescription());
             }else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
+          
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -249,9 +257,22 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
+            List<TransactionLinkDto> links = transactionService.getLinks(id);
+            List<CommentDto> comments = new ArrayList<>();
+            for (TransactionLinkDto link : links) {
+
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
+                }
+            }
+            claimOutboundDto.setComments(comments);
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
