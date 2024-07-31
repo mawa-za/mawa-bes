@@ -108,11 +108,13 @@ public class ReceiptController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                //since the username is saved in createdBy, we need to convert id to username to filter
+//                //since the username is saved in createdBy, we need to convert id to username to filter
+//
+//                PartnerEntity partner = partnerRepository.getById(createdBy);
+//                UserEntity user = userRepository.getByPartner(partner.getId());
+//                search.setCreatedBy(user.getUsername());
 
-                PartnerEntity partner = partnerRepository.getById(createdBy);
-                UserEntity user = userRepository.getByPartner(partner.getId());
-                search.setCreatedBy(user.getUsername());
+                search.setCreatedBy(createdBy);
 
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
