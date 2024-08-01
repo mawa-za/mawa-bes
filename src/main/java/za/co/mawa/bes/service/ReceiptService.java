@@ -108,7 +108,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
+        Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receiptEntity : receipts) {
             try {
@@ -123,7 +123,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceiptsX(ReceiptSearchDto receiptSearch) throws Exception {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
+        Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receipt : receipts) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
