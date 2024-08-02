@@ -4,28 +4,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.membership.MembershipDto;
-import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountEditDto;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountQueryDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.dao.TransactionDao;
 
-import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -596,6 +590,17 @@ public class TransactionService implements TransactionDao {
         }
 
         if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
+            searchTerms.add("EMPLOYEE-RESPONSIBLE");
+            List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getEmployeeResponsibleId());
+            for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
+
+                    transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                    resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+
+            }
+        }
+
+        if (transactionQueryDto.getPartnerFunction() != null && transactionQueryDto.getPartnerNo() != null) {
             searchTerms.add("PARTNER-FUNCTION");
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getPartnerNo());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
@@ -699,6 +704,7 @@ public class TransactionService implements TransactionDao {
             transactionDto.setId(transactionEntity.getId());
             transactionDto.setNumber(transactionEntity.getNumber());
             transactionDto.setDescription(transactionEntity.getDescription());
+            transactionDto.setSubDescription(transactionEntity.getSubDescription());
             transactionDto.setType(transactionEntity.getType());
             transactionDto.setSubType(transactionEntity.getSubType());
             transactionDto.setCategory(transactionEntity.getCategory());
