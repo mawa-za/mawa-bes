@@ -21,6 +21,7 @@ import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @RestController
@@ -57,9 +58,48 @@ public class MembershipController {
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
                                             @RequestParam(required = false) String partnerId,
+                                            @RequestParam(required = false) String productId,
+                                            @RequestParam(required = false) String salesRepresentativeId,
+                                            @RequestParam(required = false) String dateJoined,
                                             @RequestParam(required = false) String idNumber) {
         try {
             MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+            if(status != null && status != "") {
+                membershipQueryDto.setStatus(status);
+            }
+
+            if(productId != null && productId != "") {
+                membershipQueryDto.setProductId(productId);
+            }
+
+            if(salesRepresentativeId != null && salesRepresentativeId != "") {
+                membershipQueryDto.setSalesRepresentativeId(salesRepresentativeId);
+            }
+
+            if(partnerFunction != null && partnerFunction != "") {
+                membershipQueryDto.setPartnerFunction(partnerFunction);
+            }
+
+            if(partnerId != null && partnerId != "") {
+                membershipQueryDto.setMemberId(partnerId);
+            }
+
+            if(idNumber != null && idNumber != "") {
+                membershipQueryDto.setIdNumber(idNumber);
+            }
+
+            if (dateJoined != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(dateJoined);
+
+                membershipQueryDto.setDateJoined(date);
+
+
+            }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
         } catch (Exception exception) {
@@ -75,43 +115,43 @@ public class MembershipController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
-    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
-                                                     @RequestParam(required = false) String partnerFunction,
-                                                     @RequestParam(required = false) String memberId,
-                                                     @RequestParam(required = false) String idNumber,
-                                                     @RequestParam(required = false) String productId,
-                                                     @RequestParam(required = false) String dateJoined) {
-        try {
-            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-
-            if (status != null) {
-                membershipQueryDto.setStatus(status);
-            }
-            if (partnerFunction != null) {
-                membershipQueryDto.setPartnerFunction(partnerFunction);
-            }
-            if (memberId != null) {
-
-                membershipQueryDto.setMemberId(memberId);
-            }
-            if (idNumber != null) {
-                membershipQueryDto.setIdNumber(idNumber);
-            }
-            if (productId != null) {
-                membershipQueryDto.setProductId(productId);
-            }
-            if (dateJoined != null) {
-
-                membershipQueryDto.setDateJoined(Conversion.stringToDate(dateJoined));
-            }
-            return ResponseEntity.ok(gson.toJson(membershipService.getByFilter(membershipQueryDto)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-//    getByFilter
+//
+//    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
+//                                                     @RequestParam(required = false) String partnerFunction,
+//                                                     @RequestParam(required = false) String memberId,
+//                                                     @RequestParam(required = false) String idNumber,
+//                                                     @RequestParam(required = false) String productId,
+//                                                     @RequestParam(required = false) String dateJoined) {
+//        try {
+//            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+//
+//            if (status != null) {
+//                membershipQueryDto.setStatus(status);
+//            }
+//            if (partnerFunction != null) {
+//                membershipQueryDto.setPartnerFunction(partnerFunction);
+//            }
+//            if (memberId != null) {
+//
+//                membershipQueryDto.setMemberId(memberId);
+//            }
+//            if (idNumber != null) {
+//                membershipQueryDto.setIdNumber(idNumber);
+//            }
+//            if (productId != null) {
+//                membershipQueryDto.setProductId(productId);
+//            }
+//            if (dateJoined != null) {
+//
+//                membershipQueryDto.setDateJoined(Conversion.stringToDate(dateJoined));
+//            }
+//            return ResponseEntity.ok(gson.toJson(membershipService.getByFilter(membershipQueryDto)));
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+//        }
+//    }
+////    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
