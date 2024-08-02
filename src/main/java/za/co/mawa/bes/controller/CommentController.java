@@ -35,10 +35,12 @@ public class CommentController {
         }
     }
 
-    @RequestMapping(value = "{id}/all", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllComment(@PathVariable String id) {
+    @RequestMapping( method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllComment(@RequestParam String parentTransactionId,
+                                           @RequestParam String createdBy) {
         try {
-            return ResponseEntity.ok(gson.toJson(commentService.getAll(id)));
+
+            return ResponseEntity.ok(gson.toJson(commentService.getAll(parentTransactionId)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }

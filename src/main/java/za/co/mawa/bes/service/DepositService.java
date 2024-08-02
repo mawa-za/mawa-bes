@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.deposit.DepositSearchDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionDatePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
@@ -118,8 +119,11 @@ public class DepositService implements DepositDao {
             }
             try {
                 depositDto.setAmount(transactionAmountService.getByTransaction(id).stream()
-                        .filter(a -> Objects.equals(a.getType().getCode(), AmountType.DEPOSIT_AMOUNT))
                         .toList().iterator().next().getAmount().toString());
+                        //amounts are not being returned due to this filter
+                        //.filter(a -> Objects.equals(a.getType().getCode(), AmountType.DEPOSIT_AMOUNT))
+                        //.filter(a -> Objects.equals(a.getType().getCode().toUpperCase(), AmountType.DEPOSIT_AMOUNT))
+                        //.toList().iterator().next().getAmount().toString());
             } catch (Exception exception) {
             }
             //depositDto.setAmount();
@@ -219,4 +223,22 @@ public class DepositService implements DepositDao {
         String currentUser = userDetails.getUsername();
         return currentUser;
     }
+
+//    public String getUserId() {
+//        try {
+//
+//            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+//            UserEntity user = userRepository.getByName(userDetails.getUsername());
+//
+//            if (user != null) {
+//
+//                return String.valueOf(user.getPartner());
+//            } else {
+//                return null;
+//            }
+//        } catch (Exception e) {
+//
+//            return null;
+//        }
+//    }
 }

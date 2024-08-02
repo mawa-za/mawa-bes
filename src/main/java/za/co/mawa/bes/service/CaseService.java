@@ -112,7 +112,12 @@ public class CaseService {
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
         transactionQueryDto.setType(TransactionType.CASE);
         for (String id : transactionService.search(transactionQueryDto)) {
-            caseDtoList.add(get(id));
+
+            try {
+                caseDtoList.add(get(id));
+            }catch (Exception e){
+
+            }
         }
         return caseDtoList;
     }
