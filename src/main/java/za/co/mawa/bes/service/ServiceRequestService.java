@@ -37,7 +37,6 @@ public class ServiceRequestService implements ServiceRequestDao {
     FieldOptionService fieldOptionService;
     @Autowired
     TransactionRepository transactionRepository;
-
     @Autowired
     @Qualifier("transactionService")
     TransactionService service;
