@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -13,7 +14,6 @@ import java.math.BigDecimal;
 public class VoucherEditDto implements Serializable {
     private BigDecimal amount;
     private String status;
-    private String statusReason;
-    private String expiryDate;
+    private Date expiryDate;
 
 }

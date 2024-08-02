@@ -2,9 +2,13 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ServiceRequestDao;
 import za.co.mawa.bes.dao.TransactionDao;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.service.request.*;
 import za.co.mawa.bes.dto.transaction.*;
@@ -47,7 +51,21 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
+            transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+            try {
+                for (String assignee : serviceRequestCreateDto.getAssignees()) {
+                    TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                    transactionPartnerDto.setTransaction(transactionDto.getId());
+                    transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+                    transactionPartnerDto.setPartner(assignee);
+                    transactionService.addPartner(transactionPartnerDto);
+                }
+            }
+            catch (Exception e){
+
+            }
             return get(transactionDto.getId());
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -62,25 +80,24 @@ public class ServiceRequestService implements ServiceRequestDao {
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
-            if(entity != null){
-                if(serviceRequestEditDto.getDescription() != null){
-                    entity.setDescription(serviceRequestEditDto.getDescription());
-                }
-                if(serviceRequestEditDto.getCategory() != null){
-                    entity.setCategory(serviceRequestEditDto.getCategory());
-                }
-                if(serviceRequestEditDto.getPriority() != null){
-                    entity.setPriority(serviceRequestEditDto.getPriority());
-                }
-                if(serviceRequestEditDto.getStatus() != null){
-                    entity.setStatus(serviceRequestEditDto.getStatus());
-                }
-                Class<?> tservice = service.getClass();
-                Method privateMethod = tservice.getDeclaredMethod("getUser");
-                privateMethod.setAccessible(true);
-                entity.setChangedBy((String) privateMethod.invoke(service));
-                transactionRepository.save(entity);
+
+            if (serviceRequestEditDto.getDescription() != null) {
+                entity.setDescription(serviceRequestEditDto.getDescription());
             }
+            if(serviceRequestEditDto.getCategory() != null){
+                entity.setCategory(serviceRequestEditDto.getCategory());
+            }
+            if(serviceRequestEditDto.getPriority() != null){
+                entity.setPriority(serviceRequestEditDto.getPriority());
+            }
+            if(serviceRequestEditDto.getStatus() != null){
+                entity.setStatus(serviceRequestEditDto.getStatus());
+            }
+            Class<?> tservice = service.getClass();
+            Method privateMethod = tservice.getDeclaredMethod("getUser");
+            privateMethod.setAccessible(true);
+            entity.setChangedBy((String) privateMethod.invoke(service));
+            transactionRepository.save(entity);
             return get(id);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -101,6 +118,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 serviceRequestDtoList.add(get(id));
             } catch (Exception e) {
             }
+
         }
         return serviceRequestDtoList;
     }
@@ -114,12 +132,13 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setDescription(transactionDto.getDescription());
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
-
         } catch (Exception e) {
         }
+        serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         try {
-            serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
+
         }
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
         serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
@@ -138,9 +157,11 @@ public class ServiceRequestService implements ServiceRequestDao {
                 } catch (Exception e) {
                 }
             }
-            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.ASSIGNEE)) {
                 try {
-                    serviceRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
+                    List<PartnerDto> partnerAssignee = new ArrayList<>();
+                    partnerAssignee.add(partnerService.get(transactionPartner.getPartner()));
+                    serviceRequestDto.setAssignee(partnerAssignee);
                 } catch (Exception e) {
                 }
             }
@@ -155,5 +176,83 @@ public class ServiceRequestService implements ServiceRequestDao {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public ServiceRequestDto assign(String id, String assignee) throws Exception {
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+            transactionPartnerDto.setPartner(assignee);
+            transactionService.addPartner(transactionPartnerDto);
+        }
+        catch(Exception e){
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto unassign(String id, String assignee) throws Exception {
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+            transactionPartnerDto.setPartner(assignee);
+            transactionService.removePartner(transactionPartnerDto);
+        }
+        catch (Exception e){
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto reject(String id, String statusReason, String description) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.REJECTED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason.toUpperCase());
+            }
+            if (description != null && description != "") {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto cancel(String id, String statusReason, String description ) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CANCELLED);
+
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason.toUpperCase());
+            }
+            if (description != null && description != "") {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto close(String id, String statusReason, String description ) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CLOSED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason.toUpperCase());
+            }
+            if (description != null && description != "") {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
     }
 }
