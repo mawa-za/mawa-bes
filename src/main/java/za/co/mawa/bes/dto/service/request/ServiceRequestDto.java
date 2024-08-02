@@ -29,6 +29,7 @@ public class ServiceRequestDto implements Serializable {
     private List<PartnerDto> assignee = new ArrayList<>();;
     private Date creationDate;
     private Date dueDate;
+    private PartnerDto changedBy;
 //    private PartnerDto assignee;
 
 }

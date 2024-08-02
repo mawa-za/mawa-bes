@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.ServiceRequestDao;
 import za.co.mawa.bes.dao.TransactionDao;
 import za.co.mawa.bes.dto.partner.PartnerDto;
@@ -130,6 +131,10 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
         serviceRequestDto.setDescription(transactionDto.getDescription());
+
+        if (transactionDto.getChangedBy() != null) {
+            serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
+        }
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
         } catch (Exception e) {
@@ -197,6 +202,12 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionPartnerDto.setTransaction(id);
             transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
             transactionPartnerDto.setPartner(assignee);
+
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
+
+            transactionService.edit(transactionEditDto);
             transactionService.removePartner(transactionPartnerDto);
         }
         catch (Exception e){
@@ -215,6 +226,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             if (description != null && description != "") {
                 transactionEditDto.setDescription(description);
             }
+            transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
             transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
         }
@@ -233,6 +245,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             if (description != null && description != "") {
                 transactionEditDto.setDescription(description);
             }
+            transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
             transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
         }
@@ -250,6 +263,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             if (description != null && description != "") {
                 transactionEditDto.setDescription(description);
             }
+            transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
             transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
         }
