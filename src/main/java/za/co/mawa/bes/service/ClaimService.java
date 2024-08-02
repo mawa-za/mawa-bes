@@ -185,7 +185,9 @@ public class ClaimService {
             claimOutboundDto.setId(transactionDto.getId());
             claimOutboundDto.setNumber(transactionDto.getNumber());
             claimOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
+            try {
+                claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
+            }catch (Exception e){}
 
             if(transactionDto.getDescription() == null ){
                 claimOutboundDto.setDescription(transactionDto.getSubDescription());
