@@ -5,7 +5,7 @@ public class Status {
     public static String DRAFT = "DRAFT";
     public static String LOCKED = "LOCKED";
     public static String PENDING = "PENDING";
-
+    public static String NOT_YET_STARTED = "NOT_YET_STARTED";
     public static String ACTIVE = "ACTIVE";
     public static String INACTIVE = "INACTIVE";
     public static String OPEN = "OPEN";
