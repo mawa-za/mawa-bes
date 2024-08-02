@@ -45,6 +45,14 @@ public class TransactionAttributeService {
         }
     }
 
+    public List<TransactionAttributeEntity> getByTransactionId(String transactionId) {
+        try {
+            return transactionAttributeRepository.findAllByTransaction(transactionId);
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
     public void edit(TransactionAttributeDto transactionAttributeDto) {
         try {
             List<TransactionAttributeEntity> transactionAttributeEntityList = transactionAttributeRepository.find(transactionAttributeDto.getTransaction(), TransactionAttribute.LAST_PREMIUM_PERIOD);
