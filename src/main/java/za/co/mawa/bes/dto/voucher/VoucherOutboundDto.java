@@ -22,7 +22,7 @@ public class VoucherOutboundDto implements Serializable {
     private String status;
     private String statusReason;
     private BigDecimal amount;
-    private String createdBy;
+    private PartnerDto createdBy;
     private String changedBy;
     private PartnerDto customer;
 }

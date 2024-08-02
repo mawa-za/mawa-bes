@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
@@ -21,6 +22,7 @@ import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.repository.ReceiptRepository;
 
@@ -49,6 +51,10 @@ public class ReceiptService implements ReceiptDao {
     UserService userService;
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    PartnerService partnerService;
 
     @Override
     public ReceiptDto createReceipt(ReceiptCreateDto receipt) throws Exception {
@@ -60,7 +66,7 @@ public class ReceiptService implements ReceiptDao {
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
-            entity.setCreatedBy(UserContext.getCurrentUser());
+            entity.setCreatedBy(getUser());
             entity.setTransaction(receipt.getTransaction());
             entity.setTenderType(receipt.getTenderType().toUpperCase());
             entity.setAmount(receipt.getAmount());
@@ -88,7 +94,7 @@ public class ReceiptService implements ReceiptDao {
             receipt.setAmount(entity.getAmount());
             try {
                 receipt.setTransaction(transactionService.get(entity.getTransaction()));
-                receipt.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+                receipt.setCreatedBy(partnerService.get(entity.getCreatedBy()));
             } catch (Exception e) {
 
             }
@@ -104,7 +110,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
+        Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receiptEntity : receipts) {
             try {
@@ -119,7 +125,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceiptsX(ReceiptSearchDto receiptSearch) throws Exception {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").descending();
+        Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receipt : receipts) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
@@ -170,4 +176,22 @@ public class ReceiptService implements ReceiptDao {
 //        }
 //        return receiptDt;
 //    }
+
+    public String getUser() {
+        try {
+
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            UserEntity user = userRepository.getByName(userDetails.getUsername());
+
+            if (user != null) {
+
+                return String.valueOf(user.getPartner());
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+
+            return null;
+        }
+    }
 }
