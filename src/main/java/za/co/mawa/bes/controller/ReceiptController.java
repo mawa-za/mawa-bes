@@ -46,7 +46,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                if(receiptCreateDto.getExternalReceiptNo() == null) {
+                if(receiptCreateDto.getExternalReceiptNo() == null || receiptCreateDto.getExternalReceiptNo() == "") {
 
                     CashupCreateDto cashupCreateDto = new CashupCreateDto();
                     //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
