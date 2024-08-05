@@ -1,3 +1,5 @@
+package za.co.mawa.bes.dto.leave.request;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
