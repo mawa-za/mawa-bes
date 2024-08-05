@@ -49,9 +49,9 @@ public class VoucherController {
         }
     }
     @RequestMapping(value= "{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherInboundDto voucherInboundDto){
+    public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto voucherEditDto){
         try{
-            return ResponseEntity.ok(gson.toJson(voucherService.edit(voucherInboundDto)));
+            return ResponseEntity.ok(gson.toJson(voucherService.edit(id, voucherEditDto)));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
