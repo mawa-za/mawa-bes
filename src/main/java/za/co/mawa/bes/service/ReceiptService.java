@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -56,7 +57,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if(receipt.getExternalReceiptNo() !=null && receipt.getExternalReceiptNo() != "") {
+            if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
                 entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             }
             entity.setLocation(receipt.getLocation());
