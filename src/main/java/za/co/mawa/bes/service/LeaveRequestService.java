@@ -80,46 +80,6 @@ public class LeaveRequestService {
         }
     }
 
-//    public LeaveRequestOutboundDto get(String id) throws DoesNotExist {
-//        LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
-//        try{
-//            TransactionDto transactionDto = transactionService.get(id);
-//            leaveRequestOutboundDto.setType(fieldOptionService.getFieldOption(Field.LEAVE_REQUEST, transactionDto.getType()));
-//            leaveRequestOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-//            leaveRequestOutboundDto.setId(transactionDto.getId());
-//            for(TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)){
-//                if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPROVER)) {
-//                    try {
-//                        leaveRequestOutboundDto.setApprover(partnerService.get(transactionPartnerDto.getPartner()));
-//                    } catch (Exception e) {
-//                        throw new DoesNotExist(e.getMessage());
-//                    }
-//                }
-//                if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE)) {
-//                    try {
-//                        leaveRequestOutboundDto.setEmployee(partnerService.get(transactionPartnerDto.getPartner()));
-//                    } catch (Exception e) {
-//                        throw new DoesNotExist(e.getMessage());
-//                    }
-//                }
-//            }
-//            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-//                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
-//                    leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
-//                }
-//                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
-//                    leaveRequestOutboundDto.setStartDate(transactionDateDto.getValue());
-//                }
-//            }
-//            leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
-////            System.out.println(leaveRequestOutboundDto.getDays());
-//        }
-//        catch(Exception e){
-//            throw new DoesNotExist(e.getMessage());
-//        }
-//        return leaveRequestOutboundDto;
-//    }
-
     public LeaveRequestOutboundDto get(String id) throws DoesNotExist {
         LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
         try {
@@ -157,7 +117,6 @@ public class LeaveRequestService {
         }
         return leaveRequestOutboundDto;
     }
-
 
     public List<LeaveRequestOutboundDto> search() throws DoesNotExist {
         List<LeaveRequestOutboundDto> leaveRequestOutboundDtoList = new ArrayList<>();
@@ -248,22 +207,22 @@ public class LeaveRequestService {
         return get(id);
     }
 
-    public LeaveRequestOutboundDto cancel(LeaveCancelDto leaveCancelDto, String id) throws DoesNotExist {
+    public LeaveRequestOutboundDto cancel(LeaveRequestCancelDto leaveRequestCancelDto, String id) throws DoesNotExist {
         try{
             TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(leaveCancelDto.getLeaveRequestId());
+            transactionEditDto.setId(leaveRequestCancelDto.getLeaveRequestId());
             transactionEditDto.setStatus(Status.CANCELLED);
-            transactionEditDto.setStatusReason(leaveCancelDto.getReason());
+            transactionEditDto.setStatusReason(leaveRequestCancelDto.getReason());
             transactionService.edit(transactionEditDto);
             TransactionTextDto transactionTextDto = new TransactionTextDto();
-            transactionTextDto.setTransaction(leaveCancelDto.getLeaveRequestId());
+            transactionTextDto.setTransaction(leaveRequestCancelDto.getLeaveRequestId());
             transactionTextDto.setType(TextType.LEAVE_REQUEST_CANCEL);
             transactionTextService.add(transactionTextDto);
 //            delete(id);
         }
         catch(Exception e){
         }
-        return get(id);
+        return get(leaveRequestCancelDto.getLeaveRequestId());
     }
 
     public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {

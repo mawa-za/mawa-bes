@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.leave.request.LeaveCancelDto;
+import za.co.mawa.bes.dto.leave.request.LeaveRequestCancelDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
@@ -91,9 +91,9 @@ public class LeaveRequestController {
     }
 
     @RequestMapping(value = "{id}/cancel",method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> cancel(@PathVariable String id, @RequestBody LeaveCancelDto leaveCancelDto) {
+    public ResponseEntity<?> cancel(@PathVariable String id, @RequestBody LeaveRequestCancelDto leaveRequestCancelDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.cancel(leaveCancelDto, id)));
+            return ResponseEntity.ok(gson.toJson(leaveRequestService.cancel(leaveRequestCancelDto, id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
