@@ -57,9 +57,13 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
-                entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
-            }
+            try{
+                if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
+                    entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
+                }else {
+                    entity.setExtReceiptNumber(null);
+                }
+            }catch (Exception e){}
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -85,7 +89,10 @@ public class ReceiptService implements ReceiptDao {
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
-            receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
+            try {
+                receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
+            }catch (Exception e){}
+
             receipt.setReceiptType(fieldOptionService.getFieldOption(Field.RECEIPT_TYPE, entity.getReceiptType()));
             receipt.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
             receipt.setAmount(entity.getAmount());
