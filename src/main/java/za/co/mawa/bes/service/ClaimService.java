@@ -255,17 +255,21 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            List<TransactionLinkDto> links = transactionService.getLinks(id);
-            List<CommentDto> comments = new ArrayList<>();
-            for (TransactionLinkDto link : links) {
+            try {
+                List<TransactionLinkDto> links = transactionService.getLinks(id);
+                List<CommentDto> comments = new ArrayList<>();
+                for (TransactionLinkDto link : links) {
 
-                CommentDto comment = new CommentDto();
-                comment = commentService.get(link.getTransaction2());
-                if(Objects.equals(comment.getType(), "COMMENT")) {
-                    comments.add(comment);
+                    CommentDto comment = new CommentDto();
+                    comment = commentService.get(link.getTransaction2());
+                    if (Objects.equals(comment.getType(), "COMMENT")) {
+                        comments.add(comment);
+                    }
                 }
-            }
-            claimOutboundDto.setComments(comments);
+                claimOutboundDto.setComments(comments);
+
+            }catch (Exception e){}
+
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
@@ -379,7 +383,9 @@ public class ClaimService {
                     voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
                 voucherInboundDto.setContractId(id);
-                voucherService.create(voucherInboundDto);
+                try {
+                    voucherService.create(voucherInboundDto);
+                }catch (Exception e){}
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
