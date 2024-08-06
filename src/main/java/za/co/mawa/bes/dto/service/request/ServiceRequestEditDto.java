@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 public class ServiceRequestEditDto implements Serializable {
     private String id;
+//    private String customer;
     private String statusReason;
     private String description;
     private String category;
