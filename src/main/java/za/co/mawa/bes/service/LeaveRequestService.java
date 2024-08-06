@@ -1,18 +1,25 @@
 package za.co.mawa.bes.service;
 
+import org.hibernate.grammars.hql.HqlParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.leave.request.*;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.date.TransactionDateEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
+import za.co.mawa.bes.dto.voucher.VoucherOutboundDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
-import java.util.*;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 @Service
 public class LeaveRequestService {
@@ -24,6 +31,7 @@ public class LeaveRequestService {
     FieldOptionService fieldOptionService;
     @Autowired
     PartnerService partnerService;
+    List<String> autoApprovalTypeList = new ArrayList<>();
     @Autowired
     TransactionTextService transactionTextService;
 
@@ -78,12 +86,12 @@ public class LeaveRequestService {
 
     public LeaveRequestOutboundDto get(String id) throws DoesNotExist {
         LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
-        try {
+        try{
             TransactionDto transactionDto = transactionService.get(id);
             leaveRequestOutboundDto.setType(fieldOptionService.getFieldOption(Field.LEAVE_REQUEST, transactionDto.getType()));
             leaveRequestOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             leaveRequestOutboundDto.setId(transactionDto.getId());
-            for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+            for(TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)){
                 if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPROVER)) {
                     try {
                         leaveRequestOutboundDto.setApprover(partnerService.get(transactionPartnerDto.getPartner()));
@@ -100,15 +108,15 @@ public class LeaveRequestService {
                 }
             }
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
                     leaveRequestOutboundDto.setStartDate(transactionDateDto.getValue());
                 }
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
                     leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
                 }
             }
-            leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
-        } catch (Exception e) {
+        }
+        catch(Exception e){
             throw new DoesNotExist(e.getMessage());
         }
         return leaveRequestOutboundDto;
@@ -226,29 +234,5 @@ public class LeaveRequestService {
         } catch (Exception e) {
         }
         return search();
-    }
-
-    public static int getWorkingDaysBetweenTwoDates(Date startDate, Date endDate) {
-        Calendar startCal = Calendar.getInstance();
-        startCal.setTime(startDate);
-
-        Calendar endCal = Calendar.getInstance();
-        endCal.setTime(endDate);
-        int workDays = 0;
-
-        if (startCal.getTimeInMillis() == endCal.getTimeInMillis()) {
-            return 0;
-        }
-        if (startCal.getTimeInMillis() > endCal.getTimeInMillis()) {
-            startCal.setTime(endDate);
-            endCal.setTime(startDate);
-        }
-        do {
-            startCal.add(Calendar.DAY_OF_MONTH, 1);
-            if (startCal.get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY && startCal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
-                ++workDays;
-            }
-        } while (startCal.getTimeInMillis() < endCal.getTimeInMillis());
-        return workDays;
     }
 }

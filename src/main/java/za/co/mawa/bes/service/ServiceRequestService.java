@@ -118,6 +118,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 serviceRequestDtoList.add(get(id));
             } catch (Exception e) {
             }
+
         }
         return serviceRequestDtoList;
     }
@@ -141,6 +142,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
+
         }
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
         serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
