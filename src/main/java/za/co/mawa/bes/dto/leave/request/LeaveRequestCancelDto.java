@@ -7,7 +7,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class LeaveCancelDto {
+public class LeaveRequestCancelDto {
     private String leaveRequestId;
     private String reason;
 }

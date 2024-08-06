@@ -14,6 +14,7 @@ public class PartnerFunction {
     public static String APPROVER = "APPROVER";
     public static String APPROVERID = "APPROVERID";
     public static String REQUESTOR = "REQUESTOR";
+    public static String ASSIGNEE = "ASSIGNEE";
 
     public static String CUSTOMER = "CUSTOMER";
     public static String EMPLOYEE_RESPONSIBLE = "EMPLOYEE-RESPONSIBLE";

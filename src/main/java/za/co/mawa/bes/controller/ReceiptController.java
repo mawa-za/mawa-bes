@@ -50,7 +50,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                if(receiptCreateDto.getExternalReceiptNo() == null) {
+                if(receiptCreateDto.getExternalReceiptNo() == null || receiptCreateDto.getExternalReceiptNo() == "") {
 
                     CashupCreateDto cashupCreateDto = new CashupCreateDto();
                     //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
@@ -108,11 +108,13 @@ public class ReceiptController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                //since the username is saved in createdBy, we need to convert id to username to filter
+//                //since the username is saved in createdBy, we need to convert id to username to filter
+//
+//                PartnerEntity partner = partnerRepository.getById(createdBy);
+//                UserEntity user = userRepository.getByPartner(partner.getId());
+//                search.setCreatedBy(user.getUsername());
 
-                PartnerEntity partner = partnerRepository.getById(createdBy);
-                UserEntity user = userRepository.getByPartner(partner.getId());
-                search.setCreatedBy(user.getUsername());
+                search.setCreatedBy(createdBy);
 
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();

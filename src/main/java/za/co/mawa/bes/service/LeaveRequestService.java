@@ -206,22 +206,22 @@ public class LeaveRequestService {
         return get(id);
     }
 
-    public LeaveRequestOutboundDto cancel(LeaveCancelDto leaveCancelDto, String id) throws DoesNotExist {
+    public LeaveRequestOutboundDto cancel(LeaveRequestCancelDto leaveRequestCancelDto, String id) throws DoesNotExist {
         try{
             TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(leaveCancelDto.getLeaveRequestId());
+            transactionEditDto.setId(leaveRequestCancelDto.getLeaveRequestId());
             transactionEditDto.setStatus(Status.CANCELLED);
-            transactionEditDto.setStatusReason(leaveCancelDto.getReason());
+            transactionEditDto.setStatusReason(leaveRequestCancelDto.getReason());
             transactionService.edit(transactionEditDto);
             TransactionTextDto transactionTextDto = new TransactionTextDto();
-            transactionTextDto.setTransaction(leaveCancelDto.getLeaveRequestId());
+            transactionTextDto.setTransaction(leaveRequestCancelDto.getLeaveRequestId());
             transactionTextDto.setType(TextType.LEAVE_REQUEST_CANCEL);
             transactionTextService.add(transactionTextDto);
 //            delete(id);
         }
         catch(Exception e){
         }
-        return get(id);
+        return get(leaveRequestCancelDto.getLeaveRequestId());
     }
 
     public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {
