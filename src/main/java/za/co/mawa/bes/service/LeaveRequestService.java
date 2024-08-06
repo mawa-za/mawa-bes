@@ -16,7 +16,6 @@ import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
-
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
@@ -226,7 +225,7 @@ public class LeaveRequestService {
         }
         catch(Exception e){
         }
-        return get(leaveRequestCancelDto.getLeaveRequestId());
+        return get(id);
     }
 
     public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {
