@@ -87,7 +87,6 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-  
     @RequestMapping(value = "{id}/assign", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> assign(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
@@ -105,7 +104,6 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-
     @RequestMapping(value = "{id}/reject", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
