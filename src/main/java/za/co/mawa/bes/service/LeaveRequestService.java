@@ -25,7 +25,6 @@ public class LeaveRequestService {
     FieldOptionService fieldOptionService;
     @Autowired
     PartnerService partnerService;
-    List<String> autoApprovalTypeList = new ArrayList<>();
     @Autowired
     TransactionTextService transactionTextService;
 
@@ -80,46 +79,6 @@ public class LeaveRequestService {
         }
     }
 
-//    public LeaveRequestOutboundDto get(String id) throws DoesNotExist {
-//        LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
-//        try{
-//            TransactionDto transactionDto = transactionService.get(id);
-//            leaveRequestOutboundDto.setType(fieldOptionService.getFieldOption(Field.LEAVE_REQUEST, transactionDto.getType()));
-//            leaveRequestOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-//            leaveRequestOutboundDto.setId(transactionDto.getId());
-//            for(TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)){
-//                if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPROVER)) {
-//                    try {
-//                        leaveRequestOutboundDto.setApprover(partnerService.get(transactionPartnerDto.getPartner()));
-//                    } catch (Exception e) {
-//                        throw new DoesNotExist(e.getMessage());
-//                    }
-//                }
-//                if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE)) {
-//                    try {
-//                        leaveRequestOutboundDto.setEmployee(partnerService.get(transactionPartnerDto.getPartner()));
-//                    } catch (Exception e) {
-//                        throw new DoesNotExist(e.getMessage());
-//                    }
-//                }
-//            }
-//            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-//                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
-//                    leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
-//                }
-//                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
-//                    leaveRequestOutboundDto.setStartDate(transactionDateDto.getValue());
-//                }
-//            }
-//            leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
-////            System.out.println(leaveRequestOutboundDto.getDays());
-//        }
-//        catch(Exception e){
-//            throw new DoesNotExist(e.getMessage());
-//        }
-//        return leaveRequestOutboundDto;
-//    }
-
     public LeaveRequestOutboundDto get(String id) throws DoesNotExist {
         LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
         try {
@@ -157,7 +116,6 @@ public class LeaveRequestService {
         }
         return leaveRequestOutboundDto;
     }
-
 
     public List<LeaveRequestOutboundDto> search() throws DoesNotExist {
         List<LeaveRequestOutboundDto> leaveRequestOutboundDtoList = new ArrayList<>();
@@ -281,13 +239,11 @@ public class LeaveRequestService {
 
         Calendar endCal = Calendar.getInstance();
         endCal.setTime(endDate);
-
         int workDays = 0;
 
         if (startCal.getTimeInMillis() == endCal.getTimeInMillis()) {
             return 0;
         }
-
         if (startCal.getTimeInMillis() > endCal.getTimeInMillis()) {
             startCal.setTime(endDate);
             endCal.setTime(startDate);
@@ -298,7 +254,6 @@ public class LeaveRequestService {
                 ++workDays;
             }
         } while (startCal.getTimeInMillis() < endCal.getTimeInMillis());
-
         return workDays;
     }
 }
