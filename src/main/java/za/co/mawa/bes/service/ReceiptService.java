@@ -132,14 +132,16 @@ public class ReceiptService implements ReceiptDao {
         Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receipt : receipts) {
-            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
-            if (linkEntity == null) {
-                try {
-                    receiptDtos.add(getReceipt(receipt.getId()));
-                } catch (Exception e) {
+            try {
+                TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
+                if (linkEntity == null) {
+                    try {
+                        receiptDtos.add(getReceipt(receipt.getId()));
+                    } catch (Exception e) {
 
+                    }
                 }
-            }
+            }catch (Exception e){}
         }
         return receiptDtos;
     }
