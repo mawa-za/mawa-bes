@@ -10,11 +10,8 @@ import za.co.mawa.bes.dto.leave.request.LeaveRequestCancelDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
-import za.co.mawa.bes.dto.transaction.TransactionEditDto;
-import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.LeaveRequestService;
 import za.co.mawa.bes.service.TransactionService;
-import za.co.mawa.bes.utils.Status;
 
 @RestController
 @CrossOrigin

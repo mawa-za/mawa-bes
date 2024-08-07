@@ -105,6 +105,7 @@ public class VoucherService {
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
+
     }
 
     public VoucherOutboundDto get(String id) throws Exception {
@@ -187,12 +188,10 @@ public class VoucherService {
     public boolean edit(VoucherEditDto voucherEditDto, String id) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
-            TransactionEntity entity = transactionRepository.getById(id);
-            TransactionDto transactionDto = transactionService.get(id);
-
             boolean edited = false;
 
             if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                 transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
                 transactionAmountService.save(transactionAmountInboundDto);
