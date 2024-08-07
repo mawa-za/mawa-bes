@@ -170,17 +170,21 @@ public class CaseService {
                 dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
                 dateDtoList.add(dateDto);
             }
-            List<TransactionLinkDto> links = transactionService.getLinks(id);
-            List<CommentDto> comments = new ArrayList<>();
-            for (TransactionLinkDto link : links) {
 
-                CommentDto comment = new CommentDto();
-                comment = commentService.get(link.getTransaction2());
-                if(Objects.equals(comment.getType(), "COMMENT")) {
-                    comments.add(comment);
+            try {
+                List<TransactionLinkDto> links = transactionService.getLinks(id);
+                List<CommentDto> comments = new ArrayList<>();
+                for (TransactionLinkDto link : links) {
+
+                    CommentDto comment = new CommentDto();
+                    comment = commentService.get(link.getTransaction2());
+                    if (Objects.equals(comment.getType(), "COMMENT")) {
+                        comments.add(comment);
+                    }
                 }
-            }
-            caseDto.setComments(comments);
+                caseDto.setComments(comments);
+            }catch(Exception e){}
+
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
