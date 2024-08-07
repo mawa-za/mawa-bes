@@ -87,11 +87,10 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-  
     @RequestMapping(value = "{id}/assign", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> assign(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.assign(id, serviceRequestEditDto.getAssignee())));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.assign(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -100,16 +99,15 @@ public class ServiceRequestController {
     @RequestMapping(value = "{id}/unassign", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> unaAssign(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.unassign(id, serviceRequestEditDto.getAssignee())));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.unassign(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-
     @RequestMapping(value = "{id}/reject", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reject(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.reject(id, serviceRequestEditDto.getStatusReason(), serviceRequestEditDto.getDescription())));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.reject(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -118,7 +116,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "{id}/cancel", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> cancel(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.cancel(id, serviceRequestEditDto.getStatusReason(), serviceRequestEditDto.getDescription())));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.cancel(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -127,7 +125,7 @@ public class ServiceRequestController {
     @RequestMapping(value = "{id}/close", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> close(@PathVariable String id, @RequestBody ServiceRequestEditDto serviceRequestEditDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(serviceRequestService.close(id, serviceRequestEditDto.getStatusReason(), serviceRequestEditDto.getDescription())));
+            return ResponseEntity.ok(gson.toJson(serviceRequestService.close(id, serviceRequestEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

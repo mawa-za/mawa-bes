@@ -190,6 +190,7 @@ public class ClaimService {
                 claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
             }catch (Exception e){}
 
+
             if(transactionDto.getDescription() == null ){
                 claimOutboundDto.setDescription(transactionDto.getSubDescription());
             }else {

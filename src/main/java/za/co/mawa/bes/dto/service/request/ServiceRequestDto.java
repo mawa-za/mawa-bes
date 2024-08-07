@@ -26,10 +26,8 @@ public class ServiceRequestDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private PartnerDto createdBy;
-    private List<PartnerDto> assignee = new ArrayList<>();;
+    private List<PartnerDto> assignee;
     private Date creationDate;
     private Date dueDate;
     private PartnerDto changedBy;
-//    private PartnerDto assignee;
-
 }

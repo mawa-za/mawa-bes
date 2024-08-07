@@ -62,9 +62,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if(receipt.getExternalReceiptNo() !=null && receipt.getExternalReceiptNo() != "") {
-                entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
-            }
+            entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -112,7 +110,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceipts(ReceiptSearchDto receiptSearch) {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").ascending();
+        Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receiptEntity : receipts) {
             try {
@@ -127,7 +125,7 @@ public class ReceiptService implements ReceiptDao {
     @Override
     public ArrayList<ReceiptDto> getReceiptsX(ReceiptSearchDto receiptSearch) throws Exception {
         ArrayList<ReceiptDto> receiptDtos = new ArrayList<>();
-        Sort sort = Sort.by("id").ascending();
+        Sort sort = Sort.by("id").descending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receipt : receipts) {
             TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);

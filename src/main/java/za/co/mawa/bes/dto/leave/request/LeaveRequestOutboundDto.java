@@ -19,6 +19,6 @@ public class LeaveRequestOutboundDto {
     private PartnerDto approver;
     private Date startDate;
     private Date endDate;
-    private long days;
+    private int days;
     private FieldOptionDto status;
 }
