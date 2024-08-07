@@ -19,10 +19,11 @@ public class VoucherOutboundDto implements Serializable {
     private PartnerDto recipient;
     private String dateCreated;
     private String expiryDate;
-    private String status;
-    private String statusReason;
+    private FieldOptionDto status;
+    private FieldOptionDto statusReason;
     private BigDecimal amount;
-    private String createdBy;
-    private String changedBy;
+    private PartnerDto createdBy;
+    private PartnerDto changedBy;
     private PartnerDto customer;
+    private String contractId;
 }
