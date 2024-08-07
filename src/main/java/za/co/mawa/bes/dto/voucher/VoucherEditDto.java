@@ -13,10 +13,9 @@ import java.util.Date;
 @Setter
 public class VoucherEditDto implements Serializable {
     private BigDecimal amount;
-    private String recipientId;
-    private String type;
+    private String status;
     private Date expiryDate;
+    private String statusReason;
     private String contractId;
     private String changedBy;
-
 }
