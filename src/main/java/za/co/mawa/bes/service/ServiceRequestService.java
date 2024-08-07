@@ -130,7 +130,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
         serviceRequestDto.setDescription(transactionDto.getDescription());
-
+        serviceRequestDto.setDescription(transactionDto.getSubDescription());
         if (transactionDto.getChangedBy() != null) {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
@@ -260,7 +260,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 transactionEditDto.setStatusReason(statusReason.toUpperCase());
             }
             if (description != null && description != "") {
-                transactionEditDto.setDescription(description);
+                transactionEditDto.setDescription(description.toUpperCase());
             }
             transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
             transactionService.edit(transactionEditDto);
