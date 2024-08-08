@@ -1,13 +1,15 @@
 package za.co.mawa.bes.dto.leave.request;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Date;
+
 @NoArgsConstructor
 @Getter
 @Setter
-public class LeaveRequestCancelDto {
-    private String leaveRequestId;
-    private String reason;
+public class LeaveRequestEditDto {
+    private Date startDate;
+    private Date endDate;
+    private String status;
 }
