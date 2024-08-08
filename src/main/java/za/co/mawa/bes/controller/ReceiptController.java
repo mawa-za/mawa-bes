@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -50,7 +51,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                if(receiptCreateDto.getExternalReceiptNo() == null || receiptCreateDto.getExternalReceiptNo() == "") {
+                if(StringUtils.isBlank(receiptCreateDto.getExternalReceiptNo())) {
 
                     CashupCreateDto cashupCreateDto = new CashupCreateDto();
                     //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
