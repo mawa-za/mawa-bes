@@ -53,5 +53,5 @@ public class Field {
     public static String LEAVE_TYPE = "LEAVE-TYPE";
     public static String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static String DISCOUNT = "DISCOUNT";
-    public static String SERVICE_REQUEST = "SERVICE_REQUEST";
+    public static String SERVICE_REQUEST = "SERVICE-REQUEST";
 }
