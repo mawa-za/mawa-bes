@@ -1,5 +1,7 @@
 package za.co.mawa.bes.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,5 +21,8 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     @Query("SELECT p FROM PartnerEntity p WHERE p.name3 = :name3")
     List<PartnerEntity> findPartnerByName3(String name3);
 
-    List<PartnerEntity> findAll(Specification<PartnerEntity> byCriteria, Sort sort);
+    //List<PartnerEntity> findAllById(Specification<PartnerEntity> byCriteria, Sort sort);
+    List<PartnerEntity> findAllByIdIn(List<String> ids);
+
+    Page<PartnerEntity> findAll( Specification<PartnerEntity> byCriteria , Pageable pageable);
 }

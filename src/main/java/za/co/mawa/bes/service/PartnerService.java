@@ -1,6 +1,11 @@
 package za.co.mawa.bes.service;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -213,28 +218,78 @@ public class PartnerService {
         return relations;
     }
 
-    public ArrayList<PartnerDto> search(PartnerQueryDto partnerQueryDto) {
+    public List<PartnerEntity> search(PartnerQueryDto partnerQueryDto) {
         ArrayList<PartnerDto> finalList = new ArrayList<>();
         ArrayList<PartnerDto> filteredList = new ArrayList<>();
         ArrayList<PartnerDto> initialList = new ArrayList<>();
+        List<PartnerEntity> partnerEntities = new ArrayList<>();
+
         boolean pass = false;
 
-        if (partnerQueryDto == null) {
-            List<PartnerEntity> partnerList = partnerRepository.findAll();
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    finalList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-                }
-            }
-            return finalList;
+        if (partnerQueryDto != null) {
+            //List<PartnerEntity> partnerList = partnerRepository.findAll();
+            //List<PartnerEntity> partnerList = new ArrayList<>();
+            ProspectSearchDto searchDto = new ProspectSearchDto();
+            //searchDto.setPartnerType(partnerQueryDto.getType());
+            Pageable pageable = PageRequest.of(0, 2000);
+            //List<PartnerEntity> partnerList = partnerRepository.findAll(findByCriteria(searchDto),pageable).getContent();
+            List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole2(partnerQueryDto.getRole(),pageable);
+
+            // Step 2: Extract IDs from PartnerRoleEntities
+            List<String> partnerRoleIds = partnerRoleList.stream()
+                    .map(pr -> pr.getPartnerRolePK().getId())
+                    .collect(Collectors.toList());
+
+            // Step 3: Retrieve filtered PartnerEntities from the repository
+            List<PartnerEntity> filteredPartners;
+            filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds);
+
+            return filteredPartners;
+//            for (PartnerEntity partner : partnerList) {
+//                try {
+//                    finalList.add(get(partner.getId()));
+//                } catch (PartnerNotFoundException e) {
+//                }
+//            }
+//            finalList = partnerList.stream()
+//                    .map(partner -> {
+//                        try {
+//                            PartnerDto partnerDto = new PartnerDto();
+//                            partnerDto.setId(partner.getId());
+//                            partnerDto.setNumber(partner.getNo());
+//                            partnerDto.setIdentity(partnerIdentityService.get(partner.getId()));
+//                            partnerDto.setName1(partner.getName1());
+//                            partnerDto.setName2(partner.getName2());
+//                            partnerDto.setName3(partner.getName3());
+//                            partnerDto.setBirthDate(partner.getBirthDate());
+//                            partnerDto.setTitle(fieldOptionService.getFieldOption(Field.TITLE, partner.getTitle()));
+//                            partnerDto.setType(fieldOptionService.getFieldOption(Field.PARTNER_TYPE, partner.getType()));
+//                            partnerDto.setStatus(fieldOptionService.getFieldOption(Field.PARTNER_STATUS, partner.getStatus()));
+//                            partnerDto.setGender(fieldOptionService.getFieldOption(Field.GENDER, partner.getGender()));
+//                            partnerDto.setMaritalStatus(fieldOptionService.getFieldOption(Field.MARITAL_STATUS, partner.getMaritalStatus()));
+//                            partnerDto.setLanguage(fieldOptionService.getFieldOption(Field.LANGUAGE, partner.getLanguage()));
+//                            partnerDto.setValidFrom(partner.getValidFrom());
+//                            partnerDto.setValidTo(partner.getValidTo());
+//                            return partnerDto;
+//
+//                        } catch (Exception e) {
+//                            return null;
+//                        }
+//                    })
+//                    .filter(Objects::nonNull)
+//                    .collect(Collectors.toCollection(ArrayList::new));
+
+//            return partnerList;
         }
 
         if (partnerQueryDto.getType() != null) {
             ProspectSearchDto searchDto = new ProspectSearchDto();
             searchDto.setPartnerType(partnerQueryDto.getType());
             Sort sort = Sort.by("id").descending();
-            List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
+            //List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
+            Pageable pageable = PageRequest.of(0, 2);
+            List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),pageable).getContent();
+
             for (PartnerEntity partnerType : partners) {
                 try {
                     initialList.add(get(partnerType.getId()));
@@ -247,16 +302,20 @@ public class PartnerService {
         if (partnerQueryDto.getRole() != null) {
             List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerQueryDto.getRole());
             for (PartnerRoleEntity partnerRole : partnerRoleList) {
-                Optional<PartnerEntity> partner = partnerRepository.findById(partnerRole.getPartnerRolePK().getId());
-                PartnerEntity partnerEntity = partner.orElse(null);
-                if (partnerEntity != null) {
-                    try {
-                        initialList.add(get(partnerEntity.getId()));
-                    } catch (PartnerNotFoundException e) {
+                Optional<PartnerEntity> Partner = partnerRepository.findById(partnerRole.getPartnerRolePK().getId());
+                Partner.ifPresent(partnerEntities::add);
 
-                    }
-                }
+                //PartnerEntity partnerEntity = partner.orElse(null);
+//                if (partnerEntity != null) {
+//                    try {
+//                        initialList.add(get(partnerEntity.getId()));
+//                        //partnerEntities.add(partner);
+//                    } catch (PartnerNotFoundException e) {
+//
+//                    }
+//                }
             }
+            return partnerEntities;
         }
 
 
@@ -407,7 +466,8 @@ public class PartnerService {
                 finalList.add(pqr);
             }
         }
-        return finalList;
+        //return finalList;
+        return null;
     }
 
 
@@ -841,7 +901,8 @@ public class PartnerService {
     public ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception {
         ArrayList<ProspectDto> prospectDtoArrayList = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
-        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
+        Pageable pageable = PageRequest.of(0, 2);
+        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),pageable).getContent();
         prospectDtoArrayList = entityArrayToDto(partners);
         return prospectDtoArrayList;
     }
@@ -1231,4 +1292,6 @@ public class PartnerService {
 
         };
     }
+
+
 }
