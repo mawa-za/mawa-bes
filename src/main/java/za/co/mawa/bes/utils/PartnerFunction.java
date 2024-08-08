@@ -39,4 +39,5 @@ public class PartnerFunction {
     public static String PREVIOUS_INSURER = "PREVIOUS-INSURER";
     public static String APPLICANT = "APPLICANT";
     public static String DEFENDANT = "DEFENDANT";
+    public static String ASSIGNEE = "ASSIGNEE";
 }
