@@ -16,7 +16,7 @@ public interface PartnerRoleRepository extends JpaRepository<PartnerRoleEntity, 
     List<PartnerRoleEntity> findPartnerByRole(String role);
 
     @Query("SELECT p FROM PartnerRoleEntity p WHERE p.partnerRolePK.role = :role")
-    List<PartnerRoleEntity> findPartnerByRole2(String role, Pageable pageable);
+    List<PartnerRoleEntity> findPartnerByRole2(String role);
 
     @Query("SELECT p FROM PartnerRoleEntity p WHERE p.partnerRolePK.id = :id")
     List<PartnerRoleEntity> findRoleByPartner(String id);

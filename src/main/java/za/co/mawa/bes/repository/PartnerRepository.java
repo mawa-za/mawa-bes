@@ -11,6 +11,7 @@ import za.co.mawa.bes.entity.PartnerEntity;
 
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface PartnerRepository extends JpaRepository<PartnerEntity, String> {
@@ -22,7 +23,7 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     List<PartnerEntity> findPartnerByName3(String name3);
 
     //List<PartnerEntity> findAllById(Specification<PartnerEntity> byCriteria, Sort sort);
-    List<PartnerEntity> findAllByIdIn(List<String> ids);
+    List<PartnerEntity> findAllByIdIn(Set<String> ids , Pageable pageable);
 
     Page<PartnerEntity> findAll( Specification<PartnerEntity> byCriteria , Pageable pageable);
 }
