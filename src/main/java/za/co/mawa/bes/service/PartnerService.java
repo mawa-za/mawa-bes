@@ -235,13 +235,14 @@ public class PartnerService {
             //List<PartnerEntity> partnerList = partnerRepository.findAll(findByCriteria(searchDto),pageable).getContent();
             List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole2(partnerQueryDto.getRole(),pageable);
 
-            // Step 2: Extract IDs from PartnerRoleEntities
+
             List<String> partnerRoleIds = partnerRoleList.stream()
                     .map(pr -> pr.getPartnerRolePK().getId())
                     .collect(Collectors.toList());
 
-            // Step 3: Retrieve filtered PartnerEntities from the repository
+
             List<PartnerEntity> filteredPartners;
+            //SELECT * FROM partners WHERE id IN (list_of_ids);
             filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds);
 
             return filteredPartners;
