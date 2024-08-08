@@ -29,6 +29,7 @@ import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -221,6 +222,8 @@ public class ProductService implements ProductDao {
     @Override
     public ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) throws DoesNotExist {
         try {
+            BigDecimal vatPercentage = new BigDecimal("0.15");
+
             ProductPricingPKEntity productPricingPKEntity = new ProductPricingPKEntity();
             productPricingPKEntity.setProduct(productPricingQueryDto.getProduct());
             productPricingPKEntity.setPricing(productPricingQueryDto.getPricing());
@@ -228,8 +231,19 @@ public class ProductService implements ProductDao {
             ProductPricingDto productPricingDto = new ProductPricingDto();
             productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRODUCT_PRICING, productPricingEntity.getProductPricingPKEntity().getPricing()));
             productPricingDto.setValue(productPricingEntity.getValue());
+
+            BigDecimal value = productPricingEntity.getValue();
             productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
             productPricingDto.setValidTo(productPricingEntity.getValidTo());
+
+            BigDecimal totExcVat = value;
+            BigDecimal vatAmount = totExcVat.multiply(vatPercentage);
+            BigDecimal totIncVat = totExcVat.add(vatAmount);
+
+            productPricingDto.setTotExcVat(totExcVat);
+            productPricingDto.setVatAmount(vatAmount);
+            productPricingDto.setTotIncVat(totIncVat);
+
             return productPricingDto;
         } catch (Exception exception) {
             throw new DoesNotExist();
@@ -241,13 +255,26 @@ public class ProductService implements ProductDao {
         List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
         try {
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(product);
+            BigDecimal vatPercentage = new BigDecimal("0.15");
+
             for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
+                BigDecimal value = productPricingEntity.getValue();
+
                 productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
                 productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRICING_TYPE, productPricingEntity.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
+
+                BigDecimal totExcVat = value;
+                BigDecimal vatAmount = totExcVat.multiply(vatPercentage);
+                BigDecimal totIncVat = totExcVat.add(vatAmount);
+
+                productPricingDto.setTotExcVat(totExcVat);
+                productPricingDto.setVatAmount(vatAmount);
+                productPricingDto.setTotIncVat(totIncVat);
+
                 productPricingDtoList.add(productPricingDto);
             }
         } catch (Exception exception) {
