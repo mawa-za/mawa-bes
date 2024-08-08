@@ -13,8 +13,11 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.voucher.*;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -34,7 +37,11 @@ public class VoucherService {
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
+    UserService userService;
+    @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    PartnerRepository partnerRepository;
 
     public VoucherOutboundDto create(VoucherInboundDto voucherInboundDto) throws Exception {
         try {
@@ -60,6 +67,13 @@ public class VoucherService {
                 transactionLinkDto.setType(TransactionType.VOUCHER);
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
+            }
+            if (voucherInboundDto.getCustomerId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setPartner(voucherInboundDto.getCustomerId());
+                transactionService.addPartner(transactionPartnerDto);
             }
             TransactionPartnerDto partner = new TransactionPartnerDto();
             partner.setPartner(voucherInboundDto.getRecipientId());
@@ -90,21 +104,15 @@ public class VoucherService {
             VoucherOutboundDto voucherOutboundDto = new VoucherOutboundDto();
             TransactionDto transactionDto = transactionService.get(id);
             if (transactionDto != null) {
+
                 voucherOutboundDto.setId(transactionDto.getId());
                 voucherOutboundDto.setNumber(transactionDto.getNumber());
                 voucherOutboundDto.setStatus(transactionDto.getStatus());
 
-                // Retrieve and set the type as a FieldOptionDto
-                FieldOptionDto typeDto = (FieldOptionDto) fieldOptionService.getFieldOptions(transactionDto.getType());
-                voucherOutboundDto.setType(typeDto);
-
                 voucherOutboundDto.setStatusReason(transactionDto.getStatusReason());
-                voucherOutboundDto.setChangedBy(transactionDto.getChangedBy());
+                voucherOutboundDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
 
-                // Retrieve and set the createdBy as a PartnerDto
-                PartnerDto createdBy = partnerService.get(transactionDto.getCreatedBy());
-                voucherOutboundDto.setCreatedBy(createdBy.getName1()); // Adjust if `createdBy` should be the name or other details
-
+                voucherOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
                 // Retrieve dates
                 for (TransactionDateDto dates : transactionService.getDates(id)) {
                     if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
@@ -127,28 +135,25 @@ public class VoucherService {
                 } catch (Exception exception) {
                     // Handle exception
                 }
+                for(TransactionPartnerDto partner:transactionService.getPartners(id)){
+                    if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
+                        try{
+                            PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                            voucherOutboundDto.setCustomer(partnerDto);
+                        }catch(PartnerNotFoundException ex){
 
-                // Retrieve partners
-                for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
-                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
-                        PartnerDto partnerDetails = partnerService.getOptional(partner.getPartner());
-                        if (partnerDetails != null) {
-                            voucherOutboundDto.setRecipient(partnerDetails);
                         }
                     }
-                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
-                        PartnerDto customerDetails = partnerService.getOptional(partner.getPartner());
-                        if (customerDetails != null) {
-                            voucherOutboundDto.setCustomer(customerDetails);
+                    if(partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)){
+                        try{
+                            PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                            voucherOutboundDto.setRecipient(partnerDto);
+                        }catch(PartnerNotFoundException ex){
+
                         }
                     }
+
                 }
-
-                // Include external contract details if necessary
-//                String externalContractDetails = transactionDto.getExternalContractDetails();
-//                if (externalContractDetails != null) {
-//                    voucherOutboundDto.setExternalContractDetails(externalContractDetails);
-//                }
 
                 return voucherOutboundDto;
             } else {
@@ -161,43 +166,48 @@ public class VoucherService {
 
     public List<VoucherOutboundDto> search(VoucherQuery query) throws Exception {
         try {
-            List<VoucherOutboundDto> voucherOutboundDtoList = new ArrayList<>();
+            List<VoucherOutboundDto> voucherOutboundDtoArrayList = new ArrayList<>();
             TransactionQueryDto queryDto = new TransactionQueryDto();
             queryDto.setType(TransactionType.VOUCHER);
             queryDto.setParent(query.getParent());
             for (String id : transactionService.search(queryDto)) {
-                voucherOutboundDtoList.add(get(id));
+                voucherOutboundDtoArrayList.add(get(id));
             }
-            return voucherOutboundDtoList;
+            return voucherOutboundDtoArrayList;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    public boolean edit(VoucherInboundDto voucherInboundDto) {
+    public boolean edit(VoucherEditDto voucherEditDto, String id) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             boolean edited = false;
-//            if (voucherInboundDto.getStatusReason() != null && voucherInboundDto.getStatusReason() != "") {
-//                transactionEditDto.setStatusReason(voucherInboundDto.getStatusReason());
-//            }
-//            if (voucherInboundDto.getStatus() != null && voucherInboundDto.getStatus() != "") {
-//                transactionEditDto.setStatus(voucherInboundDto.getStatus());
-//            }
-//            if (transactionEditDto != null) {
-//                transactionEditDto.setId(id);
-//                transactionService.edit(transactionEditDto);
-//            }
-//            if (voucherInboundDto.getExpiryDate() != null && voucherInboundDto.getExpiryDate() != "") {
-//                TransactionDateEdit transactionDate = new TransactionDateEdit();
-//                transactionDate.setTransaction(id);
-//                transactionDate.setType(DateType.EXPIRY_DATE);
-//                transactionDate.setValue(Conversion.stringToDate(voucherInboundDto.getExpiryDate()));
-//                edited = transactionService.dateEdit(transactionDate);
-//            }
-//            if (voucherInboundDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
-////                edited = transactionService.editAmount(PriceType.VOUCHER_AMOUNT,edit.getAmount(),id);
-//            }
+
+            if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
+                transactionAmountService.save(transactionAmountInboundDto);
+            }
+            if (voucherEditDto.getStatus() != null) {
+                transactionEditDto.setStatus(voucherEditDto.getStatus());
+                transactionService.edit(transactionEditDto);
+            }
+            if (voucherEditDto.getStatusReason() != null) {
+                transactionEditDto.setStatusReason(voucherEditDto.getStatusReason());
+                transactionService.edit(transactionEditDto);
+            }
+            if (voucherEditDto.getExpiryDate() != null && voucherEditDto.getExpiryDate() != "") {
+                TransactionDateEdit transactionDate = new TransactionDateEdit();
+                transactionDate.setTransaction(voucherEditDto.getExpiryDate());
+                transactionDate.setType(DateType.EXPIRY_DATE);
+                transactionDate.setValue(Conversion.stringToDate(voucherEditDto.getExpiryDate()));
+                edited = transactionService.dateEdit(transactionDate);
+            }
+            if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+//                edited = transactionService.editAmount(PriceType.VOUCHER_AMOUNT,edit.getAmount(),id);
+            }
             return edited;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
