@@ -11,6 +11,6 @@ public interface NumberRangeRepository extends JpaRepository<NumberRangeEntity,S
     @Query(value = "SELECT * FROM number_range n WHERE n.object = :object limit 1", nativeQuery = true)
     NumberRangeEntity getRangeByObject(String object);
 
-    @Procedure("GET_NEW_NUMBER")
+    @Procedure("GetNewNumber")
     String getNewNumber(String object);
 }

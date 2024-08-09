@@ -16,10 +16,11 @@ CREATE FUNCTION generateNumber(objectIn VARCHAR(50))
    END$$
 
 CREATE PROCEDURE GetNewNumber (
-	IN  objectIn VARCHAR(25)
+	IN  objectIn VARCHAR(25),
+	OUT newNumber VARCHAR(20)
 )
 BEGIN
-	SELECT generateNumber(objectIn);
+	SELECT generateNumber(objectIn) INTO newNumber;
 END$$
 
 DELIMITER ;
