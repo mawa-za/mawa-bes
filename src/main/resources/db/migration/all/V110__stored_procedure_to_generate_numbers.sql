@@ -1,6 +1,3 @@
-DELIMITER $$
-DROP procedure IF EXISTS `GetNewNumber`$$
-DROP function IF EXISTS `generateNumber`$$
 CREATE FUNCTION generateNumber(objectIn VARCHAR(50))
    RETURNS VARCHAR(20)
    DETERMINISTIC
@@ -15,11 +12,11 @@ CREATE FUNCTION generateNumber(objectIn VARCHAR(50))
     SET finalNumber = CONCAT(currentPrefix, lpad(newNumber,10,0 ));
     UPDATE number_range SET current = finalNumber where object = objectIn;
 	return finalNumber;
-   END$$
+   END;
 
 CREATE PROCEDURE GetNewNumber (
 	IN  objectIn VARCHAR(25)
 )
 BEGIN
 	SELECT generateNumber(objectIn);
-END$$
+END;
