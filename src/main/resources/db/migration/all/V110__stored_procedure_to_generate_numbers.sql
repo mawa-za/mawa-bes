@@ -14,9 +14,3 @@ CREATE FUNCTION generateNumber(objectIn VARCHAR(50))
 	return finalNumber;
    END;
 
-CREATE PROCEDURE GetNewNumber (
-	IN  objectIn VARCHAR(25)
-)
-BEGIN
-	SELECT generateNumber(objectIn);
-END;
