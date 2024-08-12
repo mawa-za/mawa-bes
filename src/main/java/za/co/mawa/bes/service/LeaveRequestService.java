@@ -180,7 +180,6 @@ public class LeaveRequestService {
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
             transactionService.edit(transactionEditDto);
-
         }
         catch (Exception e){
             throw new RuntimeException(e);
@@ -228,14 +227,13 @@ public class LeaveRequestService {
         }
         catch(Exception e){
         }
-        return get(leaveRequestCancelDto.getLeaveRequestId());
+        return get(id);
     }
 
     public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {
         try {
             transactionService.delete(id);
         } catch (Exception e) {
-
         }
         return search();
     }

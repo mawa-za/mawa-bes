@@ -18,4 +18,5 @@ public class VoucherInboundDto implements Serializable {
     private String type;
     private String contractId;
     private String customerId;
+    private String statusReason;
 }
