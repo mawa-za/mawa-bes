@@ -5,6 +5,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import java.util.ArrayList;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -25,8 +27,9 @@ public class ServiceRequestDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private PartnerDto createdBy;
-    private List<PartnerDto> assignee;
+    private List<PartnerDto> assignee = new ArrayList<>();;
     private Date creationDate;
     private Date dueDate;
     private PartnerDto changedBy;
+
 }
