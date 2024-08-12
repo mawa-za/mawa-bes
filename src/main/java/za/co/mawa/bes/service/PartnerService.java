@@ -219,12 +219,11 @@ public class PartnerService {
         return relations;
     }
 
-    public List<PartnerEntity> search(PartnerQueryDto partnerQueryDto) {
+    public List<PartnerEntity> search(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
 
-        List<PartnerEntity> filteredPartners;
         Set<String> partnerRoleIds = new HashSet<>();
 
-        Pageable pageable = PageRequest.of(0, 2000);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
         if(!StringUtils.isBlank(partnerQueryDto.getRole())) {
 
@@ -295,12 +294,144 @@ public class PartnerService {
         }
 
         //SELECT * FROM partners WHERE id IN (list_of_ids);
-        filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds , pageable);
+        List<PartnerEntity> filteredPartners;
+        filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
         return filteredPartners;
 
     }
 
+//    public  List<PartnerEntity> search2(PartnerQueryDto partnerQueryDto){
+//        // Build the specification dynamically based on the criteria
+//        Specification<PartnerEntity> spec = Specification.where(null);
+//
+//        if (!StringUtils.isBlank(partnerQueryDto.getRole())) {
+//            spec = spec.and((root, query, cb) -> root.join("roles").get("role").in(partnerQueryDto.getRole()));
+//        }
+//
+//        if (!StringUtils.isBlank(partnerQueryDto.getIdNumber())) {
+//            spec = spec.and((root, query, cb) -> root.join("identities").get("idNumber").in(partnerQueryDto.getIdNumber()));
+//        }
+//
+//        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
+//            spec = spec.and((root, query, cb) -> root.join("attributes").get("value").in(partnerQueryDto.getAttributeValue()));
+//        }
+//
+//        if (partnerQueryDto.getCellphone() != null) {
+//            spec = spec.and((root, query, cb) -> root.join("contacts").get("cellphone").in(partnerQueryDto.getCellphone()));
+//        }
+//
+//        if (partnerQueryDto.getEmail() != null) {
+//            spec = spec.and((root, query, cb) -> root.join("contacts").get("email").in(partnerQueryDto.getEmail()));
+//        }
+//
+//        if (partnerQueryDto.getName1() != null) {
+//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name1")), "%" + partnerQueryDto.getName1().toLowerCase() + "%"));
+//        }
+//
+//        if (partnerQueryDto.getName2() != null) {
+//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name2")), "%" + partnerQueryDto.getName2().toLowerCase() + "%"));
+//        }
+//
+//        if (partnerQueryDto.getName3() != null) {
+//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name3")), "%" + partnerQueryDto.getName3().toLowerCase() + "%"));
+//        }
+//
+//        Pageable pageable = PageRequest.of(0, 5);
+//
+//        return partnerRepository.findAll(spec, pageable).getContent();
+//    }
 
+//    public List<PartnerEntity> search3(PartnerQueryDto partnerQueryDto){
+//        Pageable pageable = PageRequest.of(0, 2000);
+//        return partnerRepository.searchPartners(
+//                partnerQueryDto.getRole(),
+//                partnerQueryDto.getIdNumber(),
+//                partnerQueryDto.getAttributeValue(),
+//                partnerQueryDto.getCellphone(),
+//                partnerQueryDto.getEmail(),
+//                partnerQueryDto.getName1(),
+//                partnerQueryDto.getName2(),
+//                partnerQueryDto.getName3(),
+//                pageable
+//        ).getContent();
+//    }
+
+    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto) {
+
+        Set<String> partnerRoleIds = new HashSet<>();
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        if (!StringUtils.isBlank(partnerQueryDto.getIdNumber())){
+            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerByIdNumberPrefix(partnerQueryDto.getIdNumber(), pageable);
+
+            partnerRoleIds.addAll( identityList.stream()
+                    .map(PartnerIdentityEntity::getPartner)
+                    .collect(Collectors.toSet())
+            );
+
+            List<PartnerEntity> filteredPartners;
+            filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+            return filteredPartners;
+
+        }
+
+        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
+            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByValuePrefix(partnerQueryDto.getAttributeValue(), pageable);
+
+            partnerRoleIds.addAll( partnerAttributeEntities.stream()
+                    .map(pa -> pa.getPartnerAttributePKEntity().getPartner())
+                    .collect(Collectors.toSet())
+            );
+
+            List<PartnerEntity> filteredPartners;
+            filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+            return filteredPartners;
+        }
+
+        if (partnerQueryDto.getCellphone() != null) {
+            List<PartnerContactEntity> contactList = partnerContactRepository.findByValuePrefix(partnerQueryDto.getCellphone(), pageable);
+            partnerRoleIds.addAll(contactList.stream()
+                    .map(pc -> pc.getPartnerContactPK().getPartner())
+                    .filter(id -> id != null)
+                    .collect(Collectors.toSet()));
+
+            List<PartnerEntity> filteredPartners;
+            filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+            return filteredPartners;
+        }
+
+        if (partnerQueryDto.getEmail() != null) {
+            List<PartnerContactEntity> contactList = partnerContactRepository.findByValuePrefix(partnerQueryDto.getEmail(), pageable);
+            partnerRoleIds.addAll(contactList.stream()
+                    .map(pc -> pc.getPartnerContactPK().getPartner())
+                    .filter(id -> id != null)
+                    .collect(Collectors.toSet()));
+
+            List<PartnerEntity> filteredPartners;
+            filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+            return filteredPartners;
+        }
+
+        if (partnerQueryDto.getName1() != null || partnerQueryDto.getName2() != null || partnerQueryDto.getName3() != null) {
+            List<PartnerEntity> partnerList = partnerRepository.findPartnersByNamePrefix(
+                    partnerQueryDto.getName1(),
+                    partnerQueryDto.getName2(),
+                    partnerQueryDto.getName3()
+            );
+
+            partnerRoleIds.addAll(partnerList.stream()
+                    .map(PartnerEntity::getId)
+                    .collect(Collectors.toSet()));
+
+        // If partnerRoleIds is empty, you may want to handle it differently depending on your logic
+        List<PartnerEntity> filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+        return filteredPartners;
+    }
+
+        //SELECT * FROM partners WHERE id IN (list_of_ids);
+        return null;
+    }
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
