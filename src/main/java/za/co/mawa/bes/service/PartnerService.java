@@ -415,6 +415,7 @@ public class PartnerService {
         }
         return finalList;
     }
+
     public List<PartnerEntity> search2(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
 
         Set<String> partnerRoleIds = new HashSet<>();
@@ -496,47 +497,6 @@ public class PartnerService {
         return filteredPartners;
 
     }
-
-//    public  List<PartnerEntity> search2(PartnerQueryDto partnerQueryDto){
-//        // Build the specification dynamically based on the criteria
-//        Specification<PartnerEntity> spec = Specification.where(null);
-//
-//        if (!StringUtils.isBlank(partnerQueryDto.getRole())) {
-//            spec = spec.and((root, query, cb) -> root.join("roles").get("role").in(partnerQueryDto.getRole()));
-//        }
-//
-//        if (!StringUtils.isBlank(partnerQueryDto.getIdNumber())) {
-//            spec = spec.and((root, query, cb) -> root.join("identities").get("idNumber").in(partnerQueryDto.getIdNumber()));
-//        }
-//
-//        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
-//            spec = spec.and((root, query, cb) -> root.join("attributes").get("value").in(partnerQueryDto.getAttributeValue()));
-//        }
-//
-//        if (partnerQueryDto.getCellphone() != null) {
-//            spec = spec.and((root, query, cb) -> root.join("contacts").get("cellphone").in(partnerQueryDto.getCellphone()));
-//        }
-//
-//        if (partnerQueryDto.getEmail() != null) {
-//            spec = spec.and((root, query, cb) -> root.join("contacts").get("email").in(partnerQueryDto.getEmail()));
-//        }
-//
-//        if (partnerQueryDto.getName1() != null) {
-//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name1")), "%" + partnerQueryDto.getName1().toLowerCase() + "%"));
-//        }
-//
-//        if (partnerQueryDto.getName2() != null) {
-//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name2")), "%" + partnerQueryDto.getName2().toLowerCase() + "%"));
-//        }
-//
-//        if (partnerQueryDto.getName3() != null) {
-//            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name3")), "%" + partnerQueryDto.getName3().toLowerCase() + "%"));
-//        }
-//
-//        Pageable pageable = PageRequest.of(0, 5);
-//
-//        return partnerRepository.findAll(spec, pageable).getContent();
-//    }
 
     public List<PartnerEntity> search3(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize){
         Pageable pageable =  PageRequest.of(pageNumber, pageSize);
