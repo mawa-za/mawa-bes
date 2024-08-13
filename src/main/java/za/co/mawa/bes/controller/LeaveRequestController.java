@@ -14,7 +14,6 @@ import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.LeaveRequestService;
 import za.co.mawa.bes.service.TransactionService;
-import za.co.mawa.bes.utils.Status;
 
 @RestController
 @CrossOrigin
