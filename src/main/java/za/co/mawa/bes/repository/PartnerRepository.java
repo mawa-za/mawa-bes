@@ -37,7 +37,7 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     //List<PartnerEntity> findAllById(Specification<PartnerEntity> byCriteria, Sort sort);
     List<PartnerEntity> findAllByIdIn(Set<String> ids , Pageable pageable);
 
-    Page<PartnerEntity> findAll( Specification<PartnerEntity> byCriteria , Pageable pageable);
+    List<PartnerEntity> findAll( Specification<PartnerEntity> byCriteria , Sort sort);
 
     @Query(value = "SELECT p.* " +
             "FROM partner p " +
@@ -46,6 +46,7 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
             //"INNER JOIN partner_attribute pa ON p.id = pa.partner " +
             "WHERE (:role IS NULL OR pr.role = :role) " +
             //"  AND (:attributeValue IS NULL OR pa.value = :attributeValue) " +
+            "  AND (:type IS NULL OR p.type = :type) "+
             "  AND (:idNumber IS NULL OR pi.value = :idNumber) " ,
 
             countQuery = "SELECT COUNT(DISTINCT p.id) " +
@@ -55,6 +56,7 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
                     //"INNER JOIN partner_attribute pa ON p.id = pa.partner " +
                     "WHERE (:role IS NULL OR pr.role = :role) " +
                     //"  AND (:attributeValue IS NULL OR pa.value = :attributeValue) " +
+                    "  AND (:type IS NULL OR p.type = :type) "+
                     "  AND (:idNumber IS NULL OR pi.value = :idNumber) " ,
 
             nativeQuery = true)
@@ -62,6 +64,7 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
             @Param("role") String role,
             @Param("idNumber") String idNumber,
 //            @Param("attributeValue") String attributeValue,
+            @Param("type") String type,
 //            @Param("cellphone") String cellphone,
 //            @Param("email") String email,
 //            @Param("name1") String name1,

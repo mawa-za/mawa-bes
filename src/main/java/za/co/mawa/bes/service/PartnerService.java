@@ -219,7 +219,203 @@ public class PartnerService {
         return relations;
     }
 
-    public List<PartnerEntity> search(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
+    public ArrayList<PartnerDto> search(PartnerQueryDto partnerQueryDto) {
+        ArrayList<PartnerDto> finalList = new ArrayList<>();
+        ArrayList<PartnerDto> filteredList = new ArrayList<>();
+        ArrayList<PartnerDto> initialList = new ArrayList<>();
+        boolean pass = false;
+
+        if (partnerQueryDto == null) {
+            List<PartnerEntity> partnerList = partnerRepository.findAll();
+            for (PartnerEntity partner : partnerList) {
+                try {
+                    finalList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+                }
+            }
+            return finalList;
+        }
+
+        if (partnerQueryDto.getType() != null) {
+            ProspectSearchDto searchDto = new ProspectSearchDto();
+            searchDto.setPartnerType(partnerQueryDto.getType());
+            Sort sort = Sort.by("id").descending();
+            List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
+            for (PartnerEntity partnerType : partners) {
+                try {
+                    initialList.add(get(partnerType.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+
+        if (partnerQueryDto.getRole() != null) {
+            List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerQueryDto.getRole());
+            for (PartnerRoleEntity partnerRole : partnerRoleList) {
+                Optional<PartnerEntity> partner = partnerRepository.findById(partnerRole.getPartnerRolePK().getId());
+                PartnerEntity partnerEntity = partner.orElse(null);
+                if (partnerEntity != null) {
+                    try {
+                        initialList.add(get(partnerEntity.getId()));
+                    } catch (PartnerNotFoundException e) {
+
+                    }
+                }
+            }
+        }
+
+
+        if (partnerQueryDto.getIdNumber() != null) {
+            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByValue(partnerQueryDto.getIdNumber());
+            for (PartnerIdentityEntity partnerIdentity : identityList) {
+                PartnerEntity partner = partnerRepository.getById(partnerIdentity.getPartner());
+                if (partner != null) {
+                    try {
+                        initialList.add(get(partner.getId()));
+                    } catch (PartnerNotFoundException e) {
+
+                    }
+                }
+            }
+        }
+
+        if (partnerQueryDto.getIdType() != null && partnerQueryDto.getIdNumber() != null) {
+            PartnerIdentityPKEntity identity = new PartnerIdentityPKEntity();
+            identity.setType(partnerQueryDto.getIdType());
+            identity.setValue(partnerQueryDto.getIdNumber());
+            PartnerIdentityEntity partnerIdentity = partnerIdentityRepository.getById(identity);
+            if (partnerIdentity != null) {
+                PartnerEntity partner = partnerRepository.getById(partnerIdentity.getPartner());
+                if (partner != null) {
+                    try {
+                        initialList.add(get(partner.getId()));
+                    } catch (PartnerNotFoundException e) {
+
+                    }
+                }
+            }
+
+        }
+
+        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
+//            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByAttributeValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
+            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeValue());
+            for (PartnerAttributeEntity partnerAttributeEntity : partnerAttributeEntities) {
+                try {
+                    initialList.add(get(partnerAttributeEntity.getPartnerAttributePKEntity().getPartner()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+
+        }
+
+        if (partnerQueryDto.getCellphone() != null) {
+            List<PartnerContactEntity> contactList = partnerContactRepository.findPartnerByValue(partnerQueryDto.getCellphone());
+            for (PartnerContactEntity partnerContact : contactList) {
+                PartnerEntity partner = partnerRepository.getById(partnerContact.getPartnerContactPK().getPartner());
+                try {
+                    initialList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+
+        if (partnerQueryDto.getEmail() != null) {
+            List<PartnerContactEntity> contactList = partnerContactRepository.findPartnerByValue(partnerQueryDto.getEmail());
+            for (PartnerContactEntity partnerContact : contactList) {
+                PartnerEntity partner = partnerRepository.getById(partnerContact.getPartnerContactPK().getPartner());
+                try {
+                    initialList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+
+        if (partnerQueryDto.getName1() != null) {
+            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName1(partnerQueryDto.getName1());
+            for (PartnerEntity partner : partnerList) {
+                try {
+                    initialList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+        if (partnerQueryDto.getName2() != null) {
+            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName2(partnerQueryDto.getName2());
+            for (PartnerEntity partner : partnerList) {
+                try {
+                    initialList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+
+        if (partnerQueryDto.getName3() != null) {
+            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName3(partnerQueryDto.getName3());
+            for (PartnerEntity partner : partnerList) {
+                try {
+                    initialList.add(get(partner.getId()));
+                } catch (PartnerNotFoundException e) {
+
+                }
+            }
+        }
+        for (PartnerDto pqr : initialList) {
+            if (partnerQueryDto.getIdType() != null && !"".equals(partnerQueryDto.getIdType())) {
+                if (!pqr.getIdentity().getType().equals(partnerQueryDto.getIdType())) {
+                    continue;
+                }
+            }
+
+            if (partnerQueryDto.getIdNumber() != null && !"".equals(partnerQueryDto.getIdNumber())) {
+                if (!pqr.getIdentity().getNumber().equals(partnerQueryDto.getIdNumber())) {
+                    continue;
+                }
+            }
+
+            if (partnerQueryDto.getName1() != null && !"".equals(partnerQueryDto.getName1())) {
+                if (!pqr.getName1().equals(partnerQueryDto.getName1())) {
+                    continue;
+                }
+            }
+
+            if (partnerQueryDto.getName2() != null && !"".equals(partnerQueryDto.getName2())) {
+                if (!pqr.getName2().equals(partnerQueryDto.getName2())) {
+                    continue;
+                }
+            }
+            if (partnerQueryDto.getName3() != null && !"".equals(partnerQueryDto.getName3())) {
+                if (!pqr.getName3().equals(partnerQueryDto.getName3())) {
+                    continue;
+                }
+            }
+            if (partnerQueryDto.getRole() != null && !"".equals(partnerQueryDto.getRole())) {
+                PartnerRolePKEntity rolePK = new PartnerRolePKEntity();
+                rolePK.setId(pqr.getId());
+                rolePK.setRole(partnerQueryDto.getRole());
+                if (partnerRoleRepository.getById(rolePK) == null) {
+                    continue;
+                }
+            }
+            filteredList.add(pqr);
+        }
+
+        String searchStr = "";
+        for (PartnerDto pqr : filteredList) {
+            if (!searchStr.contains(pqr.getId() + '|')) {
+                searchStr = searchStr + pqr.getId() + '|';
+                finalList.add(pqr);
+            }
+        }
+        return finalList;
+    }
+    public List<PartnerEntity> search2(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
@@ -348,6 +544,7 @@ public class PartnerService {
                 partnerQueryDto.getRole(),
                 partnerQueryDto.getIdNumber(),
 //                partnerQueryDto.getAttributeValue(),
+                partnerQueryDto.getType(),
 //                partnerQueryDto.getCellphone(),
 //                partnerQueryDto.getEmail(),
 //                partnerQueryDto.getName1(),
@@ -862,8 +1059,7 @@ public class PartnerService {
     public ArrayList<ProspectDto> getProspects(ProspectSearchDto searchDto) throws Exception {
         ArrayList<ProspectDto> prospectDtoArrayList = new ArrayList<>();
         Sort sort = Sort.by("id").descending();
-        Pageable pageable = PageRequest.of(0, 2);
-        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto),pageable).getContent();
+        List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
         prospectDtoArrayList = entityArrayToDto(partners);
         return prospectDtoArrayList;
     }
