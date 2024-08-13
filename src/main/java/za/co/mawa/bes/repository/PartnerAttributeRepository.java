@@ -20,6 +20,7 @@ public interface PartnerAttributeRepository extends JpaRepository<PartnerAttribu
   List<PartnerAttributeEntity> findByAttributeValue(String attribute,String value);
   @Query("SELECT p FROM PartnerAttributeEntity p WHERE p.value = :value")
   List<PartnerAttributeEntity> findByValue(String value);
+
   @Query("SELECT p FROM PartnerAttributeEntity p WHERE p.value LIKE :valuePrefix%")
   List<PartnerAttributeEntity> findByValuePrefix(@Param("valuePrefix") String valuePrefix, Pageable pageable);
 

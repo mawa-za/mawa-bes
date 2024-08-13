@@ -54,7 +54,7 @@ public class PartnerController {
             }
             //String response = gson.toJson(partnerService.search(partnerQueryDto));
             //String response = gson.toJson(partnerService.search2(partnerQueryDto));
-            String response = gson.toJson(partnerService.search(partnerQueryDto, pageNumber, pageSize));
+            String response = gson.toJson(partnerService.search3(partnerQueryDto, pageNumber, pageSize));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -65,6 +65,8 @@ public class PartnerController {
     public ResponseEntity<?> searchPrefix(@RequestParam(required = false) String name1,
                                           @RequestParam(required = false) String name2,
                                           @RequestParam(required = false) String name3,
+                                          @RequestParam() int pageNumber,
+                                          @RequestParam() int pageSize,
                                           @RequestParam(required = false) String IdNumber,
                                           @RequestParam(required = false) String type,
                                           @RequestParam(required = false) String attributeName,
@@ -93,7 +95,7 @@ public class PartnerController {
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
 
-            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto));
+            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto , pageNumber, pageSize));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

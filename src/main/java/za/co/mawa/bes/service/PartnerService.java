@@ -223,6 +223,7 @@ public class PartnerService {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
+
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
         if(!StringUtils.isBlank(partnerQueryDto.getRole())) {
@@ -341,26 +342,26 @@ public class PartnerService {
 //        return partnerRepository.findAll(spec, pageable).getContent();
 //    }
 
-//    public List<PartnerEntity> search3(PartnerQueryDto partnerQueryDto){
-//        Pageable pageable = PageRequest.of(0, 2000);
-//        return partnerRepository.searchPartners(
-//                partnerQueryDto.getRole(),
-//                partnerQueryDto.getIdNumber(),
+    public List<PartnerEntity> search3(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize){
+        Pageable pageable =  PageRequest.of(pageNumber, pageSize);
+        return partnerRepository.searchPartners(
+                partnerQueryDto.getRole(),
+                partnerQueryDto.getIdNumber(),
 //                partnerQueryDto.getAttributeValue(),
 //                partnerQueryDto.getCellphone(),
 //                partnerQueryDto.getEmail(),
 //                partnerQueryDto.getName1(),
 //                partnerQueryDto.getName2(),
 //                partnerQueryDto.getName3(),
-//                pageable
-//        ).getContent();
-//    }
+                pageable
+        ).getContent();
+    }
 
-    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto) {
+    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
-        Pageable pageable = PageRequest.of(0, 10);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
         if (!StringUtils.isBlank(partnerQueryDto.getIdNumber())){
             List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerByIdNumberPrefix(partnerQueryDto.getIdNumber(), pageable);
@@ -389,7 +390,7 @@ public class PartnerService {
             return filteredPartners;
         }
 
-        if (partnerQueryDto.getCellphone() != null) {
+        if (!StringUtils.isBlank(partnerQueryDto.getCellphone())) {
             List<PartnerContactEntity> contactList = partnerContactRepository.findByValuePrefix(partnerQueryDto.getCellphone(), pageable);
             partnerRoleIds.addAll(contactList.stream()
                     .map(pc -> pc.getPartnerContactPK().getPartner())
@@ -401,7 +402,7 @@ public class PartnerService {
             return filteredPartners;
         }
 
-        if (partnerQueryDto.getEmail() != null) {
+        if (!StringUtils.isBlank(partnerQueryDto.getEmail())) {
             List<PartnerContactEntity> contactList = partnerContactRepository.findByValuePrefix(partnerQueryDto.getEmail(), pageable);
             partnerRoleIds.addAll(contactList.stream()
                     .map(pc -> pc.getPartnerContactPK().getPartner())
@@ -413,7 +414,7 @@ public class PartnerService {
             return filteredPartners;
         }
 
-        if (partnerQueryDto.getName1() != null || partnerQueryDto.getName2() != null || partnerQueryDto.getName3() != null) {
+        if (!StringUtils.isBlank(partnerQueryDto.getName1())|| !StringUtils.isBlank(partnerQueryDto.getName2()) || !StringUtils.isBlank(partnerQueryDto.getName3())) {
             List<PartnerEntity> partnerList = partnerRepository.findPartnersByNamePrefix(
                     partnerQueryDto.getName1(),
                     partnerQueryDto.getName2(),
@@ -429,7 +430,6 @@ public class PartnerService {
         return filteredPartners;
     }
 
-        //SELECT * FROM partners WHERE id IN (list_of_ids);
         return null;
     }
     public ArrayList<String> getRoles(String id) {
