@@ -21,4 +21,10 @@ public class LineItemOutboundDto implements Serializable {
     private BigDecimal quantity  = new BigDecimal("0");
     private BigDecimal unitPrice = new BigDecimal("0");
     private BigDecimal lineTotal = new BigDecimal("0");
+    private BigDecimal vatAmount = new BigDecimal("0");
+    private BigDecimal totIncVat = new BigDecimal("0");
+    private BigDecimal totExcVat = new BigDecimal("0");
+    private BigDecimal vatPercentage = new BigDecimal("0");
+    private BigDecimal discountAmount = new BigDecimal("0");
+    private BigDecimal discountPercentage = new BigDecimal("0");
 }
