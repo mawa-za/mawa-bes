@@ -35,6 +35,30 @@ public class PartnerController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
+                                        @RequestParam(required = false) String type,
+                                        @RequestParam(required = false) String attributeName,
+                                        @RequestParam(required = false) String attributeValue) throws Exception {
+        try {
+            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+            if (role != null && role != "") {
+                partnerQueryDto.setRole(role);
+            }
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
+            }
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
+            String response = gson.toJson(partnerService.search(partnerQueryDto));
+            return ResponseEntity.ok(response);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value ="new" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getNewPartner(@RequestParam(required = false) String role,
                                         @RequestParam() int pageNumber,
                                         @RequestParam() int pageSize,
                                         @RequestParam(required = false) String type,
@@ -65,8 +89,8 @@ public class PartnerController {
     public ResponseEntity<?> searchPrefix(@RequestParam(required = false) String name1,
                                           @RequestParam(required = false) String name2,
                                           @RequestParam(required = false) String name3,
-                                          @RequestParam() int pageNumber,
-                                          @RequestParam() int pageSize,
+//                                          @RequestParam() int pageNumber,
+//                                          @RequestParam() int pageSize,
                                           @RequestParam(required = false) String IdNumber,
                                           @RequestParam(required = false) String type,
                                           @RequestParam(required = false) String attributeName,
@@ -95,7 +119,8 @@ public class PartnerController {
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
 
-            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto , pageNumber, pageSize));
+//            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto , pageNumber, pageSize));
+            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

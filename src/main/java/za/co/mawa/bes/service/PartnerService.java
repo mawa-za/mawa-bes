@@ -498,7 +498,7 @@ public class PartnerService {
 
     }
 
-    public List<PartnerEntity> search3(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize){
+    public List<PartnerPageDto> search3(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize){
         Pageable pageable =  PageRequest.of(pageNumber, pageSize);
         return partnerRepository.searchPartners(
                 partnerQueryDto.getRole(),
@@ -511,14 +511,14 @@ public class PartnerService {
 //                partnerQueryDto.getName2(),
 //                partnerQueryDto.getName3(),
                 pageable
-        ).getContent();
+        );
     }
 
-    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
+    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto) {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Pageable pageable = PageRequest.of(0, 6000);
 
         if (!StringUtils.isBlank(partnerQueryDto.getIdNumber())){
             List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerByIdNumberPrefix(partnerQueryDto.getIdNumber(), pageable);
