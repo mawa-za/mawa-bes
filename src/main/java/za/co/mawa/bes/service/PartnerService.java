@@ -416,7 +416,7 @@ public class PartnerService {
         return finalList;
     }
 
-    public List<PartnerEntity> search2(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
+    public List<PartnerPageDto> search2(PartnerQueryDto partnerQueryDto , int pageNumber , int pageSize) {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
@@ -492,7 +492,7 @@ public class PartnerService {
         }
 
         //SELECT * FROM partners WHERE id IN (list_of_ids);
-        List<PartnerEntity> filteredPartners;
+        List<PartnerPageDto> filteredPartners;
         filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
         return filteredPartners;
 
@@ -514,7 +514,7 @@ public class PartnerService {
         );
     }
 
-    public List<PartnerEntity> searchPrefix(PartnerQueryDto partnerQueryDto) {
+    public List<PartnerPageDto> searchPrefix(PartnerQueryDto partnerQueryDto) {
 
         Set<String> partnerRoleIds = new HashSet<>();
 
@@ -528,7 +528,7 @@ public class PartnerService {
                     .collect(Collectors.toSet())
             );
 
-            List<PartnerEntity> filteredPartners;
+            List<PartnerPageDto> filteredPartners;
             filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
             return filteredPartners;
 
@@ -542,7 +542,7 @@ public class PartnerService {
                     .collect(Collectors.toSet())
             );
 
-            List<PartnerEntity> filteredPartners;
+            List<PartnerPageDto> filteredPartners;
             filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
             return filteredPartners;
         }
@@ -554,7 +554,7 @@ public class PartnerService {
                     .filter(id -> id != null)
                     .collect(Collectors.toSet()));
 
-            List<PartnerEntity> filteredPartners;
+            List<PartnerPageDto> filteredPartners;
             filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
             return filteredPartners;
         }
@@ -566,7 +566,7 @@ public class PartnerService {
                     .filter(id -> id != null)
                     .collect(Collectors.toSet()));
 
-            List<PartnerEntity> filteredPartners;
+            List<PartnerPageDto> filteredPartners;
             filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
             return filteredPartners;
         }
@@ -583,7 +583,7 @@ public class PartnerService {
                     .collect(Collectors.toSet()));
 
         // If partnerRoleIds is empty, you may want to handle it differently depending on your logic
-        List<PartnerEntity> filteredPartners = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
+            List<PartnerPageDto> filteredPartners  = partnerRepository.findAllByIdIn(partnerRoleIds, pageable);
         return filteredPartners;
     }
 

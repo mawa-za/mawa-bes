@@ -32,24 +32,32 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     List<PartnerEntity> findPartnersByNamePrefix(@Param("name1") String name1, @Param("name2") String name2, @Param("name3") String name3);
 
     //List<PartnerEntity> findAllById(Specification<PartnerEntity> byCriteria, Sort sort);
-    List<PartnerEntity> findAllByIdIn(Set<String> ids , Pageable pageable);
+    @Query("SELECT new za.co.mawa.bes.dto.partner.PartnerPageDto(p.type, p.id, p.no as number, pi.partnerIdentityPK.type as idType, pi.partnerIdentityPK.value as idNumber, " +
+            "p.name1, p.name2, p.name3, p.title, p.birthDate, p.maritalStatus, p.gender, p.language, " +
+            "p.status, p.statusReason, p.createdBy, p.validFrom, p.validTo, p.creationDate) " +
+            "FROM PartnerEntity p " +
+            "INNER JOIN PartnerIdentityEntity pi ON pi.partner = p.id " +
+            "WHERE p.id IN :ids")
+    List<PartnerPageDto> findAllByIdIn(@Param("ids") Set<String> ids, Pageable pageable);
+
 
     List<PartnerEntity> findAll( Specification<PartnerEntity> byCriteria , Sort sort);
 
-@Query("SELECT new za.co.mawa.bes.dto.partner.PartnerPageDto(p.type, p.id, p.no as number , pi.partnerIdentityPK.type as idType, pi.partnerIdentityPK.value as idNumber, " +
-        "p.name1, p.name2, p.name3, p.title, p.birthDate, p.maritalStatus, p.gender, p.language, " +
-        "p.status, p.statusReason, p.createdBy, p.validFrom, p.validTo, p.creationDate) " +
-        "FROM PartnerEntity p " +
-        "JOIN PartnerRoleEntity pr " +
-        "JOIN PartnerIdentityEntity pi " +
-        "WHERE (:role IS NULL OR pr.partnerRolePK.role = :role) " +
-        "AND (:type IS NULL OR p.type = :type) " +
-        "AND (:idNumber IS NULL OR pi.partnerIdentityPK.value = :idNumber)")
-List<PartnerPageDto> searchPartners(
-        @Param("role") String role,
-        @Param("idNumber") String idNumber,
-        @Param("type") String type,
-        Pageable pageable);
+    @Query("SELECT new za.co.mawa.bes.dto.partner.PartnerPageDto(p.type, p.id, p.no as number, pi.partnerIdentityPK.type as idType, pi.partnerIdentityPK.value as idNumber, " +
+            "p.name1, p.name2, p.name3, p.title, p.birthDate, p.maritalStatus, p.gender, p.language, " +
+            "p.status, p.statusReason, p.createdBy, p.validFrom, p.validTo, p.creationDate) " +
+            "FROM PartnerEntity p " +
+            "JOIN PartnerRoleEntity pr ON pr.partnerRolePK.id = p.id " +
+            "JOIN PartnerIdentityEntity pi ON pi.partner = p.id " +
+            "WHERE (:role IS NULL OR pr.partnerRolePK.role = :role) " +
+            "AND (:type IS NULL OR p.type = :type) " +
+            "AND (:idNumber IS NULL OR pi.partnerIdentityPK.value = :idNumber)")
+    List<PartnerPageDto> searchPartners(
+            @Param("role") String role,
+            @Param("idNumber") String idNumber,
+            @Param("type") String type,
+            Pageable pageable);
+
 
 //    @Query(value = "SELECT  p.type as type " +
 //            "FROM partner p " +
