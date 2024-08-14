@@ -72,8 +72,8 @@ public class ServiceRequestController {
     @RequestMapping(value = "{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteServiceRequest(@PathVariable String id) {
         try {
-            serviceRequestService.delete(id);
-            return ResponseEntity.ok().build();
+            Boolean deleted = serviceRequestService.delete(id);
+            return ResponseEntity.ok(gson.toJson(deleted));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
