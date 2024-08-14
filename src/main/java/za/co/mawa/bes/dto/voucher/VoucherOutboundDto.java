@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dto.voucher;
 
+import jakarta.mail.Part;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,9 +21,9 @@ public class VoucherOutboundDto implements Serializable {
     private String dateCreated;
     private String expiryDate;
     private String status;
-    private String statusReason;
+    private FieldOptionDto statusReason;
     private BigDecimal amount;
-    private String createdBy;
+    private PartnerDto createdBy;
     private String changedBy;
     private PartnerDto customer;
 }

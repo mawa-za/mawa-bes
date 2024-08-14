@@ -185,6 +185,7 @@ public class ClaimService {
             claimOutboundDto.setId(transactionDto.getId());
             claimOutboundDto.setNumber(transactionDto.getNumber());
             claimOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+
             try {
                 claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
             }catch (Exception e){}
@@ -194,7 +195,7 @@ public class ClaimService {
             }else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
-
+          
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -255,21 +256,17 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            try {
-                List<TransactionLinkDto> links = transactionService.getLinks(id);
-                List<CommentDto> comments = new ArrayList<>();
-                for (TransactionLinkDto link : links) {
+            List<TransactionLinkDto> links = transactionService.getLinks(id);
+            List<CommentDto> comments = new ArrayList<>();
+            for (TransactionLinkDto link : links) {
 
-                    CommentDto comment = new CommentDto();
-                    comment = commentService.get(link.getTransaction2());
-                    if (Objects.equals(comment.getType(), "COMMENT")) {
-                        comments.add(comment);
-                    }
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
                 }
-                claimOutboundDto.setComments(comments);
-
-            }catch (Exception e){}
-
+            }
+            claimOutboundDto.setComments(comments);
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
@@ -383,9 +380,7 @@ public class ClaimService {
                     voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
                 voucherInboundDto.setContractId(id);
-                try {
-                    voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                voucherService.create(voucherInboundDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

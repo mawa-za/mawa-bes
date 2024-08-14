@@ -24,5 +24,6 @@ public class TransactionType {
     public static  String CASE = "CASE";
     public static  String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static  String COMMENT = "COMMENT";
+    public static String DISCOUNT = "DISCOUNT";
 
 }

@@ -1,7 +1,6 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,7 +11,9 @@ import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.UserEntity;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.service.CashupService;
@@ -40,6 +41,8 @@ public class ReceiptController {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private PartnerRepository partnerRepository;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createReceipt(@RequestBody ReceiptCreateDto receiptCreateDto) {
@@ -47,7 +50,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                if(StringUtils.isBlank(receiptCreateDto.getExternalReceiptNo())) {
+                if(receiptCreateDto.getExternalReceiptNo() == null || receiptCreateDto.getExternalReceiptNo() == "") {
 
                     CashupCreateDto cashupCreateDto = new CashupCreateDto();
                     //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
@@ -105,9 +108,13 @@ public class ReceiptController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                //since the username is saved in createdBy, we need to convert id to username to filter
-                UserEntity user = userRepository.getById(createdBy);
-                search.setCreatedBy(user.getUsername());
+//                //since the username is saved in createdBy, we need to convert id to username to filter
+//
+//                PartnerEntity partner = partnerRepository.getById(createdBy);
+//                UserEntity user = userRepository.getByPartner(partner.getId());
+//                search.setCreatedBy(user.getUsername());
+
+                search.setCreatedBy(createdBy);
 
             }
             ArrayList<ReceiptDto> receipts = new ArrayList<>();
