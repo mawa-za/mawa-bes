@@ -103,6 +103,7 @@ public class MembershipController {
             }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -112,6 +113,7 @@ public class MembershipController {
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
