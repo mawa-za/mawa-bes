@@ -180,6 +180,9 @@ public class CaseService {
                 dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
                 dateDtoList.add(dateDto);
             }
+
+
+
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
                 List<CommentDto> comments = new ArrayList<>();
@@ -192,7 +195,9 @@ public class CaseService {
                     }
                 }
                 caseDto.setComments(comments);
+
             }catch (Exception e){}
+
 
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
