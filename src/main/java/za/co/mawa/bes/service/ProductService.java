@@ -473,4 +473,32 @@ public class ProductService implements ProductDao {
             return predicate;
         };
     }
+    public PricingOutboundDto simulate(PricingInboundDto pricingInboundDto) {
+        List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
+        PricingOutboundDto pricingOutboundDto = new PricingOutboundDto();
+        pricingOutboundDto.setVATPercentage(new BigDecimal("15"));
+        BigDecimal totalExcVat = new BigDecimal("0");
+        for (LineItemInboundDto lineItemInboundDto : pricingInboundDto.getItems()) {
+            LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
+            lineItemOutboundDto.setTransaction(lineItemInboundDto.getTransaction());
+            lineItemOutboundDto.setItem(lineItemInboundDto.getItemId());
+            try {
+                lineItemOutboundDto.setProduct(productService.get(lineItemInboundDto.getProductId()));
+            } catch (ProductNotFoundException e) {
+
+            }
+            lineItemOutboundDto.setUnitPrice(lineItemInboundDto.getUnitPrice());
+            lineItemOutboundDto.setQuantity(lineItemInboundDto.getQuantity());
+            lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, lineItemInboundDto.getUom()));
+            lineItemOutboundDto.setBarcode(lineItemInboundDto.getEan());
+            lineItemOutboundDto.setLineTotal(lineItemInboundDto.getQuantity().multiply(lineItemInboundDto.getUnitPrice()));
+            totalExcVat = totalExcVat.add(lineItemOutboundDto.getLineTotal());
+            lineItemOutboundDtoList.add(lineItemOutboundDto);
+        }
+        pricingOutboundDto.setTotalExcVat(totalExcVat);
+        pricingOutboundDto.setVATAmount(pricingOutboundDto.getTotalExcVat().multiply(pricingOutboundDto.getVATPercentage().divide(new BigDecimal("100"))));
+        pricingOutboundDto.setTotalIncVat(pricingOutboundDto.getTotalExcVat().add((pricingOutboundDto.getVATAmount())));
+        pricingOutboundDto.setItems(lineItemOutboundDtoList);
+        return pricingOutboundDto;
+    }
 }
