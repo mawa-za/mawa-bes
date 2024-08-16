@@ -1,6 +1,5 @@
 package za.co.mawa.bes.service;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -63,13 +62,9 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            try{
-                if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
-                    entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
-                }else {
-                    entity.setExtReceiptNumber(null);
-                }
-            }catch (Exception e){}
+            if(receipt.getExternalReceiptNo() !=null && receipt.getExternalReceiptNo() != "") {
+                entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
+            }
             entity.setLocation(receipt.getLocation());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -95,10 +90,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
-            try {
-                receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
-            }catch (Exception e){}
-
+            receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
             receipt.setReceiptType(fieldOptionService.getFieldOption(Field.RECEIPT_TYPE, entity.getReceiptType()));
             receipt.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
             receipt.setAmount(entity.getAmount());
@@ -109,7 +101,7 @@ public class ReceiptService implements ReceiptDao {
 
             }
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
 
             return receipt;
         } else {
