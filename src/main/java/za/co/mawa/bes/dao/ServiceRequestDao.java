@@ -11,5 +11,5 @@ public interface ServiceRequestDao {
     ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto);
     List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto);
     ServiceRequestDto get(String id) throws Exception;
-    void delete(String id);
+    Boolean delete(String id);
 }

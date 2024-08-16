@@ -174,12 +174,15 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     @Override
-    public void delete(String id) {
+    public Boolean delete(String id) {
+        Boolean deleted = false;
         try {
             transactionService.delete(id);
+            deleted = true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        return deleted;
     }
 
     public ServiceRequestDto assign(String id, String assignee) throws Exception {
