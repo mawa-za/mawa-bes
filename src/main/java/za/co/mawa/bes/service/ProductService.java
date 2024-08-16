@@ -223,6 +223,8 @@ public class ProductService implements ProductDao {
     @Override
     public ProductPricingDto getPricing(ProductPricingQueryDto productPricingQueryDto) throws DoesNotExist {
         try {
+            BigDecimal vatPercentage = new BigDecimal("0.15");
+
             ProductPricingPKEntity productPricingPKEntity = new ProductPricingPKEntity();
             productPricingPKEntity.setProduct(productPricingQueryDto.getProduct());
             productPricingPKEntity.setPricing(productPricingQueryDto.getPricing());
@@ -230,8 +232,19 @@ public class ProductService implements ProductDao {
             ProductPricingDto productPricingDto = new ProductPricingDto();
             productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRODUCT_PRICING, productPricingEntity.getProductPricingPKEntity().getPricing()));
             productPricingDto.setValue(productPricingEntity.getValue());
+
+            BigDecimal value = productPricingEntity.getValue();
             productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
             productPricingDto.setValidTo(productPricingEntity.getValidTo());
+
+            BigDecimal totExcVat = value;
+            BigDecimal vatAmount = totExcVat.multiply(vatPercentage);
+            BigDecimal totIncVat = totExcVat.add(vatAmount);
+
+            productPricingDto.setTotExcVat(totExcVat);
+            productPricingDto.setVatAmount(vatAmount);
+            productPricingDto.setTotIncVat(totIncVat);
+
             return productPricingDto;
         } catch (Exception exception) {
             throw new DoesNotExist();
@@ -243,37 +256,25 @@ public class ProductService implements ProductDao {
         List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
         try {
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(product);
+            BigDecimal vatPercentage = new BigDecimal("0.15");
+
             for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
+                BigDecimal value = productPricingEntity.getValue();
+
                 productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
                 productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRICING_TYPE, productPricingEntity.getProductPricingPKEntity().getPricing()));
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
 
-//                if (productPricingDto.getValue() != null && lineItemOutboundDto.getQuantity() != null) {
-//                    BigDecimal totalExcVat = lineItemOutboundDto.getUnitPrice().multiply(lineItemOutboundDto.getQuantity());
-//                    lineItemOutboundDto.setTotalExcVat(totalExcVat);
-//
-//                    lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
-//
-//                    BigDecimal vatAmount = totalExcVat.multiply(vatPercentage);
-//                    lineItemOutboundDto.setVATAmount(vatAmount);
-//
-//                    BigDecimal totalIncVat = totalExcVat.add(vatAmount);
-//                    lineItemOutboundDto.setTotalIncVat(totalIncVat);
-//
-//                    BigDecimal discountAmount = new BigDecimal("0");
-//                    lineItemOutboundDto.setDiscountAmount(discountAmount);
-//
-//                    BigDecimal discountPercentage = new BigDecimal("0");
-//                    if (totalExcVat.compareTo(BigDecimal.ZERO) != 0) {
-//                        discountPercentage = discountAmount.divide(totalExcVat, 2, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-//                    }
-//                    lineItemOutboundDto.setDiscountPercentage(discountPercentage);
-//
-//                    lineItemOutboundDto.setVATPercentage(vatPercentage.multiply(new BigDecimal("100")));
-//                }
+                BigDecimal totExcVat = value;
+                BigDecimal vatAmount = totExcVat.multiply(vatPercentage);
+                BigDecimal totIncVat = totExcVat.add(vatAmount);
+
+                productPricingDto.setTotExcVat(totExcVat);
+                productPricingDto.setVatAmount(vatAmount);
+                productPricingDto.setTotIncVat(totIncVat);
 
                 productPricingDtoList.add(productPricingDto);
             }
@@ -472,5 +473,33 @@ public class ProductService implements ProductDao {
             }
             return predicate;
         };
+    }
+    public PricingOutboundDto simulate(PricingInboundDto pricingInboundDto) {
+        List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
+        PricingOutboundDto pricingOutboundDto = new PricingOutboundDto();
+        pricingOutboundDto.setVATPercentage(new BigDecimal("15"));
+        BigDecimal totalExcVat = new BigDecimal("0");
+        for (LineItemInboundDto lineItemInboundDto : pricingInboundDto.getItems()) {
+            LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
+            lineItemOutboundDto.setTransaction(lineItemInboundDto.getTransaction());
+            lineItemOutboundDto.setItem(lineItemInboundDto.getItemId());
+            try {
+                lineItemOutboundDto.setProduct(productService.get(lineItemInboundDto.getProductId()));
+            } catch (ProductNotFoundException e) {
+
+            }
+            lineItemOutboundDto.setUnitPrice(lineItemInboundDto.getUnitPrice());
+            lineItemOutboundDto.setQuantity(lineItemInboundDto.getQuantity());
+            lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, lineItemInboundDto.getUom()));
+            lineItemOutboundDto.setBarcode(lineItemInboundDto.getEan());
+            lineItemOutboundDto.setLineTotal(lineItemInboundDto.getQuantity().multiply(lineItemInboundDto.getUnitPrice()));
+            totalExcVat = totalExcVat.add(lineItemOutboundDto.getLineTotal());
+            lineItemOutboundDtoList.add(lineItemOutboundDto);
+        }
+        pricingOutboundDto.setTotalExcVat(totalExcVat);
+        pricingOutboundDto.setVATAmount(pricingOutboundDto.getTotalExcVat().multiply(pricingOutboundDto.getVATPercentage().divide(new BigDecimal("100"))));
+        pricingOutboundDto.setTotalIncVat(pricingOutboundDto.getTotalExcVat().add((pricingOutboundDto.getVATAmount())));
+        pricingOutboundDto.setItems(lineItemOutboundDtoList);
+        return pricingOutboundDto;
     }
 }
