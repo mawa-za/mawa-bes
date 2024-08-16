@@ -115,7 +115,9 @@ public class LeaveRequestService {
                     leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
                 }
             }
-            leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
+            if(leaveRequestOutboundDto.getStartDate() != null && leaveRequestOutboundDto.getEndDate() != null){
+                leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
+            }
         }
         catch(Exception e){
             throw new DoesNotExist(e.getMessage());
