@@ -101,7 +101,7 @@ public class ReceiptService implements ReceiptDao {
 
             }
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
 
             return receipt;
         } else {
