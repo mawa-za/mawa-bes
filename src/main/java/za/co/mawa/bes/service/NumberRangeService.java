@@ -13,14 +13,13 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
-public class NumberRangeService implements NumberRangeDao {
+public class NumberRangeService {
 
     @Autowired
     NumberRangeRepository numberRangeRepository;
     public static final String START = "0000000001";
     public static final String END = "9999999999";
 
-    @Override
     public void create(NumberRangeDto numberRangeDto) {
         try {
             if (numberRangeRepository.getRangeByObject(numberRangeDto.getObject()) == null) {
@@ -38,8 +37,7 @@ public class NumberRangeService implements NumberRangeDao {
 
     }
 
-    @Override
-    public String generateNumber(String object) throws NumberRangeObjectNotFound {
+    public String generateNumberOld(String object) throws NumberRangeObjectNotFound {
 
         try {
             String newNumber = null;
@@ -68,11 +66,9 @@ public class NumberRangeService implements NumberRangeDao {
                     numberRangeEntity.setCurrent(numberRangeEntity.getPrefix() + newNumber);
                 }
                 numberRangeRepository.save(numberRangeEntity);
-                if(numberRangeEntity.getPrefix() == null)
-                {
+                if (numberRangeEntity.getPrefix() == null) {
                     return newNumber;
-                }
-                else {
+                } else {
                     return numberRangeEntity.getPrefix() + newNumber;
                 }
 
@@ -82,6 +78,15 @@ public class NumberRangeService implements NumberRangeDao {
 
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    public String generateNumber(String object) throws NumberRangeObjectNotFound {
+        NumberRangeEntity numberRangeEntity = numberRangeRepository.getRangeByObject(object);
+        if (numberRangeEntity != null) {
+            return numberRangeRepository.getNewNumber(object);
+        } else {
+            throw new NumberRangeObjectNotFound();
         }
     }
 
