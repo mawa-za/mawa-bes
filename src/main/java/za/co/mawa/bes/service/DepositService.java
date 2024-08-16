@@ -22,6 +22,7 @@ import za.co.mawa.bes.entity.transaction.TransactionLinkPKEntity;
 import za.co.mawa.bes.repository.TransactionAmountRepository;
 import za.co.mawa.bes.repository.TransactionDateRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -45,6 +46,11 @@ public class DepositService implements DepositDao {
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     TransactionDateRepository transactionDateRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    UserService userService;
+
     @Override
     public String create(DepositCreateDto depositCreate) throws Exception {
         try{
@@ -102,7 +108,10 @@ public class DepositService implements DepositDao {
 
             depositDto.setId(transactionDto.getId());
             depositDto.setNumber(transactionDto.getNumber());
-            depositDto.setCreatedBy(transactionDto.getCreatedBy());
+            try {
+                depositDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+            }catch (Exception e){}
+
             depositDto.setStatus(transactionDto.getStatus());
             depositDto.setChangedBy(transactionDto.getChangedBy());
             for(TransactionDateDto date:transactionService.getDates(id)){
@@ -224,21 +233,21 @@ public class DepositService implements DepositDao {
         return currentUser;
     }
 
-//    public String getUserId() {
-//        try {
-//
-//            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-//            UserEntity user = userRepository.getByName(userDetails.getUsername());
-//
-//            if (user != null) {
-//
-//                return String.valueOf(user.getPartner());
-//            } else {
-//                return null;
-//            }
-//        } catch (Exception e) {
-//
-//            return null;
-//        }
-//    }
+    public String getUserPartnerId() {
+        try {
+
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            UserEntity user = userRepository.getByName(userDetails.getUsername());
+
+            if (user != null) {
+
+                return String.valueOf(user.getPartner());
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+
+            return null;
+        }
+    }
 }
