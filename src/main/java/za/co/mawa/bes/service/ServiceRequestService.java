@@ -129,6 +129,8 @@ public class ServiceRequestService implements ServiceRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
+        serviceRequestDto.setDescription(transactionDto.getDescription());
+        serviceRequestDto.setDescription(transactionDto.getSubDescription());
         if (transactionDto.getChangedBy() != null) {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
@@ -140,6 +142,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
+
         }
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
         serviceRequestDto.setPriority(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_PRIORITY, transactionDto.getPriority()));
@@ -171,12 +174,15 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     @Override
-    public void delete(String id) {
+    public Boolean delete(String id) {
+        Boolean deleted = false;
         try {
             transactionService.delete(id);
+            deleted = true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        return deleted;
     }
 
     public ServiceRequestDto assign(String id, String assignee) throws Exception {
@@ -257,7 +263,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 transactionEditDto.setStatusReason(statusReason.toUpperCase());
             }
             if (description != null && description != "") {
-                transactionEditDto.setDescription(description);
+                transactionEditDto.setDescription(description.toUpperCase());
             }
             transactionEditDto.setChangedBy(UserContext.getCurrentUserPartner());
             transactionService.edit(transactionEditDto);

@@ -101,7 +101,7 @@ public class ReceiptService implements ReceiptDao {
 
             }
             receipt.setCreationDate(formatterDate.format(entity.getCreationDate()));
-            receipt.setCreationDate(formatterTime.format(entity.getCreationTime()));
+            receipt.setCreationTime(formatterTime.format(entity.getCreationTime()));
 
             return receipt;
         } else {
@@ -130,14 +130,16 @@ public class ReceiptService implements ReceiptDao {
         Sort sort = Sort.by("id").ascending();
         List<ReceiptEntity> receipts = receiptRepository.findAll(findByCriteria(receiptSearch), sort);
         for (ReceiptEntity receipt : receipts) {
-            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
-            if (linkEntity == null) {
-                try {
-                    receiptDtos.add(getReceipt(receipt.getId()));
-                } catch (Exception e) {
+            try {
+                TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(receipt.getId(), TransactionType.CASHUP);
+                if (linkEntity == null) {
+                    try {
+                        receiptDtos.add(getReceipt(receipt.getId()));
+                    } catch (Exception e) {
 
+                    }
                 }
-            }
+            }catch (Exception e){}
         }
         return receiptDtos;
     }
