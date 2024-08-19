@@ -22,7 +22,6 @@ public class TransactionItemDto implements Serializable {
     private BigDecimal quantity;
     private Date validFrom;
     private Date validTo;
-    private BigDecimal discountAmount = new BigDecimal("0");
     public TransactionItemDto(TransactionItemEntity transactionItemEntity) {
         this.transaction = transactionItemEntity.getTransactionItemPKEntity().getTransaction();
         this.item = transactionItemEntity.getTransactionItemPKEntity().getItem();
