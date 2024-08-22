@@ -2,12 +2,13 @@ package za.co.mawa.bes.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
-import za.co.mawa.bes.dto.WorkcenterDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -20,13 +21,12 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.entity.product.ProductCategoryEntity;
+import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.exception.*;
-import za.co.mawa.bes.repository.ProductAttributeRepository;
-import za.co.mawa.bes.repository.ProductCategoryRepository;
-import za.co.mawa.bes.repository.ProductPricingRepository;
-import za.co.mawa.bes.repository.ProductRepository;
+import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -47,6 +47,11 @@ public class ProductService implements ProductDao {
     NumberRangeService numberRangeService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionAttributeService transactionAttributeService;
+    @Autowired
+    TransactionAttributeRepository transactionAttributeRepository;
+
 
     @Override
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
@@ -66,7 +71,16 @@ public class ProductService implements ProductDao {
             productEntity.setValidFrom(new Date());
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure().toUpperCase());
+
+
             ProductDto productDto = get(productRepository.save(productEntity).getId());
+
+            TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
+            transactionAttributeFromDto.setTransaction(productEntity.getId());
+            transactionAttributeFromDto.setAttribute("VAT-INCLUSIVE");
+            transactionAttributeFromDto.setValue(productCreateDto.getVatInclusive());
+            transactionAttributeService.add(transactionAttributeFromDto);
+
             if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
                 productPricingCreateDto.setProduct(productDto.getId());
@@ -167,6 +181,15 @@ public class ProductService implements ProductDao {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
             }
             productRepository.save(productEntity);
+
+            if(productEditDto.getVatInclusive() !=null && productEditDto.getVatInclusive()!=""){
+
+                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(productEditDto.getId());
+                for (TransactionAttributeEntity attribute1 : attribute) {
+                    attribute1.setValue(productEditDto.getVatInclusive());
+                    transactionAttributeRepository.save(attribute1);
+                }
+            }
         } catch (Exception exception) {
             throw new ProductUpdateFailure();
         }
@@ -196,6 +219,7 @@ public class ProductService implements ProductDao {
             entity.setValidFrom(productPricingCreateDto.getValidFrom());
             entity.setValidTo(productPricingCreateDto.getValidTo());
             productPricingRepository.save(entity);
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -214,6 +238,7 @@ public class ProductService implements ProductDao {
             entity.setValidFrom(productPricingEditDto.getValidFrom());
             entity.setValidTo(productPricingEditDto.getValidTo());
             productPricingRepository.save(entity);
+
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -232,6 +257,7 @@ public class ProductService implements ProductDao {
             ProductPricingDto productPricingDto = new ProductPricingDto();
             productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRODUCT_PRICING, productPricingEntity.getProductPricingPKEntity().getPricing()));
             productPricingDto.setValue(productPricingEntity.getValue());
+
 
             BigDecimal value = productPricingEntity.getValue();
             productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
@@ -272,9 +298,27 @@ public class ProductService implements ProductDao {
                 BigDecimal vatAmount = totExcVat.multiply(vatPercentage);
                 BigDecimal totIncVat = totExcVat.add(vatAmount);
 
+                productPricingDto.setVatInclusive("yes");
                 productPricingDto.setTotExcVat(totExcVat);
                 productPricingDto.setVatAmount(vatAmount);
                 productPricingDto.setTotIncVat(totIncVat);
+
+                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(product);
+                if(attribute != null && attribute.size() > 0) {
+                    for (TransactionAttributeEntity attribute1 : attribute) {
+                        if (attribute1.getValue().equalsIgnoreCase("yes")) {
+
+                            productPricingDto.setVatInclusive("yes");
+
+                        }else if (attribute1.getValue().equalsIgnoreCase("no")) {
+
+                            productPricingDto.setVatInclusive("no");
+                            productPricingDto.setTotExcVat(value);
+                            productPricingDto.setVatAmount(value);
+                            productPricingDto.setTotIncVat(value);
+                        }
+                    }
+                }
 
                 productPricingDtoList.add(productPricingDto);
             }
@@ -484,7 +528,7 @@ public class ProductService implements ProductDao {
             lineItemOutboundDto.setTransaction(lineItemInboundDto.getTransaction());
             lineItemOutboundDto.setItem(lineItemInboundDto.getItemId());
             try {
-                lineItemOutboundDto.setProduct(productService.get(lineItemInboundDto.getProductId()));
+                lineItemOutboundDto.setProduct(get(lineItemInboundDto.getProductId()));
             } catch (ProductNotFoundException e) {
 
             }
