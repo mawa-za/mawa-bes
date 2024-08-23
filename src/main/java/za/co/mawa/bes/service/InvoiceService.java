@@ -44,7 +44,7 @@ public class InvoiceService {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
-            transactionCreateDto.setStatus(Status.NEW);
+            transactionCreateDto.setStatus(Status.DRAFT);
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
@@ -129,12 +129,11 @@ public class InvoiceService {
             invoiceOutboundDto.setId(transactionDto.getId());
             invoiceOutboundDto.setNumber(transactionDto.getNumber());
             invoiceOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            invoiceOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
-            transactionAttributeDto.setTransaction(transactionDto.getId());
-            transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
-            invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
+//            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+//            transactionAttributeDto.setTransaction(transactionDto.getId());
+//            transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
+//            invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
