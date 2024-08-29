@@ -21,7 +21,7 @@ public class ServiceRequestDto implements Serializable {
     private String number;
     private FieldOptionDto subType;
     private PartnerDto customer;
-    private String description;
+    private FieldOptionDto description;
     private FieldOptionDto category;
     private FieldOptionDto priority;
     private FieldOptionDto status;

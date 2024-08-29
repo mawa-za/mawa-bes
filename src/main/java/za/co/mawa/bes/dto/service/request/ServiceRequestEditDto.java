@@ -4,9 +4,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.LineItemDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 @Getter
@@ -17,6 +19,6 @@ public class ServiceRequestEditDto implements Serializable {
     private String description;
     private String category;
     private String priority;
-    private String assignee;
+    private List<String> assigneeIds;
     private String status;
 }

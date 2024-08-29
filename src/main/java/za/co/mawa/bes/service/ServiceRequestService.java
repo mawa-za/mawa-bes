@@ -24,6 +24,7 @@ import za.co.mawa.bes.utils.*;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ServiceRequestService implements ServiceRequestDao {
@@ -52,6 +53,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
+            transactionCreateDto.setSummary(serviceRequestCreateDto.getSummary());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             try {
@@ -125,7 +127,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
-        serviceRequestDto.setDescription(transactionDto.getDescription());
+        serviceRequestDto.setDescription(fieldOptionService.getFieldOption(Field.DESCRIPTION, transactionDto.getDescription()));
 
         TransactionEntity entity = transactionRepository.getById(id);
 
@@ -183,29 +185,52 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     public ServiceRequestDto assign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
-        try{
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(id);
-            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
-            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
+        try {
+            // Check if assigneeIds are provided
+            if (serviceRequestEditDto.getAssigneeIds() != null) {
+                // Loop through each ID and create a PartnerDto
+                for (String assigneeId : serviceRequestEditDto.getAssigneeIds()) {
+                    TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                    transactionPartnerDto.setTransaction(id);
+                    transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
 
-            transactionService.addPartner(transactionPartnerDto);
-        }
-        catch(Exception e){
+                    PartnerDto partnerDto = new PartnerDto(); // Create PartnerDto object
+                    partnerDto.setId(assigneeId);             // Set ID
+                    transactionPartnerDto.setPartner(partnerDto.getId()); // Use ID for TransactionPartnerDto
+
+                    transactionService.addPartner(transactionPartnerDto); // Add partner to transaction
+                }
+            }
+        } catch (Exception e) {
+            // Handle exceptions
+            throw new RuntimeException(e);
         }
         return edit(id, serviceRequestEditDto);
     }
 
-    public ServiceRequestDto unassign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
-        try{
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(id);
-            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
-            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
 
-            transactionService.removePartner(transactionPartnerDto);
+
+
+    public ServiceRequestDto unassign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
+        try {
+            // Check if assigneeIds are provided
+            if (serviceRequestEditDto.getAssigneeIds() != null) {
+                // Loop through each ID and create a PartnerDto
+                for (String assigneeId : serviceRequestEditDto.getAssigneeIds()) {
+                    TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                    transactionPartnerDto.setTransaction(id);
+                    transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+
+                    PartnerDto partnerDto = new PartnerDto(); // Create PartnerDto object
+                    partnerDto.setId(assigneeId);             // Set ID
+                    transactionPartnerDto.setPartner(partnerDto.getId()); // Use ID for TransactionPartnerDto
+
+                    transactionService.removePartner(transactionPartnerDto); // Add partner to transaction
+                }
+            }
         }
         catch (Exception e){
+            throw new RuntimeException("Failed to unassign service request", e);
         }
         return edit(id, serviceRequestEditDto);
     }
