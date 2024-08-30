@@ -19,6 +19,7 @@ import za.co.mawa.bes.utils.*;
 
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -43,7 +44,6 @@ public class LeaveRequestService {
             transactionCreateDto.setEmployeeResponsible(leaveRequestInboundDto.getEmployee());
             transactionCreateDto.setStatus(Status.AWAITING_APPROVAL);
             transactionCreateDto.setType(TransactionType.LEAVE_REQUEST);
-            System.out.println(transactionCreateDto.getType());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             TransactionDateDto creationDate = new TransactionDateDto();
             creationDate.setTransaction(transactionDto.getId());
@@ -115,6 +115,9 @@ public class LeaveRequestService {
                 if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
                     leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
                 }
+            }
+            if(leaveRequestOutboundDto.getStartDate() != null && leaveRequestOutboundDto.getEndDate() != null){
+                leaveRequestOutboundDto.setDays(getWorkingDaysBetweenTwoDates(leaveRequestOutboundDto.getStartDate(), leaveRequestOutboundDto.getEndDate()));
             }
         }
         catch(Exception e){
@@ -235,5 +238,28 @@ public class LeaveRequestService {
         } catch (Exception e) {
         }
         return search();
+    }
+    public static int getWorkingDaysBetweenTwoDates(Date startDate, Date endDate) {
+        Calendar startCal = Calendar.getInstance();
+        startCal.setTime(startDate);
+
+        Calendar endCal = Calendar.getInstance();
+        endCal.setTime(endDate);
+        int workDays = 0;
+
+        if (startCal.getTimeInMillis() == endCal.getTimeInMillis()) {
+            return 0;
+        }
+        if (startCal.getTimeInMillis() > endCal.getTimeInMillis()) {
+            startCal.setTime(endDate);
+            endCal.setTime(startDate);
+        }
+        do {
+            startCal.add(Calendar.DAY_OF_MONTH, 1);
+            if (startCal.get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY && startCal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+                ++workDays;
+            }
+        } while (startCal.getTimeInMillis() < endCal.getTimeInMillis());
+        return workDays;
     }
 }

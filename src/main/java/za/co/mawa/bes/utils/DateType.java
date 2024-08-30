@@ -20,4 +20,5 @@ public class DateType {
     public static String LAST_RECEIPT_DATE = "LAST-RECEIPT-DATE";
     public static String START_DATE = "START-DATE";
     public static String END_DATE = "END-DATE";
+
 }

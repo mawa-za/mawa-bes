@@ -52,6 +52,14 @@ public class VoucherService {
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
 
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
+
+
     public VoucherOutboundDto create(VoucherInboundDto voucherInboundDto) throws Exception {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -118,6 +126,7 @@ public class VoucherService {
                 voucherOutboundDto.setStatus(transactionDto.getStatus());
 
                 voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
+
                 voucherOutboundDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
 
                 voucherOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 
@@ -17,7 +18,7 @@ public class DepositDto implements Serializable {
     private String number;
     private String transactionIdLink;
     private String createdOn;
-    private String createdBy;
+    private PartnerDto createdBy;
     private String changedBy;
     private String status;
 }

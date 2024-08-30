@@ -72,7 +72,6 @@ public class ServiceRequestService implements ServiceRequestDao {
         }
     }
 
-    @Override
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
@@ -114,7 +113,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 serviceRequestDtoList.add(get(id));
             } catch (Exception e) {
             }
-
         }
         return serviceRequestDtoList;
     }
@@ -138,7 +136,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         }
         serviceRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
         try {
-            serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
+            serviceRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS_REASON, transactionDto.getStatusReason()));
         } catch (Exception e) {
         }
         serviceRequestDto.setCategory(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_CATEGORY, transactionDto.getCategory()));
@@ -173,12 +171,79 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     @Override
-    public void delete(String id) {
+    public Boolean delete(String id) {
+        Boolean deleted = false;
         try {
             transactionService.delete(id);
+            deleted = true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        return deleted;
+    }
+
+    public ServiceRequestDto assign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
+            transactionService.addPartner(transactionPartnerDto);
+            edit(id, serviceRequestEditDto);
+        }
+        catch(Exception e){
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto unassign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
+        try{
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(id);
+            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
+            transactionService.removePartner(transactionPartnerDto);
+            edit(id, serviceRequestEditDto);
+        }
+        catch (Exception e){
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto reject(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.REJECTED);
+            transactionService.edit(transactionEditDto);
+            edit(id, serviceRequestEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto cancel(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CANCELLED);
+            transactionService.edit(transactionEditDto);
+            edit(id, serviceRequestEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
+    }
+
+    public ServiceRequestDto close(String id, ServiceRequestEditDto serviceRequestEditDto ) throws Exception {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.CLOSED);
+            transactionService.edit(transactionEditDto);
+            edit(id, serviceRequestEditDto);
+        } catch (Exception exception) {
+        }
+        return get(id);
     }
 
     public ServiceRequestDto assign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
