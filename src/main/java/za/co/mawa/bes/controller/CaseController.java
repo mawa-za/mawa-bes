@@ -72,7 +72,7 @@ public class CaseController {
         }
     }
 
-    @RequestMapping(value = "{id}/participant", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/participant/{participant}/{function}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addLitigant(@PathVariable String id, @RequestBody ParticipantCreateDto participantCreateDto) {
         try {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
