@@ -51,7 +51,6 @@ public class TransactionDto implements Serializable {
     private ProductDto productDetails;
     private String summary;
 
-
     public TransactionDto(TransactionEntity transactionEntity) {
         this.id = transactionEntity.getId();
         this.number = transactionEntity.getNumber();

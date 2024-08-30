@@ -55,4 +55,5 @@ public class Field {
     public static String DISCOUNT = "DISCOUNT";
     public static String SERVICE_REQUEST = "SERVICE-REQUEST";
     public static String SERVICE_REQUEST_DESCRIPTION = "SERVICE-REQUEST-DESCRIPTION";
+
 }

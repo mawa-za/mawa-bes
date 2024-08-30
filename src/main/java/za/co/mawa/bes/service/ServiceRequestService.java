@@ -53,7 +53,6 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
-            transactionCreateDto.setSubDescription(serviceRequestCreateDto.getSummary());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             try {
@@ -127,7 +126,6 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
         serviceRequestDto.setDescription(transactionDto.getDescription());
-        serviceRequestDto.setSummary(transactionDto.getSubDescription());
 
         TransactionEntity entity = transactionRepository.getById(id);
 
@@ -154,6 +152,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 serviceRequestDto.setCreationDate(transactionDateDto.getValue());
             }
         }
+
         List<PartnerDto> partnerAssignees = new ArrayList<>();
         for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
             if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
