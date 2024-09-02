@@ -16,13 +16,11 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.voucher.*;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
-
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkPKEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
-
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -47,6 +45,12 @@ public class VoucherService {
     FieldOptionService fieldOptionService;
     @Autowired
     PartnerRepository partnerRepository;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
 
     @Autowired
     TransactionRepository transactionRepository;
@@ -117,11 +121,9 @@ public class VoucherService {
             VoucherOutboundDto voucherOutboundDto = new VoucherOutboundDto();
             TransactionDto transactionDto = transactionService.get(id);
             if (transactionDto != null) {
-
                 voucherOutboundDto.setId(transactionDto.getId());
                 voucherOutboundDto.setNumber(transactionDto.getNumber());
                 voucherOutboundDto.setStatus(transactionDto.getStatus());
-
 
                 voucherOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.SERVICE_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
 
@@ -167,9 +169,7 @@ public class VoucherService {
 
                         }
                     }
-
                 }
-
                 return voucherOutboundDto;
             } else {
                 return null;
@@ -213,13 +213,11 @@ public class VoucherService {
                 transactionEditDto.setStatusReason(voucherEditDto.getStatusReason());
                 transactionService.edit(transactionEditDto);
             }
-
             if (voucherEditDto.getExpiryDate() != null) {
                 TransactionDateEdit transactionDate = new TransactionDateEdit();
                 transactionDate.setTransaction(id);
                 transactionDate.setType(DateType.EXPIRY_DATE);
                 transactionDate.setValue(Conversion.stringToDate(String.valueOf(voucherEditDto.getExpiryDate())));
-
                 edited = transactionService.dateEdit(transactionDate);
             }
             if (voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0) {

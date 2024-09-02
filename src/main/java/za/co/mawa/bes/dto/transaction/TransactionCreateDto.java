@@ -36,7 +36,7 @@ public class TransactionCreateDto implements Serializable {
     private String createdBy;
     private Date endDate;
     private Date startDate;
-
+    private String summary;
 
     public TransactionCreateDto(QuotationCreateDto quotationCreateDto){
     }

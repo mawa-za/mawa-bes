@@ -138,7 +138,6 @@ public class UserController {
         }
     }
 
-
     @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
         try {

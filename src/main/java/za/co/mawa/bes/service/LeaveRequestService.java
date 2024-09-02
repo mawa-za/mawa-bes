@@ -64,7 +64,6 @@ public class LeaveRequestService {
                 transactionPartnerDto.setPartner(leaveRequestInboundDto.getEmployee());
                 transactionService.addPartner(transactionPartnerDto);
             }
-
             if(leaveRequestInboundDto.getStartDate() != null){
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
                 transactionDateDto.setTransaction(transactionDto.getId());
@@ -183,7 +182,6 @@ public class LeaveRequestService {
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.AWAITING_APPROVAL);
             transactionService.edit(transactionEditDto);
-
         }
         catch (Exception e){
             throw new RuntimeException(e);
@@ -231,9 +229,7 @@ public class LeaveRequestService {
         }
         catch(Exception e){
         }
-
         return get(id);
-
     }
 
     public List<LeaveRequestOutboundDto> delete(String id) throws DoesNotExist {

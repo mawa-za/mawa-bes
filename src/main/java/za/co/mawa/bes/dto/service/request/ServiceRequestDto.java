@@ -31,5 +31,6 @@ public class ServiceRequestDto implements Serializable {
     private Date creationDate;
     private Date dueDate;
     private PartnerDto changedBy;
+    private String summary;
 
 }

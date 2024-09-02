@@ -50,10 +50,10 @@ public class Field {
     public static String COURT = "COURT";
     public static String CASE = "CASE";
     public static String CASE_TYPE = "CASE-TYPE";
-
     public static String LEAVE_TYPE = "LEAVE-TYPE";
     public static String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static String DISCOUNT = "DISCOUNT";
     public static String SERVICE_REQUEST = "SERVICE-REQUEST";
+    public static String SERVICE_REQUEST_DESCRIPTION = "SERVICE-REQUEST-DESCRIPTION";
 
 }
