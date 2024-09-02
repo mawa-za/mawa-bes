@@ -18,5 +18,4 @@ public class ProductCreateDto {
     private BigDecimal price;
     private String pricingType;
     private String autoGenerateCode;
-    private double discountPercentage;
 }

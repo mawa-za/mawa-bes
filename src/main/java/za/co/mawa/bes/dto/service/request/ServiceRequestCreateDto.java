@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.service.request;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.LineItemDto;
 
 import java.io.Serializable;
 import java.util.List;
@@ -16,5 +17,4 @@ public class ServiceRequestCreateDto implements Serializable {
     private String category;
     private String priority;
     private List<String> assignees;
-    private String summary;
 }
