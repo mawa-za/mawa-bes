@@ -180,31 +180,44 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
     public ServiceRequestDto assign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
-        try{
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(id);
-            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
-            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
-            transactionService.addPartner(transactionPartnerDto);
-            edit(id, serviceRequestEditDto);
+        try {
+            if (serviceRequestEditDto.getAssigneeIds() != null) {
+                for (String assigneeId : serviceRequestEditDto.getAssigneeIds()) {
+                    TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                    transactionPartnerDto.setTransaction(id);
+                    transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+
+                    PartnerDto partnerDto = new PartnerDto();
+                    partnerDto.setId(assigneeId);
+                    transactionPartnerDto.setPartner(partnerDto.getId());
+                    transactionService.addPartner(transactionPartnerDto);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to unassign service request", e);
         }
-        catch(Exception e){
-        }
-        return get(id);
+        return edit(id, serviceRequestEditDto);
     }
 
     public ServiceRequestDto unassign(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
-        try{
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(id);
-            transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
-            transactionPartnerDto.setPartner(serviceRequestEditDto.getAssignee());
-            transactionService.removePartner(transactionPartnerDto);
-            edit(id, serviceRequestEditDto);
+        try {
+            if (serviceRequestEditDto.getAssigneeIds() != null) {
+                for (String assigneeId : serviceRequestEditDto.getAssigneeIds()) {
+                    TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                    transactionPartnerDto.setTransaction(id);
+                    transactionPartnerDto.setFunction(PartnerFunction.ASSIGNEE);
+
+                    PartnerDto partnerDto = new PartnerDto();
+                    partnerDto.setId(assigneeId);
+                    transactionPartnerDto.setPartner(partnerDto.getId());
+                    transactionService.removePartner(transactionPartnerDto);
+                }
+            }
         }
         catch (Exception e){
+            throw new RuntimeException("Failed to unassign service request", e);
         }
-        return get(id);
+        return edit(id, serviceRequestEditDto);
     }
 
     public ServiceRequestDto reject(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -213,10 +226,9 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.REJECTED);
             transactionService.edit(transactionEditDto);
-            edit(id, serviceRequestEditDto);
         } catch (Exception exception) {
         }
-        return get(id);
+        return edit(id, serviceRequestEditDto);
     }
 
     public ServiceRequestDto cancel(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -225,10 +237,9 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.CANCELLED);
             transactionService.edit(transactionEditDto);
-            edit(id, serviceRequestEditDto);
         } catch (Exception exception) {
         }
-        return get(id);
+        return edit(id, serviceRequestEditDto);
     }
 
     public ServiceRequestDto close(String id, ServiceRequestEditDto serviceRequestEditDto ) throws Exception {
@@ -237,9 +248,8 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.CLOSED);
             transactionService.edit(transactionEditDto);
-            edit(id, serviceRequestEditDto);
         } catch (Exception exception) {
         }
-        return get(id);
+        return edit(id, serviceRequestEditDto);
     }
 }
