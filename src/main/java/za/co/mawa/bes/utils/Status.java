@@ -23,4 +23,5 @@ public class Status {
     public static String APPROVED = "APPROVED";
     public static String REJECTED = "REJECTED";
     public static String AWAITING_APPROVAL = "AWAITING-APPROVAL";
+    public static String WAITING_PERIOD = "WAITING-PERIOD";
 }

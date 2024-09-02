@@ -45,6 +45,15 @@ public class MembershipController {
     FieldOptionService fieldOptionService;
     Gson gson = new Gson();
 
+    @RequestMapping(value = "activation", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> activation() {
+        try {
+            return ResponseEntity.ok(gson.toJson(membershipService.activation()));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
