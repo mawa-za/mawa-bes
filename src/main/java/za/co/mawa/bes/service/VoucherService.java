@@ -48,6 +48,14 @@ public class VoucherService {
     @Autowired
     PartnerRepository partnerRepository;
 
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
+
+
     public VoucherOutboundDto create(VoucherInboundDto voucherInboundDto) throws Exception {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
