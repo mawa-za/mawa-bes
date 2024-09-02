@@ -52,14 +52,6 @@ public class VoucherService {
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
 
-    @Autowired
-    TransactionRepository transactionRepository;
-    @Autowired
-    TransactionAmountRepository transactionAmountRepository;
-    @Autowired
-    TransactionLinkRepository transactionLinkRepository;
-
-
     public VoucherOutboundDto create(VoucherInboundDto voucherInboundDto) throws Exception {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
