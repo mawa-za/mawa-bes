@@ -17,4 +17,5 @@ public class ServiceRequestCreateDto implements Serializable {
     private String category;
     private String priority;
     private List<String> assignees;
+
 }
