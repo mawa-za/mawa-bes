@@ -3,6 +3,8 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -21,6 +23,7 @@ import za.co.mawa.bes.repository.TransactionPartnerRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -41,20 +44,28 @@ public class MembershipService {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TenantAdminService tenantAdminService;
 
-    @Scheduled(fixedRate = 500000)
+
+    @Scheduled(fixedRate = 5000)
     public void checkWaitingPeriod() {
+        // Retrieve all tenants
+        List<TenantDto> tenants = tenantAdminService.getAll();
 
-        MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-        membershipQueryDto.setStatus("New");
+        for (TenantDto tenant : tenants) {
+            TenantContext.setCurrentTenant(tenant.getId());
+            try {
+                activation();
+            } finally {
+                TenantContext.clear();
+            }
+        }
 
-        List<MembershipDto> entities = search(membershipQueryDto);
-
-        System.out.println("The scheduled task is running every 5 seconds." + entities);
-
+        System.out.println("The scheduled task is running every 5 seconds.");
     }
 
-    public List<MembershipDto> activation() {
+    public void activation() {
 
         List<MembershipDto> membershipDtoList = new ArrayList<>();
         TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
@@ -101,7 +112,7 @@ public class MembershipService {
 
             }
         }
-        return membershipDtoList;
+       // return membershipDtoList;
     }
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
