@@ -5,7 +5,7 @@ public class Status {
     public static String DRAFT = "DRAFT";
     public static String LOCKED = "LOCKED";
     public static String PENDING = "PENDING";
-    public static String NOT_YET_STARTED = "NOT_YET_STARTED";
+    public static String NOT_YET_STARTED = "NOT-YET-STARTED";
     public static String ACTIVE = "ACTIVE";
     public static String INACTIVE = "INACTIVE";
     public static String OPEN = "OPEN";
@@ -24,4 +24,7 @@ public class Status {
     public static String REJECTED = "REJECTED";
     public static String AWAITING_APPROVAL = "AWAITING-APPROVAL";
     public static String WAITING_PERIOD = "WAITING-PERIOD";
+    public static  String INSUFFICIENT_FUNDS = "INSUFFICIENT-FUNDS";
+    public static String SERVICE_REQUEST_STATUS_REASON = "SERVICE-REQUEST-STATUS-REASON";
+
 }
