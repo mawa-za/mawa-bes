@@ -48,22 +48,24 @@ public class MembershipService {
     TenantAdminService tenantAdminService;
 
 
-    @Scheduled(fixedRate = 5000)
-    public void checkWaitingPeriod() {
-        // Retrieve all tenants
-        List<TenantDto> tenants = tenantAdminService.getAll();
-
-        for (TenantDto tenant : tenants) {
-            TenantContext.setCurrentTenant(tenant.getId());
-            try {
-                activation();
-            } finally {
-                TenantContext.clear();
-            }
-        }
-
-        System.out.println("The scheduled task is running every 5 seconds.");
-    }
+//    @Scheduled(fixedRate = 15000)
+//    public void checkWaitingPeriod() {
+//        // Retrieve all tenants
+//        List<TenantDto> tenants = tenantAdminService.getAll();
+//
+//        for (TenantDto tenant : tenants) {
+////            TenantContext.clear();
+//            TenantContext.setCurrentTenant(tenant.getId());
+//
+//            try {
+//                activation();
+//            } finally {
+//                TenantContext.clear();
+//            }
+//        }
+//
+//        System.out.println("The scheduled task is running every 15 seconds.");
+//    }
 
     public void activation() {
 
