@@ -46,14 +46,15 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
-            transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
-            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+            transactionCreateDto.setSummary(serviceRequestCreateDto.getSummary());
+            transactionCreateDto.setEndDate(serviceRequestCreateDto.getDueDate());
 
+            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             try {
                 for (String assignee : serviceRequestCreateDto.getAssignees()) {
                     TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -64,7 +65,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
             catch (Exception e){
-
             }
             return get(transactionDto.getId());
         } catch (Exception e) {
@@ -76,14 +76,11 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
 
-            if (serviceRequestEditDto.getDescription() != null) {
-                entity.setDescription(serviceRequestEditDto.getDescription());
-            }
             if(serviceRequestEditDto.getCategory() != null){
-                entity.setCategory(serviceRequestEditDto.getCategory());
+                entity.setCategory(serviceRequestEditDto.getCategory().toUpperCase());
             }
             if(serviceRequestEditDto.getPriority() != null){
-                entity.setPriority(serviceRequestEditDto.getPriority());
+                entity.setPriority(serviceRequestEditDto.getPriority().toUpperCase());
             }
             if(serviceRequestEditDto.getStatus() != null){
                 entity.setStatus(serviceRequestEditDto.getStatus());
@@ -120,14 +117,14 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Override
     public ServiceRequestDto get(String id) throws Exception{
         ServiceRequestDto serviceRequestDto = new ServiceRequestDto();
+        TransactionEntity entity = transactionRepository.getById(id);
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
-        serviceRequestDto.setDescription(transactionDto.getDescription());
-        serviceRequestDto.setDescription(transactionDto.getSubDescription());
-        if (transactionDto.getChangedBy() != null) {
-            serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
-        }
+        serviceRequestDto.setSummary(transactionDto.getSummary());
+
+        serviceRequestDto.setChangedBy(userService.getUserByName(entity.getChangedBy()));
+
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
         } catch (Exception e) {

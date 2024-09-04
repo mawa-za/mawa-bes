@@ -6,6 +6,8 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.user.UserDto;
+
 import java.util.ArrayList;
 
 import java.io.Serializable;
@@ -30,5 +32,6 @@ public class ServiceRequestDto implements Serializable {
     private List<PartnerDto> assignee;
     private Date creationDate;
     private Date dueDate;
-    private PartnerDto changedBy;
+    private UserDto changedBy;
+    private String summary;
 }

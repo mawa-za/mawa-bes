@@ -81,6 +81,13 @@ public class TransactionService implements TransactionDao {
             creationDate.setValue(new Date());
             addDate(creationDate);
 
+            if(transactionCreateDto.getEndDate() != null){
+                TransactionDateDto dueDate = new TransactionDateDto();
+                dueDate.setTransaction(createdTransactionEntity.getId());
+                dueDate.setType(DateType.DUE_DATE);
+                dueDate.setValue(transactionCreateDto.getEndDate());
+                addDate(dueDate);
+            }
             if (transactionCreateDto.getCustomerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(createdTransactionEntity.getId());
