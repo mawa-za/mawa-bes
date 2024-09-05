@@ -49,7 +49,9 @@ public class MembershipController {
     public ResponseEntity<?> activation() {
         try {
             membershipService.activation();
-            return ResponseEntity.ok("True");
+            Map<String, String> response = new HashMap<>();
+            response.put("response", "successful ");
+            return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
