@@ -9,30 +9,24 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
-import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
-import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
-import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
-import za.co.mawa.bes.dto.user.UserRoleDto;
 import za.co.mawa.bes.entity.ProductAttributePKEntity;
 import za.co.mawa.bes.entity.ProductPricingPKEntity;
 import za.co.mawa.bes.exception.ProductNotFoundException;
-import za.co.mawa.bes.service.ProductService;
-import za.co.mawa.bes.utils.PriceType;
+import za.co.mawa.bes.service.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "product")
 public class ProductController {
+    Gson gson = new Gson();
     @Autowired
     ProductService productService;
-    Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postProduct(@RequestBody ProductCreateDto productCreateDto) {
@@ -229,5 +223,4 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
 }

@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.user.UserDto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -19,12 +20,12 @@ public class VoucherOutboundDto implements Serializable {
     private String number;
     private FieldOptionDto type;
     private PartnerDto recipient;
-    private String dateCreated;
-    private String expiryDate;
-    private String status;
+    private Date dateCreated;
+    private Date expiryDate;
+    private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private BigDecimal amount;
     private PartnerDto createdBy;
-    private String changedBy;
+    private PartnerDto changedBy;
     private PartnerDto customer;
 }
