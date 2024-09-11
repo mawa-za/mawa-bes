@@ -53,6 +53,7 @@ public class InvoiceService {
             if(invoiceInboundDto.getInvoiceType() != null){
                 transactionCreateDto.setSubType(TransactionType.APPOINTMENT);
             }
+            transactionCreateDto.setCreatedBy(userService.getCurrentUser());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
@@ -186,7 +187,11 @@ public class InvoiceService {
             invoiceOutboundDto.setItems(lineItemService.getAll(id));
             invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(id));
             invoiceOutboundDto.setDates(transactionService.getDates(id));
-
+            try{
+                invoiceOutboundDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+            }
+            catch (Exception e){
+            }
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             for(TransactionLinkDto link : links){
                 if(link.getType().equals(TransactionType.APPOINTMENT)){
