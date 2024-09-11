@@ -31,5 +31,7 @@ public class InvoiceOutboundDto implements Serializable {
     private List<LineItemOutboundDto> items;
     private List<TransactionAmountOutboundDto> amounts;
     private List<TransactionDateDto> dates;
+    private String transactionId;
+    private FieldOptionDto invoiceType;
 
 }
