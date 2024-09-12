@@ -2,32 +2,15 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemInboundDto;
-import za.co.mawa.bes.dto.PricingDto;
-import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
-import za.co.mawa.bes.dto.product.ProductDto;
-import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
-import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.service.*;
-import za.co.mawa.bes.utils.DateType;
-import za.co.mawa.bes.utils.PartnerFunction;
-import za.co.mawa.bes.utils.TransactionType;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import za.co.mawa.bes.service.*;
 
 @RestController
 @CrossOrigin
@@ -72,9 +55,9 @@ public class InvoiceController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> editInvoice(@PathVariable String id) {
+    public ResponseEntity<?> editInvoice(@PathVariable String id, @RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok((gson.toJson(invoiceService.edit(id,invoiceInboundDto))));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
