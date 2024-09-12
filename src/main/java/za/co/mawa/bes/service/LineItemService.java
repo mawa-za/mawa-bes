@@ -65,7 +65,7 @@ public class LineItemService {
                 BigDecimal discountPercentage = lineItemOutboundDto.getDiscountPercentage();
                 BigDecimal discountAmount;
 
-                boolean isVatInclusive = lineItemOutboundDto.isVatInclusive(); // Assuming this field exists and is set properly
+                boolean isVatInclusive = lineItemOutboundDto.isVatInclusive();
 
                 if (discountPercentage != null && discountPercentage.compareTo(BigDecimal.ZERO) != 0 && !isValidToDateReached(transactionItemDto.getValidTo())) {
                     discountAmount = lineTotal.multiply(discountPercentage).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
