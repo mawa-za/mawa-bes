@@ -18,12 +18,12 @@ public class ProductPricingDto {
     private Date validFrom;
     private Date validTo;
 
-    private BigDecimal totalExcVat = new BigDecimal("0");
-    private BigDecimal totalIncVat = new BigDecimal("0");
-    private BigDecimal discountAmount = new BigDecimal("0");
-    private BigDecimal discountPercentage = new BigDecimal("0");
-    private BigDecimal VATAmount = new BigDecimal("0");
-    private BigDecimal VATPercentage = new BigDecimal("0");
+    private BigDecimal totalExcVat;
+    private BigDecimal totalIncVat;
+    private BigDecimal discountAmount;
+    private BigDecimal discountPercentage;
+    private BigDecimal VATAmount;
+    private BigDecimal VATPercentage;
 
 
 }

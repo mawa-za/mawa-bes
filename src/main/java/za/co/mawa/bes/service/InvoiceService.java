@@ -36,8 +36,6 @@ public class InvoiceService {
     @Autowired
     PartnerService partnerService;
     @Autowired
-    TransactionAttributeService transactionAttributeService;
-    @Autowired
     TransactionAmountService transactionAmountService;
 
     public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
@@ -192,4 +190,94 @@ public class InvoiceService {
         }
         return invoiceOutboundDtoList;
     }
+
+    public InvoiceOutboundDto edit(String id, InvoiceInboundDto invoiceInboundDto) {
+        try {
+            TransactionDto transactionDto = transactionService.get(id);
+            if (transactionDto == null) {
+                throw new RuntimeException("Invoice not found with ID: " + id);
+            }
+
+            if (invoiceInboundDto.getInvoiceDate() != null) {
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.INVOICE_DATE);
+                transactionDateDto.setValue(invoiceInboundDto.getInvoiceDate());
+                transactionService.editDate(transactionDateDto);
+            }
+
+            if (invoiceInboundDto.getDueDate() != null) {
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(transactionDto.getId());
+                transactionDateDto.setType(DateType.DUE_DATE);
+                transactionDateDto.setValue(invoiceInboundDto.getDueDate());
+                transactionService.editDate(transactionDateDto);
+            }
+
+            if (invoiceInboundDto.getCustomerId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setPartner(invoiceInboundDto.getCustomerId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
+
+            if (invoiceInboundDto.getSalesRepresentative() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
+                transactionPartnerDto.setPartner(invoiceInboundDto.getSalesRepresentative());
+                transactionService.addPartner(transactionPartnerDto);
+            }
+
+            lineItemService.delete(transactionDto.getId()); // removing existing items
+            for (LineItemInboundDto lineItemInboundDto : invoiceInboundDto.getItems()) {
+                lineItemInboundDto.setTransaction(transactionDto.getId());
+                lineItemService.add(lineItemInboundDto);
+            }
+
+            TransactionAmountInboundDto transactionAmountInboundDto;
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getDiscountAmount());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(TransactionAmount.DISCOUNT_AMOUNT);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getVATAmount());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(TransactionAmount.VAT_AMOUNT);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getTotalIncVat());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(AmountType.TOTAL_INC_VAT);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getTotalExcVat());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(AmountType.TOTAL_EXC_VAT);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getVATPercentage());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(AmountType.VAT_PERCENTAGE);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            transactionAmountInboundDto = new TransactionAmountInboundDto();
+            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getDiscountPercentage());
+            transactionAmountInboundDto.setTransaction(transactionDto.getId());
+            transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
+            transactionAmountService.save(transactionAmountInboundDto);
+
+            return get(transactionDto.getId());
+        } catch (Exception exception) {
+            throw new RuntimeException("Error updating invoice: " + exception.getMessage(), exception);
+        }
+    }
+
 }

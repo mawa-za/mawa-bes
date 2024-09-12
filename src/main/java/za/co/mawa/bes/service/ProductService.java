@@ -250,8 +250,8 @@ public class ProductService implements ProductDao {
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
-
-//                if (productPricingDto.getValue() != null && lineItemOutboundDto.getQuantity() != null) {
+//
+//                if (productPricingDto.getValue() != null && productPricingDto.getQuantity() != null) {
 //                    BigDecimal totalExcVat = lineItemOutboundDto.getUnitPrice().multiply(lineItemOutboundDto.getQuantity());
 //                    lineItemOutboundDto.setTotalExcVat(totalExcVat);
 //
