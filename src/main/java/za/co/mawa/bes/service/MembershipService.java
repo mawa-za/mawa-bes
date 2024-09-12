@@ -5,6 +5,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -46,6 +47,8 @@ public class MembershipService {
     FieldOptionService fieldOptionService;
     @Autowired
     TenantAdminService tenantAdminService;
+    @Autowired
+    UserService userService;
 
 
 //    @Scheduled(fixedRate = 15000)
@@ -86,26 +89,40 @@ public class MembershipService {
 
                 long diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMillis);
 
-                if(diffInDays >= 90){
+                if(diffInDays <= 90){
 
-                    PartnerDto member = membershipDto.getMember();
-                    List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(member.getId());
-                    for( TransactionPartnerEntity transaction : transactionPartnerEntities){
+//                    PartnerDto member = membershipDto.getMember();
+//                    List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(member.getId());
+//                    for( TransactionPartnerEntity transaction : transactionPartnerEntities){
+//
+//                        String membershipId = transaction.getTransactionPartnerPKEntity().getTransaction();
+//                        TransactionEntity transactionEntity = transactionRepository.getById(membershipId);
+//
+//                        if( transactionEntity.getType().equals("MEMBERSHIP") && !transactionEntity.getStatus().equals("WAITING-PERIOD")) {
+//
+//                            transactionEntity.setStatus("INACTIVE");
+//                            transactionRepository.save(transactionEntity);
+//                        }
+//                    }
+//
+//                    TransactionEntity transaction = transactionRepository.getById(id);
+//                    transaction.setStatus("ACTIVE");
+//                    transactionRepository.save(transaction);
 
-                        String membershipId = transaction.getTransactionPartnerPKEntity().getTransaction();
-                        TransactionEntity transactionEntity = transactionRepository.getById(membershipId);
+                    List<TransactionLinkDto> links = transactionService.getLinks(id);
+                    for (TransactionLinkDto link : links) {
 
-                        if( transactionEntity.getType().equals("MEMBERSHIP") && !transactionEntity.getStatus().equals("WAITING-PERIOD")) {
+                        if(link.getType().equals(TransactionType.UPGRADE)){
+                            TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
+                            transaction.setStatus("INACTIVE");
+                            transactionRepository.save(transaction);
 
-                            transactionEntity.setStatus("INACTIVE");
-                            transactionRepository.save(transactionEntity);
+                            TransactionEntity transaction1 = transactionRepository.getById(id);
+                            transaction1.setStatus("ACTIVE");
+                            transactionRepository.save(transaction1);
                         }
+
                     }
-
-                    TransactionEntity transaction = transactionRepository.getById(id);
-                    transaction.setStatus("ACTIVE");
-                    transactionRepository.save(transaction);
-
                 }
 
                 membershipDtoList.add(membershipDto);
@@ -159,12 +176,27 @@ public class MembershipService {
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
         }
         else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
-            transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+
+                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
         }
         else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+        if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+            try {
+                TransactionLinkDto link = new TransactionLinkDto();
+                link.setTransaction1(transactionDto.getId());
+                link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
+                link.setType(TransactionType.UPGRADE);
+                link.setCreateBy(userService.getCurrentUserPartnerId());
+                transactionService.addLink(link);
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
