@@ -32,15 +32,12 @@ public class LineItemService {
     private String id;
 
     public List<LineItemOutboundDto> getAll(String transaction) {
-        try {
+        try{
             List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
             List<TransactionItemDto> transactionItemDtoList = transactionService.getItems(transaction);
 
-            BigDecimal vatPercentage = new BigDecimal("15"); // VAT is 15%
-
-            for (TransactionItemDto transactionItemDto : transactionItemDtoList) {
+            for(TransactionItemDto transactionItemDto: transactionItemDtoList){
                 LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
-
                 lineItemOutboundDto.setTransaction(transactionItemDto.getTransaction());
                 lineItemOutboundDto.setItem(transactionItemDto.getItem());
 
@@ -99,6 +96,7 @@ public class LineItemService {
                         lineItemOutboundDto.setTotIncVat(lineTotal);
                     }
                 }
+
                 lineItemOutboundDto.setVatPercentage(isVatInclusive ? vatPercentage.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
 
                 lineItemOutboundDtoList.add(lineItemOutboundDto);
@@ -106,10 +104,11 @@ public class LineItemService {
             return lineItemOutboundDtoList;
 
         } catch (Exception ex) {
+
             throw new RuntimeException(ex);
         }
-    }
 
+    }
     public void add(LineItemInboundDto lineItemInboundDto) {
         try {
             ProductDto productDto = productService.get(lineItemInboundDto.getProductId());
