@@ -4,33 +4,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.DepositDao;
 import za.co.mawa.bes.dto.cashup.CashupDto;
 import za.co.mawa.bes.dto.cashup.CashupEditDto;
-import za.co.mawa.bes.dto.deposit.DepositCreateDto;
-import za.co.mawa.bes.dto.deposit.DepositDto;
-import za.co.mawa.bes.dto.deposit.DepositEditDto;
-import za.co.mawa.bes.dto.deposit.DepositSearchDto;
+import za.co.mawa.bes.dto.deposit.*;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.UserEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionDatePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkPKEntity;
-import za.co.mawa.bes.repository.TransactionAmountRepository;
-import za.co.mawa.bes.repository.TransactionDateRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
-import za.co.mawa.bes.repository.UserRepository;
+import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class DepositService implements DepositDao {
@@ -49,10 +40,14 @@ public class DepositService implements DepositDao {
     @Autowired
     UserRepository userRepository;
     @Autowired
+    AttachmentRepository attachmentRepository;
+    @Autowired
+    AttachmentService attachmentService;
+    @Autowired
     UserService userService;
 
-    @Override
-    public String create(DepositCreateDto depositCreate) throws Exception {
+
+    public String create(DepositCreateDto depositCreateDto) throws Exception {
         try{
             TransactionCreateDto createDto = new TransactionCreateDto();
             createDto.setType(TransactionType.DEPOSIT);
@@ -65,7 +60,7 @@ public class DepositService implements DepositDao {
                 date.setTransaction(transaction.getId());
                 date.setValue(new Date());
                 transactionService.addDate(date);
-                BigDecimal amount = new BigDecimal(depositCreate.getAmount());
+                BigDecimal amount = new BigDecimal(depositCreateDto.getAmount());
                 try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(amount);
@@ -75,7 +70,7 @@ public class DepositService implements DepositDao {
                 } catch (Exception exception) {
 
                 }
-                TransactionDto transactionLink = transactionService.get(depositCreate.getTransactionIdLink());
+                TransactionDto transactionLink = transactionService.get(depositCreateDto.getTransactionIdLink());
 
                 TransactionLinkDto linkDto = new TransactionLinkDto();
                 linkDto.setTransaction1(transaction.getId());
@@ -83,6 +78,7 @@ public class DepositService implements DepositDao {
                 linkDto.setType(TransactionType.DEPOSIT);
                 linkDto.setCreateBy(getUser());
                 transactionService.addLink(linkDto);
+
                 if(transactionLink.getType().equalsIgnoreCase(TransactionType.CASHUP)){
                     CashupEditDto edit = new CashupEditDto();
                     CashupDto cashupDto = cashupService.get(transactionLink.getId());
@@ -97,6 +93,75 @@ public class DepositService implements DepositDao {
             return transaction.getId();
         }catch (Exception ex){
           throw new RuntimeException(ex);
+        }
+    }
+
+    public String createDepositAttachment(DepositAttachmentCreateDto depositAttachmentCreateDto) throws Exception {
+        try{
+            TransactionCreateDto createDto = new TransactionCreateDto();
+            createDto.setType(TransactionType.DEPOSIT);
+            createDto.setStatus(Status.NEW);
+            TransactionDto transaction = transactionService.create(createDto);
+            if(transaction.getId() != null)
+            {
+                TransactionDateDto date = new TransactionDateDto();
+                date.setType(DateType.CREATED);
+                date.setTransaction(transaction.getId());
+                date.setValue(new Date());
+                transactionService.addDate(date);
+                BigDecimal amount = new BigDecimal(depositAttachmentCreateDto.getAmount());
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(amount);
+                    transactionAmountInboundDto.setTransaction(transaction.getId());
+                    transactionAmountInboundDto.setType(AmountType.DEPOSIT_AMOUNT);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                } catch (Exception exception) {
+
+                }
+                TransactionDto transactionLink = transactionService.get(depositAttachmentCreateDto.getTransactionIdLink());
+
+                TransactionLinkDto linkDto = new TransactionLinkDto();
+                linkDto.setTransaction1(transaction.getId());
+                linkDto.setTransaction2(transactionLink.getId());
+                linkDto.setType(TransactionType.DEPOSIT);
+                linkDto.setCreateBy(getUser());
+                transactionService.addLink(linkDto);
+
+                try {
+                    AttachmentEntity attachmentEntity = new AttachmentEntity();
+                    attachmentEntity.setFile(Base64.getDecoder().decode(depositAttachmentCreateDto.getFile()));
+                    attachmentEntity.setUploadBy(UserContext.getCurrentUser());
+                    attachmentEntity.setUploadDate(new Date());
+                    attachmentEntity.setUploadTime(new Date());
+                    attachmentEntity.setDocumentType(depositAttachmentCreateDto.getDocumentType());
+                    attachmentEntity.setObjectId(depositAttachmentCreateDto.getObjectId());
+                    attachmentEntity.setExtension(depositAttachmentCreateDto.getExtension());
+                    AttachmentEntity attachment = attachmentRepository.save(attachmentEntity);
+
+                    TransactionLinkDto linkAttachmentDto = new TransactionLinkDto();
+                    linkAttachmentDto.setTransaction1(transaction.getId());
+                    linkAttachmentDto.setTransaction2(attachment.getId());
+                    linkAttachmentDto.setType(TransactionType.DEPOSIT_ATTACHMENT);
+                    linkAttachmentDto.setCreateBy(getUser());
+                    transactionService.addLink(linkAttachmentDto);
+                } catch (Exception e) {
+//                    throw new RuntimeException(e);
+                }
+                if(transactionLink.getType().equalsIgnoreCase(TransactionType.CASHUP)){
+                    CashupEditDto edit = new CashupEditDto();
+                    CashupDto cashupDto = cashupService.get(transactionLink.getId());
+                    BigDecimal total = cashupDto.getAmountDeposited().add(amount);
+                    edit.setAmountDeposited(total.toString());
+                    if(total.compareTo(cashupDto.getAmountCollected()) == 0){
+                        edit.setStatus(Status.CLOSED);
+                    }
+                    cashupService.edit(edit,transactionLink.getId());
+                }
+            }
+            return transaction.getId();
+        }catch (Exception ex){
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +188,13 @@ public class DepositService implements DepositDao {
             for(TransactionLinkDto link:transactionService.getLinks(id)){
                 if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT)){
                     depositDto.setTransactionIdLink(link.getTransaction2());
-                    break;
+
+                }else if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT_ATTACHMENT)){
+                    try {
+                        depositDto.setAttachment(attachmentService.getOne(link.getTransaction2()));
+                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+                    }
                 }
             }
             try {

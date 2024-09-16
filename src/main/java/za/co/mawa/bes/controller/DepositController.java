@@ -8,9 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.deposit.DepositAttachmentCreateDto;
 import za.co.mawa.bes.dto.deposit.DepositCreateDto;
 import za.co.mawa.bes.dto.deposit.DepositDto;
 import za.co.mawa.bes.dto.deposit.DepositSearchDto;
+import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.DepositService;
 
 @RestController
@@ -19,6 +21,9 @@ public class DepositController {
     Gson gson = new Gson();
     @Autowired
     DepositService depositService;
+    @Autowired
+    AttachmentService attachmentService;
+
     @RequestMapping(value= "/deposit" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createDeposit(@RequestBody DepositCreateDto deposit){
        try{
@@ -29,6 +34,29 @@ public class DepositController {
        }catch (Exception ex){
            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
        }
+    }
+    @RequestMapping(value= "/deposit-attachment" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> createDepositAndAttachment(@RequestBody DepositAttachmentCreateDto depositAttachmentDto){
+        try{
+//            AttachmentCreateDto attachment = new AttachmentCreateDto();
+//            attachment.setFile(depositAttachmentDto.getFile());
+//            attachment.setExtension(depositAttachmentDto.getExtension());
+//            attachment.setDocumentType(depositAttachmentDto.getDocumentType());
+//            attachment.setObjectId(depositAttachmentDto.getObjectId());
+//            attachment.setObjectType(depositAttachmentDto.getObjectType());
+//
+//            attachmentService.save(attachment);
+//
+            DepositDto depositDto = new DepositDto();
+//            DepositCreateDto deposit = new DepositCreateDto();
+//            deposit.setAmount(depositAttachmentDto.getAmount());
+//            deposit.setTransactionIdLink(depositAttachmentDto.getTransactionIdLink());
+            String id = depositService.createDepositAttachment(depositAttachmentDto);
+            depositDto.setId(id);
+            return ResponseEntity.ok(gson.toJson(depositDto));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
     }
     @RequestMapping(value= "/deposit/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDeposit(@PathVariable String id){
