@@ -25,5 +25,6 @@ public class TransactionType {
     public static  String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static  String COMMENT = "COMMENT";
     public static String DISCOUNT = "DISCOUNT";
+    public static String UPGRADE = "UPGRADE";
 
 }

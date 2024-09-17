@@ -26,6 +26,6 @@ public class LineItemOutboundDto implements Serializable {
     private BigDecimal totExcVat;
     private BigDecimal vatPercentage;
     private BigDecimal discountAmount;
-    private BigDecimal discountPercentage = BigDecimal.valueOf(10);
+    private BigDecimal discountPercentage;
     private boolean isVatInclusive = true;
 }

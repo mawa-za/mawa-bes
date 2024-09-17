@@ -25,7 +25,6 @@ public class InvoiceController {
     LineItemService lineItemService;
     @Autowired
     InvoiceService invoiceService;
-
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
@@ -104,7 +103,6 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-
     @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  deleteItem(@PathVariable String id) {
         try {
