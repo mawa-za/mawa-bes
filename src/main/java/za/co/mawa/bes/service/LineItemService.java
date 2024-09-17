@@ -7,8 +7,10 @@ import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.entity.ProductPricingEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemPKEntity;
+import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.TransactionItemRepository;
 import za.co.mawa.bes.utils.Field;
 
@@ -30,12 +32,14 @@ public class LineItemService {
     @Autowired
     FieldOptionService fieldOptionService;
     private String id;
+    @Autowired
+    ProductPricingRepository productPricingRepository;
+
 
     public List<LineItemOutboundDto> getAll(String transaction) {
         try {
             List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
             List<TransactionItemDto> transactionItemDtoList = transactionService.getItems(transaction);
-
             BigDecimal vatPercentage = new BigDecimal("15"); // VAT is 15%
 
             for (TransactionItemDto transactionItemDto : transactionItemDtoList) {
@@ -43,15 +47,17 @@ public class LineItemService {
 
                 lineItemOutboundDto.setTransaction(transactionItemDto.getTransaction());
                 lineItemOutboundDto.setItem(transactionItemDto.getItem());
-
                 try {
                     lineItemOutboundDto.setProduct(productService.get(transactionItemDto.getProduct()));
                 } catch (Exception e) {
                 }
+                BigDecimal unitPrice = BigDecimal.valueOf(0);
+                List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(transactionItemDto.getProduct());
 
-                BigDecimal unitPrice = transactionItemDto.getUnitPrice().setScale(2, RoundingMode.HALF_UP);
-                lineItemOutboundDto.setUnitPrice(unitPrice);
-
+                for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
+                    unitPrice = productPricingEntity.getValue().setScale(2, RoundingMode.HALF_UP);
+                    lineItemOutboundDto.setUnitPrice(productPricingEntity.getValue());
+                }
                 BigDecimal quantity = (transactionItemDto.getQuantity().compareTo(BigDecimal.ZERO) == 0)
                         ? BigDecimal.valueOf(1)
                         : transactionItemDto.getQuantity().setScale(2, RoundingMode.HALF_UP);
@@ -65,7 +71,7 @@ public class LineItemService {
                 BigDecimal discountPercentage = lineItemOutboundDto.getDiscountPercentage();
                 BigDecimal discountAmount;
 
-                boolean isVatInclusive = lineItemOutboundDto.isVatInclusive(); // Assuming this field exists and is set properly
+                boolean isVatInclusive = lineItemOutboundDto.isVatInclusive();
 
                 if (discountPercentage != null && discountPercentage.compareTo(BigDecimal.ZERO) != 0 && !isValidToDateReached(transactionItemDto.getValidTo())) {
                     discountAmount = lineTotal.multiply(discountPercentage).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);

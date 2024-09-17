@@ -17,6 +17,7 @@ public class ProductPricingDto {
     private BigDecimal value;
     private Date validFrom;
     private Date validTo;
+    private Boolean isVatInclusive;
 
     private BigDecimal totalExcVat;
     private BigDecimal totalIncVat;
