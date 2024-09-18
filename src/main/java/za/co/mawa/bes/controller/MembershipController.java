@@ -45,6 +45,18 @@ public class MembershipController {
     FieldOptionService fieldOptionService;
     Gson gson = new Gson();
 
+    @RequestMapping(value = "activation", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> activation() {
+        try {
+            membershipService.activation();
+            Map<String, String> response = new HashMap<>();
+            response.put("response", "successful ");
+            return ResponseEntity.ok("successful");
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
@@ -67,6 +79,7 @@ public class MembershipController {
             if(status != null && status != "") {
                 membershipQueryDto.setStatus(status);
             }
+
 
             if(productId != null && productId != "") {
                 membershipQueryDto.setProductId(productId);
@@ -102,6 +115,7 @@ public class MembershipController {
             }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -111,46 +125,12 @@ public class MembershipController {
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-//
-//    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
-//                                                     @RequestParam(required = false) String partnerFunction,
-//                                                     @RequestParam(required = false) String memberId,
-//                                                     @RequestParam(required = false) String idNumber,
-//                                                     @RequestParam(required = false) String productId,
-//                                                     @RequestParam(required = false) String dateJoined) {
-//        try {
-//            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-//
-//            if (status != null) {
-//                membershipQueryDto.setStatus(status);
-//            }
-//            if (partnerFunction != null) {
-//                membershipQueryDto.setPartnerFunction(partnerFunction);
-//            }
-//            if (memberId != null) {
-//
-//                membershipQueryDto.setMemberId(memberId);
-//            }
-//            if (idNumber != null) {
-//                membershipQueryDto.setIdNumber(idNumber);
-//            }
-//            if (productId != null) {
-//                membershipQueryDto.setProductId(productId);
-//            }
-//            if (dateJoined != null) {
-//
-//                membershipQueryDto.setDateJoined(Conversion.stringToDate(dateJoined));
-//            }
-//            return ResponseEntity.ok(gson.toJson(membershipService.getByFilter(membershipQueryDto)));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-//        }
-//    }
+
 ////    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
