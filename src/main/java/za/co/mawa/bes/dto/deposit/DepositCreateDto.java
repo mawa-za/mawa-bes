@@ -14,4 +14,5 @@ import java.io.Serializable;
 public class DepositCreateDto implements Serializable {
     private String amount;
     private String transactionIdLink;
+    private String attachmentId;
 }
