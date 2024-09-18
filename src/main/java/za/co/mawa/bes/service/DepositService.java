@@ -258,7 +258,10 @@ public class DepositService implements DepositDao {
                     transaction = link.getTransaction2();
                 }
                 if(link.getType().equalsIgnoreCase(TransactionType.DEPOSIT_ATTACHMENT)){
-                    attachmentRepository.deleteById(link.getTransaction2());
+                    try {
+                        attachmentRepository.deleteById(link.getTransaction2());
+                    } catch (Exception e) {
+                    }
                 }
                 TransactionLinkPKEntity pk = new TransactionLinkPKEntity();
                 pk.setType(link.getType());
