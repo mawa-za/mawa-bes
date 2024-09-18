@@ -43,13 +43,21 @@ public class InvoiceService {
     UserService userService;
     @Autowired
     TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAttributeService transactionAttributeService;
 
     public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
+
             if(invoiceInboundDto.getInvoiceType() != null){
-                transactionCreateDto.setSubType(TransactionType.APPOINTMENT);
+                if(invoiceInboundDto.getInvoiceType().equalsIgnoreCase("APPOINTMENT")){
+                    transactionCreateDto.setSubType(TransactionType.APPOINTMENT);
+                }
+                if(invoiceInboundDto.getInvoiceType().equals("SALES-INVOICE")){
+                    transactionCreateDto.setSubType(TransactionType.SALES_INVOICE);
+                }
             }
             transactionCreateDto.setCreatedBy(userService.getCurrentUser());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);

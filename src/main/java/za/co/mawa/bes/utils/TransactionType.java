@@ -26,5 +26,6 @@ public class TransactionType {
     public static  String COMMENT = "COMMENT";
     public static String DISCOUNT = "DISCOUNT";
     public static String UPGRADE = "UPGRADE";
+    public static String SALES_INVOICE = "SALES-INVOICE";
 
 }
