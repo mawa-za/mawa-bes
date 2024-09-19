@@ -136,7 +136,7 @@ public class DepositService implements DepositDao {
                     attachmentEntity.setUploadDate(new Date());
                     attachmentEntity.setUploadTime(new Date());
                     attachmentEntity.setDocumentType(depositAttachmentCreateDto.getDocumentType());
-                    attachmentEntity.setObjectId(depositAttachmentCreateDto.getObjectId());
+                    attachmentEntity.setObjectId(transaction.getId());
                     attachmentEntity.setExtension(depositAttachmentCreateDto.getExtension());
                     AttachmentEntity attachment = attachmentRepository.save(attachmentEntity);
 
