@@ -16,6 +16,5 @@ public class DepositAttachmentCreateDto {
     private String extension;
     private String documentType;
     private String objectType;
-    //objectId id the same as transactionIdLink, due to deposit and attachment being separate initially
-    private String objectId;
+
 }
