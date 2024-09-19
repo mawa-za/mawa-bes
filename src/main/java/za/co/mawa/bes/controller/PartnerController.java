@@ -14,9 +14,7 @@ import za.co.mawa.bes.service.AddressService;
 import za.co.mawa.bes.service.PartnerAddressService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
-import za.co.mawa.bes.utils.RoleType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -53,6 +51,76 @@ public class PartnerController {
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
             String response = gson.toJson(partnerService.search(partnerQueryDto));
+            return ResponseEntity.ok(response);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value ="new" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getNewPartner(@RequestParam(required = false) String role,
+                                        @RequestParam() int pageNumber,
+                                        @RequestParam() int pageSize,
+                                        @RequestParam(required = false) String type,
+                                        @RequestParam(required = false) String attributeName,
+                                        @RequestParam(required = false) String attributeValue) throws Exception {
+        try {
+            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+            if (role != null && role != "") {
+                partnerQueryDto.setRole(role);
+            }
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
+            }
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
+            //String response = gson.toJson(partnerService.search(partnerQueryDto));
+            //String response = gson.toJson(partnerService.search2(partnerQueryDto));
+            String response = gson.toJson(partnerService.search3(partnerQueryDto, pageNumber, pageSize));
+            return ResponseEntity.ok(response);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "search-prefix" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> searchPrefix(@RequestParam(required = false) String name1,
+                                          @RequestParam(required = false) String name2,
+                                          @RequestParam(required = false) String name3,
+//                                          @RequestParam() int pageNumber,
+//                                          @RequestParam() int pageSize,
+                                          @RequestParam(required = false) String IdNumber,
+                                          @RequestParam(required = false) String type,
+                                          @RequestParam(required = false) String attributeName,
+                                          @RequestParam(required = false) String attributeValue) throws Exception {
+        try {
+            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+            if(name1 !=null && name1 !=""){
+                partnerQueryDto.setName1(name1);
+            }
+            if(name2 !=null && name2 !=""){
+                partnerQueryDto.setName2(name2);
+            }
+            if(name3 !=null && name3 !=""){
+                partnerQueryDto.setName3(name3);
+            }
+
+            if(IdNumber !=null && IdNumber !=""){
+                partnerQueryDto.setIdNumber(IdNumber);
+            }
+
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
+            }
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
+
+//            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto , pageNumber, pageSize));
+            String response = gson.toJson(partnerService.searchPrefix(partnerQueryDto));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
