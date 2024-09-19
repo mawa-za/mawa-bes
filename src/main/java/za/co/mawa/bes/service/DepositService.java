@@ -101,7 +101,6 @@ public class DepositService implements DepositDao {
             TransactionCreateDto createDto = new TransactionCreateDto();
             createDto.setType(TransactionType.DEPOSIT);
             createDto.setStatus(Status.NEW);
-//            createDto.setStatus(Status.NEW);
             TransactionDto transaction = transactionService.create(createDto);
             if(transaction.getId() != null)
             {
