@@ -52,11 +52,12 @@ public class InvoiceService {
             transactionCreateDto.setType(TransactionType.INVOICE);
 
             if(invoiceInboundDto.getInvoiceType() != null){
-                if(invoiceInboundDto.getInvoiceType().equalsIgnoreCase("APPOINTMENT")){
-                    transactionCreateDto.setSubType(TransactionType.APPOINTMENT);
+                String invoiceType = invoiceInboundDto.getInvoiceType().trim();
+                if(invoiceType.equalsIgnoreCase("APPOINTMENT")){
+                    transactionCreateDto.setSubType(InvoiceType.APPOINTMENT);
                 }
-                if(invoiceInboundDto.getInvoiceType().equals("SALES-INVOICE")){
-                    transactionCreateDto.setSubType(TransactionType.SALES_INVOICE);
+                if(invoiceType.equalsIgnoreCase("SALES-INVOICE")){
+                    transactionCreateDto.setSubType(InvoiceType.SALES_INVOICE);
                 }
             }
             transactionCreateDto.setCreatedBy(userService.getCurrentUser());
@@ -160,8 +161,8 @@ public class InvoiceService {
             invoiceOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             invoiceOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
-            invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getSubType()));
-
+            invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, transactionDto.getSubType()));
+            System.out.println(transactionDto.getSubType());
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
@@ -180,7 +181,6 @@ public class InvoiceService {
                     }
                 }
             } catch (Exception e) {
-
             }
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
                 if (Objects.equals(transactionDateDto.getType(), DateType.INVOICE_DATE)) {
@@ -205,8 +205,13 @@ public class InvoiceService {
                     invoiceOutboundDto.setTransactionId(transaction.getId());
                 }
             }
+            try{
+                TransactionDto transactionSubType = transactionService.get(invoiceOutboundDto.getTransactionId());
+                invoiceOutboundDto.setTransactionSubType(transactionSubType);
+            }
+            catch(Exception ex){
+            }
         } catch (TransactionNotFound exception) {
-
         }
         return invoiceOutboundDto;
     }
