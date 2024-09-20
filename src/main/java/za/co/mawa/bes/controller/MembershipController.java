@@ -17,7 +17,9 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
@@ -40,7 +42,8 @@ public class MembershipController {
     DependentService dependentService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
-
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
     @Autowired
     FieldOptionService fieldOptionService;
     Gson gson = new Gson();
@@ -105,6 +108,12 @@ public class MembershipController {
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
+    }
+
+    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipsUsingView(){
+        List<TransactionViewEntity> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
+        return ResponseEntity.ok().body(gson.toJson(transactionViewEntities));
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
