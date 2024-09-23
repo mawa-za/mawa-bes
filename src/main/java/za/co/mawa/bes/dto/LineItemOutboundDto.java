@@ -18,14 +18,14 @@ public class LineItemOutboundDto implements Serializable {
     private ProductDto product;
     private String barcode;
     private FieldOptionDto uom;
-    private BigDecimal quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal lineTotal;
-    private BigDecimal vatAmount;
-    private BigDecimal totIncVat;
-    private BigDecimal totExcVat;
-    private BigDecimal vatPercentage;
-    private BigDecimal discountAmount;
-    private BigDecimal discountPercentage;
-    private boolean isVatInclusive = true;
+    private BigDecimal quantity  = new BigDecimal("0");
+    private BigDecimal unitPrice = new BigDecimal("0");
+    private BigDecimal lineTotal = new BigDecimal("0");
+
+    private BigDecimal totalExcVat = new BigDecimal("0");
+    private BigDecimal totalIncVat = new BigDecimal("0");
+    private BigDecimal discountAmount = new BigDecimal("0");
+    private BigDecimal discountPercentage = new BigDecimal("0");
+    private BigDecimal VATAmount = new BigDecimal("0");
+    private BigDecimal VATPercentage = new BigDecimal("0");
 }
