@@ -110,11 +110,68 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getMembershipsUsingView(){
-        List<TransactionViewEntity> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
-        return ResponseEntity.ok().body(gson.toJson(transactionViewEntities));
+    @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
+                                            @RequestParam(required = false) String partnerFunction,
+                                            @RequestParam(required = false) String partnerNames,
+                                            @RequestParam(required = false) String productId,
+                                            @RequestParam(required = false) String salesRepresentativeNames,
+                                            @RequestParam(required = false) String dateJoined,
+                                            @RequestParam(required = false) String idNumber) {
+        try {
+            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+            if(status != null && status != "") {
+                membershipQueryDto.setStatus(status);
+            }
+//
+//            if(productId != null && productId != "") {
+//                membershipQueryDto.setProductId(productId);
+//            }
+
+            if(salesRepresentativeNames != null && salesRepresentativeNames != "") {
+                membershipQueryDto.setSalesRepresentative(salesRepresentativeNames);
+            }
+
+//            if(partnerFunction != null && partnerFunction != "") {
+//                membershipQueryDto.setPartnerFunction(partnerFunction);
+//            }
+
+            if(partnerNames != null && partnerNames != "") {
+                membershipQueryDto.setMember(partnerNames);
+            }
+
+            if(idNumber != null && idNumber != "") {
+                membershipQueryDto.setIdNumber(idNumber);
+            }
+
+            if (dateJoined != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(dateJoined);
+
+                membershipQueryDto.setDateJoined(date);
+
+
+            }
+
+            return ResponseEntity.ok(gson.toJson(membershipService.searchV2(membershipQueryDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
     }
+
+//    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<?> getMembershipsUsingView(){
+//        try {
+//            List<TransactionViewEntity> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
+//            return ResponseEntity.ok().body(gson.toJson(transactionViewEntities));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+//        }
+//    }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembership(@PathVariable String id) {

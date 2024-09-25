@@ -20,7 +20,9 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -34,6 +36,8 @@ public class MembershipService {
     TransactionService transactionService;
     @Autowired
     TransactionAmountService transactionAmountService;
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
     @Autowired
     ProductService productService;
     @Autowired
@@ -290,6 +294,61 @@ public class MembershipService {
             }
         }
         return membershipDtoList;
+    }
+
+    public List<TransactionViewEntity> searchV2(MembershipQueryDto membershipQueryDto) {
+        List<TransactionViewEntity> membershipList = new ArrayList<>();
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
+
+        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        transactionQueryDto.setStatus(membershipQueryDto.getStatus());
+
+        for (TransactionViewEntity entity  : transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP)) {
+            try {
+
+                boolean match = true;
+
+                if(membershipQueryDto.getMember() != null) {
+                    String memberNames = entity.getCustomerName().replace(" ", "");
+                    match =  membershipQueryDto.getMember().replace(" ", "").equals(memberNames);
+                }
+
+                if(membershipQueryDto.getIdNumber() != null) {
+                    String IdNumber = entity.getCustomerIdentityNumber();
+                    match =   membershipQueryDto.getIdNumber().equals(IdNumber);
+                }
+
+//                if(membershipQueryDto.getProductId() != null){
+//                    String productId = membershipDto.getProduct().getId();
+//                    match = match && membershipQueryDto.getProductId().equals(productId);
+//                }
+
+                if(membershipQueryDto.getSalesRepresentative() !=null){
+                    String salesRepresentativeName = entity.getEmployeeResponsible().replace(" ", "");
+                    match = match && membershipQueryDto.getSalesRepresentative().replace(" ", "").equals(salesRepresentativeName);
+                }
+
+                if(membershipQueryDto.getDateJoined() !=null){
+
+                    String dateJoined = Conversion.dateToString(entity.getCreationDate());
+
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+
+                    match = match && dateJoined.equals(queryDateJoined);
+
+
+                }
+
+                if(match) {
+                    membershipList.add(entity);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return membershipList;
     }
 
     public void edit(MembershipEditDto membershipEditDto) {
