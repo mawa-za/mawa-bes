@@ -74,7 +74,7 @@ public class AttachmentService implements AttachmentDao {
         AttachmentEntity attachmentEntity = attachmentRepository.getById(id);
         AttachmentDto attachmentDto = new AttachmentDto();
         attachmentDto.setId(attachmentEntity.getId());
-        attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE, attachmentEntity.getDocumentType()));
+        attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE_DEPOSIT, attachmentEntity.getDocumentType()));
         attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
         attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
         try {
