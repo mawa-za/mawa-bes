@@ -218,7 +218,7 @@ public class ClaimController {
             if (claimDto.getClaimantId() != null) {
                 TransactionPartnerEdit edit = new TransactionPartnerEdit();
                 edit.setTransaction(id);
-                edit.setParnter(claimDto.getClaimantId());
+                edit.setPartner(claimDto.getClaimantId());
                 edit.setPartnerFunction(PartnerFunction.CLAIMANT);
                 edited = transactionService.partnerEdit(edit);
             }

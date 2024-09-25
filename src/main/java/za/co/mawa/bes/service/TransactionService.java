@@ -280,7 +280,7 @@ public class TransactionService implements TransactionDao {
         TransactionPartnerEntity entity = transactionPartnerRepository.findPartnerByTransactionAndType(transaction.getTransaction(), transaction.getPartnerFunction());
         if (entity != null) {
             try {
-                if (transaction.getParnter() != null) {
+                if (transaction.getPartner() != null) {
                     TransactionPartnerDto partnerRemove = new TransactionPartnerDto();
                     partnerRemove.setTransaction(entity.getTransactionPartnerPKEntity().getTransaction());
                     partnerRemove.setPartner(entity.getTransactionPartnerPKEntity().getPartner());
@@ -289,7 +289,7 @@ public class TransactionService implements TransactionDao {
 
                     TransactionPartnerDto partnerAdd = new TransactionPartnerDto();
                     partnerAdd.setTransaction(transaction.getTransaction());
-                    partnerAdd.setPartner(transaction.getParnter());
+                    partnerAdd.setPartner(transaction.getPartner());
                     partnerAdd.setFunction(transaction.getPartnerFunction());
                     addPartner(partnerAdd);
                 }
@@ -306,7 +306,7 @@ public class TransactionService implements TransactionDao {
                     TransactionPartnerPKEntity pk = new TransactionPartnerPKEntity();
                     pk.setTransaction(transaction.getTransaction());
                     pk.setFunction(transaction.getPartnerFunction());
-                    pk.setPartner(transaction.getParnter());
+                    pk.setPartner(transaction.getPartner());
                     TransactionPartnerEntity entityParnter = new TransactionPartnerEntity();
                     entityParnter.setCreatedBy(getUser());
                     entityParnter.setTransactionPartnerPKEntity(pk);

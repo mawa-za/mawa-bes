@@ -201,7 +201,7 @@ public class BookingService implements BookingDao {
                 TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
                 partnerEdit.setPartnerFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
                 partnerEdit.setTransaction(id);
-                partnerEdit.setParnter(editDto.getEmployeeId());
+                partnerEdit.setPartner(editDto.getEmployeeId());
                 transactionService.partnerEdit(partnerEdit);
             }
             if(editDto.getBookDate() != null && editDto.getBookTime() != null){

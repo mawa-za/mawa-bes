@@ -151,7 +151,7 @@ public class MembershipController {
             if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
                 partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
                 partnerEdit.setTransaction(id);
-                partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
+                partnerEdit.setPartner(membershipDto.getSalesRepresentativeId());
                 edited = transactionService.partnerEdit(partnerEdit);
             }
             if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
