@@ -53,6 +53,7 @@ public class AttachmentService implements AttachmentDao {
         }
     }
 
+
     @Override
     public String get(String id) throws DoesNotExist {
         AttachmentEntity attachmentEntity = attachmentRepository.getById(id);
@@ -66,6 +67,29 @@ public class AttachmentService implements AttachmentDao {
             throw new DoesNotExist();
             // return null;
         }
+    }
+
+    public AttachmentDto getOne(String id) throws DoesNotExist {
+
+        AttachmentEntity attachmentEntity = attachmentRepository.getById(id);
+        AttachmentDto attachmentDto = new AttachmentDto();
+        attachmentDto.setId(attachmentEntity.getId());
+        attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE_DEPOSIT, attachmentEntity.getDocumentType()));
+        attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
+        attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
+        try {
+            attachmentDto.setUploadBy(userService.getUserByName(attachmentEntity.getUploadBy()).getPartner());
+        } catch (Exception e) {
+
+        }
+        try {
+            attachmentDto.setCreatedBy(userService.getUserByName(attachmentEntity.getUploadBy()).getPartner());
+        } catch (Exception e) {
+
+        }
+        attachmentDto.setExtension(attachmentEntity.getExtension());
+        return attachmentDto;
+
     }
 
     @Override

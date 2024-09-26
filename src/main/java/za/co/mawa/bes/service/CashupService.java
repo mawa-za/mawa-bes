@@ -7,6 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.CashupDao;
+import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.cashup.CashupDto;
 import za.co.mawa.bes.dto.cashup.CashupEditDto;
@@ -23,9 +24,11 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.TransactionAmountRepository;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -44,6 +47,8 @@ public class CashupService implements CashupDao {
     @Autowired
     TransactionRepository transactionRepository;
     @Autowired
+    TransactionLinkRepository transactionLinkRepository;
+    @Autowired
     TransactionAttributeService transactionAttributeService;
     @Autowired
     TransactionAmountRepository transactionAmountRepository;
@@ -53,6 +58,8 @@ public class CashupService implements CashupDao {
     FieldOptionService fieldOptionService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    AttachmentService attachmentService;
 
     @Override
 
@@ -415,6 +422,7 @@ public class CashupService implements CashupDao {
         }
         return edited;
     }
+
 
     private String getUser() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
