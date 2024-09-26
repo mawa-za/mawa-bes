@@ -16,8 +16,6 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.PartnerIdentityEntity;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -112,52 +110,44 @@ public class MembershipController {
 
     @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
-                                            @RequestParam(required = false) String partnerFunction,
-                                            @RequestParam(required = false) String partnerNames,
-                                            @RequestParam(required = false) String productId,
-                                            @RequestParam(required = false) String salesRepresentativeNames,
-                                            @RequestParam(required = false) String dateJoined,
+                                            @RequestParam(required = false) String customerName,
+                                            @RequestParam(required = false) String employeeResponsibleName,
+                                            @RequestParam(required = false) String creationDate,
                                             @RequestParam(required = false) String idNumber) {
         try {
-            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+
             if(status != null && status != "") {
-                membershipQueryDto.setStatus(status);
-            }
-//
-//            if(productId != null && productId != "") {
-//                membershipQueryDto.setProductId(productId);
-//            }
-
-            if(salesRepresentativeNames != null && salesRepresentativeNames != "") {
-                membershipQueryDto.setSalesRepresentative(salesRepresentativeNames);
+                transactionViewDto.setStatus(status);
             }
 
-//            if(partnerFunction != null && partnerFunction != "") {
-//                membershipQueryDto.setPartnerFunction(partnerFunction);
-//            }
+            if(employeeResponsibleName != null && employeeResponsibleName != "") {
+                transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
+            }
 
-            if(partnerNames != null && partnerNames != "") {
-                membershipQueryDto.setMember(partnerNames);
+            if(customerName != null && customerName != "") {
+                transactionViewDto.setCustomerName(customerName);
             }
 
             if(idNumber != null && idNumber != "") {
-                membershipQueryDto.setIdNumber(idNumber);
+                transactionViewDto.setIdNumber(idNumber);
             }
 
-            if (dateJoined != null) {
+            if (creationDate != null) {
 
                 // Define the formatter for the input string
                 SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
 
                 // Parse the string into Date object
-                Date date = formatter.parse(dateJoined);
+                Date date = formatter.parse(creationDate);
 
-                membershipQueryDto.setDateJoined(date);
+                transactionViewDto.setCreationDate(date);
 
 
             }
 
-            return ResponseEntity.ok(gson.toJson(membershipService.searchV2(membershipQueryDto)));
+            return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
