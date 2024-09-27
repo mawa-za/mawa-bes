@@ -16,5 +16,5 @@ public interface FieldOptionRepository extends JpaRepository<FieldOptionEntity, 
     List<FieldOptionEntity> findFieldOptions(@Param("field") String field);
 
     @Query("SELECT f FROM FieldOptionEntity f where f.fieldOptionPKEntity.code = :code")
-    FieldOptionEntity findFieldOption(@Param("code") String code);
+    List<FieldOptionEntity> findFieldOption(@Param("code") String code);
 }
