@@ -99,7 +99,7 @@ public class AttachmentService implements AttachmentDao {
         for (AttachmentEntity attachmentEntity : attachmentEntityList) {
             AttachmentDto attachmentDto = new AttachmentDto();
             attachmentDto.setId(attachmentEntity.getId());
-            attachmentDto.setDocumentType(fieldOptionService.getFieldOption(Field.DOCUMENT_TYPE, attachmentEntity.getDocumentType()));
+            attachmentDto.setDocumentType(fieldOptionService.getOption(attachmentEntity.getDocumentType()));
             attachmentDto.setUploadDate(attachmentEntity.getUploadDate());
             attachmentDto.setUploadTime(attachmentEntity.getUploadTime());
             try {

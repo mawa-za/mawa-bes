@@ -102,6 +102,25 @@ public class FieldOptionService implements FieldOptionDao {
             return null;
         }
     }
+
+    public FieldOptionDto getOption(String code){
+        FieldOptionDto fieldOptionDto = new FieldOptionDto();
+        try {
+            FieldOptionEntity fieldOption = fieldOptionRepository.findFieldOption(code);
+
+            fieldOptionDto.setField(fieldOption.getFieldOptionPKEntity().getField());
+            fieldOptionDto.setCode(fieldOption.getFieldOptionPKEntity().getCode());
+            fieldOptionDto.setType(fieldOption.getFieldOptionPKEntity().getType());
+            fieldOptionDto.setDescription(fieldOption.getDescription());
+            fieldOptionDto.setValidFrom(fieldOption.getValidFrom());
+            fieldOptionDto.setValidTo(fieldOption.getValidTo());
+
+            return fieldOptionDto;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public String getOptionalFieldDescription(String field, String code) {
         return getFieldOptionDescription(field, code);
