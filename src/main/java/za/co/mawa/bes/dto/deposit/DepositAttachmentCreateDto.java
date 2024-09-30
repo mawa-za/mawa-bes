@@ -5,14 +5,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.io.Serializable;
-
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class DepositCreateDto implements Serializable {
+public class DepositAttachmentCreateDto {
     private String amount;
     private String transactionIdLink;
-    private String attachmentId;
+    private String file;
+    private String extension;
+    private String documentType;
+    private String objectType;
+
 }

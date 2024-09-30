@@ -103,6 +103,13 @@ public class CaseService {
             transactionPartnerDto.setPartner(defendant);
             transactionService.addPartner(transactionPartnerDto);
         }
+        for (String provider : caseCreateDto.getServiceProviders()) {
+            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+            transactionPartnerDto.setTransaction(transactionDto.getId());
+            transactionPartnerDto.setFunction(PartnerFunction.SERVICE_PROVIDER);
+            transactionPartnerDto.setPartner(provider);
+            transactionService.addPartner(transactionPartnerDto);
+        }
         CaseDto caseDto = new CaseDto();
         caseDto.setId(transactionDto.getId());
 
@@ -149,6 +156,9 @@ public class CaseService {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
                         caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
                     }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SERVICE_PROVIDER)) {
+                        caseDto.getServiceProviders().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));
                     participantDto.setFunction(fieldOptionService.getFieldOption(Field.PARTNER_FUNCTION, transactionPartnerDto.getFunction()));
@@ -173,6 +183,7 @@ public class CaseService {
                 dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
                 dateDtoList.add(dateDto);
             }
+
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             List<CommentDto> comments = new ArrayList<>();
             List<TaskDto> tasks = new ArrayList<>();
@@ -194,6 +205,7 @@ public class CaseService {
             }
             caseDto.setComments(comments);
             caseDto.setTasks(tasks);
+
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));

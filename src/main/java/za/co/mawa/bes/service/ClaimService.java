@@ -25,7 +25,9 @@ import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.text.SimpleDateFormat;
@@ -55,6 +57,8 @@ public class ClaimService {
     TransactionAmountService transactionAmountService;
     @Autowired
     TransactionLinkService transactionLinkService;
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -256,21 +260,17 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            try {
-                List<TransactionLinkDto> links = transactionService.getLinks(id);
-                List<CommentDto> comments = new ArrayList<>();
-                for (TransactionLinkDto link : links) {
+            List<TransactionLinkDto> links = transactionService.getLinks(id);
+            List<CommentDto> comments = new ArrayList<>();
+            for (TransactionLinkDto link : links) {
 
-                    CommentDto comment = new CommentDto();
-                    comment = commentService.get(link.getTransaction2());
-                    if (Objects.equals(comment.getType(), "COMMENT")) {
-                        comments.add(comment);
-                    }
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
                 }
-                claimOutboundDto.setComments(comments);
-
-            }catch (Exception e){}
-
+            }
+            claimOutboundDto.setComments(comments);
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
@@ -384,9 +384,7 @@ public class ClaimService {
                     voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
                 voucherInboundDto.setContractId(id);
-                try {
-                    voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                voucherService.create(voucherInboundDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

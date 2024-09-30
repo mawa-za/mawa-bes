@@ -16,8 +16,8 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
@@ -40,10 +40,23 @@ public class MembershipController {
     DependentService dependentService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
-
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
     @Autowired
     FieldOptionService fieldOptionService;
     Gson gson = new Gson();
+
+    @RequestMapping(value = "activation", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> activation() {
+        try {
+            membershipService.activation();
+            Map<String, String> response = new HashMap<>();
+            response.put("response", "successful ");
+            return ResponseEntity.ok("successful");
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
@@ -67,6 +80,7 @@ public class MembershipController {
             if(status != null && status != "") {
                 membershipQueryDto.setStatus(status);
             }
+
 
             if(productId != null && productId != "") {
                 membershipQueryDto.setProductId(productId);
@@ -102,55 +116,77 @@ public class MembershipController {
             }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getMembership(@PathVariable String id) {
+    @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
+                                            @RequestParam(required = false) String customerName,
+                                            @RequestParam(required = false) String employeeResponsibleName,
+                                            @RequestParam(required = false) String creationDate,
+                                            @RequestParam(required = false) String idNumber) {
         try {
-            return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+
+            if(status != null && status != "") {
+                transactionViewDto.setStatus(status);
+            }
+
+            if(employeeResponsibleName != null && employeeResponsibleName != "") {
+                transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
+            }
+
+            if(customerName != null && customerName != "") {
+                transactionViewDto.setCustomerName(customerName);
+            }
+
+            if(idNumber != null && idNumber != "") {
+                transactionViewDto.setIdNumber(idNumber);
+            }
+
+            if (creationDate != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(creationDate);
+
+                transactionViewDto.setCreationDate(date);
+
+
+            }
+
+            return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-//
-//    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
-//                                                     @RequestParam(required = false) String partnerFunction,
-//                                                     @RequestParam(required = false) String memberId,
-//                                                     @RequestParam(required = false) String idNumber,
-//                                                     @RequestParam(required = false) String productId,
-//                                                     @RequestParam(required = false) String dateJoined) {
+
+//    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<?> getMembershipsUsingView(){
 //        try {
-//            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-//
-//            if (status != null) {
-//                membershipQueryDto.setStatus(status);
-//            }
-//            if (partnerFunction != null) {
-//                membershipQueryDto.setPartnerFunction(partnerFunction);
-//            }
-//            if (memberId != null) {
-//
-//                membershipQueryDto.setMemberId(memberId);
-//            }
-//            if (idNumber != null) {
-//                membershipQueryDto.setIdNumber(idNumber);
-//            }
-//            if (productId != null) {
-//                membershipQueryDto.setProductId(productId);
-//            }
-//            if (dateJoined != null) {
-//
-//                membershipQueryDto.setDateJoined(Conversion.stringToDate(dateJoined));
-//            }
-//            return ResponseEntity.ok(gson.toJson(membershipService.getByFilter(membershipQueryDto)));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+//            List<TransactionViewEntity> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
+//            return ResponseEntity.ok().body(gson.toJson(transactionViewEntities));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
 //        }
 //    }
+
+    @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembership(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
 ////    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
