@@ -8,10 +8,12 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.ServiceRequestDao;
 import za.co.mawa.bes.dao.TransactionDao;
+import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.partner.PartnerEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.service.request.*;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -37,6 +39,9 @@ public class ServiceRequestService implements ServiceRequestDao {
     FieldOptionService fieldOptionService;
     @Autowired
     TransactionRepository transactionRepository;
+    @Autowired
+    TaskService taskService;
+
     @Autowired
     @Qualifier("transactionService")
     TransactionService service;
@@ -163,7 +168,26 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
         }
+
+
+        List<TransactionLinkDto> links = transactionService.getLinks(id);
+        List<TaskDto> tasks = new ArrayList<>();
+
+        for (TransactionLinkDto link : links) {
+            try {
+                if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
+
+                    tasks.add(taskService.get(link.getTransaction2()));
+                }
+            } catch (Exception exception) {
+//                   throw new RuntimeException(e);
+            }
+        }
+        serviceRequestDto.setTasks(tasks);
+
+
         serviceRequestDto.setAssignee(partnerAssignee);
+
         return serviceRequestDto;
     }
 
