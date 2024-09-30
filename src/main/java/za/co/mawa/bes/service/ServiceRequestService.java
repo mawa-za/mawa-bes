@@ -160,7 +160,7 @@ public class ServiceRequestService implements ServiceRequestDao {
 
                     tasks.add(taskService.get(link.getTransaction2()));
                 }
-            } catch (Exception e) {
+            } catch (Exception exception) {
 //                   throw new RuntimeException(e);
             }
         }
