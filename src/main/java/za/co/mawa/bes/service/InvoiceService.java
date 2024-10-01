@@ -164,7 +164,6 @@ public class InvoiceService {
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             invoiceOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getSubType()));
-            System.out.println(transactionDto.getSubType());
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
@@ -244,11 +243,11 @@ public class InvoiceService {
         return invoiceOutboundDtoList;
     }
 
-    public InvoiceOutboundDto edit(String invoiceId, InvoiceInboundDto invoiceInboundDto) {
+    public InvoiceOutboundDto edit(String id, InvoiceInboundDto invoiceInboundDto) {
         try {
-            TransactionDto transactionDto = transactionService.get(invoiceId);
+            TransactionDto transactionDto = transactionService.get(id);
             if (transactionDto == null) {
-                throw new RuntimeException("Invoice not found with ID: " + invoiceId);
+                throw new RuntimeException("Invoice not found with ID: " + id);
             }
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();

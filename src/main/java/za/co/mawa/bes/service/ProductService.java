@@ -20,6 +20,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.entity.product.ProductCategoryEntity;
 import za.co.mawa.bes.exception.*;
@@ -238,50 +239,102 @@ public class ProductService implements ProductDao {
         }
     }
 
+//    @Override
+//    public List<ProductPricingDto> getPricings(String product) {
+//        List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
+//        try {
+//            LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
+//            List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(product);
+//            for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
+//                ProductPricingDto productPricingDto = new ProductPricingDto();
+//                productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
+//                productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRICING_TYPE, productPricingEntity.getProductPricingPKEntity().getPricing()));
+//                productPricingDto.setValue(productPricingEntity.getValue());
+//                productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
+//                productPricingDto.setValidTo(productPricingEntity.getValidTo());
+//            }
+//        } catch (Exception exception) {
+//
+//        }
+//        return productPricingDtoList;
+//    }
     @Override
     public List<ProductPricingDto> getPricings(String product) {
         List<ProductPricingDto> productPricingDtoList = new ArrayList<>();
         try {
+            // Fetch pricing data for the product
             List<ProductPricingEntity> productPricingEntityList = productPricingRepository.findByProduct(product);
+
             for (ProductPricingEntity productPricingEntity : productPricingEntityList) {
                 ProductPricingDto productPricingDto = new ProductPricingDto();
+
+                // Set basic product pricing details
                 productPricingDto.setProduct(productPricingEntity.getProductPricingPKEntity().getProduct());
                 productPricingDto.setPricing(fieldOptionService.getFieldOption(Field.PRICING_TYPE, productPricingEntity.getProductPricingPKEntity().getPricing()));
-                productPricingDto.setValue(productPricingEntity.getValue());
+                productPricingDto.setValue(productPricingEntity.getValue().setScale(2, RoundingMode.HALF_UP));
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
 
-//                if (productPricingDto.getValue() != null && lineItemOutboundDto.getQuantity() != null) {
-//                    BigDecimal totalExcVat = lineItemOutboundDto.getUnitPrice().multiply(lineItemOutboundDto.getQuantity());
-//                    lineItemOutboundDto.setTotalExcVat(totalExcVat);
-//
-//                    lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
-//
-//                    BigDecimal vatAmount = totalExcVat.multiply(vatPercentage);
-//                    lineItemOutboundDto.setVATAmount(vatAmount);
-//
-//                    BigDecimal totalIncVat = totalExcVat.add(vatAmount);
-//                    lineItemOutboundDto.setTotalIncVat(totalIncVat);
-//
-//                    BigDecimal discountAmount = new BigDecimal("0");
-//                    lineItemOutboundDto.setDiscountAmount(discountAmount);
-//
-//                    BigDecimal discountPercentage = new BigDecimal("0");
-//                    if (totalExcVat.compareTo(BigDecimal.ZERO) != 0) {
-//                        discountPercentage = discountAmount.divide(totalExcVat, 2, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-//                    }
-//                    lineItemOutboundDto.setDiscountPercentage(discountPercentage);
-//
-//                    lineItemOutboundDto.setVATPercentage(vatPercentage.multiply(new BigDecimal("100")));
-//                }
+                // Set VAT percentage (15%)
+                BigDecimal vatPercentage = new BigDecimal("15");
 
+                // Assuming quantity is available or should default to 1
+                BigDecimal quantity = BigDecimal.valueOf(1);
+                BigDecimal unitPrice = productPricingEntity.getValue().setScale(2, RoundingMode.HALF_UP);
+
+                // Calculate total excluding VAT
+                BigDecimal lineTotal = quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+
+                // Assuming discount percentage and logic should be applied similarly
+                BigDecimal discountPercentage = productPricingDto.getDiscountPercentage();
+                BigDecimal discountAmount = BigDecimal.ZERO;
+                boolean isVatInclusive = productPricingDto.isVatInclusive();
+
+                if (discountPercentage != null && discountPercentage.compareTo(BigDecimal.ZERO) != 0) {
+                    discountAmount = lineTotal.multiply(discountPercentage).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    productPricingDto.setDiscountAmount(discountAmount);
+
+                    BigDecimal totalExcAfterDiscount = lineTotal.subtract(discountAmount).setScale(2, RoundingMode.HALF_UP);
+                    productPricingDto.setTotExcVat(totalExcAfterDiscount);
+
+                    // VAT calculations after discount
+                    if (isVatInclusive) {
+                        BigDecimal vatAmountAfterDiscount = totalExcAfterDiscount.multiply(vatPercentage).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                        BigDecimal totalIncAfterDiscount = totalExcAfterDiscount.add(vatAmountAfterDiscount).setScale(2, RoundingMode.HALF_UP);
+
+                        productPricingDto.setVatAmount(vatAmountAfterDiscount);
+                        productPricingDto.setTotIncVat(totalIncAfterDiscount);
+                    } else {
+                        productPricingDto.setVatAmount(BigDecimal.ZERO);
+                        productPricingDto.setTotIncVat(totalExcAfterDiscount);
+                    }
+                } else {
+                    // Without discount
+                    productPricingDto.setTotExcVat(lineTotal.setScale(2, RoundingMode.HALF_UP));
+
+                    if (isVatInclusive) {
+                        BigDecimal vatAmount = lineTotal.multiply(vatPercentage).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                        BigDecimal totalIncVat = lineTotal.add(vatAmount).setScale(2, RoundingMode.HALF_UP);
+
+                        productPricingDto.setVatAmount(vatAmount);
+                        productPricingDto.setTotIncVat(totalIncVat);
+                    } else {
+                        productPricingDto.setVatAmount(BigDecimal.ZERO);
+                        productPricingDto.setTotIncVat(lineTotal);
+                    }
+                }
+                productPricingDto.setVatPercentage(isVatInclusive ? vatPercentage.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+
+                // Add the pricing DTO to the list
                 productPricingDtoList.add(productPricingDto);
             }
         } catch (Exception exception) {
-
+            // Handle exceptions appropriately
+            throw new RuntimeException("Error while fetching product pricing", exception);
         }
         return productPricingDtoList;
     }
+
 
     @Override
     public ProductDto getOptionalById(String id) {

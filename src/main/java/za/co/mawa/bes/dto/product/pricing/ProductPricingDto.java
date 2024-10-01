@@ -17,14 +17,14 @@ public class ProductPricingDto {
     private BigDecimal value;
     private Date validFrom;
     private Date validTo;
-    private Boolean isVatInclusive;
+    private boolean isVatInclusive;
 
-    private BigDecimal totalExcVat;
-    private BigDecimal totalIncVat;
+    private BigDecimal totExcVat;
+    private BigDecimal totIncVat;
     private BigDecimal discountAmount;
     private BigDecimal discountPercentage;
-    private BigDecimal VATAmount;
-    private BigDecimal VATPercentage;
+    private BigDecimal VatAmount;
+    private BigDecimal VatPercentage;
 
 
 }
