@@ -335,7 +335,6 @@ public class ProductService implements ProductDao {
         return productPricingDtoList;
     }
 
-
     @Override
     public ProductDto getOptionalById(String id) {
         try {
