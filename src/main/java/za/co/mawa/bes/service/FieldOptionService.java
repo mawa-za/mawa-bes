@@ -64,6 +64,16 @@ public class FieldOptionService implements FieldOptionDao {
         return fieldOptionDtoList;
     }
 
+    public List<FieldOptionDto> getAllFieldOptions() {
+        List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
+
+        for(FieldOptionEntity option : fieldOptionRepository.findAll()){
+            fieldOptionDtoList.add(entityToDto(option));
+        }
+
+        return fieldOptionDtoList;
+    }
+
     @Override
     public List<FieldDto> getFields() {
         List<FieldDto> fieldDtoList = new ArrayList<>();
