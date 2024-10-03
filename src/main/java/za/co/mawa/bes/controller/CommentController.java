@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.comment.CommentInboundDto;
 import za.co.mawa.bes.service.CommentService;
 
 @RestController
+@CrossOrigin
 @RequestMapping(value = "comment")
 public class CommentController {
 
