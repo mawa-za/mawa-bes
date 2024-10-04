@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.PricingOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
+import za.co.mawa.bes.dto.user.UserDto;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -31,5 +32,8 @@ public class InvoiceOutboundDto implements Serializable {
     private List<LineItemOutboundDto> items;
     private List<TransactionAmountOutboundDto> amounts;
     private List<TransactionDateDto> dates;
+    private String transactionId;
+    private FieldOptionDto invoiceType;
+    private PartnerDto createdBy;
 
 }

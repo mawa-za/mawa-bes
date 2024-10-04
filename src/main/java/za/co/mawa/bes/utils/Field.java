@@ -37,6 +37,7 @@ public class Field {
     public static String EMPLOYMENT_TYPE = "EMPLOYMENT-TYPE";
     public static String DEPARTMENT = "DEPARTMENT";
     public static String DOCUMENT_TYPE = "DOCUMENT-TYPE";
+    public static String DOCUMENT_TYPE_DEPOSIT = "DOCUMENT-TYPE-DEPOSIT";
     public static String BANK_NAME = "BANK-NAME";
     public static String BANK_ACCOUNT_TYPE = "BANK-ACCOUNT-TYPE";
     public static String PAYMENT_REQUEST_STATUS_REASON = "PAYMENT-REQUEST-STATUS-REASON";
@@ -50,6 +51,10 @@ public class Field {
     public static String COURT = "COURT";
     public static String CASE = "CASE";
     public static String CASE_TYPE = "CASE-TYPE";
-    public static String LEAVE_TYPE = "LEAVE_TYPE";
-    public static String LEAVE_REQUEST = "LEAVE_REQUEST";
+
+    public static String LEAVE_TYPE = "LEAVE-TYPE";
+    public static String LEAVE_REQUEST = "LEAVE-REQUEST";
+    public static String DISCOUNT = "DISCOUNT";
+    public static String SERVICE_REQUEST = "SERVICE-REQUEST";
+
 }

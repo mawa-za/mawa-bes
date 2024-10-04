@@ -3,8 +3,11 @@ package za.co.mawa.bes.dto.task;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 
 import java.io.Serializable;
+import java.util.Date;
+
 @NoArgsConstructor
 @Getter
 @Setter
@@ -18,10 +21,10 @@ public class TaskDto implements Serializable {
     private String customer;
     private String employeeResponsibleId;
     private String employeeResponsible;
-    private String plannedStartDate;
-    private String plannedEndDate;
-    private String actualStartDate;
-    private String actualEndDate;
+    private TransactionDateDto plannedStartDate;
+    private TransactionDateDto plannedEndDate;
+    private Date actualStartDate;
+    private Date actualEndDate;
     private String status;
 }
 
