@@ -12,7 +12,7 @@ import java.util.Date;
 @Getter
 @Setter
 public class TransactionViewDto {
-    private String customerName;
+    private String mainPartner;
     private String status;
     private String idNumber;
     private String employeeResponsibleName;

@@ -706,19 +706,19 @@ public class TransactionService implements TransactionDao {
 
                 boolean match = true;
 
-                if(transactionViewDto.getCustomerName() != null) {
-                    String customerName = entity.getCustomerName().replace(" ", "");
-                    match =  transactionViewDto.getCustomerName().replace(" ", "").equals(customerName);
+                if(transactionViewDto.getMainPartner() != null) {
+                    String customerName = entity.getMainPartner().replace(" ", "");
+                    match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
                 }
 
                 if(transactionViewDto.getStatus() != null) {
                     String status = entity.getTransactionStatus();
-                    match =   transactionViewDto.getStatus().equals(status);
+                    match =    match &&  transactionViewDto.getStatus().equals(status);
                 }
 
                 if(transactionViewDto.getIdNumber() != null) {
-                    String IdNumber = entity.getCustomerIdentityNumber();
-                    match =   transactionViewDto.getIdNumber().equals(IdNumber);
+                    String IdNumber = entity.getIdentityNumber();
+                    match =  match && transactionViewDto.getIdNumber().equals(IdNumber);
                 }
 
                 if(transactionViewDto.getEmployeeResponsibleName() !=null){
