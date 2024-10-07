@@ -23,32 +23,43 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "transaction_id")
     private String transactionId;
 
-    @Column(name = "transaction_number")
-    private String transactionNumber;
-
     @Column(name = "transaction_type")
     private String transactionType;
 
-    @Column(name = "creation_date")
-    private Date creationDate;
+    @Column(name = "transaction_subtype")
+    private String transactionSubtype;
 
-    @Column(name = "transaction_type_desc")
-    private String transactionTypeDesc;
+    @Column(name = "transaction_number")
+    private String transactionNumber;
 
-    @Column(name = "transaction_status")
-    private String transactionStatus;
+    @Column(name = "identity_type")
+    private String identityType;
 
-    @Column(name = "customer_identity_number")
-    private String customerIdentityNumber;
+    @Column(name = "identity_number")
+    private String identityNumber;
 
-    @Column(name = "customer_name")
-    private String customerName;
+    @Column(name = "main_partner")
+    private String mainPartner;
+
 
     @Column(name = "employee_responsible")
     private String employeeResponsible;
 
-    @Column(name = "filter")
-    private String filter;
+    @Column(name = "product")
+    private String product;
+
+    @Column(name = "creation_date")
+    private Date creationDate;
+
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "priority")
+    private String priority;
+
+    @Column(name = "transaction_status")
+    private String transactionStatus;
+
 
 }
 
