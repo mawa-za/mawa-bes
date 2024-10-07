@@ -12,7 +12,7 @@ import java.io.Serializable;
 public class TransactionPartnerEdit implements Serializable {
 
     private String partnerFunction;
-    private String partner;
+    private String parnter;
     private String transaction;
 
 }
