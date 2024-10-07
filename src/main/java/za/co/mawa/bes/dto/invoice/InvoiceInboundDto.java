@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.invoice;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.stereotype.Component;
 import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.PricingInboundDto;
 
@@ -23,4 +24,6 @@ public class InvoiceInboundDto implements Serializable {
     private List<LineItemInboundDto> items;
     private String transactionId;
     private String invoiceType;
+
 }
+
