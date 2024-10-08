@@ -7,7 +7,9 @@ import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+
 import za.co.mawa.bes.dto.user.UserDto;
+
 
 import java.util.ArrayList;
 
@@ -30,6 +32,7 @@ public class ServiceRequestDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private PartnerDto createdBy;
+
     private List<PartnerDto> assignee;
     private Date creationDate;
     private Date dueDate;
@@ -38,3 +41,4 @@ public class ServiceRequestDto implements Serializable {
     private PartnerDto employeeResponsible;
     private List<TaskDto> tasks;
 }
+

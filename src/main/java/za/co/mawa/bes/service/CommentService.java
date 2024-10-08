@@ -130,10 +130,11 @@ public class CommentService {
         List<TransactionLinkDto> links = transactionService.getLinks(id);
         List<CommentDto> comments = new ArrayList<>();
         for (TransactionLinkDto link : links) {
-
-            CommentDto comment = new CommentDto();
-            comment = get(link.getTransaction2());
-            comments.add(comment);
+            if(link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
+                CommentDto comment = new CommentDto();
+                comment = get(link.getTransaction2());
+                comments.add(comment);
+            }
         }
         return comments;
     }

@@ -23,6 +23,10 @@ public class Status {
     public static String APPROVED = "APPROVED";
     public static String REJECTED = "REJECTED";
     public static String AWAITING_APPROVAL = "AWAITING-APPROVAL";
+
+    public static String WAITING_PERIOD = "WAITING-PERIOD";
     public static  String INSUFFICIENT_FUNDS = "INSUFFICIENT-FUNDS";
     public static String SERVICE_REQUEST_STATUS_REASON = "SERVICE-REQUEST-STATUS-REASON";
+
 }
+
