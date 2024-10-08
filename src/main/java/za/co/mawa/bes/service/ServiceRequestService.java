@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.partner.PartnerEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.service.request.*;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -40,6 +41,8 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Autowired
     @Qualifier("transactionService")
     TransactionService service;
+    @Autowired
+    TaskService taskService;
 
     @Override
     public ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto) {
@@ -63,6 +66,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                     transactionPartnerDto.setPartner(assignee);
                     transactionService.addPartner(transactionPartnerDto);
                 }
+
             }
             catch (Exception e){
             }
@@ -159,7 +163,27 @@ public class ServiceRequestService implements ServiceRequestDao {
                 } catch (Exception e) {
                 }
             }
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                try {
+                    serviceRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
+                } catch (Exception e) {
+                }
+            }
         }
+        List<TransactionLinkDto> links = transactionService.getLinks(id);
+        List<TaskDto> tasks = new ArrayList<>();
+
+        for (TransactionLinkDto link : links) {
+            try {
+                if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
+
+                    tasks.add(taskService.get(link.getTransaction2()));
+                }
+            } catch (Exception exception) {
+//                   throw new RuntimeException(e);
+            }
+        }
+        serviceRequestDto.setTasks(tasks);
         serviceRequestDto.setAssignee(partnerAssignee);
         return serviceRequestDto;
     }

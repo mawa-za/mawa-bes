@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.user.UserDto;
 
@@ -34,4 +35,6 @@ public class ServiceRequestDto implements Serializable {
     private Date dueDate;
     private UserDto changedBy;
     private String summary;
+    private PartnerDto employeeResponsible;
+    private List<TaskDto> tasks;
 }
