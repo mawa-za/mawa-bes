@@ -412,8 +412,49 @@ public class PartnerService {
         return finalList;
     }
 
-    public List<PartnerViewEntity> getAllPartnersUsingView(){
-        return partnerViewRepository.findAll();
+    public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto){
+        List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
+        try{
+            List<PartnerViewEntity> allPartners = partnerViewRepository.findAllOrderedByPartnerNo();
+
+            for(PartnerViewEntity entity : allPartners){
+                boolean matches = true;
+
+                if(partnerQueryDto.getType() != null && !partnerQueryDto.getType().isEmpty()) {
+                    matches = matches && partnerQueryDto.getType().equals(entity.getPartnerType());
+                }
+                if(partnerQueryDto.getRole() != null && !partnerQueryDto.getRole().isEmpty()) {
+                    matches = matches && partnerQueryDto.getRole().equals(entity.getPartnerRole());
+                }
+                if (partnerQueryDto.getAttributeName() != null && !partnerQueryDto.getAttributeName().isEmpty()) {
+                    String attributeValue = partnerQueryDto.getAttributeValue();
+                    String attribute = getAttributeValueByName(entity, partnerQueryDto.getAttributeName());
+                    matches = matches && attributeValue.equals(attribute);
+                }
+                if (matches) {
+                    partnerViewEntities.add(entity);
+                }
+            }
+        }
+        catch (Exception e){
+
+        }
+        return partnerViewEntities;
+    }
+
+    private String getAttributeValueByName(PartnerViewEntity entity, String attributeName) {
+        switch (attributeName) {
+            case "identityNumber":
+                return entity.getIdentityNumber();
+            case "name1":
+                return entity.getName1();
+            case "name2":
+                return entity.getName2();
+            case "name3":
+                return entity.getName3();
+            default:
+                return null;
+        }
     }
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
