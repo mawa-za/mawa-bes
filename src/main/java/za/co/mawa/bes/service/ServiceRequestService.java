@@ -11,6 +11,7 @@ import za.co.mawa.bes.dao.TransactionDao;
 
 import za.co.mawa.bes.dto.comment.CommentDto;
 
+
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.partner.PartnerEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -45,6 +46,9 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Autowired
     TaskService taskService;
 
+
+    @Autowired
+    TaskService taskService;
 
     @Autowired
     @Qualifier("transactionService")
@@ -210,7 +214,9 @@ public class ServiceRequestService implements ServiceRequestDao {
 
 
 
+
         serviceRequestDto.setAssignee(partnerAssignee);
+
 
 
         return serviceRequestDto;

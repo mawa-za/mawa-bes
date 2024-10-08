@@ -206,6 +206,8 @@ public class CaseService {
             caseDto.setComments(comments);
             caseDto.setTasks(tasks);
 
+
+
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
