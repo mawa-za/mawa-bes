@@ -57,6 +57,8 @@ public class PartnerService {
     PartnerDateRepository partnerDateRepository;
     @Autowired
     PartnerIdentityService partnerIdentityService;
+    @Autowired
+    PartnerViewRepository partnerViewRepository;
 
     public PartnerDto create(PartnerCreateDto partnerCreateDto) {
 
@@ -410,7 +412,9 @@ public class PartnerService {
         return finalList;
     }
 
-
+    public List<PartnerViewEntity> getAllPartnersUsingView(){
+        return partnerViewRepository.findAll();
+    }
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
@@ -419,7 +423,6 @@ public class PartnerService {
         }
         return partnerRoles;
     }
-
 
     public boolean addRole(String partner, String role) {
         boolean added = false;

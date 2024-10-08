@@ -58,6 +58,17 @@ public class PartnerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+    @RequestMapping(value = "/v2",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartners(){
+        try{
+            String response = gson.toJson(partnerService.getAllPartnersUsingView());
+            return ResponseEntity.ok(response);
+        }
+        catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postCustomer(@RequestBody PartnerCreateDto partnerCreateDto) throws Exception {
