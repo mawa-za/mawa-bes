@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.user.UserDto;
 
@@ -29,6 +30,8 @@ public class ServiceRequestDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private PartnerDto createdBy;
+    private PartnerDto employeeResponsible;
+    private List<TaskDto> tasks ;
     private List<PartnerDto> assignee;
     private Date creationDate;
     private Date dueDate;
