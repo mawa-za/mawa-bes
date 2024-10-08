@@ -699,7 +699,7 @@ public class TransactionService implements TransactionDao {
     }
 
     public List<TransactionViewEntity> searchV2(TransactionViewDto transactionViewDto) {
-        List<TransactionViewEntity> membershipList = new ArrayList<>();
+        List<TransactionViewEntity> transactionList = new ArrayList<>();
 
         for (TransactionViewEntity entity  : transactionViewRepository.findAllByType(transactionViewDto.getType())) {
             try {
@@ -738,14 +738,14 @@ public class TransactionService implements TransactionDao {
                 }
 
                 if(match) {
-                    membershipList.add(entity);
+                    transactionList.add(entity);
                 }
 
             }catch (Exception e){
 
             }
         }
-        return membershipList;
+        return transactionList;
     }
 
     @Override
