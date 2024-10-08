@@ -14,9 +14,7 @@ import za.co.mawa.bes.service.AddressService;
 import za.co.mawa.bes.service.PartnerAddressService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
-import za.co.mawa.bes.utils.RoleType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -59,6 +57,7 @@ public class PartnerController {
         }
     }
 
+
     @RequestMapping(value = "/v2",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartners(@RequestParam(required = false) String role,
                                          @RequestParam(required = false) String type,
@@ -76,6 +75,7 @@ public class PartnerController {
                 partnerQueryDto.setAttributeName(attributeName);
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
+          
             String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
             return ResponseEntity.ok(response);
         }
