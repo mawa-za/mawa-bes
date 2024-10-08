@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.comment.CommentInboundDto;
 import za.co.mawa.bes.service.CommentService;
 
 @RestController
+@CrossOrigin
 @RequestMapping(value = "comment")
 public class CommentController {
 
@@ -36,8 +37,10 @@ public class CommentController {
     }
 
     @RequestMapping( method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllComment(@RequestParam String parentTransactionId,
-                                           @RequestParam(required = false) String createdBy) {
+    public ResponseEntity<?> getAllComment(@RequestParam String parentTransactionId
+//                , @RequestParam(required = false) String createdBy
+    )
+    {
         try {
 
             return ResponseEntity.ok(gson.toJson(commentService.getAll(parentTransactionId)));
