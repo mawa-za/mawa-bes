@@ -39,8 +39,7 @@ public class CommentController {
     @RequestMapping( method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllComment(@RequestParam String parentTransactionId
 //                , @RequestParam(required = false) String createdBy
-
-    )
+  )
     {
 
         try {
