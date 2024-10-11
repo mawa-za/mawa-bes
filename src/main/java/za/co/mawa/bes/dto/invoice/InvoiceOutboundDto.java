@@ -8,6 +8,7 @@ import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.dto.PricingOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.user.UserDto;
 
@@ -36,4 +37,6 @@ public class InvoiceOutboundDto implements Serializable {
     private FieldOptionDto invoiceType;
     private PartnerDto createdBy;
 
+    private TransactionDto transactionSubType;
 }
+
