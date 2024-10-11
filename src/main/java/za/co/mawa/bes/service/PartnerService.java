@@ -1,6 +1,12 @@
 package za.co.mawa.bes.service;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -57,6 +63,8 @@ public class PartnerService {
     PartnerDateRepository partnerDateRepository;
     @Autowired
     PartnerIdentityService partnerIdentityService;
+    @Autowired
+    PartnerViewRepository partnerViewRepository;
 
     public PartnerDto create(PartnerCreateDto partnerCreateDto) {
 
@@ -410,7 +418,50 @@ public class PartnerService {
         return finalList;
     }
 
+    public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto){
+        List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
+        try{
+            List<PartnerViewEntity> allPartners = partnerViewRepository.findAllOrderedByPartnerNo();
 
+            for(PartnerViewEntity entity : allPartners){
+                boolean matches = true;
+
+                if(partnerQueryDto.getType() != null && !partnerQueryDto.getType().isEmpty()) {
+                    matches = matches && partnerQueryDto.getType().equals(entity.getPartnerType());
+                }
+                if(partnerQueryDto.getRole() != null && !partnerQueryDto.getRole().isEmpty()) {
+                    matches = matches && partnerQueryDto.getRole().equals(entity.getPartnerRole());
+                }
+                if (partnerQueryDto.getAttributeName() != null && !partnerQueryDto.getAttributeName().isEmpty()) {
+                    String attributeValue = partnerQueryDto.getAttributeValue();
+                    String attribute = getAttributeValueByName(entity, partnerQueryDto.getAttributeName());
+                    matches = matches && attributeValue.equals(attribute);
+                }
+                if (matches) {
+                    partnerViewEntities.add(entity);
+                }
+            }
+        }
+        catch (Exception e){
+
+        }
+        return partnerViewEntities;
+    }
+
+    private String getAttributeValueByName(PartnerViewEntity entity, String attributeName) {
+        switch (attributeName) {
+            case "identityNumber":
+                return entity.getIdentityNumber();
+            case "name1":
+                return entity.getName1();
+            case "name2":
+                return entity.getName2();
+            case "name3":
+                return entity.getName3();
+            default:
+                return null;
+        }
+    }
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
@@ -419,7 +470,6 @@ public class PartnerService {
         }
         return partnerRoles;
     }
-
 
     public boolean addRole(String partner, String role) {
         boolean added = false;
@@ -1231,4 +1281,6 @@ public class PartnerService {
 
         };
     }
+
+
 }

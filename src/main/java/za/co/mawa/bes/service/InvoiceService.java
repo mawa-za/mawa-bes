@@ -53,6 +53,7 @@ public class InvoiceService {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
 
+
             if(invoiceInboundDto.getInvoiceType() != null){
                 String invoiceType = invoiceInboundDto.getInvoiceType().trim();
                 if(invoiceType.equalsIgnoreCase("APPOINTMENT")){
@@ -61,6 +62,7 @@ public class InvoiceService {
                 if(invoiceType.equalsIgnoreCase("SALES-INVOICE")){
                     transactionCreateDto.setSubType(TransactionType.SALES_INVOICE);
                 }
+
             }
             transactionCreateDto.setCreatedBy(userService.getCurrentUser());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
@@ -164,6 +166,8 @@ public class InvoiceService {
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             invoiceOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
             invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getSubType()));
+
+
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
@@ -206,12 +210,14 @@ public class InvoiceService {
                     invoiceOutboundDto.setTransactionId(transaction.getId());
                 }
             }
+
             try{
                 TransactionDto transactionSubType = transactionService.get(invoiceOutboundDto.getTransactionId());
                 invoiceOutboundDto.setTransactionSubType(transactionSubType);
             }
             catch(Exception ex){
             }
+
         } catch (TransactionNotFound exception) {
         }
         return invoiceOutboundDto;

@@ -14,9 +14,7 @@ import za.co.mawa.bes.service.AddressService;
 import za.co.mawa.bes.service.PartnerAddressService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
-import za.co.mawa.bes.utils.RoleType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -56,6 +54,33 @@ public class PartnerController {
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+
+    @RequestMapping(value = "/v2",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPartners(@RequestParam(required = false) String role,
+                                         @RequestParam(required = false) String type,
+                                         @RequestParam(required = false) String attributeName,
+                                         @RequestParam(required = false) String attributeValue){
+        try{
+            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
+            if (role != null && role != "") {
+                partnerQueryDto.setRole(role);
+            }
+            if (type != null && type != "") {
+                partnerQueryDto.setType(type);
+            }
+            if (attributeName != null && attributeName != "") {
+                partnerQueryDto.setAttributeName(attributeName);
+                partnerQueryDto.setAttributeValue(attributeValue);
+            }
+          
+            String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
+            return ResponseEntity.ok(response);
+        }
+        catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
 
