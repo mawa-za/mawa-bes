@@ -17,6 +17,7 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -45,6 +46,8 @@ public class CaseService {
     FieldOptionService fieldOptionService;
     @Autowired
     CommentService commentService;
+    @Autowired
+    TaskService taskService;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -172,15 +175,25 @@ public class CaseService {
             }
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             List<CommentDto> comments = new ArrayList<>();
-            for (TransactionLinkDto link : links) {
+            List<TaskDto> tasks = new ArrayList<>();
 
-                CommentDto comment = new CommentDto();
-                comment = commentService.get(link.getTransaction2());
-                if(Objects.equals(comment.getType(), "COMMENT")) {
-                    comments.add(comment);
-                }
+            for (TransactionLinkDto link : links) {
+               try {
+                   if (link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
+//                       CommentDto comment = new CommentDto();
+//                       comment = commentService.get(link.getTransaction2());
+                       comments.add(commentService.get(link.getTransaction2()));
+
+                   } else if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
+
+                       tasks.add(taskService.get(link.getTransaction2()));
+                   }
+               } catch (Exception e) {
+//                   throw new RuntimeException(e);
+               }
             }
             caseDto.setComments(comments);
+            caseDto.setTasks(tasks);
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
