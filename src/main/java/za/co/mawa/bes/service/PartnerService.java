@@ -449,18 +449,15 @@ public class PartnerService {
     }
 
     private String getAttributeValueByName(PartnerViewEntity entity, String attributeName) {
-        switch (attributeName) {
-            case "identityNumber":
-                return entity.getIdentityNumber();
-            case "name1":
-                return entity.getName1();
-            case "name2":
-                return entity.getName2();
-            case "name3":
-                return entity.getName3();
-            default:
-                return null;
-        }
+        return switch (attributeName) {
+            case "identityNumber" -> entity.getIdentityNumber();
+            case "name1" -> entity.getName1();
+            case "name2" -> entity.getName2();
+            case "name3" -> entity.getName3();
+            case "partnerRole" -> entity.getPartnerRole();
+            case "partnerType" -> entity.getPartnerType();
+            default -> null;
+        };
     }
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
