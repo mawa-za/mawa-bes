@@ -166,15 +166,15 @@ public class ProductService implements ProductDao {
             if (productEditDto.getBaseUnitOfMeasure() != null && productEditDto.getBaseUnitOfMeasure() != "") {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
             }
-            if (productEditDto.getPricingType() != null && !productEditDto.getPricingType().isEmpty()) {
-                ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
-                productPricingEditDto.setProduct(productEntity.getId());
-                productPricingEditDto.setPricing(productEditDto.getPricingType());
-                productPricingEditDto.setValue(productEditDto.getPrice());
-                productPricingEditDto.setValidFrom(new Date());
-                productPricingEditDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-                editPricing(productPricingEditDto);
-            }
+//            if (productEditDto.getPricingType() != null && !productEditDto.getPricingType().isEmpty()) {
+//                ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
+//                productPricingEditDto.setProduct(productEntity.getId());
+//                productPricingEditDto.setPricing(productEditDto.getPricingType());
+//                productPricingEditDto.setValue(productEditDto.getPrice());
+//                productPricingEditDto.setValidFrom(new Date());
+//                productPricingEditDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+//                editPricing(productPricingEditDto);
+//            }
             productRepository.save(productEntity);
             return get(id);
         } catch (Exception exception) {
