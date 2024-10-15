@@ -59,7 +59,7 @@ public class PremiumService {
             entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
-            entity.setLocation(premiumCreateDto.getLocation());
+//            entity.setLocation(premiumCreateDto.getLocation());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -88,7 +88,7 @@ public class PremiumService {
             premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
             premiumDto.setAmount(entity.getAmount());
             premiumDto.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
-            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
+//            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
             premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {
