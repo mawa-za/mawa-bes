@@ -21,6 +21,10 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -107,6 +111,8 @@ public class BookingService implements BookingDao {
         if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
            bookingDto.setId(transactionDto.getId());
            bookingDto.setNumber(transactionDto.getNumber());
+
+
            bookingDto.setStatus(transactionDto.getStatus());
            for(TransactionPartnerDto partner:transactionService.getPartners(id)){
                if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
@@ -136,8 +142,26 @@ public class BookingService implements BookingDao {
                  bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
              }
            }
+            LocalDate today = LocalDate.now();
+            Date bookingDate = Conversion.stringToDate(bookingDto.getBookDate());
+            LocalDate bd = bookingDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            BookingEditDto editDto = new BookingEditDto();
 
-
+            if(today.isAfter(bd) && bookingDto.getInvoiceItem().isEmpty()){
+                bookingDto.setStatus("Missed");
+                editDto.setStatus("Missed");
+                editBooking(editDto, id);
+            }
+            if(today.isAfter(bd) && !bookingDto.getInvoiceItem().isEmpty()){
+                bookingDto.setStatus("Closed");
+                editDto.setStatus("Closed");
+                editBooking(editDto, id);
+            }
+            if(today.isBefore(bd) && !bookingDto.getInvoiceItem().isEmpty()){
+                bookingDto.setBookDate("Invoiced");
+                editDto.setStatus("Invoiced");
+                editBooking(editDto, id);
+            }
             String productId = "";
             for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
                 int number =  item.getValidTo().compareTo(new Date());
