@@ -20,4 +20,6 @@ public class ServiceRequestEditDto implements Serializable {
     private String priority;
     private List<String> assigneeIds;
     private String status;
+
+
 }

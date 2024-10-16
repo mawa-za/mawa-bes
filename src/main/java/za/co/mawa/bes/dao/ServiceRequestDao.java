@@ -12,4 +12,7 @@ public interface ServiceRequestDao {
     List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto);
     ServiceRequestDto get(String id) throws Exception;
     Boolean delete(String id);
+
+
+
 }

@@ -41,4 +41,7 @@ public class PartnerFunction {
     public static String APPLICANT = "APPLICANT";
     public static String DEFENDANT = "DEFENDANT";
     public static String SERVICE_PROVIDER = "SERVICE-PROVIDER";
+
+
+
 }
