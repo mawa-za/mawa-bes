@@ -418,18 +418,18 @@ public class PartnerService {
         return finalList;
     }
 
-    public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto){
-        List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
-        try{
+    public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
+        Set<PartnerViewEntity> partnerViewEntities = new HashSet<>();
+        try {
             List<PartnerViewEntity> allPartners = partnerViewRepository.findAllOrderedByPartnerNo();
 
-            for(PartnerViewEntity entity : allPartners){
+            for (PartnerViewEntity entity : allPartners) {
                 boolean matches = true;
 
-                if(partnerQueryDto.getType() != null && !partnerQueryDto.getType().isEmpty()) {
+                if (partnerQueryDto.getType() != null && !partnerQueryDto.getType().isEmpty()) {
                     matches = matches && partnerQueryDto.getType().equals(entity.getPartnerType());
                 }
-                if(partnerQueryDto.getRole() != null && !partnerQueryDto.getRole().isEmpty()) {
+                if (partnerQueryDto.getRole() != null && !partnerQueryDto.getRole().isEmpty()) {
                     matches = matches && partnerQueryDto.getRole().equals(entity.getPartnerRole());
                 }
                 if (partnerQueryDto.getAttributeName() != null && !partnerQueryDto.getAttributeName().isEmpty()) {
@@ -437,15 +437,15 @@ public class PartnerService {
                     String attribute = getAttributeValueByName(entity, partnerQueryDto.getAttributeName());
                     matches = matches && attributeValue.equals(attribute);
                 }
+
                 if (matches) {
                     partnerViewEntities.add(entity);
                 }
             }
+        } catch (Exception e) {
         }
-        catch (Exception e){
 
-        }
-        return partnerViewEntities;
+        return new ArrayList<>(partnerViewEntities);
     }
 
     private String getAttributeValueByName(PartnerViewEntity entity, String attributeName) {
