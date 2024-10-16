@@ -108,84 +108,88 @@ public class BookingService implements BookingDao {
     public BookingDto getBooking(String id) throws Exception {
         BookingDto bookingDto = new BookingDto();
         TransactionDto transactionDto = transactionService.get(id);
+
         if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
-           bookingDto.setId(transactionDto.getId());
-           bookingDto.setNumber(transactionDto.getNumber());
+            bookingDto.setId(transactionDto.getId());
+            bookingDto.setNumber(transactionDto.getNumber());
 
+            // Set customer and employee responsible
+            for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
+                try {
+                    PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+                        bookingDto.setCustomer(partnerDto);
+                    } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                        bookingDto.setEmployeeResponsible(partnerDto);
+                    }
+                } catch (PartnerNotFoundException ex) {
+                    // Handle PartnerNotFoundException
+                }
+            }
 
-           bookingDto.setStatus(transactionDto.getStatus());
-           for(TransactionPartnerDto partner:transactionService.getPartners(id)){
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setCustomer(partnerDto);
-                   }catch(PartnerNotFoundException ex){
+            // Set booking date and created date
+            for (TransactionDateDto dates : transactionService.getDates(id)) {
+                if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
+                    bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
+                    bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
+                }
+                if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
+                    bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
+                }
+            }
 
-                   }
-               }
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setEmployeeResponsible(partnerDto);
-                   }catch(PartnerNotFoundException ex){
-
-                   }
-               }
-           }
-           for(TransactionDateDto dates:transactionService.getDates(id)){
-             if(dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)){
-                 bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
-                 bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
-                 //break;
-             }
-             if(dates.getType().equalsIgnoreCase(DateType.CREATED)){
-                 bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
-             }
-           }
+            // Get current date as LocalDate
             LocalDate today = LocalDate.now();
-            Date bookingDate = Conversion.stringToDate(bookingDto.getBookDate());
-            LocalDate bd = bookingDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            BookingEditDto editDto = new BookingEditDto();
 
-            if(today.isAfter(bd) && bookingDto.getInvoiceItem().isEmpty()){
-                bookingDto.setStatus("Missed");
-                editDto.setStatus("Missed");
-                editBooking(editDto, id);
+            // Convert the booking date (string) to LocalDate
+            if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
+                LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
+
+                BookingEditDto editDto = new BookingEditDto();
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(id);
+
+                // Update booking status based on the comparison with today's date
+                if (today.isAfter(bookingDate)) {
+                    transactionEditDto.setStatus("Missed");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Missed");
+                }
+                if (today.isAfter(bookingDate)) {
+                    transactionEditDto.setStatus("Closed");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Closed");
+                }
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate))) {
+                    transactionEditDto.setStatus("Invoiced");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Invoiced");
+                }
             }
-            if(today.isAfter(bd) && !bookingDto.getInvoiceItem().isEmpty()){
-                bookingDto.setStatus("Closed");
-                editDto.setStatus("Closed");
-                editBooking(editDto, id);
-            }
-            if(today.isBefore(bd) && !bookingDto.getInvoiceItem().isEmpty()){
-                bookingDto.setBookDate("Invoiced");
-                editDto.setStatus("Invoiced");
-                editBooking(editDto, id);
-            }
+            // Product-related code
             String productId = "";
-            for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
-                int number =  item.getValidTo().compareTo(new Date());
-                if(number > 0){
+            for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
+                if (item.getValidTo().after(new Date())) {
                     productId = item.getProduct();
                 }
             }
+
+
             ProductDto productDto = productService.getOptionalById(productId);
-            if(productDto != null){
+            if (productDto != null) {
                 bookingDto.setProductDto(productDto);
-                ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
-                queryDto.setProduct(productId);
-                //queryDto.setAttribute("");
-                for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
-                  if(attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")){
-                      bookingDto.setDuration(attributeDto.getValue());
-                      break;
-                  }
+                for (ProductAttributeDto attributeDto : productService.getAttributes(productId)) {
+                    if (attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")) {
+                        bookingDto.setDuration(attributeDto.getValue());
+                        break;
+                    }
                 }
             }
-
         }
+
         return bookingDto;
     }
+
 
     @Override
     public ArrayList<BookingDto> querBooking(BookingQueryDto queryDto) throws Exception {
