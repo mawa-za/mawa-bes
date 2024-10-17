@@ -25,7 +25,9 @@ import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.text.SimpleDateFormat;
@@ -55,6 +57,8 @@ public class ClaimService {
     TransactionAmountService transactionAmountService;
     @Autowired
     TransactionLinkService transactionLinkService;
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
