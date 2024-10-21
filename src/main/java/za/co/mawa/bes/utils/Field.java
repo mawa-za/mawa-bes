@@ -56,6 +56,8 @@ public class Field {
     public static String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static String DISCOUNT = "DISCOUNT";
     public static String SERVICE_REQUEST = "SERVICE-REQUEST";
+
     public  static String INVOICE_TYPE = "INVOICE-TYPE";
 
 }
+
