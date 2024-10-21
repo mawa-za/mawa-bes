@@ -56,13 +56,13 @@ public class InvoiceService {
             if(invoiceInboundDto.getInvoiceType() != null && !invoiceInboundDto.getInvoiceType().isEmpty()){
                 String invoiceType = invoiceInboundDto.getInvoiceType().trim();
                 if(invoiceType.equalsIgnoreCase("APPOINTMENT")){
-                    transactionCreateDto.setSubType(String.valueOf(InvoiceType.APPOINTMENT));
+                    transactionCreateDto.setSubType(InvoiceType.APPOINTMENT);
                 }
                 if(invoiceType.equalsIgnoreCase("SALES-INVOICE")){
-                    transactionCreateDto.setSubType(String.valueOf(InvoiceType.SALES_INVOICE));
+                    transactionCreateDto.setSubType(InvoiceType.SALES_INVOICE);
                 }
             }
-            transactionCreateDto.setCreatedBy(userService.getCurrentUser());
+//            transactionCreateDto.setCreatedBy(userService.getCurrentUser());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             if (invoiceInboundDto.getInvoiceDate() != null) {
                 TransactionDateDto transactionDateDto = new TransactionDateDto();
@@ -169,6 +169,8 @@ public class InvoiceService {
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
             invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
+
+            invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, transactionDto.getSubType()));
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
