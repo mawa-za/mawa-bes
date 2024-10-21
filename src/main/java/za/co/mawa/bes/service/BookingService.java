@@ -3,6 +3,8 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.BookingDao;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.booking.BookingCreateDto;
 import za.co.mawa.bes.dto.booking.BookingDto;
@@ -17,7 +19,9 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -27,6 +31,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class BookingService implements BookingDao {
@@ -36,6 +41,10 @@ public class BookingService implements BookingDao {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    InvoiceService invoiceService;
     @Override
     public String createBooking(BookingCreateDto createDto) throws Exception {
         try{
@@ -113,7 +122,6 @@ public class BookingService implements BookingDao {
             bookingDto.setId(transactionDto.getId());
             bookingDto.setNumber(transactionDto.getNumber());
 
-            // Set customer and employee responsible
             for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
                 try {
                     PartnerDto partnerDto = partnerService.get(partner.getPartner());
@@ -123,11 +131,8 @@ public class BookingService implements BookingDao {
                         bookingDto.setEmployeeResponsible(partnerDto);
                     }
                 } catch (PartnerNotFoundException ex) {
-                    // Handle PartnerNotFoundException
                 }
             }
-
-            // Set booking date and created date
             for (TransactionDateDto dates : transactionService.getDates(id)) {
                 if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
                     bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
@@ -137,44 +142,44 @@ public class BookingService implements BookingDao {
                     bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
                 }
             }
-
-            // Get current date as LocalDate
+            InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
+            List<InvoiceOutboundDto> invoiceOutboundDtoList = invoiceService.search(invoiceQueryDto);
+            String subTransactionId = "";
+            for(InvoiceOutboundDto invoice : invoiceOutboundDtoList){
+                if(!invoice.getSubTransactionId().isEmpty()){
+                    if(invoice.getSubTransactionId().equals(id)){
+                        subTransactionId = invoice.getSubTransactionId();
+                    }
+                }
+            }
             LocalDate today = LocalDate.now();
-
-            // Convert the booking date (string) to LocalDate
             if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
                 LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
 
-                BookingEditDto editDto = new BookingEditDto();
                 TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(id);
-
-                // Update booking status based on the comparison with today's date
-                if (today.isAfter(bookingDate)) {
+                if (today.isAfter(bookingDate) && subTransactionId.equalsIgnoreCase("")) {
                     transactionEditDto.setStatus("Missed");
                     transactionService.edit(transactionEditDto);
                     bookingDto.setStatus("Missed");
                 }
-                if (today.isAfter(bookingDate)) {
+                if (today.isAfter(bookingDate) && !subTransactionId.isEmpty()) {
                     transactionEditDto.setStatus("Closed");
                     transactionService.edit(transactionEditDto);
                     bookingDto.setStatus("Closed");
                 }
-                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate))) {
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !subTransactionId.isEmpty()) {
                     transactionEditDto.setStatus("Invoiced");
                     transactionService.edit(transactionEditDto);
                     bookingDto.setStatus("Invoiced");
                 }
             }
-            // Product-related code
             String productId = "";
             for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
                 if (item.getValidTo().after(new Date())) {
                     productId = item.getProduct();
                 }
             }
-
-
             ProductDto productDto = productService.getOptionalById(productId);
             if (productDto != null) {
                 bookingDto.setProductDto(productDto);
@@ -186,10 +191,8 @@ public class BookingService implements BookingDao {
                 }
             }
         }
-
         return bookingDto;
     }
-
 
     @Override
     public ArrayList<BookingDto> querBooking(BookingQueryDto queryDto) throws Exception {
