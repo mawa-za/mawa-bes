@@ -3,6 +3,8 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.BookingDao;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.booking.BookingCreateDto;
 import za.co.mawa.bes.dto.booking.BookingDto;
@@ -17,12 +19,19 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class BookingService implements BookingDao {
@@ -32,6 +41,10 @@ public class BookingService implements BookingDao {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    InvoiceService invoiceService;
     @Override
     public String createBooking(BookingCreateDto createDto) throws Exception {
         try{
@@ -104,61 +117,79 @@ public class BookingService implements BookingDao {
     public BookingDto getBooking(String id) throws Exception {
         BookingDto bookingDto = new BookingDto();
         TransactionDto transactionDto = transactionService.get(id);
+
         if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
-           bookingDto.setId(transactionDto.getId());
-           bookingDto.setNumber(transactionDto.getNumber());
-           bookingDto.setStatus(transactionDto.getStatus());
-           for(TransactionPartnerDto partner:transactionService.getPartners(id)){
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setCustomer(partnerDto);
-                   }catch(PartnerNotFoundException ex){
+            bookingDto.setId(transactionDto.getId());
+            bookingDto.setNumber(transactionDto.getNumber());
 
-                   }
-               }
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setEmployeeResponsible(partnerDto);
-                   }catch(PartnerNotFoundException ex){
+            for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
+                try {
+                    PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+                        bookingDto.setCustomer(partnerDto);
+                    } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                        bookingDto.setEmployeeResponsible(partnerDto);
+                    }
+                } catch (PartnerNotFoundException ex) {
+                }
+            }
+            for (TransactionDateDto dates : transactionService.getDates(id)) {
+                if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
+                    bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
+                    bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
+                }
+                if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
+                    bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
+                }
+            }
+            InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
+            List<InvoiceOutboundDto> invoiceOutboundDtoList = invoiceService.search(invoiceQueryDto);
+            String subTransactionId = "";
+            for(InvoiceOutboundDto invoice : invoiceOutboundDtoList){
+                if(!invoice.getSubTransactionId().isEmpty()){
+                    if(invoice.getSubTransactionId().equals(id)){
+                        subTransactionId = invoice.getSubTransactionId();
+                    }
+                }
+            }
+            LocalDate today = LocalDate.now();
+            if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
+                LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
 
-                   }
-               }
-           }
-           for(TransactionDateDto dates:transactionService.getDates(id)){
-             if(dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)){
-                 bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
-                 bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
-                 //break;
-             }
-             if(dates.getType().equalsIgnoreCase(DateType.CREATED)){
-                 bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
-             }
-           }
-
-
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(id);
+                if (today.isAfter(bookingDate) && subTransactionId.equalsIgnoreCase("")) {
+                    transactionEditDto.setStatus("Missed");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Missed");
+                }
+                if (today.isAfter(bookingDate) && !subTransactionId.isEmpty()) {
+                    transactionEditDto.setStatus("Closed");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Closed");
+                }
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !subTransactionId.isEmpty()) {
+                    transactionEditDto.setStatus("Invoiced");
+                    transactionService.edit(transactionEditDto);
+                    bookingDto.setStatus("Invoiced");
+                }
+            }
             String productId = "";
-            for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
-                int number =  item.getValidTo().compareTo(new Date());
-                if(number > 0){
+            for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
+                if (item.getValidTo().after(new Date())) {
                     productId = item.getProduct();
                 }
             }
             ProductDto productDto = productService.getOptionalById(productId);
-            if(productDto != null){
+            if (productDto != null) {
                 bookingDto.setProductDto(productDto);
-                ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
-                queryDto.setProduct(productId);
-                //queryDto.setAttribute("");
-                for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
-                  if(attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")){
-                      bookingDto.setDuration(attributeDto.getValue());
-                      break;
-                  }
+                for (ProductAttributeDto attributeDto : productService.getAttributes(productId)) {
+                    if (attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")) {
+                        bookingDto.setDuration(attributeDto.getValue());
+                        break;
+                    }
                 }
             }
-
         }
         return bookingDto;
     }

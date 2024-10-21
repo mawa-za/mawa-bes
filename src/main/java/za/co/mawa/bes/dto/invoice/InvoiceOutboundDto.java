@@ -39,5 +39,6 @@ public class InvoiceOutboundDto implements Serializable {
     private PartnerDto createdBy;
 
     private TransactionDto subTransaction;
+
 }
 
