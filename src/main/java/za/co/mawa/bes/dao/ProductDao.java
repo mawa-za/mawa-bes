@@ -26,7 +26,7 @@ public interface ProductDao {
 
     ProductDto get(String id) throws ProductNotFoundException;
 
-    void edit(ProductEditDto productEditDto) throws ProductUpdateFailure;
+    ProductDto edit(String id, ProductEditDto productEditDto) throws ProductUpdateFailure;
 
     void delete(String id) throws ProductDeleteFailure;
 

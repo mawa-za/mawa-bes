@@ -26,6 +26,14 @@ public class FieldOptionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+    @RequestMapping(value = "/field/option", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllFields(){
+        try {
+            return ResponseEntity.ok(gson.toJson(fieldOptionService.getAllFieldOptions()));
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
 
     @RequestMapping(value = "/field/{field}/option", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getFieldOptions(@PathVariable String field) {
