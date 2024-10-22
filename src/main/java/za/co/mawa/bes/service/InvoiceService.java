@@ -218,8 +218,8 @@ public class InvoiceService {
             }
 
             try{
-                TransactionDto transactionSubType = transactionService.get(invoiceOutboundDto.getSubTransactionId());
-                invoiceOutboundDto.setSubTransaction(transactionSubType);
+                TransactionDto subTransaction = transactionService.get(invoiceOutboundDto.getSubTransactionId());
+                invoiceOutboundDto.setSubTransaction(subTransaction);
             }
             catch(Exception ex){
             }
