@@ -75,11 +75,17 @@ public class ProductService implements ProductDao {
 
             ProductDto productDto = get(productRepository.save(productEntity).getId());
 
-            TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
-            transactionAttributeFromDto.setTransaction(productEntity.getId());
-            transactionAttributeFromDto.setAttribute("VAT-INCLUSIVE");
-            transactionAttributeFromDto.setValue(productCreateDto.getVatInclusive());
-            transactionAttributeService.add(transactionAttributeFromDto);
+            ProductAttributeCreateDto productAttributeCreateDto = new ProductAttributeCreateDto();
+            productAttributeCreateDto.setProduct(productDto.getId());
+            productAttributeCreateDto.setAttribute(productCreateDto.getAttribute());
+            productAttributeCreateDto.setValue(productCreateDto.getValue());
+            addAttribute(productAttributeCreateDto);
+
+//            TransactionAttributeDto transactionAttributeFromDto = new TransactionAttributeDto();
+//            transactionAttributeFromDto.setTransaction(productEntity.getId());
+//            transactionAttributeFromDto.setAttribute("VAT-INCLUSIVE");
+//            transactionAttributeFromDto.setValue(productCreateDto.getVatInclusive());
+//            transactionAttributeService.add(transactionAttributeFromDto);
 
             if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
@@ -293,28 +299,25 @@ public class ProductService implements ProductDao {
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
 
-                BigDecimal vatAmount = value.multiply(vatPercentage);
-                BigDecimal totIncVat = value.add(vatAmount);
+                ArrayList<ProductAttributeDto> productAttributes = getAttributes(product);
 
-//                productPricingDto.setVatInclusive("yes");
-                productPricingDto.setTotExcVat(value);
-                productPricingDto.setVatAmount(vatAmount);
-                productPricingDto.setTotIncVat(totIncVat);
+                for(ProductAttributeDto attribute: productAttributes){
+                    if(attribute.getValue().equalsIgnoreCase("0")){
+                        BigDecimal vatAmount = BigDecimal.valueOf(0);
 
-//                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(product);
-//                if(attribute != null && attribute.size() > 0) {
-//                    for (TransactionAttributeEntity attribute1 : attribute) {
-//                        if (attribute1.getValue().equalsIgnoreCase("yes")) {
-//                            productPricingDto.setVatInclusive("yes");
-//
-//                        }else if (attribute1.getValue().equalsIgnoreCase("no")) {
-//                            productPricingDto.setVatInclusive("no");
-//                            productPricingDto.setTotExcVat(value);
-//                            productPricingDto.setVatAmount(BigDecimal.valueOf(0));
-//                            productPricingDto.setTotIncVat(value);
-//                        }
-//                    }
-//                }
+                        productPricingDto.setTotExcVat(value);
+                        productPricingDto.setVatAmount(vatAmount);
+                        productPricingDto.setTotIncVat(value);
+                    }
+                    if(attribute.getValue().equalsIgnoreCase("1")){
+                        BigDecimal vatAmount = value.multiply(vatPercentage);
+                        BigDecimal totIncVat = value.add(vatAmount);
+
+                        productPricingDto.setTotExcVat(value);
+                        productPricingDto.setVatAmount(vatAmount);
+                        productPricingDto.setTotIncVat(totIncVat);
+                    }
+                }
                 productPricingDtoList.add(productPricingDto);
             }
         } catch (Exception exception) {

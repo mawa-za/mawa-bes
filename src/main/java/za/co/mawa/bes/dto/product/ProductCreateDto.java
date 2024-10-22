@@ -13,10 +13,11 @@ public class ProductCreateDto {
     private String code;
     private String description;
     private String type;
-    private String vatInclusive;
     private String category;
     private String baseUnitOfMeasure;
     private BigDecimal price;
     private String pricingType;
     private String autoGenerateCode;
+    private String attribute;
+    private String value;
 }
