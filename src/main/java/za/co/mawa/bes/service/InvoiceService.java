@@ -136,11 +136,11 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            if (invoiceInboundDto.getTransactionId() != null){
+            if (invoiceInboundDto.getSubTransactionId() != null){
                 try {
                     TransactionLinkDto link = new TransactionLinkDto();
                     link.setTransaction1(transactionDto.getId());
-                    link.setTransaction2(invoiceInboundDto.getTransactionId());
+                    link.setTransaction2(invoiceInboundDto.getSubTransactionId());
                     link.setType(TransactionType.APPOINTMENT);
                     link.setCreateBy(userService.getCurrentUser());
                     transactionService.addLink(link);
@@ -168,14 +168,10 @@ public class InvoiceService {
 
             invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, transactionDto.getSubType()));
 
-
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
             invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
-
-
-            invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, transactionDto.getSubType()));
 
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
@@ -211,6 +207,10 @@ public class InvoiceService {
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             for(TransactionLinkDto link : links){
                 if(link.getType().equals(TransactionType.APPOINTMENT)){
+                    TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
+                    invoiceOutboundDto.setSubTransactionId(transaction.getId());
+                }
+                if(link.getType().equals(TransactionType.SALES_INVOICE)){
                     TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
                     invoiceOutboundDto.setSubTransactionId(transaction.getId());
                 }
