@@ -42,6 +42,7 @@ public class TransactionViewEntity implements Serializable {
     private String mainPartner;
 
 
+
     @Column(name = "employee_responsible")
     private String employeeResponsible;
 
@@ -59,6 +60,7 @@ public class TransactionViewEntity implements Serializable {
 
     @Column(name = "transaction_status")
     private String transactionStatus;
+
 
 
 }
