@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.attachment.AttachmentDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
+import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,4 +23,5 @@ public class DepositDto implements Serializable {
     private PartnerDto createdBy;
     private String changedBy;
     private String status;
+    private AttachmentDto attachment;
 }
