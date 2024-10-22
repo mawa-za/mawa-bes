@@ -296,25 +296,25 @@ public class ProductService implements ProductDao {
                 BigDecimal vatAmount = value.multiply(vatPercentage);
                 BigDecimal totIncVat = value.add(vatAmount);
 
-                productPricingDto.setVatInclusive("yes");
+//                productPricingDto.setVatInclusive("yes");
                 productPricingDto.setTotExcVat(value);
                 productPricingDto.setVatAmount(vatAmount);
                 productPricingDto.setTotIncVat(totIncVat);
 
-                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(product);
-                if(attribute != null && attribute.size() > 0) {
-                    for (TransactionAttributeEntity attribute1 : attribute) {
-                        if (attribute1.getValue().equalsIgnoreCase("yes")) {
-                            productPricingDto.setVatInclusive("yes");
-
-                        }else if (attribute1.getValue().equalsIgnoreCase("no")) {
-                            productPricingDto.setVatInclusive("no");
-                            productPricingDto.setTotExcVat(value);
-                            productPricingDto.setVatAmount(BigDecimal.valueOf(0));
-                            productPricingDto.setTotIncVat(value);
-                        }
-                    }
-                }
+//                List<TransactionAttributeEntity> attribute = transactionAttributeService.getByTransactionId(product);
+//                if(attribute != null && attribute.size() > 0) {
+//                    for (TransactionAttributeEntity attribute1 : attribute) {
+//                        if (attribute1.getValue().equalsIgnoreCase("yes")) {
+//                            productPricingDto.setVatInclusive("yes");
+//
+//                        }else if (attribute1.getValue().equalsIgnoreCase("no")) {
+//                            productPricingDto.setVatInclusive("no");
+//                            productPricingDto.setTotExcVat(value);
+//                            productPricingDto.setVatAmount(BigDecimal.valueOf(0));
+//                            productPricingDto.setTotIncVat(value);
+//                        }
+//                    }
+//                }
                 productPricingDtoList.add(productPricingDto);
             }
         } catch (Exception exception) {
