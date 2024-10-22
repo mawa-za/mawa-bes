@@ -16,4 +16,6 @@ public class ProductEditDto {
     private String vatInclusive;
     private String category;
     private String baseUnitOfMeasure;
+
 }
+

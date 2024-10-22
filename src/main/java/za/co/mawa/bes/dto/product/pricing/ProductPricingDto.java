@@ -18,9 +18,11 @@ public class ProductPricingDto {
     private BigDecimal value;
     private Date validFrom;
     private Date validTo;
+
     private BigDecimal totIncVat;
     private BigDecimal totExcVat;
     private BigDecimal vatAmount;
     private BigDecimal discountPercentage;
     private BigDecimal discountAmount;
 }
+

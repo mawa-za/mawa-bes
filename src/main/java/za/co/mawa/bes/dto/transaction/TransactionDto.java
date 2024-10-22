@@ -49,6 +49,7 @@ public class TransactionDto implements Serializable {
    private  List<ClaimDto> claimDtoList;
     private MembershipDto membershipHolder;
     private ProductDto productDetails;
+    private String invoiceItem;
 
 
     public TransactionDto(TransactionEntity transactionEntity) {

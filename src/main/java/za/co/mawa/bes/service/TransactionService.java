@@ -133,7 +133,9 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+                if (transactionEditDto.getChangedBy() != null){
+                    entity.setChangedBy(transactionEditDto.getChangedBy());
+                }
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);

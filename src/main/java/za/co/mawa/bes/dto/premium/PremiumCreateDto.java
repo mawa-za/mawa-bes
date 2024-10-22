@@ -14,7 +14,7 @@ public class PremiumCreateDto implements Serializable {
     private String membershipId;
     private String membershipPeriod;
     private String tenderType;
-    private String location;
+//    private String location;
     private String amount;
     private String terminalId;
     private String externalReceiptNo;
