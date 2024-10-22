@@ -18,4 +18,6 @@ public class ProductCreateDto {
     private BigDecimal price;
     private String pricingType;
     private String autoGenerateCode;
+    private String attribute;
+    private String value;
 }

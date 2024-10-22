@@ -13,8 +13,14 @@ import java.util.Date;
 @Setter
 public class ProductPricingDto {
     private String product;
+    private String vatInclusive;
     private FieldOptionDto pricing;
     private BigDecimal value;
     private Date validFrom;
     private Date validTo;
+    private BigDecimal totIncVat;
+    private BigDecimal totExcVat;
+    private BigDecimal vatAmount;
+    private BigDecimal discountPercentage;
+    private BigDecimal discountAmount;
 }
