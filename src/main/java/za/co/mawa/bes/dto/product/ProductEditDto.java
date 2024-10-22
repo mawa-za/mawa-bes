@@ -13,9 +13,8 @@ public class ProductEditDto {
     private String id;
     private String code;
     private String description;
-    private String vatInclusive;
     private String category;
     private String baseUnitOfMeasure;
-
+    private BigDecimal price;
+    private String pricingType;
 }
-
