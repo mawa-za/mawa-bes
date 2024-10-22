@@ -212,19 +212,17 @@ public class InvoiceService {
             for(TransactionLinkDto link : links){
                 if(link.getType().equals(TransactionType.APPOINTMENT)){
                     TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
-
                     invoiceOutboundDto.setSubTransactionId(transaction.getId());
                 }
             }
-
             try{
-                TransactionDto subTransaction = transactionService.get(invoiceOutboundDto.getSubTransactionId());
-                invoiceOutboundDto.setSubTransaction(subTransaction);
+                if(!invoiceOutboundDto.getSubTransactionId().isEmpty()){
+                    TransactionDto subTransaction = transactionService.get(invoiceOutboundDto.getSubTransactionId());
+                    invoiceOutboundDto.setSubTransaction(subTransaction);
+                }
             }
             catch(Exception ex){
             }
-
-
         } catch (TransactionNotFound exception) {
         }
         return invoiceOutboundDto;
