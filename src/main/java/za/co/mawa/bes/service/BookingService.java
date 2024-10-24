@@ -119,82 +119,79 @@ public class BookingService implements BookingDao {
         try{
             TransactionDto transactionDto = transactionService.get(id);
 
-            if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
+            if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)) {
                 bookingDto.setId(transactionDto.getId());
                 bookingDto.setNumber(transactionDto.getNumber());
-
-                for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
-                    try {
-                        PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                        if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+            }
+            for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
+                try {
+                    PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
                             bookingDto.setCustomer(partnerDto);
-                        } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                            bookingDto.setEmployeeResponsible(partnerDto);
-                        }
-                    } catch (PartnerNotFoundException ex) {
+                    } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                        bookingDto.setEmployeeResponsible(partnerDto);
+                    }
+                } catch (PartnerNotFoundException ex) {
+                }
+            }
+            for (TransactionDateDto dates : transactionService.getDates(id)) {
+                if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
+                    bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
+                    bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
+                }
+                if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
+                    bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
+                }
+            }
+            InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
+            List<InvoiceOutboundDto> invoiceOutboundDtoList = invoiceService.search(invoiceQueryDto);
+            String subTransactionId = "";
+            for(InvoiceOutboundDto invoice : invoiceOutboundDtoList){
+                if(!invoice.getSubTransactionId().isEmpty()){
+                    if(invoice.getSubTransactionId().equalsIgnoreCase(id)){
+                        subTransactionId = invoice.getSubTransactionId();
                     }
                 }
-                for (TransactionDateDto dates : transactionService.getDates(id)) {
-                    if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
-                        bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
-                        bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
-                    }
-                    if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
-                        bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
-                    }
-                }
-                InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
-                List<InvoiceOutboundDto> invoiceOutboundDtoList = invoiceService.search(invoiceQueryDto);
-                String subTransactionId = "";
-                for(InvoiceOutboundDto invoice : invoiceOutboundDtoList){
-                    if(!invoice.getSubTransactionId().isEmpty()){
-                        if(invoice.getSubTransactionId().equals(id)){
-                            subTransactionId = invoice.getSubTransactionId();
-                        }
-                    }
-                }
-                LocalDate today = LocalDate.now();
-                if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
-                    LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
+            }
+            LocalDate today = LocalDate.now();
+            if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
+                LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
 
-                    TransactionEditDto transactionEditDto = new TransactionEditDto();
-                    transactionEditDto.setId(id);
-                    if (today.isAfter(bookingDate) && subTransactionId.equalsIgnoreCase("")) {
-                        transactionEditDto.setStatus("Missed");
-                        transactionService.edit(transactionEditDto);
-                        bookingDto.setStatus("Missed");
-                    }
-                    if (today.isAfter(bookingDate) && !subTransactionId.isEmpty()) {
-                        transactionEditDto.setStatus("Closed");
-                        transactionService.edit(transactionEditDto);
-                        bookingDto.setStatus("Closed");
-                    }
-                    if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !subTransactionId.isEmpty()) {
-                        transactionEditDto.setStatus("Invoiced");
-                        transactionService.edit(transactionEditDto);
-                        bookingDto.setStatus("Invoiced");
-                    }
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(id);
+                if (today.isAfter(bookingDate) && subTransactionId.equalsIgnoreCase("")) {
+                    transactionEditDto.setStatus("Missed");
+                    transactionService.edit(transactionEditDto);
                 }
-                String productId = "";
-                for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
-                    if (item.getValidTo().after(new Date())) {
-                        productId = item.getProduct();
-                    }
+                if (today.isAfter(bookingDate) && !subTransactionId.isEmpty()) {
+                    transactionEditDto.setStatus("Closed");
+                    transactionService.edit(transactionEditDto);
                 }
-                ProductDto productDto = productService.getOptionalById(productId);
-                if (productDto != null) {
-                    bookingDto.setProductDto(productDto);
-                    for (ProductAttributeDto attributeDto : productService.getAttributes(productId)) {
-                        if (attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")) {
-                            bookingDto.setDuration(attributeDto.getValue());
-                            break;
-                        }
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !subTransactionId.isEmpty()) {
+                    transactionEditDto.setStatus("Invoiced");
+                    transactionService.edit(transactionEditDto);
+                }
+            }
+            TransactionEntity entity = transactionRepository.getById(id);
+            bookingDto.setStatus(entity.getStatus());
+            String productId = "";
+            for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
+                if (item.getValidTo().after(new Date())) {
+                    productId = item.getProduct();
+                }
+            }
+            ProductDto productDto = productService.getOptionalById(productId);
+            if (productDto != null) {
+                bookingDto.setProductDto(productDto);
+                for (ProductAttributeDto attributeDto : productService.getAttributes(productId)) {
+                    if (attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")) {
+                        bookingDto.setDuration(attributeDto.getValue());
+                        break;
                     }
                 }
             }
         }
         catch(Exception ex){
-
         }
         return bookingDto;
     }
