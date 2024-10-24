@@ -62,3 +62,4 @@ public class PartnerViewEntity implements Serializable {
     private String maritalStatus;
 
 }
+

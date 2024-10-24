@@ -709,9 +709,11 @@ public class TransactionService implements TransactionDao {
                 boolean match = true;
 
 
+
                 if(transactionViewDto.getMainPartner() != null) {
                     String customerName = entity.getMainPartner().replace(" ", "");
                     match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+
 
                 }
 
