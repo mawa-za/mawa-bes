@@ -5,23 +5,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.ClaimCancelDto;
 import za.co.mawa.bes.dto.ClaimDisputeDto;
-import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
-import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.service.ClaimService;
 import za.co.mawa.bes.service.MembershipService;
-import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
 import za.co.mawa.bes.utils.DateType;
@@ -32,7 +25,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 
 @RestController
 @CrossOrigin
@@ -102,6 +94,51 @@ public class ClaimController {
                 claimQueryDto.setParent(parent);
             }
             return ResponseEntity.ok(gson.toJson(claimService.search(claimQueryDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value="v2" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getClaimsV2(@RequestParam(required = false) String status,
+                                         @RequestParam(required = false) String mainPartner,
+                                         @RequestParam(required = false) String employeeResponsibleName,
+                                         @RequestParam(required = false) String creationDate,
+                                         @RequestParam(required = false) String idNumber) {
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.CLAIM);
+
+            if (status != null && status != "") {
+                transactionViewDto.setStatus(status);
+            }
+
+            if (employeeResponsibleName != null && employeeResponsibleName != "") {
+                transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
+            }
+
+            if (mainPartner != null && mainPartner != "") {
+                transactionViewDto.setMainPartner(mainPartner);
+            }
+
+            if (idNumber != null && idNumber != "") {
+                transactionViewDto.setIdNumber(idNumber);
+            }
+
+            if (creationDate != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(creationDate);
+
+                transactionViewDto.setCreationDate(date);
+
+
+            }
+
+            return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
