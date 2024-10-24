@@ -20,6 +20,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
@@ -32,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class BookingService implements BookingDao {
@@ -116,24 +118,31 @@ public class BookingService implements BookingDao {
     @Override
     public BookingDto getBooking(String id) throws Exception {
         BookingDto bookingDto = new BookingDto();
-        try{
+
+        try {
             TransactionDto transactionDto = transactionService.get(id);
 
-            if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)) {
+            if (transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)) {
                 bookingDto.setId(transactionDto.getId());
                 bookingDto.setNumber(transactionDto.getNumber());
             }
-            for (TransactionPartnerDto partner : transactionService.getPartners(id)) {
+
+            List<TransactionPartnerDto> partners = transactionService.getPartners(id);
+            for (TransactionPartnerDto partner : partners) {
                 try {
                     PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                    if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+                    if (partnerDto != null) {
+                        if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
                             bookingDto.setCustomer(partnerDto);
-                    } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                        bookingDto.setEmployeeResponsible(partnerDto);
+                        } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                            bookingDto.setEmployeeResponsible(partnerDto);
+                        }
                     }
                 } catch (PartnerNotFoundException ex) {
+                    System.err.println("Partner not found: " + ex.getMessage());
                 }
             }
+
             for (TransactionDateDto dates : transactionService.getDates(id)) {
                 if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
                     bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
@@ -143,43 +152,54 @@ public class BookingService implements BookingDao {
                     bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
                 }
             }
-            InvoiceQueryDto invoiceQueryDto = new InvoiceQueryDto();
-            List<InvoiceOutboundDto> invoiceOutboundDtoList = invoiceService.search(invoiceQueryDto);
-            String subTransactionId = "";
-            for(InvoiceOutboundDto invoice : invoiceOutboundDtoList){
-                if(!invoice.getSubTransactionId().isEmpty()){
-                    if(invoice.getSubTransactionId().equalsIgnoreCase(id)){
-                        subTransactionId = invoice.getSubTransactionId();
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.APPOINTMENT);
+            String transactionSubType = "";
+
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+            if (entities != null && !entities.isEmpty()) {
+                for (TransactionViewEntity invoice : entities) {
+                    if (invoice.getTransactionSubtype() != null && !invoice.getTransactionSubtype().isEmpty()) {
+                        if (invoice.getTransactionSubtype().equalsIgnoreCase(id)) {
+                            transactionSubType = invoice.getTransactionSubtype();
+                            System.out.println(invoice);
+                        }
                     }
                 }
+            } else {
+                System.out.println("No transactions found for the given criteria");
             }
+
             LocalDate today = LocalDate.now();
-            if(bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()){
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+
+            if (bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()) {
                 LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
 
-                TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(id);
-                if (today.isAfter(bookingDate) && subTransactionId.equalsIgnoreCase("")) {
+
+                if (today.isAfter(bookingDate) && transactionSubType.isEmpty()) {
                     transactionEditDto.setStatus("Missed");
-                    transactionService.edit(transactionEditDto);
                 }
-                if (today.isAfter(bookingDate) && !subTransactionId.isEmpty()) {
+                if (today.isAfter(bookingDate) && !transactionSubType.isEmpty()) {
                     transactionEditDto.setStatus("Closed");
-                    transactionService.edit(transactionEditDto);
                 }
-                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !subTransactionId.isEmpty()) {
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !transactionSubType.isEmpty()) {
                     transactionEditDto.setStatus("Invoiced");
-                    transactionService.edit(transactionEditDto);
                 }
+                transactionService.edit(transactionEditDto);
             }
+
             TransactionEntity entity = transactionRepository.getById(id);
             bookingDto.setStatus(entity.getStatus());
+
             String productId = "";
             for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
                 if (item.getValidTo().after(new Date())) {
                     productId = item.getProduct();
                 }
             }
+
             ProductDto productDto = productService.getOptionalById(productId);
             if (productDto != null) {
                 bookingDto.setProductDto(productDto);
@@ -190,11 +210,15 @@ public class BookingService implements BookingDao {
                     }
                 }
             }
+        } catch (Exception ex) {
+            System.err.println("Error occurred while fetching booking details: " + ex.getMessage());
+            ex.printStackTrace();
+            throw new Exception("Error fetching booking details", ex);
         }
-        catch(Exception ex){
-        }
+
         return bookingDto;
     }
+
 
     @Override
     public ArrayList<BookingDto> querBooking(BookingQueryDto queryDto) throws Exception {
