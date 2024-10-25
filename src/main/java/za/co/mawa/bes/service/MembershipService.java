@@ -20,7 +20,9 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -34,6 +36,8 @@ public class MembershipService {
     TransactionService transactionService;
     @Autowired
     TransactionAmountService transactionAmountService;
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
     @Autowired
     ProductService productService;
     @Autowired
