@@ -30,6 +30,8 @@ import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -155,12 +157,23 @@ public class ProductService implements ProductDao {
         try {
             ProductEntity productEntity = productRepository.getById(id);
 
+
             if (productEditDto.getDescription() != null && !productEditDto.getDescription().isEmpty()) {
+
                 productEntity.setDescription(productEditDto.getDescription());
             }
             if (productEditDto.getBaseUnitOfMeasure() != null && !productEditDto.getBaseUnitOfMeasure().isEmpty()) {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
             }
+//            if (productEditDto.getPricingType() != null && !productEditDto.getPricingType().isEmpty()) {
+//                ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
+//                productPricingEditDto.setProduct(productEntity.getId());
+//                productPricingEditDto.setPricing(productEditDto.getPricingType());
+//                productPricingEditDto.setValue(productEditDto.getPrice());
+//                productPricingEditDto.setValidFrom(new Date());
+//                productPricingEditDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+//                editPricing(productPricingEditDto);
+//            }
             productRepository.save(productEntity);
             return get(id);
 
@@ -247,6 +260,31 @@ public class ProductService implements ProductDao {
                 productPricingDto.setValue(productPricingEntity.getValue());
                 productPricingDto.setValidFrom(productPricingEntity.getValidFrom());
                 productPricingDto.setValidTo(productPricingEntity.getValidTo());
+
+//                if (productPricingDto.getValue() != null && lineItemOutboundDto.getQuantity() != null) {
+//                    BigDecimal totalExcVat = lineItemOutboundDto.getUnitPrice().multiply(lineItemOutboundDto.getQuantity());
+//                    lineItemOutboundDto.setTotalExcVat(totalExcVat);
+//
+//                    lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
+//
+//                    BigDecimal vatAmount = totalExcVat.multiply(vatPercentage);
+//                    lineItemOutboundDto.setVATAmount(vatAmount);
+//
+//                    BigDecimal totalIncVat = totalExcVat.add(vatAmount);
+//                    lineItemOutboundDto.setTotalIncVat(totalIncVat);
+//
+//                    BigDecimal discountAmount = new BigDecimal("0");
+//                    lineItemOutboundDto.setDiscountAmount(discountAmount);
+//
+//                    BigDecimal discountPercentage = new BigDecimal("0");
+//                    if (totalExcVat.compareTo(BigDecimal.ZERO) != 0) {
+//                        discountPercentage = discountAmount.divide(totalExcVat, 2, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+//                    }
+//                    lineItemOutboundDto.setDiscountPercentage(discountPercentage);
+//
+//                    lineItemOutboundDto.setVATPercentage(vatPercentage.multiply(new BigDecimal("100")));
+//                }
+
                 productPricingDtoList.add(productPricingDto);
             }
         } catch (Exception exception) {

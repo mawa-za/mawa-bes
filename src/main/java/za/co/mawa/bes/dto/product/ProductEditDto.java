@@ -19,5 +19,7 @@ public class ProductEditDto {
     private String baseUnitOfMeasure;
     private BigDecimal price;
     private String pricingType;
+
     private List<ProductCategoryDto> categories;
+
 }
