@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
@@ -30,6 +31,7 @@ import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService implements ProductDao {
@@ -152,29 +154,16 @@ public class ProductService implements ProductDao {
     public ProductDto edit(String id, ProductEditDto productEditDto) throws ProductUpdateFailure {
         try {
             ProductEntity productEntity = productRepository.getById(id);
-            if (productEditDto.getCode() != null && productEditDto.getCode() != "") {
-                productEntity.setCode(productEditDto.getCode());
-            }
-            if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
-//                productEntity.setCategory(productEditDto.getCategory());
-            }
-            if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
+
+            if (productEditDto.getDescription() != null && !productEditDto.getDescription().isEmpty()) {
                 productEntity.setDescription(productEditDto.getDescription());
             }
-            if (productEditDto.getBaseUnitOfMeasure() != null && productEditDto.getBaseUnitOfMeasure() != "") {
+            if (productEditDto.getBaseUnitOfMeasure() != null && !productEditDto.getBaseUnitOfMeasure().isEmpty()) {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
             }
-//            if (productEditDto.getPricingType() != null && !productEditDto.getPricingType().isEmpty()) {
-//                ProductPricingEditDto productPricingEditDto = new ProductPricingEditDto();
-//                productPricingEditDto.setProduct(productEntity.getId());
-//                productPricingEditDto.setPricing(productEditDto.getPricingType());
-//                productPricingEditDto.setValue(productEditDto.getPrice());
-//                productPricingEditDto.setValidFrom(new Date());
-//                productPricingEditDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-//                editPricing(productPricingEditDto);
-//            }
             productRepository.save(productEntity);
             return get(id);
+
         } catch (Exception exception) {
             throw new ProductUpdateFailure();
         }
