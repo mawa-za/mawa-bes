@@ -59,6 +59,7 @@ public class ServiceRequestService implements ServiceRequestDao {
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
+            transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
 
             transactionCreateDto.setSummary(serviceRequestCreateDto.getSummary());
             transactionCreateDto.setEndDate(serviceRequestCreateDto.getDueDate());
@@ -75,8 +76,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
             catch (Exception e){
-
-
             }
             return get(transactionDto.getId());
         } catch (Exception e) {
@@ -87,7 +86,6 @@ public class ServiceRequestService implements ServiceRequestDao {
     public ServiceRequestDto edit(String id, ServiceRequestEditDto serviceRequestEditDto) {
         try {
             TransactionEntity entity = transactionRepository.getById(id);
-
 
             if (serviceRequestEditDto.getDescription() != null) {
                 entity.setDescription(serviceRequestEditDto.getDescription());
@@ -134,17 +132,14 @@ public class ServiceRequestService implements ServiceRequestDao {
     @Override
     public ServiceRequestDto get(String id) throws Exception{
         ServiceRequestDto serviceRequestDto = new ServiceRequestDto();
-        TransactionEntity entity = transactionRepository.getById(id);
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
 
         serviceRequestDto.setDescription(transactionDto.getDescription());
-        serviceRequestDto.setDescription(transactionDto.getSubDescription());
         if (transactionDto.getChangedBy() != null) {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
-
         serviceRequestDto.setSummary(transactionDto.getSummary());
 
 
@@ -183,8 +178,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
         }
-
-
 
         List<TransactionLinkDto> links = transactionService.getLinks(id);
         List<TaskDto> tasks = new ArrayList<>();
