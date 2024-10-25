@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
@@ -32,6 +33,7 @@ import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService implements ProductDao {
@@ -154,16 +156,13 @@ public class ProductService implements ProductDao {
     public ProductDto edit(String id, ProductEditDto productEditDto) throws ProductUpdateFailure {
         try {
             ProductEntity productEntity = productRepository.getById(id);
-            if (productEditDto.getCode() != null && productEditDto.getCode() != "") {
-                productEntity.setCode(productEditDto.getCode());
-            }
-            if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
-//                productEntity.setCategory(productEditDto.getCategory());
-            }
-            if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
+
+
+            if (productEditDto.getDescription() != null && !productEditDto.getDescription().isEmpty()) {
+
                 productEntity.setDescription(productEditDto.getDescription());
             }
-            if (productEditDto.getBaseUnitOfMeasure() != null && productEditDto.getBaseUnitOfMeasure() != "") {
+            if (productEditDto.getBaseUnitOfMeasure() != null && !productEditDto.getBaseUnitOfMeasure().isEmpty()) {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
             }
 //            if (productEditDto.getPricingType() != null && !productEditDto.getPricingType().isEmpty()) {
@@ -177,6 +176,7 @@ public class ProductService implements ProductDao {
 //            }
             productRepository.save(productEntity);
             return get(id);
+
         } catch (Exception exception) {
             throw new ProductUpdateFailure();
         }
