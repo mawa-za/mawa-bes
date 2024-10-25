@@ -24,6 +24,7 @@ public class InvoiceInboundDto implements Serializable {
     private List<LineItemInboundDto> items;
     private String subTransactionId;
     private String invoiceType;
+    private String transactionSubType;
 
 }
 
