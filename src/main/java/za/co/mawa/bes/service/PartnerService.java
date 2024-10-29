@@ -518,7 +518,8 @@ public class PartnerService {
     }
 
 
-    public boolean editRelation(RelationDto rltn) {
+    public boolean editRelation(RelationDto relationDto) {
+
         return false;
     }
 
@@ -549,13 +550,13 @@ public class PartnerService {
     }
 
 
-    public boolean removeRelation(RelationDto rltn) {
+    public boolean removeRelation(RelationDto relation) {
         boolean removed = false;
         try {
             PartnerRelationPKEntity partnerRelationPK = new PartnerRelationPKEntity();
-            partnerRelationPK.setPartner1(rltn.getPartner1());
-            partnerRelationPK.setPartner2(rltn.getPartner2());
-            partnerRelationPK.setType(rltn.getType());
+            partnerRelationPK.setPartner1(relation.getPartner1());
+            partnerRelationPK.setPartner2(relation.getPartner2());
+            partnerRelationPK.setType(relation.getType());
             partnerRelationRepository.deleteById(partnerRelationPK);
             removed = true;
         } catch (Exception e) {
@@ -594,17 +595,28 @@ public class PartnerService {
     }
 
 
-    public ArrayList<RelationDto> getRelations(String partner) {
+    public ArrayList<RelationDto> getAllRelations(String partner) {
         ArrayList<RelationDto> relations = new ArrayList<>();
-        List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner);
-        for (PartnerRelationEntity partnerRelation : relationsPartner) {
+        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByPartnerId(partner);
+        for (PartnerRelationEntity partnerRelation : relationEntities) {
             RelationDto relation = new RelationDto();
             relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
             relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
             relation.setType(partnerRelation.getPartnerRelationPK().getType());
-
             relations.add(relation);
+        }
+        return relations;
+    }
 
+    public ArrayList<RelationDto> getRelationByBothIds( RelationDto relationDto){
+        ArrayList<RelationDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByBothPartnerIds(relationDto.getPartner1(), relationDto.getPartner2());
+        for (PartnerRelationEntity partnerRelation : relationEntities) {
+            RelationDto relation = new RelationDto();
+            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
+            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
+            relation.setType(partnerRelation.getPartnerRelationPK().getType());
+            relations.add(relation);
         }
 
         return relations;

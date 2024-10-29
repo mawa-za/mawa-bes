@@ -315,5 +315,40 @@ public class PartnerController {
         }
     }
 
+    @RequestMapping(value = "relation", method = RequestMethod.POST , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.addRelation(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation/{id}", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllRelation(@RequestParam String id){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.getAllRelations(id)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.getRelationByBothIds(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation", method = RequestMethod.DELETE , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.removeRelation(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
 
 }
