@@ -325,7 +325,7 @@ public class PartnerController {
     };
 
     @RequestMapping(value = "relation/{id}", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllRelation(@RequestParam String id){
+    public ResponseEntity<?> getAllRelation(@PathVariable String id){
         try {
             return ResponseEntity.ok(gson.toJson(partnerService.getAllRelations(id)));
         } catch (Exception ex) {
