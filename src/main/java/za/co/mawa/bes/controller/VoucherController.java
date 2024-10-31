@@ -49,7 +49,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
-    @RequestMapping(value= "{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto voucherEditDto){
         try{
             return ResponseEntity.ok(gson.toJson(voucherService.edit(id, voucherEditDto)));
