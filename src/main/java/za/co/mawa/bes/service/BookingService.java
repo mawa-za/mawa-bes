@@ -59,10 +59,10 @@ public class BookingService implements BookingDao {
                 String bookDate = createDto.getBookDate() == null ?"":createDto.getBookDate();
                 if(bookTime != "" && bookDate != ""){
                     //SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-                   // Date dateBook = dateFormat.parse(bookDate);
-                   // SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
-                   // Date timeBook = timeFormat.parse(bookTime);
-                   // Date bookTimeDate = new Date(dateBook.getTime() + timeBook.getTime());
+                    // Date dateBook = dateFormat.parse(bookDate);
+                    // SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
+                    // Date timeBook = timeFormat.parse(bookTime);
+                    // Date bookTimeDate = new Date(dateBook.getTime() + timeBook.getTime());
 
                     String bookTimeDate = bookDate+ " " + bookTime;
 
@@ -139,7 +139,7 @@ public class BookingService implements BookingDao {
                         }
                     }
                 } catch (PartnerNotFoundException ex) {
-                    System.err.println("Partner not found: " + ex.getMessage());
+                    throw new Exception("Partner not found: " + ex.getMessage());
                 }
             }
 
@@ -162,12 +162,9 @@ public class BookingService implements BookingDao {
                     if (invoice.getTransactionSubtype() != null && !invoice.getTransactionSubtype().isEmpty()) {
                         if (invoice.getTransactionSubtype().equalsIgnoreCase(id)) {
                             transactionSubType = invoice.getTransactionSubtype();
-                            System.out.println(invoice);
                         }
                     }
                 }
-            } else {
-                System.out.println("No transactions found for the given criteria");
             }
 
             LocalDate today = LocalDate.now();
@@ -211,8 +208,6 @@ public class BookingService implements BookingDao {
                 }
             }
         } catch (Exception ex) {
-            System.err.println("Error occurred while fetching booking details: " + ex.getMessage());
-            ex.printStackTrace();
             throw new Exception("Error fetching booking details", ex);
         }
 
@@ -239,7 +234,7 @@ public class BookingService implements BookingDao {
                 query.setPartnerFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             }
             if(queryDto.getStatus() != null){
-               query.setStatus(queryDto.getStatus());
+                query.setStatus(queryDto.getStatus());
             }
             for(String id:transactionService.search(query)){
                 BookingDto booking = getBooking(id);
@@ -291,7 +286,7 @@ public class BookingService implements BookingDao {
 
             return true;
         }catch (Exception ex){
-           throw new RuntimeException(ex);
+            throw new RuntimeException(ex);
         }
 
     }
