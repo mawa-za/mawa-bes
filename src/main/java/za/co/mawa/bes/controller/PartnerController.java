@@ -75,7 +75,9 @@ public class PartnerController {
                 partnerQueryDto.setAttributeName(attributeName);
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
-          
+
+
+
             String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
             return ResponseEntity.ok(response);
         }
@@ -240,7 +242,7 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-           return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

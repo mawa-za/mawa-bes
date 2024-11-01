@@ -51,12 +51,23 @@ public class ServiceRequestService implements ServiceRequestDao {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.SERVICE_REQUEST);
+
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
+
+
+
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
+
+            transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
+
+            transactionCreateDto.setSummary(serviceRequestCreateDto.getSummary());
+            transactionCreateDto.setEndDate(serviceRequestCreateDto.getDueDate());
+
+
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
             try {
@@ -69,6 +80,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
             catch (Exception e){
+
 
             }
             return get(transactionDto.getId());
@@ -86,16 +98,21 @@ public class ServiceRequestService implements ServiceRequestDao {
             }
             if(serviceRequestEditDto.getCategory() != null){
                 entity.setCategory(serviceRequestEditDto.getCategory());
+
             }
             if(serviceRequestEditDto.getPriority() != null){
                 entity.setPriority(serviceRequestEditDto.getPriority());
             }
+
             if(serviceRequestEditDto.getStatus() != null){
                 entity.setStatus(serviceRequestEditDto.getStatus());
             }
             if (serviceRequestEditDto.getStatusReason() != null) {
                 entity.setStatusReason(serviceRequestEditDto.getStatusReason());
             }
+
+
+
             entity.setChangedBy(UserContext.getCurrentUserPartner());
             transactionRepository.save(entity);
             return get(id);
@@ -128,11 +145,16 @@ public class ServiceRequestService implements ServiceRequestDao {
         TransactionDto transactionDto = transactionService.get(id);
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
+
+
         serviceRequestDto.setDescription(transactionDto.getDescription());
-        serviceRequestDto.setDescription(transactionDto.getSubDescription());
         if (transactionDto.getChangedBy() != null) {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
+        serviceRequestDto.setSummary(transactionDto.getSummary());
+
+
+
         try {
             serviceRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
         } catch (Exception e) {
@@ -168,6 +190,7 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
         }
+
 
 
         List<TransactionLinkDto> links = transactionService.getLinks(id);
@@ -218,6 +241,9 @@ public class ServiceRequestService implements ServiceRequestDao {
                     transactionService.addPartner(transactionPartnerDto);
                 }
             }
+
+
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -243,6 +269,9 @@ public class ServiceRequestService implements ServiceRequestDao {
             throw new RuntimeException(e);
         }
         return edit(id, serviceRequestEditDto);
+
+
+
     }
 
     public ServiceRequestDto reject(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -255,6 +284,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         } catch (Exception exception) {
         }
         return get(id);
+
     }
 
     public ServiceRequestDto cancel(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -282,3 +312,4 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
 }
+
