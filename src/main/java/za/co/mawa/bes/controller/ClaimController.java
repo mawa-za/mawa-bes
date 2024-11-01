@@ -102,6 +102,7 @@ public class ClaimController {
     @RequestMapping(value="v2" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaimsV2(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String mainPartner,
+
                                          @RequestParam(required = false) String employeeResponsibleName,
                                          @RequestParam(required = false) String creationDate,
                                          @RequestParam(required = false) String idNumber) {
@@ -119,6 +120,7 @@ public class ClaimController {
 
             if (mainPartner != null && mainPartner != "") {
                 transactionViewDto.setMainPartner(mainPartner);
+
             }
 
             if (idNumber != null && idNumber != "") {
