@@ -76,8 +76,7 @@ public class ProductController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductEditDto productEditDto) {
         try {
-            productService.edit(productEditDto);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(gson.toJson(productService.edit(id, productEditDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
