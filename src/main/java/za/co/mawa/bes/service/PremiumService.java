@@ -51,6 +51,8 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PartnerService partnerService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -95,7 +97,7 @@ public class PremiumService {
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
                 premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
-                premiumDto.setEmployeeResponsible(userService.getPartner(entity.getEmployee_responsible()));
+                premiumDto.setEmployeeResponsible(partnerService.get(entity.getEmployee_responsible()));
             } catch (Exception e) {
 
             }
