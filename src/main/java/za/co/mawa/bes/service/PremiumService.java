@@ -60,6 +60,7 @@ public class PremiumService {
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
 //            entity.setLocation(premiumCreateDto.getLocation());
+            entity.setEmployee_responsible(premiumCreateDto.getEmployeeResponsible());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -93,7 +94,8 @@ public class PremiumService {
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
-                premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
+                premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+                premiumDto.setEmployeeResponsible(userService.getPartner(entity.getEmployee_responsible()));
             } catch (Exception e) {
 
             }
@@ -183,4 +185,49 @@ public class PremiumService {
             return transactionAttributeDto.getValue();
         }
     }
+
+    public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
+        List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
+        List<PremiumEntity> premiumEntities = new ArrayList<>();
+
+        for (PremiumEntity premium : premiumEntityList) {
+            try {
+
+                boolean match = true;
+
+                if(premiumSearchDto.getEmployeeResponsible() != null) {
+
+                    match =  premium.getEmployee_responsible().equals(premiumSearchDto.getEmployeeResponsible());
+                }
+
+                if(premiumSearchDto.getCreatedBy() != null){
+
+                    match = match && premium.getCreatedBy().equals(premiumSearchDto.getCreatedBy());
+                }
+
+                if(premiumSearchDto.getTenderType() != null) {
+
+                    match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
+                }
+
+                if(premiumSearchDto.getMembershipId() != null){
+                    match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
+                }
+
+//                if(premiumSearchDto.getLocation() !=null){
+//
+//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+//                }
+
+                if(match) {
+                    premiumEntities.add(premium);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return premiumEntities;
+    }
+
 }
