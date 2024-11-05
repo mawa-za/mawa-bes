@@ -133,10 +133,10 @@ public class VoucherService {
 
                 for (TransactionDateDto dates : transactionService.getDates(id)) {
                     if (Objects.equals(dates.getType(), DateType.CREATED)) {
-                        voucherOutboundDto.setDateCreated(dates.getValue());
+                        voucherOutboundDto.setDateCreated(Conversion.stringToDate(String.valueOf(dates.getValue())));
                     }
                     if (Objects.equals(dates.getType(), DateType.EXPIRY_DATE)) {
-                        voucherOutboundDto.setExpiryDate(dates.getValue());
+                        voucherOutboundDto.setExpiryDate(Conversion.stringToDate(String.valueOf(dates.getValue())));
                     }
                 }
                 try {
