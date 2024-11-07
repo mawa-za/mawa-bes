@@ -31,7 +31,7 @@ import java.math.BigDecimal;
 import java.util.*;
 
 @Service
-public class VoucherService {
+public class VoucherService implements VoucherDao{
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -42,14 +42,8 @@ public class VoucherService {
     UserService userService;
     @Autowired
     FieldOptionService fieldOptionService;
-    @Autowired
-    TransactionRepository transactionRepository;
-    @Autowired
-    TransactionAmountRepository transactionAmountRepository;
-    @Autowired
-    TransactionLinkRepository transactionLinkRepository;
 
-    public VoucherOutboundDto create(VoucherInboundDto voucherInboundDto) throws Exception {
+    public VoucherOutboundDto create(VoucherCreateDto voucherInboundDto) throws Exception {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.VOUCHER);
