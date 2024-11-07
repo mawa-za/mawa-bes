@@ -28,6 +28,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+
     @RequestMapping(value= "{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVoucher(@PathVariable String id){
         try{
@@ -36,6 +37,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getVouchers(@RequestParam(required = false) String parent) {
         try {
@@ -44,11 +46,12 @@ public class VoucherController {
                 query.setStatus(parent);
             }
             List<VoucherOutboundDto> vouchers = voucherService.search(query);
-            return ResponseEntity.ok(vouchers);
+            return ResponseEntity.ok(gson.toJson(vouchers));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
+
     @RequestMapping(value= "/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editVoucher(@PathVariable String id, @RequestBody VoucherEditDto voucherEditDto){
         try{
@@ -58,6 +61,7 @@ public class VoucherController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+
     @RequestMapping(value= "{id}" , method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteVoucher(@PathVariable String id){
         try{

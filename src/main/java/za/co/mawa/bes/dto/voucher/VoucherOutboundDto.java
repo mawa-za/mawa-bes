@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.user.UserDto;
 
@@ -31,4 +33,6 @@ public class VoucherOutboundDto implements Serializable {
     private PartnerDto createdBy;
     private PartnerDto changedBy;
     private PartnerDto customer;
+    private String contractId;
+    private TransactionDto contract;
 }
