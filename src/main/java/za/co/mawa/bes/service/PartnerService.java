@@ -642,27 +642,27 @@ public class PartnerService {
     }
 
 
-    public ArrayList<RelationDto> getAllRelations(String partner) {
-        ArrayList<RelationDto> relations = new ArrayList<>();
+    public ArrayList<RelationOutboundDto> getAllRelations(String partner) throws PartnerNotFoundException {
+        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
         List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByPartnerId(partner);
         for (PartnerRelationEntity partnerRelation : relationEntities) {
-            RelationDto relation = new RelationDto();
-            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
-            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
-            relation.setType(partnerRelation.getPartnerRelationPK().getType());
+            RelationOutboundDto relation = new RelationOutboundDto();
+            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
+            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
+            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
             relations.add(relation);
         }
         return relations;
     }
 
-    public ArrayList<RelationDto> getRelationByBothIds( RelationDto relationDto){
-        ArrayList<RelationDto> relations = new ArrayList<>();
+    public ArrayList<RelationOutboundDto> getRelationByBothIds( RelationDto relationDto) throws PartnerNotFoundException {
+        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
         List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByBothPartnerIds(relationDto.getPartner1(), relationDto.getPartner2());
         for (PartnerRelationEntity partnerRelation : relationEntities) {
-            RelationDto relation = new RelationDto();
-            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
-            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
-            relation.setType(partnerRelation.getPartnerRelationPK().getType());
+            RelationOutboundDto relation = new RelationOutboundDto();
+            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
+            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
+            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
             relations.add(relation);
         }
 
