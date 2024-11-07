@@ -232,20 +232,22 @@ public class VoucherService {
             if(voucherEditDto.getAmount() != null && voucherEditDto.getAmount().compareTo(BigDecimal.ZERO) != 0){
                 TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                 transactionAmountInboundDto.setAmount(voucherEditDto.getAmount());
+                transactionAmountInboundDto.setTransaction(transactionDto.getId());
+                transactionAmountInboundDto.setType(AmountType.VOUCHER_AMOUNT);
                 transactionAmountService.save(transactionAmountInboundDto);
             }
             if (voucherEditDto.getExpiryDate() != null) {
                 TransactionDateEdit dateEdit = new TransactionDateEdit();
                 dateEdit.setType(DateType.EXPIRY_DATE);
                 dateEdit.setValue(voucherEditDto.getExpiryDate());
-                dateEdit.setTransaction(id);
+                dateEdit.setTransaction(transactionDto.getId());
                 transactionService.dateEdit(dateEdit);
             }
             transactionService.edit(transactionEditDto);
             if (voucherEditDto.getContractId() != null && !voucherEditDto.getContractId().isEmpty()) {
                 TransactionLinkDto dto = new TransactionLinkDto();
                 dto.setTransaction1(voucherEditDto.getContractId());
-                dto.setTransaction2(id);
+                dto.setTransaction2(transactionDto.getId());
                 dto.setType(TransactionType.VOUCHER);
                 transactionService.addLink(dto);
             }
