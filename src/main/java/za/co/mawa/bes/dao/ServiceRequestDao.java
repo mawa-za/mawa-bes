@@ -8,8 +8,13 @@ import java.util.List;
 
 public interface ServiceRequestDao {
     ServiceRequestDto create(ServiceRequestCreateDto serviceRequestCreateDto);
-    ServiceRequestDto edit(ServiceRequestEditDto serviceRequestEditDto);
+    ServiceRequestDto edit(String id,ServiceRequestEditDto serviceRequestEditDto);
     List<ServiceRequestDto> search(ServiceRequestQueryDto serviceRequestQueryDto);
     ServiceRequestDto get(String id) throws Exception;
     Boolean delete(String id);
+
+
+
+
 }
+

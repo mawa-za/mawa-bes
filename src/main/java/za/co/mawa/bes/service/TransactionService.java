@@ -50,6 +50,8 @@ public class TransactionService implements TransactionDao {
     PartnerService partnerService;
     @Autowired
     TransactionBankAccountRepository transactionBankAccountRepository;
+    @Autowired
+    TransactionViewRepository transactionViewRepository;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -696,6 +698,58 @@ public class TransactionService implements TransactionDao {
             }
         }
         return finalList;
+    }
+
+    public List<TransactionViewEntity> searchV2(TransactionViewDto transactionViewDto) {
+        List<TransactionViewEntity> transactionList = new ArrayList<>();
+
+        for (TransactionViewEntity entity  : transactionViewRepository.findAllByType(transactionViewDto.getType())) {
+            try {
+
+                boolean match = true;
+
+
+                if(transactionViewDto.getMainPartner() != null) {
+                    String customerName = entity.getMainPartner().replace(" ", "");
+                    match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+
+                }
+
+                if(transactionViewDto.getStatus() != null) {
+                    String status = entity.getTransactionStatus();
+                    match =    match &&  transactionViewDto.getStatus().equals(status);
+                }
+
+                if(transactionViewDto.getIdNumber() != null) {
+                    String IdNumber = entity.getIdentityNumber();
+                    match =  match && transactionViewDto.getIdNumber().equals(IdNumber);
+                }
+
+                if(transactionViewDto.getEmployeeResponsibleName() !=null){
+                    String employeeResponsibleName = entity.getEmployeeResponsible().replace(" ", "");
+                    match = match && transactionViewDto.getEmployeeResponsibleName().replace(" ", "").equals(employeeResponsibleName);
+                }
+
+                if(transactionViewDto.getCreationDate() !=null){
+
+                    String dateJoined = Conversion.dateToString(entity.getCreationDate());
+
+                    String queryDateJoined = Conversion.dateToString(transactionViewDto.getCreationDate());
+
+                    match = match && dateJoined.equals(queryDateJoined);
+
+
+                }
+
+                if(match) {
+                    transactionList.add(entity);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return transactionList;
     }
 
     @Override

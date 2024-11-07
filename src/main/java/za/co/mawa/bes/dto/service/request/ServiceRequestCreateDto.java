@@ -1,11 +1,12 @@
 package za.co.mawa.bes.dto.service.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import za.co.mawa.bes.dto.LineItemDto;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 @NoArgsConstructor
@@ -17,4 +18,9 @@ public class ServiceRequestCreateDto implements Serializable {
     private String category;
     private String priority;
     private List<String> assignees;
+
+    private String summary;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private Date dueDate;
 }
+

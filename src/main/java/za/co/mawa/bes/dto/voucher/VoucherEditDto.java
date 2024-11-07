@@ -18,5 +18,4 @@ public class VoucherEditDto implements Serializable {
     private String statusReason;
     private String contractId;
     private String changedBy;
-    private String type;
 }

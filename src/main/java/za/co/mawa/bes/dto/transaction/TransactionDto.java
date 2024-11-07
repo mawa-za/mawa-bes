@@ -46,9 +46,12 @@ public class TransactionDto implements Serializable {
     private String createdBy;
     private String changedBy;
     private PricingDto pricing;
-   private  List<ClaimDto> claimDtoList;
+    private  List<ClaimDto> claimDtoList;
     private MembershipDto membershipHolder;
     private ProductDto productDetails;
+
+    private String summary;
+
 
 
     public TransactionDto(TransactionEntity transactionEntity) {

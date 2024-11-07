@@ -166,6 +166,7 @@ public class VoucherService implements VoucherDao{
                             PartnerDto partnerDto = partnerService.get(partner.getPartner());
                             voucherOutboundDto.setCustomer(partnerDto);
                         }catch(PartnerNotFoundException ex){
+
                         }
                     }
                     if(partner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)){
@@ -173,6 +174,7 @@ public class VoucherService implements VoucherDao{
                             PartnerDto partnerDto = partnerService.get(partner.getPartner());
                             voucherOutboundDto.setRecipient(partnerDto);
                         }catch(PartnerNotFoundException ex){
+
                         }
                     }
 
@@ -204,6 +206,7 @@ public class VoucherService implements VoucherDao{
             throw new RuntimeException(ex);
         }
     }
+
 
     public VoucherOutboundDto edit(String id, VoucherEditDto voucherEditDto) throws Exception {
         try {
