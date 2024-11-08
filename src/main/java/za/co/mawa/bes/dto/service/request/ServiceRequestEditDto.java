@@ -22,6 +22,5 @@ public class ServiceRequestEditDto implements Serializable {
     private String status;
 
 
-
 }
 

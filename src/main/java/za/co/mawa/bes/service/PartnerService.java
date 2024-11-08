@@ -1280,6 +1280,4 @@ public class PartnerService {
     }
 
 
-
 }
-

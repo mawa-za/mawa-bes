@@ -76,8 +76,6 @@ public class PartnerController {
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
 
-
-
             String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
             return ResponseEntity.ok(response);
         }

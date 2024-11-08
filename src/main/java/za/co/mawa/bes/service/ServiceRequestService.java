@@ -54,8 +54,6 @@ public class ServiceRequestService implements ServiceRequestDao {
 
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
 
-
-
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
@@ -112,7 +110,6 @@ public class ServiceRequestService implements ServiceRequestDao {
             }
 
 
-
             entity.setChangedBy(UserContext.getCurrentUserPartner());
             transactionRepository.save(entity);
             return get(id);
@@ -152,7 +149,6 @@ public class ServiceRequestService implements ServiceRequestDao {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
         serviceRequestDto.setSummary(transactionDto.getSummary());
-
 
 
         try {
@@ -242,8 +238,6 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
 
-
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -269,8 +263,6 @@ public class ServiceRequestService implements ServiceRequestDao {
             throw new RuntimeException(e);
         }
         return edit(id, serviceRequestEditDto);
-
-
 
     }
 
