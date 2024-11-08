@@ -32,7 +32,7 @@ public class VoucherOutboundDto implements Serializable {
     private BigDecimal amount;
     private List<TransactionAmountOutboundDto> amounts;
     private PartnerDto createdBy;
-    private PartnerDto changedBy;
+    private UserDto changedBy;
     private PartnerDto customer;
     private String contractId;
     private TransactionDto contract;

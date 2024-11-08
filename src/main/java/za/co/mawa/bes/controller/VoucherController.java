@@ -21,9 +21,9 @@ public class VoucherController {
     VoucherService voucherService;
 
     @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createVoucher(@RequestBody VoucherInboundDto voucherInboundDto){
+    public ResponseEntity<?> createVoucher(@RequestBody VoucherCreateDto voucherCreateDto){
         try{
-            return ResponseEntity.ok(gson.toJson(voucherService.create(voucherInboundDto)));
+            return ResponseEntity.ok(gson.toJson(voucherService.create(voucherCreateDto)));
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
