@@ -71,5 +71,8 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "transaction_status")
     private String transactionStatus;
 
+    @Column(name = "claimant")
+    private String claimant;
+
 }
 
