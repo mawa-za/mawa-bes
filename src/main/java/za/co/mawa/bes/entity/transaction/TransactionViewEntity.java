@@ -53,6 +53,12 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "due_date")
     private Date dueDate;
 
+    @Column(name = "death_date")
+    private Date deathDate;
+
+    @Column(name = "burial_date")
+    private Date burialDate;
+
     @Column(name = "category")
     private String category;
 
