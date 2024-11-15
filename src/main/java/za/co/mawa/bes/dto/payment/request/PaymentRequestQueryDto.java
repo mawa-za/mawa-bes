@@ -16,6 +16,7 @@ import java.util.Date;
 @Setter
 public class PaymentRequestQueryDto implements Serializable {
     private String recipientId;
+    private String id;
     private String paymentReason;
     private String reference;
     private BigDecimal amount;
@@ -25,4 +26,6 @@ public class PaymentRequestQueryDto implements Serializable {
     private String employeeResponsibleId;
     private String branch;
     private String status;
+    private String transactionNumber;
+    private Date dateCreated;
 }
