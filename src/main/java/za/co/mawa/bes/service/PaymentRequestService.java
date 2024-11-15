@@ -215,21 +215,14 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
                 dto.setPaymentReason(entity.getCategory());
-
-                for (TransactionLinkDto link : transactionService.getLinks(entity.getTransactionId())) {
-                    if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
-                        dto.setReference(link.getTransaction2());
-                    }
-                }
+                dto.setReference(entity.getReference());
                 paymentRequestQueryDtos.add(dto);
-
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return new ArrayList<>(paymentRequestQueryDtos);
     }
-
 
     public void action(TransactionProcessDto transactionProcessDto) {
         try {
