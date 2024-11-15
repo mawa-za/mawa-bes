@@ -22,4 +22,5 @@ public class CaseCreateDto implements Serializable {
     private String description;
     private List<String> applicants;
     private List<String> defendants;
+    private List<String> serviceProviders;
 }
