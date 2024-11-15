@@ -50,6 +50,9 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "creation_date")
     private Date creationDate;
 
+    @Column(name = "due_date")
+    private Date dueDate;
+
     @Column(name = "category")
     private String category;
 

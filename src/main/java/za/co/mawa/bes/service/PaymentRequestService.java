@@ -25,15 +25,13 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class PaymentRequestService implements PaymentRequestDao {
@@ -200,6 +198,38 @@ public class PaymentRequestService implements PaymentRequestDao {
         return requests;
 
     }
+
+    public List<PaymentRequestQueryDto> getAllUsingView(PaymentRequestQueryDto paymentRequestQueryDto) {
+        Set<PaymentRequestQueryDto> paymentRequestQueryDtos = new HashSet<>();
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+
+            for (TransactionViewEntity entity : entities) {
+                PaymentRequestQueryDto dto = new PaymentRequestQueryDto();
+                dto.setDueDate(entity.getDueDate());
+                dto.setPaymentMethod(entity.getTransactionSubtype());
+                dto.setDateCreated(entity.getCreationDate());
+                dto.setStatus(entity.getTransactionStatus());
+                dto.setTransactionNumber(entity.getTransactionNumber());
+                dto.setId(entity.getTransactionId());
+                dto.setPaymentReason(entity.getCategory());
+
+                for (TransactionLinkDto link : transactionService.getLinks(entity.getTransactionId())) {
+                    if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
+                        dto.setReference(link.getTransaction2());
+                    }
+                }
+                paymentRequestQueryDtos.add(dto);
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>(paymentRequestQueryDtos);
+    }
+
 
     public void action(TransactionProcessDto transactionProcessDto) {
         try {
