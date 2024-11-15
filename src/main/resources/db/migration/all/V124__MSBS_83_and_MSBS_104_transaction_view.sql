@@ -1,5 +1,5 @@
 DELIMITER $$
-DROP VIEW IF EXISTS transaction_view;
+DROP VIEW IF EXISTS transaction_view $$
 
 CREATE VIEW transaction_view AS
 SELECT
@@ -55,7 +55,7 @@ LEFT JOIN product ON product.id = item.product
 
 LEFT JOIN partner_identity ON partner_identity.partner = main_tx_partner.partner
 
-LEFT JOIN partner p ON t_partner.partner = p.id;
+LEFT JOIN partner p ON t_partner.partner = p.id
 $$
 
 DELIMITER ;
