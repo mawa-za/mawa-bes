@@ -191,41 +191,9 @@ public class MembershipController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
-            boolean edited = false;
-            if (membershipDto.getStatus() != null && membershipDto.getStatus() != "") {
-                transactionEditDto.setStatus(membershipDto.getStatus());
-            }
-            if (membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != "") {
-                transactionEditDto.setStatusReason(membershipDto.getStatusReason());
-            }
-            if (transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null) {
-                transactionEditDto.setId(id);
-                transactionService.edit(transactionEditDto);
-            }
-            if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
-                partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
-                partnerEdit.setTransaction(id);
-                partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
-                edited = transactionService.partnerEdit(partnerEdit);
-            }
-            if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
-                TransactionItemEditDto editDto = new TransactionItemEditDto();
-                editDto.setTransaction(id);
-                editDto.setProduct(membershipDto.getProductId());
-                editDto.setUnitPrice(membershipDto.getPremium());
-                edited = transactionService.editItem(editDto);
-            }
-            if (membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
-                TransactionItemEditDto editDto = new TransactionItemEditDto();
-                editDto.setTransaction(id);
-                editDto.setProduct(membershipDto.getProductId());
-                editDto.setPreviousProduct(membershipDto.getPreviousProduct());
-                edited = transactionService.editItem(editDto);
-            }
-            return ResponseEntity.ok().body(gson.toJson(edited));
-        } catch (Exception exception) {
+            return ResponseEntity.ok().body(gson.toJson(membershipService.edit(id, membershipDto)));
+        }
+        catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }

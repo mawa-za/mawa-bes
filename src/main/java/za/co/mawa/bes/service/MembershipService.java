@@ -1,8 +1,11 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dao.MembershipDao;
+import za.co.mawa.bes.dto.DependentDto;
+import org.springframework.scheduling.annotation.Scheduled;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.comment.CommentDto;
@@ -15,7 +18,9 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
@@ -42,7 +47,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class MembershipService {
+public class MembershipService implements MembershipDao {
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -417,8 +422,57 @@ public class MembershipService {
         return membershipDtoList;
     }
 
-    public void edit(MembershipEditDto membershipEditDto) {
+    @Override
+    public void addDependent(DependentDto dependentDto) {
 
+    }
+
+    @Override
+    public void removeDependent(DependentDto dependentDto) {
+
+    }
+
+    public Boolean edit(String id, MembershipEditDto membershipDto) {
+        boolean edited = false;
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
+
+            if (membershipDto.getStatus() != null && membershipDto.getStatus() != "") {
+                transactionEditDto.setStatus(membershipDto.getStatus());
+            }
+            if (membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != "") {
+                transactionEditDto.setStatusReason(membershipDto.getStatusReason());
+            }
+            if (transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null) {
+                transactionEditDto.setId(id);
+                transactionService.edit(transactionEditDto);
+            }
+            if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
+                partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
+                partnerEdit.setTransaction(id);
+                partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
+                edited = transactionService.partnerEdit(partnerEdit);
+            }
+            if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
+                TransactionItemEditDto editDto = new TransactionItemEditDto();
+                editDto.setTransaction(id);
+                editDto.setProduct(membershipDto.getProductId());
+                editDto.setUnitPrice(membershipDto.getPremium());
+                edited = transactionService.editItem(editDto);
+            }
+            if (membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
+                TransactionItemEditDto editDto = new TransactionItemEditDto();
+                editDto.setTransaction(id);
+                editDto.setProduct(membershipDto.getProductId());
+                editDto.setPreviousProduct(membershipDto.getPreviousProduct());
+                edited = transactionService.editItem(editDto);
+            }
+            return edited;
+        }
+        catch (Exception e){
+            return edited;
+        }
     }
 
     public List<MembershipDto> getByFilter(MembershipQueryDto membershipQueryDto) throws Exception {
