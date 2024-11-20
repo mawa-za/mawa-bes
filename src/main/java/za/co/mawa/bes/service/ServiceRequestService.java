@@ -54,15 +54,19 @@ public class ServiceRequestService implements ServiceRequestDao {
 
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
 
+
+
             transactionCreateDto.setCategory(serviceRequestCreateDto.getCategory());
             transactionCreateDto.setPriority(serviceRequestCreateDto.getPriority());
             transactionCreateDto.setCustomerId(serviceRequestCreateDto.getCustomer());
             transactionCreateDto.setStatus(Status.NOT_YET_STARTED);
             transactionCreateDto.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
+
             transactionCreateDto.setDescription(serviceRequestCreateDto.getDescription());
 
             transactionCreateDto.setSummary(serviceRequestCreateDto.getSummary());
             transactionCreateDto.setEndDate(serviceRequestCreateDto.getDueDate());
+
 
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
@@ -76,6 +80,8 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
             catch (Exception e){
+
+
             }
             return get(transactionDto.getId());
         } catch (Exception e) {
@@ -92,16 +98,20 @@ public class ServiceRequestService implements ServiceRequestDao {
             }
             if(serviceRequestEditDto.getCategory() != null){
                 entity.setCategory(serviceRequestEditDto.getCategory());
+
             }
             if(serviceRequestEditDto.getPriority() != null){
                 entity.setPriority(serviceRequestEditDto.getPriority());
             }
+
             if(serviceRequestEditDto.getStatus() != null){
                 entity.setStatus(serviceRequestEditDto.getStatus());
             }
             if (serviceRequestEditDto.getStatusReason() != null) {
                 entity.setStatusReason(serviceRequestEditDto.getStatusReason());
             }
+
+
 
             entity.setChangedBy(UserContext.getCurrentUserPartner());
             transactionRepository.save(entity);
@@ -136,11 +146,13 @@ public class ServiceRequestService implements ServiceRequestDao {
         serviceRequestDto.setId(transactionDto.getId());
         serviceRequestDto.setNumber(transactionDto.getNumber());
 
+
         serviceRequestDto.setDescription(transactionDto.getDescription());
         if (transactionDto.getChangedBy() != null) {
             serviceRequestDto.setChangedBy(userService.getUserByName(transactionDto.getChangedBy()).getPartner());
         }
         serviceRequestDto.setSummary(transactionDto.getSummary());
+
 
 
         try {
@@ -178,6 +190,8 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
         }
+
+
 
         List<TransactionLinkDto> links = transactionService.getLinks(id);
         List<TaskDto> tasks = new ArrayList<>();
@@ -228,6 +242,8 @@ public class ServiceRequestService implements ServiceRequestDao {
                 }
             }
 
+
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -254,6 +270,8 @@ public class ServiceRequestService implements ServiceRequestDao {
         }
         return edit(id, serviceRequestEditDto);
 
+
+
     }
 
     public ServiceRequestDto reject(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -266,6 +284,7 @@ public class ServiceRequestService implements ServiceRequestDao {
         } catch (Exception exception) {
         }
         return get(id);
+
     }
 
     public ServiceRequestDto cancel(String id, ServiceRequestEditDto serviceRequestEditDto) throws Exception {
@@ -293,3 +312,4 @@ public class ServiceRequestService implements ServiceRequestDao {
     }
 
 }
+
