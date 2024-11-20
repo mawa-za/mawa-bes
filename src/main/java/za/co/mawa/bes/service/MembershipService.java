@@ -5,8 +5,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
-import za.co.mawa.bes.dto.partner.PartnerDto;
-import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -34,7 +32,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class MembershipService {
+public class MembershipService implements MembershipDao {
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -299,7 +297,17 @@ public class MembershipService {
         return membershipDtoList;
     }
 
-    public Boolean edit(String id, MembershipEditDto membershipDto) throws Exception {
+    @Override
+    public void addDependent(DependentDto dependentDto) {
+
+    }
+
+    @Override
+    public void removeDependent(DependentDto dependentDto) {
+
+    }
+
+    public Boolean edit(String id, MembershipEditDto membershipDto) {
         boolean edited = false;
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
