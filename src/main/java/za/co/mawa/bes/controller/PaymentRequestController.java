@@ -70,6 +70,17 @@ public class PaymentRequestController {
         }
     }
 
+    @RequestMapping(value = "v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPaymentRequestsWithTransactionView(@RequestParam(required = false) String status) {
+        try {
+            PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
+
+            return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAllUsingView(paymentRequestQueryDto)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    }
+
     @RequestMapping(value = "{id}/submit", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> submit(@PathVariable String id) {
         try {
