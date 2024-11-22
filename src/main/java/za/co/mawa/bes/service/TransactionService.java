@@ -719,6 +719,10 @@ public class TransactionService implements TransactionDao {
                     String status = entity.getTransactionStatus();
                     match =    match &&  transactionViewDto.getStatus().equals(status);
                 }
+                if(transactionViewDto.getSubType() != null) {
+                    String subType = entity.getTransactionSubtype();
+                    match =    match &&  transactionViewDto.getSubType().equals(subType);
+                }
 
                 if(transactionViewDto.getIdNumber() != null) {
                     String IdNumber = entity.getIdentityNumber();
