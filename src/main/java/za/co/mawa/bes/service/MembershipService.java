@@ -1,10 +1,17 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.membership.*;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import org.springframework.scheduling.annotation.Scheduled;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
@@ -22,11 +29,13 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 
 import za.co.mawa.bes.exception.*;
@@ -43,6 +52,11 @@ import za.co.mawa.bes.utils.*;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -65,8 +79,11 @@ public class MembershipService implements MembershipDao {
     @Autowired
     FieldOptionService fieldOptionService;
     @Autowired
-    TenantAdminService tenantAdminService;
+    @Lazy PremiumService premiumService;
     @Autowired
+    @Lazy TenantAdminService tenantAdminService;
+    @Autowired
+    TransactionRepository transactionRepository;
     UserService userService;
 
 
@@ -402,11 +419,11 @@ public class MembershipService implements MembershipDao {
 
                 if(membershipQueryDto.getDateJoined() !=null){
 
-                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+                    String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
 
-                        match = match && dateJoined.equals(queryDateJoined);
+                    match = match && dateJoined.equals(queryDateJoined);
 
 
                 }
@@ -432,8 +449,7 @@ public class MembershipService implements MembershipDao {
 
     }
 
-    public Boolean edit(String id, MembershipEditDto membershipDto) {
-        boolean edited = false;
+    public void edit(String id, MembershipEditDto membershipDto) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
@@ -452,26 +468,24 @@ public class MembershipService implements MembershipDao {
                 partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
                 partnerEdit.setTransaction(id);
                 partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
-                edited = transactionService.partnerEdit(partnerEdit);
+                transactionService.partnerEdit(partnerEdit);
             }
             if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
                 editDto.setUnitPrice(membershipDto.getPremium());
-                edited = transactionService.editItem(editDto);
+                transactionService.editItem(editDto);
             }
             if (membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
                 editDto.setPreviousProduct(membershipDto.getPreviousProduct());
-                edited = transactionService.editItem(editDto);
+                transactionService.editItem(editDto);
             }
-            return edited;
         }
         catch (Exception e){
-            return edited;
         }
     }
 
@@ -583,6 +597,74 @@ public class MembershipService implements MembershipDao {
         }
 
         return membershipDtoList;
+    }
+
+    //    @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
+    public String scheduledStatusChange() {
+        System.out.println("Test schedule is working at: " + LocalDateTime.now());
+        try {
+            List<TenantDto> tenants = tenantAdminService.getAll();
+            for (TenantDto tenant : tenants) {
+                TenantContext.setCurrentTenant(tenant.getId());
+//                System.out.println("Processing tenant: " + tenant.getName());
+
+                try {
+                    processTenantTransactions();
+                } catch (Exception e) {
+                    System.err.println("Error processing tenant " + tenant.getName()+ ": " + e.getMessage());
+                } finally {
+                    TenantContext.clear();
+                }
+            }
+            return  "Scheduling Finished";
+        } catch (Exception e) {
+            System.err.println("Error fetching tenants: " + e.getMessage());
+        }
+        return  "Scheduling Error Occurred ";
+    }
+
+    private void processTenantTransactions() throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        try{
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            List<PremiumEntity> premiumEntities = premiumService.search(premiumSearchDto);
+
+            LocalDate today = LocalDate.now();
+            LocalDate threeMonthsAgo = today.minusMonths(3);
+
+            for(TransactionViewEntity entity : membershipEntities) {
+//                System.out.println("Transaction ID: " + entity.getTransactionId());
+
+                if(!premiumEntities.isEmpty()){
+                    for (PremiumEntity premiumEntity : premiumEntities) {
+                        MembershipEditDto editDto = new MembershipEditDto();
+                        if (premiumEntity == null || premiumEntity.getMembershipId() == null) {
+//                            System.out.println("Membership ID from V2 :" + entity.getTransactionId() + "Membership ID from premium :" + premiumEntity.getMembershipId());
+//                            System.out.println("Skipping null premium or membership");
+                        }
+                        else{
+                            LocalDate localDateToCheck = premiumEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();;
+                            if (Objects.equals(premiumEntity.getMembershipId(), entity.getTransactionId())) {
+//                                System.out.println("There's a match");
+                                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+//                                    System.out.println("The date is more than 3 months old.");
+                                    editDto.setStatus(Status.INACTIVE);
+                                    edit(entity.getTransactionId(), editDto);
+                                } else {
+//                                    System.out.println("The date is within the last 3 months.");
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+        catch(Exception e){
+
+        }
     }
 
 }
