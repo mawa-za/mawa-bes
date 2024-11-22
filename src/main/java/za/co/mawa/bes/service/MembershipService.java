@@ -58,10 +58,10 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+//    @Autowired
+//    @Lazy PremiumService premiumService;
     @Autowired
-    @Lazy PremiumService premiumService;
-    @Autowired
-    @Lazy TenantAdminService tenantAdminService;
+    TenantAdminService tenantAdminService;
     @Autowired
     TransactionRepository transactionRepository;
 
@@ -506,7 +506,7 @@ public class MembershipService implements MembershipDao {
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
         try{
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
-            List<PremiumEntity> premiumEntities = premiumService.search(premiumSearchDto);
+            List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
 
             LocalDate today = LocalDate.now();
             LocalDate threeMonthsAgo = today.minusMonths(3);
