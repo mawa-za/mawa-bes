@@ -191,19 +191,7 @@ public class MembershipController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            membershipService.edit(id, membershipDto);
-            return ResponseEntity.ok().body(gson.toJson(membershipService.get(id)));
-        }
-        catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-    @RequestMapping(value = "/scheduleStatusChange", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> automateMembershipStatusChange() {
-        try {
-            membershipService.scheduledStatusChange();
-            return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
+            return ResponseEntity.ok().body(gson.toJson(membershipService.edit(id, membershipDto)));
         }
         catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
