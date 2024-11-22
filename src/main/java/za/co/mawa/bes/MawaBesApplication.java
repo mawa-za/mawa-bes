@@ -8,6 +8,7 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+
 @SpringBootApplication(exclude = { ThymeleafAutoConfiguration.class })
 @Configuration
 @EnableScheduling
