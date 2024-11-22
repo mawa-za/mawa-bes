@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.cashup.CashupSearchDto;
 import za.co.mawa.bes.dto.claim.ClaimCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.TransactionService;
@@ -135,6 +136,52 @@ public class CashupController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "/cashup/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getCashUpsV2(@RequestParam(required = false) String status,
+                                        @RequestParam(required = false) String employeeResponsibleName,
+                                        @RequestParam(required = false) String creationDate,
+                                        @RequestParam(required = false) String cashUpType,
+                                        @RequestParam(required = false) String idNumber) {
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.CASHUP);
+
+            if (status != null && status != "") {
+                transactionViewDto.setStatus(status);
+            }
+
+            if (employeeResponsibleName != null && employeeResponsibleName != "") {
+                transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
+            }
+
+            if (cashUpType != null && cashUpType != "") {
+                transactionViewDto.setSubType(cashUpType);
+            }
+
+            if (idNumber != null && idNumber != "") {
+                transactionViewDto.setIdNumber(idNumber);
+            }
+
+            if (creationDate != null) {
+
+                // Define the formatter for the input string
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+
+                // Parse the string into Date object
+                Date date = formatter.parse(creationDate);
+
+                transactionViewDto.setCreationDate(date);
+
+
+            }
+
+            return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
     @RequestMapping(value = "/cashup/{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editCashup(@PathVariable String id,@RequestBody CashupEditDto editDto) {
         try{

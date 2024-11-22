@@ -260,21 +260,17 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            try {
-                List<TransactionLinkDto> links = transactionService.getLinks(id);
-                List<CommentDto> comments = new ArrayList<>();
-                for (TransactionLinkDto link : links) {
+            List<TransactionLinkDto> links = transactionService.getLinks(id);
+            List<CommentDto> comments = new ArrayList<>();
+            for (TransactionLinkDto link : links) {
 
-                    CommentDto comment = new CommentDto();
-                    comment = commentService.get(link.getTransaction2());
-                    if (Objects.equals(comment.getType(), "COMMENT")) {
-                        comments.add(comment);
-                    }
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
                 }
-                claimOutboundDto.setComments(comments);
-
-            }catch (Exception e){}
-
+            }
+            claimOutboundDto.setComments(comments);
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
@@ -370,14 +366,14 @@ public class ClaimService {
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
             if (voucherClaimTypeList.contains(transactionDto.getSubType())) {
-                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
+                VoucherCreateDto voucherCreateDto = new VoucherCreateDto();
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherCreateDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -385,12 +381,10 @@ public class ClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherCreateDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherInboundDto.setContractId(id);
-                try {
-                    voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                voucherCreateDto.setContractId(id);
+                voucherService.create(voucherCreateDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

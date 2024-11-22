@@ -18,4 +18,5 @@ public class TransactionViewDto {
     private String employeeResponsibleName;
     private Date creationDate;
     private String type;
+    private String subType;
 }

@@ -45,4 +45,6 @@ public class PremiumEntity implements Serializable {
     private String terminalId;
     @Column(name = "amount")
     private BigDecimal amount;
+    @Column(name = "employee_responsible",length = 45)
+    private String employee_responsible;
 }
