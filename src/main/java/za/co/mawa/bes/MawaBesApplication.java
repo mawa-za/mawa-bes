@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(exclude = { ThymeleafAutoConfiguration.class })
 @Configuration
 @EnableScheduling
-public class MawaBesApplication extends SpringBootServletInitializer {
+ public class MawaBesApplication extends SpringBootServletInitializer {
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
 		return application.sources(MawaBesApplication.class);
