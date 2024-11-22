@@ -49,6 +49,8 @@ public class MembershipService implements MembershipDao {
     TenantAdminService tenantAdminService;
     @Autowired
     UserService userService;
+//    @Autowired
+//    TransactionRepository transactionRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
