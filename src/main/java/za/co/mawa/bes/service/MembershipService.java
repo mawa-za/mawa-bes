@@ -12,13 +12,18 @@ import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
+import org.springframework.scheduling.annotation.Scheduled;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.comment.CommentDto;
+import za.co.mawa.bes.dto.membership.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
@@ -32,8 +37,20 @@ import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
+
+import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionViewRepository;
+
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionPartnerEntity;
+import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionPartnerRepository;
+import za.co.mawa.bes.repository.TransactionRepository;
+
+
 import za.co.mawa.bes.utils.*;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -41,12 +58,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class MembershipService implements MembershipDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionPartnerRepository transactionPartnerRepository;
     @Autowired
     TransactionAmountService transactionAmountService;
     @Autowired
@@ -63,7 +84,91 @@ public class MembershipService implements MembershipDao {
     @Lazy TenantAdminService tenantAdminService;
     @Autowired
     TransactionRepository transactionRepository;
+    UserService userService;
 
+
+//    @Scheduled(fixedRate = 15000)
+//    public void checkWaitingPeriod() {
+//        // Retrieve all tenants
+//        List<TenantDto> tenants = tenantAdminService.getAll();
+//
+//        for (TenantDto tenant : tenants) {
+////            TenantContext.clear();
+//            TenantContext.setCurrentTenant(tenant.getId());
+//
+//            try {
+//                activation();
+//            } finally {
+//                TenantContext.clear();
+//            }
+//        }
+//
+//        System.out.println("The scheduled task is running every 15 seconds.");
+//    }
+
+    public void activation() {
+
+        List<MembershipDto> membershipDtoList = new ArrayList<>();
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
+
+        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        transactionQueryDto.setStatus("WAITING-PERIOD");
+
+        for (String id : transactionService.search(transactionQueryDto)) {
+            try {
+                MembershipDto membershipDto = get(id);
+                Date dateJoined = membershipDto.getDateJoined();
+                Date currentDate = new Date();
+
+                long diffInMillis = currentDate.getTime() - dateJoined.getTime();
+
+                long diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMillis);
+
+                if(diffInDays <= 90){
+
+//                    PartnerDto member = membershipDto.getMember();
+//                    List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(member.getId());
+//                    for( TransactionPartnerEntity transaction : transactionPartnerEntities){
+//
+//                        String membershipId = transaction.getTransactionPartnerPKEntity().getTransaction();
+//                        TransactionEntity transactionEntity = transactionRepository.getById(membershipId);
+//
+//                        if( transactionEntity.getType().equals("MEMBERSHIP") && !transactionEntity.getStatus().equals("WAITING-PERIOD")) {
+//
+//                            transactionEntity.setStatus("INACTIVE");
+//                            transactionRepository.save(transactionEntity);
+//                        }
+//                    }
+//
+//                    TransactionEntity transaction = transactionRepository.getById(id);
+//                    transaction.setStatus("ACTIVE");
+//                    transactionRepository.save(transaction);
+
+                    List<TransactionLinkDto> links = transactionService.getLinks(id);
+                    for (TransactionLinkDto link : links) {
+
+                        if(link.getType().equals(TransactionType.UPGRADE)){
+                            TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
+                            transaction.setStatus("INACTIVE");
+                            transactionRepository.save(transaction);
+
+                            TransactionEntity transaction1 = transactionRepository.getById(id);
+                            transaction1.setStatus("ACTIVE");
+                            transactionRepository.save(transaction1);
+                        }
+
+                    }
+                }
+
+                membershipDtoList.add(membershipDto);
+
+            }catch (Exception e){
+
+            }
+        }
+       // return membershipDtoList;
+    }
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
@@ -105,10 +210,29 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-        } else {
+        }
+        else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+
+                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+        }
+        else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+        if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+            try {
+                TransactionLinkDto link = new TransactionLinkDto();
+                link.setTransaction1(transactionDto.getId());
+                link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
+                link.setType(TransactionType.UPGRADE);
+                link.setCreateBy(userService.getCurrentUserPartnerId());
+                transactionService.addLink(link);
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
