@@ -69,6 +69,7 @@ public class MembershipController {
                 membershipQueryDto.setStatus(status);
             }
 
+
             if(productId != null && productId != "") {
                 membershipQueryDto.setProductId(productId);
             }
@@ -103,6 +104,7 @@ public class MembershipController {
             }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -167,6 +169,7 @@ public class MembershipController {
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -207,6 +210,7 @@ public class MembershipController {
 //            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
 //        }
 //    }
+
 ////    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
@@ -352,14 +356,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.ACTIVE);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -373,14 +377,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.INACTIVE);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -394,14 +398,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.CANCELLED);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

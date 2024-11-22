@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
+
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.TenantContext;
@@ -19,7 +20,6 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
@@ -30,11 +30,15 @@ import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
-import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.repository.TransactionPartnerRepository;
+import za.co.mawa.bes.repository.TransactionRepository;
 
+
+import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -44,10 +48,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 @Service
 public class MembershipService implements MembershipDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionPartnerRepository transactionPartnerRepository;
     @Autowired
     TransactionAmountService transactionAmountService;
     @Autowired
@@ -58,12 +67,13 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-    //    @Autowired
-//    @Lazy PremiumService premiumService;
+
     @Autowired
     TenantAdminService tenantAdminService;
     @Autowired
-    TransactionRepository transactionRepository;
+    UserService userService;
+//    @Autowired
+//    TransactionRepository transactionRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -106,10 +116,29 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-        } else {
+        }
+        else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+
+                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+        }
+        else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+        if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+            try {
+                TransactionLinkDto link = new TransactionLinkDto();
+                link.setTransaction1(transactionDto.getId());
+                link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
+                link.setType(TransactionType.UPGRADE);
+                link.setCreateBy(userService.getCurrentUserPartnerId());
+                transactionService.addLink(link);
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
