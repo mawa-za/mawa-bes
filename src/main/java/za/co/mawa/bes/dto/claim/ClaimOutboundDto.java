@@ -10,7 +10,6 @@ import za.co.mawa.bes.dto.contract.ContractDto;
 import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -40,7 +39,6 @@ public class ClaimOutboundDto implements Serializable {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private BankAccountDto bankDetails;
-    private TransactionAmountOutboundDto paidOutAmount;
     private List<CommentDto> comments  = new ArrayList<>();
 
 }
