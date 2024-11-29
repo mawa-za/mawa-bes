@@ -7,10 +7,7 @@ import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.ClaimCancelDto;
 import za.co.mawa.bes.dto.ClaimDisputeDto;
 import za.co.mawa.bes.dto.PersonDto;
-import za.co.mawa.bes.dto.claim.ClaimCreateDto;
-import za.co.mawa.bes.dto.claim.ClaimDto;
-import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
-import za.co.mawa.bes.dto.claim.ClaimQueryDto;
+import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
@@ -18,15 +15,19 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
+import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
+import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.link.TransactionLinkOutboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
 import za.co.mawa.bes.entity.FieldOptionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
+import za.co.mawa.bes.repository.TransactionAmountRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -59,6 +60,8 @@ public class ClaimService {
     TransactionLinkService transactionLinkService;
     @Autowired
     TransactionViewRepository transactionViewRepository;
+    @Autowired
+    TransactionAmountRepository transactionAmountRepository;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -260,6 +263,22 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
+            try{
+                List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
+                for(TransactionAmountEntity transactionAmount : transactionAmountEntities){
+                    if(transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)){
+                        TransactionAmountOutboundDto transactionAmountOutboundDto = new TransactionAmountOutboundDto();
+                        transactionAmountOutboundDto.setId(transactionAmount.getId());
+                        transactionAmountOutboundDto.setTransaction(id);
+                        transactionAmountOutboundDto.setAmount(transactionAmount.getAmount());
+                        transactionAmountOutboundDto.setChangedBy(transactionAmount.getChangedBy());
+                        transactionAmountOutboundDto.setCreatedBy(transactionAmount.getCreatedBy());
+                        claimOutboundDto.setPaidOutAmount(transactionAmountOutboundDto);
+                    }
+                }
+            }catch (Exception e){
+
+            }
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
                 List<CommentDto> comments = new ArrayList<>();
@@ -283,6 +302,52 @@ public class ClaimService {
         }
     }
 
+    public boolean edit(String id , ClaimEditDto claimEditDto){
+
+        try {
+            boolean edited = false;
+            if (claimEditDto.getBurialDate() != null) {
+                TransactionDateEdit transactionDateEdit = new TransactionDateEdit();
+                transactionDateEdit.setTransaction(id);
+                transactionDateEdit.setType(DateType.BURIAL_DATE);
+                transactionDateEdit.setValue(claimEditDto.getBurialDate());
+                edited = transactionService.dateEdit(transactionDateEdit);
+
+            }
+            if (claimEditDto.getDeathDate() != null) {
+                TransactionDateEdit edit = new TransactionDateEdit();
+                edit.setTransaction(id);
+                edit.setType(DateType.DEATH_DATE);
+                edit.setValue(claimEditDto.getDeathDate());
+                edited = transactionService.dateEdit(edit);
+
+            }
+            if (claimEditDto.getClaimantId() != null) {
+                TransactionPartnerEdit edit = new TransactionPartnerEdit();
+                edit.setTransaction(id);
+                edit.setParnter(claimEditDto.getClaimantId());
+                edit.setPartnerFunction(PartnerFunction.CLAIMANT);
+                edited = transactionService.partnerEdit(edit);
+            }
+            if(claimEditDto.getPaidOutAmount() !=null){
+                try {
+                    TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                    transactionAmountInboundDto.setAmount(claimEditDto.getPaidOutAmount());
+                    transactionAmountInboundDto.setTransaction(id);
+                    transactionAmountInboundDto.setType(AmountType.PAID_OUT_AMOUNT);
+                    transactionAmountService.save(transactionAmountInboundDto);
+                    edited = true;
+                } catch (Exception exception) {
+
+                }
+            }
+
+            return edited;
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
     public List<ClaimOutboundDto> search(ClaimQueryDto claimQueryDto) {
         List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
         try {
