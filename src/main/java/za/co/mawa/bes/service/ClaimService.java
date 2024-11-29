@@ -260,10 +260,27 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            List<TransactionLinkDto> links = transactionService.getLinks(id);
-            List<CommentDto> comments = new ArrayList<>();
-            for (TransactionLinkDto link : links) {
 
+            try{
+                List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
+                for(TransactionAmountEntity transactionAmount : transactionAmountEntities){
+                    if(transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)){
+                        TransactionAmountOutboundDto transactionAmountOutboundDto = new TransactionAmountOutboundDto();
+                        transactionAmountOutboundDto.setId(transactionAmount.getId());
+                        transactionAmountOutboundDto.setTransaction(id);
+                        transactionAmountOutboundDto.setAmount(transactionAmount.getAmount());
+                        transactionAmountOutboundDto.setChangedBy(transactionAmount.getChangedBy());
+                        transactionAmountOutboundDto.setCreatedBy(transactionAmount.getCreatedBy());
+                        claimOutboundDto.setPaidOutAmount(transactionAmountOutboundDto);
+                    }
+                }
+            }catch (Exception e){
+//                throw new RuntimeException(e);
+            }
+            try {
+                List<TransactionLinkDto> links = transactionService.getLinks(id);
+                List<CommentDto> comments = new ArrayList<>();
+                for (TransactionLinkDto link : links) {
                 CommentDto comment = new CommentDto();
                 comment = commentService.get(link.getTransaction2());
                 if(Objects.equals(comment.getType(), "COMMENT")) {
@@ -271,6 +288,8 @@ public class ClaimService {
                 }
             }
             claimOutboundDto.setComments(comments);
+            }catch (Exception e){}
+          
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
             throw new RuntimeException(new TransactionNotFound("Claim not found"));
