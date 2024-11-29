@@ -291,9 +291,7 @@ public class ClaimService {
                 }
                 claimOutboundDto.setComments(comments);
 
-            }catch (Exception e){
-                //throw new Exception(e);
-            }
+            }catch (Exception e){}
 
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
