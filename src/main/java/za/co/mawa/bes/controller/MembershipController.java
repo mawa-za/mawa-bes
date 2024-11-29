@@ -337,14 +337,8 @@ public class MembershipController {
                     tombstoneRecipient.setFirstName(partnerDto.getName2());
                     tombstoneRecipient.setMiddleName(partnerDto.getName3());
                     tombstoneRecipient.setLastName(partnerDto.getName1());
-                    try {
-                        tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
-                    } catch (Exception e) {}
-
-                    try {
-                        tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
-                    } catch (Exception e) {}
-
+                    tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
+                    tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
                     tombstoneRecipientDtos.add(tombstoneRecipient);
                 }
             }

@@ -14,5 +14,4 @@ public class AmountType {
     public static String SERVICE_AMOUNT = "SERVICE-AMOUNT";
     public static String VAT_PERCENTAGE = "VAT-PERCENTAGE";
     public static String DISCOUNT_PERCENTAGE = "DISCOUNT-PERCENTAGE";
-    public static String PAID_OUT_AMOUNT = "PAID-OUT-AMOUNT";
 }
