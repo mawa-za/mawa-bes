@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
@@ -14,6 +15,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.*;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.*;
@@ -52,6 +54,8 @@ public class TransactionService implements TransactionDao {
     TransactionBankAccountRepository transactionBankAccountRepository;
     @Autowired
     TransactionViewRepository transactionViewRepository;
+    @Autowired
+    PremiumRepository premiumRepository;
 
     @Override
     public TransactionDto create(TransactionCreateDto transactionCreateDto) {
@@ -133,7 +137,9 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+                if (transactionEditDto.getChangedBy() != null){
+                    entity.setChangedBy(transactionEditDto.getChangedBy());
+                }
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -706,14 +712,20 @@ public class TransactionService implements TransactionDao {
 
                 boolean match = true;
 
+
                 if(transactionViewDto.getMainPartner() != null) {
                     String customerName = entity.getMainPartner().replace(" ", "");
                     match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+
                 }
 
                 if(transactionViewDto.getStatus() != null) {
                     String status = entity.getTransactionStatus();
                     match =    match &&  transactionViewDto.getStatus().equals(status);
+                }
+                if(transactionViewDto.getSubType() != null) {
+                    String subType = entity.getTransactionSubtype();
+                    match =    match &&  transactionViewDto.getSubType().equals(subType);
                 }
 
                 if(transactionViewDto.getIdNumber() != null) {
@@ -906,6 +918,45 @@ public class TransactionService implements TransactionDao {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUser = userDetails.getUsername();
         return currentUser;
+    }
+
+    public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
+        List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
+        List<PremiumEntity> premiumEntities = new ArrayList<>();
+
+        for (PremiumEntity premium : premiumEntityList) {
+            try {
+
+                boolean match = true;
+
+                if(premiumSearchDto.getEmployeeResponsible() != null) {
+
+                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
+                }
+
+                if(premiumSearchDto.getTenderType() != null) {
+
+                    match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
+                }
+
+                if(premiumSearchDto.getMembershipId() != null){
+                    match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
+                }
+
+                if(premiumSearchDto.getLocation() !=null){
+
+                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+                }
+
+                if(match) {
+                    premiumEntities.add(premium);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return premiumEntities;
     }
 
 }
