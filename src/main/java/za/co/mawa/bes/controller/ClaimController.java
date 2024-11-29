@@ -237,31 +237,9 @@ public class ClaimController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editClaim(@PathVariable String id, @RequestBody ClaimEditDto claimDto) {
         try {
-            boolean edited = false;
-            if (claimDto.getBurialDate() != null) {
-                TransactionDateEdit transactionDateEdit = new TransactionDateEdit();
-                transactionDateEdit.setTransaction(id);
-                transactionDateEdit.setType(DateType.BURIAL_DATE);
-                transactionDateEdit.setValue(claimDto.getBurialDate());
-                edited = transactionService.dateEdit(transactionDateEdit);
 
-            }
-            if (claimDto.getDeathDate() != null) {
-                TransactionDateEdit edit = new TransactionDateEdit();
-                edit.setTransaction(id);
-                edit.setType(DateType.DEATH_DATE);
-                edit.setValue(claimDto.getDeathDate());
-                edited = transactionService.dateEdit(edit);
+            return ResponseEntity.ok(gson.toJson(claimService.edit(id, claimDto)));
 
-            }
-            if (claimDto.getClaimantId() != null) {
-                TransactionPartnerEdit edit = new TransactionPartnerEdit();
-                edit.setTransaction(id);
-                edit.setParnter(claimDto.getClaimantId());
-                edit.setPartnerFunction(PartnerFunction.CLAIMANT);
-                edited = transactionService.partnerEdit(edit);
-            }
-            return ResponseEntity.ok(gson.toJson(edited));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
