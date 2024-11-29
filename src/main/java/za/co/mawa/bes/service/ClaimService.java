@@ -276,9 +276,8 @@ public class ClaimService {
                         claimOutboundDto.setPaidOutAmount(transactionAmountOutboundDto);
                     }
                 }
-            }catch (Exception e){
-//                throw new RuntimeException(e);
-            }
+            }catch (Exception e){}
+
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
                 List<CommentDto> comments = new ArrayList<>();
@@ -292,7 +291,9 @@ public class ClaimService {
                 }
                 claimOutboundDto.setComments(comments);
 
-            }catch (Exception e){}
+            }catch (Exception e){
+                //throw new Exception(e);
+            }
 
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
