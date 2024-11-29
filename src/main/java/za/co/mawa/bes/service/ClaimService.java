@@ -277,7 +277,7 @@ public class ClaimService {
                     }
                 }
             }catch (Exception e){
-
+//                throw new RuntimeException(e);
             }
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
