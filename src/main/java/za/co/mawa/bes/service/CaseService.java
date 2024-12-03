@@ -53,7 +53,7 @@ public class CaseService {
         transactionCreateDto.setType(TransactionType.CASE);
 //        transactionCreateDto.setLocation(caseCreateDto.getCourt());
         //this is the case type
-//        transactionCreateDto.setSubType(caseCreateDto.getType());
+        transactionCreateDto.setSubType(caseCreateDto.getType());
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
@@ -130,8 +130,10 @@ public class CaseService {
             caseDto.setNumber(transactionDto.getNumber());
             caseDto.setDescription(transactionDto.getDescription());
 
-            caseDto.setType(fieldOptionService.getFieldOption(TransactionType.CASE, transactionDto.getType()));
-            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
+            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType().toUpperCase()));
+            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE, transactionDto.getSubType().toUpperCase()));
+            System.out.println("Type : " + transactionDto.getType());
+            System.out.println("Case Type : " + transactionDto.getSubType());
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
 
             List<ParticipantDto> participantDtoList = new ArrayList<>();
