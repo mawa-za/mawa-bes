@@ -36,6 +36,7 @@ public class CaseDto {
     private List<ParticipantDto> participants = new ArrayList<>();
     private List<PartnerDto> applicants = new ArrayList<>();
     private List<PartnerDto> defendants = new ArrayList<>();
+    private List<PartnerDto> serviceProviders = new ArrayList<>();
     private List<DateDto> dates  = new ArrayList<>();
     private List<TaskDto> tasks  = new ArrayList<>();
     private List<CommentDto> comments  = new ArrayList<>();
