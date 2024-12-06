@@ -16,12 +16,13 @@ import za.co.mawa.bes.service.BookingService;
 
 @RestController
 @CrossOrigin
+@RequestMapping(value = "booking")
 public class BookingController {
     Gson gson = new Gson();
     @Autowired
     BookingService bookingService;
 
-    @RequestMapping(value= "/booking" , method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<?> createLayBy(@RequestBody BookingCreateDto createDto){
         try{
             BookingDto bookingDto = new BookingDto();
@@ -32,7 +33,7 @@ public class BookingController {
         }
     }
 
-    @RequestMapping(value= "/booking/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/{id}" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<?> getBooking(@PathVariable String id){
         try{
             return ResponseEntity.ok(gson.toJson(bookingService.getBooking(id)));
@@ -40,7 +41,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
-    @RequestMapping(value= "/booking" , method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping( method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<?> getBookings(@RequestParam(required = false) String bookDate,
                                   @RequestParam(required = false) String employeeId,
                                   @RequestParam(required = false) String customerId,
@@ -69,7 +70,7 @@ public class BookingController {
         }
     }
 
-    @RequestMapping(value= "/booking/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/{id}" , method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<?> editBookings(@PathVariable String id, @RequestBody BookingEditDto editDto){
         try{
             return ResponseEntity.ok(gson.toJson(bookingService.editBooking(editDto,id)));
@@ -77,7 +78,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
-    @RequestMapping(value= "/booking/{id}" , method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value= "/{id}" , method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<?> deleteBookings(@PathVariable String id){
         try{
             return ResponseEntity.ok(gson.toJson(bookingService.removeBooking(id)));

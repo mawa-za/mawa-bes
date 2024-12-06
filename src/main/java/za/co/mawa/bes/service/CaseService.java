@@ -17,6 +17,7 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -45,66 +46,68 @@ public class CaseService {
     FieldOptionService fieldOptionService;
     @Autowired
     CommentService commentService;
+    @Autowired
+    TaskService taskService;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.CASE);
-        transactionCreateDto.setLocation(caseCreateDto.getCourt());
+//        transactionCreateDto.setLocation(caseCreateDto.getCourt());
         //this is the case type
         transactionCreateDto.setSubType(caseCreateDto.getType());
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
        //CLASSIFICATION AS PRODUCT
-        if(caseCreateDto.getProduct() != null) {
-            ProductDto productDto = productService.get(caseCreateDto.getProduct());
-            TransactionItemDto transactionItemDto = new TransactionItemDto();
-            transactionItemDto.setTransaction(transactionDto.getId());
-            transactionItemDto.setProduct(caseCreateDto.getProduct());
-            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
-            transactionItemDto.setQuantity(new BigDecimal("1"));
-            transactionService.addItem(transactionItemDto);
-            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
-                    //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
-                    //.toList();
-            if (productPricingDtoList.iterator().hasNext()) {
-                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
-                transactionAmountInboundDto.setTransaction(transactionDto.getId());
-                transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
-                transactionAmountService.save(transactionAmountInboundDto);
-            }
-        }
-
-        if (caseCreateDto.getClient() != null) {
+//        if(caseCreateDto.getProduct() != null && !caseCreateDto.getProduct().isEmpty()) {
+//            ProductDto productDto = productService.get(caseCreateDto.getProduct());
+//            TransactionItemDto transactionItemDto = new TransactionItemDto();
+//            transactionItemDto.setTransaction(transactionDto.getId());
+//            transactionItemDto.setProduct(caseCreateDto.getProduct());
+//            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+//            transactionItemDto.setQuantity(new BigDecimal("1"));
+//            transactionService.addItem(transactionItemDto);
+//            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
+//                    //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
+//                    //.toList();
+//            if (productPricingDtoList.iterator().hasNext()) {
+//                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+//                transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
+//                transactionAmountInboundDto.setTransaction(transactionDto.getId());
+//                transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
+//                transactionAmountService.save(transactionAmountInboundDto);
+//            }
+//        }
+        if (caseCreateDto.getClient() != null && !caseCreateDto.getClient().isEmpty()) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
             transactionPartnerDto.setFunction(PartnerFunction.CLIENT);
             transactionPartnerDto.setPartner(caseCreateDto.getClient());
             transactionService.addPartner(transactionPartnerDto);
         }
-        for (String applicant : caseCreateDto.getApplicants()) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.APPLICANT);
-            transactionPartnerDto.setPartner(applicant);
-            transactionService.addPartner(transactionPartnerDto);
-        }
-
-        for (String defendant : caseCreateDto.getDefendants()) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
-            transactionPartnerDto.setPartner(defendant);
-            transactionService.addPartner(transactionPartnerDto);
-        }
+//        if(!caseCreateDto.getApplicants().isEmpty()){
+//            for (String applicant : caseCreateDto.getApplicants()) {
+//                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//                transactionPartnerDto.setTransaction(transactionDto.getId());
+//                transactionPartnerDto.setFunction(PartnerFunction.APPLICANT);
+//                transactionPartnerDto.setPartner(applicant);
+//                transactionService.addPartner(transactionPartnerDto);
+//            }
+//        }
+//        if(!caseCreateDto.getDefendants().isEmpty()){
+//            for (String defendant : caseCreateDto.getDefendants()) {
+//                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//                transactionPartnerDto.setTransaction(transactionDto.getId());
+//                transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
+//                transactionPartnerDto.setPartner(defendant);
+//                transactionService.addPartner(transactionPartnerDto);
+//            }
+//        }
         CaseDto caseDto = new CaseDto();
         caseDto.setId(transactionDto.getId());
-
         return caseDto;
-
     }
 
     public List<CaseDto> search(CaseQueryDto caseQueryDto) {
@@ -130,8 +133,8 @@ public class CaseService {
             caseDto.setNumber(transactionDto.getNumber());
             caseDto.setDescription(transactionDto.getDescription());
 
-            caseDto.setType(fieldOptionService.getFieldOption(Field.CASE, transactionDto.getType()));
-            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
+            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE, transactionDto.getSubType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
 
             List<ParticipantDto> participantDtoList = new ArrayList<>();
@@ -145,6 +148,9 @@ public class CaseService {
                     }
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
                         caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
+                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SERVICE_PROVIDER)) {
+                        caseDto.getServiceProviders().add(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));
@@ -170,17 +176,29 @@ public class CaseService {
                 dateDto.setType(fieldOptionService.getFieldOption(Field.DATE_TYPE, transactionDateDto.getType()));
                 dateDtoList.add(dateDto);
             }
+
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             List<CommentDto> comments = new ArrayList<>();
-            for (TransactionLinkDto link : links) {
+            List<TaskDto> tasks = new ArrayList<>();
 
-                CommentDto comment = new CommentDto();
-                comment = commentService.get(link.getTransaction2());
-                if(Objects.equals(comment.getType(), "COMMENT")) {
-                    comments.add(comment);
-                }
+            for (TransactionLinkDto link : links) {
+               try {
+                   if (link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
+//                       CommentDto comment = new CommentDto();
+//                       comment = commentService.get(link.getTransaction2());
+                       comments.add(commentService.get(link.getTransaction2()));
+
+                   } else if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
+
+                       tasks.add(taskService.get(link.getTransaction2()));
+                   }
+               } catch (Exception e) {
+//                   throw new RuntimeException(e);
+               }
             }
             caseDto.setComments(comments);
+            caseDto.setTasks(tasks);
+
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
