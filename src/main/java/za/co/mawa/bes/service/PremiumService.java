@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import jakarta.persistence.criteria.Predicate;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -58,11 +59,16 @@ public class PremiumService {
         try {
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
+            try{
+                if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
+                    entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
+                } else {
+                    entity.setExtReceiptNumber(null);
+                }
+            }catch (Exception e){}
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
-//            entity.setEmployee_responsible(premiumCreateDto.getEmployeeResponsible());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -87,17 +93,22 @@ public class PremiumService {
             SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
             premiumDto.setId(entity.getId());
             premiumDto.setReceiptNumber(entity.getReceiptNumber());
-            premiumDto.setExternalReceiptNo(entity.getExtReceiptNumber());
+            try {
+                premiumDto.setExternalReceiptNo(entity.getExtReceiptNumber());
+            }catch (Exception e){}
+
             premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
+            try {
+                premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
+            }catch (Exception e){}
             premiumDto.setAmount(entity.getAmount());
             premiumDto.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
-//            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
+            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
             premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
-//                premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
-//                premiumDto.setEmployeeResponsible(partnerService.get(entity.getEmployee_responsible()));
+                premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
             } catch (Exception e) {
 
             }
@@ -109,24 +120,31 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> getReceipts(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("number").descending();
-        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        //Sort sort = Sort.by("number").descending();
+        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
         for(PremiumEntity premiumEntity: premiumEntities){
-            premiumDtoArrayList.add(get(premiumEntity.getId()));
+            try {
+                premiumDtoArrayList.add(get(premiumEntity.getId()));
+            }catch (Exception e){}
         }
         return premiumDtoArrayList;
     }
 
     public ArrayList<PremiumDto> getReceiptsX(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("number").descending();
-        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        //Sort sort = Sort.by("number").descending();
+        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
         List<PremiumEntity> premiumEntitiesNotCashed = new ArrayList<>();
         for (PremiumEntity premiumEntity : premiumEntities) {
-            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
-            if (linkEntity == null) {
-                premiumDtoArrayList.add(get(premiumEntity.getId()));
-            }
+            try {
+                TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
+                if (linkEntity == null) {
+
+                    premiumDtoArrayList.add(get(premiumEntity.getId()));
+                }
+            }catch (Exception e){}
         }
         return premiumDtoArrayList;
     }
