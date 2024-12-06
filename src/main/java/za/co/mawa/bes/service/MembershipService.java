@@ -505,72 +505,65 @@ public class MembershipService implements MembershipDao {
         return membershipDtoList;
     }
 
-    //    @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
+    // @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
     public String scheduledStatusChange() {
         System.out.println("Test schedule is working at: " + LocalDateTime.now());
         try {
-            List<TenantDto> tenants = tenantAdminService.getAll();
-            for (TenantDto tenant : tenants) {
-                TenantContext.setCurrentTenant(tenant.getId());
-//                System.out.println("Processing tenant: " + tenant.getName());
-
+            // Fetching the current tenant ID from the context
+            String currentTenantId = TenantContext.getCurrentTenant();
+            if (currentTenantId != null) {
+                System.out.println("Processing current tenant: " + currentTenantId);
                 try {
                     processTenantTransactions();
                 } catch (Exception e) {
-                    System.err.println("Error processing tenant " + tenant.getName()+ ": " + e.getMessage());
+                    System.err.println("Error processing tenant: " + e.getMessage());
                 } finally {
                     TenantContext.clear();
                 }
+            } else {
+                System.err.println("No tenant set in the context!");
             }
-            return  "Scheduling Finished";
+            return "Scheduling Finished";
         } catch (Exception e) {
-            System.err.println("Error fetching tenants: " + e.getMessage());
+            System.err.println("Error during scheduled status change: " + e.getMessage());
         }
-        return  "Scheduling Error Occurred ";
+        return "Scheduling Error Occurred";
     }
 
     private void processTenantTransactions() throws Exception {
         PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
-        try{
+
+        try {
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
             List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
 
             LocalDate today = LocalDate.now();
             LocalDate threeMonthsAgo = today.minusMonths(3);
 
-            for(TransactionViewEntity entity : membershipEntities) {
-//                System.out.println("Transaction ID: " + entity.getTransactionId());
-
-                if(!premiumEntities.isEmpty()){
+            for (TransactionViewEntity entity : membershipEntities) {
+                if (!premiumEntities.isEmpty()) {
                     for (PremiumEntity premiumEntity : premiumEntities) {
-                        MembershipEditDto editDto = new MembershipEditDto();
-                        if (premiumEntity == null || premiumEntity.getMembershipId() == null) {
-//                            System.out.println("Membership ID from V2 :" + entity.getTransactionId() + "Membership ID from premium :" + premiumEntity.getMembershipId());
-//                            System.out.println("Skipping null premium or membership");
-                        }
-                        else{
-                            LocalDate localDateToCheck = premiumEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();;
+                        if (premiumEntity != null && premiumEntity.getMembershipId() != null) {
+                            LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                                    .toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate();
+
                             if (Objects.equals(premiumEntity.getMembershipId(), entity.getTransactionId())) {
-//                                System.out.println("There's a match");
                                 if (localDateToCheck.isBefore(threeMonthsAgo)) {
-//                                    System.out.println("The date is more than 3 months old.");
+                                    MembershipEditDto editDto = new MembershipEditDto();
                                     editDto.setStatus(Status.INACTIVE);
                                     edit(entity.getTransactionId(), editDto);
-                                } else {
-//                                    System.out.println("The date is within the last 3 months.");
                                 }
                             }
                         }
-
                     }
                 }
             }
-        }
-        catch(Exception e){
-
+        } catch (Exception e) {
+            System.err.println("Error processing transactions: " + e.getMessage());
         }
     }
-
 }
