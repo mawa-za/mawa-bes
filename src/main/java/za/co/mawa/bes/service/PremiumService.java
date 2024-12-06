@@ -61,8 +61,8 @@ public class PremiumService {
             entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
-            entity.setLocation(premiumCreateDto.getLocation());
-//            entity.setEmployee_responsible(premiumCreateDto.getEmployeeResponsible());
+//            entity.setLocation(premiumCreateDto.getLocation());
+            entity.setEmployee_responsible(premiumCreateDto.getEmployeeResponsible());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -96,8 +96,8 @@ public class PremiumService {
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
-//                premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
-//                premiumDto.setEmployeeResponsible(partnerService.get(entity.getEmployee_responsible()));
+                premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+                premiumDto.setEmployeeResponsible(partnerService.get(entity.getEmployee_responsible()));
             } catch (Exception e) {
 
             }
@@ -212,14 +212,14 @@ public class PremiumService {
                     match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
                 }
 
-                if(premiumSearchDto.getMembershipId() != null ){
+                if(premiumSearchDto.getMembershipId() != null){
                     match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
                 }
 
-                if(premiumSearchDto.getLocation() !=null && !premiumSearchDto.getLocation().isEmpty()){
-
-                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
-                }
+//                if(premiumSearchDto.getLocation() !=null){
+//
+//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+//                }
 
                 if(match) {
                     premiumEntities.add(premium);
