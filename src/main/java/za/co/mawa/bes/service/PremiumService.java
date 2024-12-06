@@ -1,7 +1,6 @@
 package za.co.mawa.bes.service;
 
 import jakarta.persistence.criteria.Predicate;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -52,21 +51,18 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PartnerService partnerService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            try{
-                if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
-                    entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
-                } else {
-                    entity.setExtReceiptNumber(null);
-                }
-            }catch (Exception e){}
+            entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
+//            entity.setEmployee_responsible(premiumCreateDto.getEmployeeResponsible());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -91,22 +87,17 @@ public class PremiumService {
             SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
             premiumDto.setId(entity.getId());
             premiumDto.setReceiptNumber(entity.getReceiptNumber());
-            try {
-                premiumDto.setExternalReceiptNo(entity.getExtReceiptNumber());
-            }catch (Exception e){}
-
+            premiumDto.setExternalReceiptNo(entity.getExtReceiptNumber());
             premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
-            try {
-                premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
-            }catch (Exception e){}
             premiumDto.setAmount(entity.getAmount());
             premiumDto.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
-            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
+//            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
             premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
-                premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
+//                premiumDto.setCreatedBy(userService.getUserByName(entity.getCreatedBy()).getPartner());
+//                premiumDto.setEmployeeResponsible(partnerService.get(entity.getEmployee_responsible()));
             } catch (Exception e) {
 
             }
@@ -118,31 +109,24 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> getReceipts(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        //Sort sort = Sort.by("number").descending();
-        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
-        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
+        Sort sort = Sort.by("number").descending();
+        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         for(PremiumEntity premiumEntity: premiumEntities){
-            try {
-                premiumDtoArrayList.add(get(premiumEntity.getId()));
-            }catch (Exception e){}
+            premiumDtoArrayList.add(get(premiumEntity.getId()));
         }
         return premiumDtoArrayList;
     }
 
     public ArrayList<PremiumDto> getReceiptsX(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        //Sort sort = Sort.by("number").descending();
-        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
-        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
+        Sort sort = Sort.by("number").descending();
+        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         List<PremiumEntity> premiumEntitiesNotCashed = new ArrayList<>();
         for (PremiumEntity premiumEntity : premiumEntities) {
-            try {
-                TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
-                if (linkEntity == null) {
-
-                    premiumDtoArrayList.add(get(premiumEntity.getId()));
-                }
-            }catch (Exception e){}
+            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
+            if (linkEntity == null) {
+                premiumDtoArrayList.add(get(premiumEntity.getId()));
+            }
         }
         return premiumDtoArrayList;
     }
@@ -213,10 +197,15 @@ public class PremiumService {
 
                 boolean match = true;
 
-                if(premiumSearchDto.getEmployeeResponsible() != null) {
+//                if(premiumSearchDto.getEmployeeResponsible() != null) {
+//
+//                    match =  premium.getEmployee_responsible().equals(premiumSearchDto.getEmployeeResponsible());
+//                }
 
-                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
-                }
+//                if(premiumSearchDto.getCreatedBy() != null){
+//
+//                    match = match && premium.getCreatedBy().equals(premiumSearchDto.getCreatedBy());
+//                }
 
                 if(premiumSearchDto.getTenderType() != null) {
 
@@ -227,10 +216,10 @@ public class PremiumService {
                     match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
                 }
 
-                if(premiumSearchDto.getLocation() !=null){
-
-                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
-                }
+//                if(premiumSearchDto.getLocation() !=null){
+//
+//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+//                }
 
                 if(match) {
                     premiumEntities.add(premium);
@@ -242,4 +231,5 @@ public class PremiumService {
         }
         return premiumEntities;
     }
+
 }
