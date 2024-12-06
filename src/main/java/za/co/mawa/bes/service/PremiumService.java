@@ -109,24 +109,31 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> getReceipts(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("number").descending();
-        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        //Sort sort = Sort.by("number").descending();
+        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
         for(PremiumEntity premiumEntity: premiumEntities){
-            premiumDtoArrayList.add(get(premiumEntity.getId()));
+            try {
+                premiumDtoArrayList.add(get(premiumEntity.getId()));
+            }catch (Exception e){}
         }
         return premiumDtoArrayList;
     }
 
     public ArrayList<PremiumDto> getReceiptsX(PremiumSearchDto premiumSearchDto) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        Sort sort = Sort.by("number").descending();
-        List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        //Sort sort = Sort.by("number").descending();
+        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        List<PremiumEntity> premiumEntities = search(premiumSearchDto);
         List<PremiumEntity> premiumEntitiesNotCashed = new ArrayList<>();
         for (PremiumEntity premiumEntity : premiumEntities) {
-            TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
-            if (linkEntity == null) {
-                premiumDtoArrayList.add(get(premiumEntity.getId()));
-            }
+            try {
+                TransactionLinkEntity linkEntity = transactionLinkRepository.getTransactionLinks(premiumEntity.getId(), TransactionType.CASHUP);
+                if (linkEntity == null) {
+
+                    premiumDtoArrayList.add(get(premiumEntity.getId()));
+                }
+            }catch (Exception e){}
         }
         return premiumDtoArrayList;
     }
@@ -197,29 +204,24 @@ public class PremiumService {
 
                 boolean match = true;
 
-//                if(premiumSearchDto.getEmployeeResponsible() != null) {
-//
-//                    match =  premium.getEmployee_responsible().equals(premiumSearchDto.getEmployeeResponsible());
-//                }
+                if(premiumSearchDto.getEmployeeResponsible() != null) {
 
-//                if(premiumSearchDto.getCreatedBy() != null){
-//
-//                    match = match && premium.getCreatedBy().equals(premiumSearchDto.getCreatedBy());
-//                }
+                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
+                }
 
                 if(premiumSearchDto.getTenderType() != null) {
 
                     match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
                 }
 
-                if(premiumSearchDto.getMembershipId() != null){
+                if(premiumSearchDto.getMembershipId() != null ){
                     match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
                 }
 
-//                if(premiumSearchDto.getLocation() !=null){
-//
-//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
-//                }
+                if(premiumSearchDto.getLocation() !=null && !premiumSearchDto.getLocation().isEmpty()){
+
+                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+                }
 
                 if(match) {
                     premiumEntities.add(premium);
