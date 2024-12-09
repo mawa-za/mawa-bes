@@ -12,6 +12,8 @@ import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
 import za.co.mawa.bes.dto.participant.ParticipantDto;
+import za.co.mawa.bes.dto.participant.ParticipantOutboundDto;
+import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
@@ -22,7 +24,9 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -45,6 +49,8 @@ public class CaseService {
     FieldOptionService fieldOptionService;
     @Autowired
     CommentService commentService;
+    @Autowired
+    PartnerRepository partnerRepository;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -135,14 +141,31 @@ public class CaseService {
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
 
             List<ParticipantDto> participantDtoList = new ArrayList<>();
+
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+
                 try {
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.CLIENT)) {
-                        caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
+//                        caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
                     }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.APPLICANT)) {
-                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPLICANT)) {
+//                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                        ParticipantOutboundDto participantOutboundDto = new ParticipantOutboundDto();
+                        participantOutboundDto.setParticipant(partnerService.get(transactionPartnerDto.getPartner()));
+
+                        List<TransactionLinkDto> links = transactionService.getLinks(transactionPartnerDto.getPartner());
+                        for (TransactionLinkDto link : links) {
+                            if(link.getType().equalsIgnoreCase(TransactionType.LEGAL_REPRESENTATIVE_LINK)) {
+
+                                PartnerEntity partner = partnerRepository.getById(link.getTransaction2());
+                                PartnerBasicDto partnerBasicDto = partnerService.partnerDtoToPartnerBasicDto(partner);
+
+                                participantOutboundDto.setLegalRepresentative(partnerBasicDto);
+                            }
+                        }
+                        caseDto.getApplicants().add(participantOutboundDto);
                     }
+
                     if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
                         caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
                     }
@@ -190,4 +213,6 @@ public class CaseService {
             throw new RuntimeException(e);
         }
     }
+
+
 }
