@@ -145,8 +145,8 @@ public class CaseService {
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
 
                 try {
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.CLIENT)) {
-//                        caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.CLIENT)) {
+                        caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
                     }
                     if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPLICANT)) {
 //                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
@@ -166,8 +166,22 @@ public class CaseService {
                         caseDto.getApplicants().add(participantOutboundDto);
                     }
 
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
-                        caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.DEFENDANT)) {
+//                        caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                        ParticipantOutboundDto participantOutboundDto = new ParticipantOutboundDto();
+                        participantOutboundDto.setParticipant(partnerService.get(transactionPartnerDto.getPartner()));
+
+                        List<TransactionLinkDto> links = transactionService.getLinks(transactionPartnerDto.getPartner());
+                        for (TransactionLinkDto link : links) {
+                            if(link.getType().equalsIgnoreCase(TransactionType.LEGAL_REPRESENTATIVE_LINK)) {
+
+                                PartnerEntity partner = partnerRepository.getById(link.getTransaction2());
+                                PartnerBasicDto partnerBasicDto = partnerService.partnerDtoToPartnerBasicDto(partner);
+
+                                participantOutboundDto.setLegalRepresentative(partnerBasicDto);
+                            }
+                        }
+                        caseDto.getDefendants().add(participantOutboundDto);
                     }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));
