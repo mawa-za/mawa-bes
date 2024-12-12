@@ -20,7 +20,7 @@ public class SettingService implements SettingDao {
         Properties props = new Properties();
         while (it.hasNext()) {
             SettingEntity setting = it.next();
-            if ("type".equals(setting.getSettingsPK().getSetting())) {
+            if (type.equals(setting.getSettingsPK().getSetting())) {
                 props.put(setting.getSettingsPK().getAttribute(), setting.getValue());
             }
         }
