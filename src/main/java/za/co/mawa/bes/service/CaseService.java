@@ -51,60 +51,60 @@ public class CaseService {
 
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.CASE);
-        transactionCreateDto.setLocation(caseCreateDto.getCourt());
+//        transactionCreateDto.setLocation(caseCreateDto.getCourt());
         //this is the case type
         transactionCreateDto.setSubType(caseCreateDto.getType());
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
        //CLASSIFICATION AS PRODUCT
-        if(caseCreateDto.getProduct() != null) {
-            ProductDto productDto = productService.get(caseCreateDto.getProduct());
-            TransactionItemDto transactionItemDto = new TransactionItemDto();
-            transactionItemDto.setTransaction(transactionDto.getId());
-            transactionItemDto.setProduct(caseCreateDto.getProduct());
-            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
-            transactionItemDto.setQuantity(new BigDecimal("1"));
-            transactionService.addItem(transactionItemDto);
-            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
-                    //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
-                    //.toList();
-            if (productPricingDtoList.iterator().hasNext()) {
-                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
-                transactionAmountInboundDto.setTransaction(transactionDto.getId());
-                transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
-                transactionAmountService.save(transactionAmountInboundDto);
-            }
-        }
-
-        if (caseCreateDto.getClient() != null) {
+//        if(caseCreateDto.getProduct() != null && !caseCreateDto.getProduct().isEmpty()) {
+//            ProductDto productDto = productService.get(caseCreateDto.getProduct());
+//            TransactionItemDto transactionItemDto = new TransactionItemDto();
+//            transactionItemDto.setTransaction(transactionDto.getId());
+//            transactionItemDto.setProduct(caseCreateDto.getProduct());
+//            transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+//            transactionItemDto.setQuantity(new BigDecimal("1"));
+//            transactionService.addItem(transactionItemDto);
+//            List<ProductPricingDto> productPricingDtoList = productDto.getPricings().stream().toList();
+//                    //.filter(a -> Objects.equals(a.getPricing().getCode(), ProductPricing.SELLING_PRICE))
+//                    //.toList();
+//            if (productPricingDtoList.iterator().hasNext()) {
+//                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+//                transactionAmountInboundDto.setAmount(productPricingDtoList.iterator().next().getValue());
+//                transactionAmountInboundDto.setTransaction(transactionDto.getId());
+//                transactionAmountInboundDto.setType(AmountType.SERVICE_AMOUNT);
+//                transactionAmountService.save(transactionAmountInboundDto);
+//            }
+//        }
+        if (caseCreateDto.getClient() != null && !caseCreateDto.getClient().isEmpty()) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
             transactionPartnerDto.setFunction(PartnerFunction.CLIENT);
             transactionPartnerDto.setPartner(caseCreateDto.getClient());
             transactionService.addPartner(transactionPartnerDto);
         }
-        for (String applicant : caseCreateDto.getApplicants()) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.APPLICANT);
-            transactionPartnerDto.setPartner(applicant);
-            transactionService.addPartner(transactionPartnerDto);
-        }
-
-        for (String defendant : caseCreateDto.getDefendants()) {
-            TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-            transactionPartnerDto.setTransaction(transactionDto.getId());
-            transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
-            transactionPartnerDto.setPartner(defendant);
-            transactionService.addPartner(transactionPartnerDto);
-        }
+//        if(!caseCreateDto.getApplicants().isEmpty()){
+//            for (String applicant : caseCreateDto.getApplicants()) {
+//                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//                transactionPartnerDto.setTransaction(transactionDto.getId());
+//                transactionPartnerDto.setFunction(PartnerFunction.APPLICANT);
+//                transactionPartnerDto.setPartner(applicant);
+//                transactionService.addPartner(transactionPartnerDto);
+//            }
+//        }
+//        if(!caseCreateDto.getDefendants().isEmpty()){
+//            for (String defendant : caseCreateDto.getDefendants()) {
+//                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+//                transactionPartnerDto.setTransaction(transactionDto.getId());
+//                transactionPartnerDto.setFunction(PartnerFunction.DEFENDANT);
+//                transactionPartnerDto.setPartner(defendant);
+//                transactionService.addPartner(transactionPartnerDto);
+//            }
+//        }
         CaseDto caseDto = new CaseDto();
         caseDto.setId(transactionDto.getId());
-
         return caseDto;
-
     }
 
     public List<CaseDto> search(CaseQueryDto caseQueryDto) {
@@ -130,8 +130,8 @@ public class CaseService {
             caseDto.setNumber(transactionDto.getNumber());
             caseDto.setDescription(transactionDto.getDescription());
 
-            caseDto.setType(fieldOptionService.getFieldOption(Field.CASE, transactionDto.getType()));
-            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE,transactionDto.getSubType()));
+            caseDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+            caseDto.setCaseType(fieldOptionService.getFieldOption(Field.CASE_TYPE, transactionDto.getSubType()));
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
 
             List<ParticipantDto> participantDtoList = new ArrayList<>();
