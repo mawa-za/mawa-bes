@@ -10,4 +10,7 @@ public class HtmlTemplateVariableKey {
     public static String USER_NAME = "username";
     public static String USER_FIRST_NAME = "firstname";
     public static String NUMBER = "number";
+    public static String IDENTIFIER = "identifier";
+    public static String PAYER = "payer";
+    public static String PAYMENT_NAME = "payment.name";
 }

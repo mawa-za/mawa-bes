@@ -13,6 +13,7 @@ public class Conversion {
     private static final DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private static final DateFormat dateTimeFormatter2 = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private static final DateFormat dateTimeFormatter3 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
     private static final DateFormat TimeFormatter = new SimpleDateFormat("HH:mm:ss");
     private static final DateFormat TimeFormatter2 = new SimpleDateFormat("HH:mm");
     public static String dateToString(Date date) {
@@ -37,6 +38,14 @@ public class Conversion {
 
         if (date != null) {
             stringDate = dateTimeFormatter.format(date);
+        }
+        return stringDate;
+    }
+    public static String dateTimeToString3(Date date) {
+        String stringDate = "";
+
+        if (date != null) {
+            stringDate = dateTimeFormatter3.format(date);
         }
         return stringDate;
     }
