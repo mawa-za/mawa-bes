@@ -2,40 +2,41 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.dao.BankFileXmlDao;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.BankFileXmlCreateDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.TransactionEditDto;
+import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
+import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.TransactionType;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import za.co.mawa.bes.dto.FieldOptionDto;
-import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
-import za.co.mawa.bes.utils.Conversion;
-import za.co.mawa.bes.utils.Field;
-
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-
 import java.io.File;
 import java.math.BigDecimal;
-import java.util.*;
-
-import static java.lang.Boolean.TRUE;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 
 @Service
-public class BankFileXmlService {
+public class BankFileService {
 
+    @Autowired
+    TransactionService transactionService;
     @Autowired
     AttachmentService attachmentService;
     @Autowired
@@ -46,6 +47,11 @@ public class BankFileXmlService {
     BankAccountService bankAccountService;
     @Autowired
     PaymentRequestService paymentRequestService;
+    public TransactionDto createPaymentBatch(){
+        TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
+        transactionCreateDto.setType(TransactionType.PAYMENT_BATCH);
+        return transactionService.create(transactionCreateDto);
+    }
 
     public String createBankFile(String paymentRequestId) throws Exception {
         try {
@@ -98,7 +104,7 @@ public class BankFileXmlService {
 
     public za.co.mawa.bes.dto.File generateBankFile(List<PaymentRequestDto> paymentRequests) throws Exception {
         try {
-            za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
+            TransactionDto transactionDto = createPaymentBatch();
             BankFileXmlDto bankFileXmlDto = new BankFileXmlDto();
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -114,6 +120,7 @@ public class BankFileXmlService {
                     totalAmount = totalAmount.add(paymentRequestDto.getAmount());
                 }
             }
+            bankFileXmlDto.setId(transactionDto.getNumber());
             bankFileXmlDto.setAmount(totalAmount);
             bankFileXmlDto.setNumberOfTransactions(paymentRequests.size());
             Element grpHdr = groupHeader(bankFileXmlDto, doc);
@@ -131,7 +138,8 @@ public class BankFileXmlService {
             transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
 
             DOMSource domSource = new DOMSource(doc);
-            StreamResult streamResult = new StreamResult();
+//            StreamResult streamResult = new StreamResult(new File(System.getProperty("user.dir") + "/iso_payment_" + Conversion.dateToString(new Date()) + ".xml"));
+            StreamResult streamResult = new StreamResult(new ByteArrayOutputStream());
             transformer.transform(domSource, streamResult);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -139,7 +147,24 @@ public class BankFileXmlService {
 
             // Convert byte array output to Base64
             byte[] xmlBytes = outputStream.toByteArray();
+            for (PaymentRequestDto paymentRequestDto : paymentRequests) {
+                TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
+                transactionLinkDto.setTransaction1(transactionDto.getId());
+                transactionLinkDto.setTransaction2(paymentRequestDto.getId());
+                transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
+                transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                transactionService.addLink(transactionLinkDto);
+
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(paymentRequestDto.getId());
+                transactionEditDto.setStatus(Status.PROCESSED);
+                transactionService.edit(transactionEditDto);
+            }
+            za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
+            file.setName(transactionDto.getNumber());
+            file.setType("xml");
             file.setContent(Base64.getEncoder().encodeToString(xmlBytes));
+            file.setOwner(getInitParty());
             return file;
 
         } catch (Exception e) {
@@ -148,18 +173,12 @@ public class BankFileXmlService {
 
     }
 
-    public BankFileXmlDto AssignBankFileXml(String paymentRequestId) throws Exception {
-        PaymentRequestDto paymentRequestDto = paymentRequestService.get(paymentRequestId);
-        BankFileXmlDto bankFileXmlDto = new BankFileXmlDto();
-        return bankFileXmlDto;
-    }
-
     private Element groupHeader(BankFileXmlDto bankFileXmlDto, Document doc) {
         Element grpHdr = doc.createElement("GrpHdr");
         try {
 
             Element MsgId = doc.createElement("MsgId");
-            MsgId.appendChild(doc.createTextNode(Conversion.dateTimeToString3(new Date())));
+            MsgId.appendChild(doc.createTextNode(bankFileXmlDto.getId()));
             grpHdr.appendChild(MsgId);
 
             Element creDtTm = doc.createElement("CreDtTm");
