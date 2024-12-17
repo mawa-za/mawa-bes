@@ -74,6 +74,11 @@ public class ServiceRequestService implements ServiceRequestDao {
                     transactionPartnerDto.setPartner(assignee);
                     transactionService.addPartner(transactionPartnerDto);
                 }
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(transactionDto.getId());
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setPartner(serviceRequestCreateDto.getCustomer());
+                transactionService.addPartner(transactionPartnerDto);
             }
             catch (Exception e){
             }
