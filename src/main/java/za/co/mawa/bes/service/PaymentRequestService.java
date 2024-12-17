@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.TransactionProcessDto;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -51,15 +52,20 @@ public class PaymentRequestService implements PaymentRequestDao {
     EmailService emailService;
     @Autowired
     private TransactionRepository transactionRepository;
+    @Autowired
+    ClaimService claimService;
 
     @Override
-    public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
+    public PaymentRequestDto create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.PAYMENT_REQUEST);
         transactionCreateDto.setSubType(paymentRequestCreateDto.getPaymentMethod());
         transactionCreateDto.setCategory(paymentRequestCreateDto.getPaymentReason());
         transactionCreateDto.setStatus(Status.NEW);
         transactionCreateDto.setLocation(paymentRequestCreateDto.getBranch());
+        if(paymentRequestCreateDto.getClaimId() != null){
+            transactionCreateDto.setSubDescription(paymentRequestCreateDto.getClaimId());
+        }
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
             if (paymentRequestCreateDto.getAmount() != null) {
@@ -117,7 +123,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 linkDto.setType(TransactionType.PAYMENT_REQUEST);
                 transactionService.addLink(linkDto);
             }
-            return transaction.getId();
+            return get(transaction.getId());
         } else {
             return null;
         }
@@ -139,6 +145,12 @@ public class PaymentRequestService implements PaymentRequestDao {
 
         try {
             paymentRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+        } catch (Exception e) {
+
+        }
+        try {
+            ClaimOutboundDto claim = claimService.get(transactionDto.getSubDescription());
+            paymentRequestDto.setClaim(claim);
         } catch (Exception e) {
 
         }
