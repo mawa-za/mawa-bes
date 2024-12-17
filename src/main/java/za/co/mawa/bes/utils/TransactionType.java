@@ -31,4 +31,6 @@ public class TransactionType {
 
     public static  String DEPOSIT_ATTACHMENT = "DEPOSIT-ATTACHMENT";
 
+    public static String PAYMENT_BATCH = "PAYMENT-BATCH";
+
 }

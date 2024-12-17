@@ -5,6 +5,7 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -14,9 +15,12 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import za.co.mawa.bes.dao.EmailDao;
 import za.co.mawa.bes.dto.EmailDto;
+import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Base64;
+
 @Service
 public class EmailService implements EmailDao {
 
@@ -56,6 +60,11 @@ public class EmailService implements EmailDao {
 
             final String htmlContent = this.htmlTemplateEngine.process(emailDto.getTemplate(), ctx);
             email.setText(htmlContent, true);
+            for(File file: emailDto.getFiles()){
+                byte[] doc = Base64.getDecoder().decode(file.getContent());
+                email.addAttachment(file.getName()+"."+file.getType(), new ByteArrayResource(doc));
+            }
+
 
 //            ClassPathResource clr = new ClassPathResource(SPRING_LOGO_IMAGE);
 //            email.addInline("springLogo", clr, PNG_MIME);
