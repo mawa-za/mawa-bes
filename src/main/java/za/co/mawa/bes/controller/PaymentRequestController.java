@@ -39,12 +39,12 @@ public class PaymentRequestController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
         try {
-            PaymentRequestDto payment = new PaymentRequestDto();
-            String id = paymentRequestService.create(paymentRequest);
-            if (id != null) {
-                payment.setId(id);
-            }
-            return ResponseEntity.ok().body(gson.toJson(payment));
+//            PaymentRequestDto payment = new PaymentRequestDto();
+//            String id = paymentRequestService.create(paymentRequest);
+//            if (id != null) {
+//                payment.setId(id);
+//            }
+            return ResponseEntity.ok().body(gson.toJson(paymentRequestService.create(paymentRequest)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
