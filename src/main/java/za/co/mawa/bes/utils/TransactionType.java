@@ -32,4 +32,6 @@ public class TransactionType {
     public static String UPGRADE = "UPGRADE";
 
 
+    public static String PAYMENT_BATCH = "PAYMENT-BATCH";
+
 }
