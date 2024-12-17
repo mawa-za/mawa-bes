@@ -17,15 +17,13 @@ import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
-import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.TransactionEditDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
+import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionPartnerAddException;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
@@ -66,6 +64,19 @@ public class GroupSocietyController {
     public ResponseEntity<?> getGroupSociety(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(groupSocietyService.get(id)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getGroupSocietyUsingView() {
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.GROUP_SOCIETY);
+            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+
+            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
