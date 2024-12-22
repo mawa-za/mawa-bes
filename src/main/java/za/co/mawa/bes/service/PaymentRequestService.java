@@ -51,6 +51,8 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     EmailService emailService;
     @Autowired
+    SettingService settingService;
+    @Autowired
     private TransactionRepository transactionRepository;
     @Autowired
     ClaimService claimService;
@@ -230,7 +232,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         return new ArrayList<>(paymentRequestQueryDtos);
     }
 
-    public void action(TransactionProcessDto transactionProcessDto) {
+    public void approve(TransactionProcessDto transactionProcessDto) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(transactionProcessDto.getId());
@@ -252,6 +254,5 @@ public class PaymentRequestService implements PaymentRequestDao {
             throw new RuntimeException();
         }
     }
-
 
 }

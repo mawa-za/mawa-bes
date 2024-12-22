@@ -104,7 +104,6 @@ public class PaymentRequestController {
         try {
             TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
             transactionProcessDto.setId(id);
-            transactionProcessDto.setStatus(TransactionAction.APPROVE);
             transactionProcessDto.setStatus(Status.APPROVED);
             if (statusReason != null && statusReason != "") {
                 transactionProcessDto.setReason(statusReason);
@@ -112,7 +111,7 @@ public class PaymentRequestController {
             if (description != null && description != null) {
                 transactionProcessDto.setNotes(description);
             }
-            paymentRequestService.action(transactionProcessDto);
+            paymentRequestService.approve(transactionProcessDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
