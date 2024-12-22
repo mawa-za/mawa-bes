@@ -280,7 +280,7 @@ public class ClaimController {
         try {
             String claimId = id;
             ClaimOutboundDto claim = claimService.get(claimId);
-            if (claim.getType().getCode() == "CASH-CLAIM") {
+            if (claim.getType().getCode().equals("CASH")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
                 paymentRequest.setPaymentReason(claim.getType().getCode());
@@ -314,7 +314,7 @@ public class ClaimController {
                 }
             }
 
-            if (claim.getType().getCode() == "FUNERAL-CLAIM") {
+            if (claim.getType().getCode().equals("FUNERAL")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode());
@@ -351,7 +351,7 @@ public class ClaimController {
 
                 paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("CASH");
-                paymentRequest.setPaymentReason("GROCERY-CLAIM");
+                paymentRequest.setPaymentReason("GROCERY");
                 paymentRequest.setReference("GROCERY" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
@@ -374,7 +374,7 @@ public class ClaimController {
 
             }
 
-            if (claim.getType().getCode() == "TOMBSTONE-CLAIM") {
+            if (claim.getType().getCode().equals("TOMBSTONE")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode());
