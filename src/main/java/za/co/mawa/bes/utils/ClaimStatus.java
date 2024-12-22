@@ -9,5 +9,6 @@ public class ClaimStatus {
     public static String REJECTED = "REJECTED";
     public static String DISPUTED = "DISPUTED";
     public static String CANCELLED = "CANCELLED";
-    public static String REFERRED = "COMPLETED";
+    public static String COMPLETED = "COMPLETED";
+    public static String PROCESSED = "PROCESSED";
 }
