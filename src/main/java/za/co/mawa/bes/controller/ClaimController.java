@@ -275,9 +275,10 @@ public class ClaimController {
         }
     }
 
-    @RequestMapping(value = "{id}/payment-request", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> generatePaymentRequests(@PathVariable String claimId) {
+    @RequestMapping(value = "{id}/payment-request", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> generatePaymentRequests(@PathVariable String id) {
         try {
+            String claimId = id;
             ClaimOutboundDto claim = claimService.get(claimId);
             if (claim.getType().getCode() == "CASH-CLAIM") {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
@@ -333,6 +334,7 @@ public class ClaimController {
                     bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
                     paymentRequest.setBankAccount(bankAccountCreateDto);
                 }
+
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
