@@ -31,6 +31,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class BankFileService {
@@ -47,7 +48,8 @@ public class BankFileService {
     BankAccountService bankAccountService;
     @Autowired
     PaymentRequestService paymentRequestService;
-    public TransactionDto createPaymentBatch(){
+
+    public TransactionDto createPaymentBatch() {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.PAYMENT_BATCH);
         return transactionService.create(transactionCreateDto);
@@ -308,7 +310,13 @@ public class BankFileService {
         try {
             Element pmtId = doc.createElement("PmtId");
             Element endToEndId = doc.createElement("EndToEndId");
-            endToEndId.appendChild(doc.createTextNode(paymentRequestDto.getPaymentReason().getDescription()));
+            String paymentReason;
+            try {
+                paymentReason = paymentRequestDto.getPaymentReason().getDescription();
+            } catch (Exception ex) {
+                paymentReason = bankAccountDto.getAccountHolder();
+            }
+            endToEndId.appendChild(doc.createTextNode(paymentReason));
             pmtId.appendChild(endToEndId);
             cdtTrfTxInf.appendChild(pmtId);
             Element amt = doc.createElement("Amt");
@@ -347,9 +355,15 @@ public class BankFileService {
 
             Element tp = doc.createElement("Tp");
             Element cd = doc.createElement("Cd");
-            if (bankAccountDto.getAccountType().getCode().equals("CHEQUE")) {
+            String accountType;
+            try {
+                accountType = bankAccountDto.getAccountType().getCode();
+            } catch (Exception ex) {
+                accountType = "CHEQUE";
+            }
+            if (accountType.equals("CHEQUE")) {
                 cd.appendChild(doc.createTextNode("CACC"));
-            } else if (bankAccountDto.getAccountType().getCode().equals("SAVINGS")) {
+            } else if (accountType.equals("SAVINGS")) {
                 cd.appendChild(doc.createTextNode("SVGS"));
             }
             tp.appendChild(cd);

@@ -338,7 +338,7 @@ public class ClaimController {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode()+"-CLAIM");
-                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
+                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(),"FUNERAL-VALUE").getValue()));
