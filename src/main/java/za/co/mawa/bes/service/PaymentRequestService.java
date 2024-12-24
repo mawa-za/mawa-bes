@@ -236,14 +236,14 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-            EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
-            emailDto.setSubject("Payment Request Approved");
-            emailDto.setTemplate("payment-request-approved");
-            List<PropertyDto> props = new ArrayList<>();
-            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
-            emailDto.setProperties(props);
-            emailService.send(emailDto);
+//            EmailDto emailDto = new EmailDto();
+//            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
+//            emailDto.setSubject("Payment Request Approved");
+//            emailDto.setTemplate("payment-request-approved");
+//            List<PropertyDto> props = new ArrayList<>();
+//            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
+//            emailDto.setProperties(props);
+//            emailService.send(emailDto);
         } catch (Exception exception) {
             throw new RuntimeException();
         }

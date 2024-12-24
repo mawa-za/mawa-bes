@@ -243,6 +243,26 @@ public class ClaimController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+    @RequestMapping(value = "{id}/complete", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> complete(@PathVariable String id,
+                                      @RequestParam(required = false) String statusReason,
+                                      @RequestParam(required = false) String description) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.PROCESSED);
+            if (statusReason != null && statusReason != "") {
+                transactionEditDto.setStatusReason(statusReason);
+            }
+            if (description != null && description != "") {
+                transactionEditDto.setDescription(description);
+            }
+            transactionService.edit(transactionEditDto);
+            return ResponseEntity.ok(gson.toJson(transactionService.get(transactionEditDto.getId())));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editClaim(@PathVariable String id, @RequestBody ClaimEditDto claimDto) {
@@ -283,14 +303,14 @@ public class ClaimController {
             if (claim.getType().getCode().equals("CASH")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
-                paymentRequest.setPaymentReason(claim.getType().getCode());
+                paymentRequest.setPaymentReason(claim.getType().getCode()+"-CLAIM");
                 paymentRequest.setReference("CLAIM" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(claim.getPaidOutAmount().getAmount());
                 paymentRequest.setBranch(claim.getBranch().getCode());
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                if (claim.getBankDetails() != null) {
+                if (claim.getPaymentMethod().getCode().equals("EFT")) {
                     BankAccountCreateDto bankAccount = new BankAccountCreateDto();
                     bankAccount.setAccountHolder(claim.getBankDetails().getAccountHolder());
                     bankAccount.setAccountType(claim.getBankDetails().getAccountType().getCode());
@@ -317,8 +337,8 @@ public class ClaimController {
             if (claim.getType().getCode().equals("FUNERAL")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("EFT");
-                paymentRequest.setPaymentReason(claim.getType().getCode());
-                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
+                paymentRequest.setPaymentReason(claim.getType().getCode()+"-CLAIM");
+                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(),"FUNERAL-VALUE").getValue()));
@@ -351,7 +371,7 @@ public class ClaimController {
 
                 paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("CASH");
-                paymentRequest.setPaymentReason("GROCERY");
+                paymentRequest.setPaymentReason("GROCERY-CLAIM");
                 paymentRequest.setReference("GROCERY" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
@@ -377,7 +397,7 @@ public class ClaimController {
             if (claim.getType().getCode().equals("TOMBSTONE")) {
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("EFT");
-                paymentRequest.setPaymentReason(claim.getType().getCode());
+                paymentRequest.setPaymentReason(claim.getType().getCode()+"-CLAIM");
                 paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getTombstoneServiceProvider());
@@ -409,10 +429,6 @@ public class ClaimController {
                 }
 
             }
-            TransactionEditDto transactionEditDto = new TransactionEditDto();
-            transactionEditDto.setId(claimId);
-            transactionEditDto.setStatus(ClaimStatus.PROCESSED);
-            transactionService.edit(transactionEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
