@@ -8,8 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.claim.ClaimEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
@@ -31,17 +33,10 @@ public class BankFileXmlController {
     @Autowired
     SettingService settingService;
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> generateBankFile() {
+    public ResponseEntity<?> generateBankFile( @RequestBody List<String> paymentRequests) {
         try {
-            PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
-            paymentRequestQueryDto.setStatus("APPROVED");
-            List<PaymentRequestDto> requests = paymentRequestService.getAll(paymentRequestQueryDto);
-            List<PaymentRequestDto> filteredRequests = requests.stream()
-                    .filter(a -> Objects.nonNull(a.getAmount()))
-                    .toList();
-
-            if (!filteredRequests.isEmpty()) {
-                File file = bankFileService.generateBankFile(filteredRequests);
+            if (!paymentRequests.isEmpty()) {
+                File file = bankFileService.generateBankFile(paymentRequests);
                 EmailDto emailDto = new EmailDto();
                 emailDto.getFiles().add(file);
                 emailDto.setTo(getEmail());
