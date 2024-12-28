@@ -38,18 +38,19 @@ public class BatchController {
     EmailService emailService;
     @Autowired
     SettingService settingService;
-    @RequestMapping(value="bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
         try {
+            List<String> ids = new ArrayList<>();
             PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
             paymentRequestQueryDto.setStatus("APPROVED");
-            List<PaymentRequestDto> requests = paymentRequestService.getAll(paymentRequestQueryDto);
-            List<PaymentRequestDto> filteredRequests = requests.stream()
-                    .filter(a -> Objects.nonNull(a.getAmount()))
-                    .toList();
-
-            if (!filteredRequests.isEmpty()) {
-                File file = bankFileService.generateBankFile(filteredRequests);
+            List<PaymentRequestQueryDto> paymentRequestQueryDtoList = paymentRequestService.getAllUsingView(paymentRequestQueryDto);
+            for(PaymentRequestQueryDto paymentRequest:paymentRequestQueryDtoList){
+                ids.add(paymentRequest.getId());
+            }
+            if (!ids.isEmpty()) {
+                File file = bankFileService.generateBankFile(ids);
                 EmailDto emailDto = new EmailDto();
                 emailDto.getFiles().add(file);
                 emailDto.setTo(getEmail());
@@ -70,7 +71,6 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
         try {
