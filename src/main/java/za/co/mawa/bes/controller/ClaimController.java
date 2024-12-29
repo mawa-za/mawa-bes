@@ -302,10 +302,11 @@ public class ClaimController {
             String claimId = id;
             ClaimOutboundDto claim = claimService.get(claimId);
             if (claim.getType().getCode().equals("CASH")) {
+
                 PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
                 paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
-                paymentRequest.setReference("CLAIM" + claim.getNumber());
+                paymentRequest.setReference("CASHCLAIM" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 try {
@@ -388,7 +389,7 @@ public class ClaimController {
                 paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("CASH");
                 paymentRequest.setPaymentReason("GROCERY-CLAIM");
-                paymentRequest.setReference("GROCERY" + claim.getNumber());
+                paymentRequest.setReference(getCompanyName());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
@@ -422,7 +423,7 @@ public class ClaimController {
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
-                    BankAccountDto bankAccountDto =  bankAccountDtoList.iterator().next();
+                    BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
                     BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
                     bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
                     bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
@@ -467,6 +468,15 @@ public class ClaimController {
         Properties properties = settingService.getSettings("TOMBSTONE-CLAIM");
         try {
             return properties.get("SERVICE-PROVIDER").toString();
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    private String getCompanyName() {
+        Properties properties = settingService.getSettings("TENANT");
+        try {
+            return properties.get("COMPANY-NAME").toString();
         } catch (Exception ex) {
             return "";
         }
