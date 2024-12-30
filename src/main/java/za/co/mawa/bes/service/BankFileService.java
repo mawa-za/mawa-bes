@@ -8,12 +8,14 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
+import za.co.mawa.bes.exception.RoleDoesNotExist;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
@@ -46,6 +48,11 @@ public class BankFileService {
     BankAccountService bankAccountService;
     @Autowired
     PaymentRequestService paymentRequestService;
+
+    @Autowired
+    PartnerService partnerService;
+    @Autowired
+    PartnerIdentityService partnerIdentityService;
 
     public TransactionDto createPaymentBatch() {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -325,7 +332,18 @@ public class BankFileService {
 
             Element rmtInf = doc.createElement("RmtInf");
             Element ustrd = doc.createElement("Ustrd");
-            ustrd.appendChild(doc.createTextNode(paymentRequestDto.getReference()));
+            String reference;
+            List<PartnerIdentityDto> identityDtoArrayList =
+                    partnerIdentityService.getAll(paymentRequestDto.getRecipient().getId()).stream()
+                            .filter(a -> Objects.equals(a.getType().getCode(), "ACCOUNT-NUMBER"))
+                            .toList();
+            if (!identityDtoArrayList.isEmpty()) {
+                reference = identityDtoArrayList.iterator().next().getNumber();
+            } else {
+                reference = paymentRequestDto.getReference();
+            }
+
+            ustrd.appendChild(doc.createTextNode(reference));
             rmtInf.appendChild(ustrd);
 
             cdtTrfTxInf.appendChild(cdtrAgt);
