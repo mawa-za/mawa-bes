@@ -54,7 +54,7 @@ public class BatchController {
                 EmailDto emailDto = new EmailDto();
                 emailDto.getFiles().add(file);
                 emailDto.setTo(getEmail());
-                emailDto.setSubject("Payment Batch: "+ file.getName());
+                emailDto.setSubject(file.getOwner()+ " Payment Batch: "+ file.getName());
                 emailDto.setTemplate("payment-file-generated");
                 List<PropertyDto> props = new ArrayList<>();
                 props.add(new PropertyDto(HtmlTemplateVariableKey.IDENTIFIER, file.getName()));
