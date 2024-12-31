@@ -206,6 +206,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
 
             for (TransactionViewEntity entity : entities) {
