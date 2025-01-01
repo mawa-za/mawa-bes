@@ -77,7 +77,7 @@ public class PaymentRequestController {
     public ResponseEntity<?> getPaymentRequestsWithTransactionView(@RequestParam(required = false) String status) {
         try {
             PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
-
+            paymentRequestQueryDto.setStatus(status);
             return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAllUsingView(paymentRequestQueryDto)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
