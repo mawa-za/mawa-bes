@@ -30,5 +30,4 @@ public class PaymentRequestCreateDto implements Serializable{
     private BankAccountCreateDto bankAccount;
     private String claimId;
     private String claimType;
-    private String description;
 }
