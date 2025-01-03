@@ -61,7 +61,9 @@ public class PaymentRequestService implements PaymentRequestDao {
         transactionCreateDto.setType(TransactionType.PAYMENT_REQUEST);
         transactionCreateDto.setSubType(paymentRequestCreateDto.getPaymentMethod());
         transactionCreateDto.setCategory(paymentRequestCreateDto.getClaimType());
+        transactionCreateDto.setPriority(paymentRequestCreateDto.getPaymentReason());
         transactionCreateDto.setStatus(Status.NEW);
+        transactionCreateDto.setDescription(paymentRequestCreateDto.getDescription());
         transactionCreateDto.setLocation(paymentRequestCreateDto.getBranch());
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
@@ -116,7 +118,7 @@ public class PaymentRequestService implements PaymentRequestDao {
             if (paymentRequestCreateDto.getReference() != null && paymentRequestCreateDto.getReference() != "") {
                 TransactionLinkDto linkDto = new TransactionLinkDto();
                 linkDto.setTransaction1(transaction.getId());
-                linkDto.setTransaction2(paymentRequestCreateDto.getClaimId());
+                linkDto.setTransaction2(paymentRequestCreateDto.getReference());
                 linkDto.setType(TransactionType.PAYMENT_REQUEST);
                 transactionService.addLink(linkDto);
             }
@@ -144,14 +146,17 @@ public class PaymentRequestService implements PaymentRequestDao {
 
         }
         paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus().toUpperCase()));
+        paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory().toUpperCase()));
+
         try {
             paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
         } catch (Exception e) {
 
         }
+        paymentRequestDto.setDescription(transactionDto.getDescription());
         paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType().toUpperCase()));
-        if(transactionDto.getCategory() != null && !transactionDto.getCategory().isEmpty()){
-            paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory()));
+        if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
+            paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
         }
         paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation().toUpperCase()));
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
