@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import za.co.mawa.bes.service.UserService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,6 +38,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
 
+    @Autowired
+    UserService userService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
@@ -54,6 +58,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
                 UserContext.setCurrentUser(username);
+                UserContext.setCurrentUserPartner(userService.getUserByName(username).getPartner().getId());
             } catch (IllegalArgumentException e) {
                 System.out.println("Unable to get JWT Token");
             } catch (ExpiredJwtException ex) {
@@ -65,6 +70,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     allowForRefreshToken(ex, request);
                 } else
                     request.setAttribute("exception", ex);
+            } catch (Exception e) {
+                System.out.println("User partner not found");
             }
         } else {
             logger.warn("JWT Token does not begin with Bearer String");

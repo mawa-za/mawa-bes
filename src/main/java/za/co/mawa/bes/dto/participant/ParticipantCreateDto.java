@@ -10,4 +10,5 @@ import lombok.Setter;
 public class ParticipantCreateDto {
     private String function;
     private String partner;
+    private String legalRepresentative;
 }

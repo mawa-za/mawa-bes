@@ -51,6 +51,8 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     EmailService emailService;
     @Autowired
+    SettingService settingService;
+    @Autowired
     private TransactionRepository transactionRepository;
     @Autowired
     ClaimService claimService;
@@ -157,8 +159,14 @@ public class PaymentRequestService implements PaymentRequestDao {
         paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType().toUpperCase()));
         if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
             paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
+
         }
-        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation().toUpperCase()));
+        if(transactionDto.getLocation() != null && !transactionDto.getLocation().isEmpty()){
+            paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation().toUpperCase()));
+        }
+        if(transactionDto.getSubType() != null && !transactionDto.getSubType().isEmpty()){
+            paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType().toUpperCase()));
+        }
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
                 paymentRequestDto.setDueDate(transactionDateDto.getValue());
@@ -212,6 +220,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
 
             for (TransactionViewEntity entity : entities) {
@@ -231,7 +240,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         return new ArrayList<>(paymentRequestQueryDtos);
     }
 
-    public void action(TransactionProcessDto transactionProcessDto) {
+    public void approve(TransactionProcessDto transactionProcessDto) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(transactionProcessDto.getId());
@@ -241,18 +250,17 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-            EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
-            emailDto.setSubject("Payment Request Approved");
-            emailDto.setTemplate("payment-request-approved");
-            List<PropertyDto> props = new ArrayList<>();
-            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
-            emailDto.setProperties(props);
-            emailService.send(emailDto);
+//            EmailDto emailDto = new EmailDto();
+//            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
+//            emailDto.setSubject("Payment Request Approved");
+//            emailDto.setTemplate("payment-request-approved");
+//            List<PropertyDto> props = new ArrayList<>();
+//            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
+//            emailDto.setProperties(props);
+//            emailService.send(emailDto);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
     }
-
 
 }

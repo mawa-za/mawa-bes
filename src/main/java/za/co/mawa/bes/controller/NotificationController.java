@@ -20,6 +20,7 @@ public class NotificationController {
     @Autowired
     NotificationService notificationService;
     Gson gson = new Gson();
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postNotification(@RequestBody NotificationCreate1Dto notificationDto) {
         try {
@@ -57,6 +58,7 @@ public class NotificationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
     @RequestMapping(value = "{id}/partner", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartnerNotifications(@PathVariable String id) {
         try {
@@ -66,4 +68,12 @@ public class NotificationController {
         }
     }
 
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getNotifications() {
+        try {
+            return ResponseEntity.ok(gson.toJson(notificationService.getAllNotifications()));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
 }

@@ -185,6 +185,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.prowidesoftware</groupId>
+            <artifactId>pw-iso20022</artifactId>
+            <version>SRU2024-10.2.4</version>
+        </dependency>
+
     </dependencies>
 
     <build>

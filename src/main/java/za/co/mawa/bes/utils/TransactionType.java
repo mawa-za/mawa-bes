@@ -19,11 +19,19 @@ public class TransactionType {
     public static String BOOKING = "BOOKING";
     public static String TASK = "TASK";
     public static String GROUP_SOCIETY = "GROUP-SOCIETY";
-
     public static  String NOTIFICATION = "NOTIFICATION";
     public static  String CASE = "CASE";
     public static  String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static  String COMMENT = "COMMENT";
     public static  String DEPOSIT_ATTACHMENT = "DEPOSIT-ATTACHMENT";
+    public static  String LEGAL_REPRESENTATIVE_LINK = "LEGAL-REPRESENTATIVE-LINK";
+
+    public  static String SALES_INVOICE = "SALES-INVOICE";
+
+    public static String DISCOUNT = "DISCOUNT";
+    public static String UPGRADE = "UPGRADE";
+
+
+    public static String PAYMENT_BATCH = "PAYMENT-BATCH";
 
 }

@@ -73,6 +73,7 @@ public class PremiumController {
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
                                          @RequestParam(required = false) String invoiceNumber,
                                          @RequestParam(required = false) String membershipId,
+                                         @RequestParam(required = false) String employeeResponsible,
                                          @RequestParam(required = false) String membershipPeriod,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
@@ -89,8 +90,12 @@ public class PremiumController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                search.setEmployeeResponsible(createdBy);
+                search.setCreatedBy(createdBy);
             }
+            if(employeeResponsible != null && employeeResponsible!=""){
+                search.setEmployeeResponsible(employeeResponsible);
+            }
+
             ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
             if (notCashed) {
                 premiumDtoArrayList = premiumService.getReceiptsX(search);
