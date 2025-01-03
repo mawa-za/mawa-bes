@@ -916,7 +916,7 @@ public class TransactionService implements TransactionDao {
         return currentUser;
     }
 
-    public List<PremiumEntity> searchReceipts(PremiumSearchDto premiumSearchDto) {
+    public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
         List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
         List<PremiumEntity> premiumEntities = new ArrayList<>();
 

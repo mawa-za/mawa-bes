@@ -239,7 +239,7 @@ public class MembershipService implements MembershipDao {
 
             PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
             premiumSearchDto.setMembershipId(id);
-            List<PremiumEntity> entities = transactionService.searchReceipts(premiumSearchDto);
+            List<PremiumEntity> entities = transactionService.search(premiumSearchDto);
             membershipDto.setMembershipHistory(entities);
 
             return membershipDto;
