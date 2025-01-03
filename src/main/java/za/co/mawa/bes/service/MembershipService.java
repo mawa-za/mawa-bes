@@ -7,6 +7,7 @@ import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
@@ -19,6 +20,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
@@ -234,6 +236,12 @@ public class MembershipService implements MembershipDao {
             }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+
+            PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+            premiumSearchDto.setMembershipId(id);
+            List<PremiumEntity> entities = transactionService.searchReceipts(premiumSearchDto);
+            membershipDto.setMembershipHistory(entities);
+
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
