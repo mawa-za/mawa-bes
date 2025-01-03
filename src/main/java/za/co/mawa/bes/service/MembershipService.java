@@ -282,12 +282,6 @@ public class MembershipService implements MembershipDao {
             }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-
-            PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
-            premiumSearchDto.setMembershipId(id);
-            List<PremiumEntity> entities = transactionService.search(premiumSearchDto);
-            membershipDto.setMembershipHistory(entities);
-
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);

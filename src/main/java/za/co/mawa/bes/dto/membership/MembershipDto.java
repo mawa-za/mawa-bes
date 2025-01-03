@@ -11,7 +11,6 @@ import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.product.ProductDto;
-import za.co.mawa.bes.entity.PremiumEntity;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -33,5 +32,4 @@ public class MembershipDto {
     private Date dateEffective;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
-    private List<PremiumEntity> membershipHistory;
 }
