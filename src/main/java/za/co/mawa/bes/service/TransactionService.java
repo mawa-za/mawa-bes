@@ -926,7 +926,6 @@ public class TransactionService implements TransactionDao {
 
         for (PremiumEntity premium : premiumEntityList) {
             try {
-
                 boolean match = true;
 
                 if(premiumSearchDto.getEmployeeResponsible() != null) {
