@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.TransactionProcessDto;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -50,22 +51,24 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     EmailService emailService;
     @Autowired
-    SettingService settingService;
-    @Autowired
     private TransactionRepository transactionRepository;
+    @Autowired
+    ClaimService claimService;
 
     @Override
-    public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
+    public PaymentRequestDto create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.PAYMENT_REQUEST);
         transactionCreateDto.setSubType(paymentRequestCreateDto.getPaymentMethod());
-        transactionCreateDto.setCategory(paymentRequestCreateDto.getPaymentReason());
+        transactionCreateDto.setCategory(paymentRequestCreateDto.getClaimType());
+        transactionCreateDto.setPriority(paymentRequestCreateDto.getPaymentReason());
         transactionCreateDto.setStatus(Status.NEW);
+        transactionCreateDto.setDescription(paymentRequestCreateDto.getDescription());
         transactionCreateDto.setLocation(paymentRequestCreateDto.getBranch());
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
             if (paymentRequestCreateDto.getAmount() != null) {
-                       try {
+                try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
                     transactionAmountInboundDto.setTransaction(transaction.getId());
@@ -119,7 +122,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 linkDto.setType(TransactionType.PAYMENT_REQUEST);
                 transactionService.addLink(linkDto);
             }
-            return transaction.getId();
+            return get(transaction.getId());
         } else {
             return null;
         }
@@ -133,26 +136,29 @@ public class PaymentRequestService implements PaymentRequestDao {
         paymentRequestDto.setId(transactionDto.getId());
         paymentRequestDto.setNumber(transactionDto.getNumber());
 
-        if(transactionDto.getDescription() == null ){
-            paymentRequestDto.setDescription(transactionDto.getSubDescription());
-        }else {
-            paymentRequestDto.setDescription(transactionDto.getDescription());
-        }
-
         try {
             paymentRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
         } catch (Exception e) {
 
         }
-        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+        try {
+        } catch (Exception e) {
+
+        }
+        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus().toUpperCase()));
+        paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory().toUpperCase()));
+
         try {
             paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
         } catch (Exception e) {
 
         }
-        paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
-        paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
-        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
+        paymentRequestDto.setDescription(transactionDto.getDescription());
+        paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType().toUpperCase()));
+        if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
+            paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
+        }
+        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation().toUpperCase()));
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
                 paymentRequestDto.setDueDate(transactionDateDto.getValue());
@@ -206,7 +212,6 @@ public class PaymentRequestService implements PaymentRequestDao {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
-            transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
 
             for (TransactionViewEntity entity : entities) {
@@ -222,7 +227,6 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestQueryDtos.add(dto);
             }
         } catch (Exception e) {
-            e.printStackTrace();
         }
         return new ArrayList<>(paymentRequestQueryDtos);
     }
@@ -237,17 +241,18 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-//            EmailDto emailDto = new EmailDto();
-//            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
-//            emailDto.setSubject("Payment Request Approved");
-//            emailDto.setTemplate("payment-request-approved");
-//            List<PropertyDto> props = new ArrayList<>();
-//            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
-//            emailDto.setProperties(props);
-//            emailService.send(emailDto);
+            EmailDto emailDto = new EmailDto();
+            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
+            emailDto.setSubject("Payment Request Approved");
+            emailDto.setTemplate("payment-request-approved");
+            List<PropertyDto> props = new ArrayList<>();
+            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
+            emailDto.setProperties(props);
+            emailService.send(emailDto);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
     }
+
 
 }
