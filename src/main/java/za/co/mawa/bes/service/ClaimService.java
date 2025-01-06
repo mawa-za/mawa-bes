@@ -111,7 +111,7 @@ public class ClaimService {
                 transactionPartnerDto.setTransaction(transactionDto.getId());
                 transactionPartnerDto.setFunction(PartnerFunction.DECEASED);
                 transactionPartnerDto.setPartner(claimCreateDto.getDeceasedId());
-                //get the deceased and set the status to desceased
+                //get the deceased and set the status to deceased
                 try{
                     PartnerEntity deceased = partnerRepository.getById(claimCreateDto.getDeceasedId());
                     deceased.setStatus(Status.DECEASED);
