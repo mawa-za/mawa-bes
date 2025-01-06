@@ -38,5 +38,6 @@ public class PaymentRequestDto implements Serializable{
     private PartnerDto employeeResponsible;
     private BankAccountDto bankAccount;
     private ClaimOutboundDto claim;
+    private FieldOptionDto claimType;
 
 }
