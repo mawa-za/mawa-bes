@@ -138,55 +138,50 @@ public class PaymentRequestService implements PaymentRequestDao {
 
         try {
             paymentRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
+            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
+            paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory()));
+            paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
+
+            paymentRequestDto.setDescription(transactionDto.getDescription());
+            if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
+                paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
+            }
+            if(transactionDto.getLocation() != null && !transactionDto.getLocation().isEmpty()){
+                paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
+            }
+            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
+                    paymentRequestDto.setDueDate(transactionDateDto.getValue());
+                }
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
+                    paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
+                }
+            }
+            for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
+                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                    paymentRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
+                }
+                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
+                    paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
+                }
+            }
+
+            for (TransactionLinkDto link : transactionService.getLinks(id)) {
+                if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
+                    paymentRequestDto.setReference(link.getTransaction2());
+                }
+            }
+            try {
+                paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
+                        .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
+                        .toList().iterator().next().getAmount());
+            } catch (Exception exception) {
+            }
         } catch (Exception e) {
 
         }
-        try {
-        } catch (Exception e) {
 
-        }
-        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus().toUpperCase()));
-        paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory().toUpperCase()));
-
-        try {
-            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
-        } catch (Exception e) {
-
-        }
-        paymentRequestDto.setDescription(transactionDto.getDescription());
-        paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType().toUpperCase()));
-        if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
-            paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
-        }
-        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation().toUpperCase()));
-        for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-            if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
-                paymentRequestDto.setDueDate(transactionDateDto.getValue());
-            }
-            if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
-                paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
-            }
-        }
-        for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
-            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                paymentRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
-            }
-            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
-                paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
-            }
-        }
-
-        for (TransactionLinkDto link : transactionService.getLinks(id)) {
-            if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
-                paymentRequestDto.setReference(link.getTransaction2());
-            }
-        }
-        try {
-            paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
-                    .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
-                    .toList().iterator().next().getAmount());
-        } catch (Exception exception) {
-        }
         return paymentRequestDto;
     }
 
