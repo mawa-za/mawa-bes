@@ -27,4 +27,6 @@ public class TransactionType {
     public static  String DEPOSIT_ATTACHMENT = "DEPOSIT-ATTACHMENT";
     public static  String LEGAL_REPRESENTATIVE_LINK = "LEGAL-REPRESENTATIVE-LINK";
 
+    public static String PAYMENT_BATCH = "PAYMENT-BATCH";
+
 }
