@@ -4,10 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.entity.PremiumEntity;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -29,5 +33,5 @@ public class MembershipDto {
     private Date dateEffective;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
-    private List<TransactionViewEntity> membershipHistory;
+    private List<MembershipDto> membershipHistory;
 }
