@@ -22,9 +22,11 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -47,6 +49,8 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionRepository transactionRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -237,11 +241,17 @@ public class MembershipService implements MembershipDao {
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
 
-            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-            membershipQueryDto.setMemberId(id);
-            List<MembershipDto> memberships = search(membershipQueryDto);
-            membershipDto.setMembershipHistory(memberships);
+            List<TransactionEntity> transactionEntities = new ArrayList<>();
+            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+            transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionEntity> transactions = transactionRepository.findTransactionByType(transactionQueryDto.getType());
 
+            for(TransactionEntity entity : transactions){
+                if(entity.getId().equals(id)){
+                    transactionEntities.add(entity);
+                }
+            }
+            membershipDto.setMembershipHistory(transactionEntities);
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
