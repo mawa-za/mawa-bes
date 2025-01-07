@@ -12,6 +12,7 @@ public class Status {
     public static String CLOSED = "CLOSED";
     public static String SUSPENDED = "SUSPENDED";
     public static String TERMINATED = "TERMINATED";
+    public static String DECEASED = "DECEASED";
     public static String VALID = "VALID";
     public static String EXPIRED = "EXPIRED";
     public static String INVALID = "INVALID";
@@ -25,9 +26,13 @@ public class Status {
     public static String AWAITING_APPROVAL = "AWAITING-APPROVAL";
 
 
+
+
     public static String WAITING_PERIOD = "WAITING-PERIOD";
     public static  String INSUFFICIENT_FUNDS = "INSUFFICIENT-FUNDS";
     public static String SERVICE_REQUEST_STATUS_REASON = "SERVICE-REQUEST-STATUS-REASON";
 
 
+
 }
+

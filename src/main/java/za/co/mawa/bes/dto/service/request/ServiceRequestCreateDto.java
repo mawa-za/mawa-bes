@@ -18,7 +18,9 @@ public class ServiceRequestCreateDto implements Serializable {
     private String category;
     private String priority;
     private List<String> assignees;
+
     private String summary;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private Date dueDate;
 }
+
