@@ -33,5 +33,5 @@ public class MembershipDto {
     private Date dateEffective;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
-    private List<PremiumEntity> membershipHistory;
+    private List<MembershipDto> membershipHistory;
 }
