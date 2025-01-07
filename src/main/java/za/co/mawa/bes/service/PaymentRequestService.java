@@ -145,7 +145,7 @@ public class PaymentRequestService implements PaymentRequestDao {
 
             paymentRequestDto.setDescription(transactionDto.getDescription());
             if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
-                paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PRODUCT_ATTRIBUTE, transactionDto.getPriority()));
+                paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getPriority()));
             }
             if(transactionDto.getLocation() != null && !transactionDto.getLocation().isEmpty()){
                 paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
@@ -217,7 +217,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setStatus(entity.getTransactionStatus());
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
-                dto.setPaymentReason(entity.getCategory());
+                dto.setPaymentReason(entity.getPriority());
                 dto.setReference(entity.getReference());
                 paymentRequestQueryDtos.add(dto);
             }
