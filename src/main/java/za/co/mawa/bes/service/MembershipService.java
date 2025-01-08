@@ -7,6 +7,7 @@ import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
@@ -19,10 +20,13 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -45,6 +49,8 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionRepository transactionRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -234,11 +240,21 @@ public class MembershipService implements MembershipDao {
             }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+
+            List<TransactionViewEntity> transactionEntities = new ArrayList<>();
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> transactions = transactionService.searchV2(transactionViewDto);
+            for(TransactionViewEntity entity : transactions){
+                if(entity.getTransactionId().equals(id)){
+                    transactionEntities.add(entity);
+                }
+            }
+            membershipDto.setMembershipHistory(transactionEntities);
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public List<MembershipDto> search(MembershipQueryDto membershipQueryDto) {
@@ -277,11 +293,11 @@ public class MembershipService implements MembershipDao {
 
                 if(membershipQueryDto.getDateJoined() !=null){
 
-                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+                    String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
 
-                        match = match && dateJoined.equals(queryDateJoined);
+                    match = match && dateJoined.equals(queryDateJoined);
 
 
                 }
