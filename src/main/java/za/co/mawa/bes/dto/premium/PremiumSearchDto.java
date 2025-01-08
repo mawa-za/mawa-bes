@@ -16,5 +16,6 @@ public class PremiumSearchDto implements Serializable{
     private String membershipPeriod;
     private String tenderType;
     private String location;
+    private String createdBy;
     private String employeeResponsible;
 }

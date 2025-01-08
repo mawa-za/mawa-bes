@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 
+
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -30,4 +31,5 @@ public class MembershipDto {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private List<TransactionViewEntity> membershipHistory;
+
 }
