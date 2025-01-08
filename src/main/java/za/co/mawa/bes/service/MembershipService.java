@@ -67,6 +67,8 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    TransactionRepository transactionRepository;
 
     @Autowired
     TenantAdminService tenantAdminService;
@@ -283,16 +285,20 @@ public class MembershipService implements MembershipDao {
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
 
-            MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-            membershipQueryDto.setMemberId(id);
-            List<MembershipDto> memberships = search(membershipQueryDto);
-            membershipDto.setMembershipHistory(memberships);
-
+            List<TransactionViewEntity> transactionEntities = new ArrayList<>();
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> transactions = transactionService.searchV2(transactionViewDto);
+            for(TransactionViewEntity entity : transactions){
+                if(entity.getTransactionId().equals(id)){
+                    transactionEntities.add(entity);
+                }
+            }
+            membershipDto.setMembershipHistory(transactionEntities);
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public List<MembershipDto> search(MembershipQueryDto membershipQueryDto) {
