@@ -123,7 +123,7 @@ public class BankFileService {
                 transactionService.edit(transactionEditDto);
             }
             za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
-            file.setName(transactionDto.getNumber());
+            file.setName(getInitParty() +" - "+transactionDto.getNumber());
             file.setType("xml");
             file.setContent(Base64.getEncoder().encodeToString(xmlBytes));
             file.setOwner(getInitParty());
