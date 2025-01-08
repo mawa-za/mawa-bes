@@ -565,7 +565,8 @@ public class PartnerService {
     }
 
 
-    public boolean editRelation(RelationDto rltn) {
+    public boolean editRelation(RelationDto relationDto) {
+
         return false;
     }
 
@@ -596,13 +597,13 @@ public class PartnerService {
     }
 
 
-    public boolean removeRelation(RelationDto rltn) {
+    public boolean removeRelation(RelationDto relation) {
         boolean removed = false;
         try {
             PartnerRelationPKEntity partnerRelationPK = new PartnerRelationPKEntity();
-            partnerRelationPK.setPartner1(rltn.getPartner1());
-            partnerRelationPK.setPartner2(rltn.getPartner2());
-            partnerRelationPK.setType(rltn.getType());
+            partnerRelationPK.setPartner1(relation.getPartner1());
+            partnerRelationPK.setPartner2(relation.getPartner2());
+            partnerRelationPK.setType(relation.getType());
             partnerRelationRepository.deleteById(partnerRelationPK);
             removed = true;
         } catch (Exception e) {
@@ -641,17 +642,28 @@ public class PartnerService {
     }
 
 
-    public ArrayList<RelationDto> getRelations(String partner) {
-        ArrayList<RelationDto> relations = new ArrayList<>();
-        List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner);
-        for (PartnerRelationEntity partnerRelation : relationsPartner) {
-            RelationDto relation = new RelationDto();
-            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
-            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
-            relation.setType(partnerRelation.getPartnerRelationPK().getType());
-
+    public ArrayList<RelationOutboundDto> getAllRelations(String partner) throws PartnerNotFoundException {
+        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByPartnerId(partner);
+        for (PartnerRelationEntity partnerRelation : relationEntities) {
+            RelationOutboundDto relation = new RelationOutboundDto();
+            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
+            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
+            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
             relations.add(relation);
+        }
+        return relations;
+    }
 
+    public ArrayList<RelationOutboundDto> getRelationByBothIds( RelationDto relationDto) throws PartnerNotFoundException {
+        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByBothPartnerIds(relationDto.getPartner1(), relationDto.getPartner2());
+        for (PartnerRelationEntity partnerRelation : relationEntities) {
+            RelationOutboundDto relation = new RelationOutboundDto();
+            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
+            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
+            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
+            relations.add(relation);
         }
 
         return relations;
@@ -1279,5 +1291,19 @@ public class PartnerService {
         };
     }
 
+    public PartnerBasicDto partnerDtoToPartnerBasicDto(PartnerEntity partner) {
+        PartnerBasicDto partnerBasicDto = new PartnerBasicDto();
+        partnerBasicDto.setId(partner.getId());
+        partnerBasicDto.setType(partner.getType());
+        partnerBasicDto.setName1(partner.getName1());
+        partnerBasicDto.setName2(partner.getName2());
+        partnerBasicDto.setName3(partner.getName3());
+        partnerBasicDto.setTitle(partner.getTitle());
+        partnerBasicDto.setStatus(partner.getStatus());
+        partnerBasicDto.setGender(partner.getGender());
+        return partnerBasicDto;
+    }
+
 
 }
+
