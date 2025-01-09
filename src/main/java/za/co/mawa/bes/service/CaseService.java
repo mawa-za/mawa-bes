@@ -12,18 +12,21 @@ import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
 import za.co.mawa.bes.dto.participant.ParticipantDto;
+import za.co.mawa.bes.dto.participant.ParticipantOutboundDto;
+import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
-import za.co.mawa.bes.dto.task.TaskDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -47,7 +50,7 @@ public class CaseService {
     @Autowired
     CommentService commentService;
     @Autowired
-    TaskService taskService;
+    PartnerRepository partnerRepository;
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -138,16 +141,47 @@ public class CaseService {
             caseDto.setCourt(fieldOptionService.getFieldOption(Field.COURT, transactionDto.getLocation()));
 
             List<ParticipantDto> participantDtoList = new ArrayList<>();
+
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+
                 try {
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.CLIENT)) {
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.CLIENT)) {
                         caseDto.setClient(partnerService.get(transactionPartnerDto.getPartner()));
                     }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.APPLICANT)) {
-                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPLICANT)) {
+//                        caseDto.getApplicants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                        ParticipantOutboundDto participantOutboundDto = new ParticipantOutboundDto();
+                        participantOutboundDto.setParticipant(partnerService.get(transactionPartnerDto.getPartner()));
+
+                        List<TransactionLinkDto> links = transactionService.getLinks(transactionPartnerDto.getPartner());
+                        for (TransactionLinkDto link : links) {
+                            if(link.getType().equalsIgnoreCase(TransactionType.LEGAL_REPRESENTATIVE_LINK)) {
+
+                                PartnerEntity partner = partnerRepository.getById(link.getTransaction2());
+                                PartnerBasicDto partnerBasicDto = partnerService.partnerDtoToPartnerBasicDto(partner);
+
+                                participantOutboundDto.setLegalRepresentative(partnerBasicDto);
+                            }
+                        }
+                        caseDto.getApplicants().add(participantOutboundDto);
                     }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.DEFENDANT)) {
-                        caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
+
+                    if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.DEFENDANT)) {
+//                        caseDto.getDefendants().add(partnerService.get(transactionPartnerDto.getPartner()));
+                        ParticipantOutboundDto participantOutboundDto = new ParticipantOutboundDto();
+                        participantOutboundDto.setParticipant(partnerService.get(transactionPartnerDto.getPartner()));
+
+                        List<TransactionLinkDto> links = transactionService.getLinks(transactionPartnerDto.getPartner());
+                        for (TransactionLinkDto link : links) {
+                            if(link.getType().equalsIgnoreCase(TransactionType.LEGAL_REPRESENTATIVE_LINK)) {
+
+                                PartnerEntity partner = partnerRepository.getById(link.getTransaction2());
+                                PartnerBasicDto partnerBasicDto = partnerService.partnerDtoToPartnerBasicDto(partner);
+
+                                participantOutboundDto.setLegalRepresentative(partnerBasicDto);
+                            }
+                        }
+                        caseDto.getDefendants().add(participantOutboundDto);
                     }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));
@@ -175,25 +209,15 @@ public class CaseService {
             }
             List<TransactionLinkDto> links = transactionService.getLinks(id);
             List<CommentDto> comments = new ArrayList<>();
-            List<TaskDto> tasks = new ArrayList<>();
-
             for (TransactionLinkDto link : links) {
-               try {
-                   if (link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
-//                       CommentDto comment = new CommentDto();
-//                       comment = commentService.get(link.getTransaction2());
-                       comments.add(commentService.get(link.getTransaction2()));
 
-                   } else if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
-
-                       tasks.add(taskService.get(link.getTransaction2()));
-                   }
-               } catch (Exception e) {
-//                   throw new RuntimeException(e);
-               }
+                CommentDto comment = new CommentDto();
+                comment = commentService.get(link.getTransaction2());
+                if(Objects.equals(comment.getType(), "COMMENT")) {
+                    comments.add(comment);
+                }
             }
             caseDto.setComments(comments);
-            caseDto.setTasks(tasks);
             caseDto.setDates(dateDtoList);
             caseDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             caseDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
@@ -203,4 +227,6 @@ public class CaseService {
             throw new RuntimeException(e);
         }
     }
+
+
 }

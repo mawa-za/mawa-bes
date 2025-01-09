@@ -9,18 +9,21 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LitigantCreateDto;
 import za.co.mawa.bes.dto.RepresentativeCreateDto;
 import za.co.mawa.bes.dto.cas.CaseCreateDto;
+import za.co.mawa.bes.dto.cas.CaseDto;
 import za.co.mawa.bes.dto.cas.CaseQueryDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyCreateDto;
 import za.co.mawa.bes.dto.group.society.GroupSocietyQueryDto;
 import za.co.mawa.bes.dto.participant.ParticipantCreateDto;
 import za.co.mawa.bes.dto.participant.ParticipantDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.PartnerFunction;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +59,8 @@ public class CaseController {
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getCase(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(caseService.get(id)));
+            CaseDto caseDto = caseService.get(id);
+            return ResponseEntity.ok(gson.toJson(caseDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -80,6 +84,18 @@ public class CaseController {
             transactionPartnerDto.setFunction(participantCreateDto.getFunction());
             transactionPartnerDto.setPartner(participantCreateDto.getPartner());
             transactionService.addPartner(transactionPartnerDto);
+
+            //create a link for participant and legal rep
+            try {
+                TransactionLinkDto link = new TransactionLinkDto();
+                link.setTransaction1(participantCreateDto.getPartner());
+                link.setTransaction2(participantCreateDto.getLegalRepresentative());
+                link.setType(TransactionType.LEGAL_REPRESENTATIVE_LINK);
+                link.setCreateBy("");
+                transactionService.addLink(link);
+
+            }catch (Exception e){}
+
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
