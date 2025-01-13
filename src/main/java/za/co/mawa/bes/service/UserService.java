@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.UserDao;
@@ -204,6 +206,23 @@ public class UserService implements UserDao {
     @Override
     public String getCurrentUser() {
         return UserContext.getCurrentUser();
+    }
+    public String getCurrentUserPartnerId() {
+        try {
+
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            UserEntity user = userRepository.getByName(userDetails.getUsername());
+
+            if (user != null) {
+
+                return String.valueOf(user.getPartner());
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+
+            return null;
+        }
     }
 
     @Override
