@@ -42,9 +42,8 @@ import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -519,6 +518,53 @@ public class MembershipService implements MembershipDao {
         }
 
         return membershipDtoList;
+    }
+    public String scheduledStatusChange() {
+        try{
+            processTenantTransactions();
+            return "Scheduling Finished";
+        }
+        catch (Exception e) {
+            System.err.println("Error during scheduled status change: " + e.getMessage());
+        }
+        return "Scheduling Error Occurred";
+    }
+
+    private void processTenantTransactions() throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+
+        try {
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            List<PremiumEntity> premiumEntities = transactionService.searchReceipts(premiumSearchDto);
+
+            LocalDate today = LocalDate.now();
+            LocalDate threeMonthsAgo = today.minusMonths(3);
+
+            for (TransactionViewEntity entity : membershipEntities) {
+                if (!premiumEntities.isEmpty()) {
+                    for (PremiumEntity premiumEntity : premiumEntities) {
+                        if (premiumEntity != null && premiumEntity.getMembershipId() != null) {
+                            LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                                    .toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate();
+
+                            if (Objects.equals(premiumEntity.getMembershipId(), entity.getTransactionId())) {
+                                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+                                    MembershipEditDto editDto = new MembershipEditDto();
+                                    editDto.setStatus(Status.INACTIVE);
+                                    edit(entity.getTransactionId(), editDto);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing transactions: " + e.getMessage());
+        }
     }
 
     // @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
