@@ -67,14 +67,6 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-    //    @Autowired
-//    @Lazy PremiumService premiumService;
-    @Autowired
-    TenantAdminService tenantAdminService;
-    @Autowired
-    TransactionRepository transactionRepository;
-    @Autowired
-    TenantService tenantService;
 
     @Autowired
     TenantAdminService tenantAdminService;
@@ -529,12 +521,26 @@ public class MembershipService implements MembershipDao {
         return membershipDtoList;
     }
 
+    // @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
     public String scheduledStatusChange() {
-        try{
-            processTenantTransactions();
+        System.out.println("Test schedule is working at: " + LocalDateTime.now());
+        try {
+            // Fetching the current tenant ID from the context
+            String currentTenantId = TenantContext.getCurrentTenant();
+            if (currentTenantId != null) {
+                System.out.println("Processing current tenant: " + currentTenantId);
+                try {
+                    processTenantTransactions();
+                } catch (Exception e) {
+                    System.err.println("Error processing tenant: " + e.getMessage());
+                } finally {
+                    TenantContext.clear();
+                }
+            } else {
+                System.err.println("No tenant set in the context!");
+            }
             return "Scheduling Finished";
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.err.println("Error during scheduled status change: " + e.getMessage());
         }
         return "Scheduling Error Occurred";
