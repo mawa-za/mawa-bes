@@ -137,7 +137,9 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+                if (transactionEditDto.getChangedBy() != null){
+                    entity.setChangedBy(transactionEditDto.getChangedBy());
+                }
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -600,8 +602,8 @@ public class TransactionService implements TransactionDao {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getEmployeeResponsibleId());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
 
-                    transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
-                    resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
 
             }
         }
@@ -710,9 +712,11 @@ public class TransactionService implements TransactionDao {
 
                 boolean match = true;
 
+
                 if(transactionViewDto.getMainPartner() != null) {
                     String customerName = entity.getMainPartner().replace(" ", "");
                     match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+
                 }
 
                 if(transactionViewDto.getStatus() != null) {
@@ -916,6 +920,45 @@ public class TransactionService implements TransactionDao {
         return currentUser;
     }
     public List<PremiumEntity> searchReceipts(PremiumSearchDto premiumSearchDto) {
+        List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
+        List<PremiumEntity> premiumEntities = new ArrayList<>();
+
+        for (PremiumEntity premium : premiumEntityList) {
+            try {
+
+                boolean match = true;
+
+                if(premiumSearchDto.getEmployeeResponsible() != null) {
+
+                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
+                }
+
+                if(premiumSearchDto.getTenderType() != null) {
+
+                    match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
+                }
+
+                if(premiumSearchDto.getMembershipId() != null){
+                    match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
+                }
+
+                if(premiumSearchDto.getLocation() !=null){
+
+                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+                }
+
+                if(match) {
+                    premiumEntities.add(premium);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return premiumEntities;
+    }
+
+    public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
         List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
         List<PremiumEntity> premiumEntities = new ArrayList<>();
 
