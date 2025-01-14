@@ -44,7 +44,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -527,6 +527,7 @@ public class MembershipService implements MembershipDao {
             return "Scheduling Finished";
         }
         catch (Exception e) {
+
             System.err.println("Error during scheduled status change: " + e.getMessage());
         }
         return "Scheduling Error Occurred";
@@ -540,6 +541,7 @@ public class MembershipService implements MembershipDao {
         try {
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
             List<PremiumEntity> premiumEntities = transactionService.searchReceipts(premiumSearchDto);
+
 
             LocalDate today = LocalDate.now();
             LocalDate threeMonthsAgo = today.minusMonths(3);
