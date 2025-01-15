@@ -521,26 +521,13 @@ public class MembershipService implements MembershipDao {
         return membershipDtoList;
     }
 
-    // @Scheduled(cron = "0 29 10 * * ?") // Runs at 10:29 AM based on the machine's local time
     public String scheduledStatusChange() {
-        System.out.println("Test schedule is working at: " + LocalDateTime.now());
-        try {
-            // Fetching the current tenant ID from the context
-            String currentTenantId = TenantContext.getCurrentTenant();
-            if (currentTenantId != null) {
-                System.out.println("Processing current tenant: " + currentTenantId);
-                try {
-                    processTenantTransactions();
-                } catch (Exception e) {
-                    System.err.println("Error processing tenant: " + e.getMessage());
-                } finally {
-                    TenantContext.clear();
-                }
-            } else {
-                System.err.println("No tenant set in the context!");
-            }
+        try{
+            processTenantTransactions();
             return "Scheduling Finished";
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
+
             System.err.println("Error during scheduled status change: " + e.getMessage());
         }
         return "Scheduling Error Occurred";
@@ -554,6 +541,7 @@ public class MembershipService implements MembershipDao {
         try {
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
             List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+
 
             LocalDate today = LocalDate.now();
             LocalDate threeMonthsAgo = today.minusMonths(3);
@@ -571,6 +559,7 @@ public class MembershipService implements MembershipDao {
                                 if (localDateToCheck.isBefore(threeMonthsAgo)) {
                                     MembershipEditDto editDto = new MembershipEditDto();
                                     editDto.setStatus(Status.INACTIVE);
+                                    editDto.setStatusReason(StatusReason.LAPSED);
                                     edit(entity.getTransactionId(), editDto);
                                 }
                             }
