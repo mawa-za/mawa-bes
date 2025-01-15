@@ -540,7 +540,7 @@ public class MembershipService implements MembershipDao {
 
         try {
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
-            List<PremiumEntity> premiumEntities = transactionService.searchReceipts(premiumSearchDto);
+            List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
 
 
             LocalDate today = LocalDate.now();
@@ -559,6 +559,7 @@ public class MembershipService implements MembershipDao {
                                 if (localDateToCheck.isBefore(threeMonthsAgo)) {
                                     MembershipEditDto editDto = new MembershipEditDto();
                                     editDto.setStatus(Status.INACTIVE);
+                                    editDto.setStatusReason(StatusReason.LAPSED);
                                     edit(entity.getTransactionId(), editDto);
                                 }
                             }
