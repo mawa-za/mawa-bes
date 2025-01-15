@@ -6,6 +6,7 @@ public class StatusReason {
     public static String ARCHIVE = "ARCHIVE";
     public static String INACTIVE = "INACTIVE";
     public static String DOCUMENT_VERIFICATION = "DOCUMENT-VERIFICATION";
+    public static String LAPSED = "LAPSED";
 
     public static  String SEEN = "SEEN";
 
