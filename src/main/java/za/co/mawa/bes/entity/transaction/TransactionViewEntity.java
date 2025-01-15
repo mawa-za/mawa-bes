@@ -86,5 +86,11 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "amount_deposited")
     private String amountDeposited;
 
+    @Column(name = "date_effective")
+    private String dateEffective;
+
+    @Column(name = "productId")
+    private String productId;
+
 }
 
