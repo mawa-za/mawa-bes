@@ -238,6 +238,21 @@ public class MembershipService implements MembershipDao {
             }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+
+            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
+            membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
+
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> entities = new ArrayList<>();
+            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+
+            for(TransactionViewEntity entity: transactionViewEntities){
+                if(entity.getTransactionId().equalsIgnoreCase(id)){
+                    entities.add(entity);
+                }
+            }
+            membershipDto.setMembershipHistory(entities);
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
