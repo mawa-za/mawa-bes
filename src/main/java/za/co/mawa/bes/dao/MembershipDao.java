@@ -10,7 +10,7 @@ public interface MembershipDao {
     MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException;
     MembershipDto get(String id);
     List<MembershipDto> search(MembershipQueryDto membershipQueryDto);
-    Boolean edit(String id, MembershipEditDto membershipEditDto);
+    void edit(String id, MembershipEditDto membershipEditDto);
     void addDependent(DependentDto dependentDto);
     void removeDependent(DependentDto dependentDto);
 }
