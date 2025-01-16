@@ -67,6 +67,8 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    UserService userService;
 
     @Autowired
     TenantAdminService tenantAdminService;
@@ -119,7 +121,8 @@ public class MembershipService implements MembershipDao {
         }
         else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
 
-                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+            transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+
         }
         else {
             transactionCreateDto.setStatus(Status.NEW);
@@ -288,15 +291,15 @@ public class MembershipService implements MembershipDao {
 
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
-            List<TransactionViewEntity> entities = new ArrayList<>();
-            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+            List<MembershipDto> previousMemberships = new ArrayList<>();
 
-            for(TransactionViewEntity entity: transactionViewEntities){
-                if(entity.getTransactionId().equalsIgnoreCase(id)){
-                    entities.add(entity);
+            for(TransactionLinkDto link: transactionLinkDtos){
+                if(link.getType().equalsIgnoreCase("UPGRADE")){
+                    previousMemberships.add(get(link.getTransaction2()));
                 }
             }
-            membershipDto.setMembershipHistory(entities);
+            membershipDto.setMembershipHistory(previousMemberships);
+
 
             return membershipDto;
         } catch (TransactionNotFound e) {

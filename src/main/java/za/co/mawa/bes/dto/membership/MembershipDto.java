@@ -36,5 +36,6 @@ public class MembershipDto {
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private List<TransactionLinkDto> membershipHistoryLinks;
-    private List<TransactionViewEntity> membershipHistory;
+    private List<MembershipDto> membershipHistory;
 }
+
