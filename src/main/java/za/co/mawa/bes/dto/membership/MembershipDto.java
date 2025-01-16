@@ -38,3 +38,4 @@ public class MembershipDto {
     private List<TransactionLinkDto> membershipHistoryLinks;
     private List<MembershipDto> membershipHistory;
 }
+

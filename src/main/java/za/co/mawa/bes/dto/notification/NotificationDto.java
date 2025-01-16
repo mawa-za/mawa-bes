@@ -4,9 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Date;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,23 +19,17 @@ public class NotificationDto implements Serializable {
     private String id;
 
     private String transactionId;
-
     private String status;
-
-    private String type;
+    private FieldOptionDto type;
     private String SubType;
-
-    private String processor;
-
-    private String recipient;
-
+    private PartnerDto processor;
+    private PartnerDto recipient;
     private String statusReason;
     private String description;
     private String category;
     private String subDescription;
-
-    private  String location;
-
-    private ArrayList<NotificationDto> notificationDtos;
-
+    private String location;
+    private ArrayList<NotificationDto> notificationDto;
+    private Date creationDate;
+    private Date lastModifiedDate;
 }

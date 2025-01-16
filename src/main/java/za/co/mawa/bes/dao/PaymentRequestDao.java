@@ -7,7 +7,7 @@ import za.co.mawa.bes.exception.DoesNotExist;
 import java.util.List;
 
 public interface PaymentRequestDao {
-    String create(PaymentRequestCreateDto paymentRequest) throws Exception;
+    PaymentRequestDto create(PaymentRequestCreateDto paymentRequest) throws Exception;
     PaymentRequestDto get(String id) throws DoesNotExist,Exception;
     List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto);
 

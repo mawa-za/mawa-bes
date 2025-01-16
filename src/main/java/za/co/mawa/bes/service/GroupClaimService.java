@@ -262,15 +262,15 @@ public class GroupClaimService {
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
             if (transactionDto.getType() == "GROUP-SOCIETY-FUNERAL") {
-                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
-                voucherInboundDto.setType(transactionDto.getType());
+                VoucherCreateDto voucherCreateDto = new VoucherCreateDto();
+                voucherCreateDto.setType(transactionDto.getType());
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherCreateDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -278,9 +278,9 @@ public class GroupClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherCreateDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherService.create(voucherInboundDto);
+                voucherService.create(voucherCreateDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
