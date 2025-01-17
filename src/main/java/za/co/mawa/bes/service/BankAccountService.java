@@ -48,6 +48,7 @@ public class BankAccountService {
         bankAccountEntity.setAccountHolder(bankAccountEditDto.getAccountHolder());
         bankAccountEntity.setAccountType(bankAccountEditDto.getAccountType());
         bankAccountEntity.setBankName(bankAccountEditDto.getBankName());
+        bankAccountEntity.setBranchCode(getUBC(bankAccountEntity.getBankName()));
         bankAccountEntity.setAccountNumber(bankAccountEditDto.getAccountNumber());
         bankAccountEntity.setBranchCode(bankAccountEditDto.getBankName());
 //        bankAccountEntity.setStatus(Status.ACTIVE);
@@ -73,7 +74,7 @@ public class BankAccountService {
         bankAccountDto.setAccountNumber(bankAccountEntity.getAccountNumber());
         bankAccountDto.setBankName(fieldOptionService.getFieldOption(Field.BANK_NAME, bankAccountEntity.getBankName()));
         bankAccountDto.setAccountType(fieldOptionService.getFieldOption(Field.BANK_ACCOUNT_TYPE, bankAccountEntity.getAccountType()));
-        bankAccountDto.setBranchCode(bankAccountEntity.getBranchCode());
+        bankAccountDto.setBranchCode(getUBC(bankAccountEntity.getBankName()));
         bankAccountDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, bankAccountEntity.getStatus()));
         return bankAccountDto;
     }
