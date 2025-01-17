@@ -180,7 +180,7 @@ public class BankFileService {
             pmtInf.appendChild(pmtMtd);
 
             Element btchBookg = doc.createElement("BtchBookg");
-            btchBookg.appendChild(doc.createTextNode("true"));
+            btchBookg.appendChild(doc.createTextNode("false"));
             pmtInf.appendChild(btchBookg);
 
             Element pmtNbOfTxs = doc.createElement("NbOfTxs");
