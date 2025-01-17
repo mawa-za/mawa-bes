@@ -50,6 +50,8 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     EmailService emailService;
     @Autowired
+    SettingService settingService;
+    @Autowired
     private TransactionRepository transactionRepository;
 
     @Override
@@ -204,6 +206,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
 
             for (TransactionViewEntity entity : entities) {
@@ -224,7 +227,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         return new ArrayList<>(paymentRequestQueryDtos);
     }
 
-    public void action(TransactionProcessDto transactionProcessDto) {
+    public void approve(TransactionProcessDto transactionProcessDto) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(transactionProcessDto.getId());
@@ -234,18 +237,17 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-            EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
-            emailDto.setSubject("Payment Request Approved");
-            emailDto.setTemplate("payment-request-approved");
-            List<PropertyDto> props = new ArrayList<>();
-            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
-            emailDto.setProperties(props);
-            emailService.send(emailDto);
+//            EmailDto emailDto = new EmailDto();
+//            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
+//            emailDto.setSubject("Payment Request Approved");
+//            emailDto.setTemplate("payment-request-approved");
+//            List<PropertyDto> props = new ArrayList<>();
+//            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
+//            emailDto.setProperties(props);
+//            emailService.send(emailDto);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
     }
-
 
 }
