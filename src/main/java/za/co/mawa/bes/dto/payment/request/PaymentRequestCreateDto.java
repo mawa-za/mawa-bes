@@ -28,4 +28,7 @@ public class PaymentRequestCreateDto implements Serializable{
     private String employeeResponsibleId;
     private String branch;
     private BankAccountCreateDto bankAccount;
+    private String claimId;
+    private String claimType;
+    private String description;
 }

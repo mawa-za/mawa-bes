@@ -52,6 +52,8 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PartnerService partnerService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -67,6 +69,7 @@ public class PremiumService {
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
+
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -107,6 +110,7 @@ public class PremiumService {
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
                 premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
+
             } catch (Exception e) {
 
             }
@@ -215,7 +219,12 @@ public class PremiumService {
 
                 if(premiumSearchDto.getEmployeeResponsible() != null) {
 
-                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
+                    match =  premium.getEmployee_responsible().equals(premiumSearchDto.getEmployeeResponsible());
+                }
+
+                if(premiumSearchDto.getCreatedBy() != null){
+
+                    match = match && premium.getCreatedBy().equals(premiumSearchDto.getCreatedBy());
                 }
 
                 if(premiumSearchDto.getTenderType() != null) {
@@ -227,10 +236,10 @@ public class PremiumService {
                     match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
                 }
 
-                if(premiumSearchDto.getLocation() !=null){
-
-                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
-                }
+//                if(premiumSearchDto.getLocation() !=null){
+//
+//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+//                }
 
                 if(match) {
                     premiumEntities.add(premium);
@@ -242,4 +251,5 @@ public class PremiumService {
         }
         return premiumEntities;
     }
+
 }

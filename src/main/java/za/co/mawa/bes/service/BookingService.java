@@ -3,6 +3,8 @@ package za.co.mawa.bes.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.BookingDao;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.booking.BookingCreateDto;
 import za.co.mawa.bes.dto.booking.BookingDto;
@@ -17,12 +19,21 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 public class BookingService implements BookingDao {
@@ -32,6 +43,10 @@ public class BookingService implements BookingDao {
     ProductService productService;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    InvoiceService invoiceService;
     @Override
     public String createBooking(BookingCreateDto createDto) throws Exception {
         try{
@@ -44,10 +59,10 @@ public class BookingService implements BookingDao {
                 String bookDate = createDto.getBookDate() == null ?"":createDto.getBookDate();
                 if(bookTime != "" && bookDate != ""){
                     //SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-                   // Date dateBook = dateFormat.parse(bookDate);
-                   // SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
-                   // Date timeBook = timeFormat.parse(bookTime);
-                   // Date bookTimeDate = new Date(dateBook.getTime() + timeBook.getTime());
+                    // Date dateBook = dateFormat.parse(bookDate);
+                    // SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
+                    // Date timeBook = timeFormat.parse(bookTime);
+                    // Date bookTimeDate = new Date(dateBook.getTime() + timeBook.getTime());
 
                     String bookTimeDate = bookDate+ " " + bookTime;
 
@@ -103,65 +118,102 @@ public class BookingService implements BookingDao {
     @Override
     public BookingDto getBooking(String id) throws Exception {
         BookingDto bookingDto = new BookingDto();
-        TransactionDto transactionDto = transactionService.get(id);
-        if(transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)){
-           bookingDto.setId(transactionDto.getId());
-           bookingDto.setNumber(transactionDto.getNumber());
-           bookingDto.setStatus(transactionDto.getStatus());
-           for(TransactionPartnerDto partner:transactionService.getPartners(id)){
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setCustomer(partnerDto);
-                   }catch(PartnerNotFoundException ex){
 
-                   }
-               }
-               if(partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)){
-                   try{
-                       PartnerDto partnerDto = partnerService.get(partner.getPartner());
-                       bookingDto.setEmployeeResponsible(partnerDto);
-                   }catch(PartnerNotFoundException ex){
+        try {
+            TransactionDto transactionDto = transactionService.get(id);
 
-                   }
-               }
-           }
-           for(TransactionDateDto dates:transactionService.getDates(id)){
-             if(dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)){
-                 bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
-                 bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
-                 //break;
-             }
-             if(dates.getType().equalsIgnoreCase(DateType.CREATED)){
-                 bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
-             }
-           }
+            if (transactionDto.getType().equalsIgnoreCase(TransactionType.APPOINTMENT)) {
+                bookingDto.setId(transactionDto.getId());
+                bookingDto.setNumber(transactionDto.getNumber());
+            }
 
+            List<TransactionPartnerDto> partners = transactionService.getPartners(id);
+            for (TransactionPartnerDto partner : partners) {
+                try {
+                    PartnerDto partnerDto = partnerService.get(partner.getPartner());
+                    if (partnerDto != null) {
+                        if (partner.getFunction().equalsIgnoreCase(PartnerFunction.CUSTOMER)) {
+                            bookingDto.setCustomer(partnerDto);
+                        } else if (partner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                            bookingDto.setEmployeeResponsible(partnerDto);
+                        }
+                    }
+                } catch (PartnerNotFoundException ex) {
+                    throw new Exception("Partner not found: " + ex.getMessage());
+                }
+            }
+
+            for (TransactionDateDto dates : transactionService.getDates(id)) {
+                if (dates.getType().equalsIgnoreCase(DateType.BOOKING_DATE)) {
+                    bookingDto.setBookDate(Conversion.dateToString(dates.getValue()));
+                    bookingDto.setBookTime(Conversion.time2ToString(dates.getValue()));
+                }
+                if (dates.getType().equalsIgnoreCase(DateType.CREATED)) {
+                    bookingDto.setCreatedOn(Conversion.dateToString(dates.getValue()));
+                }
+            }
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.APPOINTMENT);
+            String transactionSubType = "";
+
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+            if (entities != null && !entities.isEmpty()) {
+                for (TransactionViewEntity invoice : entities) {
+                    if (invoice.getTransactionSubtype() != null && !invoice.getTransactionSubtype().isEmpty()) {
+                        if (invoice.getTransactionSubtype().equalsIgnoreCase(id)) {
+                            transactionSubType = invoice.getTransactionSubtype();
+                        }
+                    }
+                }
+            }
+
+            LocalDate today = LocalDate.now();
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+
+            if (bookingDto.getBookDate() != null && !bookingDto.getBookDate().isEmpty()) {
+                LocalDate bookingDate = LocalDate.parse(bookingDto.getBookDate());
+
+                transactionEditDto.setId(id);
+
+                if (today.isAfter(bookingDate) && transactionSubType.isEmpty()) {
+                    transactionEditDto.setStatus("Missed");
+                }
+                if (today.isAfter(bookingDate) && !transactionSubType.isEmpty()) {
+                    transactionEditDto.setStatus("Closed");
+                }
+                if ((today.isBefore(bookingDate) || today.isEqual(bookingDate)) && !transactionSubType.isEmpty()) {
+                    transactionEditDto.setStatus("Invoiced");
+                }
+                transactionService.edit(transactionEditDto);
+            }
+
+            TransactionEntity entity = transactionRepository.getById(id);
+            bookingDto.setStatus(entity.getStatus());
 
             String productId = "";
-            for(TransactionItemDto item:transactionService.getItems(transactionDto.getId())){
-                int number =  item.getValidTo().compareTo(new Date());
-                if(number > 0){
+            for (TransactionItemDto item : transactionService.getItems(transactionDto.getId())) {
+                if (item.getValidTo().after(new Date())) {
                     productId = item.getProduct();
                 }
             }
+
             ProductDto productDto = productService.getOptionalById(productId);
-            if(productDto != null){
+            if (productDto != null) {
                 bookingDto.setProductDto(productDto);
-                ProductAttributeQueryDto queryDto = new ProductAttributeQueryDto();
-                queryDto.setProduct(productId);
-                //queryDto.setAttribute("");
-                for(ProductAttributeDto attributeDto: productService.getAttributes(productId)){
-                  if(attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")){
-                      bookingDto.setDuration(attributeDto.getValue());
-                      break;
-                  }
+                for (ProductAttributeDto attributeDto : productService.getAttributes(productId)) {
+                    if (attributeDto.getAttribute().getCode().equalsIgnoreCase("DURATION")) {
+                        bookingDto.setDuration(attributeDto.getValue());
+                        break;
+                    }
                 }
             }
-
+        } catch (Exception ex) {
+            throw new Exception("Error fetching booking details", ex);
         }
+
         return bookingDto;
     }
+
 
     @Override
     public ArrayList<BookingDto> querBooking(BookingQueryDto queryDto) throws Exception {
@@ -182,7 +234,7 @@ public class BookingService implements BookingDao {
                 query.setPartnerFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             }
             if(queryDto.getStatus() != null){
-               query.setStatus(queryDto.getStatus());
+                query.setStatus(queryDto.getStatus());
             }
             for(String id:transactionService.search(query)){
                 BookingDto booking = getBooking(id);
@@ -234,7 +286,7 @@ public class BookingService implements BookingDao {
 
             return true;
         }catch (Exception ex){
-           throw new RuntimeException(ex);
+            throw new RuntimeException(ex);
         }
 
     }
