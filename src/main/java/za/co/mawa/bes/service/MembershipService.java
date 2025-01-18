@@ -521,6 +521,56 @@ public class MembershipService implements MembershipDao {
 
         return membershipDtoList;
     }
+    public String scheduledStatusChange() {
+        try{
+            processTenantTransactions();
+            return "Scheduling Finished";
+        }
+        catch (Exception e) {
+
+            System.err.println("Error during scheduled status change: " + e.getMessage());
+        }
+        return "Scheduling Error Occurred";
+    }
+
+    private void processTenantTransactions() throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+
+        try {
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+
+
+            LocalDate today = LocalDate.now();
+            LocalDate threeMonthsAgo = today.minusMonths(3);
+
+            for (TransactionViewEntity entity : membershipEntities) {
+                if (!premiumEntities.isEmpty()) {
+                    for (PremiumEntity premiumEntity : premiumEntities) {
+                        if (premiumEntity != null && premiumEntity.getMembershipId() != null) {
+                            LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                                    .toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate();
+
+                            if (Objects.equals(premiumEntity.getMembershipId(), entity.getTransactionId())) {
+                                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+                                    MembershipEditDto editDto = new MembershipEditDto();
+                                    editDto.setStatus(Status.INACTIVE);
+                                    editDto.setStatusReason(StatusReason.LAPSED);
+                                    edit(entity.getTransactionId(), editDto);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing transactions: " + e.getMessage());
+        }
+    }
 
     public String scheduledStatusChange() {
         try{

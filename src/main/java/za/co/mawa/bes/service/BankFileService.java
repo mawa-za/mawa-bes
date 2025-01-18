@@ -117,10 +117,10 @@ public class BankFileService {
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
 
-                TransactionEditDto transactionEditDto = new TransactionEditDto();
-                transactionEditDto.setId(paymentRequestDto.getId());
-                transactionEditDto.setStatus(Status.PROCESSED);
-                transactionService.edit(transactionEditDto);
+//                TransactionEditDto transactionEditDto = new TransactionEditDto();
+//                transactionEditDto.setId(paymentRequestDto.getId());
+//                transactionEditDto.setStatus(Status.PROCESSED);
+//                transactionService.edit(transactionEditDto);
             }
             za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
             file.setName(getInitParty() +" - "+transactionDto.getNumber());
@@ -180,7 +180,7 @@ public class BankFileService {
             pmtInf.appendChild(pmtMtd);
 
             Element btchBookg = doc.createElement("BtchBookg");
-            btchBookg.appendChild(doc.createTextNode("true"));
+            btchBookg.appendChild(doc.createTextNode("false"));
             pmtInf.appendChild(btchBookg);
 
             Element pmtNbOfTxs = doc.createElement("NbOfTxs");
@@ -255,6 +255,7 @@ public class BankFileService {
         BankAccountDto bankAccountDto;
         if (paymentRequestDto.getPaymentMethod().getCode().equals("EFT")) {
             bankAccountDto = bankAccountService.getList(paymentRequestDto.getId()).iterator().next();
+            bankAccountDto.setBranchCode(bankAccountService.getUBC(bankAccountDto.getBankName().getCode()));
         } else {
             bankAccountDto = new BankAccountDto();
             bankAccountDto.setAccountHolder(getPettyCashBankAccountHolder());
