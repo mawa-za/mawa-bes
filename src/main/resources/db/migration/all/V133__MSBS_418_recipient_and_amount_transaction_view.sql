@@ -11,6 +11,7 @@ SELECT
 		partner_identity.value AS 'identity_number',
 		CONCAT(main_partner.name1,' ', main_partner.name2, ' ', main_partner.name3) AS 'main_partner',
 		CONCAT(employee.name1,' ', employee.name2, ' ', employee.name3) AS 'employee_responsible',
+        CONCAT(recipient.name1,' ', recipient.name2, ' ', recipient.name3) AS 'recipient',
         CONCAT(created_by.name1, ' ', created_by.name2, ' ', created_by.name3) AS 'created_by',
         CONCAT(changed_by.name1, ' ', changed_by.name2, ' ', changed_by.name3) AS 'changed_by',
 		product.description AS 'product',
@@ -21,6 +22,7 @@ SELECT
 		transaction.status AS 'transaction_status',
         transaction_amount_collected.amount AS amount_collected,
         transaction_amount_deposited.amount AS amount_deposited,
+        transaction_payment_amount.amount AS amount,
 		transaction_due_date.value AS 'due_date',
         transaction_death_date.value AS 'death_date',
         transaction_burial_date.value AS 'burial_date',
@@ -40,6 +42,11 @@ LEFT JOIN transaction_partner AS employee_partner ON transaction.id = employee_p
 
 LEFT JOIN partner AS employee ON employee_partner.partner = employee.id
 
+LEFT JOIN transaction_partner AS recipient_partner ON transaction.id = recipient_partner.transaction
+	AND (recipient_partner.partner_function = 'RECIPIENT')
+
+LEFT JOIN partner AS recipient ON recipient_partner.partner = recipient.id
+
 LEFT JOIN transaction_item AS item ON item.transaction =  transaction.id
 	AND (transaction.type = 'MEMBERSHIP' OR transaction.type = 'GROUP-SOCIETY')
 
@@ -48,6 +55,9 @@ LEFT JOIN transaction_amount AS transaction_amount_collected ON transaction.id =
 
 LEFT JOIN transaction_amount AS transaction_amount_deposited ON transaction.id = transaction_amount_deposited.transaction
 	AND (transaction_amount_deposited.type = 'AMOUNT-DEPOSITED')
+
+LEFT JOIN transaction_amount AS transaction_payment_amount ON transaction.id = transaction_payment_amount.transaction
+	AND (transaction_payment_amount.type = 'PAYMENT-AMOUNT')
 
 LEFT JOIN transaction_date AS transaction_due_date ON transaction.id = transaction_due_date.transaction
 	AND (transaction_due_date.type = 'DUE-DATE')
