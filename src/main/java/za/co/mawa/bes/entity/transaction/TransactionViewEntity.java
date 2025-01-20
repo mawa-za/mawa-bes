@@ -45,6 +45,9 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "employee_responsible")
     private String employeeResponsible;
 
+    @Column(name = "recipient")
+    private String recipient;
+
     @Column(name = "created_by")
     private String createdBy;
 
@@ -80,6 +83,9 @@ public class TransactionViewEntity implements Serializable {
 
     @Column(name = "claimant")
     private String claimant;
+
+    @Column(name = "amount")
+    private String amount ;
 
     @Column(name = "amount_collected")
     private String amountCollected;
