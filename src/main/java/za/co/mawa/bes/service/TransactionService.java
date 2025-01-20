@@ -957,4 +957,44 @@ public class TransactionService implements TransactionDao {
         }
         return premiumEntities;
     }
+
+    public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
+        List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
+        List<PremiumEntity> premiumEntities = new ArrayList<>();
+
+        for (PremiumEntity premium : premiumEntityList) {
+            try {
+
+                boolean match = true;
+
+                if(premiumSearchDto.getEmployeeResponsible() != null) {
+
+                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
+                }
+
+                if(premiumSearchDto.getTenderType() != null) {
+
+                    match =  match && premium.getTenderType().equals(premiumSearchDto.getTenderType());
+                }
+
+                if(premiumSearchDto.getMembershipId() != null){
+                    match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
+                }
+
+                if(premiumSearchDto.getLocation() !=null){
+
+                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+                }
+
+                if(match) {
+                    premiumEntities.add(premium);
+                }
+
+            }catch (Exception e){
+
+            }
+        }
+        return premiumEntities;
+    }
+
 }
