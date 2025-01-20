@@ -32,6 +32,7 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -211,6 +212,12 @@ public class PaymentRequestService implements PaymentRequestDao {
 
             for (TransactionViewEntity entity : entities) {
                 PaymentRequestQueryDto dto = new PaymentRequestQueryDto();
+                dto.setRecipient(entity.getRecipient());
+                try {
+                    dto.setAmount(new BigDecimal(entity.getAmount()));
+                } catch (Exception e) {
+//                    throw new RuntimeException(e);
+                }
                 dto.setDueDate(entity.getDueDate());
                 dto.setPaymentMethod(entity.getTransactionSubtype());
                 dto.setDateCreated(entity.getCreationDate());
