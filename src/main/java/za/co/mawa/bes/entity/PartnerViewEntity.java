@@ -61,4 +61,6 @@ public class PartnerViewEntity implements Serializable {
     @Column(name = "marital_status")
     private String maritalStatus;
 
+
 }
+
