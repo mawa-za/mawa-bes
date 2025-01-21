@@ -137,7 +137,9 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+                if (transactionEditDto.getChangedBy() != null){
+                    entity.setChangedBy(transactionEditDto.getChangedBy());
+                }
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -600,8 +602,8 @@ public class TransactionService implements TransactionDao {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getEmployeeResponsibleId());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
 
-                    transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
-                    resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
 
             }
         }
@@ -710,9 +712,11 @@ public class TransactionService implements TransactionDao {
 
                 boolean match = true;
 
+
                 if(transactionViewDto.getMainPartner() != null) {
                     String customerName = entity.getMainPartner().replace(" ", "");
                     match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+
                 }
 
                 if(transactionViewDto.getStatus() != null) {
@@ -953,5 +957,4 @@ public class TransactionService implements TransactionDao {
         }
         return premiumEntities;
     }
-
 }
