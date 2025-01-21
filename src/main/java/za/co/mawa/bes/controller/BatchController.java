@@ -12,14 +12,21 @@ import org.springframework.web.bind.annotation.RestController;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
+import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-import za.co.mawa.bes.service.BankFileService;
-import za.co.mawa.bes.service.EmailService;
-import za.co.mawa.bes.service.PaymentRequestService;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.StatusReason;
+import za.co.mawa.bes.utils.TransactionType;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +45,10 @@ public class BatchController {
     EmailService emailService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    MembershipService membershipService;
+    @Autowired
+    TransactionService transactionService;
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
@@ -71,6 +82,21 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "membershipLapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMembershipLapse() {
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+
+            String result = membershipService.handleMembershipLapse(membershipEntities);
+            return ResponseEntity.ok().body(gson.toJson(result));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
         try {
