@@ -8,10 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.claim.ClaimEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
