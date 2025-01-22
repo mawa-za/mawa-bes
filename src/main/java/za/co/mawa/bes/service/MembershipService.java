@@ -39,6 +39,7 @@ import za.co.mawa.bes.repository.TransactionPartnerRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 
 
+
 import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -121,6 +122,7 @@ public class MembershipService implements MembershipDao {
         else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
 
             transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+
         }
         else {
             transactionCreateDto.setStatus(Status.NEW);
@@ -593,6 +595,7 @@ public class MembershipService implements MembershipDao {
 //        }
 //
 //    }
+
 
 
 }
