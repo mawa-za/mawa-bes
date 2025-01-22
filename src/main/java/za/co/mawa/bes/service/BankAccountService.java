@@ -33,7 +33,7 @@ public class BankAccountService {
             bankAccountEntity.setAccountType(bankAccountCreateDto.getAccountType());
             bankAccountEntity.setBankName(bankAccountCreateDto.getBankName());
             bankAccountEntity.setAccountNumber(bankAccountCreateDto.getAccountNumber());
-            bankAccountEntity.setBranchCode(bankAccountCreateDto.getBranchCode());
+            bankAccountEntity.setBranchCode(getUBC(bankAccountCreateDto.getBankName()));
             bankAccountEntity.setStatus(Status.ACTIVE);
             bankAccountEntity.setValidFrom(new Date());
             bankAccountEntity.setValidTo(new Date());
@@ -48,8 +48,9 @@ public class BankAccountService {
         bankAccountEntity.setAccountHolder(bankAccountEditDto.getAccountHolder());
         bankAccountEntity.setAccountType(bankAccountEditDto.getAccountType());
         bankAccountEntity.setBankName(bankAccountEditDto.getBankName());
+        bankAccountEntity.setBranchCode(getUBC(bankAccountEntity.getBankName()));
         bankAccountEntity.setAccountNumber(bankAccountEditDto.getAccountNumber());
-        bankAccountEntity.setBranchCode(bankAccountEditDto.getBranchCode());
+        bankAccountEntity.setBranchCode(bankAccountEditDto.getBankName());
 //        bankAccountEntity.setStatus(Status.ACTIVE);
         bankAccountEntity.setValidFrom(new Date());
 //        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
@@ -73,12 +74,55 @@ public class BankAccountService {
         bankAccountDto.setAccountNumber(bankAccountEntity.getAccountNumber());
         bankAccountDto.setBankName(fieldOptionService.getFieldOption(Field.BANK_NAME, bankAccountEntity.getBankName()));
         bankAccountDto.setAccountType(fieldOptionService.getFieldOption(Field.BANK_ACCOUNT_TYPE, bankAccountEntity.getAccountType()));
-        bankAccountDto.setBranchCode(bankAccountEntity.getBranchCode());
+        bankAccountDto.setBranchCode(getUBC(bankAccountEntity.getBankName()));
         bankAccountDto.setStatus(fieldOptionService.getFieldOption(Field.STATUS, bankAccountEntity.getStatus()));
         return bankAccountDto;
     }
 
     public void delete(String id) {
         bankAccountRepository.deleteById(id);
+    }
+
+    public String getUBC(String bank) {
+        String code = "";
+        switch (bank) {
+            case "ABSA":
+                code = "632005";
+                break;
+            case "AFRICAN-BANK":
+                code = "430000";
+                break;
+            case "BANK-ZERO":
+                code = "888000";
+                break;
+            case "BIDVEST":
+                code = "462005";
+                break;
+            case "CAPITEC":
+                code = "470010";
+                break;
+            case "DISCOVERY":
+                code = "679000";
+                break;
+            case "FNB":
+                code = "250655";
+                break;
+            case "INVESTEC":
+                code = "580105";
+                break;
+            case "NEDBANK":
+                code = "198765";
+                break;
+            case "POST-BANK":
+                code = "460005";
+                break;
+            case "SBSA":
+                code = "51001";
+                break;
+            case "TYME-BANK":
+                code = "678910";
+                break;
+        }
+        return code;
     }
 }
