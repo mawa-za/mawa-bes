@@ -5,6 +5,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
+import za.co.mawa.bes.dto.PricingInboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
+import za.co.mawa.bes.dto.invoice.InvoiceDto;
+import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
@@ -49,6 +55,8 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    InvoiceService invoiceService;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -463,6 +471,7 @@ public class MembershipService implements MembershipDao {
 
         return membershipDtoList;
     }
+
     public String scheduledStatusChange() {
         try{
             processTenantTransactions();
@@ -511,6 +520,51 @@ public class MembershipService implements MembershipDao {
             }
         } catch (Exception e) {
             System.err.println("Error processing transactions: " + e.getMessage());
+        }
+    }
+
+    public InvoiceOutboundDto handleBilling(String id){
+
+        InvoiceDto invoiceDto = new InvoiceDto();
+        try {
+            MembershipDto membershipDto = get(id);
+            InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
+
+            if (membershipDto.getStatus().getCode().equals("WAITING-PERIOD")) {
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+                PricingInboundDto pricingInboundDto = new PricingInboundDto();
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+                invoiceInboundDto.setPricing(pricingInboundDto);
+                invoiceInboundDto.setInvoiceDate(new Date());
+
+                List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
+                LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+                lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDtoList.add(lineItemInboundDto);
+                invoiceInboundDto.setItems(lineItemInboundDtoList);
+            }
+            else{
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+                PricingInboundDto pricingInboundDto = new PricingInboundDto();
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+                invoiceInboundDto.setPricing(pricingInboundDto);
+                invoiceInboundDto.setInvoiceDate(new Date());
+
+                List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
+                LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+                lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDtoList.add(lineItemInboundDto);
+                invoiceInboundDto.setItems(lineItemInboundDtoList);
+            }
+            return invoiceService.create(invoiceInboundDto);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
