@@ -69,6 +69,7 @@ public class MembershipController {
                 membershipQueryDto.setStatus(status);
             }
 
+
             if(productId != null && productId != "") {
                 membershipQueryDto.setProductId(productId);
             }
@@ -103,17 +104,19 @@ public class MembershipController {
             }
 
             return ResponseEntity.ok(gson.toJson(membershipService.search(membershipQueryDto)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
+
     @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
-                                            @RequestParam(required = false) String mainPartner,
-                                            @RequestParam(required = false) String employeeResponsibleName,
-                                            @RequestParam(required = false) String creationDate,
-                                            @RequestParam(required = false) String idNumber) {
+                                              @RequestParam(required = false) String mainPartner,
+                                              @RequestParam(required = false) String employeeResponsibleName,
+                                              @RequestParam(required = false) String creationDate,
+                                              @RequestParam(required = false) String idNumber) {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
@@ -167,11 +170,12 @@ public class MembershipController {
     public ResponseEntity<?> getMembership(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(membershipService.get(id)));
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-//
+    //
 //    @RequestMapping(value = "filter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 //    public ResponseEntity<?> getMembershipsByFilters(@RequestParam(required = false) String status,
 //                                                     @RequestParam(required = false) String partnerFunction,
@@ -207,23 +211,25 @@ public class MembershipController {
 //            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
 //        }
 //    }
-////    getByFilter
+
+    ////    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
-            return ResponseEntity.ok().body(gson.toJson(membershipService.edit(id, membershipDto)));
+            membershipService.edit(id, membershipDto);
+            return ResponseEntity.ok().body(gson.toJson(membershipService.get(id)));
         }
         catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "/scheduleStatusChange", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> automateMembershipStatusChange() {
+    @RequestMapping(value = "{id}/membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMembershipLapse(@PathVariable String id) {
         try {
-            return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
-        }
-        catch (Exception exception) {
+            String result = membershipService.handleMembershipLapse(id);
+            return ResponseEntity.ok().body(gson.toJson(result));
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
@@ -332,14 +338,8 @@ public class MembershipController {
                     tombstoneRecipient.setFirstName(partnerDto.getName2());
                     tombstoneRecipient.setMiddleName(partnerDto.getName3());
                     tombstoneRecipient.setLastName(partnerDto.getName1());
-                    try {
-                        tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
-                    } catch (Exception e) {}
-
-                    try {
-                        tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
-                    } catch (Exception e) {}
-
+                    tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
+                    tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
                     tombstoneRecipientDtos.add(tombstoneRecipient);
                 }
             }
@@ -357,14 +357,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.ACTIVE);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -378,14 +378,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.INACTIVE);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -399,14 +399,14 @@ public class MembershipController {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
             transactionEditDto.setStatus(Status.CANCELLED);
-            if (statusReason != null && statusReason != "") {
+            if (statusReason != null && !statusReason.isEmpty()) {
                 transactionEditDto.setStatusReason(statusReason);
             }
-            if (description != null && description != null) {
+            if (description != null && !description.isEmpty()) {
                 transactionEditDto.setDescription(description);
             }
             transactionService.edit(transactionEditDto);
-            return ResponseEntity.ok(gson.toJson(transactionEditDto));
+            return ResponseEntity.ok(gson.toJson(transactionService.get(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
