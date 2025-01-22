@@ -10,7 +10,11 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
+import za.co.mawa.bes.dto.PricingInboundDto;
 import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
@@ -74,6 +78,8 @@ public class MembershipService implements MembershipDao {
     TenantAdminService tenantAdminService;
     @Autowired
     UserService userService;
+    @Autowired
+    InvoiceService invoiceService;
 //    @Autowired
 //    TransactionRepository transactionRepository;
 
@@ -561,6 +567,34 @@ public class MembershipService implements MembershipDao {
             }
         }
         return "Processed";
+    }
+
+    public InvoiceOutboundDto handleBilling(String id){
+
+        try {
+            MembershipDto membershipDto = get(id);
+            InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
+
+            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            PricingInboundDto pricingInboundDto = new PricingInboundDto();
+            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            invoiceInboundDto.setPricing(pricingInboundDto);
+            invoiceInboundDto.setInvoiceDate(new Date());
+
+            List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
+            LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
+            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+            lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
+            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+            lineItemInboundDtoList.add(lineItemInboundDto);
+            invoiceInboundDto.setItems(lineItemInboundDtoList);
+
+            return invoiceService.create(invoiceInboundDto);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 //    public String handleMembershipLapse(String id) throws Exception {
