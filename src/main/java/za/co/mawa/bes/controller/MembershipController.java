@@ -110,6 +110,7 @@ public class MembershipController {
         }
     }
 
+
     @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
                                               @RequestParam(required = false) String mainPartner,
@@ -211,7 +212,8 @@ public class MembershipController {
 //        }
 //    }
 
-////    getByFilter
+    ////    getByFilter
+
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
@@ -223,12 +225,12 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "/scheduleStatusChange", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> automateMembershipStatusChange() {
+    @RequestMapping(value = "{id}/membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMembershipLapse(@PathVariable String id) {
         try {
-            return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
-        }
-        catch (Exception exception) {
+            String result = membershipService.handleMembershipLapse(id);
+            return ResponseEntity.ok().body(gson.toJson(result));
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
