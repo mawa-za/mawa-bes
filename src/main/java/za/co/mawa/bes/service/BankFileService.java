@@ -117,10 +117,10 @@ public class BankFileService {
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
 
-//                TransactionEditDto transactionEditDto = new TransactionEditDto();
-//                transactionEditDto.setId(paymentRequestDto.getId());
-//                transactionEditDto.setStatus(Status.PROCESSED);
-//                transactionService.edit(transactionEditDto);
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(paymentRequestDto.getId());
+                transactionEditDto.setStatus(Status.PROCESSED);
+                transactionService.edit(transactionEditDto);
             }
             za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
             file.setName(getInitParty() +" - "+transactionDto.getNumber());
