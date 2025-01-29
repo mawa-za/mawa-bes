@@ -49,7 +49,8 @@ public class EmailService implements EmailDao {
             final MimeMessage mimeMessage = this.mailSender.createMimeMessage();
             final MimeMessageHelper email;
             email = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            email.setTo(emailDto.getTo());
+            String[] recipients = emailDto.getTo().split(";");
+            email.setTo(recipients);
             email.setSubject(emailDto.getSubject());
             email.setFrom(new InternetAddress(mailFrom, mailFromName));
             final Context ctx = new Context(LocaleContextHolder.getLocale());
