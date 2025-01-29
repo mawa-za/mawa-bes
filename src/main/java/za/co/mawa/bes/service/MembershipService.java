@@ -597,38 +597,30 @@ public class MembershipService implements MembershipDao {
         }
     }
 
-//    public String handleMembershipLapse(String id) throws Exception {
-//        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
-//        try {
-//            premiumSearchDto.setMembershipId(id);
-//            List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
-//
-//            LocalDate today = LocalDate.now();
-//            LocalDate threeMonthsAgo = today.minusMonths(3);
-//            for (PremiumEntity premiumEntity : premiumEntities) {
-//                if (premiumEntity != null && premiumEntity.getMembershipId() != null) {
-//                    LocalDate localDateToCheck = premiumEntity.getCreationDate()
-//                            .toInstant()
-//                            .atZone(ZoneId.systemDefault())
-//                            .toLocalDate();
-//
-//                    if (Objects.equals(premiumEntity.getMembershipId(), id)) {
-//                        if (localDateToCheck.isBefore(threeMonthsAgo)) {
-//                            MembershipEditDto editDto = new MembershipEditDto();
-//                            editDto.setStatus(Status.INACTIVE);
-//                            editDto.setStatusReason(StatusReason.LAPSED);
-//                            edit(id, editDto);
-//                        }
-//                    }
-//                }
-//            }
-//            return  "Membership Lapse Finished";
-//        } catch (Exception e) {
-//            System.err.println("Error processing transactions: " + e.getMessage());
-//            return "Error While Processing Memberships";
-//        }
-//
-//    }
+    public String validateMemberships() {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        MembershipEditDto editDto = new MembershipEditDto();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+        for (TransactionViewEntity entity : entities) {
+            if (entity.getDateEffective() != null) {
+                LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
+                LocalDate effectiveDate = effectiveDateTime.toLocalDate();
+                LocalDate today = LocalDate.now();
+
+                if (!effectiveDate.isAfter(today)) {
+                    editDto.setStatus(Status.ACTIVE);
+                } else {
+                    editDto.setStatus(Status.WAITING_PERIOD);
+                }
+                edit(entity.getTransactionId(), editDto);
+            }
+        }
+        return "Validated";
+    }
 
 
 

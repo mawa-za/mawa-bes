@@ -97,6 +97,16 @@ public class BatchController {
         }
     }
 
+    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> validateMembershipStatus(){
+        try{
+            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
         try {
