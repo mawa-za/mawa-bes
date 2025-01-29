@@ -15,7 +15,6 @@ import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.PremiumEntity;
@@ -48,7 +47,6 @@ public class BatchController {
     SettingService settingService;
     @Autowired
     MembershipService membershipService;
-
     @Autowired
     TransactionService transactionService;
 
@@ -85,14 +83,6 @@ public class BatchController {
         }
     }
 
-    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> validateMembershipStatus(){
-        try{
-            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
-        }
-        catch (Exception e){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
-          
     @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse() {
         try {
