@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import org.hibernate.resource.transaction.spi.TransactionStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,9 @@ import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -514,4 +517,28 @@ public class MembershipService implements MembershipDao {
         }
     }
 
+    public String validateMemberships() {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        MembershipEditDto editDto = new MembershipEditDto();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+        for (TransactionViewEntity entity : entities) {
+            if (entity.getDateEffective() != null) {
+                LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
+                LocalDate effectiveDate = effectiveDateTime.toLocalDate();
+                LocalDate today = LocalDate.now();
+
+                if (!effectiveDate.isAfter(today)) {
+                    editDto.setStatus(Status.ACTIVE);
+                } else {
+                    editDto.setStatus(Status.WAITING_PERIOD);
+                }
+                edit(entity.getTransactionId(), editDto);
+            }
+        }
+        return "Validated";
+    }
 }

@@ -14,10 +14,7 @@ import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-import za.co.mawa.bes.service.BankFileService;
-import za.co.mawa.bes.service.EmailService;
-import za.co.mawa.bes.service.PaymentRequestService;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
 
 import java.util.ArrayList;
@@ -38,6 +35,8 @@ public class BatchController {
     EmailService emailService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    MembershipService membershipService;
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
@@ -71,6 +70,17 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> validateMembershipStatus(){
+        try{
+            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
         try {
