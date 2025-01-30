@@ -569,7 +569,7 @@ public class MembershipService implements MembershipDao {
         return "Processed";
     }
 
-    public InvoiceOutboundDto handleBilling(String id){
+    public String handleBilling(String id){
 
         try {
             MembershipDto membershipDto = get(id);
@@ -589,8 +589,17 @@ public class MembershipService implements MembershipDao {
             lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
             lineItemInboundDtoList.add(lineItemInboundDto);
             invoiceInboundDto.setItems(lineItemInboundDtoList);
+            invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
 
-            return invoiceService.create(invoiceInboundDto);
+            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
+
+            TransactionLinkDto linkDto = new TransactionLinkDto();
+            linkDto.setTransaction1(id);
+            linkDto.setTransaction2(invoiceOutboundDto.getId());
+            linkDto.setType(TransactionType.MEMBERSHIP);
+            transactionService.addLink(linkDto);
+
+            return invoiceOutboundDto.getId();
         }
         catch (Exception e) {
             throw new RuntimeException(e);
