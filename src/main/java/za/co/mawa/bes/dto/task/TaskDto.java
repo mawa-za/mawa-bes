@@ -3,7 +3,7 @@ package za.co.mawa.bes.dto.task;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import java.io.Serializable;
 @NoArgsConstructor
 @Getter
@@ -15,13 +15,15 @@ public class TaskDto implements Serializable {
     private String type;
     private String description;
     private String customerId;
-    private String customer;
-    private String employeeResponsibleId;
-    private String employeeResponsible;
+    private PartnerDto customer;
+    private PartnerDto employeeResponsibleId;
+    private PartnerDto employeeResponsible;
     private String plannedStartDate;
     private String plannedEndDate;
     private String actualStartDate;
     private String actualEndDate;
     private String status;
+    private String startDate;
+    private String duration;
 }
 
