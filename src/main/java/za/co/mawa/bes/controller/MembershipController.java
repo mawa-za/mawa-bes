@@ -55,6 +55,15 @@ public class MembershipController {
         }
     }
 
+    @RequestMapping(value = "{id}/membership-billing", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> billMembership(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(gson.toJson(membershipService.handleBilling(id)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMemberships(@RequestParam(required = false) String status,
                                             @RequestParam(required = false) String partnerFunction,
