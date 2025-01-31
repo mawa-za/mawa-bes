@@ -218,12 +218,12 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "/scheduleStatusChange", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> automateMembershipStatusChange() {
+    @RequestMapping(value = "{id}/membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMembershipLapse(@PathVariable String id) {
         try {
-            return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
-        }
-        catch (Exception exception) {
+            String result = membershipService.handleMembershipLapse(id);
+            return ResponseEntity.ok().body(gson.toJson(result));
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }

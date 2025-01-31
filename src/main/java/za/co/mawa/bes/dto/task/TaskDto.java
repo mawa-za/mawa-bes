@@ -4,7 +4,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+
 import java.io.Serializable;
+import java.util.Date;
+
 @NoArgsConstructor
 @Getter
 @Setter
@@ -22,6 +25,7 @@ public class TaskDto implements Serializable {
     private String plannedEndDate;
     private String actualStartDate;
     private String actualEndDate;
+
     private String status;
     private String startDate;
     private String duration;

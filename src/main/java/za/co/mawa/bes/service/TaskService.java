@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.TaskDao;
+import za.co.mawa.bes.dto.DateDto;
 import za.co.mawa.bes.dto.task.*;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
@@ -13,6 +14,7 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.DateType;
+import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
@@ -113,6 +115,7 @@ public class TaskService implements TaskDao {
             TaskDto taskDto = new TaskDto();
             TransactionDto transactionDto = transactionService.get(id);
             taskDto.setId(transactionDto.getId());
+            taskDto.setStatus(transactionDto.getStatus());
             taskDto.setDescription(transactionDto.getDescription());
             taskDto.setNumber(transactionDto.getNumber());
             taskDto.setType(transactionDto.getSubType());
@@ -154,6 +157,7 @@ public class TaskService implements TaskDao {
                     taskDto.setDuration(entity.getValue());
                 }
             }
+
 
             return taskDto;
         } catch (TransactionNotFound e) {
