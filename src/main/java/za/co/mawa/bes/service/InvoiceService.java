@@ -129,20 +129,21 @@ public class InvoiceService {
             if (invoiceInboundDto.getTransactionSubType() != null && !invoiceInboundDto.getTransactionSubType().isEmpty()){
                 try {
                     TransactionLinkDto link = new TransactionLinkDto();
-                    link.setTransaction1(transactionDto.getId());
-                    link.setTransaction2(invoiceInboundDto.getTransactionSubType());
+
                     if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase("APPOINTMENT")){
+                        link.setTransaction1(transactionDto.getId());
+                        link.setTransaction2(invoiceInboundDto.getTransactionSubType());
                         link.setType(TransactionType.APPOINTMENT);
+                        link.setCreateBy(userService.getCurrentUser());
+                        transactionService.addLink(link);
                     }
                     if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase("SALES-INVOICE")){
+                        link.setTransaction1(transactionDto.getId());
+                        link.setTransaction2(invoiceInboundDto.getTransactionSubType());
                         link.setType(TransactionType.SALES_INVOICE);
+                        link.setCreateBy(userService.getCurrentUser());
+                        transactionService.addLink(link);
                     }
-                    if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase("MEMBERSHIP")){
-                        link.setType(TransactionType.MEMBERSHIP);
-                    }
-                    link.setCreateBy(userService.getCurrentUser());
-                    transactionService.addLink(link);
-
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -214,9 +215,10 @@ public class InvoiceService {
                     invoiceOutboundDto.setSubTransactionId(transaction.getId());
                     invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.SALES_INVOICE));
                 }
-                if(link.getType().equals(TransactionType.MEMBERSHIP)){
+            }
+            for(TransactionLinkDto link:transactionService.getLinks(id)){
+                if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
                     invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
-                    invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.MEMBERSHIP));
                 }
             }
         } catch (TransactionNotFound exception) {
