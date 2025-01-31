@@ -1,9 +1,25 @@
 package za.co.mawa.bes.utils;
 
-public class InvoiceType {
+public enum InvoiceType {
+    SALES_INVOICE("SALES-INVOICE"),
+    APPOINTMENT("APPOINTMENT");
 
-    public static String APPOINTMENT = "APPOINTMENT";
-    public static String SALES_INVOICE = "SALES-INVOICE";
-    public static String MEMBERSHIP = "MEMBERSHIP";
+    private final String value;
+
+    InvoiceType(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public static InvoiceType fromString(String value) {
+        for (InvoiceType type : InvoiceType.values()) {
+            if (type.value.equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown invoice type: " + value);
+    }
 }
-
