@@ -244,6 +244,22 @@ public class MembershipService implements MembershipDao {
             }
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
+
+            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
+            membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
+
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<MembershipDto> previousMemberships = new ArrayList<>();
+
+            for(TransactionLinkDto link: transactionLinkDtos){
+                if(link.getType().equalsIgnoreCase("UPGRADE")){
+                    previousMemberships.add(get(link.getTransaction2()));
+                }
+            }
+            membershipDto.setMembershipHistory(previousMemberships);
+
+
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
@@ -469,55 +485,43 @@ public class MembershipService implements MembershipDao {
 
         return membershipDtoList;
     }
-    public String scheduledStatusChange() {
-        try{
-            processTenantTransactions();
-            return "Scheduling Finished";
-        }
-        catch (Exception e) {
 
-            System.err.println("Error during scheduled status change: " + e.getMessage());
-        }
-        return "Scheduling Error Occurred";
+    public String handleMembershipLapse(String id) throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        premiumSearchDto.setMembershipId(id);
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        return processMembershipLapseLogic(premiumEntities, id);
     }
 
-    private void processTenantTransactions() throws Exception {
+    public String handleMembershipLapse(List<TransactionViewEntity> membershipEntities) throws Exception {
         PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
-        TransactionViewDto transactionViewDto = new TransactionViewDto();
-        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        for (TransactionViewEntity entity : membershipEntities) {
+            processMembershipLapseLogic(premiumEntities, entity.getTransactionId());
+        }
+        return "Membership Lapse Finished";
+    }
 
-        try {
-            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
-            List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+    private String processMembershipLapseLogic(List<PremiumEntity> premiumEntities, String membershipId) {
+        LocalDate today = LocalDate.now();
+        LocalDate threeMonthsAgo = today.minusMonths(3);
 
+        for (PremiumEntity premiumEntity : premiumEntities) {
+            if (premiumEntity != null && membershipId.equals(premiumEntity.getMembershipId())) {
+                LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
 
-            LocalDate today = LocalDate.now();
-            LocalDate threeMonthsAgo = today.minusMonths(3);
-
-            for (TransactionViewEntity entity : membershipEntities) {
-                if (!premiumEntities.isEmpty()) {
-                    for (PremiumEntity premiumEntity : premiumEntities) {
-                        if (premiumEntity != null && premiumEntity.getMembershipId() != null) {
-                            LocalDate localDateToCheck = premiumEntity.getCreationDate()
-                                    .toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate();
-
-                            if (Objects.equals(premiumEntity.getMembershipId(), entity.getTransactionId())) {
-                                if (localDateToCheck.isBefore(threeMonthsAgo)) {
-                                    MembershipEditDto editDto = new MembershipEditDto();
-                                    editDto.setStatus(Status.INACTIVE);
-                                    editDto.setStatusReason(StatusReason.LAPSED);
-                                    edit(entity.getTransactionId(), editDto);
-                                }
-                            }
-                        }
-                    }
+                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+                    MembershipEditDto editDto = new MembershipEditDto();
+                    editDto.setStatus(Status.INACTIVE);
+                    editDto.setStatusReason(StatusReason.LAPSED);
+                    edit(membershipId, editDto);
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Error processing transactions: " + e.getMessage());
         }
+        return "Processed";
     }
 
     public String handleBilling(String id){
