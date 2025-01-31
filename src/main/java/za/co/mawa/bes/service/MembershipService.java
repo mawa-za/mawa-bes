@@ -594,8 +594,8 @@ public class MembershipService implements MembershipDao {
             InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(id);
-            linkDto.setTransaction2(invoiceOutboundDto.getId());
+            linkDto.setTransaction1(invoiceOutboundDto.getId());
+            linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
 

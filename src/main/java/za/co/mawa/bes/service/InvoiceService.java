@@ -215,7 +215,7 @@ public class InvoiceService {
                     invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.SALES_INVOICE));
                 }
                 if(link.getType().equals(TransactionType.MEMBERSHIP)){
-                    invoiceOutboundDto.setSubTransactionId(link.getTransaction1());
+                    invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
                     invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.MEMBERSHIP));
                 }
             }
