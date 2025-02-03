@@ -281,6 +281,7 @@ public class MembershipService implements MembershipDao {
             membershipDto.setMembershipHistory(previousMemberships);
 
 
+
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
