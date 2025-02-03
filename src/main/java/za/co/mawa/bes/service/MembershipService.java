@@ -54,8 +54,7 @@ public class MembershipService implements MembershipDao {
     @Autowired
     FieldOptionService fieldOptionService;
     @Autowired
-    UserService userService;
-
+    InvoiceService invoiceService;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -98,30 +97,10 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-        }
-        else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
-
-            transactionCreateDto.setStatus(Status.WAITING_PERIOD);
-
-        }
-        else {
+        } else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
-        if (membershipCreateDto.getCreationType().equals("UPGRADE")){
-            try {
-                TransactionLinkDto link = new TransactionLinkDto();
-                link.setTransaction1(transactionDto.getId());
-                link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
-                link.setType(TransactionType.UPGRADE);
-                link.setCreateBy(userService.getCurrentUserPartnerId());
-                transactionService.addLink(link);
-
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
