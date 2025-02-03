@@ -212,11 +212,17 @@ public class InvoiceService {
             try{
                 TransactionDto transactionSubType = transactionService.get(invoiceOutboundDto.getSubTransactionId());
                 invoiceOutboundDto.setSubTransaction(transactionSubType);
+
             }
             catch(Exception ex){
             }
-
-        } catch (TransactionNotFound exception) {
+            for(TransactionLinkDto link:transactionService.getLinks(id)){
+                if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
+                    invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
+                }
+            }
+        }
+        catch (TransactionNotFound exception) {
         }
         return invoiceOutboundDto;
     }
