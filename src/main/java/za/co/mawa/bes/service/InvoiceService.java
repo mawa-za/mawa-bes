@@ -134,11 +134,12 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            if (invoiceInboundDto.getTransactionId() != null){
+            if (invoiceInboundDto.getSubTransactionId() != null){
                 try {
+                    if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase(TransactionType.APPOINTMENT)){}
                     TransactionLinkDto link = new TransactionLinkDto();
                     link.setTransaction1(transactionDto.getId());
-                    link.setTransaction2(invoiceInboundDto.getTransactionId());
+                    link.setTransaction2(invoiceInboundDto.getSubTransactionId());
                     link.setType(TransactionType.APPOINTMENT);
                     link.setCreateBy(userService.getCurrentUser());
                     transactionService.addLink(link);
