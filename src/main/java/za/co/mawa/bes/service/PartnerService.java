@@ -1279,5 +1279,17 @@ public class PartnerService {
         };
     }
 
+    public PartnerBasicDto partnerDtoToPartnerBasicDto(PartnerEntity partner) {
+        PartnerBasicDto partnerBasicDto = new PartnerBasicDto();
+        partnerBasicDto.setId(partner.getId());
+        partnerBasicDto.setType(partner.getType());
+        partnerBasicDto.setName1(partner.getName1());
+        partnerBasicDto.setName2(partner.getName2());
+        partnerBasicDto.setName3(partner.getName3());
+        partnerBasicDto.setTitle(partner.getTitle());
+        partnerBasicDto.setStatus(partner.getStatus());
+        partnerBasicDto.setGender(partner.getGender());
+        return partnerBasicDto;
+    }
 
 }

@@ -25,6 +25,7 @@ public class TransactionType {
     public static  String LEAVE_REQUEST = "LEAVE-REQUEST";
     public static  String COMMENT = "COMMENT";
     public static  String DEPOSIT_ATTACHMENT = "DEPOSIT-ATTACHMENT";
+    public static  String LEGAL_REPRESENTATIVE_LINK = "LEGAL-REPRESENTATIVE-LINK";
 
     public static String PAYMENT_BATCH = "PAYMENT-BATCH";
 
