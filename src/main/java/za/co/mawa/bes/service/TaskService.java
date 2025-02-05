@@ -11,6 +11,15 @@ import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.TransactionType;
 
+import org.springframework.web.bind.annotation.PathVariable;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.utils.*;
+import java.text.SimpleDateFormat;
+import java.util.Objects;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -19,6 +28,12 @@ import java.util.List;
 public class TaskService implements TaskDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionAttributeService transactionAttributeService;
+    @Autowired
+    PartnerService partnerService;
+
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy");
 
     @Override
     public TaskDto create(TaskCreateDto taskCreateDto) {
@@ -55,6 +70,36 @@ public class TaskService implements TaskDao {
                 transactionDateDto.setValue(Conversion.stringToDate(taskCreateDto.getPlannedEndDate()));
                 transactionService.addDate(transactionDateDto);
             }
+            if(taskCreateDto.getStartDate() != null){
+                TransactionDateDto transactionDateDto = new TransactionDateDto();
+                transactionDateDto.setTransaction(taskId);
+                transactionDateDto.setType(DateType.START_DATE);
+                transactionDateDto.setValue(Conversion.stringToDate(taskCreateDto.getStartDate()));
+                transactionService.addDate(transactionDateDto);
+            }
+            if(taskCreateDto.getDuration() != null){
+                TransactionAttributeDto attributeDto = new TransactionAttributeDto();
+                attributeDto.setAttribute("DURATION");
+                attributeDto.setValue(taskCreateDto.getDuration());
+                attributeDto.setTransaction(taskId);
+                transactionAttributeService.add(attributeDto);
+            }
+
+            if (taskCreateDto.getEmployeeResponsibleId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(taskId);
+                transactionPartnerDto.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
+                transactionPartnerDto.setPartner(taskCreateDto.getEmployeeResponsibleId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
+
+            if (taskCreateDto.getEmployeeResponsibleId() != null) {
+                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
+                transactionPartnerDto.setTransaction(taskId);
+                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
+                transactionPartnerDto.setPartner(taskCreateDto.getCustomerId());
+                transactionService.addPartner(transactionPartnerDto);
+            }
             return taskDto;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -71,8 +116,44 @@ public class TaskService implements TaskDao {
             taskDto.setDescription(transactionDto.getDescription());
             taskDto.setNumber(transactionDto.getNumber());
             taskDto.setType(transactionDto.getSubType());
+
+            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+                String formattedDate = Conversion.dateToString(transactionDateDto.getValue());
+
+                if( transactionDateDto.getType().equals(DateType.PLANNED_START_DATE)){
+                    taskDto.setPlannedStartDate(formattedDate);
+                }
+                if( transactionDateDto.getType().equals(DateType.PLANNED_END_DATE)){
+                    taskDto.setPlannedEndDate(formattedDate);
+                }
+                if(transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)){
+                    taskDto.setStartDate(formattedDate);
+                }
+            }
+            for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
+                if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
+                    if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                        taskDto.setCustomer(partnerService.get(transactionPartnerDto.getPartner()));
+                    }
+                }
+                if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                    if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
+                        taskDto.setEmployeeResponsible((partnerService.get(transactionPartnerDto.getPartner())));
+                    }
+                }
+            }
+
+            List<TransactionAttributeEntity> entities = transactionAttributeService.getByTransactionId(id);
+            for(TransactionAttributeEntity entity : entities){
+                if(entity.getAttribute().equalsIgnoreCase("DURATION")){
+                    taskDto.setDuration(entity.getValue());
+                }
+            }
+
             return taskDto;
         } catch (TransactionNotFound e) {
+            throw new RuntimeException(e);
+        } catch (PartnerNotFoundException e) {
             throw new RuntimeException(e);
         }
     }

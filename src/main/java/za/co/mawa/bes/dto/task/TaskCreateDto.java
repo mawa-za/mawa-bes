@@ -16,6 +16,7 @@ public class TaskCreateDto implements Serializable {
     private String employeeResponsibleId;
     private String plannedStartDate;
     private String plannedEndDate;
-
+    private String startDate;
+    private String duration;
 
 }
