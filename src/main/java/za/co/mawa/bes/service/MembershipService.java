@@ -572,4 +572,42 @@ public class MembershipService implements MembershipDao {
         }
     }
 
+    public String handleMembershipLapse(String id) throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        premiumSearchDto.setMembershipId(id);
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        return processMembershipLapseLogic(premiumEntities, id);
+    }
+
+    public String handleMembershipLapse(List<TransactionViewEntity> membershipEntities) throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        for (TransactionViewEntity entity : membershipEntities) {
+            processMembershipLapseLogic(premiumEntities, entity.getTransactionId());
+        }
+        return "Membership Lapse Finished";
+    }
+
+    private String processMembershipLapseLogic(List<PremiumEntity> premiumEntities, String membershipId) {
+        LocalDate today = LocalDate.now();
+        LocalDate threeMonthsAgo = today.minusMonths(3);
+
+        for (PremiumEntity premiumEntity : premiumEntities) {
+            if (premiumEntity != null && membershipId.equals(premiumEntity.getMembershipId())) {
+                LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+
+                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+                    MembershipEditDto editDto = new MembershipEditDto();
+                    editDto.setStatus(Status.INACTIVE);
+                    editDto.setStatusReason(StatusReason.LAPSED);
+                    edit(membershipId, editDto);
+                }
+            }
+        }
+        return "Processed";
+    }
+
 }
