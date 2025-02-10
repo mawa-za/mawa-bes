@@ -520,7 +520,6 @@ public class ClaimService {
 
 
     public ByteArrayResource generateClaimPdf(ClaimOutboundDto claimOutboundDto) throws IOException {
-
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         PDType1Font helveticaBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
         PDType1Font helvetica = new PDType1Font(Standard14Fonts.FontName.HELVETICA);

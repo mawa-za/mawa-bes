@@ -26,10 +26,7 @@ import za.co.mawa.bes.utils.*;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 @RestController
 @CrossOrigin
@@ -462,16 +459,19 @@ public class ClaimController {
         }
     }
 
-    @PostMapping(value = "/generate-pdf/{claimId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ByteArrayResource> generateClaimPdf(@PathVariable("claimId") String claimId) {
+    @PostMapping(value = "{claimId}/generate-pdf", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generateClaimPdf(@PathVariable("claimId") String claimId) {
         try {
             ClaimOutboundDto claimOutboundDto = claimService.get(claimId);
             ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+
+            // Convert the PDF byte array to a Base64 string
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+
+            // Return the Base64 string in the response
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=claim.pdf")
-                    .contentLength(pdfResource.contentLength())
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body(pdfResource);
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"pdfBase64\": \"" + base64Pdf + "\"}");
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
