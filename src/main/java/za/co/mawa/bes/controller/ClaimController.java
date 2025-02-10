@@ -389,13 +389,13 @@ public class ClaimController {
                 }
 
                 paymentRequest = new PaymentRequestCreateDto();
-                paymentRequest.setPaymentMethod("CASH");
+                paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
                 paymentRequest.setPaymentReason("GROCERY-CLAIM");
                 paymentRequest.setReference(getCompanyName());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-                paymentRequest.setBranch("MODJADJISKLOOF");
+                paymentRequest.setBranch(claim.getBranch().getCode());
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 PaymentRequestDto paymentRequestDto2 = paymentRequestService.create(paymentRequest);
                 String paymentRequestId2 = paymentRequestDto2.getId();
