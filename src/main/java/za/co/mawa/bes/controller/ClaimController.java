@@ -2,6 +2,8 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -456,6 +459,21 @@ public class ClaimController {
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @PostMapping(value = "/generate-pdf/{claimId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ByteArrayResource> generateClaimPdf(@PathVariable("claimId") String claimId) {
+        try {
+            ClaimOutboundDto claimOutboundDto = claimService.get(claimId);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=claim.pdf")
+                    .contentLength(pdfResource.contentLength())
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdfResource);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 
