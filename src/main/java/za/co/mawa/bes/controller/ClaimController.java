@@ -389,13 +389,15 @@ public class ClaimController {
                 }
 
                 paymentRequest = new PaymentRequestCreateDto();
-                paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
+                if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
+                    paymentRequest.setPaymentMethod("CASH");
+                }
                 paymentRequest.setPaymentReason("GROCERY-CLAIM");
                 paymentRequest.setReference(getCompanyName());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-                if(claim.getBranch().getCode() != null){
+                if(claim.getBranch().getCode() != null && !claim.getBranch().getCode().isEmpty()){
                     paymentRequest.setBranch(claim.getBranch().getCode());
                 }
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
@@ -412,6 +414,18 @@ public class ClaimController {
                     TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
                     transactionProcessDto.setId(paymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
+                }
+                if (claim.getPaymentMethod().getCode().equals("EFT")) {
+                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
+                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(paymentRequestId);
+                    bankAccountService.add(bankAccount);
+//                    paymentRequest.setBankAccount(bankAccount);
                 }
 
             }
