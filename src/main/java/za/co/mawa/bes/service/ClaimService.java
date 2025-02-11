@@ -227,7 +227,7 @@ public class ClaimService {
             }else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
-          
+
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -685,3 +685,4 @@ public class ClaimService {
         return date.toString();
     }
 }
+
