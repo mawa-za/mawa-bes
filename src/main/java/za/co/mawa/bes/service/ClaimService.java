@@ -1,6 +1,13 @@
 package za.co.mawa.bes.service;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.BankAccountDto;
@@ -9,6 +16,7 @@ import za.co.mawa.bes.dto.ClaimDisputeDto;
 import za.co.mawa.bes.dto.PersonDto;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -33,6 +41,10 @@ import za.co.mawa.bes.repository.TransactionAmountRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -505,4 +517,172 @@ public class ClaimService {
             throw new RuntimeException(e);
         }
     }
+
+
+    public ByteArrayResource generateClaimPdf(ClaimOutboundDto claimOutboundDto) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        PDType1Font helveticaBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+        PDType1Font helvetica = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+
+            try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                // Centered text for "CASH CLAIM APPLICATION FORM"
+                contentStream.setFont(helveticaBold, 18);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(200, 750);
+                contentStream.showText("CASH CLAIM APPLICATION FORM");
+                contentStream.endText();
+
+                // Section A title
+                contentStream.setFont(helveticaBold, 14);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(200, 710);
+                contentStream.showText("SECTION A: CLAIM SUBMISSION DETAILS");
+                contentStream.endText();
+
+                // Section A details
+                contentStream.setFont(helvetica, 12);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(100, 680);
+                contentStream.showText("1. OFFICE OF CLAIM SUBMISSION: " + claimOutboundDto.getBranch().getCode());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("2. POINT OF COLLECTION: " + claimOutboundDto.getBranch().getCode());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("3. DATE OF CLAIM SUBMISSION: " + formatDate(claimOutboundDto.getCreationDate()));
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("4. DATE OF CLAIM COLLECTION: " + formatDate(new Date()));
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("5. CLAIM ADMINISTRATOR: " +
+                        claimOutboundDto.getCustomer().getName1() + " " +
+                        claimOutboundDto.getCustomer().getName2());
+                contentStream.endText();
+
+                // Section B title
+                contentStream.setFont(helveticaBold, 14);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(200, 570);
+                contentStream.showText("SECTION B: INFORMATION OF POLICY HOLDER");
+                contentStream.endText();
+
+                // Section B details
+                contentStream.setFont(helvetica, 12);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(100, 540);
+                contentStream.showText("SURNAME: " + claimOutboundDto.getCustomer().getName2());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("FULL NAMES: " +
+                        claimOutboundDto.getCustomer().getName1() + " " +
+                        claimOutboundDto.getCustomer().getName2() + " " +
+                        claimOutboundDto.getCustomer().getName3());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("ID NUMBER: " + claimOutboundDto.getCustomer().getIdentity().getNumber());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("CONTACT NUMBER: " + claimOutboundDto.getCustomer().getNumber());
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("PHYSICAL ADDRESS: " + claimOutboundDto.getCustomer().getName4());
+                contentStream.endText();
+
+                // Section C: Deceased Information
+                PartnerDto deceased = claimOutboundDto.getDeceased();
+                if (deceased != null) {
+                    contentStream.setFont(helveticaBold, 14);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(200, 430);
+                    contentStream.showText("SECTION C: INFORMATION OF DECEASED");
+                    contentStream.endText();
+
+                    contentStream.setFont(helvetica, 12);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(100, 400);
+                    contentStream.showText("SURNAME: " + deceased.getName2());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("FULL NAMES: " +
+                            deceased.getName1() + " " +
+                            deceased.getName2() + " " +
+                            deceased.getName3());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("ID NUMBER: " + deceased.getIdentity().getNumber());
+                    contentStream.endText();
+                }
+
+                // Section D: Information of Claimant (if not policy holder)
+                PartnerDto claimant = claimOutboundDto.getClaimant();
+                if (claimant != null) {
+                    contentStream.setFont(helveticaBold, 14);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(200, 350);
+                    contentStream.showText("SECTION D: INFORMATION OF CLAIMANT (IF NOT POLICY HOLDER)");
+                    contentStream.endText();
+
+                    contentStream.setFont(helvetica, 12);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(100, 320);
+                    contentStream.showText("SURNAME: " + claimant.getName2());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("FULL NAMES: " +
+                            claimant.getName1() + " " + claimant.getName2());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("ID NUMBER: " + claimant.getIdentity().getNumber());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("CONTACT NUMBER: " + claimant.getNumber());
+                    contentStream.endText();
+                }
+
+                // Section E: Information of Cash Payout
+                contentStream.setFont(helveticaBold, 14);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(200, 250);
+                contentStream.showText("SECTION E: INFORMATION OF CASH PAYOUT");
+                contentStream.endText();
+
+                contentStream.setFont(helvetica, 12);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(100, 220);
+                contentStream.showText("CLAIM PAID OUT TO POLICY HOLDER? " +
+                        (claimOutboundDto.getClaimant() != null ? "Yes" : "No"));
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("NOMINATED BENEFICIARY: " +
+                        (claimOutboundDto.getClaimant() != null ?
+                                claimOutboundDto.getClaimant().getName1() + " " +
+                                        claimOutboundDto.getClaimant().getName2() : "N/A"));
+                contentStream.newLineAtOffset(0, -15);
+                contentStream.showText("POINT OF COLLECTION: " + claimOutboundDto.getBranch().getCode());
+                contentStream.endText();
+
+                BankAccountDto bankDetails = claimOutboundDto.getBankDetails();
+                if (bankDetails != null) {
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(100, 190);
+                    contentStream.showText("NAME OF BANK: " + bankDetails.getBankName());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("ACCOUNT HOLDER FULL NAMES: " + bankDetails.getAccountHolder());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("ACCOUNT NUMBER: " + bankDetails.getAccountNumber());
+                    contentStream.newLineAtOffset(0, -15);
+                    contentStream.showText("ACCOUNT TYPE: " + bankDetails.getAccountType());
+                    contentStream.endText();
+                }
+                contentStream.close();
+
+                document.save(byteArrayOutputStream);
+            }
+            return new ByteArrayResource(byteArrayOutputStream.toByteArray());
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error generating the claim PDF: " + e.getMessage());
+        }
+    }
+
+
+
+    private String formatDate(Date date) {
+        if (date == null) {
+            return "N/A";
+        }
+        return date.toString();
+    }
 }
+
