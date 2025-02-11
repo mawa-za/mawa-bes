@@ -525,7 +525,7 @@ public class ClaimService {
         PDType1Font helvetica = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
 
         try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage(PDRectangle.A4);
+            PDPage page = new PDPage();
             document.addPage(page);
 
             try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
