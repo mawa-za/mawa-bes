@@ -459,10 +459,10 @@ public class ClaimController {
         }
     }
 
-    @PostMapping(value = "{claimId}/generate-pdf", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> generateClaimPdf(@PathVariable("claimId") String claimId) {
+    @RequestMapping(value = "{id}/generate-pdf", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generateClaimPdf(@PathVariable String id) {
         try {
-            ClaimOutboundDto claimOutboundDto = claimService.get(claimId);
+            ClaimOutboundDto claimOutboundDto = claimService.get(id);
             ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
 
             // Convert the PDF byte array to a Base64 string
