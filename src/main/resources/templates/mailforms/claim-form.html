@@ -23,13 +23,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            border: 2px solid black;
         }
         table, th, td {
             border: 1px solid black;
         }
         th, td {
-            padding: 8px;
+            padding: 7px;
             text-align: left;
+        }
+        th:first-child {
+            width: 50%; /* Fixed width for the first column */
         }
         .signature-section {
             display: flex;
