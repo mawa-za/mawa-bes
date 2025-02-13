@@ -26,6 +26,7 @@ import za.co.mawa.bes.utils.TransactionAction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -78,7 +79,8 @@ public class PaymentRequestController {
         try {
             PaymentRequestQueryDto paymentRequestQueryDto = new PaymentRequestQueryDto();
             paymentRequestQueryDto.setStatus(status);
-            return ResponseEntity.ok().body(gson.toJson(paymentRequestService.getAllUsingView(paymentRequestQueryDto)));
+            List<PaymentRequestQueryDto> paymentRequestDtoList = paymentRequestService.getAllUsingView(paymentRequestQueryDto);
+            return ResponseEntity.ok().body(gson.toJson(paymentRequestDtoList));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
