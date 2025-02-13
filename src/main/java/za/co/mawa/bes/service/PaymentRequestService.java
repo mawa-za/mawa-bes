@@ -204,12 +204,12 @@ public class PaymentRequestService implements PaymentRequestDao {
     }
 
     public List<PaymentRequestQueryDto> getAllUsingView(PaymentRequestQueryDto paymentRequestQueryDto) {
-        Set<PaymentRequestQueryDto> paymentRequestQueryDtos = new HashSet<>();
+        List<PaymentRequestQueryDto> paymentRequestQueryDtos = new ArrayList<>();
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
-
             for (TransactionViewEntity entity : entities) {
                 PaymentRequestQueryDto dto = new PaymentRequestQueryDto();
                 dto.setRecipient(entity.getRecipient());
@@ -228,6 +228,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setReference(entity.getReference());
                 paymentRequestQueryDtos.add(dto);
             }
+            return paymentRequestQueryDtos;
         } catch (Exception e) {
         }
         return new ArrayList<>(paymentRequestQueryDtos);
