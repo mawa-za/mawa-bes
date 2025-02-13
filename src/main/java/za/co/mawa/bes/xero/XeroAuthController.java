@@ -14,19 +14,14 @@ import java.nio.charset.StandardCharsets;
 
 @RestController
 public class XeroAuthController {
-    private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
-    private static final String REDIRECT_URI = "http://localhost:8080/xero/callback";
-    private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
-    private static final String SCOPES = "offline_access accounting.transactions";
-
 
 
     @GetMapping("/xero/connect")
     public ResponseEntity<String> redirectToXero() throws IOException {
-        String authUrl = AUTH_URL + "?response_type=code" +
-                "&client_id=" + CLIENT_ID +
-                "&redirect_uri=" + URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8) +
-                "&scope=" + URLEncoder.encode(SCOPES, StandardCharsets.UTF_8);
+        String authUrl = XeroAuth.getAUTH_URL() + "?response_type=code" +
+                "&client_id=" + XeroAuth.getCLIENT_ID() +
+                "&redirect_uri=" + URLEncoder.encode(XeroAuth.getREDIRECT_URI(), StandardCharsets.UTF_8) +
+                "&scope=" + URLEncoder.encode(XeroAuth.getSCOPES(), StandardCharsets.UTF_8);
 
             return ResponseEntity.ok("Please open this URL manually: " + authUrl);
     }
@@ -35,25 +30,34 @@ public class XeroAuthController {
     public boolean callback(@RequestParam String code, @RequestParam(required = false) String state) {
         // Store the code for later use in token exchange
         try {
-            String accessToken =  XeroAuth.getInitialTokens(code);
-            XeroAccountingService xeroAccountingService = new XeroAccountingService();
-            String xeroTenantId = XeroAuth.getXeroTenantId(accessToken);
+            XeroAuth.getInitialTokens(code);
 
-            return xeroAccountingService.createInvoice(accessToken, xeroTenantId);
+            XeroAccountingService xeroAccountingService = new XeroAccountingService();
+            return xeroAccountingService.createInvoice(XeroAuth.getAccessToken(), XeroAuth.getXeroTenantId());
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-//    @GetMapping("/xero/createInvoice")
-//    public String getToken() throws IOException {
-//        try{
-//            XeroAccountingService xeroAccountingService = new XeroAccountingService();
-//            boolean xeroCreate = xeroAccountingService.createInvoice();
-//            return "created";
-//        } catch (Exception e) {
-//            return "errer"+ e ;
-//        }
-//    }
+    @GetMapping("/xero/refreshToken")
+    public String getToken() throws IOException {
+        try{
+            return XeroAuth.refreshAccessToken();
+        } catch (Exception e) {
+            return "errer"+ e ;
+        }
+    }
+
+    @GetMapping("/xero/createInvoice")
+    public boolean createInvoice() {
+        // Store the code for later use in token exchange
+        try {
+            XeroAccountingService xeroAccountingService = new XeroAccountingService();
+            return xeroAccountingService.createInvoice(XeroAuth.getAccessToken(), XeroAuth.getXeroTenantId());
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

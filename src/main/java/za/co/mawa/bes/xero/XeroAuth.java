@@ -2,6 +2,7 @@ package za.co.mawa.bes.xero;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -10,12 +11,30 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class XeroAuth {
+    @Getter
     private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
+    @Getter
     private static final String CLIENT_SECRET = "c90a_5H72_f0DXSnQroKDcp1pedaI9nVpOk4NayCi7viLyRO";
+
+    // change the redirect uri
+    @Getter
     private static final String REDIRECT_URI = "http://localhost:8080/xero/callback";
+    @Getter
     private static final String TOKEN_URL = "https://identity.xero.com/connect/token";
+    @Getter
+    private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
+    @Getter
+    private static final String SCOPES = "offline_access accounting.transactions";
+
     private static final String API_URL = "https://api.xero.com/api.xro/2.0/Invoices";
-    private static String refreshToken = "your_stored_refresh_token"; // Store securely
+    @Getter
+    private static String refreshToken = "stored_refresh_token";
+    @Getter
+    private static String accessToken = "stored_access_token";
+    @Getter
+    private static String xeroTenantId = "stored_xero_tenant_id";
+    @Getter
+    private static long expiresAt = System.currentTimeMillis() + (1800 * 1000);
 
 
     public static String getInitialTokens(String authorizationCode) throws IOException {
@@ -24,11 +43,18 @@ public class XeroAuth {
                     "&code=" + authorizationCode +
                     "&redirect_uri=" + REDIRECT_URI;
 
+            //all info about token is returned and to be store
             String response = sendTokenRequest(requestBody);
+
             //            createInvoice(accessToken);
-//            System.out.println("Initial Token Response: " + response);
+            System.out.println("Initial Token Response: " + response);
 //            System.out.println("Token " + accessToken);
-            return extractAccessToken(response);
+            refreshToken = extractRefreshToken(response);
+            accessToken = extractAccessToken(response);
+            xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
+            expiresAt = System.currentTimeMillis() + (1800 * 1000);
+
+            return accessToken ;
         } catch (Exception e) {
             System.out.println(e);
             throw new RuntimeException(e);
@@ -36,15 +62,19 @@ public class XeroAuth {
     }
 
     public static String refreshAccessToken() throws IOException {
+        // check if access token expired
+
         String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
 
         String response = sendTokenRequest(requestBody);
         System.out.println("New Token Response: " + response);
 
-        String accessToken = extractAccessToken(response);
-        refreshToken = extractRefreshToken(response); // Update refresh token
+        refreshToken = extractRefreshToken(response);
+        accessToken = extractAccessToken(response);
+        xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
+        expiresAt = System.currentTimeMillis() + (1800 * 1000);
 
-        return accessToken;
+        return response;
     }
 
     private static String sendTokenRequest(String requestBody) throws IOException {
@@ -111,7 +141,26 @@ public class XeroAuth {
 
     }
 
-    public static String getXeroTenantId(String accessToken) {
+    private static int checkExpire(String jsonResponse){
+
+        int expire = Integer.parseInt(null);
+
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jsonNode = objectMapper.readTree(jsonResponse);
+            refreshToken = jsonNode.get("refresh_token").asText();
+            int expiresIn = jsonNode.get("expires_in").asInt();
+            String tokenType = jsonNode.get("token_type").asText();
+            String scope = jsonNode.get("scope").asText();
+            return expiresIn;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return expire;
+
+    }
+
+    public static String sendGetXeroTenantIdRequest(String accessToken) {
         HttpURLConnection connection = null;
         String XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
         try {
@@ -139,6 +188,7 @@ public class XeroAuth {
 
                 // Extract tenantId from JSON response
                 String jsonResponse = response.toString();
+
                 return extractTenantId(jsonResponse);
             }
         } catch (Exception e) {
@@ -160,5 +210,7 @@ public class XeroAuth {
         }
         return null;
     }
+
+
 }
 
