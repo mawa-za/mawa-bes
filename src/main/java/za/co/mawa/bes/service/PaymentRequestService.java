@@ -210,8 +210,8 @@ public class PaymentRequestService implements PaymentRequestDao {
             transactionViewDto.setType(TransactionType.PAYMENT_REQUEST);
             transactionViewDto.setStatus(paymentRequestQueryDto.getStatus());
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
-            PaymentRequestQueryDto dto = new PaymentRequestQueryDto();
             for (TransactionViewEntity entity : entities) {
+                PaymentRequestQueryDto dto = new PaymentRequestQueryDto();
                 dto.setRecipient(entity.getRecipient());
                 try {
                     dto.setAmount(new BigDecimal(entity.getAmount()));
