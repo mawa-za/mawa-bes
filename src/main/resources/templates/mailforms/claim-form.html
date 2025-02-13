@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .form-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .section-content {
+            font-size: 10px;
+            margin-left: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            font-size: 14px;
+        }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 45%;
+        }
+        .signature-line {
+            width: 80%;
+            border-top: 1px solid black;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="form-title">CASH CLAIM APPLICATION FORM</div>
+
+<div class="section-title">SECTION A: CLAIM SUBMISSION DETAILS</div>
+<div class="section-content">
+    <table>
+        <tr>
+            <th>OFFICE OF CLAIM SUBMISSION</th>
+            <td th:text="${claimOutboundDto.branch.code != null ? claimOutboundDto.branch.code : ''}"></td>
+        </tr>
+        <tr>
+            <th>POINT OF COLLECTION</th>
+            <td th:text="${claimOutboundDto.branch.code != null ? claimOutboundDto.branch.code : ''}"></td>
+        </tr>
+        <tr>
+            <th>DATE OF CLAIM SUBMISSION</th>
+            <td th:text="${claimOutboundDto.creationDate != null ? #dates.format(claimOutboundDto.creationDate, 'dd/MM/yyyy') : ''}"></td>
+        </tr>
+        <tr>
+            <th>DATE OF CLAIM COLLECTION</th>
+            <td th:text="${#dates.format(new java.util.Date(), 'dd/MM/yyyy')}"></td>
+        </tr>
+        <tr>
+            <th>CLAIM ADMINISTRATOR</th>
+            <td th:text="${claimOutboundDto.customer.name1 != null ? claimOutboundDto.customer.name1 + ' ' + (claimOutboundDto.customer.name2 != null ? claimOutboundDto.customer.name2 : '') : ''}"></td>
+        </tr>
+    </table>
+</div>
+
+<div class="section-title">SECTION B: INFORMATION OF POLICY HOLDER</div>
+<div class="section-content">
+    <table>
+        <tr>
+            <th>SURNAME</th>
+            <td th:text="${claimOutboundDto.customer.name1 != null ? claimOutboundDto.customer.name1 : ''}"></td>
+        </tr>
+        <tr>
+            <th>FULL NAMES</th>
+            <td th:text="${claimOutboundDto.customer.name1 != null ? claimOutboundDto.customer.name1 + ' ' + (claimOutboundDto.customer.name2 != null ? claimOutboundDto.customer.name2 : '') + ' ' + (claimOutboundDto.customer.name3 != null ? claimOutboundDto.customer.name3 : '') : ''}"></td>
+        </tr>
+        <tr>
+            <th>ID NUMBER</th>
+            <td th:text="${claimOutboundDto.customer.identity.number != null ? claimOutboundDto.customer.identity.number : ''}"></td>
+        </tr>
+        <tr>
+            <th>CONTACT NUMBER</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>PHYSICAL ADDRESS</th>
+            <td th:text="${claimOutboundDto.customer.name4 != null ? claimOutboundDto.customer.name4 : ''}"></td>
+        </tr>
+    </table>
+</div>
+
+<div class="section-title">SECTION C: DECEASED INFORMATION</div>
+<div class="section-content">
+    <table>
+        <tr>
+            <th>SURNAME</th>
+            <td th:text="${claimOutboundDto.deceased.name1 != null ? claimOutboundDto.deceased.name1 : ''}"></td>
+        </tr>
+        <tr>
+            <th>FULL NAMES</th>
+            <td th:text="${claimOutboundDto.deceased.name1 != null ? claimOutboundDto.deceased.name1 + ' ' + (claimOutboundDto.deceased.name2 != null ? claimOutboundDto.deceased.name2 : '') + ' ' + (claimOutboundDto.deceased.name3 != null ? claimOutboundDto.deceased.name3 : '') : ''}"></td>
+        </tr>
+        <tr>
+            <th>ID NUMBER</th>
+            <td th:text="${claimOutboundDto.deceased.identity.number != null ? claimOutboundDto.deceased.identity.number : ''}"></td>
+        </tr>
+    </table>
+</div>
+
+<div class="section-title">SECTION D: CLAIMANT INFORMATION</div>
+<div class="section-content">
+    <table>
+        <tr>
+            <th>SURNAME</th>
+            <td th:text="${claimOutboundDto.claimant.name1 != null ? claimOutboundDto.claimant.name1 : ''}"></td>
+        </tr>
+        <tr>
+            <th>FULL NAMES</th>
+            <td th:text="${claimOutboundDto.claimant.name1 != null ? claimOutboundDto.claimant.name1 + ' ' + (claimOutboundDto.claimant.name2 != null ? claimOutboundDto.claimant.name2 : '') + ' ' + (claimOutboundDto.claimant.name3 != null ? claimOutboundDto.claimant.name3 : '') : ''}"></td>
+        </tr>
+        <tr>
+            <th>ID NUMBER</th>
+            <td th:text="${claimOutboundDto.claimant.identity.number != null ? claimOutboundDto.claimant.identity.number : ''}"></td>
+        </tr>
+        <tr>
+            <th>CONTACT NUMBER</th>
+            <td></td>
+        </tr>
+    </table>
+</div>
+
+<div class="section-title">SECTION E: CASH PAYOUT INFORMATION</div>
+<div class="section-content">
+    <table>
+        <tr>
+            <th>CLAIM PAYOUT AMOUNT</th>
+            <td th:text="${claimOutboundDto.amount}"></td>
+        </tr>
+        <tr>
+            <th>CLAIM PAID OUT TO POLICY HOLDER</th>
+            <td th:text="${claimOutboundDto.claimant.name1 + ' ' + claimOutboundDto.claimant.name2 + ' ' + claimOutboundDto.claimant.name3}"></td>
+        </tr>
+        <tr>
+            <th>NOMINATED BENEFICIARY</th>
+            <td th:text="${claimOutboundDto.claimant.name1 != null ? claimOutboundDto.claimant.name1 + ' ' + (claimOutboundDto.claimant.name2 != null ? claimOutboundDto.claimant.name2 : '') + ' ' + (claimOutboundDto.claimant.name3 != null ? claimOutboundDto.claimant.name3 : '') : ''}"></td>
+        </tr>
+        <tr>
+            <th>POINT OF COLLECTION</th>
+            <td th:text="${claimOutboundDto.branch.code}"></td>
+        </tr>
+        <tr>
+            <th>NAME OF BANK</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>ACCOUNT HOLDER FULL NAMES</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>ACCOUNT HOLDER ID NUMBER</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>ACCOUNT NUMBER</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>ACCOUNT TYPE</th>
+            <td></td>
+        </tr>
+        <tr>
+            <th>ACCOUNT HOLDER CONTACT NUMBER</th>
+            <td></td>
+        </tr>
+    </table>
+</div>
+
+<div class="signature-section">
+    <div class="signature-box">
+        <div>Signature:</div>
+        <div class="signature-line"></div>
+    </div>
+    <div class="signature-box">
+        <div>Date:</div>
+        <div class="signature-line"></div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
@@ -44,6 +45,9 @@ public class ClaimController {
     PaymentRequestService paymentRequestService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    private TemplateEngine templateEngine;
+
 
     @Autowired
     ProductService productService;
@@ -459,19 +463,18 @@ public class ClaimController {
         }
     }
 
-    @RequestMapping(value = "{id}/generate-pdf", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> generateClaimPdf(@PathVariable String id) {
+    @RequestMapping(value = "{id}/pdf-form", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generatePdf(@PathVariable String id) {
         try {
             ClaimOutboundDto claimOutboundDto = claimService.get(id);
-            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
 
-            // Convert the PDF byte array to a Base64 string
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto, templateEngine);
+
             String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
 
-            // Return the Base64 string in the response
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body("{\"pdfBase64\": \"" + base64Pdf + "\"}");
+                    .body(base64Pdf);
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
