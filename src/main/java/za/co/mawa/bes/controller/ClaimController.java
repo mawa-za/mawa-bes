@@ -472,9 +472,7 @@ public class ClaimController {
 
             String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
 
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(base64Pdf);
+            return ResponseEntity.ok().body(base64Pdf);
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
