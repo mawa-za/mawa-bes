@@ -20,7 +20,7 @@ public class XeroAccountingService {
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 
 
-    public boolean createInvoice(String accessToken , String XeroTenantId){
+    public String createInvoice(String accessToken , String XeroTenantId){
         try {
             ObjectMapper objectMapper = new ObjectMapper();
 
@@ -30,47 +30,52 @@ public class XeroAccountingService {
 
             // Create Contact node
             ObjectNode contact = objectMapper.createObjectNode();
-            contact.put("ContactID", "eaa28f49-6028-4b6e-bb12-d8f6278073fc");
+            contact.put("ContactID", "3786a1f7-d899-4dc5-a0e9-cc972ae89299");
             invoice.set("Contact", contact);
 
             // Add Dates
-            invoice.put("Date", "/Date(1518685950940+0000)/");
-            invoice.put("DateString", "2009-05-27T00:00:00");
-            invoice.put("DueDate", "/Date(1518685950940+0000)/");
-            invoice.put("DueDateString", "2009-06-06T00:00:00");
+            invoice.put("Date", "2019-03-11");
+            invoice.put("DueDate", "2018-12-10");
 
-            // Line Amount Types
-            invoice.put("LineAmountTypes", "Exclusive");
+            // Reference & Status
+            invoice.put("Reference", "Website Design");
+            invoice.put("Status", "AUTHORISED");
 
             // Create LineItems array
             ArrayNode lineItems = objectMapper.createArrayNode();
             ObjectNode lineItem = objectMapper.createObjectNode();
-            lineItem.put("Description", "Consulting services as agreed (20% off standard rate)");
-            lineItem.put("Quantity", "10");
-            lineItem.put("UnitAmount", "100.00");
+            lineItem.put("Description", "Acme Tires");
+            lineItem.put("Quantity", 2);
+            lineItem.put("UnitAmount", 20);
             lineItem.put("AccountCode", "200");
-            lineItem.put("DiscountRate", "20");
+            lineItem.put("TaxType", "NONE");
+            lineItem.put("LineAmount", 40);
             lineItems.add(lineItem);
 
             invoice.set("LineItems", lineItems);
 
-            String jsonString = objectMapper.writeValueAsString(invoice);
+            // Wrap inside the Invoices array
+            ObjectNode root = objectMapper.createObjectNode();
+            ArrayNode invoices = objectMapper.createArrayNode();
+            invoices.add(invoice);
+            root.set("Invoices", invoices);
+
+            // Convert to JSON String
+            String jsonString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
             JSONObject invoiceJson = new JSONObject(jsonString);
 //            String XeroTenantId = getXeroTenantId(accessToken);
             System.out.println("tenant id " + XeroTenantId);
-            sendInvoiceRequest(invoiceJson , accessToken ,XeroTenantId );
-
-            return true;
+            return sendInvoiceRequest(invoiceJson , accessToken ,XeroTenantId );
 
         } catch (Exception e) {
 
             e.printStackTrace();
         }
 
-        return false;
+        return null;
     }
 
-    public void sendInvoiceRequest(JSONObject requestBody, String accessToken , String xero_tenant_id) throws IOException {
+    public String sendInvoiceRequest(JSONObject requestBody, String accessToken , String xero_tenant_id) throws IOException {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(INVOICE_URL);
@@ -100,15 +105,16 @@ public class XeroAccountingService {
             }
 
             // Read successful response if needed
+            StringBuilder response = new StringBuilder();
             try (BufferedReader br = new BufferedReader(
                     new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                StringBuilder response = new StringBuilder();
                 String responseLine;
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-                // Process response if needed
             }
+
+            return response.toString(); // Return the full response;
 
         } catch (SocketTimeoutException e) {
             throw new IOException("Request timed out: " + e.getMessage(), e);

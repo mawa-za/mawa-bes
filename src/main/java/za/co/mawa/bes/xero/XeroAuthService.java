@@ -10,7 +10,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-public class XeroAuth {
+public class XeroAuthService {
     @Getter
     private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
     @Getter
@@ -19,6 +19,7 @@ public class XeroAuth {
     // change the redirect uri
     @Getter
     private static final String REDIRECT_URI = "http://localhost:8080/xero/callback";
+
     @Getter
     private static final String TOKEN_URL = "https://identity.xero.com/connect/token";
     @Getter
