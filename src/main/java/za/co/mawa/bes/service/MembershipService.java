@@ -12,6 +12,7 @@ import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.PricingInboundDto;
+import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
@@ -72,10 +73,6 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-    @Autowired
-    InvoiceService invoiceService;
-    @Autowired
-    UserService userService;
 
     @Autowired
     TenantAdminService tenantAdminService;
@@ -308,6 +305,7 @@ public class MembershipService implements MembershipDao {
                 }
             }
             membershipDto.setMembershipHistory(previousMemberships);
+
 
 
             return membershipDto;
@@ -633,80 +631,6 @@ public class MembershipService implements MembershipDao {
         return "Validated";
     }
 
-    public String handleBilling(String id){
-
-        try {
-            MembershipDto membershipDto = get(id);
-            InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
-
-            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
-            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
-            PricingInboundDto pricingInboundDto = new PricingInboundDto();
-            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
-            invoiceInboundDto.setPricing(pricingInboundDto);
-            invoiceInboundDto.setInvoiceDate(new Date());
-
-            List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
-            LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
-            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
-            lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
-            lineItemInboundDtoList.add(lineItemInboundDto);
-            invoiceInboundDto.setItems(lineItemInboundDtoList);
-            invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
-
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
-
-            TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceOutboundDto.getId());
-            linkDto.setTransaction2(id);
-            linkDto.setType(TransactionType.MEMBERSHIP);
-            transactionService.addLink(linkDto);
-
-            return invoiceOutboundDto.getId();
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public String handleMembershipLapse(String id) throws Exception {
-        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
-        premiumSearchDto.setMembershipId(id);
-        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
-        return processMembershipLapseLogic(premiumEntities, id);
-    }
-
-    public String handleMembershipLapse(List<TransactionViewEntity> membershipEntities) throws Exception {
-        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
-        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
-        for (TransactionViewEntity entity : membershipEntities) {
-            processMembershipLapseLogic(premiumEntities, entity.getTransactionId());
-        }
-        return "Membership Lapse Finished";
-    }
-
-    private String processMembershipLapseLogic(List<PremiumEntity> premiumEntities, String membershipId) {
-        LocalDate today = LocalDate.now();
-        LocalDate threeMonthsAgo = today.minusMonths(3);
-
-        for (PremiumEntity premiumEntity : premiumEntities) {
-            if (premiumEntity != null && membershipId.equals(premiumEntity.getMembershipId())) {
-                LocalDate localDateToCheck = premiumEntity.getCreationDate()
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate();
-
-                if (localDateToCheck.isBefore(threeMonthsAgo)) {
-                    MembershipEditDto editDto = new MembershipEditDto();
-                    editDto.setStatus(Status.INACTIVE);
-                    editDto.setStatusReason(StatusReason.LAPSED);
-                    edit(membershipId, editDto);
-                }
-            }
-        }
-        return "Processed";
-    }
 
 
 }

@@ -236,7 +236,6 @@ public class MembershipController {
 
     @RequestMapping(value = "{id}/membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse(@PathVariable String id) {
-
         try {
             String result = membershipService.handleMembershipLapse(id);
             return ResponseEntity.ok().body(gson.toJson(result));

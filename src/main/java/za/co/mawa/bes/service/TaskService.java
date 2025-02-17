@@ -16,15 +16,6 @@ import za.co.mawa.bes.utils.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
-import org.springframework.web.bind.annotation.PathVariable;
-import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
-import za.co.mawa.bes.exception.PartnerNotFoundException;
-import za.co.mawa.bes.utils.*;
-import java.text.SimpleDateFormat;
-import java.util.Objects;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -157,11 +148,8 @@ public class TaskService implements TaskDao {
                     taskDto.setDuration(entity.getValue());
                 }
             }
-
             return taskDto;
         } catch (TransactionNotFound | PartnerNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (PartnerNotFoundException e) {
             throw new RuntimeException(e);
         }
     }

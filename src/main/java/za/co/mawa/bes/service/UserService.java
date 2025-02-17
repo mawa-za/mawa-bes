@@ -225,24 +225,6 @@ public class UserService implements UserDao {
         }
     }
 
-    public String getCurrentUserPartnerId() {
-        try {
-
-            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            UserEntity user = userRepository.getByName(userDetails.getUsername());
-
-            if (user != null) {
-
-                return String.valueOf(user.getPartner());
-            } else {
-                return null;
-            }
-        } catch (Exception e) {
-
-            return null;
-        }
-    }
-
     @Override
     public void addRole(UserRoleDto userRoleDto) throws Exception {
         try {

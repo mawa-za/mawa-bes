@@ -1304,6 +1304,6 @@ public class PartnerService {
         return partnerBasicDto;
     }
 
-}
 
+}
 
