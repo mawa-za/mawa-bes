@@ -25,13 +25,7 @@ public class TransactionType {
     public static  String COMMENT = "COMMENT";
     public static  String DEPOSIT_ATTACHMENT = "DEPOSIT-ATTACHMENT";
     public static  String LEGAL_REPRESENTATIVE_LINK = "LEGAL-REPRESENTATIVE-LINK";
-
-    public  static String SALES_INVOICE = "SALES-INVOICE";
-
-    public static String DISCOUNT = "DISCOUNT";
-    public static String UPGRADE = "UPGRADE";
-
-
     public static String PAYMENT_BATCH = "PAYMENT-BATCH";
+    public static String UPGRADE = "UPGRADE";
 
 }

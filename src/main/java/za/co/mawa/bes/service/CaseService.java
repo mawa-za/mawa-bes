@@ -52,8 +52,6 @@ public class CaseService {
     CommentService commentService;
     @Autowired
     PartnerRepository partnerRepository;
-    @Autowired
-    TaskService taskService;
 
 
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
@@ -168,6 +166,7 @@ public class CaseService {
                             }
                         }
                         caseDto.getApplicants().add(participantOutboundDto);
+
                     }
 
                     if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.DEFENDANT)) {
@@ -186,9 +185,7 @@ public class CaseService {
                             }
                         }
                         caseDto.getDefendants().add(participantOutboundDto);
-                    }
-                    if (transactionPartnerDto.getFunction().equals(PartnerFunction.SERVICE_PROVIDER)) {
-                        caseDto.getServiceProviders().add(partnerService.get(transactionPartnerDto.getPartner()));
+
                     }
                     ParticipantDto participantDto = new ParticipantDto();
                     participantDto.setPartner(partnerService.get(transactionPartnerDto.getPartner()));

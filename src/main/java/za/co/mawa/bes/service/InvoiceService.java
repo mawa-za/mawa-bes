@@ -195,6 +195,12 @@ public class InvoiceService {
                     invoiceOutboundDto.setDueDate(transactionDateDto.getValue());
                 }
             }
+            for(TransactionLinkDto link:transactionService.getLinks(id)){
+                if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
+                    invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
+                }
+            }
+
             invoiceOutboundDto.setItems(lineItemService.getAll(id));
             invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(id));
             invoiceOutboundDto.setDates(transactionService.getDates(id));

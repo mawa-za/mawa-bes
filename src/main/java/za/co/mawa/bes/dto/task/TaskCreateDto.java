@@ -19,5 +19,4 @@ public class TaskCreateDto implements Serializable {
     private String startDate;
     private String duration;
 
-
 }
