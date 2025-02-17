@@ -1,14 +1,23 @@
 package za.co.mawa.bes.service;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import org.xhtmlrenderer.pdf.ITextRenderer;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.ClaimCancelDto;
-import za.co.mawa.bes.dto.ClaimDisputeDto;
-import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -21,19 +30,17 @@ import za.co.mawa.bes.dto.transaction.link.TransactionLinkOutboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
-import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
-import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
-import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.TransactionAmountRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
-import java.text.SimpleDateFormat;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -66,6 +73,10 @@ public class ClaimService {
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     PartnerRepository partnerRepository;
+    @Autowired
+    AddressService addressService;
+    @Autowired
+    ProductService productService;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -215,7 +226,7 @@ public class ClaimService {
             }else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
-          
+
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -447,14 +458,14 @@ public class ClaimService {
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
             if (voucherClaimTypeList.contains(transactionDto.getSubType())) {
-                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
+                VoucherCreateDto voucherCreateDto = new VoucherCreateDto();
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherCreateDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -462,12 +473,10 @@ public class ClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherCreateDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherInboundDto.setContractId(id);
-                try {
-                    voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                voucherCreateDto.setContractId(id);
+                voucherService.create(voucherCreateDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -507,4 +516,62 @@ public class ClaimService {
             throw new RuntimeException(e);
         }
     }
+
+    public ByteArrayResource generateClaimPdf(ClaimOutboundDto claimOutboundDto, TemplateEngine templateEngine) throws IOException {
+        try{
+            Context context = new Context();
+            context.setVariable("claimOutboundDto", claimOutboundDto);
+
+            String processedHtml = templateEngine.process("claim-form", context);
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ITextRenderer renderer = new ITextRenderer();
+            renderer.setDocumentFromString(processedHtml);
+            renderer.layout();
+            renderer.createPDF(outputStream);
+            outputStream.close();
+
+            return new ByteArrayResource(outputStream.toByteArray());
+        }
+        catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void validateClaimOutboundDto(ClaimOutboundDto claimOutboundDto) {
+        if (claimOutboundDto == null) {
+            throw new IllegalArgumentException("ClaimOutboundDto cannot be null");
+        }
+        else{
+            if(claimOutboundDto.getType().getCode().equalsIgnoreCase("CASH")){
+                if (claimOutboundDto.getBranch() == null || claimOutboundDto.getBranch().getCode() == null) {
+                    throw new IllegalArgumentException("Branch and Branch Code cannot be null");
+                }
+
+                if (claimOutboundDto.getCreationDate() == null) {
+                    throw new IllegalArgumentException("Creation Date cannot be null");
+                }
+
+                if (claimOutboundDto.getCustomer() == null || claimOutboundDto.getCustomer().getName1() == null) {
+                    throw new IllegalArgumentException("Customer and Customer Name1 cannot be null");
+                }
+
+                if (claimOutboundDto.getDeceased() == null || claimOutboundDto.getDeceased().getName1() == null || claimOutboundDto.getDeceased().getIdentity() == null || claimOutboundDto.getDeceased().getIdentity().getNumber() == null) {
+                    throw new IllegalArgumentException("Deceased information cannot be null");
+                }
+
+                if (claimOutboundDto.getClaimant() == null || claimOutboundDto.getClaimant().getName1() == null || claimOutboundDto.getClaimant().getIdentity() == null || claimOutboundDto.getClaimant().getIdentity().getNumber() == null) {
+                    throw new IllegalArgumentException("Claimant information cannot be null");
+                }
+
+//                if (claimOutboundDto.getPaidOutAmount().getAmount() == null) {
+//                    throw new IllegalArgumentException("Claim amount cannot be null");
+//                }
+            }
+            else{
+                throw new RuntimeException("The form can only be generated for claims of type CASH");
+            }
+        }
+    }
 }
+
