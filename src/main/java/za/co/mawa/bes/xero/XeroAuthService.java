@@ -3,6 +3,9 @@ package za.co.mawa.bes.xero;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.service.SettingService;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -10,7 +13,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+@Service
 public class XeroAuthService {
+    @Autowired
+    SettingService settingService;
     @Getter
     private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
     @Getter
@@ -28,17 +34,17 @@ public class XeroAuthService {
     private static final String SCOPES = "offline_access accounting.transactions";
 
     private static final String API_URL = "https://api.xero.com/api.xro/2.0/Invoices";
-    @Getter
-    private static String refreshToken = "stored_refresh_token";
-    @Getter
-    private static String accessToken = "stored_access_token";
-    @Getter
-    private static String xeroTenantId = "stored_xero_tenant_id";
-    @Getter
-    private static long expiresAt = System.currentTimeMillis() + (1800 * 1000);
+//    @Getter
+//    private static String refreshToken = "stored_refresh_token";
+//    @Getter
+//    private static String accessToken = "stored_access_token";
+//    @Getter
+//    private static String xeroTenantId = "stored_xero_tenant_id";
+//    @Getter
+//    private static long expiresAt = System.currentTimeMillis() + (1800 * 1000);
 
 
-    public static String getInitialTokens(String authorizationCode) throws IOException {
+    public  String getInitialTokens(String authorizationCode) throws IOException {
         try {
             String requestBody = "grant_type=authorization_code" +
                     "&code=" + authorizationCode +
@@ -50,10 +56,18 @@ public class XeroAuthService {
             //            createInvoice(accessToken);
             System.out.println("Initial Token Response: " + response);
 //            System.out.println("Token " + accessToken);
-            refreshToken = extractRefreshToken(response);
-            accessToken = extractAccessToken(response);
-            xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
-            expiresAt = System.currentTimeMillis() + (1800 * 1000);
+
+            String refreshToken = extractRefreshToken(response);
+            settingService.createSetting(XeroUtils.XERO_REFRESH_TOKEN,XeroUtils.XERO_INVOICE,refreshToken);
+
+            String accessToken = extractAccessToken(response);
+            settingService.createSetting(XeroUtils.XERO_ACCESS_TOKEN, XeroUtils.XERO_INVOICE, accessToken);
+
+            String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
+            settingService.createSetting(XeroUtils.XERO_TENANT_ID, XeroUtils.XERO_INVOICE, xeroTenantId);
+            ;
+            String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
+            settingService.createSetting(XeroUtils.XERO_EXPIRE_AT, XeroUtils.XERO_INVOICE, expiresAt);
 
             return accessToken ;
         } catch (Exception e) {
@@ -62,8 +76,10 @@ public class XeroAuthService {
         }
     }
 
-    public static String refreshAccessToken() throws IOException {
+    public  String refreshAccessToken() throws IOException {
         // check if access token expired
+
+        String refreshToken = settingService.getSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE);
 
         String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
 
@@ -71,9 +87,16 @@ public class XeroAuthService {
         System.out.println("New Token Response: " + response);
 
         refreshToken = extractRefreshToken(response);
-        accessToken = extractAccessToken(response);
-        xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
-        expiresAt = System.currentTimeMillis() + (1800 * 1000);
+        settingService.updateSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE,refreshToken);
+
+        String accessToken = extractAccessToken(response);
+        settingService.updateSetting(XeroUtils.XERO_ACCESS_TOKEN, XeroUtils.XERO_INVOICE,accessToken);
+
+        String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
+        settingService.updateSetting(XeroUtils.XERO_TENANT_ID, XeroUtils.XERO_INVOICE,xeroTenantId);
+
+        String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
+        settingService.updateSetting(XeroUtils.XERO_EXPIRE_AT, XeroUtils.XERO_INVOICE,expiresAt);
 
         return response;
     }
@@ -149,7 +172,7 @@ public class XeroAuthService {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode jsonNode = objectMapper.readTree(jsonResponse);
-            refreshToken = jsonNode.get("refresh_token").asText();
+            String refreshToken = jsonNode.get("refresh_token").asText();
             int expiresIn = jsonNode.get("expires_in").asInt();
             String tokenType = jsonNode.get("token_type").asText();
             String scope = jsonNode.get("scope").asText();

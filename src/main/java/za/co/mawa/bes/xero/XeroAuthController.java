@@ -1,17 +1,25 @@
 package za.co.mawa.bes.xero;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import za.co.mawa.bes.service.SettingService;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 @RestController
+@CrossOrigin
 public class XeroAuthController {
 
+    @Autowired
+    XeroAuthService xeroAuthService;
+    @Autowired
+    SettingService settingService;
 
     @GetMapping("/xero/connect")
     public ResponseEntity<String> redirectToXero() throws IOException {
@@ -27,10 +35,11 @@ public class XeroAuthController {
     public String callback(@RequestParam String code, @RequestParam(required = false) String state) {
         // Store the code for later use in token exchange
         try {
-            XeroAuthService.getInitialTokens(code);
+            xeroAuthService.getInitialTokens(code);
 
             XeroAccountingService xeroAccountingService = new XeroAccountingService();
-            return xeroAccountingService.createInvoice(XeroAuthService.getAccessToken(), XeroAuthService.getXeroTenantId());
+//            return xeroAccountingService.createInvoice(XeroAuthService.getAccessToken(), XeroAuthService.getXeroTenantId());
+            return "successful";
 
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -40,7 +49,7 @@ public class XeroAuthController {
     @GetMapping("/xero/refreshToken")
     public String getToken() throws IOException {
         try{
-            return XeroAuthService.refreshAccessToken();
+            return xeroAuthService.refreshAccessToken();
         } catch (Exception e) {
             return "errer"+ e ;
         }
@@ -50,8 +59,14 @@ public class XeroAuthController {
     public String createInvoice() {
         // Store the code for later use in token exchange
         try {
+            String accessToken = settingService.getSetting(XeroUtils.XERO_ACCESS_TOKEN ,XeroUtils.XERO_INVOICE);
+            String tenantId = settingService.getSetting(XeroUtils.XERO_TENANT_ID ,XeroUtils.XERO_INVOICE);
+
+            System.out.println(accessToken);
+            System.out.println(tenantId);
             XeroAccountingService xeroAccountingService = new XeroAccountingService();
-            return xeroAccountingService.createInvoice(XeroAuthService.getAccessToken(), XeroAuthService.getXeroTenantId());
+
+            return xeroAccountingService.createInvoice(accessToken, tenantId);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
