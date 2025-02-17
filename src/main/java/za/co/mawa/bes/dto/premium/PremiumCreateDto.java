@@ -13,6 +13,7 @@ import java.io.Serializable;
 public class PremiumCreateDto implements Serializable {
     private String membershipId;
     private String membershipPeriod;
+    private String employeeResponsible;
     private String tenderType;
     private String location;
     private String amount;
