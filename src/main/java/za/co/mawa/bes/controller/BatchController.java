@@ -32,11 +32,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
-import za.co.mawa.bes.dto.transaction.TransactionViewDto;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
-import za.co.mawa.bes.service.*;
-import za.co.mawa.bes.utils.TransactionType;
-
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
@@ -88,7 +83,6 @@ public class BatchController {
         }
     }
 
-
     @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse() {
         try {
@@ -103,6 +97,15 @@ public class BatchController {
         }
     }
 
+    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> validateMembershipStatus(){
+        try{
+            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
 
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
