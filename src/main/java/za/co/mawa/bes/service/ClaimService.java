@@ -290,7 +290,7 @@ public class ClaimService {
             try{
                 List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
                 for(TransactionAmountEntity transactionAmount : transactionAmountEntities){
-                    if(transactionAmount.getType().equals(AmountType.SERVICE_AMOUNT)){
+                    if(transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)){
                         TransactionAmountOutboundDto transactionAmountOutboundDto = new TransactionAmountOutboundDto();
                         transactionAmountOutboundDto.setId(transactionAmount.getId());
                         transactionAmountOutboundDto.setTransaction(id);
