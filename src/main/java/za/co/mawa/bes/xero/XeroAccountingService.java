@@ -34,22 +34,23 @@ public class XeroAccountingService {
             invoice.set("Contact", contact);
 
             // Add Dates
-            invoice.put("Date", "2019-03-11");
-            invoice.put("DueDate", "2018-12-10");
+//            invoice.put("Date", "2019-03-11");
+//            invoice.put("DueDate", "2018-12-10");
 
             // Reference & Status
-            invoice.put("Reference", "Website Design");
-            invoice.put("Status", "AUTHORISED");
+            invoice.put("Reference", "claim-id");
+//            invoice.put("Status", "AUTHORISED");
 
             // Create LineItems array
             ArrayNode lineItems = objectMapper.createArrayNode();
             ObjectNode lineItem = objectMapper.createObjectNode();
-            lineItem.put("Description", "Acme Tires");
-            lineItem.put("Quantity", 2);
-            lineItem.put("UnitAmount", 20);
-            lineItem.put("AccountCode", "200");
-            lineItem.put("TaxType", "NONE");
-            lineItem.put("LineAmount", 40);
+//            lineItem.put("Description", "Acme Tires");
+            lineItem.put("Quantity", 1);
+//            lineItem.put("UnitAmount", 20);
+//            lineItem.put("AccountCode", "200");
+            lineItem.put("ItemCode","BOOK");
+//            lineItem.put("TaxType", "NONE");
+//            lineItem.put("LineAmount", 40);
             lineItems.add(lineItem);
 
             invoice.set("LineItems", lineItems);
