@@ -16,6 +16,8 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
@@ -38,6 +40,7 @@ import za.co.mawa.bes.utils.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -72,6 +75,8 @@ public class ClaimService {
     PartnerRepository partnerRepository;
     @Autowired
     AddressService addressService;
+    @Autowired
+    ProductService productService;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -530,6 +535,42 @@ public class ClaimService {
         }
         catch(Exception e){
             throw new RuntimeException(e);
+        }
+    }
+
+    public void validateClaimOutboundDto(ClaimOutboundDto claimOutboundDto) {
+        if (claimOutboundDto == null) {
+            throw new IllegalArgumentException("ClaimOutboundDto cannot be null");
+        }
+        else{
+            if(claimOutboundDto.getType().getCode().equalsIgnoreCase("CASH")){
+                if (claimOutboundDto.getBranch() == null || claimOutboundDto.getBranch().getCode() == null) {
+                    throw new IllegalArgumentException("Branch and Branch Code cannot be null");
+                }
+
+                if (claimOutboundDto.getCreationDate() == null) {
+                    throw new IllegalArgumentException("Creation Date cannot be null");
+                }
+
+                if (claimOutboundDto.getCustomer() == null || claimOutboundDto.getCustomer().getName1() == null) {
+                    throw new IllegalArgumentException("Customer and Customer Name1 cannot be null");
+                }
+
+                if (claimOutboundDto.getDeceased() == null || claimOutboundDto.getDeceased().getName1() == null || claimOutboundDto.getDeceased().getIdentity() == null || claimOutboundDto.getDeceased().getIdentity().getNumber() == null) {
+                    throw new IllegalArgumentException("Deceased information cannot be null");
+                }
+
+                if (claimOutboundDto.getClaimant() == null || claimOutboundDto.getClaimant().getName1() == null || claimOutboundDto.getClaimant().getIdentity() == null || claimOutboundDto.getClaimant().getIdentity().getNumber() == null) {
+                    throw new IllegalArgumentException("Claimant information cannot be null");
+                }
+
+//                if (claimOutboundDto.getPaidOutAmount().getAmount() == null) {
+//                    throw new IllegalArgumentException("Claim amount cannot be null");
+//                }
+            }
+            else{
+                throw new RuntimeException("The form can only be generated for claims of type CASH");
+            }
         }
     }
 }
