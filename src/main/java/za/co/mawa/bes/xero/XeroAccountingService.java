@@ -62,8 +62,8 @@ public class XeroAccountingService {
 
             // Create Contact node
             ObjectNode contact = objectMapper.createObjectNode();
-//            contact.put("ContactID", getContactIdFromPartner(partnerId));
-            contact.put("ContactID", "3786a1f7-d899-4dc5-a0e9-cc972ae89299");
+            contact.put("ContactID", getContactIdFromPartner(partnerId));
+//            contact.put("ContactID", "3786a1f7-d899-4dc5-a0e9-cc972ae89299");
             invoice.set("Contact", contact);
 
             // Add Dates
@@ -177,9 +177,8 @@ public class XeroAccountingService {
     private String getContactIdFromPartner(String partnerId){
         List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partnerId);
 
-        for(PartnerIdentityEntity partnerIdentityEntity : identityList){
-            if (partnerIdentityEntity.getPartnerIdentityPK().getType() == XeroUtils.XERO_CONTACT_ID){
-
+        for (PartnerIdentityEntity partnerIdentityEntity : identityList) {
+            if (XeroUtils.XERO_CONTACT_ID.equals(partnerIdentityEntity.getPartnerIdentityPK().getType())) {
                 return partnerIdentityEntity.getPartnerIdentityPK().getValue();
             }
         }
