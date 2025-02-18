@@ -3,6 +3,7 @@ package za.co.mawa.bes.xero;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,7 @@ public class XeroAccountingService {
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 
 
-    public String createInvoice(String tenant ,String partnerId , String reference , String itemCode){
+    public String createInvoice(String partnerId , String reference , String itemCode){
         try {
             //get accessToken and XeroTenantId
             //use the partner id to get the contact id from partner
@@ -45,7 +46,7 @@ public class XeroAccountingService {
             //schedule function to refresh refresh token after 30 days
 
             //get this tenant from the partnerId
-//            String tenant = TenantContext.getCurrentTenant();
+            String tenant = TenantContext.getCurrentTenant();
 //            String tenant = getContactIdFromPartner(partnerId);
 
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
@@ -148,7 +149,12 @@ public class XeroAccountingService {
                 }
             }
 
-            return response.toString(); // Return the full response;
+            // Convert response to JSON object
+            JSONObject jsonResponse = new JSONObject(response.toString());
+            JSONArray invoices = jsonResponse.getJSONArray("Invoices");
+            JSONObject firstInvoice = invoices.getJSONObject(0);
+            String invoiceNumber = firstInvoice.getString("InvoiceNumber");
+            return invoiceNumber;
 
         } catch (SocketTimeoutException e) {
             throw new IOException("Request timed out: " + e.getMessage(), e);

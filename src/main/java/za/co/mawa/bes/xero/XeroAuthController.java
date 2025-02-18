@@ -81,7 +81,8 @@ public class XeroAuthController {
 //            System.out.println(tenantId);
 //            XeroAccountingService xeroAccountingService = new XeroAccountingService();
 
-            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+            return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+//            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
 
         } catch (Exception e) {
             throw new RuntimeException(e);
