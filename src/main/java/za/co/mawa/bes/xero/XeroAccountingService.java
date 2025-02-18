@@ -4,6 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.service.PartnerIdentityService;
+import za.co.mawa.bes.service.TenantAdminService;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,14 +22,38 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 
+@Service
 public class XeroAccountingService {
+
+    @Autowired
+    PartnerIdentityRepository partnerIdentityRepository;
+    @Autowired
+    XeroAuthService xeroAuthService;
+    @Autowired
+    TenantAdminService tenantAdminService;
 
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 
 
-    public String createInvoice(String accessToken , String XeroTenantId){
+    public String createInvoice(String tenant ,String partnerId , String reference , String itemCode){
         try {
+            //get accessToken and XeroTenantId
+            //use the partner id to get the contact id from partner
+            //if authentication fails, refresh token
+            //schedule function to refresh refresh token after 30 days
+
+            //get this tenant from the partnerId
+//            String tenant = TenantContext.getCurrentTenant();
+//            String tenant = getContactIdFromPartner(partnerId);
+
+            String accessToken = xeroAuthService.refreshAccessToken(tenant);
+
+            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+            JSONObject jsonObject = new JSONObject(tenantProperty);
+            String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+
             ObjectMapper objectMapper = new ObjectMapper();
 
             // Create root node
@@ -30,6 +62,7 @@ public class XeroAccountingService {
 
             // Create Contact node
             ObjectNode contact = objectMapper.createObjectNode();
+//            contact.put("ContactID", getContactIdFromPartner(partnerId));
             contact.put("ContactID", "3786a1f7-d899-4dc5-a0e9-cc972ae89299");
             invoice.set("Contact", contact);
 
@@ -38,7 +71,7 @@ public class XeroAccountingService {
 //            invoice.put("DueDate", "2018-12-10");
 
             // Reference & Status
-            invoice.put("Reference", "claim-id");
+            invoice.put("Reference", reference);
 //            invoice.put("Status", "AUTHORISED");
 
             // Create LineItems array
@@ -48,7 +81,7 @@ public class XeroAccountingService {
             lineItem.put("Quantity", 1);
 //            lineItem.put("UnitAmount", 20);
 //            lineItem.put("AccountCode", "200");
-            lineItem.put("ItemCode","BOOK");
+            lineItem.put("ItemCode",itemCode);
 //            lineItem.put("TaxType", "NONE");
 //            lineItem.put("LineAmount", 40);
             lineItems.add(lineItem);
@@ -139,5 +172,17 @@ public class XeroAccountingService {
             }
             return response.toString();
         }
+    }
+
+    private String getContactIdFromPartner(String partnerId){
+        List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByPartner(partnerId);
+
+        for(PartnerIdentityEntity partnerIdentityEntity : identityList){
+            if (partnerIdentityEntity.getPartnerIdentityPK().getType() == XeroUtils.XERO_CONTACT_ID){
+
+                return partnerIdentityEntity.getPartnerIdentityPK().getValue();
+            }
+        }
+        return null;
     }
 }

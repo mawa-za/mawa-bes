@@ -3,24 +3,34 @@ package za.co.mawa.bes.xero;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.dto.TenantPropertyDto;
+import za.co.mawa.bes.entity.SettingEntity;
+import za.co.mawa.bes.entity.SettingPKEntity;
 import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.TenantAdminService;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Optional;
 
 @Service
 public class XeroAuthService {
     @Autowired
     SettingService settingService;
-    @Getter
-    private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
-    @Getter
-    private static final String CLIENT_SECRET = "c90a_5H72_f0DXSnQroKDcp1pedaI9nVpOk4NayCi7viLyRO";
+    @Autowired
+    TenantAdminService tenantAdminService;
+
+//    @Getter
+//    private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
+//    @Getter
+//    private static final String CLIENT_SECRET = "c90a_5H72_f0DXSnQroKDcp1pedaI9nVpOk4NayCi7viLyRO";
 
     // change the redirect uri
     @Getter
@@ -46,28 +56,38 @@ public class XeroAuthService {
 
     public  String getInitialTokens(String authorizationCode) throws IOException {
         try {
+            String tenant = TenantContext.getCurrentTenant();
             String requestBody = "grant_type=authorization_code" +
                     "&code=" + authorizationCode +
                     "&redirect_uri=" + REDIRECT_URI;
 
             //all info about token is returned and to be store
-            String response = sendTokenRequest(requestBody);
+            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+            JSONObject jsonObject = new JSONObject(tenantProperty);
+            String client_id = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
+            String client_secret = jsonObject.getString(XeroUtils.XERO_CLIENT_SECRET);
+
+            String response = sendTokenRequest(requestBody, client_id,client_secret);
 
             //            createInvoice(accessToken);
             System.out.println("Initial Token Response: " + response);
 //            System.out.println("Token " + accessToken);
 
             String refreshToken = extractRefreshToken(response);
-            settingService.createSetting(XeroUtils.XERO_REFRESH_TOKEN,XeroUtils.XERO_INVOICE,refreshToken);
+//            settingService.createSetting(XeroUtils.XERO_REFRESH_TOKEN,XeroUtils.XERO_INVOICE,refreshToken);
+            createProperty(tenant,XeroUtils.XERO_REFRESH_TOKEN,refreshToken);
 
             String accessToken = extractAccessToken(response);
-            settingService.createSetting(XeroUtils.XERO_ACCESS_TOKEN, XeroUtils.XERO_INVOICE, accessToken);
+//            settingService.createSetting(XeroUtils.XERO_ACCESS_TOKEN, XeroUtils.XERO_INVOICE, accessToken);
+            createProperty(tenant,XeroUtils.XERO_ACCESS_TOKEN,accessToken);
 
             String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
-            settingService.createSetting(XeroUtils.XERO_TENANT_ID, XeroUtils.XERO_INVOICE, xeroTenantId);
-            ;
+//            settingService.createSetting(XeroUtils.XERO_TENANT_ID, XeroUtils.XERO_INVOICE, xeroTenantId);
+            createProperty(tenant,XeroUtils.XERO_TENANT_ID,xeroTenantId);
+
             String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
-            settingService.createSetting(XeroUtils.XERO_EXPIRE_AT, XeroUtils.XERO_INVOICE, expiresAt);
+//            settingService.createSetting(XeroUtils.XERO_EXPIRE_AT, XeroUtils.XERO_INVOICE, expiresAt);
+            createProperty(tenant,XeroUtils.XERO_EXPIRE_AT,expiresAt);
 
             return accessToken ;
         } catch (Exception e) {
@@ -76,33 +96,43 @@ public class XeroAuthService {
         }
     }
 
-    public  String refreshAccessToken() throws IOException {
+    public  String refreshAccessToken(String tenant) throws IOException {
         // check if access token expired
 
-        String refreshToken = settingService.getSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE);
+//        String tenant = TenantContext.getCurrentTenant();
+
+//        String refreshToken = settingService.getSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE);
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        JSONObject jsonObject = new JSONObject(tenantProperty);
+        String refreshToken = jsonObject.getString(XeroUtils.XERO_REFRESH_TOKEN);
+        String client_id = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
+        String client_secret = jsonObject.getString(XeroUtils.XERO_CLIENT_SECRET);
 
         String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
 
-        String response = sendTokenRequest(requestBody);
+        String response = sendTokenRequest(requestBody, client_id,client_secret);
         System.out.println("New Token Response: " + response);
 
-        refreshToken = extractRefreshToken(response);
-        settingService.updateSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE,refreshToken);
+         refreshToken = extractRefreshToken(response);
+//            settingService.createSetting(XeroUtils.XERO_REFRESH_TOKEN,XeroUtils.XERO_INVOICE,refreshToken);
+        createProperty(tenant,XeroUtils.XERO_REFRESH_TOKEN,refreshToken);
 
         String accessToken = extractAccessToken(response);
-        settingService.updateSetting(XeroUtils.XERO_ACCESS_TOKEN, XeroUtils.XERO_INVOICE,accessToken);
+        createProperty(tenant,XeroUtils.XERO_ACCESS_TOKEN,accessToken);
 
         String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
-        settingService.updateSetting(XeroUtils.XERO_TENANT_ID, XeroUtils.XERO_INVOICE,xeroTenantId);
+        createProperty(tenant,XeroUtils.XERO_TENANT_ID,xeroTenantId);
 
         String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
-        settingService.updateSetting(XeroUtils.XERO_EXPIRE_AT, XeroUtils.XERO_INVOICE,expiresAt);
+        createProperty(tenant,XeroUtils.XERO_EXPIRE_AT,expiresAt);
 
-        return response;
+
+        return accessToken;
     }
 
-    private static String sendTokenRequest(String requestBody) throws IOException {
-        String authString = CLIENT_ID + ":" + CLIENT_SECRET;
+    private static String sendTokenRequest(String requestBody, String clientId, String clientSecret) throws IOException {
+
+        String authString = clientId + ":" + clientSecret;
         String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
 
         URL url = new URL(TOKEN_URL);
@@ -235,6 +265,42 @@ public class XeroAuthService {
         return null;
     }
 
+    public void createProperty(String tenant, String property, String value) {
+        //get admin token
+        String adminJwtToken = tenantAdminService.getAdminToken();
+        TenantPropertyDto tenantPropertyDto = new TenantPropertyDto();
+        tenantPropertyDto.setTenant(tenant);
+        tenantPropertyDto.setProperty(property);
+        tenantPropertyDto.setValue(value);
+        String resp = tenantAdminService.addTenantProperty(tenant , tenantPropertyDto);
+        System.out.println(resp);
+    }
+
+    public String updateProperty(String tenant, String setting ) {
+        tenantAdminService.getTenantProperties(tenant);
+        return null;
+    }
+
+//    public void updateSetting(String attribute, String setting, String newValue) {
+//        SettingPKEntity settingPKEntity = new SettingPKEntity();
+//        settingPKEntity.setSetting(setting);
+//        settingPKEntity.setAttribute(attribute);
+//
+//        Optional<SettingEntity> settingEntity = settingRepository.findById(settingPKEntity);
+//        if (settingEntity.isPresent()) {
+//            SettingEntity existingSetting = settingEntity.get();
+//            existingSetting.setValue(newValue);
+//            settingRepository.save(existingSetting);
+//        }
+//    }
+//
+//    public void deleteSetting(String attribute, String setting) {
+//        SettingPKEntity settingPKEntity = new SettingPKEntity();
+//        settingPKEntity.setSetting(setting);
+//        settingPKEntity.setAttribute(attribute);
+//
+//        settingRepository.deleteById(settingPKEntity);
+//    }
 
 }
 
