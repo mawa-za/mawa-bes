@@ -484,7 +484,7 @@ public class ClaimController {
         try {
             ClaimOutboundDto claimOutboundDto = claimService.get(id);
             claimService.validateClaimOutboundDto(claimOutboundDto);
-            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto, templateEngine);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
 
             String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
 
