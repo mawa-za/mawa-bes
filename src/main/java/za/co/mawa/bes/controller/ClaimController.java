@@ -356,7 +356,7 @@ public class ClaimController {
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
 //                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", claim.getNumber(),"BOOK");
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),"BOOK");
                 paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
