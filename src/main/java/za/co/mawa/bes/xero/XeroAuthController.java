@@ -12,6 +12,7 @@ import za.co.mawa.bes.service.TenantAdminService;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static io.swagger.v3.core.util.PrimitiveType.createProperty;
 
@@ -30,7 +31,7 @@ public class XeroAuthController {
 
 
     @RequestMapping(value="/xero/connect" , method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
+    public ResponseEntity<Map<String, String>> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
 
         String tenant = TenantContext.getCurrentTenant();
 
@@ -56,7 +57,7 @@ public class XeroAuthController {
                 "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
                 "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8);
 
-            return ResponseEntity.ok("Please open this URL manually: " + authUrl);
+        return ResponseEntity.ok(Map.of("authenticationUrl", authUrl));
     }
 
     @GetMapping("/xero/callback")
@@ -88,12 +89,6 @@ public class XeroAuthController {
     public String createInvoice() {
         // Store the code for later use in token exchange
         try {
-//            String accessToken = settingService.getSetting(XeroUtils.XERO_ACCESS_TOKEN ,XeroUtils.XERO_INVOICE);
-//            String tenantId = settingService.getSetting(XeroUtils.XERO_TENANT_ID ,XeroUtils.XERO_INVOICE);
-//
-//            System.out.println(accessToken);
-//            System.out.println(tenantId);
-//            XeroAccountingService xeroAccountingService = new XeroAccountingService();
 
             return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
 //            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
