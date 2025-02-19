@@ -524,29 +524,6 @@ public class ClaimService {
         }
     }
 
-    public void validateClaimOutboundDto(ClaimOutboundDto claimOutboundDto) {
-        if (claimOutboundDto == null) {
-            throw new IllegalArgumentException("ClaimOutboundDto cannot be null");
-        } else {
-            if (claimOutboundDto.getType().getCode().equalsIgnoreCase("CASH")) {
-                // Skip validation for branch, branch code, and customer
-                if (claimOutboundDto.getCreationDate() == null) {
-                    throw new IllegalArgumentException("Creation Date cannot be null");
-                }
-
-                if (claimOutboundDto.getDeceased() == null || claimOutboundDto.getDeceased().getName1() == null || claimOutboundDto.getDeceased().getIdentity() == null || claimOutboundDto.getDeceased().getIdentity().getNumber() == null) {
-                    throw new IllegalArgumentException("Deceased information cannot be null");
-                }
-
-                if (claimOutboundDto.getClaimant() == null || claimOutboundDto.getClaimant().getName1() == null || claimOutboundDto.getClaimant().getIdentity() == null || claimOutboundDto.getClaimant().getIdentity().getNumber() == null) {
-                    throw new IllegalArgumentException("Claimant information cannot be null");
-                }
-            } else {
-                throw new RuntimeException("The form can only be generated for claims of type CASH");
-            }
-        }
-    }
-
     public ByteArrayResource generateClaimPdf(ClaimOutboundDto claimOutboundDto) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (PDDocument document = new PDDocument()) {
