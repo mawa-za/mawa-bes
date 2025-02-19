@@ -2,11 +2,9 @@ package za.co.mawa.bes.xero;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
@@ -14,6 +12,8 @@ import za.co.mawa.bes.service.TenantAdminService;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+
+import static io.swagger.v3.core.util.PrimitiveType.createProperty;
 
 @RestController
 @CrossOrigin
@@ -28,18 +28,32 @@ public class XeroAuthController {
     @Autowired
     TenantAdminService tenantAdminService;
 
-    @GetMapping("/xero/connect")
-    public ResponseEntity<String> redirectToXero() throws IOException {
+
+    @RequestMapping(value="/xero/connect" , method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
 
         String tenant = TenantContext.getCurrentTenant();
+
+        if(xeroAuthDto.getRedirectUrl() != null){
+            String redirectUrl = xeroAuthDto.getRedirectUrl() + "/xero/callback";
+           xeroAuthService.createProperty(tenant,XeroUtils.XERO_REDIRECT_URL,redirectUrl);
+        }
+        if(xeroAuthDto.getClientId() != null){
+            xeroAuthService.createProperty(tenant,XeroUtils.XERO_CLIENT_ID,xeroAuthDto.getClientId());
+        }
+        if(xeroAuthDto.getClientSecret() != null){
+            xeroAuthService.createProperty(tenant,XeroUtils.XERO_CLIENT_SECRET,xeroAuthDto.getClientSecret());
+        }
+
         String tenantProperty = tenantAdminService.getTenantProperty(tenant);
         JSONObject jsonObject = new JSONObject(tenantProperty);
         String clientId = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
+        String redirectUrl = jsonObject.getString(XeroUtils.XERO_REDIRECT_URL);
 
 
         String authUrl = XeroAuthService.getAUTH_URL() + "?response_type=code" +
                 "&client_id=" + clientId +
-                "&redirect_uri=" + URLEncoder.encode(XeroAuthService.getREDIRECT_URI(), StandardCharsets.UTF_8) +
+                "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
                 "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8);
 
             return ResponseEntity.ok("Please open this URL manually: " + authUrl);

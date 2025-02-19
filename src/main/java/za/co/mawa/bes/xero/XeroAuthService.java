@@ -33,8 +33,8 @@ public class XeroAuthService {
 //    private static final String CLIENT_SECRET = "c90a_5H72_f0DXSnQroKDcp1pedaI9nVpOk4NayCi7viLyRO";
 
     // change the redirect uri
-    @Getter
-    private static final String REDIRECT_URI = "http://localhost:8080/xero/callback";
+//    @Getter
+//    private static final String REDIRECT_URI = "http://localhost:8080/xero/callback";
 
     @Getter
     private static final String TOKEN_URL = "https://identity.xero.com/connect/token";
@@ -55,22 +55,24 @@ public class XeroAuthService {
 
 
     public  String getInitialTokens(String authorizationCode) throws IOException {
+
         try {
             String tenant = TenantContext.getCurrentTenant();
-            String requestBody = "grant_type=authorization_code" +
-                    "&code=" + authorizationCode +
-                    "&redirect_uri=" + REDIRECT_URI;
-
-            //all info about token is returned and to be store
             String tenantProperty = tenantAdminService.getTenantProperty(tenant);
             JSONObject jsonObject = new JSONObject(tenantProperty);
             String client_id = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
             String client_secret = jsonObject.getString(XeroUtils.XERO_CLIENT_SECRET);
+            String redirectUrl = jsonObject.getString(XeroUtils.XERO_REDIRECT_URL);
 
+            String requestBody = "grant_type=authorization_code" +
+                    "&code=" + authorizationCode +
+                    "&redirect_uri=" + redirectUrl;
+
+            //all info about token is returned and to be store
             String response = sendTokenRequest(requestBody, client_id,client_secret);
 
-            //            createInvoice(accessToken);
-            System.out.println("Initial Token Response: " + response);
+//            createInvoice(accessToken);
+//            System.out.println("Initial Token Response: " + response);
 //            System.out.println("Token " + accessToken);
 
             String refreshToken = extractRefreshToken(response);
@@ -280,6 +282,28 @@ public class XeroAuthService {
         tenantAdminService.getTenantProperties(tenant);
         return null;
     }
+
+    public String checkXeroInfo(){
+        //check if current tenant has xero info
+        //if yes, return the tenant
+        // else check if it's linked to other mawa tenant xero info
+        String tenant = TenantContext.getCurrentTenant();
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        JSONObject jsonObject = new JSONObject(tenantProperty);
+        String client_id = jsonObject.optString(XeroUtils.XERO_REFRESH_TOKEN, null);
+        String serviceProviderTenant = jsonObject.optString(XeroUtils.XERO_MAWA_SERVICE_PROVIDER_LINK, null);
+
+        if(client_id != null && client_id != ""){
+            return tenant;
+        }
+
+        if(serviceProviderTenant != null && serviceProviderTenant != ""){
+            return serviceProviderTenant;
+        }
+
+        return null;
+    }
+
 
 //    public void updateSetting(String attribute, String setting, String newValue) {
 //        SettingPKEntity settingPKEntity = new SettingPKEntity();

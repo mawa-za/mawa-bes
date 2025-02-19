@@ -46,9 +46,9 @@ public class XeroAccountingService {
             //schedule function to refresh refresh token after 30 days
 
             //get this tenant from the partnerId
-            String tenant = TenantContext.getCurrentTenant();
+//            String tenant = TenantContext.getCurrentTenant();
 //            String tenant = getContactIdFromPartner(partnerId);
-
+            String tenant = xeroAuthService.checkXeroInfo();
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
 
             String tenantProperty = tenantAdminService.getTenantProperty(tenant);

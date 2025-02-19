@@ -20,6 +20,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.xero.XeroAccountingService;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -44,6 +45,8 @@ public class ClaimController {
     PaymentRequestService paymentRequestService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    XeroAccountingService xeroAccountingService;
 
     @Autowired
     ProductService productService;
@@ -353,7 +356,8 @@ public class ClaimController {
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
 //                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
-                paymentRequest.setReference("FUNERAL" + claim.getNumber());
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", claim.getNumber(),"BOOK");
+                paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
