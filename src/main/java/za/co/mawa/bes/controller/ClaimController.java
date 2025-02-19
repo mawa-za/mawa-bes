@@ -401,9 +401,9 @@ public class ClaimController {
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-                if(claim.getBranch().getCode() != null && !claim.getBranch().getCode().isEmpty()){
-                    paymentRequest.setBranch(claim.getBranch().getCode());
-                }
+//                if(claim.getBranch().getCode() != null && !claim.getBranch().getCode().isEmpty()){
+//                    paymentRequest.setBranch(claim.getBranch().getCode());
+//                }
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 PaymentRequestDto paymentRequestDto2 = paymentRequestService.create(paymentRequest);
                 String paymentRequestId2 = paymentRequestDto2.getId();
@@ -431,7 +431,9 @@ public class ClaimController {
                     bankAccountService.add(bankAccount);
 //                    paymentRequest.setBankAccount(bankAccount);
                 }
-
+                else if(claim.getPaymentMethod().getCode().equals("CASH")){
+                    paymentRequest.setBranch(claim.getBranch().getCode());
+                }
             }
 
             if (claim.getType().getCode().equals("TOMBSTONE")) {
