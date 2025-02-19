@@ -395,9 +395,7 @@ public class ClaimController {
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-//                if(claim.getBranch().getCode() != null && !claim.getBranch().getCode().isEmpty()){
-//                    paymentRequest.setBranch(claim.getBranch().getCode());
-//                }
+
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 paymentRequestId = paymentRequestService.create(paymentRequest);
                 if (paymentRequestId != null) {
@@ -412,17 +410,19 @@ public class ClaimController {
                     transactionProcessDto.setId(paymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
                 }
+
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
-                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
-                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccount.setObjectId(paymentRequestId);
-                    bankAccountService.add(bankAccount);
-//                    paymentRequest.setBankAccount(bankAccount);
+                    if(bankAccountDtoList.iterator().hasNext()){
+                        BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
+                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                        bankAccount.setObjectId(paymentRequestId);
+                        bankAccountService.add(bankAccount);
+                    }
                 }
                 else if(claim.getPaymentMethod().getCode().equals("CASH")){
                     paymentRequest.setBranch(claim.getBranch().getCode());
@@ -450,7 +450,6 @@ public class ClaimController {
                     bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
                     bankAccountCreateDto.setObjectId(paymentRequestId);
                     bankAccountService.add(bankAccountCreateDto);
-//                    paymentRequest.setBankAccount(bankAccountCreateDto);
                 }
 
                 if (paymentRequestId != null) {
