@@ -2,10 +2,13 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
@@ -21,12 +24,10 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 @RestController
 @CrossOrigin
@@ -44,6 +45,9 @@ public class ClaimController {
     PaymentRequestService paymentRequestService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    private TemplateEngine templateEngine;
+
 
     @Autowired
     ProductService productService;
@@ -113,6 +117,7 @@ public class ClaimController {
     @RequestMapping(value = "v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaimsV2(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String mainPartner,
+
                                          @RequestParam(required = false) String employeeResponsibleName,
                                          @RequestParam(required = false) String creationDate,
                                          @RequestParam(required = false) String idNumber) {
@@ -130,6 +135,7 @@ public class ClaimController {
 
             if (mainPartner != null && mainPartner != "") {
                 transactionViewDto.setMainPartner(mainPartner);
+
             }
 
             if (idNumber != null && idNumber != "") {
@@ -268,9 +274,7 @@ public class ClaimController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editClaim(@PathVariable String id, @RequestBody ClaimEditDto claimDto) {
         try {
-
             return ResponseEntity.ok(gson.toJson(claimService.edit(id, claimDto)));
-
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -320,7 +324,8 @@ public class ClaimController {
                     paymentRequest.setBranch("MODJADJISKLOOF");
                 }
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
                     BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
                     BankAccountCreateDto bankAccount = new BankAccountCreateDto();
@@ -358,7 +363,8 @@ public class ClaimController {
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
@@ -399,9 +405,10 @@ public class ClaimController {
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
                 if (paymentRequestId != null) {
+
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(paymentRequestId);
+                    transactionLinkDto.setTransaction2(paymentRequestId2);
                     transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
                     transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                     transactionService.addLink(transactionLinkDto);
@@ -448,7 +455,8 @@ public class ClaimController {
                 paymentRequest.setRecipientId(getTombstoneServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
@@ -479,6 +487,20 @@ public class ClaimController {
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/pdf-form", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generatePdf(@PathVariable String id) {
+        try {
+            ClaimOutboundDto claimOutboundDto = claimService.get(id);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+
+            return ResponseEntity.ok().body(base64Pdf);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 

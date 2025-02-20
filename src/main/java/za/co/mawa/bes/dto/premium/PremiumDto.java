@@ -25,6 +25,7 @@ public class PremiumDto implements Serializable {
     private String receiptNumber;
     private String creationDate;
     private String creationTime;
+    private PartnerDto createdBy;
     private PartnerDto employeeResponsible;
     private MembershipDto membership;
     private String membershipPeriod;
