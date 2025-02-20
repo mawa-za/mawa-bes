@@ -576,7 +576,7 @@ public class MembershipService implements MembershipDao {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
-            if(membershipDto.getMember().getId() != null){
+            if(membershipDto.getMember()!= null){
                 invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
             }
             if(membershipDto.getSalesRepresentative().getId() != null){
