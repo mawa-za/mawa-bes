@@ -298,15 +298,18 @@ public class MembershipService implements MembershipDao {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
             List<MembershipDto> previousMemberships = new ArrayList<>();
+            List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
 
             for(TransactionLinkDto link: transactionLinkDtos){
                 if(link.getType().equalsIgnoreCase("UPGRADE")){
                     previousMemberships.add(get(link.getTransaction2()));
                 }
+                if(link.getType().equalsIgnoreCase("INVOICE")){
+                    invoiceOutboundDtoList.add(invoiceService.get(link.getTransaction1()));
+                }
             }
             membershipDto.setMembershipHistory(previousMemberships);
-
-
+            membershipDto.setInvoiceHistory(invoiceOutboundDtoList);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
@@ -570,23 +573,28 @@ public class MembershipService implements MembershipDao {
     }
 
     public String handleBilling(String id){
-
         try {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
             invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
-            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            if(membershipDto.getSalesRepresentative().getId() != null){
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
-            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null){
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            }
             invoiceInboundDto.setPricing(pricingInboundDto);
             invoiceInboundDto.setInvoiceDate(new Date());
 
             List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
             LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
-            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
             lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null && membershipDto.getProduct().getId() != null){
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+            }
             lineItemInboundDtoList.add(lineItemInboundDto);
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
