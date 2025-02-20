@@ -295,8 +295,6 @@ public class MembershipService implements MembershipDao {
             List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.MEMBERSHIP);
             List<MembershipDto> previousMemberships = new ArrayList<>();
             List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
 
@@ -305,6 +303,7 @@ public class MembershipService implements MembershipDao {
                     previousMemberships.add(get(link.getTransaction2()));
                 }
                 if(link.getType().equalsIgnoreCase("INVOICE")){
+
                     invoiceOutboundDtoList.add(invoiceService.get(link.getTransaction1()));
                 }
             }
@@ -577,7 +576,9 @@ public class MembershipService implements MembershipDao {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
-            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            if(membershipDto.getMember().getId() != null){
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            }
             if(membershipDto.getSalesRepresentative().getId() != null){
                 invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
             }
