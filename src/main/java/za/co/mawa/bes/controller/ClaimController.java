@@ -386,18 +386,18 @@ public class ClaimController {
                     paymentRequestService.approve(transactionProcessDto);
                 }
 
-                paymentRequest = new PaymentRequestCreateDto();
+                PaymentRequestCreateDto groceryPaymentRequest = new PaymentRequestCreateDto();
                 if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
                     paymentRequest.setPaymentMethod("CASH");
                 }
-                paymentRequest.setPaymentReason("GROCERY-CLAIM");
-                paymentRequest.setReference(getCompanyName());
-                paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(claim.getMember().getId());
-                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
+                groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
+                groceryPaymentRequest.setReference(getCompanyName());
+                groceryPaymentRequest.setDueDate(new Date());
+                groceryPaymentRequest.setRecipientId(claim.getMember().getId());
+                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
 
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                paymentRequestId = paymentRequestService.create(paymentRequest);
+                String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
@@ -407,22 +407,32 @@ public class ClaimController {
                     transactionService.addLink(transactionLinkDto);
 
                     TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(paymentRequestId);
+                    transactionProcessDto.setId(groceryPaymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
                 }
 
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
-                    if(bankAccountDtoList.iterator().hasNext()){
-                        BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                        bankAccount.setObjectId(paymentRequestId);
-                        bankAccountService.add(bankAccount);
-                    }
+//                    if(bankAccountDtoList.iterator().hasNext()){
+//                        BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
+//                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+//                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+//                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+//                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+//                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+//                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+//                        bankAccount.setObjectId(paymentRequestId);
+//                        bankAccountService.add(bankAccount);
+//                    }
+                    TransactionAccountDto transactionAccountDto = transactionService.getBankAccount(claimId);
+                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(transactionAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(transactionAccountDto.getAccountType());
+                    bankAccount.setBankName(transactionAccountDto.getBankName());
+                    bankAccount.setAccountNumber(transactionAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(transactionAccountDto.getBranchCode());
+                    bankAccount.setObjectId(groceryPaymentRequestId);
+                    bankAccountService.add(bankAccount);
+
                 }
                 else if(claim.getPaymentMethod().getCode().equals("CASH")){
                     paymentRequest.setBranch(claim.getBranch().getCode());
