@@ -432,7 +432,6 @@ public class ClaimController {
                     bankAccount.setBranchCode(transactionAccountDto.getBranchCode());
                     bankAccount.setObjectId(groceryPaymentRequestId);
                     bankAccountService.add(bankAccount);
-
                 }
                 else if(claim.getPaymentMethod().getCode().equals("CASH")){
                     paymentRequest.setBranch(claim.getBranch().getCode());
