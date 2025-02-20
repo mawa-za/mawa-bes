@@ -579,7 +579,7 @@ public class MembershipService implements MembershipDao {
             if(membershipDto.getMember()!= null){
                 invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
             }
-            if(membershipDto.getSalesRepresentative().getId() != null){
+            if(membershipDto.getSalesRepresentative() != null){
                 invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
             }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
@@ -592,7 +592,7 @@ public class MembershipService implements MembershipDao {
             List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
             LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
             lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            if(membershipDto.getPremium() != null && membershipDto.getProduct().getId() != null){
+            if(membershipDto.getPremium() != null && membershipDto.getProduct() != null){
                 lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
                 lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
             }
