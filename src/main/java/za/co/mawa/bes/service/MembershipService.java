@@ -55,6 +55,8 @@ public class MembershipService implements MembershipDao {
     FieldOptionService fieldOptionService;
     @Autowired
     InvoiceService invoiceService;
+    @Autowired
+    UserService userService;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -97,10 +99,30 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
-        } else {
+        }
+        else if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+
+            transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+
+        }
+        else {
             transactionCreateDto.setStatus(Status.NEW);
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+
+        if (membershipCreateDto.getCreationType().equals("UPGRADE")){
+            try {
+                TransactionLinkDto link = new TransactionLinkDto();
+                link.setTransaction1(transactionDto.getId());
+                link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
+                link.setType(TransactionType.UPGRADE);
+                link.setCreateBy(userService.getCurrentUserPartnerId());
+                transactionService.addLink(link);
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
@@ -570,6 +592,44 @@ public class MembershipService implements MembershipDao {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String handleMembershipLapse(String id) throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        premiumSearchDto.setMembershipId(id);
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        return processMembershipLapseLogic(premiumEntities, id);
+    }
+
+    public String handleMembershipLapse(List<TransactionViewEntity> membershipEntities) throws Exception {
+        PremiumSearchDto premiumSearchDto = new PremiumSearchDto();
+        List<PremiumEntity> premiumEntities = transactionService.search(premiumSearchDto);
+        for (TransactionViewEntity entity : membershipEntities) {
+            processMembershipLapseLogic(premiumEntities, entity.getTransactionId());
+        }
+        return "Membership Lapse Finished";
+    }
+
+    private String processMembershipLapseLogic(List<PremiumEntity> premiumEntities, String membershipId) {
+        LocalDate today = LocalDate.now();
+        LocalDate threeMonthsAgo = today.minusMonths(3);
+
+        for (PremiumEntity premiumEntity : premiumEntities) {
+            if (premiumEntity != null && membershipId.equals(premiumEntity.getMembershipId())) {
+                LocalDate localDateToCheck = premiumEntity.getCreationDate()
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+
+                if (localDateToCheck.isBefore(threeMonthsAgo)) {
+                    MembershipEditDto editDto = new MembershipEditDto();
+                    editDto.setStatus(Status.INACTIVE);
+                    editDto.setStatusReason(StatusReason.LAPSED);
+                    edit(membershipId, editDto);
+                }
+            }
+        }
+        return "Processed";
     }
 
 }

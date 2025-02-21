@@ -25,6 +25,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.utils.TransactionType;
+
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
@@ -38,6 +43,10 @@ public class BatchController {
     EmailService emailService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    MembershipService membershipService;
+    @Autowired
+    TransactionService transactionService;
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
@@ -71,6 +80,22 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
+
+
+    @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMembershipLapse() {
+        try {
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            String result = membershipService.handleMembershipLapse(membershipEntities);
+
+            return ResponseEntity.ok().body(gson.toJson(result));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
         try {
