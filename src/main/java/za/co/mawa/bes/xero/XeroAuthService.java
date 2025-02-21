@@ -93,7 +93,7 @@ public class XeroAuthService {
 
             return accessToken ;
         } catch (Exception e) {
-            System.out.println(e);
+//            System.out.println(e);
             throw new RuntimeException(e);
         }
     }
@@ -113,7 +113,7 @@ public class XeroAuthService {
         String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
 
         String response = sendTokenRequest(requestBody, client_id,client_secret);
-        System.out.println("New Token Response: " + response);
+//        System.out.println("New Token Response: " + response);
 
          refreshToken = extractRefreshToken(response);
 //            settingService.createSetting(XeroUtils.XERO_REFRESH_TOKEN,XeroUtils.XERO_INVOICE,refreshToken);
@@ -275,7 +275,7 @@ public class XeroAuthService {
         tenantPropertyDto.setProperty(property);
         tenantPropertyDto.setValue(value);
         String resp = tenantAdminService.addTenantProperty(tenant , tenantPropertyDto);
-        System.out.println(resp);
+//        System.out.println(resp);
     }
 
     public String updateProperty(String tenant, String setting ) {

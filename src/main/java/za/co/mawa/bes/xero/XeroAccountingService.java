@@ -99,7 +99,7 @@ public class XeroAccountingService {
             String jsonString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
             JSONObject invoiceJson = new JSONObject(jsonString);
 //            String XeroTenantId = getXeroTenantId(accessToken);
-            System.out.println("tenant id " + XeroTenantId);
+//            System.out.println("tenant id " + XeroTenantId);
             return sendInvoiceRequest(invoiceJson , accessToken ,XeroTenantId );
 
         } catch (Exception e) {
