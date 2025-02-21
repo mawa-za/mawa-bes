@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dao.MembershipDao;
@@ -45,6 +46,8 @@ import za.co.mawa.bes.repository.TransactionRepository;
 
 
 import za.co.mawa.bes.utils.*;
+
+import java.beans.Transient;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -570,7 +573,6 @@ public class MembershipService implements MembershipDao {
         }
         return "Processed";
     }
-
     public String handleBilling(String id){
         try {
             MembershipDto membershipDto = get(id);
@@ -600,15 +602,15 @@ public class MembershipService implements MembershipDao {
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
 
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
+            String invoiceId = invoiceService.create(invoiceInboundDto);
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceOutboundDto.getId());
+            linkDto.setTransaction1(invoiceId);
             linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
 
-            return invoiceOutboundDto.getId();
+            return invoiceId;
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -640,6 +642,13 @@ public class MembershipService implements MembershipDao {
         return "Validated";
     }
 
-
-
+    public String deleteAllMemberships() throws Exception {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        for(TransactionViewEntity entity : entities){
+            transactionService.delete(entity.getTransactionId());
+        }
+        return "Deleted";
+    }
 }
