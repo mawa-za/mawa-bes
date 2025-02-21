@@ -551,36 +551,43 @@ public class MembershipService implements MembershipDao {
     }
 
     public String handleBilling(String id){
-
         try {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
-            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
-            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            if(membershipDto.getMember()!= null){
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            }
+            if(membershipDto.getSalesRepresentative() != null){
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
-            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null){
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            }
             invoiceInboundDto.setPricing(pricingInboundDto);
             invoiceInboundDto.setInvoiceDate(new Date());
 
             List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
             LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
-            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
             lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null && membershipDto.getProduct() != null){
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+            }
             lineItemInboundDtoList.add(lineItemInboundDto);
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
 
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
+            String invoiceId = invoiceService.create(invoiceInboundDto);
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceOutboundDto.getId());
+            linkDto.setTransaction1(invoiceId);
             linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
 
-            return invoiceOutboundDto.getId();
+            return invoiceId;
         }
         catch (Exception e) {
             throw new RuntimeException(e);

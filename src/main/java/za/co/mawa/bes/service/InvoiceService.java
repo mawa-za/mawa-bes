@@ -48,7 +48,7 @@ public class InvoiceService {
     @Autowired
     TransactionRepository transactionRepository;
 
-    public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
+    public String create(InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
@@ -149,7 +149,7 @@ public class InvoiceService {
                 }
             }
 
-            return get(transactionDto.getId());
+            return transactionDto.getId();
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }

@@ -18,6 +18,7 @@ import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
+import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
@@ -94,6 +95,28 @@ public class BatchController {
     public ResponseEntity<?> validateMembershipStatus(){
         try{
             return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
+    @RequestMapping(value = "bill-memberships", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> billAllMemberships(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+
+            List<String> invoices = new ArrayList<>();
+            for(TransactionViewEntity entity: membershipEntities){
+                if(entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.ACTIVE)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.NEW)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.WAITING_PERIOD))){
+                    if(entity.getTransactionId() != null){
+                        invoices.add(membershipService.handleBilling(entity.getTransactionId()));
+                    }
+                }
+            }
+            return ResponseEntity.ok().body(gson.toJson(invoices));
         }
         catch (Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
