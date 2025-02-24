@@ -67,7 +67,7 @@ public class PaymentRequestService implements PaymentRequestDao {
             if (paymentRequestCreateDto.getAmount() != null) {
                        try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-                    transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
+//                    transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
                     transactionAmountInboundDto.setTransaction(transaction.getId());
                     transactionAmountInboundDto.setType(TransactionAmount.PAYMENT_AMOUNT);
                     transactionAmountService.save(transactionAmountInboundDto);

@@ -11,8 +11,10 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
@@ -310,9 +312,9 @@ public class ClaimController {
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 try {
-                    paymentRequest.setAmount(claim.getPaidOutAmount().getAmount());
+//                    paymentRequest.setAmount(claim.getPaidOutAmount().getAmount());
                 } catch (Exception ex) {
-                    paymentRequest.setAmount(new BigDecimal("0"));
+//                    paymentRequest.setAmount(new BigDecimal("0"));
                 }
                 try {
                     paymentRequest.setBranch(claim.getBranch().getCode());
@@ -356,7 +358,11 @@ public class ClaimController {
                 paymentRequest.setReference("FUNERAL" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
-                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
+//                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
+                ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
+                productPricingQueryDto.setProduct(claim.getMembership().getProduct().getId());
+                paymentRequest.setAmount(productPricingQueryDto.getPricing());
+
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
@@ -388,13 +394,17 @@ public class ClaimController {
 
                 PaymentRequestCreateDto groceryPaymentRequest = new PaymentRequestCreateDto();
                 if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
-                    paymentRequest.setPaymentMethod("CASH");
+                    groceryPaymentRequest.setPaymentMethod("CASH");
+                }
+                else{
+                    groceryPaymentRequest.setPaymentMethod("EFT");
                 }
                 groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
                 groceryPaymentRequest.setReference(getCompanyName());
                 groceryPaymentRequest.setDueDate(new Date());
                 groceryPaymentRequest.setRecipientId(claim.getMember().getId());
-                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
+                groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
+//                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
 
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
@@ -412,26 +422,17 @@ public class ClaimController {
                 }
 
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
-//                    if(bankAccountDtoList.iterator().hasNext()){
-//                        BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-//                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-//                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-//                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-//                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-//                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-//                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-//                        bankAccount.setObjectId(paymentRequestId);
-//                        bankAccountService.add(bankAccount);
-//                    }
                     TransactionAccountDto transactionAccountDto = transactionService.getBankAccount(claimId);
                     BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(transactionAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(transactionAccountDto.getAccountType());
-                    bankAccount.setBankName(transactionAccountDto.getBankName());
-                    bankAccount.setAccountNumber(transactionAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(transactionAccountDto.getBranchCode());
-                    bankAccount.setObjectId(groceryPaymentRequestId);
-                    bankAccountService.add(bankAccount);
+                    if(transactionAccountDto != null){
+                        bankAccount.setAccountHolder(transactionAccountDto.getAccountHolder());
+                        bankAccount.setAccountType(transactionAccountDto.getAccountType());
+                        bankAccount.setBankName(transactionAccountDto.getBankName());
+                        bankAccount.setAccountNumber(transactionAccountDto.getAccountNumber());
+                        bankAccount.setBranchCode(transactionAccountDto.getBranchCode());
+                        bankAccount.setObjectId(groceryPaymentRequestId);
+                        bankAccountService.add(bankAccount);
+                    }
                 }
                 else if(claim.getPaymentMethod().getCode().equals("CASH")){
                     paymentRequest.setBranch(claim.getBranch().getCode());
@@ -445,7 +446,7 @@ public class ClaimController {
                 paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getTombstoneServiceProvider());
-                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
+//                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());

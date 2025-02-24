@@ -21,7 +21,7 @@ public class PaymentRequestCreateDto implements Serializable{
     private String recipientId;
     private String paymentReason;
     private String reference;
-    private BigDecimal amount;
+    private String amount;
     private Date dueDate;
     private String type;
     private String paymentMethod;
