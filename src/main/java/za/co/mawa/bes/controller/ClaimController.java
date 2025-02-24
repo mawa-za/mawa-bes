@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +24,10 @@ import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.xero.XeroAccountingService;
 import za.co.mawa.bes.xero.XeroUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 @RestController
 @CrossOrigin
@@ -467,6 +466,20 @@ public class ClaimController {
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/pdf-form", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generatePdf(@PathVariable String id) {
+        try {
+            ClaimOutboundDto claimOutboundDto = claimService.get(id);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+
+            return ResponseEntity.ok().body(base64Pdf);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 
