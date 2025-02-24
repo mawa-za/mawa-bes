@@ -14,11 +14,11 @@ import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-import za.co.mawa.bes.service.BankFileService;
-import za.co.mawa.bes.service.EmailService;
-import za.co.mawa.bes.service.PaymentRequestService;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +47,7 @@ public class BatchController {
     MembershipService membershipService;
     @Autowired
     TransactionService transactionService;
+
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
@@ -82,6 +83,7 @@ public class BatchController {
     }
 
 
+
     @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse() {
         try {
@@ -93,6 +95,17 @@ public class BatchController {
             return ResponseEntity.ok().body(gson.toJson(result));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+
+    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> validateMembershipStatus(){
+        try{
+            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
 
