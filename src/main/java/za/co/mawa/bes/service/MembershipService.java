@@ -299,19 +299,18 @@ public class MembershipService implements MembershipDao {
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
             List<MembershipDto> previousMemberships = new ArrayList<>();
-            List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
+            List<InvoiceOutboundDto> invoices = new ArrayList<>();
 
             for(TransactionLinkDto link: transactionLinkDtos){
                 if(link.getType().equalsIgnoreCase("UPGRADE")){
                     previousMemberships.add(get(link.getTransaction2()));
                 }
                 if(link.getType().equalsIgnoreCase("INVOICE")){
-
-                    invoiceOutboundDtoList.add(invoiceService.get(link.getTransaction1()));
+                    invoices.add(invoiceService.get(link.getTransaction2()));
                 }
             }
             membershipDto.setMembershipHistory(previousMemberships);
-            membershipDto.setInvoiceHistory(invoiceOutboundDtoList);
+            membershipDto.setInvoices(invoices);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
@@ -601,6 +600,7 @@ public class MembershipService implements MembershipDao {
             lineItemInboundDtoList.add(lineItemInboundDto);
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
+            invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
 
             String invoiceId = invoiceService.create(invoiceInboundDto);
 
@@ -609,6 +609,13 @@ public class MembershipService implements MembershipDao {
             linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
+
+            linkDto = new TransactionLinkDto();
+            linkDto.setTransaction1(id);
+            linkDto.setTransaction2(invoiceId);
+            linkDto.setType(TransactionType.INVOICE);
+            transactionService.addLink(linkDto);
+
 
             return invoiceId;
         }
