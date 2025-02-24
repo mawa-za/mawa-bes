@@ -160,8 +160,6 @@ public class TaskService implements TaskDao {
             return taskDto;
         } catch (TransactionNotFound | PartnerNotFoundException e) {
             throw new RuntimeException(e);
-        } catch (PartnerNotFoundException e) {
-            throw new RuntimeException(e);
         }
     }
 
