@@ -20,6 +20,8 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
+import za.co.mawa.bes.entity.ProductEntity;
+import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
@@ -46,6 +48,10 @@ public class ClaimController {
     PaymentRequestService paymentRequestService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    ProductRepository productRepository;
+    @Autowired
+    UserService userService;
 
     @Autowired
     ProductService productService;
@@ -359,14 +365,12 @@ public class ClaimController {
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
 //                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
-                ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
-                productAttributeQueryDto.setProduct(claim.getMembership().getProduct().getId());
-                productAttributeQueryDto.setAttribute("FUNERAL-VALUE");
-                ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+                List<ProductAttributeDto> productAttributeDto = productService.getAttributes(claim.getMembership().getProduct().getId());
+                ProductEntity productEntity = productRepository.getById(claim.getMembership().getProduct().getId());
 
 //                paymentRequest.setAmount(productAttributeDto.getValue());
 
-                paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+                paymentRequest.setEmployeeResponsibleId(userService.getCurrentUser());
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
@@ -403,13 +407,13 @@ public class ClaimController {
                     groceryPaymentRequest.setPaymentMethod("EFT");
                 }
                 groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
-                groceryPaymentRequest.setReference(getCompanyName());
+                groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
                 groceryPaymentRequest.setDueDate(new Date());
                 groceryPaymentRequest.setRecipientId(claim.getMember().getId());
                 groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
-                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
+                groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+//                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
 
-                paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
