@@ -364,14 +364,11 @@ public class ClaimController {
                 paymentRequest.setReference("FUNERAL" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
-//                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
-                List<ProductAttributeDto> productAttributeDto = productService.getAttributes(claim.getMembership().getProduct().getId());
-                ProductEntity productEntity = productRepository.getById(claim.getMembership().getProduct().getId());
-
-//                paymentRequest.setAmount(productAttributeDto.getValue());
+                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
 
                 paymentRequest.setEmployeeResponsibleId(userService.getCurrentUser());
                 String paymentRequestId = paymentRequestService.create(paymentRequest);
+                id = paymentRequestId;
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
@@ -412,13 +409,13 @@ public class ClaimController {
                 groceryPaymentRequest.setRecipientId(claim.getMember().getId());
                 groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
                 groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-//                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
+                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
 
                 String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(paymentRequestId);
+                    transactionLinkDto.setTransaction2(groceryPaymentRequestId);
                     transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
                     transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                     transactionService.addLink(transactionLinkDto);
