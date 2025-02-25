@@ -328,7 +328,8 @@ public class ClaimController {
                     paymentRequest.setBranch("MODJADJISKLOOF");
                 }
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
                     BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
                     BankAccountCreateDto bankAccount = new BankAccountCreateDto();
@@ -366,9 +367,8 @@ public class ClaimController {
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
 
-                paymentRequest.setEmployeeResponsibleId(userService.getCurrentUser());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
-                id = paymentRequestId;
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
@@ -411,7 +411,8 @@ public class ClaimController {
                 groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
 
-                String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest);
+                PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(groceryPaymentRequest);
+                String groceryPaymentRequestId = groceryPaymentRequestDto.getId();
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
@@ -452,8 +453,11 @@ public class ClaimController {
                 paymentRequest.setRecipientId(getTombstoneServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String paymentRequestId = paymentRequestService.create(paymentRequest);
+
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
+
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
                     BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
