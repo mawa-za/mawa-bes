@@ -24,6 +24,8 @@ import za.co.mawa.bes.entity.ProductEntity;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.xero.XeroAccountingService;
+import za.co.mawa.bes.xero.XeroUtils;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -49,9 +51,7 @@ public class ClaimController {
     @Autowired
     SettingService settingService;
     @Autowired
-    ProductRepository productRepository;
-    @Autowired
-    UserService userService;
+    XeroAccountingService xeroAccountingService;
 
     @Autowired
     ProductService productService;
@@ -362,7 +362,18 @@ public class ClaimController {
                 paymentRequest.setPaymentMethod("EFT");
                 paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
 //                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
-                paymentRequest.setReference("FUNERAL" + claim.getNumber());
+
+                String itemCode = null;
+                String productId = claim.getMembership().getProduct().getId();
+                ArrayList<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
+                for(ProductAttributeDto attribute : productAttributes){
+                   if(attribute.getAttribute().getCode().equals(XeroUtils.XERO_ITEM_CODE)){
+                       itemCode = attribute.getValue();
+                   }
+                }
+
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
+                paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
@@ -396,7 +407,7 @@ public class ClaimController {
                     paymentRequestService.approve(transactionProcessDto);
                 }
 
-                PaymentRequestCreateDto groceryPaymentRequest = new PaymentRequestCreateDto();
+                paymentRequest = new PaymentRequestCreateDto();
                 if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
                     groceryPaymentRequest.setPaymentMethod("CASH");
                 }
@@ -414,6 +425,7 @@ public class ClaimController {
                 PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(groceryPaymentRequest);
                 String groceryPaymentRequestId = groceryPaymentRequestDto.getId();
                 if (paymentRequestId != null) {
+
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
                     transactionLinkDto.setTransaction2(groceryPaymentRequestId);
@@ -422,10 +434,9 @@ public class ClaimController {
                     transactionService.addLink(transactionLinkDto);
 
                     TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(groceryPaymentRequestId);
+                    transactionProcessDto.setId(paymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
                 }
-
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
                     TransactionAccountDto transactionAccountDto = transactionService.getBankAccount(claimId);
                     BankAccountCreateDto bankAccount = new BankAccountCreateDto();
@@ -438,6 +449,7 @@ public class ClaimController {
                         bankAccount.setObjectId(groceryPaymentRequestId);
                         bankAccountService.add(bankAccount);
                     }
+
                 }
                 else if(claim.getPaymentMethod().getCode().equals("CASH")){
                     paymentRequest.setBranch(claim.getBranch().getCode());
@@ -468,6 +480,7 @@ public class ClaimController {
                     bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
                     bankAccountCreateDto.setObjectId(paymentRequestId);
                     bankAccountService.add(bankAccountCreateDto);
+//                    paymentRequest.setBankAccount(bankAccountCreateDto);
                 }
 
                 if (paymentRequestId != null) {

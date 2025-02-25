@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dao.MembershipDao;
@@ -45,6 +46,8 @@ import za.co.mawa.bes.repository.TransactionRepository;
 
 
 import za.co.mawa.bes.utils.*;
+
+import java.beans.Transient;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -295,18 +298,19 @@ public class MembershipService implements MembershipDao {
             List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.MEMBERSHIP);
             List<MembershipDto> previousMemberships = new ArrayList<>();
+            List<InvoiceOutboundDto> invoices = new ArrayList<>();
 
             for(TransactionLinkDto link: transactionLinkDtos){
                 if(link.getType().equalsIgnoreCase("UPGRADE")){
                     previousMemberships.add(get(link.getTransaction2()));
                 }
+                if(link.getType().equalsIgnoreCase("INVOICE")){
+                    invoices.add(invoiceService.get(link.getTransaction2()));
+                }
             }
             membershipDto.setMembershipHistory(previousMemberships);
-
-
+            membershipDto.setInvoices(invoices);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
@@ -568,38 +572,52 @@ public class MembershipService implements MembershipDao {
         }
         return "Processed";
     }
-
     public String handleBilling(String id){
-
         try {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
-            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
-            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            if(membershipDto.getMember()!= null){
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            }
+            if(membershipDto.getSalesRepresentative() != null){
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
-            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null){
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            }
             invoiceInboundDto.setPricing(pricingInboundDto);
             invoiceInboundDto.setInvoiceDate(new Date());
 
             List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
             LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
-            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
             lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+            if(membershipDto.getPremium() != null && membershipDto.getProduct() != null){
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+            }
             lineItemInboundDtoList.add(lineItemInboundDto);
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
+            invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
 
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
+            String invoiceId = invoiceService.create(invoiceInboundDto);
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceOutboundDto.getId());
+            linkDto.setTransaction1(invoiceId);
             linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
 
-            return invoiceOutboundDto.getId();
+            linkDto = new TransactionLinkDto();
+            linkDto.setTransaction1(id);
+            linkDto.setTransaction2(invoiceId);
+            linkDto.setType(TransactionType.INVOICE);
+            transactionService.addLink(linkDto);
+
+
+            return invoiceId;
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -631,6 +649,13 @@ public class MembershipService implements MembershipDao {
         return "Validated";
     }
 
-
-
+    public String deleteAllMemberships() throws Exception {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        for(TransactionViewEntity entity : entities){
+            transactionService.delete(entity.getTransactionId());
+        }
+        return "Deleted";
+    }
 }

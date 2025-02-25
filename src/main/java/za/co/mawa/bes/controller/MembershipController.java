@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -120,7 +121,7 @@ public class MembershipController {
     }
 
 
-    @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
                                               @RequestParam(required = false) String mainPartner,
                                               @RequestParam(required = false) String employeeResponsibleName,
@@ -130,40 +131,36 @@ public class MembershipController {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
 
-            if(status != null && status != "") {
+            if (status != null && !status.isEmpty()) {
                 transactionViewDto.setStatus(status);
             }
 
-            if(employeeResponsibleName != null && employeeResponsibleName != "") {
+            if (employeeResponsibleName != null && !employeeResponsibleName.isEmpty()) {
                 transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
             }
 
-            if(mainPartner != null && mainPartner != "") {
+            if (mainPartner != null && !mainPartner.isEmpty()) {
                 transactionViewDto.setMainPartner(mainPartner);
             }
 
-            if(idNumber != null && idNumber != "") {
+            if (idNumber != null && !idNumber.isEmpty()) {
                 transactionViewDto.setIdNumber(idNumber);
             }
 
-            if (creationDate != null) {
-
-                // Define the formatter for the input string
+            if (creationDate != null && !creationDate.isEmpty()) {
                 SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
-
-                // Parse the string into Date object
                 Date date = formatter.parse(creationDate);
-
                 transactionViewDto.setCreationDate(date);
-
-
             }
 
-            return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
+            List<TransactionViewEntity> result = transactionService.searchV2(transactionViewDto);
+
+            return ResponseEntity.ok(gson.toJson(result));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
 
 //    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 //    public ResponseEntity<?> getMembershipsUsingView(){
