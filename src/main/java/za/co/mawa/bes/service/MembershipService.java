@@ -293,8 +293,7 @@ public class MembershipService implements MembershipDao {
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
             List<MembershipDto> previousMemberships = new ArrayList<>();
-            List<InvoiceOutboundDto> invoices = new ArrayList<>();
-            List<TransactionViewEntity> invoicess = new ArrayList<>();
+            List<TransactionViewEntity> invoices = new ArrayList<>();
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.INVOICE);
             List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
@@ -304,18 +303,17 @@ public class MembershipService implements MembershipDao {
                     previousMemberships.add(get(link.getTransaction2()));
                 }
                 if(link.getType().equalsIgnoreCase("INVOICE")){
-                    invoices.add(invoiceService.get(link.getTransaction2()));
+//                    invoices.add(invoiceService.get(link.getTransaction2()));
 
                     for(TransactionViewEntity entity : transactionViewEntities){
                         if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
-                            invoicess.add(entity);
+                            invoices.add(entity);
                         }
                     }
                 }
             }
             membershipDto.setMembershipHistory(previousMemberships);
-            membershipDto.setInvoices(invoices);
-            membershipDto.setInvoices2(invoicess);
+            membershipDto.setInvoices2(invoices);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
