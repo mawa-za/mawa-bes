@@ -82,6 +82,8 @@ public class BatchController {
         }
     }
 
+
+
     @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse() {
         try {

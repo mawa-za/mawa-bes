@@ -23,8 +23,8 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 import java.text.SimpleDateFormat;
 import java.util.Objects;
-
 import java.text.SimpleDateFormat;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -160,7 +160,7 @@ public class TaskService implements TaskDao {
             return taskDto;
         } catch (TransactionNotFound | PartnerNotFoundException e) {
             throw new RuntimeException(e);
-        }
+        } 
     }
 
     @Override
