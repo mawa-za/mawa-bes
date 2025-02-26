@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -19,13 +20,11 @@ import za.co.mawa.bes.repository.TenantPropertyRepository;
 import za.co.mawa.bes.repository.TenantRepository;
 import za.co.mawa.bes.utils.Status;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -50,7 +49,7 @@ public class TenantAdminService implements TenantDao {
     private static final String ADMIN_USERNAME = "admin-username";
     private static final String ADMIN_PASSWORD = "admin-password";
     private static final String ADMIN_SETTING = "ADMIN";
-    private String getAdminToken() {
+    public String getAdminToken() {
         JwtRequest tokenRequest = new JwtRequest();
         tokenRequest.setUsername(adminApiUsername);
         tokenRequest.setPassword(adminApiPassword);
@@ -188,4 +187,104 @@ public class TenantAdminService implements TenantDao {
     }
 
 
-}
+    public String addTenantProperty(String tenant, TenantPropertyDto propertyDto) {
+        Properties props = new Properties();
+        String jsonString = "";
+        ObjectMapper objectMapper = new ObjectMapper(); // Jackson object mapper
+
+        try {
+            String token = getAdminToken();
+            URL url = new URL(adminApiUrl + "/tenant/" + tenant + "/property");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            // Configure HTTP connection
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+
+            // Convert `propertyDto` to JSON and send it in the request body
+            String jsonPayload = objectMapper.writeValueAsString(propertyDto);
+            try (OutputStream os = conn.getOutputStream()) {
+//                byte[] input = jsonPayload.getBytes("utf-8");
+                os.write(jsonPayload.getBytes(StandardCharsets.UTF_8));
+            }
+
+            // Handle response
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+            }
+
+            // Read response
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                jsonString = response.toString();
+            }
+
+            conn.disconnect();
+
+            // Convert response JSON to `Properties` if applicable
+            return jsonString;
+
+        } catch (MalformedURLException ex) {
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return jsonString;
+    }
+
+    public String getTenantProperty(String tenant) {
+        Properties props = new Properties();
+        String jsonString = "";
+        ObjectMapper objectMapper = new ObjectMapper(); // Jackson object mapper
+
+        try {
+            String token = getAdminToken();
+            URL url = new URL(adminApiUrl + "/tenant/" + tenant + "/property");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            // Configure HTTP connection
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+
+            // Handle response
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+            }
+
+            // Read response
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                jsonString = response.toString();
+            }
+
+            conn.disconnect();
+
+            // Convert response JSON to `Properties` if applicable
+            return jsonString;
+
+        } catch (MalformedURLException ex) {
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return jsonString;
+    }
+    }

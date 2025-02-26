@@ -128,6 +128,7 @@ public class MembershipService implements MembershipDao {
         else {
             transactionCreateDto.setStatus(Status.NEW);
         }
+
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());

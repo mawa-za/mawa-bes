@@ -26,3 +26,4 @@ public class MembershipCreateDto implements Serializable {
     private Date lastReceiptDate;
 
 }
+

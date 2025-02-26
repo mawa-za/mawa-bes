@@ -41,7 +41,6 @@ public class TaskService implements TaskDao {
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy");
 
-
     @Override
     public TaskDto create(TaskCreateDto taskCreateDto) {
         try {
@@ -107,7 +106,6 @@ public class TaskService implements TaskDao {
                 transactionPartnerDto.setPartner(taskCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-
             return taskDto;
         } catch (Exception e) {
             throw new RuntimeException(e);
