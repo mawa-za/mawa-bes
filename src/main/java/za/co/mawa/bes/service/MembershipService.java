@@ -124,6 +124,7 @@ public class MembershipService implements MembershipDao {
                 throw new RuntimeException(e);
             }
         }
+
         else {
             transactionCreateDto.setStatus(Status.NEW);
         }

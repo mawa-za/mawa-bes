@@ -226,6 +226,7 @@ public class UserService implements UserDao {
         return UserContext.getCurrentUser();
     }
 
+
     @Override
     public void addRole(UserRoleDto userRoleDto) throws Exception {
         try {
