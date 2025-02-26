@@ -74,6 +74,23 @@ public class InvoiceController {
         }
     }
 
+    @RequestMapping(value = "", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public  ResponseEntity<?> deleteAllInvoices(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.INVOICE);
+
+            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+            for(TransactionViewEntity entity: transactionViewEntities){
+                transactionService.delete(entity.getTransactionId());
+            }
+            return ResponseEntity.ok().build();
+        }
+        catch (Exception e){
+            return  ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
         try {
