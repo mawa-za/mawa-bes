@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -63,7 +64,9 @@ public class MembershipController {
     public ResponseEntity<?> billMembership(@PathVariable String id) {
         try {
             InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(id);
-            return ResponseEntity.ok(gson.toJson(membershipService.generateInvoice(invoiceOutboundDto)));
+            ByteArrayResource pdfResource = membershipService.generateInvoice(invoiceOutboundDto);
+            String base64 = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+            return ResponseEntity.ok(gson.toJson(base64));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
