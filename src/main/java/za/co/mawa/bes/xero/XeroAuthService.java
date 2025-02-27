@@ -41,7 +41,7 @@ public class XeroAuthService {
     @Getter
     private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
     @Getter
-    private static final String SCOPES = "offline_access accounting.transactions";
+    private static final String SCOPES = "offline_access accounting.transactions accounting.contacts.read";
 
     private static final String API_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 //    @Getter

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.xero;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,7 +29,7 @@ public class XeroAuthController {
     XeroAccountingService xeroAccountingService;
     @Autowired
     TenantAdminService tenantAdminService;
-
+    Gson gson = new Gson();
 
     @RequestMapping(value="/xero/connect" , method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
@@ -91,6 +92,19 @@ public class XeroAuthController {
         try {
 
             return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+//            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @GetMapping("/xero/contact")
+    public ResponseEntity<?> getContact() {
+        // Store the code for later use in token exchange
+        try {
+
+            return ResponseEntity.ok(xeroAccountingService.getXeroContact());
 //            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
 
         } catch (Exception e) {
