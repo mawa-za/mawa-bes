@@ -417,7 +417,9 @@ public class ClaimController {
                 groceryPaymentRequest.setDueDate(new Date());
                 groceryPaymentRequest.setRecipientId(claim.getMember().getId());
                 groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-
+                if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
+                    groceryPaymentRequest.setBranch(claim.getBranch().getCode());
+                }
                 groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest).getId();
                 if (groceryPaymentRequestId != null) {
@@ -446,16 +448,16 @@ public class ClaimController {
             }
 
             if (claim.getType().getCode().equals("TOMBSTONE")) {
-                PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
-                paymentRequest.setPaymentMethod("EFT");
-                paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
-                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
-                paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(getTombstoneServiceProvider());
-                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
-                paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
-                String paymentRequestId = paymentRequestDto.getId();
+                PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
+                tombstonePaymentRequest.setPaymentMethod("EFT");
+                tombstonePaymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
+                tombstonePaymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
+                tombstonePaymentRequest.setDueDate(new Date());
+                tombstonePaymentRequest.setRecipientId(getTombstoneServiceProvider());
+                tombstonePaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
+                tombstonePaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(tombstonePaymentRequest);
+                String groceryPaymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
                 if (bankAccountDtoList.iterator().hasNext()) {
                     BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
@@ -465,21 +467,21 @@ public class ClaimController {
                     bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
                     bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
                     bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccountCreateDto.setObjectId(paymentRequestId);
+                    bankAccountCreateDto.setObjectId(groceryPaymentRequestId);
                     bankAccountService.add(bankAccountCreateDto);
 //                    paymentRequest.setBankAccount(bankAccountCreateDto);
                 }
 
-                if (paymentRequestId != null) {
+                if (groceryPaymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(paymentRequestId);
+                    transactionLinkDto.setTransaction2(groceryPaymentRequestId);
                     transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
                     transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                     transactionService.addLink(transactionLinkDto);
 
                     TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(paymentRequestId);
+                    transactionProcessDto.setId(groceryPaymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
                 }
 
