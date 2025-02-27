@@ -347,9 +347,6 @@ public class InvoiceService {
                     for(TransactionViewEntity entity : transactionViewEntities){
                         if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
                             invoices.add(entity);
-//                            if(Objects.equals(id, link.getTransaction2())){
-//                                invoices.add(entity);
-//                            }
                         }
                     }
                 }
