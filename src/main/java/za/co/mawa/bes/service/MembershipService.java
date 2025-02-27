@@ -619,10 +619,8 @@ public class MembershipService implements MembershipDao {
             linkDto.setType(TransactionType.INVOICE);
             transactionService.addLink(linkDto);
 
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(invoiceId);
-            ByteArrayResource resource = generateInvoice(invoiceOutboundDto);
+            return invoiceId;
 
-            return Base64.getEncoder().encodeToString(resource.getByteArray());
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -664,7 +662,7 @@ public class MembershipService implements MembershipDao {
         return "Deleted";
     }
 
-    private ByteArrayResource generateInvoice(InvoiceOutboundDto invoiceOutboundDto) throws IOException {
+    public ByteArrayResource generateInvoice(InvoiceOutboundDto invoiceOutboundDto) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (PDDocument document = new PDDocument()) {
             PDPage page = new PDPage();
@@ -771,8 +769,8 @@ public class MembershipService implements MembershipDao {
     }
 
 
-        private String formatDate(Date date) {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            return sdf.format(date);
-        }
+    private String formatDate(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        return sdf.format(date);
+    }
 }
