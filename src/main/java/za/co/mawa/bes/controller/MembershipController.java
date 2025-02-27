@@ -45,6 +45,8 @@ public class MembershipController {
     TransactionViewRepository transactionViewRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    InvoiceService invoiceService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -157,6 +159,16 @@ public class MembershipController {
 
             return ResponseEntity.ok(gson.toJson(result));
         } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+    @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
+        try{
+            List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
+            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
+        }
+        catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
