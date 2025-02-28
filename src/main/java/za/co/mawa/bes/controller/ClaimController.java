@@ -375,7 +375,12 @@ public class ClaimController {
                 }
 
                 String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
-                paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
+                if(xeroInvoiceNumber != null){
+                    paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
+                }
+                else{
+                    paymentRequest.setReference("FUNERAL" + claim.getNumber());
+                }
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
@@ -536,7 +541,7 @@ public class ClaimController {
     private void createTombstonePaymentRequest(ClaimOutboundDto claim) throws Exception {
         PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
         tombstonePaymentRequest.setPaymentMethod("EFT");
-        tombstonePaymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
+        tombstonePaymentRequest.setPaymentReason("TOMBSTONE-CLAIM");
         tombstonePaymentRequest.setReference("TOMBSTONE"+ claim.getNumber());
         tombstonePaymentRequest.setDueDate(new Date());
         tombstonePaymentRequest.setRecipientId(claim.getClaimant().getId());
