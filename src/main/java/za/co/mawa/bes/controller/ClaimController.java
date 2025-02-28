@@ -12,6 +12,7 @@ import org.thymeleaf.TemplateEngine;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -21,6 +22,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.xero.XeroAccountingService;
@@ -49,6 +51,8 @@ public class ClaimController {
     SettingService settingService;
     @Autowired
     XeroAccountingService xeroAccountingService;
+    @Autowired
+    PartnerService partnerService;
 
 
     @Autowired
@@ -314,7 +318,7 @@ public class ClaimController {
                 paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
                 paymentRequest.setReference("CASHCLAIM" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(claim.getMember().getId());
+                paymentRequest.setRecipientId(claim.getClaimant().getId());
                 try {
                     paymentRequest.setAmount(claim.getPaidOutAmount().getAmount());
                 } catch (Exception ex) {
@@ -373,9 +377,10 @@ public class ClaimController {
                 String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
                 paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(getFuneralServiceProvider());
+                paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+                paymentRequest.setRecipientId(claim.getClaimant().getId());
                 PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
                 String paymentRequestId = paymentRequestDto.getId();
                 List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
@@ -415,7 +420,7 @@ public class ClaimController {
                 groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
                 groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
                 groceryPaymentRequest.setDueDate(new Date());
-                groceryPaymentRequest.setRecipientId(claim.getMember().getId());
+                groceryPaymentRequest.setRecipientId(claim.getClaimant().getId());
                 groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
                 if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
                     groceryPaymentRequest.setBranch(claim.getBranch().getCode());
@@ -445,46 +450,33 @@ public class ClaimController {
                     bankAccount.setObjectId(groceryPaymentRequestId);
                     bankAccountService.add(bankAccount);
                 }
+
+                List<TombstoneRecipientDto> tombstoneRecipientDtos = new ArrayList<>();
+                List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(claim.getMembership().getId()).stream()
+                        .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.TOMBSTONE_RECIPIENT))
+                        .toList();
+                for (TransactionPartnerDto partnerDtos : transactionPartnerDtoList) {
+                    PartnerDto partnerDto = partnerService.get(partnerDtos.getPartner());
+                    if (partnerDto != null) {
+                        TombstoneRecipientDto tombstoneRecipient = new TombstoneRecipientDto();
+                        tombstoneRecipient.setId(partnerDto.getId());
+                        tombstoneRecipient.setFirstName(partnerDto.getName2());
+                        tombstoneRecipient.setMiddleName(partnerDto.getName3());
+                        tombstoneRecipient.setLastName(partnerDto.getName1());
+                        tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
+                        tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
+                        tombstoneRecipientDtos.add(tombstoneRecipient);
+                    }
+                }
+                for(TombstoneRecipientDto tombstoneRecipientDto: tombstoneRecipientDtos){
+                    if(claim.getDeceased().getId().equalsIgnoreCase(tombstoneRecipientDto.getId())){
+                        createTombstonePaymentRequest(claim);
+                    }
+                }
             }
 
             if (claim.getType().getCode().equals("TOMBSTONE")) {
-                PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
-                tombstonePaymentRequest.setPaymentMethod("EFT");
-                tombstonePaymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
-                tombstonePaymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + "-" + claim.getMember().getName2());
-                tombstonePaymentRequest.setDueDate(new Date());
-                tombstonePaymentRequest.setRecipientId(getTombstoneServiceProvider());
-                tombstonePaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
-                tombstonePaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(tombstonePaymentRequest);
-                String tombstonePaymentRequestId = groceryPaymentRequestDto.getId();
-                List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
-                if (bankAccountDtoList.iterator().hasNext()) {
-                    BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-                    BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
-                    bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccountCreateDto.setObjectId(tombstonePaymentRequestId);
-                    bankAccountService.add(bankAccountCreateDto);
-//                    paymentRequest.setBankAccount(bankAccountCreateDto);
-                }
-
-                if (tombstonePaymentRequestId != null) {
-                    TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-                    transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(tombstonePaymentRequestId);
-                    transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
-                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-                    transactionService.addLink(transactionLinkDto);
-
-                    TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(tombstonePaymentRequestId);
-                    paymentRequestService.approve(transactionProcessDto);
-                }
-
+                createTombstonePaymentRequest(claim);
             }
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
@@ -541,4 +533,42 @@ public class ClaimController {
         return productAttributeDto;
     }
 
+    private void createTombstonePaymentRequest(ClaimOutboundDto claim) throws Exception {
+        PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
+        tombstonePaymentRequest.setPaymentMethod("EFT");
+        tombstonePaymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
+        tombstonePaymentRequest.setReference("TOMBSTONE"+ claim.getNumber());
+        tombstonePaymentRequest.setDueDate(new Date());
+        tombstonePaymentRequest.setRecipientId(claim.getClaimant().getId());
+        tombstonePaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
+        tombstonePaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+        PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(tombstonePaymentRequest);
+        String tombstonePaymentRequestId = groceryPaymentRequestDto.getId();
+        List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
+        if (bankAccountDtoList.iterator().hasNext()) {
+            BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
+            BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
+            bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
+            bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
+            bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
+            bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
+            bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
+            bankAccountCreateDto.setObjectId(tombstonePaymentRequestId);
+            bankAccountService.add(bankAccountCreateDto);
+//          paymentRequest.setBankAccount(bankAccountCreateDto);
+        }
+
+        if (tombstonePaymentRequestId != null) {
+            TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
+            transactionLinkDto.setTransaction1(claim.getId());
+            transactionLinkDto.setTransaction2(tombstonePaymentRequestId);
+            transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+            transactionService.addLink(transactionLinkDto);
+
+            TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
+            transactionProcessDto.setId(tombstonePaymentRequestId);
+            paymentRequestService.approve(transactionProcessDto);
+        }
+    }
 }
