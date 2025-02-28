@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.*;
 
@@ -197,5 +198,29 @@ public class InvoiceService {
         } catch (Exception exception) {
         }
         return invoiceOutboundDtoList;
+    }
+
+    public List<TransactionViewEntity> getMembershipInvoices(String id){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.INVOICE);
+            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
+            List<TransactionViewEntity> invoices = new ArrayList<>();
+
+            for(TransactionLinkDto link: transactionLinkDtos){
+                if(link.getType().equalsIgnoreCase("INVOICE")){
+                    for(TransactionViewEntity entity : transactionViewEntities){
+                        if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
+                            invoices.add(entity);
+                        }
+                    }
+                }
+            }
+            return invoices;
+        }
+        catch(Exception ex){
+            throw new RuntimeException("No invoices found");
+        }
     }
 }
