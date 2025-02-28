@@ -2,12 +2,14 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.membership.MembershipQueryDto;
@@ -16,6 +18,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -44,6 +47,8 @@ public class MembershipController {
     TransactionViewRepository transactionViewRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    InvoiceService invoiceService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -55,12 +60,26 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/membership-billing", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/invoice-pdf", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> billMembership(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(membershipService.handleBilling(id)));
+            InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(id);
+            ByteArrayResource pdfResource = membershipService.generateInvoice(invoiceOutboundDto);
+            String base64 = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+            return ResponseEntity.ok(gson.toJson(base64));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "{id}/bill-membership", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> membershipBilling(@PathVariable String id){
+        try{
+            String invoiceId = membershipService.handleBilling(id);
+            return ResponseEntity.ok(gson.toJson(invoiceId));
+        }
+        catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
@@ -159,6 +178,17 @@ public class MembershipController {
             return ResponseEntity.ok(gson.toJson(transactionService.searchV2(transactionViewDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
+        try{
+            List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
+            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
+        }
+        catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
