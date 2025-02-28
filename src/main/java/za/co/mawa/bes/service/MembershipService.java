@@ -620,7 +620,6 @@ public class MembershipService implements MembershipDao {
             transactionService.addLink(linkDto);
 
             return invoiceId;
-
         }
         catch (Exception e) {
             throw new RuntimeException(e);
