@@ -376,6 +376,7 @@ public class ClaimController {
                 else{
                     paymentRequest.setReference("FUNERAL" + claim.getNumber());
                 }
+
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
