@@ -1,4 +1,3 @@
-
 package za.co.mawa.bes.utils;
 
 public class InvoiceType {

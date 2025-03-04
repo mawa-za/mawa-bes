@@ -24,12 +24,10 @@ import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
-import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDateDto;
-import za.co.mawa.bes.dto.transaction.TransactionDto;
-import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
+import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.DateType;
 import za.co.mawa.bes.utils.PartnerFunction;
@@ -76,6 +74,37 @@ public class InvoiceController {
             return ResponseEntity.ok(gson.toJson( invoiceService.search(invoiceQueryDto)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "v2", method =  RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllUsingView(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.INVOICE);
+
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+            return ResponseEntity.ok(gson.toJson(entities));
+        }
+        catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public  ResponseEntity<?> deleteAllInvoices(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.INVOICE);
+
+            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
+            for(TransactionViewEntity entity: transactionViewEntities){
+                transactionService.delete(entity.getTransactionId());
+            }
+            return ResponseEntity.ok().build();
+        }
+        catch (Exception e){
+            return  ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

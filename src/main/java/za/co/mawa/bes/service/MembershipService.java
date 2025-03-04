@@ -15,11 +15,13 @@ import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.LineItemOutboundDto;
 import za.co.mawa.bes.dto.PricingInboundDto;
+
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.partner.PartnerQueryDto;
+
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -27,18 +29,20 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PremiumEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
-import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
+import za.co.mawa.bes.repository.TransactionPartnerRepository;
+
+
 import za.co.mawa.bes.utils.*;
 
 import java.io.ByteArrayOutputStream;
@@ -46,14 +50,20 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @Service
 public class MembershipService implements MembershipDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionRepository transactionRepository;
+    @Autowired
+    TransactionPartnerRepository transactionPartnerRepository;
     @Autowired
     TransactionAmountService transactionAmountService;
     @Autowired
@@ -64,12 +74,18 @@ public class MembershipService implements MembershipDao {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
+
     @Autowired
-    InvoiceService invoiceService;
+    TenantAdminService tenantAdminService;
     @Autowired
     UserService userService;
     @Autowired
+
+    InvoiceService invoiceService;
+    @Autowired
     LineItemService lineItemService;
+//    @Autowired
+//    TransactionRepository transactionRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -283,16 +299,28 @@ public class MembershipService implements MembershipDao {
             List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.MEMBERSHIP);
             List<MembershipDto> previousMemberships = new ArrayList<>();
+//            List<TransactionViewEntity> invoices = new ArrayList<>();
+//            TransactionViewDto transactionViewDto = new TransactionViewDto();
+//            transactionViewDto.setType(TransactionType.INVOICE);
+//            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
 
             for(TransactionLinkDto link: transactionLinkDtos){
                 if(link.getType().equalsIgnoreCase("UPGRADE")){
                     previousMemberships.add(get(link.getTransaction2()));
                 }
+//                if(link.getType().equalsIgnoreCase("INVOICE")){
+////                    invoices.add(invoiceService.get(link.getTransaction2()));
+//
+//                    for(TransactionViewEntity entity : transactionViewEntities){
+//                        if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
+//                            invoices.add(entity);
+//                        }
+//                    }
+//                }
             }
             membershipDto.setMembershipHistory(previousMemberships);
+//            membershipDto.setInvoices(invoices);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
@@ -337,11 +365,11 @@ public class MembershipService implements MembershipDao {
 
                 if(membershipQueryDto.getDateJoined() !=null){
 
-                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+                    String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
 
-                        match = match && dateJoined.equals(queryDateJoined);
+                    match = match && dateJoined.equals(queryDateJoined);
 
 
                 }
@@ -367,8 +395,7 @@ public class MembershipService implements MembershipDao {
 
     }
 
-    public Boolean edit(String id, MembershipEditDto membershipDto) {
-        boolean edited = false;
+    public void edit(String id, MembershipEditDto membershipDto) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
@@ -387,64 +414,136 @@ public class MembershipService implements MembershipDao {
                 partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
                 partnerEdit.setTransaction(id);
                 partnerEdit.setParnter(membershipDto.getSalesRepresentativeId());
-                edited = transactionService.partnerEdit(partnerEdit);
+                transactionService.partnerEdit(partnerEdit);
             }
             if (membershipDto.getPremium() != null && membershipDto.getProductId() != null && membershipDto.getProductId() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
                 editDto.setUnitPrice(membershipDto.getPremium());
-                edited = transactionService.editItem(editDto);
+                transactionService.editItem(editDto);
             }
             if (membershipDto.getProductId() != null && membershipDto.getProductId() != "" && membershipDto.getPreviousProduct() != null && membershipDto.getPreviousProduct() != "") {
                 TransactionItemEditDto editDto = new TransactionItemEditDto();
                 editDto.setTransaction(id);
                 editDto.setProduct(membershipDto.getProductId());
                 editDto.setPreviousProduct(membershipDto.getPreviousProduct());
-                edited = transactionService.editItem(editDto);
+                transactionService.editItem(editDto);
             }
-            return edited;
         }
         catch (Exception e){
-            return edited;
         }
     }
 
-    public String handleBilling(String id){
 
-        try {
-            MembershipDto membershipDto = get(id);
-            InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
+    public List<MembershipDto> getByFilter(MembershipQueryDto membershipQueryDto) throws Exception {
+        List<MembershipDto> membershipDtoList = new ArrayList<>();
+        List<String> transactionList = new ArrayList<>();
+        if (membershipQueryDto.getPartnerFunction() != null || membershipQueryDto.getMemberId() != null) {
 
-            invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
-            invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
-            PricingInboundDto pricingInboundDto = new PricingInboundDto();
-            pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
-            invoiceInboundDto.setPricing(pricingInboundDto);
-            invoiceInboundDto.setInvoiceDate(new Date());
+            List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartnersByFunction(PartnerFunction.MAINMEMBER);
 
-            List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
-            LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
-            lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
-            lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
-            lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
-            lineItemInboundDtoList.add(lineItemInboundDto);
-            invoiceInboundDto.setItems(lineItemInboundDtoList);
-            invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
+            if (!transactionPartnerDtos.isEmpty()) {
+                for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos) {
+                    String transaction = "";
 
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.create(invoiceInboundDto);
+                    if (membershipQueryDto.getMemberId() != null) {
+                        if (transactionPartnerDto.getPartner().equals(membershipQueryDto.getMemberId())) {
+                            transaction = transactionPartnerDto.getTransaction();
+                        }
+                    } else {
+                        transaction = transactionPartnerDto.getTransaction();
+                    }
 
-            TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceOutboundDto.getId());
-            linkDto.setTransaction2(id);
-            linkDto.setType(TransactionType.MEMBERSHIP);
-            transactionService.addLink(linkDto);
+                    transactionList.add(transaction);
 
-            return invoiceOutboundDto.getId();
+                }
+
+            }
+
         }
-        catch (Exception e) {
-            throw new RuntimeException(e);
+
+        List<TransactionItemDto> transactionItemDtos = new ArrayList<>();
+        if (!transactionList.isEmpty() && membershipQueryDto.getProductId() != null) {
+
+            Iterator<String> iterator = transactionList.iterator();
+
+            while (iterator.hasNext()) {
+                String transaction = iterator.next();
+                transactionItemDtos = transactionService.getItems(transaction);
+
+                if (!transactionItemDtos.isEmpty()) {
+                    for (TransactionItemDto transactionItemDto : transactionItemDtos) {
+                        if (!transactionItemDto.getProduct().equals(membershipQueryDto.getProductId())) {
+                            iterator.remove();
+                        }
+                    }
+                }
+            }
+
+        } else if (membershipQueryDto.getProductId() != null) {
+
+            Iterator<String> iterator = transactionList.iterator();
+            TransactionItemDto transactionItemDto = new TransactionItemDto();
+            transactionItemDto.setProduct(membershipQueryDto.getProductId());
+            List<TransactionItemDto> transactionItemDtoList = transactionService.getItemsBy(transactionItemDto);
+
+
+            if (!transactionItemDtoList.isEmpty()) {
+                for (TransactionItemDto transactionItemDto1 : transactionItemDtoList) {
+                    while (iterator.hasNext()) {
+                        String transaction = iterator.next();
+                        if (!transaction.equals(transactionItemDto1.getTransaction())) {
+                            iterator.remove();
+                        }
+
+                    }
+
+                }
+
+            }
         }
+
+
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+
+        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
+        for (String id : transactionService.search(transactionQueryDto)) {
+
+            if (transactionList.isEmpty()) {
+                MembershipDto membershipDto = get(id);
+                if (membershipQueryDto.getStatus() != null) {
+                    if (membershipDto.getStatus().getCode().equals(membershipQueryDto.getStatus())) {
+                        membershipDtoList.add(membershipDto);
+                    }
+
+                } else {
+                    membershipDtoList.add(membershipDto);
+                }
+
+            } else {
+                Iterator<String> iterator = transactionList.iterator();
+                while (iterator.hasNext()) {
+                    String transaction = iterator.next();
+                    if (transaction.equals(id)) {
+                        MembershipDto membershipDto = get(transaction);
+
+                        if (membershipQueryDto.getStatus() != null) {
+                            if (membershipDto.getStatus().getCode().equals(membershipQueryDto.getStatus())) {
+                                membershipDtoList.add(membershipDto);
+                            }
+
+                        } else {
+                            membershipDtoList.add(membershipDto);
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+        return membershipDtoList;
     }
 
     public String handleMembershipLapse(String id) throws Exception {
@@ -484,5 +583,201 @@ public class MembershipService implements MembershipDao {
         }
         return "Processed";
     }
+    public String handleBilling(String id){
+        try {
+            MembershipDto membershipDto = get(id);
+            InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
+            if(membershipDto.getMember()!= null){
+                invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
+            }
+            if(membershipDto.getSalesRepresentative() != null){
+                invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            }
+            PricingInboundDto pricingInboundDto = new PricingInboundDto();
+            if(membershipDto.getPremium() != null){
+                pricingInboundDto.setTotalIncVat(membershipDto.getPremium());
+            }
+            invoiceInboundDto.setPricing(pricingInboundDto);
+            invoiceInboundDto.setInvoiceDate(new Date());
+
+            List<LineItemInboundDto> lineItemInboundDtoList = new ArrayList<>();
+            LineItemInboundDto lineItemInboundDto = new LineItemInboundDto();
+            lineItemInboundDto.setQuantity(BigDecimal.valueOf(1));
+            if(membershipDto.getPremium() != null && membershipDto.getProduct() != null){
+                lineItemInboundDto.setUnitPrice(membershipDto.getPremium());
+                lineItemInboundDto.setProductId(membershipDto.getProduct().getId());
+            }
+            lineItemInboundDtoList.add(lineItemInboundDto);
+            invoiceInboundDto.setItems(lineItemInboundDtoList);
+            invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
+            invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
+
+            String invoiceId = invoiceService.create(invoiceInboundDto);
+
+            TransactionLinkDto linkDto = new TransactionLinkDto();
+            linkDto.setTransaction1(invoiceId);
+            linkDto.setTransaction2(id);
+            linkDto.setType(TransactionType.MEMBERSHIP);
+            transactionService.addLink(linkDto);
+
+            linkDto = new TransactionLinkDto();
+            linkDto.setTransaction1(id);
+            linkDto.setTransaction2(invoiceId);
+            linkDto.setType(TransactionType.INVOICE);
+            transactionService.addLink(linkDto);
+
+            return invoiceId;
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String validateMemberships() {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        MembershipEditDto editDto = new MembershipEditDto();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+        for (TransactionViewEntity entity : entities) {
+            if (entity.getDateEffective() != null) {
+                LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
+                LocalDate effectiveDate = effectiveDateTime.toLocalDate();
+                LocalDate today = LocalDate.now();
+
+                if (!effectiveDate.isAfter(today)) {
+                    editDto.setStatus(Status.ACTIVE);
+                } else {
+                    editDto.setStatus(Status.WAITING_PERIOD);
+                }
+                edit(entity.getTransactionId(), editDto);
+            }
+        }
+        return "Validated";
+    }
+
+    public String deleteAllMemberships() throws Exception {
+        TransactionViewDto transactionViewDto = new TransactionViewDto();
+        transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+        for(TransactionViewEntity entity : entities){
+            transactionService.delete(entity.getTransactionId());
+        }
+        return "Deleted";
+    }
+
+    public ByteArrayResource generateInvoice(InvoiceOutboundDto invoiceOutboundDto) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+
+            try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                PDFont fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+                PDFont fontRegular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+                float margin = 50;
+                float yStart = page.getMediaBox().getHeight() - margin;
+                float tableWidth = page.getMediaBox().getWidth() - 2 * margin;
+                float yPosition = yStart;
+
+                // Title
+                contentStream.setFont(fontBold, 18);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(margin, yPosition);
+                contentStream.showText("INVOICE");
+                contentStream.endText();
+                yPosition -= 30;
+
+                // Invoice Details
+                contentStream.setFont(fontRegular, 12);
+                drawText(contentStream, "Invoice Number: " + invoiceOutboundDto.getNumber(), margin, yPosition);
+                yPosition -= 20;
+                drawText(contentStream, "Invoice Date: " + formatDate(invoiceOutboundDto.getInvoiceDate()), margin, yPosition);
+                yPosition -= 20;
+
+                // Customer Information
+                PartnerDto customer = invoiceOutboundDto.getCustomer();
+                if (customer != null) {
+                    drawText(contentStream, "Customer: " + customer.getName1() + " " + customer.getName2(), margin, yPosition);
+                    yPosition -= 20;
+                }
+
+                // Sales Representative Information
+                PartnerDto salesRepresentative = invoiceOutboundDto.getSalesRepresentative();
+                if (salesRepresentative != null) {
+                    drawText(contentStream, "Sales Rep: " + salesRepresentative.getName1() + " " + salesRepresentative.getName2(), margin, yPosition);
+                    yPosition -= 20;
+                }
+
+                // Line Items Table
+                List<LineItemOutboundDto> lineItems = invoiceOutboundDto.getItems();
+                if (lineItems != null && !lineItems.isEmpty()) {
+                    yPosition -= 30;
+                    contentStream.setFont(fontBold, 14);
+                    drawText(contentStream, "Line Items", margin, yPosition);
+                    yPosition -= 20;
+
+                    float rowHeight = 20;
+                    float colWidth = tableWidth / 4;
+                    float tableYStart = yPosition;
+
+                    // Table Headers
+                    contentStream.setFont(fontBold, 12);
+                    drawTableRow(contentStream, margin, tableYStart, colWidth, rowHeight, "Product", "Quantity", "Unit Price", "Total");
+                    yPosition -= rowHeight;
+                    contentStream.setFont(fontRegular, 12);
+
+                    // Table Data
+                    for (LineItemOutboundDto lineItem : lineItems) {
+                        drawTableRow(contentStream, margin, yPosition, colWidth, rowHeight,
+                                String.valueOf(lineItem.getProduct().getCode()),
+                                String.valueOf(lineItem.getQuantity()),
+                                String.format("%.2f", lineItem.getUnitPrice()),
+                                String.format("%.2f", lineItem.getUnitPrice()));
+                        yPosition -= rowHeight;
+                    }
+                }
+
+                // Total Amount
+                invoiceOutboundDto.setItems(lineItemService.getAll(invoiceOutboundDto.getId()));
+                invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(invoiceOutboundDto.getId()));
+                if (invoiceOutboundDto.getAmounts() != null) {
+                    yPosition -= 30;
+                    contentStream.setFont(fontBold, 14);
+//                    drawText(contentStream, "Total Amount: " + "String.format("%.2f", "invoiceOutboundDto.getAmounts()")", margin, yPosition);
+                }
+            }
+
+            // Save and return
+            document.save(outputStream);
+            return new ByteArrayResource(outputStream.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void drawText(PDPageContentStream contentStream, String text, float x, float y) throws IOException {
+        contentStream.beginText();
+        contentStream.newLineAtOffset(x, y);
+        contentStream.showText(text);
+        contentStream.endText();
+    }
+
+    private void drawTableRow(PDPageContentStream contentStream, float x, float y, float colWidth, float rowHeight,
+                              String col1, String col2, String col3, String col4) throws IOException {
+        drawText(contentStream, col1, x, y);
+        drawText(contentStream, col2, x + colWidth, y);
+        drawText(contentStream, col3, x + 2 * colWidth, y);
+        drawText(contentStream, col4, x + 3 * colWidth, y);
+    }
+
+
+    private String formatDate(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        return sdf.format(date);
+    }
 }
