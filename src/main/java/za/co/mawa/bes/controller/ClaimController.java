@@ -375,12 +375,7 @@ public class ClaimController {
                 }
 
                 String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
-                if(xeroInvoiceNumber != null){
-                    paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
-                }
-                else{
-                    paymentRequest.setReference("FUNERAL" + claim.getNumber());
-                }
+                paymentRequest.setReference(xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
