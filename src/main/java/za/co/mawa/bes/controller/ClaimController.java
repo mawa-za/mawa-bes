@@ -2,10 +2,13 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
@@ -25,6 +28,7 @@ import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.xero.XeroAccountingService;
 import za.co.mawa.bes.xero.XeroUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -49,6 +53,7 @@ public class ClaimController {
     XeroAccountingService xeroAccountingService;
     @Autowired
     PartnerService partnerService;
+
 
     @Autowired
     ProductService productService;
@@ -118,6 +123,7 @@ public class ClaimController {
     @RequestMapping(value = "v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaimsV2(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String mainPartner,
+
                                          @RequestParam(required = false) String employeeResponsibleName,
                                          @RequestParam(required = false) String creationDate,
                                          @RequestParam(required = false) String idNumber) {
@@ -135,6 +141,7 @@ public class ClaimController {
 
             if (mainPartner != null && mainPartner != "") {
                 transactionViewDto.setMainPartner(mainPartner);
+
             }
 
             if (idNumber != null && idNumber != "") {
@@ -273,9 +280,7 @@ public class ClaimController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editClaim(@PathVariable String id, @RequestBody ClaimEditDto claimDto) {
         try {
-
             return ResponseEntity.ok(gson.toJson(claimService.edit(id, claimDto)));
-
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -370,7 +375,12 @@ public class ClaimController {
                 }
 
                 String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
-                paymentRequest.setReference(xeroInvoiceNumber);
+                if(xeroInvoiceNumber != null){
+                    paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
+                }
+                else{
+                    paymentRequest.setReference("FUNERAL" + claim.getNumber());
+                }
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
@@ -479,6 +489,20 @@ public class ClaimController {
         }
     }
 
+    @RequestMapping(value = "{id}/pdf-form", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generatePdf(@PathVariable String id) {
+        try {
+            ClaimOutboundDto claimOutboundDto = claimService.get(id);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+
+            return ResponseEntity.ok().body(base64Pdf);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     private String getFuneralServiceProvider() {
         Properties properties = settingService.getSettings("FUNERAL-CLAIM");
         try {
@@ -552,5 +576,4 @@ public class ClaimController {
             paymentRequestService.approve(transactionProcessDto);
         }
     }
-
 }
