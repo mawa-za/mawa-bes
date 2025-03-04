@@ -369,18 +369,13 @@ public class ClaimController {
                 String productId = claim.getMembership().getProduct().getId();
                 ArrayList<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
                 for(ProductAttributeDto attribute : productAttributes){
-                   if(attribute.getAttribute().getCode().equals(XeroUtils.XERO_ITEM_CODE)){
-                       itemCode = attribute.getValue();
-                   }
+                    if(attribute.getAttribute().getCode().equals(XeroUtils.XERO_ITEM_CODE)){
+                        itemCode = attribute.getValue();
+                    }
                 }
 
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice(claim.getMember().getId(), claim.getNumber(),itemCode);
-                if(xeroInvoiceNumber != null){
-                    paymentRequest.setReference("FUNERAL" + xeroInvoiceNumber);
-                }
-                else{
-                    paymentRequest.setReference("FUNERAL" + claim.getNumber());
-                }
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(), claim.getNumber(),itemCode);
+                paymentRequest.setReference(xeroInvoiceNumber);
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
