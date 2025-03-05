@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
-
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
@@ -98,7 +97,6 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-
 
     @RequestMapping(value = "validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> validateMembershipStatus(){
