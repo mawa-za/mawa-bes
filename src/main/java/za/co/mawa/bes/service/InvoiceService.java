@@ -1,6 +1,13 @@
 package za.co.mawa.bes.service;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -9,6 +16,7 @@ import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
 import za.co.mawa.bes.dto.claim.ClaimQueryDto;
 import za.co.mawa.bes.dto.invoice.*;
+import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
@@ -24,7 +32,11 @@ import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.service.TransactionAttributeService;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
@@ -253,6 +265,7 @@ public class InvoiceService {
         return invoiceOutboundDtoList;
     }
 
+
     public InvoiceOutboundDto edit(String id, InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
@@ -357,4 +370,116 @@ public class InvoiceService {
             throw new RuntimeException("No invoices found");
         }
     }
+
+    public ByteArrayResource generateInvoice(InvoiceOutboundDto invoiceOutboundDto) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+
+            try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                PDFont fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+                PDFont fontRegular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+                float margin = 50;
+                float yStart = page.getMediaBox().getHeight() - margin;
+                float tableWidth = page.getMediaBox().getWidth() - 2 * margin;
+                float yPosition = yStart;
+
+                // Title
+                contentStream.setFont(fontBold, 18);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(margin, yPosition);
+                contentStream.showText("INVOICE");
+                contentStream.endText();
+                yPosition -= 30;
+
+                // Invoice Details
+                contentStream.setFont(fontRegular, 12);
+                drawText(contentStream, "Invoice Number: " + invoiceOutboundDto.getNumber(), margin, yPosition);
+                yPosition -= 20;
+                drawText(contentStream, "Invoice Date: " + formatDate(invoiceOutboundDto.getInvoiceDate()), margin, yPosition);
+                yPosition -= 20;
+
+                // Customer Information
+                PartnerDto customer = invoiceOutboundDto.getCustomer();
+                if (customer != null) {
+                    drawText(contentStream, "Customer: " + customer.getName1() + " " + customer.getName2(), margin, yPosition);
+                    yPosition -= 20;
+                }
+
+                // Sales Representative Information
+                PartnerDto salesRepresentative = invoiceOutboundDto.getSalesRepresentative();
+                if (salesRepresentative != null) {
+                    drawText(contentStream, "Sales Rep: " + salesRepresentative.getName1() + " " + salesRepresentative.getName2(), margin, yPosition);
+                    yPosition -= 20;
+                }
+
+                // Line Items Table
+                List<LineItemOutboundDto> lineItems = invoiceOutboundDto.getItems();
+                if (lineItems != null && !lineItems.isEmpty()) {
+                    yPosition -= 30;
+                    contentStream.setFont(fontBold, 14);
+                    drawText(contentStream, "Line Items", margin, yPosition);
+                    yPosition -= 20;
+
+                    float rowHeight = 20;
+                    float colWidth = tableWidth / 4;
+                    float tableYStart = yPosition;
+
+                    // Table Headers
+                    contentStream.setFont(fontBold, 12);
+                    drawTableRow(contentStream, margin, tableYStart, colWidth, rowHeight, "Product", "Quantity", "Unit Price", "Total");
+                    yPosition -= rowHeight;
+                    contentStream.setFont(fontRegular, 12);
+
+                    // Table Data
+                    for (LineItemOutboundDto lineItem : lineItems) {
+                        drawTableRow(contentStream, margin, yPosition, colWidth, rowHeight,
+                                String.valueOf(lineItem.getProduct().getCode()),
+                                String.valueOf(lineItem.getQuantity()),
+                                String.format("%.2f", lineItem.getUnitPrice()),
+                                String.format("%.2f", lineItem.getUnitPrice()));
+                        yPosition -= rowHeight;
+                    }
+                }
+
+                // Total Amount
+                invoiceOutboundDto.setItems(lineItemService.getAll(invoiceOutboundDto.getId()));
+                invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(invoiceOutboundDto.getId()));
+                if (invoiceOutboundDto.getAmounts() != null) {
+                    yPosition -= 30;
+                    contentStream.setFont(fontBold, 14);
+//                    drawText(contentStream, "Total Amount: " + "String.format("%.2f", "invoiceOutboundDto.getAmounts()")", margin, yPosition);
+                }
+            }
+
+            // Save and return
+            document.save(outputStream);
+            return new ByteArrayResource(outputStream.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void drawText(PDPageContentStream contentStream, String text, float x, float y) throws IOException {
+        contentStream.beginText();
+        contentStream.newLineAtOffset(x, y);
+        contentStream.showText(text);
+        contentStream.endText();
+    }
+
+    private void drawTableRow(PDPageContentStream contentStream, float x, float y, float colWidth, float rowHeight,
+                              String col1, String col2, String col3, String col4) throws IOException {
+        drawText(contentStream, col1, x, y);
+        drawText(contentStream, col2, x + colWidth, y);
+        drawText(contentStream, col3, x + 2 * colWidth, y);
+        drawText(contentStream, col4, x + 3 * colWidth, y);
+    }
+
+    private String formatDate(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        return sdf.format(date);
+    }
 }
+

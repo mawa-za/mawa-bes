@@ -7,15 +7,21 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.MembershipDao;
-import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.DependentDto;
+import za.co.mawa.bes.dto.LineItemInboundDto;
+import za.co.mawa.bes.dto.LineItemOutboundDto;
+import za.co.mawa.bes.dto.PricingInboundDto;
+
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerQueryDto;
+
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -74,6 +80,7 @@ public class MembershipService implements MembershipDao {
     @Autowired
     UserService userService;
     @Autowired
+
     InvoiceService invoiceService;
     @Autowired
     LineItemService lineItemService;
@@ -427,6 +434,7 @@ public class MembershipService implements MembershipDao {
         catch (Exception e){
         }
     }
+
 
     public List<MembershipDto> getByFilter(MembershipQueryDto membershipQueryDto) throws Exception {
         List<MembershipDto> membershipDtoList = new ArrayList<>();
