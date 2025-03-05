@@ -166,15 +166,4 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
-
-    @RequestMapping(value = "{id}/membership", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
-        try{
-            List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
-            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
-        }
-        catch(Exception exception){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
 }
