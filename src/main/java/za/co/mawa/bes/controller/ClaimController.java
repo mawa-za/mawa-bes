@@ -404,7 +404,7 @@ public class ClaimController {
                 paymentRequest = new PaymentRequestCreateDto();
                 paymentRequest.setPaymentMethod("CASH");
                 paymentRequest.setPaymentReason("GROCERY-CLAIM");
-                paymentRequest.setReference("CASHCLAIM" + claim.getNumber());
+                paymentRequest.setReference("GROCERY" + claim.getNumber());
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getMember().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
