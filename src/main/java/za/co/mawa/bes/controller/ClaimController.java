@@ -52,8 +52,6 @@ public class ClaimController {
     SettingService settingService;
     @Autowired
     XeroAccountingService xeroAccountingService;
-    @Autowired
-    PartnerService partnerService;
 
 
     @Autowired
