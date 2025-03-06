@@ -42,7 +42,7 @@ public class XeroAccountingService {
             //use the partner id to get the contact id from partner
             //if authentication fails, refresh token
             //schedule function to refresh refresh token after 30 days
-
+            String refr = reference;
             //get this tenant from the partnerId
 //            String tenant = TenantContext.getCurrentTenant();
 //            String tenant = getContactIdFromPartner(partnerId);
