@@ -56,7 +56,7 @@ public class PaymentRequestService implements PaymentRequestDao {
     private TransactionRepository transactionRepository;
 
     @Override
-    public String create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
+    public PaymentRequestDto create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.PAYMENT_REQUEST);
         transactionCreateDto.setSubType(paymentRequestCreateDto.getPaymentMethod());
@@ -120,7 +120,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 linkDto.setType(TransactionType.PAYMENT_REQUEST);
                 transactionService.addLink(linkDto);
             }
-            return transaction.getId();
+            return get(transaction.getId());
         } else {
             return null;
         }
