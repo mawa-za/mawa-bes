@@ -1304,6 +1304,27 @@ public class PartnerService {
         return partnerBasicDto;
     }
 
+    public String getFullName(PartnerDto partner) {
+        if (partner == null) {
+            return "";
+        }
+
+        List<String> names = new ArrayList<>();
+        if (partner.getName1() != null && !partner.getName1().isEmpty()) {
+            names.add(partner.getName1());
+        }
+        if (partner.getName2() != null && !partner.getName2().isEmpty()) {
+            names.add(partner.getName2());
+        }
+        if (partner.getName3() != null && !partner.getName3().isEmpty()) {
+            names.add(partner.getName3());
+        }
+        if (partner.getName4() != null && !partner.getName4().isEmpty()) {
+            names.add(partner.getName4());
+        }
+
+        // Joining names with a single space
+        return String.join(" ", names).trim();
+    }
 
 }
-
