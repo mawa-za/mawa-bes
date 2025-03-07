@@ -38,6 +38,8 @@ public class ClaimController {
     @Autowired
     ClaimService claimService;
     @Autowired
+    PartnerService partnerService;
+    @Autowired
     TransactionService transactionService;
     @Autowired
     MembershipService membershipService;
@@ -49,8 +51,6 @@ public class ClaimController {
     SettingService settingService;
     @Autowired
     XeroAccountingService xeroAccountingService;
-    @Autowired
-    PartnerService partnerService;
 
     @Autowired
     ProductService productService;
@@ -370,9 +370,12 @@ public class ClaimController {
                         itemCode = attribute.getValue();
                     }
                 }
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(), claim.getNumber(),itemCode);
+              
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(),partnerService.getFullName(claim.getDeceased()) ,itemCode);
+                if (xeroInvoiceNumber == null) {
+                    throw new RuntimeException("Failed to create Xero invoice: Invoice number is null.");
+                }
                 paymentRequest.setReference(xeroInvoiceNumber);
-
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));

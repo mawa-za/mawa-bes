@@ -1,5 +1,6 @@
 package za.co.mawa.bes.xero;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -7,11 +8,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
-import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.TenantAdminService;
 
 import java.io.BufferedReader;
@@ -22,7 +20,6 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -36,6 +33,7 @@ public class XeroAccountingService {
     TenantAdminService tenantAdminService;
 
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
+    private static String CONTACT_URL = "https://api.xero.com/api.xro/2.0/Contacts";
 
 
     public String createInvoice(String partnerId , String reference , String itemCode){
@@ -44,7 +42,6 @@ public class XeroAccountingService {
             //use the partner id to get the contact id from partner
             //if authentication fails, refresh token
             //schedule function to refresh refresh token after 30 days
-
             //get this tenant from the partnerId
 //            String tenant = TenantContext.getCurrentTenant();
 //            String tenant = getContactIdFromPartner(partnerId);
@@ -108,6 +105,106 @@ public class XeroAccountingService {
         }
 
         return null;
+    }
+
+    public ObjectNode getXeroContact() throws IOException {
+
+        String tenant = xeroAuthService.checkXeroInfo();
+        String accessToken = xeroAuthService.refreshAccessToken(tenant);
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        JSONObject jsonObject = new JSONObject(tenantProperty);
+        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+
+        return sendContactsRequest(accessToken,XeroTenantId);
+    }
+
+    public ObjectNode sendContactsRequest(String accessToken, String xeroTenantId) throws IOException {
+        HttpURLConnection connection = null;
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            URL url = new URL(CONTACT_URL);
+            connection = (HttpURLConnection) url.openConnection();
+
+            // Configure connection
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Authorization", "Bearer " + accessToken);
+            connection.setRequestProperty("Xero-Tenant-Id", xeroTenantId);
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setDoOutput(true);
+
+            // Read and handle response
+            int responseCode = connection.getResponseCode();
+            if (responseCode >= 300) {
+                String errorResponse = readErrorStream(connection);
+                throw new IOException(String.format("Request failed with code: %d. Response: %s",
+                        responseCode, errorResponse));
+            }
+
+            // Read successful response
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+            }
+
+            // Parse response and transform structure
+            JsonNode jsonResponse = objectMapper.readTree(response.toString());
+            ObjectNode formattedResponse = objectMapper.createObjectNode();
+            formattedResponse.put("Id", jsonResponse.path("Id").asText());
+            formattedResponse.put("Status", jsonResponse.path("Status").asText());
+            formattedResponse.put("ProviderName", jsonResponse.path("ProviderName").asText());
+            formattedResponse.put("DateTimeUTC", jsonResponse.path("DateTimeUTC").asText());
+
+            ArrayNode formattedContacts = objectMapper.createArrayNode();
+            for (JsonNode contact : jsonResponse.path("Contacts")) {
+                ObjectNode formattedContact = objectMapper.createObjectNode();
+                formattedContact.put("ContactID", contact.path("ContactID").asText());
+                formattedContact.put("ContactStatus", contact.path("ContactStatus").asText());
+                formattedContact.put("Name", contact.path("Name").asText());
+
+                // Extract Addresses
+                ArrayNode formattedAddresses = objectMapper.createArrayNode();
+                for (JsonNode address : contact.path("Addresses")) {
+                    ObjectNode formattedAddress = objectMapper.createObjectNode();
+                    formattedAddress.put("AddressType", address.path("AddressType").asText());
+                    formattedAddresses.add(formattedAddress);
+                }
+                formattedContact.set("Addresses", formattedAddresses);
+
+                // Extract Phones
+                ArrayNode formattedPhones = objectMapper.createArrayNode();
+                for (JsonNode phone : contact.path("Phones")) {
+                    ObjectNode formattedPhone = objectMapper.createObjectNode();
+                    formattedPhone.put("PhoneType", phone.path("PhoneType").asText());
+                    formattedPhones.add(formattedPhone);
+                }
+                formattedContact.set("Phones", formattedPhones);
+
+                formattedContact.put("UpdatedDateUTC", contact.path("UpdatedDateUTC").asText());
+                formattedContact.set("ContactGroups", contact.path("ContactGroups"));
+                formattedContact.put("IsSupplier", contact.path("IsSupplier").asBoolean());
+                formattedContact.put("IsCustomer", contact.path("IsCustomer").asBoolean());
+                formattedContact.set("ContactPersons", contact.path("ContactPersons"));
+                formattedContact.put("HasAttachments", contact.path("HasAttachments").asBoolean());
+                formattedContact.put("HasValidationErrors", contact.path("HasValidationErrors").asBoolean());
+
+                formattedContacts.add(formattedContact);
+            }
+            formattedResponse.set("Contacts", formattedContacts);
+
+            return formattedResponse;
+        } catch (SocketTimeoutException e) {
+            throw new IOException("Request timed out: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new IOException("Failed to get Xero contacts: " + e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
     }
 
     public String sendInvoiceRequest(JSONObject requestBody, String accessToken , String xero_tenant_id) throws IOException {

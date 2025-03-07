@@ -41,7 +41,7 @@ public class XeroAuthService {
     @Getter
     private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
     @Getter
-    private static final String SCOPES = "offline_access accounting.transactions";
+    private static final String SCOPES = "offline_access accounting.transactions accounting.contacts.read";
 
     private static final String API_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 //    @Getter
@@ -146,6 +146,14 @@ public class XeroAuthService {
 
         try (OutputStream os = connection.getOutputStream()) {
             os.write(requestBody.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // Read and handle response
+        int responseCode = connection.getResponseCode();
+        if (responseCode >= 300) {
+            String errorResponse = readErrorStream(connection);
+            throw new IOException(String.format("Request failed with code: %d. Response: %s",
+                    responseCode, errorResponse));
         }
 
         BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
@@ -304,6 +312,17 @@ public class XeroAuthService {
         return null;
     }
 
+    private static String readErrorStream(HttpURLConnection connection) throws IOException {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String responseLine;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+            return response.toString();
+        }
+    }
 
 //    public void updateSetting(String attribute, String setting, String newValue) {
 //        SettingPKEntity settingPKEntity = new SettingPKEntity();
