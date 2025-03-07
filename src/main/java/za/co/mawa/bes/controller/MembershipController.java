@@ -440,4 +440,23 @@ public class MembershipController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
+
+    @RequestMapping(value = "remove-memberships", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteMembershipsWithNoProducts(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> transactionViewEntities= transactionService.searchV2(transactionViewDto);
+
+            for(TransactionViewEntity entity: transactionViewEntities){
+                if(entity.getProductId() == null){
+                    transactionService.delete(entity.getTransactionId());
+                }
+            }
+            return ResponseEntity.ok("Removed memberships with no products ");
+        }
+        catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
 }
