@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -428,6 +429,25 @@ public class MembershipController {
             return ResponseEntity.ok(gson.toJson(transactionEditDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "remove-memberships", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteMembershipsWithNoProducts(@PathVariable String id){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> transactionViewEntities= transactionService.searchV2(transactionViewDto);
+
+            for(TransactionViewEntity entity: transactionViewEntities){
+                if(entity.getProductId() == null){
+                    transactionService.delete(entity.getTransactionId());
+                }
+            }
+            return ResponseEntity.ok("Removed memberships with no products ");
+        }
+        catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 }
