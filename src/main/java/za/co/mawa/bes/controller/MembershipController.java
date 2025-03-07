@@ -447,7 +447,7 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "remove-memberships", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteMembershipsWithNoProducts(@PathVariable String id){
+    public ResponseEntity<?> deleteMembershipsWithNoProducts(){
         try{
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
