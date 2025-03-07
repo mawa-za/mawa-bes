@@ -86,12 +86,26 @@ public class XeroAuthController {
         }
     }
 
-    @GetMapping("/xero/createInvoice")
-    public String createInvoice() {
+    @GetMapping("/xero/{tenant}/createExternalInvoice")
+    public ResponseEntity<?> callCreateInvoice(@PathVariable String tenant, @RequestBody XeroInboundInvoiceCreateDto xeroInboundInvoiceCreateDto) {
+        // Store the code for later use in token exchange
+        try {
+//          Log in external client
+            return ResponseEntity.ok(xeroAuthService.createExternalInvoice(xeroInboundInvoiceCreateDto,tenant));
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @RequestMapping(value ="/xero/createInvoice", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public String createInvoice(@RequestBody XeroInboundInvoiceCreateDto xeroInboundInvoiceCreateDto) {
         // Store the code for later use in token exchange
         try {
 
-            return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+            return xeroAccountingService.createInvoice(xeroInboundInvoiceCreateDto.getPartnerId(),
+                                                        xeroInboundInvoiceCreateDto.getReference(),
+                                                        xeroInboundInvoiceCreateDto.getItemCode());
 //            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
 
         } catch (Exception e) {
