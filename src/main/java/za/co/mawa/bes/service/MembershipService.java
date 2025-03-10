@@ -1,8 +1,11 @@
 package za.co.mawa.bes.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.controller.BatchController;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
@@ -39,6 +42,7 @@ import java.util.*;
 
 @Service
 public class MembershipService implements MembershipDao {
+    private static final Logger log = LoggerFactory.getLogger(MembershipService.class);
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -571,11 +575,20 @@ public class MembershipService implements MembershipDao {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
+            if (membershipDto == null) {
+                throw new RuntimeException("Membership not found for ID: " + id);
+            }
             if(membershipDto.getMember()!= null){
                 invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
             }
+            else {
+                log.error("Member is null for membership ID: {}", id);
+            }
             if(membershipDto.getSalesRepresentative() != null){
                 invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
+            }
+            else {
+                log.error("Sales representative is null for membership ID: {}", id);
             }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
             if(membershipDto.getPremium() != null){
