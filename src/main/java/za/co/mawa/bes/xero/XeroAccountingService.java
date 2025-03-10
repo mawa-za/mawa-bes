@@ -345,9 +345,9 @@ public class XeroAccountingService {
         String token = createExternalLogin(xeroInboundInvoiceCreateDto,tenant);
 
         try {
-            String URI = "http://localhost:8080";
+//            String URI = "http://localhost:8080";
 
-            URL url = new URL(URI + "/xero/createInvoice");
+            URL url = new URL(authUrl + "/xero/createInvoice");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setDoInput(true);
             conn.setDoOutput(true);

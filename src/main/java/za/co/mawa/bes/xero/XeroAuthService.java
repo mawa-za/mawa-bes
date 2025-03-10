@@ -40,7 +40,6 @@ public class XeroAuthService {
 
     // change the redirect uri
 //    @Getter
-    String URI = "http://localhost:8080";
 
     @Getter
     private static final String TOKEN_URL = "https://identity.xero.com/connect/token";
@@ -51,8 +50,6 @@ public class XeroAuthService {
     private static final String API_URL = "https://api.xero.com/api.xro/2.0/Invoices";
 
 
-    @Value("${mawa.api.url}")
-    private String authUrl;
 //    @Getter
 //    private static String refreshToken = "stored_refresh_token";
 //    @Getter
