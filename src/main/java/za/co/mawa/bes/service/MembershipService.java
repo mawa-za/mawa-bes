@@ -189,20 +189,23 @@ public class MembershipService implements MembershipDao {
         } else {
             TransactionDateDto dateEffective = new TransactionDateDto();
             dateEffective.setTransaction(transactionDto.getId());
+
             ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
             productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
             productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-//            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
-            ProductAttributeDto productAttributeDto = null;
+
+            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
+
             int waitingPeriod = 0;
+
             if (productAttributeDto != null) {
                 waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
             }
+
             dateEffective.setType(DateType.EFFECTIVE);
-            dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
+            dateEffective.setValue(addDaysToDate(new Date(), waitingPeriod));
             transactionService.addDate(dateEffective);
         }
-
         if (membershipCreateDto.getMemberId() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -562,6 +565,7 @@ public class MembershipService implements MembershipDao {
         }
         return "Processed";
     }
+
     public String handleBilling(String id){
         try {
             MembershipDto membershipDto = get(id);
@@ -648,5 +652,10 @@ public class MembershipService implements MembershipDao {
         return "Deleted";
     }
 
-
+    public static Date addDaysToDate(Date date, int days) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DAY_OF_MONTH, days);
+        return calendar.getTime();
+    }
 }
