@@ -2,6 +2,8 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.hibernate.resource.transaction.spi.TransactionStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -38,6 +40,7 @@ import java.util.Properties;
 @RequestMapping(value = "batch")
 public class BatchController {
     Gson gson = new Gson();
+    private static final Logger log = LoggerFactory.getLogger(BatchController.class);
     @Autowired
     PaymentRequestService paymentRequestService;
     @Autowired
@@ -120,6 +123,9 @@ public class BatchController {
                 if(entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.ACTIVE)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.NEW)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.WAITING_PERIOD))){
                     if(entity.getTransactionId() != null){
                         invoices.add(membershipService.handleBilling(entity.getTransactionId()));
+                    }
+                    else {
+                        log.error("Transaction ID is null for entity: {}", entity);
                     }
                 }
             }
