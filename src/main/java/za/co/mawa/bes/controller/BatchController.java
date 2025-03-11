@@ -126,9 +126,6 @@ public class BatchController {
                     if(entity.getTransactionId() != null){
                         invoices.add(membershipService.handleBilling(entity.getTransactionId()));
                     }
-                    else {
-                        log.error("Transaction ID is null for entity: {}", entity);
-                    }
                 }
             }
             return ResponseEntity.ok().body(gson.toJson(invoices));
