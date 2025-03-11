@@ -287,11 +287,6 @@ public class MembershipService implements MembershipDao {
             membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
 
             List<MembershipDto> previousMemberships = new ArrayList<>();
-//            List<TransactionViewEntity> invoices = new ArrayList<>();
-//            TransactionViewDto transactionViewDto = new TransactionViewDto();
-//            transactionViewDto.setType(TransactionType.INVOICE);
-//            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
-
             for(TransactionLinkDto link: transactionLinkDtos){
                 try{
                     if(link.getType().equalsIgnoreCase("UPGRADE")){
@@ -299,19 +294,8 @@ public class MembershipService implements MembershipDao {
                     }
                 }catch(Exception e){
                 }
-
-//                if(link.getType().equalsIgnoreCase("INVOICE")){
-////                    invoices.add(invoiceService.get(link.getTransaction2()));
-//
-//                    for(TransactionViewEntity entity : transactionViewEntities){
-//                        if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
-//                            invoices.add(entity);
-//                        }
-//                    }
-//                }
             }
             membershipDto.setMembershipHistory(previousMemberships);
-//            membershipDto.setInvoices(invoices);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
