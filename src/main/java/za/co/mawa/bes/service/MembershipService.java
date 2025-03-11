@@ -192,18 +192,17 @@ public class MembershipService implements MembershipDao {
 
             ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
             productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
-            productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-
-            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
-
             int waitingPeriod = 0;
-
-            if (productAttributeDto != null) {
-                waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
+            List<ProductAttributeDto> productAttributeDto = productService.getAttributes(membershipCreateDto.getProductId());
+            for(ProductAttributeDto productAttribute : productAttributeDto){
+                if(productAttribute.getAttribute().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                    waitingPeriod = Integer.parseInt(productAttribute.getValue());
+                    System.out.println(waitingPeriod);
+                }
             }
-
             dateEffective.setType(DateType.EFFECTIVE);
             dateEffective.setValue(addDaysToDate(new Date(), waitingPeriod));
+            System.out.println(dateEffective.getValue());
             transactionService.addDate(dateEffective);
         }
         if (membershipCreateDto.getMemberId() != null) {
