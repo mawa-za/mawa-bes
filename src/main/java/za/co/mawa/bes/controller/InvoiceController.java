@@ -9,11 +9,16 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
 
 import org.springframework.core.io.ByteArrayResource;
 import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import za.co.mawa.bes.utils.TransactionType;
+
 import java.util.Base64;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -44,6 +49,20 @@ public class InvoiceController {
             invoiceQueryDto.setStatus(status);
             return ResponseEntity.ok(gson.toJson( invoiceService.search(invoiceQueryDto)));
         } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "v2", method =  RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllUsingView(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.INVOICE);
+
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+            return ResponseEntity.ok(gson.toJson(entities));
+        }
+        catch(Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
