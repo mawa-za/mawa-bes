@@ -293,9 +293,13 @@ public class MembershipService implements MembershipDao {
 //            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
 
             for(TransactionLinkDto link: transactionLinkDtos){
-                if(link.getType().equalsIgnoreCase("UPGRADE")){
-                    previousMemberships.add(get(link.getTransaction2()));
+                try{
+                    if(link.getType().equalsIgnoreCase("UPGRADE")){
+                        previousMemberships.add(get(link.getTransaction2()));
+                    }
+                }catch(Exception e){
                 }
+
 //                if(link.getType().equalsIgnoreCase("INVOICE")){
 ////                    invoices.add(invoiceService.get(link.getTransaction2()));
 //
@@ -575,20 +579,11 @@ public class MembershipService implements MembershipDao {
             MembershipDto membershipDto = get(id);
             InvoiceInboundDto invoiceInboundDto = new InvoiceInboundDto();
 
-            if (membershipDto == null) {
-                throw new RuntimeException("Membership not found for ID: " + id);
-            }
             if(membershipDto.getMember()!= null){
                 invoiceInboundDto.setCustomerId(membershipDto.getMember().getId());
             }
-            else {
-                log.error("Member is null for membership ID: {}", id);
-            }
             if(membershipDto.getSalesRepresentative() != null){
                 invoiceInboundDto.setSalesRepresentative(membershipDto.getSalesRepresentative().getId());
-            }
-            else {
-                log.error("Sales representative is null for membership ID: {}", id);
             }
             PricingInboundDto pricingInboundDto = new PricingInboundDto();
             if(membershipDto.getPremium() != null){
