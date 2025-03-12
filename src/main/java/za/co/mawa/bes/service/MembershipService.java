@@ -203,17 +203,18 @@ public class MembershipService implements MembershipDao {
         } else {
             TransactionDateDto dateEffective = new TransactionDateDto();
             dateEffective.setTransaction(transactionDto.getId());
+
             ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
             productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
-            productAttributeQueryDto.setAttribute(ProductAttribute.WAITING_PERIOD);
-//            ProductAttributeDto productAttributeDto = productService.getAttribute(productAttributeQueryDto);
-            ProductAttributeDto productAttributeDto = null;
             int waitingPeriod = 0;
-            if (productAttributeDto != null) {
-                waitingPeriod = Integer.parseInt(productAttributeDto.getValue());
+            List<ProductAttributeDto> productAttributeDto = productService.getAttributes(membershipCreateDto.getProductId());
+            for(ProductAttributeDto productAttribute : productAttributeDto){
+                if(productAttribute.getAttribute().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                    waitingPeriod = Integer.parseInt(productAttribute.getValue());
+                }
             }
             dateEffective.setType(DateType.EFFECTIVE);
-            dateEffective.setValue(Conversion.addMonthsToDate(new Date(), waitingPeriod));
+            dateEffective.setValue(addDaysToDate(new Date(), waitingPeriod));
             transactionService.addDate(dateEffective);
         }
 
@@ -647,6 +648,13 @@ public class MembershipService implements MembershipDao {
             }
         }
         return "Validated";
+    }
+
+    public static Date addDaysToDate(Date date, int days) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DAY_OF_MONTH, days);
+        return calendar.getTime();
     }
 
 }
