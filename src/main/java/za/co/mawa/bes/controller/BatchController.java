@@ -1,6 +1,8 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -28,6 +30,7 @@ import java.util.Properties;
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
 
 @RestController
@@ -35,6 +38,7 @@ import za.co.mawa.bes.utils.TransactionType;
 @RequestMapping(value = "batch")
 public class BatchController {
     Gson gson = new Gson();
+    private static final Logger log = LoggerFactory.getLogger(BatchController.class);
     @Autowired
     PaymentRequestService paymentRequestService;
     @Autowired
@@ -93,6 +97,31 @@ public class BatchController {
             return ResponseEntity.ok().body(gson.toJson(result));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "bill-memberships", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> billAllMemberships(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+
+            List<String> invoices = new ArrayList<>();
+            for(TransactionViewEntity entity: membershipEntities){
+                if(entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.ACTIVE)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.NEW)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.WAITING_PERIOD))){
+                    if(entity.getTransactionId() != null){
+                        invoices.add(membershipService.handleBilling(entity.getTransactionId()));
+                    }
+                    else {
+                        log.error("Transaction ID is null for entity: {}", entity);
+                    }
+                }
+            }
+            return ResponseEntity.ok().body(gson.toJson(invoices));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
 

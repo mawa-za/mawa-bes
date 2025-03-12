@@ -40,7 +40,7 @@ public class InvoiceService {
     @Autowired
     TransactionAmountService transactionAmountService;
 
-    public InvoiceOutboundDto create(InvoiceInboundDto invoiceInboundDto) {
+    public String create(InvoiceInboundDto invoiceInboundDto) {
         try {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
@@ -116,7 +116,7 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            return get(transactionDto.getId());
+            return get(transactionDto.getId()).getId();
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
