@@ -612,7 +612,7 @@ public class MembershipService implements MembershipDao {
             dateEffective.setValue(new Date());
         } else {
             int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
-            dateEffective.setValue(addDaysToDate(new Date(), waitingPeriod));
+            dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
         }
         transactionService.addDate(dateEffective);
     }
