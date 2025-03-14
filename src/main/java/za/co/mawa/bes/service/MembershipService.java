@@ -95,7 +95,7 @@ public class MembershipService implements MembershipDao {
                 transactionCreateDto.setStatus(Status.WAITING_PERIOD);
             }
             else {
-                transactionCreateDto.setStatus(Status.NEW);
+                transactionCreateDto.setStatus(Status.ACTIVE);
             }
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
