@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import org.hibernate.resource.transaction.spi.TransactionStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,10 +40,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static org.json.XMLTokener.entity;
+
 
 @Service
 public class MembershipService implements MembershipDao {
     private static final Logger log = LoggerFactory.getLogger(MembershipService.class);
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -568,8 +572,6 @@ public class MembershipService implements MembershipDao {
         List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
         MembershipEditDto editDto = new MembershipEditDto();
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
-
         for (TransactionViewEntity entity : entities) {
             if (entity.getDateEffective() != null) {
                 LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
@@ -604,6 +606,11 @@ public class MembershipService implements MembershipDao {
     }
 
     private void addEffectiveDate(TransactionDto transactionDto, MembershipCreateDto membershipCreateDto) throws TransactionDateAddException {
+        int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
+
+        LocalDate today = LocalDate.now();
+        Date date = Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
         TransactionDateDto dateEffective = new TransactionDateDto();
         dateEffective.setTransaction(transactionDto.getId());
         dateEffective.setType(DateType.EFFECTIVE);
@@ -611,8 +618,12 @@ public class MembershipService implements MembershipDao {
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             dateEffective.setValue(new Date());
         } else {
-            int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
             dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
+            if(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod).before(date)){
+                MembershipEditDto editDto = new MembershipEditDto();
+                editDto.setStatus(Status.ACTIVE);
+                edit(transactionDto.getId(), editDto);
+            }
         }
         transactionService.addDate(dateEffective);
     }
