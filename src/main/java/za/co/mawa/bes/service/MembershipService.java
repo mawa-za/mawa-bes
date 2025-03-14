@@ -83,29 +83,6 @@ public class MembershipService implements MembershipDao {
             throw new PartnerNotFoundException("Membership Sales Representative does not exist");
         }
 
-//        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-//        transactionQueryDto.setType(TransactionType.MEMBERSHIP);
-//        transactionQueryDto.setSubtype(membershipCreateDto.getMembershipType());
-//        List<String> transactionQueries = transactionService.search(transactionQueryDto);
-//
-//        if (!transactionQueries.isEmpty()) {
-//            for (String transactionQuery : transactionQueries) {
-//                TransactionPartnerDto transactionPartnerDto = transactionService.getPartner(transactionQuery, PartnerFunction.MAINMEMBER);
-//                if (transactionPartnerDto != null) {
-//                    if (transactionPartnerDto.getPartner().equals(membershipCreateDto.getMemberId())) {
-//                        throw new TransactionPartnerAddException("Membership id with the same membership type already exist");
-//                    }
-//                }
-//
-//            }
-//        }
-//        TransactionPartnerDto transactionPartnerDto = transactionService.getPartner(,);
-//        if(transactionService.getPartner(t,p))
-//        {
-//
-//
-//        }
-
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
         transactionCreateDto.setSubType(membershipCreateDto.getMembershipType());
@@ -114,7 +91,12 @@ public class MembershipService implements MembershipDao {
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
         }
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
-            transactionCreateDto.setStatus(Status.NEW);
+            if(getWaitingPeriod(membershipCreateDto.getProductId()) > 0){
+                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+            }
+            else {
+                transactionCreateDto.setStatus(Status.NEW);
+            }
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
@@ -181,32 +163,6 @@ public class MembershipService implements MembershipDao {
             lastReceiptDate.setValue(membershipCreateDto.getLastReceiptDate());
             transactionService.addDate(lastReceiptDate);
         }
-
-//        if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
-//            TransactionDateDto dateEffective = new TransactionDateDto();
-//            dateEffective.setTransaction(transactionDto.getId());
-//            dateEffective.setType(DateType.EFFECTIVE);
-//            dateEffective.setValue(new Date());
-//            transactionService.addDate(dateEffective);
-//        } else {
-//            TransactionDateDto dateEffective = new TransactionDateDto();
-//            dateEffective.setTransaction(transactionDto.getId());
-//
-//            ProductAttributeQueryDto productAttributeQueryDto = new ProductAttributeQueryDto();
-//            productAttributeQueryDto.setProduct(membershipCreateDto.getProductId());
-//            int waitingPeriod = 0;
-//            List<ProductAttributeDto> productAttributeDto = productService.getAttributes(membershipCreateDto.getProductId());
-//            for(ProductAttributeDto productAttribute : productAttributeDto){
-//                if(productAttribute.getAttribute().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
-//                    waitingPeriod = Integer.parseInt(productAttribute.getValue());
-//                    System.out.println(waitingPeriod);
-//                }
-//            }
-//            dateEffective.setType(DateType.EFFECTIVE);
-//            dateEffective.setValue(addDaysToDate(new Date(), waitingPeriod));
-//            System.out.println(dateEffective.getValue());
-//            transactionService.addDate(dateEffective);
-//        }
         if (membershipCreateDto.getMemberId() != null) {
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
             transactionPartnerDto.setTransaction(transactionDto.getId());
