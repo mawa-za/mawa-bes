@@ -2,7 +2,7 @@ DELIMITER $$
 DROP VIEW IF EXISTS transaction_view $$
 
 CREATE VIEW transaction_view AS
-SELECT
+SELECT DISTINCT
 		transaction.id AS 'transaction_id',
 		transaction.type AS 'transaction_type',
 		transaction.sub_type AS 'transaction_subtype',
