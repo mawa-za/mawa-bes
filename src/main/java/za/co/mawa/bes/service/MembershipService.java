@@ -75,8 +75,7 @@ public class MembershipService implements MembershipDao {
 //    @Autowired
 //    TransactionRepository transactionRepository;
 
-    public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
-
+    public String create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
             throw new PartnerNotFoundException("Membership main member does not exist");
         }
@@ -105,7 +104,13 @@ public class MembershipService implements MembershipDao {
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
         if (membershipCreateDto.getCreationType().equals("UPGRADE")){
-            transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+            int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
+            if(waitingPeriod > 0){
+                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+            }
+            else {
+                transactionCreateDto.setStatus(Status.ACTIVE);
+            }
             try {
                 TransactionLinkDto link = new TransactionLinkDto();
                 link.setTransaction1(transactionDto.getId());
@@ -190,9 +195,7 @@ public class MembershipService implements MembershipDao {
             transactionPartnerDto.setPartner(membershipCreateDto.getPreviousInsurerId());
             transactionService.addPartner(transactionPartnerDto);
         }
-        MembershipDto membershipDto = new MembershipDto();
-        membershipDto.setId(transactionDto.getId());
-        return membershipDto;
+        return transactionDto.getId();
 
     }
 
