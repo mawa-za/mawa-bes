@@ -4,19 +4,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.nimbusds.jose.shaded.gson.Gson;
+import com.nimbusds.jose.shaded.gson.JsonObject;
+import com.nimbusds.jose.shaded.gson.JsonParser;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.JwtRequest;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.TenantAdminService;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -31,7 +34,10 @@ public class XeroAccountingService {
     XeroAuthService xeroAuthService;
     @Autowired
     TenantAdminService tenantAdminService;
+    Gson gson = new Gson();
 
+    @Value("${mawa.api.url}")
+    private String authUrl;
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
     private static String CONTACT_URL = "https://api.xero.com/api.xro/2.0/Contacts";
 
@@ -42,7 +48,6 @@ public class XeroAccountingService {
             //use the partner id to get the contact id from partner
             //if authentication fails, refresh token
             //schedule function to refresh refresh token after 30 days
-
             //get this tenant from the partnerId
 //            String tenant = TenantContext.getCurrentTenant();
 //            String tenant = getContactIdFromPartner(partnerId);
@@ -286,6 +291,91 @@ public class XeroAccountingService {
                 return partnerIdentityEntity.getPartnerIdentityPK().getValue();
             }
         }
+        return null;
+    }
+
+    public String createExternalLogin(XeroInboundInvoiceCreateDto xeroInboundInvoiceCreateDto, String tenant) {
+        JwtRequest tokenRequest = new JwtRequest();
+        tokenRequest.setUsername(xeroInboundInvoiceCreateDto.getUsername());
+        tokenRequest.setPassword(xeroInboundInvoiceCreateDto.getPassword());
+
+        String token = "";
+        try {
+            URL url = new URL(authUrl + "/authenticate");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-TenantID", tenant);
+
+            OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
+            writer.write(gson.toJson(tokenRequest));
+            writer.close();
+
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+            }
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String output;
+            while ((output = br.readLine()) != null) {
+                response.append(output);
+            }
+            conn.disconnect();
+
+            // Parse the JSON response to extract the token
+            JsonObject jsonObject = JsonParser.parseString(response.toString()).getAsJsonObject();
+            token = jsonObject.get("token").getAsString();
+
+        } catch (MalformedURLException ex) {
+            System.out.println(ex.getMessage());
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        return token;
+    }
+
+    public String createExternalInvoice(XeroInboundInvoiceCreateDto xeroInboundInvoiceCreateDto , String tenant){
+
+        String token = createExternalLogin(xeroInboundInvoiceCreateDto,tenant);
+
+        try {
+//            String URI = "http://localhost:8080";
+
+            URL url = new URL(authUrl + "/xero/createInvoice");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-TenantID", tenant);
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
+            writer.write(gson.toJson(xeroInboundInvoiceCreateDto));
+            writer.close();
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode() );
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String output;
+            while ((output = br.readLine()) != null) {
+                response.append(output);
+            }
+            conn.disconnect();
+            return response.toString();
+        } catch (MalformedURLException ex) {
+            System.out.println(ex.getMessage());
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+
         return null;
     }
 }

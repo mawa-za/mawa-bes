@@ -2,15 +2,11 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.LineItemDto;
 import za.co.mawa.bes.dto.LineItemInboundDto;
-import za.co.mawa.bes.dto.PricingDto;
-import za.co.mawa.bes.dto.invoice.InvoiceCreateDto;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.invoice.InvoiceV2Dto;
@@ -18,15 +14,15 @@ import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
-import za.co.mawa.bes.utils.DateType;
-import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.TransactionType;
-
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+
+import org.springframework.core.io.ByteArrayResource;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import java.util.Base64;
 
 @RestController
 @CrossOrigin
@@ -41,6 +37,9 @@ public class InvoiceController {
     LineItemService lineItemService;
     @Autowired
     InvoiceService invoiceService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
@@ -84,11 +83,13 @@ public class InvoiceController {
                 invoices.add(invoiceV2Dto);
             }
             return ResponseEntity.ok(gson.toJson(invoices));
+
         }
         catch(Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
@@ -148,6 +149,7 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  deleteItem(@PathVariable String id) {
         try {
@@ -155,6 +157,18 @@ public class InvoiceController {
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/invoice-pdf", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> generateInvoicePdf(@PathVariable String id) {
+        try {
+            InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(id);
+            ByteArrayResource pdfResource = invoiceService.generateInvoice(invoiceOutboundDto);
+            String base64 = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+            return ResponseEntity.ok().body(base64);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 }

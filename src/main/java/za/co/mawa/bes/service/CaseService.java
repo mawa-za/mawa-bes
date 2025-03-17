@@ -55,6 +55,7 @@ public class CaseService {
     @Autowired
     TaskService taskService;
 
+
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -232,6 +233,7 @@ public class CaseService {
                 } catch (Exception e) {
 //                   throw new RuntimeException(e);
                 }
+
             }
             caseDto.setComments(comments);
             caseDto.setTasks(tasks);
