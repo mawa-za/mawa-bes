@@ -77,6 +77,7 @@ public class InvoiceController {
                 invoiceV2Dto.setMainMember(entity.getMainPartner());
                 invoiceV2Dto.setEmployeeResponsible(entity.getEmployeeResponsible());
                 invoiceV2Dto.setTransactionSubType(entity.getTransactionSubtype());
+                invoiceV2Dto.setDueDate(entity.getDueDate());
 
                 invoices.add(invoiceV2Dto);
             }
