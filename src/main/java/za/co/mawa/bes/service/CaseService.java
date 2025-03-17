@@ -220,20 +220,19 @@ public class CaseService {
             List<TaskDto> tasks = new ArrayList<>();
 
             for (TransactionLinkDto link : links) {
-                try {
-                    if (link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
+               try {
+                   if (link.getType().equalsIgnoreCase(TransactionType.COMMENT)) {
 //                       CommentDto comment = new CommentDto();
 //                       comment = commentService.get(link.getTransaction2());
-                        comments.add(commentService.get(link.getTransaction2()));
+                       comments.add(commentService.get(link.getTransaction2()));
 
-                    } else if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
+                   } else if (link.getType().equalsIgnoreCase(TransactionType.TASK)) {
 
-                        tasks.add(taskService.get(link.getTransaction2()));
-                    }
-                } catch (Exception e) {
+                       tasks.add(taskService.get(link.getTransaction2()));
+                   }
+               } catch (Exception e) {
 //                   throw new RuntimeException(e);
-                }
-
+               }
             }
             caseDto.setComments(comments);
             caseDto.setTasks(tasks);
