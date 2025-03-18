@@ -90,7 +90,7 @@ public class MembershipService implements MembershipDao {
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
         transactionCreateDto.setSubType(membershipCreateDto.getMembershipType());
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
-            transactionCreateDto.setStatus(Status.PENDING);
+            transactionCreateDto.setStatus(Status.AWAITING_APPROVAL);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
         }
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
@@ -98,7 +98,7 @@ public class MembershipService implements MembershipDao {
                 transactionCreateDto.setStatus(Status.WAITING_PERIOD);
             }
             else {
-                transactionCreateDto.setStatus(Status.ACTIVE);
+                transactionCreateDto.setStatus(Status.NEW);
             }
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
