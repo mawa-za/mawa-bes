@@ -578,6 +578,9 @@ public class MembershipService implements MembershipDao {
             MembershipEditDto editDto = new MembershipEditDto();
 
             for (TransactionViewEntity entity : entities) {
+                if(entity.getTransactionStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)){
+                    continue;
+                }
                 if (entity.getDateEffective() != null) {
                     LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
                     LocalDate effectiveDate = effectiveDateTime.toLocalDate();
