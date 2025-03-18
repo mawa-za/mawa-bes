@@ -36,6 +36,8 @@ public class ClaimController {
     @Autowired
     ClaimService claimService;
     @Autowired
+    PartnerService partnerService;
+    @Autowired
     TransactionService transactionService;
     @Autowired
     MembershipService membershipService;
@@ -366,8 +368,11 @@ public class ClaimController {
                    }
                 }
 
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(), claim.getNumber(),itemCode);
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(),partnerService.getFullName(claim.getDeceased()) ,itemCode);
                 paymentRequest.setReference(xeroInvoiceNumber);
+                if (xeroInvoiceNumber == null) {
+                    paymentRequest.setReference(claim.getNumber());
+                }
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(getFuneralServiceProvider());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
