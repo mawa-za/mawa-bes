@@ -10,6 +10,7 @@ import za.co.mawa.bes.controller.BatchController;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.*;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -46,7 +47,7 @@ import static org.json.XMLTokener.entity;
 @Service
 public class MembershipService implements MembershipDao {
     private static final Logger log = LoggerFactory.getLogger(MembershipService.class);
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -569,27 +570,60 @@ public class MembershipService implements MembershipDao {
         }
     }
 
-    public String validateMemberships() {
+    public String validateMemberships() throws Exception {
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
-        List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
-        MembershipEditDto editDto = new MembershipEditDto();
+        try{
+            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+            MembershipEditDto editDto = new MembershipEditDto();
 
-        for (TransactionViewEntity entity : entities) {
-            if (entity.getDateEffective() != null) {
-                LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
-                LocalDate effectiveDate = effectiveDateTime.toLocalDate();
-                LocalDate today = LocalDate.now();
+            for (TransactionViewEntity entity : entities) {
+                if (entity.getDateEffective() != null) {
+                    LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
+                    LocalDate effectiveDate = effectiveDateTime.toLocalDate();
+                    LocalDate today = LocalDate.now();
 
-                if (!effectiveDate.isAfter(today)) {
-                    editDto.setStatus(Status.ACTIVE);
-                } else {
-                    editDto.setStatus(Status.WAITING_PERIOD);
+                    PremiumSearchDto searchDto = new PremiumSearchDto();
+                    searchDto.setMembershipId(entity.getTransactionId());
+                    List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
+
+                    for(PremiumEntity premiumEntity: premiumEntities){
+                        int waitingPeriod = getWaitingPeriod(entity.getProductId());
+                        MembershipDto membershipDto = new MembershipDto();
+                        if(waitingPeriod > 0){
+                            try{
+                                membershipDto = get(entity.getTransactionId());
+                            }
+                            catch(Exception e){
+
+                            }
+                            LocalDate targetDate = LocalDateTime.parse(
+                                    Conversion.dateTimeToString(premiumEntity.getCreationDate()),
+                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                            ).toLocalDate();
+                            LocalDate startDate = LocalDateTime.parse(
+                                    Conversion.dateTimeToString(membershipDto.getDateJoined()),
+                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                            ).toLocalDate();
+//                            LocalDate endDate = LocalDateTime.parse(entity.getDateEffective(), formatter).toLocalDate();
+
+                            boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
+                            if(isWithinRange){
+                                editDto.setStatus(Status.WAITING_PERIOD);
+                            }
+                        }
+                        else{
+                            editDto.setStatus(Status.ACTIVE);
+                        }
+                        edit(entity.getTransactionId(), editDto);
+                    }
                 }
-                edit(entity.getTransactionId(), editDto);
             }
+            return "Validated";
+
+        }catch(Exception e){
+            throw  new Exception(e.getMessage());
         }
-        return "Validated";
     }
 
     private static Date addDaysToDate(Date date, int days) {
@@ -629,5 +663,11 @@ public class MembershipService implements MembershipDao {
             }
         }
         transactionService.addDate(dateEffective);
+    }
+
+    private static boolean isDateWithinRange(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
+        // Check if targetDate is between startDate and endDate (inclusive)
+        return (targetDate.isEqual(startDate) || targetDate.isAfter(startDate)) &&
+                (targetDate.isEqual(endDate) || targetDate.isBefore(endDate));
     }
 }
