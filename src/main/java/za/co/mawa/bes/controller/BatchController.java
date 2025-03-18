@@ -1,6 +1,9 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.hibernate.resource.transaction.spi.TransactionStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,29 +15,32 @@ import org.springframework.web.bind.annotation.RestController;
 import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
+import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
-import za.co.mawa.bes.service.BankFileService;
-import za.co.mawa.bes.service.EmailService;
-import za.co.mawa.bes.service.PaymentRequestService;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.dto.premium.PremiumSearchDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.StatusReason;
+import za.co.mawa.bes.utils.TransactionType;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
-
-import za.co.mawa.bes.dto.transaction.TransactionViewDto;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
-import za.co.mawa.bes.service.*;
-import za.co.mawa.bes.utils.TransactionType;
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
 public class BatchController {
     Gson gson = new Gson();
+    private static final Logger log = LoggerFactory.getLogger(BatchController.class);
     @Autowired
     PaymentRequestService paymentRequestService;
     @Autowired
@@ -95,10 +101,35 @@ public class BatchController {
         }
     }
 
-    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> validateMembershipStatus(){
         try{
             return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
+    @RequestMapping(value = "bill-memberships", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> billAllMemberships(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+
+            List<String> invoices = new ArrayList<>();
+            for(TransactionViewEntity entity: membershipEntities){
+                if(entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.ACTIVE)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.NEW)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.WAITING_PERIOD))){
+                    if(entity.getTransactionId() != null){
+                        invoices.add(membershipService.handleBilling(entity.getTransactionId()));
+                    }
+                    else {
+                        log.error("Transaction ID is null for entity: {}", entity);
+                    }
+                }
+            }
+            return ResponseEntity.ok().body(gson.toJson(invoices));
         }
         catch (Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
