@@ -43,7 +43,7 @@ public class PaymentRequestController {
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
         try {
             PaymentRequestDto payment = new PaymentRequestDto();
-            String id = paymentRequestService.create(paymentRequest);
+            String id = paymentRequestService.create(paymentRequest).getId();
             if (id != null) {
                 payment.setId(id);
             }

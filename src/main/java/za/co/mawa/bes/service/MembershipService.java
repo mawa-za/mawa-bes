@@ -279,6 +279,7 @@ public class MembershipService implements MembershipDao {
                     if(link.getType().equalsIgnoreCase("UPGRADE")){
                         previousMemberships.add(get(link.getTransaction2()));
                     }
+
                 }
                 catch(Exception e){
                 }
