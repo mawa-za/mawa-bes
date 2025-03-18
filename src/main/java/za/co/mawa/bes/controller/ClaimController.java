@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.xero.XeroAccountingService;
 import za.co.mawa.bes.xero.XeroUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -35,6 +37,8 @@ import java.util.*;
 public class ClaimController {
     @Autowired
     ClaimService claimService;
+    @Autowired
+    PartnerService partnerService;
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -369,8 +373,11 @@ public class ClaimController {
                     }
                 }
 
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(), claim.getNumber(),itemCode);
+                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(),partnerService.getFullName(claim.getDeceased()) ,itemCode);
                 paymentRequest.setReference(xeroInvoiceNumber);
+                if (xeroInvoiceNumber == null) {
+                    paymentRequest.setReference(claim.getNumber());
+                }
                 paymentRequest.setDueDate(new Date());
                 paymentRequest.setRecipientId(claim.getClaimant().getId());
                 paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
@@ -476,6 +483,20 @@ public class ClaimController {
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/pdf-form", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> generatePdf(@PathVariable String id) {
+        try {
+            ClaimOutboundDto claimOutboundDto = claimService.get(id);
+            ByteArrayResource pdfResource = claimService.generateClaimPdf(claimOutboundDto);
+
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+
+            return ResponseEntity.ok().body(base64Pdf);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 
