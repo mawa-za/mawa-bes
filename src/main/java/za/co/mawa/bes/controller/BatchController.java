@@ -22,10 +22,7 @@ import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Properties;
+import java.util.*;
 
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
@@ -107,8 +104,10 @@ public class BatchController {
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
             List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
 
+            Set<TransactionViewEntity> uniqueMemberships = new HashSet<>(membershipEntities);
+
             List<String> invoices = new ArrayList<>();
-            for(TransactionViewEntity entity: membershipEntities){
+            for(TransactionViewEntity entity: uniqueMemberships){
                 if(entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.ACTIVE)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.NEW)) || entity.getTransactionStatus().equalsIgnoreCase(String.valueOf(Status.WAITING_PERIOD))){
                     if(entity.getTransactionId() != null){
                         invoices.add(membershipService.handleBilling(entity.getTransactionId()));
