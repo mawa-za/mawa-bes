@@ -102,8 +102,6 @@ public class MembershipService implements MembershipDao {
                 transactionCreateDto.setStatus(Status.NEW);
             }
         }
-        TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-
         if (membershipCreateDto.getCreationType().equals("UPGRADE")){
             int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
             if(waitingPeriod > 0){
@@ -112,19 +110,23 @@ public class MembershipService implements MembershipDao {
             else {
                 transactionCreateDto.setStatus(Status.ACTIVE);
             }
-            try {
+        }
+        TransactionDto transactionDto = transactionService.create(transactionCreateDto);
+        addEffectiveDate(transactionDto, membershipCreateDto);
+
+        if(membershipCreateDto.getCreationType().equals("UPGRADE")){
+            try{
                 TransactionLinkDto link = new TransactionLinkDto();
                 link.setTransaction1(transactionDto.getId());
                 link.setTransaction2(membershipCreateDto.getCurrentMembershipId());
                 link.setType(TransactionType.UPGRADE);
                 link.setCreateBy(userService.getCurrentUserPartnerId());
                 transactionService.addLink(link);
+            }
+            catch(Exception e){
 
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
         }
-        addEffectiveDate(transactionDto, membershipCreateDto);
 
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -660,14 +662,10 @@ public class MembershipService implements MembershipDao {
         dateEffective.setType(DateType.EFFECTIVE);
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
-            dateEffective.setValue(new Date());
-        } else {
-            dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
-            if(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod).before(date)){
-                MembershipEditDto editDto = new MembershipEditDto();
-                editDto.setStatus(Status.ACTIVE);
-                edit(transactionDto.getId(), editDto);
-            }
+            dateEffective.setValue(date);
+        }
+        if (Objects.equals(membershipCreateDto.getCreationType(), "NEW") || Objects.equals(membershipCreateDto.getCreationType(), "UPGRADE")) {
+            dateEffective.setValue(addDaysToDate(date, waitingPeriod));
         }
         transactionService.addDate(dateEffective);
     }
