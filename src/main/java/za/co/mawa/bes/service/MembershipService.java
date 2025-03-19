@@ -619,14 +619,10 @@ public class MembershipService implements MembershipDao {
         dateEffective.setType(DateType.EFFECTIVE);
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
-            dateEffective.setValue(new Date());
-        } else {
-            dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
-            if(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod).before(date)){
-                MembershipEditDto editDto = new MembershipEditDto();
-                editDto.setStatus(Status.ACTIVE);
-                edit(transactionDto.getId(), editDto);
-            }
+            dateEffective.setValue(date);
+        }
+        if (Objects.equals(membershipCreateDto.getCreationType(), "NEW") || Objects.equals(membershipCreateDto.getCreationType(), "UPGRADE")) {
+            dateEffective.setValue(addDaysToDate(date, waitingPeriod));
         }
         transactionService.addDate(dateEffective);
     }
