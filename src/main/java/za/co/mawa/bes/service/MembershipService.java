@@ -575,9 +575,11 @@ public class MembershipService implements MembershipDao {
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
         try{
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
+
+            Set<TransactionViewEntity> uniqueEntities = new HashSet<>(entities);
             MembershipEditDto editDto = new MembershipEditDto();
 
-            for (TransactionViewEntity entity : entities) {
+            for (TransactionViewEntity entity : uniqueEntities) {
                 if(entity.getTransactionStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)){
                     continue;
                 }
@@ -608,11 +610,13 @@ public class MembershipService implements MembershipDao {
                                     Conversion.dateTimeToString(membershipDto.getDateJoined()),
                                     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                             ).toLocalDate();
-//                            LocalDate endDate = LocalDateTime.parse(entity.getDateEffective(), formatter).toLocalDate();
 
                             boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
                             if(isWithinRange){
                                 editDto.setStatus(Status.WAITING_PERIOD);
+                            }
+                            else{
+                                editDto.setStatus(Status.ACTIVE);
                             }
                         }
                         else{
