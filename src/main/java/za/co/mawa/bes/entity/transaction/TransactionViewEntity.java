@@ -77,6 +77,9 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "reference")
     private String reference;
 
+    @Column(name = "batch_number")
+    private String batchNumber;
+
     @Column(name = "transaction_status")
     private String transactionStatus;
 
