@@ -2,12 +2,14 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.membership.MembershipQueryDto;
@@ -58,10 +60,13 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping(value = "{id}/membership-billing", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "{id}/invoice-pdf", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> billMembership(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(gson.toJson(membershipService.handleBilling(id)));
+            InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(id);
+            ByteArrayResource pdfResource = invoiceService.generateInvoice(invoiceOutboundDto);
+            String base64 = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
+            return ResponseEntity.ok(gson.toJson(base64));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
