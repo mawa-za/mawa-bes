@@ -66,7 +66,7 @@ public class MembershipController {
             InvoiceOutboundDto invoiceOutboundDto = invoiceService.get(id);
             ByteArrayResource pdfResource = invoiceService.generateInvoice(invoiceOutboundDto);
             String base64 = Base64.getEncoder().encodeToString(pdfResource.getByteArray());
-            return ResponseEntity.ok(gson.toJson(base64));
+            return ResponseEntity.ok().body(base64);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
