@@ -635,13 +635,14 @@ public class MembershipService implements MembershipDao {
             dateEffective.setValue(date);
         }
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW") || Objects.equals(membershipCreateDto.getCreationType(), "UPGRADE")) {
-            if(membershipCreateDto.getDateJoined() != null){
-                dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
+            if(membershipCreateDto.getDateJoined() !=  null){
+                if(waitingPeriod > 0){
+                    dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
+                }
             }
             else {
                 dateEffective.setValue(addDaysToDate(date, waitingPeriod));
             }
-
         }
         transactionService.addDate(dateEffective);
     }
