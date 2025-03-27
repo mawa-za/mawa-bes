@@ -639,6 +639,9 @@ public class MembershipService implements MembershipDao {
                 if(waitingPeriod > 0){
                     dateEffective.setValue(addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod));
                 }
+                else{
+                    dateEffective.setValue(addDaysToDate(date, waitingPeriod));
+                }
             }
             else {
                 dateEffective.setValue(addDaysToDate(date, waitingPeriod));
