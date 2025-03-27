@@ -2,14 +2,18 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.PathVariable;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.TaskDao;
+import za.co.mawa.bes.dto.DateDto;
 import za.co.mawa.bes.dto.task.*;
 import za.co.mawa.bes.dto.transaction.*;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
+import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.TransactionNotFound;
-import za.co.mawa.bes.utils.Conversion;
-import za.co.mawa.bes.utils.DateType;
-import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.utils.*;
 
 import org.springframework.web.bind.annotation.PathVariable;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
@@ -19,10 +23,12 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.utils.*;
 import java.text.SimpleDateFormat;
 import java.util.Objects;
+import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Component
 public class TaskService implements TaskDao {
@@ -113,6 +119,7 @@ public class TaskService implements TaskDao {
             TaskDto taskDto = new TaskDto();
             TransactionDto transactionDto = transactionService.get(id);
             taskDto.setId(transactionDto.getId());
+            taskDto.setStatus(transactionDto.getStatus());
             taskDto.setDescription(transactionDto.getDescription());
             taskDto.setNumber(transactionDto.getNumber());
             taskDto.setType(transactionDto.getSubType());
@@ -151,11 +158,9 @@ public class TaskService implements TaskDao {
             }
 
             return taskDto;
-        } catch (TransactionNotFound e) {
+        } catch (TransactionNotFound | PartnerNotFoundException e) {
             throw new RuntimeException(e);
-        } catch (PartnerNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        } 
     }
 
     @Override

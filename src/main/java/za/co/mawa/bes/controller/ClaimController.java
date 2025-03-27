@@ -54,7 +54,6 @@ public class ClaimController {
 
     @Autowired
     ProductService productService;
-
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -371,7 +370,7 @@ public class ClaimController {
                         itemCode = attribute.getValue();
                     }
                 }
-
+              
                 String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(),partnerService.getFullName(claim.getDeceased()) ,itemCode);
                 paymentRequest.setReference(xeroInvoiceNumber);
                 if (xeroInvoiceNumber == null) {
@@ -572,5 +571,4 @@ public class ClaimController {
             paymentRequestService.approve(transactionProcessDto);
         }
     }
-
 }
