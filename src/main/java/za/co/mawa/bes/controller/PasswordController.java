@@ -49,7 +49,7 @@ public class PasswordController {
             List<TenantDto> tenants = tenantAdminService.getAll();
             for(TenantDto tenantDto : tenants){
                 if(tenantDto.getId().equalsIgnoreCase(TenantContext.getCurrentTenant())){
-                    url = tenantDto.getUrl() + "/forgot-password/reset/" + token;
+                    url = tenantDto.getUrl() + "/#/forgot-password/reset/" + token;
                 }
             }
 //            String link = "https://dev.api.app.mawa.co.za/forgot-password/reset/"+ token ;
