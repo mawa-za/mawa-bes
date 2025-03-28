@@ -603,37 +603,39 @@ public class MembershipService implements MembershipDao {
                     searchDto.setMembershipId(entity.getTransactionId());
                     List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
 
-                    for(PremiumEntity premiumEntity: premiumEntities){
-                        int waitingPeriod = getWaitingPeriod(entity.getProductId());
-                        MembershipDto membershipDto = new MembershipDto();
-                        if(waitingPeriod > 0){
-                            try{
-                                membershipDto = get(entity.getTransactionId());
-                            }
-                            catch(Exception e){
+                    if(premiumEntities != null){
+                        for(PremiumEntity premiumEntity: premiumEntities){
+                            int waitingPeriod = getWaitingPeriod(entity.getProductId());
+                            MembershipDto membershipDto = new MembershipDto();
+                            if(waitingPeriod > 0){
+                                try{
+                                    membershipDto = get(entity.getTransactionId());
+                                }
+                                catch(Exception e){
 
-                            }
-                            LocalDate targetDate = LocalDateTime.parse(
-                                    Conversion.dateTimeToString(premiumEntity.getCreationDate()),
-                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                            ).toLocalDate();
-                            LocalDate startDate = LocalDateTime.parse(
-                                    Conversion.dateTimeToString(membershipDto.getDateJoined()),
-                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                            ).toLocalDate();
+                                }
+                                LocalDate targetDate = LocalDateTime.parse(
+                                        Conversion.dateTimeToString(premiumEntity.getCreationDate()),
+                                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                ).toLocalDate();
+                                LocalDate startDate = LocalDateTime.parse(
+                                        Conversion.dateTimeToString(membershipDto.getDateJoined()),
+                                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                ).toLocalDate();
 
-                            boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
-                            if(isWithinRange){
-                                editDto.setStatus(Status.WAITING_PERIOD);
+                                boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
+                                if(isWithinRange){
+                                    editDto.setStatus(Status.WAITING_PERIOD);
+                                }
+                                else{
+                                    editDto.setStatus(Status.ACTIVE);
+                                }
                             }
                             else{
                                 editDto.setStatus(Status.ACTIVE);
                             }
+                            edit(entity.getTransactionId(), editDto);
                         }
-                        else{
-                            editDto.setStatus(Status.ACTIVE);
-                        }
-                        edit(entity.getTransactionId(), editDto);
                     }
                 }
             }
