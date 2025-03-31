@@ -7,7 +7,7 @@ import za.co.mawa.bes.exception.*;
 import java.util.List;
 
 public interface MembershipDao {
-    String create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException;
+    MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException;
     MembershipDto get(String id);
     List<MembershipDto> search(MembershipQueryDto membershipQueryDto);
     Boolean edit(String id, MembershipEditDto membershipEditDto);

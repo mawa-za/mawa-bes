@@ -78,7 +78,7 @@ public class MembershipService implements MembershipDao {
     @Autowired
     LineItemService lineItemService;
 
-    public String create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
+    public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
             throw new PartnerNotFoundException("Membership main member does not exist");
         }
@@ -200,7 +200,9 @@ public class MembershipService implements MembershipDao {
             transactionPartnerDto.setPartner(membershipCreateDto.getPreviousInsurerId());
             transactionService.addPartner(transactionPartnerDto);
         }
-        return transactionDto.getId();
+        MembershipDto membershipDto = new MembershipDto();
+        membershipDto.setId(transactionDto.getId());
+        return membershipDto;
     }
 
     public MembershipDto get(String id) {
