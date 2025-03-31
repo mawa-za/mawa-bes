@@ -29,7 +29,7 @@ SELECT DISTINCT
     date_joined.value AS 'date_joined',
     date_effective.value AS 'date_effective',
     transaction_link.transaction2 AS 'reference',
-    CONCAT(p.name1, ' ', p.name2, ' ', p.name3) AS 'claimant'
+    CONCAT(COALESCE(p.name1, ''), ' ', COALESCE(p.name2, ''), ' ', COALESCE(p.name3, '')) AS 'claimant'
 FROM
     transaction
 
