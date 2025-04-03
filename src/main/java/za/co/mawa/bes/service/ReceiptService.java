@@ -21,6 +21,7 @@ import za.co.mawa.bes.dao.ReceiptDao;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.UserRepository;
