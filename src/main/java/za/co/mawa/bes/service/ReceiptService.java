@@ -68,7 +68,7 @@ public class ReceiptService implements ReceiptDao {
 
             if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
                 if(receiptRepository.existsByExtReceiptNumber(receipt.getExternalReceiptNo())){
-                    throw new DuplicateCreationException("Duplicate receipt number");
+                    throw new DuplicateCreationException("Duplicate receipt number.");
                 }
                 entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             }
