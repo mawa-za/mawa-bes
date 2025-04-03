@@ -22,6 +22,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
@@ -59,17 +60,17 @@ public class PremiumService {
         try {
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            try{
-                if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
-                    entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
-                } else {
-                    entity.setExtReceiptNumber(null);
+            entity.setExtReceiptNumber(null);
+
+            if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
+                if(premiumRepository.existsByExtReceiptNumber(premiumCreateDto.getExternalReceiptNo())){
+                    throw new DuplicateCreationException("Duplicate receipt number.");
                 }
-            }catch (Exception e){}
+                entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
+            }
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
-
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
@@ -82,7 +83,7 @@ public class PremiumService {
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
         } catch (Exception e) {
-            throw new Exception();
+            throw new Exception(e);
         }
     }
 
@@ -110,7 +111,6 @@ public class PremiumService {
             try {
                 premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
                 premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
-
             } catch (Exception e) {
 
             }
@@ -219,12 +219,7 @@ public class PremiumService {
 
                 if(premiumSearchDto.getEmployeeResponsible() != null) {
 
-                    match =  premium.getEmployee_responsible().equals(premiumSearchDto.getEmployeeResponsible());
-                }
-
-                if(premiumSearchDto.getCreatedBy() != null){
-
-                    match = match && premium.getCreatedBy().equals(premiumSearchDto.getCreatedBy());
+                    match =  premium.getCreatedBy().equals(premiumSearchDto.getEmployeeResponsible());
                 }
 
                 if(premiumSearchDto.getTenderType() != null) {
@@ -236,10 +231,10 @@ public class PremiumService {
                     match = match && premium.getMembershipId().equals(premiumSearchDto.getMembershipId());
                 }
 
-//                if(premiumSearchDto.getLocation() !=null){
-//
-//                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
-//                }
+                if(premiumSearchDto.getLocation() !=null){
+
+                    match = match && premium.getLocation().equals(premiumSearchDto.getLocation());
+                }
 
                 if(match) {
                     premiumEntities.add(premium);
@@ -251,5 +246,4 @@ public class PremiumService {
         }
         return premiumEntities;
     }
-
 }
