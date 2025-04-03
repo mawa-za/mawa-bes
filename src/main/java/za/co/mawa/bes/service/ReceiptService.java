@@ -63,7 +63,13 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if(receipt.getExternalReceiptNo() !=null && receipt.getExternalReceiptNo() != "") {
+            entity.setExtReceiptNumber(null);
+
+            if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
+                if(receiptRepository.existsByExtReceiptNumber(receipt.getExternalReceiptNo())){
+                    throw new DuplicateCreationException("Duplicate receipt number.");
+                }
+
                 entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             }
             entity.setLocation(receipt.getLocation());
