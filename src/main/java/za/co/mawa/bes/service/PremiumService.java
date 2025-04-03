@@ -62,7 +62,7 @@ public class PremiumService {
 
             if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
                 if(premiumRepository.existsByExtReceiptNumber(premiumCreateDto.getExternalReceiptNo())){
-                    throw new DuplicateCreationException("Duplicate receipt number");
+                    throw new DuplicateCreationException("Duplicate receipt number.");
                 }
                 entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
             }
