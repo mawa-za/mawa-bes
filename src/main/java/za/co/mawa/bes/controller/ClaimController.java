@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
@@ -52,9 +53,9 @@ public class ClaimController {
     @Autowired
     XeroAccountingService xeroAccountingService;
 
+
     @Autowired
     ProductService productService;
-
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -121,6 +122,7 @@ public class ClaimController {
     @RequestMapping(value = "v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClaimsV2(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String mainPartner,
+
                                          @RequestParam(required = false) String employeeResponsibleName,
                                          @RequestParam(required = false) String creationDate,
                                          @RequestParam(required = false) String idNumber) {
@@ -138,6 +140,7 @@ public class ClaimController {
 
             if (mainPartner != null && mainPartner != "") {
                 transactionViewDto.setMainPartner(mainPartner);
+
             }
 
             if (idNumber != null && idNumber != "") {
@@ -276,9 +279,7 @@ public class ClaimController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editClaim(@PathVariable String id, @RequestBody ClaimEditDto claimDto) {
         try {
-
             return ResponseEntity.ok(gson.toJson(claimService.edit(id, claimDto)));
-
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -572,5 +573,4 @@ public class ClaimController {
             paymentRequestService.approve(transactionProcessDto);
         }
     }
-
 }

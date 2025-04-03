@@ -1,6 +1,5 @@
 package za.co.mawa.bes.service;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -70,6 +69,7 @@ public class ReceiptService implements ReceiptDao {
                 if(receiptRepository.existsByExtReceiptNumber(receipt.getExternalReceiptNo())){
                     throw new DuplicateCreationException("Duplicate receipt number");
                 }
+
                 entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             }
             entity.setLocation(receipt.getLocation());
@@ -97,10 +97,7 @@ public class ReceiptService implements ReceiptDao {
             ReceiptDto receipt = new ReceiptDto();
             receipt.setId(entity.getId());
             receipt.setReceiptNumber(entity.getReceiptNumber());
-            try {
-                receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
-            }catch (Exception e){}
-
+            receipt.setExternalReceiptNo(entity.getExtReceiptNumber());
             receipt.setReceiptType(fieldOptionService.getFieldOption(Field.RECEIPT_TYPE, entity.getReceiptType()));
             receipt.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
             receipt.setAmount(entity.getAmount());

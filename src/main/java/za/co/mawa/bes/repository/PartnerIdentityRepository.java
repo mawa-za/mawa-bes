@@ -1,9 +1,11 @@
 package za.co.mawa.bes.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
@@ -14,6 +16,10 @@ import java.util.List;
 public interface PartnerIdentityRepository extends JpaRepository<PartnerIdentityEntity, PartnerIdentityPKEntity> {
     @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partner = :partner")
     List<PartnerIdentityEntity> findByPartner(String partner);
+
+    @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partnerIdentityPK.value LIKE :Prefix%")
+    List<PartnerIdentityEntity> findPartnerByIdNumberPrefix(@Param("Prefix") String IdNumberPrefix, Pageable pageable);
+
     @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partner = :partner")
     List<PartnerIdentityEntity> findPartnerIdentityByPartner(String partner);
     @Query("SELECT p FROM PartnerIdentityEntity p WHERE p.partnerIdentityPK.value = :value")
