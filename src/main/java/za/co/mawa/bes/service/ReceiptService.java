@@ -20,6 +20,7 @@ import za.co.mawa.bes.dao.ReceiptDao;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.entity.ReceiptEntity;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
 import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.UserRepository;
@@ -62,7 +63,13 @@ public class ReceiptService implements ReceiptDao {
             ReceiptEntity entity = new ReceiptEntity();
             entity.setReceiptType(receipt.getReceiptType().toUpperCase());
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            if(receipt.getExternalReceiptNo() !=null && receipt.getExternalReceiptNo() != "") {
+            entity.setExtReceiptNumber(null);
+
+            if(!StringUtils.isBlank(receipt.getExternalReceiptNo())) {
+                if(receiptRepository.existsByExtReceiptNumber(receipt.getExternalReceiptNo())){
+                    throw new DuplicateCreationException("Duplicate receipt number");
+                }
+
                 entity.setExtReceiptNumber(receipt.getExternalReceiptNo());
             }
             entity.setLocation(receipt.getLocation());
@@ -77,7 +84,7 @@ public class ReceiptService implements ReceiptDao {
             return getReceipt(newEntity.getId());
 
         } catch (Exception e) {
-            throw new Exception();
+            throw new Exception(e);
         }
     }
 
