@@ -114,9 +114,11 @@ public class MembershipService implements MembershipDao {
             if(waitingPeriod > 0){
                 assert previousMembership != null;
                 if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
-                    return "Cannot upgrade while current membership has a waiting period";
+                    transactionCreateDto.setStatus(Status.NEW);
                 }
-                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+                else{
+                    transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+                }
             }
             else {
                 transactionCreateDto.setStatus(Status.ACTIVE);
