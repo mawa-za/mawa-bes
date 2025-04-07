@@ -1,17 +1,9 @@
 package za.co.mawa.bes.service;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.invoice.*;
-import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
@@ -23,12 +15,20 @@ import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.springframework.core.io.ByteArrayResource;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -58,15 +58,6 @@ public class InvoiceService {
             TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
             transactionCreateDto.setType(TransactionType.INVOICE);
 
-            if(invoiceInboundDto.getInvoiceType() != null && !invoiceInboundDto.getInvoiceType().isEmpty()){
-                String invoiceType = invoiceInboundDto.getInvoiceType().trim();
-                if(invoiceType.equalsIgnoreCase("APPOINTMENT")){
-                    transactionCreateDto.setSubType(String.valueOf(InvoiceType.APPOINTMENT));
-                }
-                if(invoiceType.equalsIgnoreCase("SALES-INVOICE")){
-                    transactionCreateDto.setSubType(String.valueOf(InvoiceType.SALES_INVOICE));
-                }
-            }
             transactionCreateDto.setCreatedBy(userService.getCurrentUser());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             if (invoiceInboundDto.getInvoiceDate() != null) {
@@ -139,16 +130,25 @@ public class InvoiceService {
             transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
             transactionAmountService.save(transactionAmountInboundDto);
 
-            if (invoiceInboundDto.getSubTransactionId() != null){
-                try {
-                    if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase(TransactionType.APPOINTMENT)){}
-                    TransactionLinkDto link = new TransactionLinkDto();
-                    link.setTransaction1(transactionDto.getId());
-                    link.setTransaction2(invoiceInboundDto.getSubTransactionId());
-                    link.setType(TransactionType.APPOINTMENT);
-                    link.setCreateBy(userService.getCurrentUser());
-                    transactionService.addLink(link);
 
+            if (invoiceInboundDto.getTransactionSubType() != null && !invoiceInboundDto.getTransactionSubType().isEmpty()){
+                try {
+                    TransactionLinkDto link = new TransactionLinkDto();
+
+                    if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase("APPOINTMENT")){
+                        link.setTransaction1(transactionDto.getId());
+                        link.setTransaction2(invoiceInboundDto.getTransactionSubType());
+                        link.setType(TransactionType.APPOINTMENT);
+                        link.setCreateBy(userService.getCurrentUser());
+                        transactionService.addLink(link);
+                    }
+                    if(invoiceInboundDto.getTransactionSubType().equalsIgnoreCase("SALES-INVOICE")){
+                        link.setTransaction1(transactionDto.getId());
+                        link.setTransaction2(invoiceInboundDto.getTransactionSubType());
+                        link.setType(TransactionType.SALES_INVOICE);
+                        link.setCreateBy(userService.getCurrentUser());
+                        transactionService.addLink(link);
+                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -169,12 +169,14 @@ public class InvoiceService {
             invoiceOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
             invoiceOutboundDto.setType(fieldOptionService.getFieldOption(Field.TRANSACTION_TYPE, transactionDto.getType()));
+
             invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, transactionDto.getSubType()));
 
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(transactionDto.getId());
             transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
             invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
+
             try {
                 for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                     if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
@@ -198,12 +200,6 @@ public class InvoiceService {
                     invoiceOutboundDto.setDueDate(transactionDateDto.getValue());
                 }
             }
-            for(TransactionLinkDto link:transactionService.getLinks(id)){
-                if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
-                    invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
-                }
-            }
-
             invoiceOutboundDto.setItems(lineItemService.getAll(id));
             invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(id));
             invoiceOutboundDto.setDates(transactionService.getDates(id));
@@ -217,23 +213,20 @@ public class InvoiceService {
                 if(link.getType().equals(TransactionType.APPOINTMENT)){
                     TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
                     invoiceOutboundDto.setSubTransactionId(transaction.getId());
+                    invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.APPOINTMENT));
                 }
-            }
-
-            try{
-                TransactionDto transactionSubType = transactionService.get(invoiceOutboundDto.getSubTransactionId());
-                invoiceOutboundDto.setSubTransaction(transactionSubType);
-
-            }
-            catch(Exception ex){
+                if(link.getType().equals(TransactionType.SALES_INVOICE)){
+                    TransactionEntity transaction = transactionRepository.getById(link.getTransaction2());
+                    invoiceOutboundDto.setSubTransactionId(transaction.getId());
+                    invoiceOutboundDto.setInvoiceType(fieldOptionService.getFieldOption(Field.INVOICE_TYPE, InvoiceType.SALES_INVOICE));
+                }
             }
             for(TransactionLinkDto link:transactionService.getLinks(id)){
                 if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
                     invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
                 }
             }
-        }
-        catch (TransactionNotFound exception) {
+        } catch (TransactionNotFound exception) {
         }
         return invoiceOutboundDto;
     }

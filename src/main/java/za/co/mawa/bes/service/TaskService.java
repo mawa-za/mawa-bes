@@ -2,7 +2,6 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.PathVariable;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.TaskDao;
 import za.co.mawa.bes.dto.DateDto;
@@ -14,15 +13,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.utils.*;
-
-import org.springframework.web.bind.annotation.PathVariable;
-import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
-import za.co.mawa.bes.exception.PartnerNotFoundException;
-import za.co.mawa.bes.utils.*;
-import java.text.SimpleDateFormat;
-import java.util.Objects;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
@@ -41,7 +32,6 @@ public class TaskService implements TaskDao {
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy");
 
-    @Override
     public TaskDto create(TaskCreateDto taskCreateDto) {
         try {
 
@@ -106,6 +96,7 @@ public class TaskService implements TaskDao {
                 transactionPartnerDto.setPartner(taskCreateDto.getCustomerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+
             return taskDto;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -137,6 +128,7 @@ public class TaskService implements TaskDao {
                     taskDto.setStartDate(formattedDate);
                 }
             }
+
             for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
                 if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
                     if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
@@ -156,11 +148,10 @@ public class TaskService implements TaskDao {
                     taskDto.setDuration(entity.getValue());
                 }
             }
-
             return taskDto;
         } catch (TransactionNotFound | PartnerNotFoundException e) {
             throw new RuntimeException(e);
-        } 
+        }
     }
 
     @Override
@@ -182,5 +173,15 @@ public class TaskService implements TaskDao {
 
     }
 
+    public static Date stringToDate(String dateStr) {
+        try {
+            return DATE_FORMAT.parse(dateStr);
+        } catch (ParseException e) {
+            throw new RuntimeException("Invalid date format. Expected format: dd-MM-yyyy", e);
+        }
+    }
 
+    public static String dateToString(Date date) {
+        return DATE_FORMAT.format(date);
+    }
 }

@@ -10,17 +10,17 @@ import za.co.mawa.bes.dto.LineItemInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceInboundDto;
 import za.co.mawa.bes.dto.invoice.InvoiceQueryDto;
 import za.co.mawa.bes.dto.invoice.InvoiceV2Dto;
-import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
-
-import org.springframework.core.io.ByteArrayResource;
-import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
+
+import org.springframework.core.io.ByteArrayResource;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
+import java.util.Base64;
 
 @RestController
 @CrossOrigin
@@ -35,6 +35,9 @@ public class InvoiceController {
     LineItemService lineItemService;
     @Autowired
     InvoiceService invoiceService;
+    @Autowired
+    TransactionAmountService transactionAmountService;
+
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postInvoice(@RequestBody InvoiceInboundDto invoiceInboundDto) {
         try {
@@ -143,6 +146,7 @@ public class InvoiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "/{id}/items", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?>  deleteItem(@PathVariable String id) {
         try {
