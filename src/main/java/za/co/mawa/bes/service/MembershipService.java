@@ -106,11 +106,32 @@ public class MembershipService implements MembershipDao {
         }
         if (membershipCreateDto.getCreationType().equals("UPGRADE")){
             int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId());
+            MembershipDto previousMembership = null;
+            try{
+                previousMembership = get(membershipCreateDto.getCurrentMembershipId());
+            }catch(Exception e){
+
+            }
+            assert previousMembership != null;
             if(waitingPeriod > 0){
-                transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+                try{
+                    if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                        transactionCreateDto.setStatus(Status.NEW);
+                    }
+                    else{
+                        transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+                    }
+                }catch(Exception e){
+                }
+
             }
             else {
-                transactionCreateDto.setStatus(Status.ACTIVE);
+                if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)) {
+                    transactionCreateDto.setStatus(Status.NEW);
+                }
+                else {
+                    transactionCreateDto.setStatus(Status.ACTIVE);
+                }
             }
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
