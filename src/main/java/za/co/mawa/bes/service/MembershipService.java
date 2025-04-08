@@ -602,7 +602,6 @@ public class MembershipService implements MembershipDao {
                     PremiumSearchDto searchDto = new PremiumSearchDto();
                     searchDto.setMembershipId(entity.getTransactionId());
                     List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
-
                     if(premiumEntities != null){
                         for(PremiumEntity premiumEntity: premiumEntities){
                             int waitingPeriod = getWaitingPeriod(entity.getProductId());
@@ -627,7 +626,7 @@ public class MembershipService implements MembershipDao {
                                 if(isWithinRange){
                                     editDto.setStatus(Status.WAITING_PERIOD);
                                 }
-                                else{
+                                else if(effectiveDate.isAfter(today)){
                                     editDto.setStatus(Status.ACTIVE);
                                 }
                             }
