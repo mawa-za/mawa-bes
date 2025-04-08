@@ -622,14 +622,13 @@ public class MembershipService implements MembershipDao {
 
                 //fetching membership premiums
                 List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
-                Set<PremiumEntity> uniquePremiums = new HashSet<>(premiumEntities);
                 if (entity.getDateEffective() != null) {
                     LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
                     LocalDate effectiveDate = effectiveDateTime.toLocalDate();
                     LocalDate today = LocalDate.now();
 
-                    if(uniquePremiums != null){
-                        for(PremiumEntity premiumEntity: uniquePremiums){
+                    if(premiumEntities != null){
+                        for(PremiumEntity premiumEntity: premiumEntities){
                             //fetching the waiting period of the membership product
                             int waitingPeriod = getWaitingPeriod(entity.getProductId());
                             MembershipDto membershipDto = new MembershipDto();
