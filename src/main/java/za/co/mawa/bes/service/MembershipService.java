@@ -601,6 +601,7 @@ public class MembershipService implements MembershipDao {
 
                 //fetching membership premiums
                 List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
+
                 if (entity.getDateEffective() != null) {
                     LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
                     LocalDate effectiveDate = effectiveDateTime.toLocalDate();
@@ -610,7 +611,9 @@ public class MembershipService implements MembershipDao {
                         for(PremiumEntity premiumEntity: premiumEntities){
                             //fetching the waiting period of the membership product
                             int waitingPeriod = getWaitingPeriod(entity.getProductId());
-                            MembershipDto membershipDto = new MembershipDto();
+                            MembershipDto membershipDto;
+
+                            membershipDto = get(entity.getTransactionId());
 
                             //setting the target date to premium creation date
                             LocalDate targetDate = LocalDateTime.parse(
