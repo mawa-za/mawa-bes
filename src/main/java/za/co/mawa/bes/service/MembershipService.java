@@ -112,8 +112,8 @@ public class MembershipService implements MembershipDao {
             }catch(Exception e){
 
             }
+            assert previousMembership != null;
             if(waitingPeriod > 0){
-                assert previousMembership != null;
                 try{
                     if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
                         transactionCreateDto.setStatus(Status.NEW);
@@ -125,7 +125,12 @@ public class MembershipService implements MembershipDao {
                 }
             }
             else {
-                transactionCreateDto.setStatus(Status.ACTIVE);
+                if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)) {
+                    transactionCreateDto.setStatus(Status.NEW);
+                }
+                else {
+                    transactionCreateDto.setStatus(Status.ACTIVE);
+                }
             }
         }
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
