@@ -7,7 +7,6 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.TransactionDateDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 
-
 import java.io.Serializable;
 import java.util.Date;
 
@@ -31,6 +30,5 @@ public class TaskDto implements Serializable {
     private String status;
     private String startDate;
     private String duration;
-
 }
 

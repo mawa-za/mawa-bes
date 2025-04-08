@@ -38,13 +38,11 @@ public class NotificationService implements NotificationDao {
     TransactionService transactionService;
     @Autowired
     FieldOptionService fieldOptionService;
-
     @Autowired
     PartnerService partnerService;
 
     @Override
     public String create(NotificationCreate1Dto notificationCreateDto) throws Exception {
-
 
         String sender = "";
         String receiver = "";
@@ -56,33 +54,24 @@ public class NotificationService implements NotificationDao {
         if (partnerReceiverDto.getId() != null) {
             receiver = partnerReceiverDto.getId();
         }
-
         if (partnerSenderDto.getId() != null) {
             sender = partnerSenderDto.getId();
-
         } else {
             sender = UserContext.getCurrentUserPartner();
-
         }
-
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
         transactionCreateDto.setType(TransactionType.NOTIFICATION);
         transactionCreateDto.setLocation(notificationCreateDto.getLocation());
         transactionCreateDto.setSubType(notificationCreateDto.getSubType());
-
-
         transactionCreateDto.setStatus(Status.NEW);
+        TransactionDto transactionDto1 = transactionService.create(transactionCreateDto);
+        TransactionDto transactionDto = transactionService.get(transactionDto1.getId());
 
-        TransactionDto transactionDto = transactionService.get(notificationCreateDto.getTransactionId());
         if (transactionDto != null) {
             transactionCreateDto.setCategory(transactionDto.getType());
             transactionCreateDto.setDescription(transactionDto.getStatus());
             transactionCreateDto.setSubDescription(transactionDto.getStatusReason());
-
         }
-
-        TransactionDto transactionDto1 = transactionService.create(transactionCreateDto);
-
         if (transactionDto1.getId() != null) {
             notificationId = transactionDto1.getId();
             TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -90,7 +79,6 @@ public class NotificationService implements NotificationDao {
             transactionPartnerDto.setFunction(PartnerFunction.PROCESSOR);
             transactionPartnerDto.setPartner(sender);
             transactionService.addPartner(transactionPartnerDto);
-
 
             TransactionPartnerDto transactionPartnerRecipientDto = new TransactionPartnerDto();
             transactionPartnerRecipientDto.setTransaction(notificationId);
@@ -106,8 +94,6 @@ public class NotificationService implements NotificationDao {
             transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
             transactionService.addLink(transactionLinkDto);
         }
-
-
         return notificationId;
     }
 
@@ -118,7 +104,6 @@ public class NotificationService implements NotificationDao {
         return false;
     }
 
-
     @Override
     public void sendAll() {
 
@@ -126,8 +111,6 @@ public class NotificationService implements NotificationDao {
 
     @Override
     public NotificationDto notifications(String id) throws TransactionNotFound {
-
-
         TransactionDto transactionDto = transactionService.get(id);
         NotificationDto notificationDto = new NotificationDto();
         ArrayList<NotificationDto> notificationDtos = new ArrayList<>();
@@ -140,21 +123,15 @@ public class NotificationService implements NotificationDao {
                     notificationDto = get(transactionLinkDto.getTransaction2());
                     notificationDtos.add(notificationDto);
                 }
-
             }
-
             notificationDto2.setTransactionId(transactionDto.getId());
-            notificationDto2.setNotificationDtos(notificationDtos);
-
+            notificationDto2.setNotificationDto(notificationDtos);
         }
-
-
         return notificationDto2;
     }
 
     @Override
     public NotificationDto get(String id) throws TransactionNotFound {
-
         TransactionDto transactionDto = transactionService.get(id);
         NotificationDto notificationDto = new NotificationDto();
         if (transactionDto.getId() != null && transactionDto.getType().equals(TransactionType.NOTIFICATION)) {
@@ -172,23 +149,21 @@ public class NotificationService implements NotificationDao {
 
             }
 
-            List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
-
-            if (!transactionPartnerDtoList.isEmpty()) {
-                for (TransactionPartnerDto partnerDto : transactionPartnerDtoList) {
-                    if (partnerDto.getFunction().equals(PartnerFunction.PROCESSOR)) {
-                        notificationDto.setProcessor(partnerDto.getPartner());
+            for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
+                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.PROCESSOR)) {
+                    try {
+                        notificationDto.setProcessor(partnerService.get(transactionPartner.getPartner()));
+                    } catch (Exception e) {
                     }
-                    if (partnerDto.getFunction().equals(PartnerFunction.RECIPIENT)) {
-                        notificationDto.setRecipient(partnerDto.getPartner());
+                }
+                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
+                    try {
+                        notificationDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
+                    } catch (Exception e) {
                     }
-
                 }
             }
-
-
         }
-
         return notificationDto;
     }
 
@@ -209,14 +184,10 @@ public class NotificationService implements NotificationDao {
 
     @Override
     public NotificationDto getPartnerNotifications(String id) throws TransactionNotFound {
-
-
         ArrayList<NotificationDto> notificationDtos = new ArrayList<>();
         List<TransactionPartnerDto> transactionPartnerDtos = transactionService.getPartnerType(id, PartnerFunction.RECIPIENT);
         NotificationDto notificationDto2 = new NotificationDto();
         if (!transactionPartnerDtos.isEmpty()) {
-
-
             for (TransactionPartnerDto transactionPartnerDto : transactionPartnerDtos) {
                 TransactionDto transactionDto = transactionService.get(transactionPartnerDto.getTransaction());
                 if (transactionDto.getType().equals(TransactionType.NOTIFICATION)) {
@@ -224,13 +195,32 @@ public class NotificationService implements NotificationDao {
                     if (notificationDto.getId() != null) {
                         notificationDtos.add(notificationDto);
                     }
-
                 }
             }
-            notificationDto2.setRecipient(id);
-            notificationDto2.setNotificationDtos(notificationDtos);
+            try{
+                notificationDto2.setRecipient(partnerService.get(id));
+            }
+            catch(Exception ex){
+
+            }
+
+            notificationDto2.setNotificationDto(notificationDtos);
         }
 
         return notificationDto2;
+    }
+
+    public List<NotificationDto> getAllNotifications() throws Exception {
+        List<NotificationDto> notifications = new ArrayList<>();
+        TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
+        transactionQueryDto.setType(TransactionType.NOTIFICATION);
+        try {
+            for (String id : transactionService.search(transactionQueryDto)) {
+                notifications.add(get(id));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve notifications", e);
+        }
+        return notifications;
     }
 }
