@@ -627,11 +627,6 @@ public class MembershipService implements MembershipDao {
 
                             //if the there's a waiting period then execute
                             if(waitingPeriod > 0){
-                                try{
-                                    membershipDto = get(entity.getTransactionId());
-                                }
-                                catch(Exception e){
-                                }
                                 //checking the premium creation date if it falls within the range between the date joined(start date) and end date(effective date)
                                 boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
 
