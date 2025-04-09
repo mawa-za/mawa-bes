@@ -666,11 +666,14 @@ public class MembershipService implements MembershipDao {
                             }
                             //if there's no waiting period, then set to active
                             else if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
-                                editDto.setStatus(Status.ACTIVE);
+                                if(targetDate.getMonth() == today.getMonth()){
+                                    editDto.setStatus(Status.ACTIVE);
+                                }
                             }
                             //modifying the membership status
                             edit(entity.getTransactionId(), editDto);
                         }
+
                     }
                 }
             }
