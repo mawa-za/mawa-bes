@@ -71,7 +71,7 @@ public class ReceiptController {
             responseMap.put("cashup-Id", cashUpId);
             return ResponseEntity.ok(gson.toJson(responseMap));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
 
     }
