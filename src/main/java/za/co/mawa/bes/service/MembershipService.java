@@ -658,18 +658,18 @@ public class MembershipService implements MembershipDao {
 
                                 //if it falls within, then continue to wait
                                 if(isWithinRange){
-                                    editDto.setStatus(Status.WAITING_PERIOD);
-                                }
-                                //if not, then set it to active
-                                if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
-                                    if(targetDate.getMonth() == today.getMonth()){
+                                    if(targetDate.getMonth() == today.getMonth() && targetDate.getYear() == today.getYear()){
                                         editDto.setStatus(Status.ACTIVE);
                                     }
+                                    else{
+                                        editDto.setStatus(Status.WAITING_PERIOD);
+                                    }
                                 }
+                                //if not, then set it to active
                             }
                             //if there's no waiting period, then set to active
-                            else if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
-                                if(targetDate.getMonth() == today.getMonth()){
+                            if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
+                                if(targetDate.getMonth() == today.getMonth() && targetDate.getYear() == today.getYear()){
                                     editDto.setStatus(Status.ACTIVE);
                                 }
                             }
@@ -734,8 +734,10 @@ public class MembershipService implements MembershipDao {
     }
 
     private static boolean isDateWithinRange(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
-        // Check if targetDate is between startDate and endDate (inclusive)
-        return (targetDate.isEqual(startDate) || targetDate.isAfter(startDate)) &&
-                (targetDate.isEqual(endDate) || targetDate.isBefore(endDate));
+        if (startDate == null || endDate == null || targetDate == null) {
+            return false;
+        }
+        return !targetDate.isBefore(startDate) && !targetDate.isAfter(endDate);
     }
+
 }
