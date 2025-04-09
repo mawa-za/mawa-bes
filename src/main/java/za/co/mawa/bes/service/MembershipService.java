@@ -41,6 +41,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -77,6 +78,8 @@ public class MembershipService implements MembershipDao {
     UserService userService;
     @Autowired
     LineItemService lineItemService;
+    @Autowired
+    PremiumRepository premiumRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
@@ -621,7 +624,7 @@ public class MembershipService implements MembershipDao {
                 searchDto.setMembershipId(entity.getTransactionId());
 
                 //fetching membership premiums
-                List<PremiumEntity> premiumEntities = transactionService.search(searchDto);
+                List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipId(entity.getTransactionId());
 
                 if (entity.getDateEffective() != null) {
                     LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
@@ -670,7 +673,7 @@ public class MembershipService implements MembershipDao {
                                     editDto.setStatus(Status.ACTIVE);
                                 }
                             }
-                            //modifying the membership status
+                            //modifying membership status
                             edit(entity.getTransactionId(), editDto);
                         }
 

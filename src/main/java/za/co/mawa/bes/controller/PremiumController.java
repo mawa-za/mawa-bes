@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.DepositService;
 import za.co.mawa.bes.service.PremiumService;
@@ -34,6 +35,8 @@ public class PremiumController {
     CashupService cashupService;
     @Autowired
     DepositService depositService;
+    @Autowired
+    PremiumRepository premiumRepository;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
@@ -112,9 +115,9 @@ public class PremiumController {
     @RequestMapping(value = "/getAll", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(){
         try{
-            PremiumSearchDto searchDto = new PremiumSearchDto();
-            searchDto.setMembershipId("80808080961474af0196147da5240007");
-            return ResponseEntity.ok(gson.toJson(premiumService.search(searchDto)));
+//            PremiumSearchDto searchDto = new PremiumSearchDto();
+//            searchDto.setMembershipId("80808080961474af0196147da5240007");
+            return ResponseEntity.ok(gson.toJson(premiumRepository.findAll()));
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
