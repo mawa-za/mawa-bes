@@ -438,7 +438,7 @@ public class ClaimController {
                     transactionService.addLink(transactionLinkDto);
 
                     TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(paymentRequestId);
+                    transactionProcessDto.setId(groceryPaymentRequestId);
                     paymentRequestService.approve(transactionProcessDto);
                 }
                 if (claim.getPaymentMethod().getCode().equals("EFT")) {
