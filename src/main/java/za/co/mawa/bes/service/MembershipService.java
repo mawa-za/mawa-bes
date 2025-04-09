@@ -661,7 +661,7 @@ public class MembershipService implements MembershipDao {
                                     editDto.setStatus(Status.WAITING_PERIOD);
                                 }
                                 //if not, then set it to active
-                                else if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
+                                if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
                                     if(targetDate.getMonth() == today.getMonth()){
                                         editDto.setStatus(Status.ACTIVE);
                                     }

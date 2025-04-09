@@ -72,6 +72,16 @@ public class PremiumController {
 
     }
 
+//    @RequestMapping(value = "{id}/membership", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<?> getMembershipPremium(@PathVariable String id) {
+//        try {
+//            return ResponseEntity.ok(gson.toJson(premiumRepository.findByMembershipId(id)));
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+//        }
+//
+//    }
+
     @RequestMapping(value = "/premiums", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
                                          @RequestParam(required = false) String invoiceNumber,
