@@ -53,6 +53,8 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PartnerService partnerService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
