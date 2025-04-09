@@ -83,7 +83,7 @@ public class PremiumService {
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
         } catch (Exception e) {
-            throw new Exception(e);
+            throw new Exception(e.getMessage());
         }
     }
 
