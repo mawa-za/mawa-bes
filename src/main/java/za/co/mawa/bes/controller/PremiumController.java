@@ -108,4 +108,15 @@ public class PremiumController {
         }
 
     }
+
+    @RequestMapping(value = "/getAll", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPremiums(){
+        try{
+            PremiumSearchDto searchDto = new PremiumSearchDto();
+            searchDto.setMembershipId("80808080961474af0196147da5240007");
+            return ResponseEntity.ok(gson.toJson(premiumService.search(searchDto)));
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
 }
