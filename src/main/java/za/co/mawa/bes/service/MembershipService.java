@@ -657,6 +657,10 @@ public class MembershipService implements MembershipDao {
                                 boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
 
                                 //if it falls within, then continue to wait
+                                //If the premium are inside the range do not change the status
+                                //The logic for activating should be the opposite of this
+                                //check the number of premiums required for a particular waiting period, eg 90 days needs 3 ,60 needs 2 ,and 30 is 1
+                                //activate when the last premium is outside the range
                                 if(isWithinRange){
                                     if(targetDate.getMonth() == today.getMonth() && targetDate.getYear() == today.getYear()){
                                         editDto.setStatus(Status.ACTIVE);
