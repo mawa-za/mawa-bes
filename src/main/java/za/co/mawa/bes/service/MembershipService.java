@@ -1,5 +1,11 @@
 package za.co.mawa.bes.service;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -603,9 +609,7 @@ public class MembershipService implements MembershipDao {
                     continue;
                 }
                 int waitingPeriod = getWaitingPeriod(entity.getProductId());
-
-                PremiumSearchDto searchDto = new PremiumSearchDto();
-                searchDto.setMembershipId(entity.getTransactionId());
+                membershipDto = new MembershipDto();
 
                 //fetching membership premiums
                 List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipId(entity.getTransactionId());
@@ -667,7 +671,7 @@ public class MembershipService implements MembershipDao {
 
                                                 if(!isDateWithinRange(latestPremiumDate, startDate, effectiveDate)){
                                                     editDto.setStatus(Status.ACTIVE);
-                                                    Boolean edited = deactivatePreviousMembership(entity.getTransactionId());
+                                                    Boolean edited = deactivatePreviousMembership();
                                                 }
                                             }
                                         }
@@ -676,7 +680,7 @@ public class MembershipService implements MembershipDao {
                                 //if there's no waiting period, then set to active
                                 if(today.isAfter(effectiveDate)){
                                     editDto.setStatus(Status.ACTIVE);
-                                    Boolean edited = deactivatePreviousMembership(entity.getTransactionId());
+                                    Boolean edited = deactivatePreviousMembership();
                                 }
                                 //modifying membership status
                                 edit(entity.getTransactionId(), editDto);
@@ -753,7 +757,7 @@ public class MembershipService implements MembershipDao {
         return (waitingPeriodDays + 30 - 1) / 30;
     }
 
-    private boolean deactivatePreviousMembership(String id) {
+    private boolean deactivatePreviousMembership() {
         try {
             List<TransactionLinkDto> linkDtos = membershipDto.getMembershipHistoryLinks();
 
