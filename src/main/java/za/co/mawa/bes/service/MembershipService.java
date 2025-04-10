@@ -753,32 +753,43 @@ public class MembershipService implements MembershipDao {
         return (waitingPeriodDays + 30 - 1) / 30;
     }
 
-    private boolean deactivatePreviousMembership(String id){
-        try{
-            Boolean edited = false;
+    private boolean deactivatePreviousMembership(String id) {
+        try {
             List<TransactionLinkDto> linkDtos = membershipDto.getMembershipHistoryLinks();
+
+            if (linkDtos == null || linkDtos.isEmpty()) {
+                return false;  // No history found
+            }
+
             Optional<TransactionLinkDto> previousMembershipLink = linkDtos.stream()
                     .max(Comparator.comparing(TransactionLinkDto::getCreationDate));
 
-            MembershipDto previousMembership = null;
-            MembershipEditDto editDto = new MembershipEditDto();
-            try{
+            MembershipDto previousMembership;
+            try {
                 previousMembership = get(previousMembershipLink.get().getTransaction2());
-            }catch(Exception e){
-
+            } catch (Exception e) {
+                return false;  // Failed to fetch previous membership
             }
-            assert previousMembership != null;
-            if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.ACTIVE)){
+
+            if (previousMembership == null || previousMembership.getStatus() == null) {
+                return false;  // Invalid membership or status
+            }
+
+            String statusCode = previousMembership.getStatus().getCode();
+
+            if (Status.ACTIVE.equalsIgnoreCase(statusCode)) {
+                MembershipEditDto editDto = new MembershipEditDto();
                 editDto.setStatus(Status.INACTIVE);
                 edit(previousMembershipLink.get().getTransaction2(), editDto);
-                edited = true;
+                return true;
             }
-            if(previousMembership.getStatus().getCode().equalsIgnoreCase(Status.WAITING_PERIOD)){
-                edited = false;
+
+            if (Status.WAITING_PERIOD.equalsIgnoreCase(statusCode)) {
+                return false; // Do nothing
             }
-            return edited;
-        }
-        catch (Exception e){
+
+            return false; // No action for other statuses
+        } catch (Exception e) {
             return false;
         }
     }
