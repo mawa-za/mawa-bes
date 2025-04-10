@@ -56,7 +56,7 @@ public class PremiumController {
 //            }
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(exception.getMessage()));
         }
 
     }
