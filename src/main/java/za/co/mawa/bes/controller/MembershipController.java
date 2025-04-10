@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -44,6 +45,8 @@ public class MembershipController {
     TransactionViewRepository transactionViewRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    InvoiceService invoiceService;
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -428,6 +431,17 @@ public class MembershipController {
             return ResponseEntity.ok(gson.toJson(transactionEditDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
+        try{
+            List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
+            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
+        }
+        catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 }
