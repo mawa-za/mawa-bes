@@ -662,14 +662,30 @@ public class MembershipService implements MembershipDao {
                                 //check the number of premiums required for a particular waiting period, eg 90 days needs 3 ,60 needs 2 ,and 30 is 1
                                 //activate when the last premium is outside the range
                                 if(isWithinRange){
-                                    if(targetDate.getMonth() == today.getMonth() && targetDate.getYear() == today.getYear()){
-                                        editDto.setStatus(Status.ACTIVE);
-                                    }
-                                    else{
-                                        editDto.setStatus(Status.WAITING_PERIOD);
-                                    }
+                                    editDto.setStatus(Status.WAITING_PERIOD);
                                 }
                                 //if not, then set it to active
+                                else{
+                                    if(targetDate.isAfter(effectiveDate)){
+                                        int numPremiums = calculateRequiredPremiums(waitingPeriod, 30);
+                                        Optional<PremiumEntity> latestPremium = premiumEntities.stream()
+                                                .max(Comparator.comparing(PremiumEntity::getCreationDate));
+
+                                        if(latestPremium.isPresent()){
+                                            PremiumEntity latest = latestPremium.get();
+
+                                            LocalDate latestPremiumDate = LocalDateTime.parse(
+                                                    Conversion.dateTimeToString(latest.getCreationDate()),
+                                                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                            ).toLocalDate();
+
+                                            if(!isDateWithinRange(latestPremiumDate, startDate, effectiveDate)){
+                                                editDto.setStatus(Status.ACTIVE);
+                                            }
+                                        }
+
+                                    }
+                                }
                             }
                             //if there's no waiting period, then set to active
                             if(effectiveDate.isAfter(today) && isDateWithinRange(targetDate, effectiveDate, today)){
@@ -742,6 +758,11 @@ public class MembershipService implements MembershipDao {
             return false;
         }
         return !targetDate.isBefore(startDate) && !targetDate.isAfter(endDate);
+    }
+
+    public int calculateRequiredPremiums(int waitingPeriodDays, int premiumFrequencyDays)
+    {
+        return (waitingPeriodDays + premiumFrequencyDays - 1) / premiumFrequencyDays;
     }
 
 }
