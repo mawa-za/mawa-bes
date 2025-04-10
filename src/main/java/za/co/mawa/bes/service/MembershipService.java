@@ -784,10 +784,6 @@ public class MembershipService implements MembershipDao {
                 return true;
             }
 
-            if (Status.WAITING_PERIOD.equalsIgnoreCase(statusCode)) {
-                return false; // Do nothing
-            }
-
             return false; // No action for other statuses
         } catch (Exception e) {
             return false;
