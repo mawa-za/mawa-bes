@@ -608,6 +608,7 @@ public class MembershipService implements MembershipDao {
     public String validateMemberships() throws Exception {
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
+        LocalDate latestPremiumDate = null;
         try{
             //fetching all memberships
             List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
@@ -680,7 +681,7 @@ public class MembershipService implements MembershipDao {
                                             if(latestPremium.isPresent()){
                                                 PremiumEntity latest = latestPremium.get();
 
-                                                LocalDate latestPremiumDate = LocalDateTime.parse(
+                                                latestPremiumDate = LocalDateTime.parse(
                                                         Conversion.dateTimeToString(latest.getCreationDate()),
                                                         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                                                 ).toLocalDate();
@@ -694,7 +695,7 @@ public class MembershipService implements MembershipDao {
                                     }
                                 }
                                 //if there's no waiting period, then set to active
-                                if(today.isAfter(effectiveDate) && isDateWithinRange(targetDate, startDate, today)){
+                                if(today.isAfter(effectiveDate)){
                                     editDto.setStatus(Status.ACTIVE);
                                 }
                                 //modifying membership status
