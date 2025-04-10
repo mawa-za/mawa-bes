@@ -12,4 +12,5 @@ import java.util.List;
 public interface PremiumRepository extends JpaRepository<PremiumEntity, String> {
     List<PremiumEntity> findAll(Specification<PremiumEntity> byCriteria, Sort sort);
     boolean existsByExtReceiptNumber(String extReceiptNumber);
+    List<PremiumEntity> findByMembershipId(String membershipId);
 }
