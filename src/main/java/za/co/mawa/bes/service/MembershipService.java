@@ -611,12 +611,14 @@ public class MembershipService implements MembershipDao {
                 int waitingPeriod = getWaitingPeriod(entity.getProductId());
                 membershipDto = new MembershipDto();
 
+
                 //fetching membership premiums
                 List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipId(entity.getTransactionId());
                 //checking the number of existing premiums
                 long numPremiums = premiumEntities.size();
                 //checking the number of required premiums
                 int numRequiredPremiums = calculateRequiredPremiums(waitingPeriod);
+
 
                 //checking the number of existing premiums is >= number of required premiums
                 if(numPremiums >= numRequiredPremiums){
@@ -628,6 +630,7 @@ public class MembershipService implements MembershipDao {
                         if(premiumEntities != null){
                             for(PremiumEntity premiumEntity: premiumEntities){
                                 //fetching the waiting period of the membership product
+
                                 membershipDto = get(entity.getTransactionId());
 
                                 //setting the target date to premium creation date
@@ -674,6 +677,7 @@ public class MembershipService implements MembershipDao {
                                                     Boolean edited = deactivatePreviousMembership();
                                                 }
                                             }
+
                                         }
                                     }
                                 }
@@ -792,6 +796,7 @@ public class MembershipService implements MembershipDao {
         } catch (Exception e) {
             return false;
         }
+
     }
 
 }
