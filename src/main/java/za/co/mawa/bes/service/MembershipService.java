@@ -593,6 +593,7 @@ public class MembershipService implements MembershipDao {
     }
 
     public String validateMemberships() throws Exception {
+
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
         LocalDate latestPremiumDate = null;
@@ -608,9 +609,9 @@ public class MembershipService implements MembershipDao {
                 if(entity.getTransactionStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL) || entity.getTransactionStatus().equalsIgnoreCase(Status.INACTIVE)){
                     continue;
                 }
+                //fetching the waiting period of the membership product
                 int waitingPeriod = getWaitingPeriod(entity.getProductId());
                 membershipDto = new MembershipDto();
-
 
                 //fetching membership premiums
                 List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipId(entity.getTransactionId());
@@ -618,7 +619,6 @@ public class MembershipService implements MembershipDao {
                 long numPremiums = premiumEntities.size();
                 //checking the number of required premiums
                 int numRequiredPremiums = calculateRequiredPremiums(waitingPeriod);
-
 
                 //checking the number of existing premiums is >= number of required premiums
                 if(numPremiums >= numRequiredPremiums){
@@ -629,8 +629,6 @@ public class MembershipService implements MembershipDao {
 
                         if(premiumEntities != null){
                             for(PremiumEntity premiumEntity: premiumEntities){
-                                //fetching the waiting period of the membership product
-
                                 membershipDto = get(entity.getTransactionId());
 
                                 //setting the target date to premium creation date
@@ -647,7 +645,8 @@ public class MembershipService implements MembershipDao {
 
                                 //if the there's a waiting period then execute
                                 if(waitingPeriod > 0){
-                                    //checking the premium creation date if it falls within the range between the date joined(start date) and end date(effective date)
+                                    //checking the premium creation date if it falls within the range
+                                    // between the date joined(start date) and end date(effective date)
                                     boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
 
                                     //if it falls within, then continue to wait
@@ -677,7 +676,6 @@ public class MembershipService implements MembershipDao {
                                                     Boolean edited = deactivatePreviousMembership();
                                                 }
                                             }
-
                                         }
                                     }
                                 }
@@ -693,8 +691,6 @@ public class MembershipService implements MembershipDao {
                         }
                     }
                 }
-
-
             }
             return "Validated";
 
@@ -764,7 +760,6 @@ public class MembershipService implements MembershipDao {
     private boolean deactivatePreviousMembership() {
         try {
             List<TransactionLinkDto> linkDtos = membershipDto.getMembershipHistoryLinks();
-
             if (linkDtos == null || linkDtos.isEmpty()) {
                 return false;  // No history found
             }
@@ -773,6 +768,7 @@ public class MembershipService implements MembershipDao {
                     .max(Comparator.comparing(TransactionLinkDto::getCreationDate));
 
             MembershipDto previousMembership;
+
             try {
                 previousMembership = get(previousMembershipLink.get().getTransaction2());
             } catch (Exception e) {
@@ -782,7 +778,7 @@ public class MembershipService implements MembershipDao {
             if (previousMembership == null || previousMembership.getStatus() == null) {
                 return false;  // Invalid membership or status
             }
-
+            // fetching status of the previous membership
             String statusCode = previousMembership.getStatus().getCode();
 
             if (Status.ACTIVE.equalsIgnoreCase(statusCode)) {
@@ -791,7 +787,6 @@ public class MembershipService implements MembershipDao {
                 edit(previousMembershipLink.get().getTransaction2(), editDto);
                 return true;
             }
-
             return false; // No action for other statuses
         } catch (Exception e) {
             return false;
