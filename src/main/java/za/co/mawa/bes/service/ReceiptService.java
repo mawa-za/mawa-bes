@@ -84,7 +84,7 @@ public class ReceiptService implements ReceiptDao {
             return getReceipt(newEntity.getId());
 
         } catch (Exception e) {
-            throw new Exception(e);
+            throw new Exception(e.getMessage());
         }
     }
 
