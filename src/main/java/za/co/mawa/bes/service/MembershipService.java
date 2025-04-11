@@ -858,7 +858,7 @@ public class MembershipService implements MembershipDao {
             // fetching status of the previous membership
             String statusCode = previousMembership.getStatus().getCode();
 
-            if (Status.ACTIVE.equalsIgnoreCase(statusCode) || Status.NEW.equalsIgnoreCase(statusCode)) {
+            if (Status.ACTIVE.equalsIgnoreCase(statusCode) || Status.NEW.equalsIgnoreCase(statusCode) || Status.WAITING_PERIOD.equalsIgnoreCase(statusCode)) {
                 MembershipEditDto editDto = new MembershipEditDto();
                 editDto.setStatus(Status.INACTIVE);
                 edit(previousMembershipLink.get().getTransaction2(), editDto);
