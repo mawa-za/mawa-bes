@@ -82,7 +82,6 @@ public class BatchController {
         }
     }
 
-
     @RequestMapping(value = "membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse() {
         try {
@@ -94,6 +93,16 @@ public class BatchController {
             return ResponseEntity.ok().body(gson.toJson(result));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "/validate-membership", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> validateMembershipStatus(){
+        try{
+            return ResponseEntity.ok().body(gson.toJson(membershipService.validateMemberships()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
 
@@ -120,6 +129,8 @@ public class BatchController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
+
+
 
     private String getEmail() {
         Properties properties = settingService.getSettings("BANK-PAYMENT-FILE");
