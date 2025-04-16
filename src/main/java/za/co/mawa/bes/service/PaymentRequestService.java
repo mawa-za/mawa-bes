@@ -153,6 +153,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
         paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
         paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
+
         paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
