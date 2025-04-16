@@ -23,7 +23,7 @@ SELECT DISTINCT
     amount_collected.amount AS amount_collected,
     amount_deposited.amount AS amount_deposited,
     payment_amount.amount AS amount,
-    linked_transaction.number AS batch_number,
+    linked_batch_transaction.number AS batch_number,
     due_date.value AS 'due_date',
     death_date.value AS 'death_date',
     burial_date.value AS 'burial_date',
@@ -166,8 +166,8 @@ LEFT JOIN (
 ) transaction_batch_link ON
     transaction.id = transaction_batch_link.transaction2 AND
     transaction_batch_link.type = 'PAYMENT-BATCH-LINK' AND transaction_batch_link.rn = 1
-LEFT JOIN transaction AS linked_transaction ON
-    linked_transaction.id = transaction_batch_link.transaction1
+LEFT JOIN transaction AS linked_batch_transaction ON
+    linked_batch_transaction.id = transaction_batch_link.transaction1
 
 LEFT JOIN user user_created_by ON
     transaction.created_by = user_created_by.username
