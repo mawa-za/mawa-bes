@@ -22,6 +22,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.ReceiptRepository;
 import za.co.mawa.bes.repository.TransactionAttributeRepository;
@@ -52,18 +53,21 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PartnerService partnerService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            try{
-                if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
-                    entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
-                } else {
-                    entity.setExtReceiptNumber(null);
+            entity.setExtReceiptNumber(null);
+
+            if(!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
+                if(premiumRepository.existsByExtReceiptNumber(premiumCreateDto.getExternalReceiptNo())){
+                    throw new DuplicateCreationException("Duplicate receipt number.");
                 }
-            }catch (Exception e){}
+                entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
+            }
             entity.setMembershipId(premiumCreateDto.getMembershipId());
             entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
@@ -79,7 +83,7 @@ public class PremiumService {
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
         } catch (Exception e) {
-            throw new Exception();
+            throw new Exception(e.getMessage());
         }
     }
 

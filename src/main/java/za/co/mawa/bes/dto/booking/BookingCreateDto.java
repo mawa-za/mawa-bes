@@ -17,5 +17,5 @@ public class BookingCreateDto implements Serializable {
     String employeeId;
     String bookDate;
     String bookTime;
-
+    String invoiceItem;
 }
