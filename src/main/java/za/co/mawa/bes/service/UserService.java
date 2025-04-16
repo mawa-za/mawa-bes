@@ -207,7 +207,6 @@ public class UserService implements UserDao {
     public String getCurrentUser() {
         return UserContext.getCurrentUser();
     }
-
     public String getCurrentUserPartnerId() {
         try {
 
@@ -469,4 +468,3 @@ public class UserService implements UserDao {
     }
 
 }
-

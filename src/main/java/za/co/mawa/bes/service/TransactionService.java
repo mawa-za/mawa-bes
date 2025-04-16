@@ -137,7 +137,9 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+                if (transactionEditDto.getChangedBy() != null){
+                    entity.setChangedBy(transactionEditDto.getChangedBy());
+                }
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -600,8 +602,8 @@ public class TransactionService implements TransactionDao {
             List<TransactionPartnerEntity> transactionPartnerEntities = transactionPartnerRepository.findTransactionByPartner(transactionQueryDto.getEmployeeResponsibleId());
             for (TransactionPartnerEntity transactionPartnerEntity : transactionPartnerEntities) {
 
-                    transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
-                    resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                transactionListId.add(transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
+                resultList.put("EMPLOYEE-RESPONSIBLE-" + transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction(), transactionPartnerEntity.getTransactionPartnerPKEntity().getTransaction());
 
             }
         }
@@ -703,58 +705,55 @@ public class TransactionService implements TransactionDao {
     }
 
     public List<TransactionViewEntity> searchV2(TransactionViewDto transactionViewDto) {
-        List<TransactionViewEntity> transactionList = new ArrayList<>();
+        Set<TransactionViewEntity> transactionSet = new HashSet<>();
 
-        for (TransactionViewEntity entity  : transactionViewRepository.findAllByType(transactionViewDto.getType())) {
+        List<TransactionViewEntity> allTransactions = transactionViewRepository.findAllByType(transactionViewDto.getType());
+
+        for (TransactionViewEntity entity : allTransactions) {
             try {
-
                 boolean match = true;
 
-                if(transactionViewDto.getMainPartner() != null) {
-                    String customerName = entity.getMainPartner().replace(" ", "");
-                    match =  transactionViewDto.getMainPartner().replace(" ", "").equals(customerName);
+                if (transactionViewDto.getMainPartner() != null) {
+                    String entityMainPartner = entity.getMainPartner().replace(" ", "").trim();
+                    String dtoMainPartner = transactionViewDto.getMainPartner().replace(" ", "").trim();
+                    match = match && dtoMainPartner.equalsIgnoreCase(entityMainPartner);
                 }
 
-                if(transactionViewDto.getStatus() != null) {
-                    String status = entity.getTransactionStatus();
-                    match =    match &&  transactionViewDto.getStatus().equals(status);
-                }
-                if(transactionViewDto.getSubType() != null) {
-                    String subType = entity.getTransactionSubtype();
-                    match =    match &&  transactionViewDto.getSubType().equals(subType);
+                if (transactionViewDto.getStatus() != null) {
+                    match = match && transactionViewDto.getStatus().equalsIgnoreCase(entity.getTransactionStatus());
                 }
 
-                if(transactionViewDto.getIdNumber() != null) {
-                    String IdNumber = entity.getIdentityNumber();
-                    match =  match && transactionViewDto.getIdNumber().equals(IdNumber);
+                if (transactionViewDto.getSubType() != null) {
+                    match = match && transactionViewDto.getSubType().equalsIgnoreCase(entity.getTransactionSubtype());
                 }
 
-                if(transactionViewDto.getEmployeeResponsibleName() !=null){
-                    String employeeResponsibleName = entity.getEmployeeResponsible().replace(" ", "");
-                    match = match && transactionViewDto.getEmployeeResponsibleName().replace(" ", "").equals(employeeResponsibleName);
+                if (transactionViewDto.getIdNumber() != null) {
+                    match = match && transactionViewDto.getIdNumber().equalsIgnoreCase(entity.getIdentityNumber());
                 }
 
-                if(transactionViewDto.getCreationDate() !=null){
-
-                    String dateJoined = Conversion.dateToString(entity.getCreationDate());
-
-                    String queryDateJoined = Conversion.dateToString(transactionViewDto.getCreationDate());
-
-                    match = match && dateJoined.equals(queryDateJoined);
-
-
+                if (transactionViewDto.getEmployeeResponsibleName() != null) {
+                    String entityEmployee = entity.getEmployeeResponsible().replace(" ", "").trim();
+                    String dtoEmployee = transactionViewDto.getEmployeeResponsibleName().replace(" ", "").trim();
+                    match = match && dtoEmployee.equalsIgnoreCase(entityEmployee);
                 }
 
-                if(match) {
-                    transactionList.add(entity);
+                if (transactionViewDto.getCreationDate() != null) {
+                    String entityDate = Conversion.dateToString(entity.getCreationDate());
+                    String dtoDate = Conversion.dateToString(transactionViewDto.getCreationDate());
+                    match = match && entityDate.equals(dtoDate);
                 }
 
-            }catch (Exception e){
-
+                if (match) {
+                    transactionSet.add(entity);  // Add to Set to avoid duplicates
+                }
+            } catch (Exception e) {
+                e.printStackTrace();  // Log exception to track issues
             }
         }
-        return transactionList;
+
+        return new ArrayList<>(transactionSet);  // Convert Set back to List before returning
     }
+
 
     @Override
     public TransactionDto get(String transactionId) throws TransactionNotFound {
@@ -953,5 +952,4 @@ public class TransactionService implements TransactionDao {
         }
         return premiumEntities;
     }
-
 }
