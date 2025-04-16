@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import jakarta.mail.Part;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -28,6 +29,7 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.PartnerRepository;
@@ -72,9 +74,7 @@ public class ClaimService {
     @Autowired
     PartnerRepository partnerRepository;
     @Autowired
-    AddressService addressService;
-    @Autowired
-    ProductService productService;
+    UserService userService;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -611,6 +611,13 @@ public class ClaimService {
                     }
                 };
 
+                String currentUser = userService.getCurrentUserPartnerId();
+                Optional<PartnerEntity> user = partnerRepository.findById(currentUser);
+
+                if (user.isPresent()) {
+                    PartnerEntity partner = user.get();
+                    currentUser = partner.getName1() + " " + partner.getName2();
+                }
                 // Section A: Claim Submission Details (Table)
                 addCenteredSectionTitle.accept("SECTION A: CLAIM SUBMISSION DETAILS", marginY);
                 marginY -= lineHeight;
@@ -622,7 +629,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"DATE OF CLAIM COLLECTION", ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"CLAIM ADMINISTRATOR", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
+                drawTableRow.accept(new String[]{"CLAIM ADMINISTRATOR", currentUser != null ? currentUser : ""}, marginY);
                 marginY -= tableRowHeight * 2;
 
                 // Section B: Policy Holder Information
