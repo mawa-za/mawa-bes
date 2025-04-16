@@ -144,9 +144,21 @@ public class PaymentRequestService implements PaymentRequestDao {
             paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory()));
             paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
 
-            paymentRequestDto.setDescription(transactionDto.getDescription());
-            if(transactionDto.getPriority() != null && !transactionDto.getPriority().isEmpty()){
-                paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getPriority()));
+        }
+        paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+        try {
+            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
+        } catch (Exception e) {
+
+        }
+        paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
+        paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
+
+        paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
+        for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
+            if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
+                paymentRequestDto.setDueDate(transactionDateDto.getValue());
+
             }
             if(transactionDto.getLocation() != null && !transactionDto.getLocation().isEmpty()){
                 paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
