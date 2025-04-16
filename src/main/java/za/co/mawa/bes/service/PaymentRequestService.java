@@ -137,12 +137,15 @@ public class PaymentRequestService implements PaymentRequestDao {
         paymentRequestDto.setId(transactionDto.getId());
         paymentRequestDto.setNumber(transactionDto.getNumber());
 
+        if(transactionDto.getDescription() == null ){
+            paymentRequestDto.setDescription(transactionDto.getSubDescription());
+        }else {
+            paymentRequestDto.setDescription(transactionDto.getDescription());
+        }
+
         try {
             paymentRequestDto.setCreatedBy(userService.getUserByName(transactionDto.getCreatedBy()).getPartner());
-            paymentRequestDto.setStatusReason(fieldOptionService.getFieldOption(Field.PAYMENT_REQUEST_STATUS_REASON, transactionDto.getStatusReason()));
-            paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            paymentRequestDto.setClaimType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getCategory()));
-            paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
+        } catch (Exception e) {
 
         }
         paymentRequestDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
@@ -153,50 +156,39 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
         paymentRequestDto.setPaymentMethod(fieldOptionService.getFieldOption(Field.PAYMENT_METHOD, transactionDto.getSubType()));
         paymentRequestDto.setPaymentReason(fieldOptionService.getFieldOption(Field.PAYMENT_REASON, transactionDto.getCategory()));
-
         paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
         for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
             if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
                 paymentRequestDto.setDueDate(transactionDateDto.getValue());
-
             }
-            if(transactionDto.getLocation() != null && !transactionDto.getLocation().isEmpty()){
-                paymentRequestDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
+            if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
+                paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
             }
-            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.DUE_DATE)) {
-                    paymentRequestDto.setDueDate(transactionDateDto.getValue());
-                }
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.CREATED)) {
-                    paymentRequestDto.setCreatedDate(transactionDateDto.getValue());
-                }
+        }
+        for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
+                paymentRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
             }
-            for (TransactionPartnerDto transactionPartner : transactionService.getPartners(id)) {
-                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE_RESPONSIBLE)) {
-                    paymentRequestDto.setEmployeeResponsible(partnerService.get(transactionPartner.getPartner()));
-                }
-                if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
-                    paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
-                }
+            if (transactionPartner.getFunction().equalsIgnoreCase(PartnerFunction.RECIPIENT)) {
+                paymentRequestDto.setRecipient(partnerService.get(transactionPartner.getPartner()));
             }
-
-            for (TransactionLinkDto link : transactionService.getLinks(id)) {
-                if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
-                    paymentRequestDto.setReference(link.getTransaction2());
-                }
-            }
-            try {
-                paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
-                        .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
-                        .toList().iterator().next().getAmount());
-            } catch (Exception exception) {
-            }
-        } catch (Exception e) {
-
         }
 
+        for (TransactionLinkDto link : transactionService.getLinks(id)) {
+            if (link.getType().equalsIgnoreCase(TransactionType.PAYMENT_REQUEST)) {
+                paymentRequestDto.setReference(link.getTransaction2());
+            }
+        }
+        try {
+            paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
+                    .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
+                    .toList().iterator().next().getAmount());
+        } catch (Exception exception) {
+        }
         return paymentRequestDto;
     }
+
+
 
     @Override
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
