@@ -186,7 +186,6 @@ public class PaymentRequestService implements PaymentRequestDao {
     }
 
 
-
     @Override
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
         TransactionQueryDto query = new TransactionQueryDto();
@@ -226,6 +225,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setStatus(entity.getTransactionStatus());
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
+                dto.setBatchNumber(entity.getBatchNumber());
                 //note
                 dto.setPaymentReason(entity.getCategory());
                 paymentRequestQueryDtos.add(dto);
