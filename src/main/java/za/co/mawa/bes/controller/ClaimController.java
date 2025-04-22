@@ -336,19 +336,23 @@ public class ClaimController {
                 paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
                 String paymentRequestId = paymentRequestDto.getId();
-                if (claim.getPaymentMethod().getCode().equals("EFT")) {
-                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
-                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccount.setObjectId(paymentRequestId);
-                    bankAccountService.add(bankAccount);
-//                    paymentRequest.setBankAccount(bankAccount);
-                }
 
+                try{
+                    if (claim.getPaymentMethod().getCode().equals("EFT")) {
+                        BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
+                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                        bankAccount.setObjectId(paymentRequestId);
+                        bankAccountService.add(bankAccount);
+//                    paymentRequest.setBankAccount(bankAccount);
+                    }
+                }catch(Exception e){
+
+                }
                 if (paymentRequestId != null) {
                     TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                     transactionLinkDto.setTransaction1(claimId);
@@ -436,18 +440,22 @@ public class ClaimController {
         tombstonePaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
         PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(tombstonePaymentRequest);
         String tombstonePaymentRequestId = groceryPaymentRequestDto.getId();
-        List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
-        if (bankAccountDtoList.iterator().hasNext()) {
-            BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-            BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
-            bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
-            bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
-            bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
-            bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
-            bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
-            bankAccountCreateDto.setObjectId(tombstonePaymentRequestId);
-            bankAccountService.add(bankAccountCreateDto);
+        try{
+            List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
+            if (bankAccountDtoList.iterator().hasNext()) {
+                BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
+                BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
+                bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
+                bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
+                bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
+                bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
+                bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
+                bankAccountCreateDto.setObjectId(tombstonePaymentRequestId);
+                bankAccountService.add(bankAccountCreateDto);
 //          paymentRequest.setBankAccount(bankAccountCreateDto);
+            }
+        }catch(Exception e){
+
         }
 
         if (tombstonePaymentRequestId != null) {
