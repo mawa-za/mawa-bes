@@ -466,12 +466,18 @@ public class ClaimController {
 
     private void processFuneralClaim(ClaimOutboundDto claim) throws Exception {
         // 1. Processing main funeral payment request
+        logger.debug("Processing FUNERAL claim {}", claim.getNumber());
         PaymentRequestDto mainPaymentRequest = createMainFuneralPaymentRequest(claim);
         processPaymentRequest(claim, mainPaymentRequest);
 
+
         // 2. Processing grocery payment request
+        logger.debug("Creating grocery payment request ");
         PaymentRequestDto groceryPaymentRequest = createGroceryPaymentRequest(claim);
+        logger.debug("Done creating grocery payment request ");
+        logger.debug("Processing grocery payment request ");
         processPaymentRequest(claim, groceryPaymentRequest);
+        logger.debug("Done processing grocery payment request ");
 
         // 3. Processing tombstone recipients if needed
         processTombstoneRecipients(claim);
@@ -484,28 +490,34 @@ public class ClaimController {
 
         // Set reference from Xero invoice or claim number
         String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
+        logger.debug("Fetching xeroInvoiceCode");
         String xeroInvoice = xeroAccountingService.createInvoice(
                 getFuneralServiceProvider(),
                 partnerService.getFullName(claim.getDeceased()),
                 itemCode
         );
+        logger.debug("Done fetching xeroInvoiceCode");
         paymentRequest.setReference(xeroInvoice != null ? xeroInvoice : claim.getNumber());
 
         // setting common payment details
+        logger.debug("Setting common payment details ");
         setCommonPaymentRequestDetails(paymentRequest, claim);
+        logger.debug("Retrieving the productAmount ");
         paymentRequest.setAmount(getProductAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE"));
-
+        logger.debug("Done retrieving the productAmount ");
+        logger.debug("Creating Funeral Payment Request ");
         return paymentRequestService.create(paymentRequest);
     }
 
     private PaymentRequestDto createGroceryPaymentRequest(ClaimOutboundDto claim) throws Exception {
         PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
-
+        logger.debug("Creating grocery payment request started!!!!!!!! ");
         // setting payment method and branch
         String paymentMethod = claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH") ? "CASH" : "EFT";
         paymentRequest.setPaymentMethod(paymentMethod);
 
-        if ("CASH".equals(paymentMethod)) {
+        logger.debug("Retrieving the branch ");
+        if ("CASH".equalsIgnoreCase(paymentMethod)) {
             try {
                 paymentRequest.setBranch(claim.getBranch().getCode());
             } catch (Exception e) {
@@ -518,7 +530,7 @@ public class ClaimController {
         paymentRequest.setReference("GROCERY" + claim.getNumber());
         setCommonPaymentRequestDetails(paymentRequest, claim);
         paymentRequest.setAmount(getProductAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE"));
-
+        logger.debug("Creating the grocery payment request ");
         return paymentRequestService.create(paymentRequest);
     }
 
@@ -544,6 +556,7 @@ public class ClaimController {
             return BigDecimal.ZERO;
         }
     }
+
     private void processPaymentRequest(ClaimOutboundDto claim, PaymentRequestDto paymentRequestDto) throws Exception {
         if (paymentRequestDto == null || paymentRequestDto.getId() == null) {
             logger.error("Failed to create payment request for claim {}", claim.getNumber());
@@ -551,7 +564,7 @@ public class ClaimController {
         }
 
         String paymentRequestId = paymentRequestDto.getId();
-        logger.info("Created payment request with ID: {}", paymentRequestId);
+        logger.info("Created payment request with ID: {}{}", paymentRequestId, paymentRequestDto.getType());
 
         // Create transaction link
         TransactionLinkDto link = new TransactionLinkDto();
