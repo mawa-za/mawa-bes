@@ -21,10 +21,14 @@ import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.xero.XeroAccountingService;
 import za.co.mawa.bes.xero.XeroUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -35,6 +39,8 @@ import java.util.*;
 @CrossOrigin
 @RequestMapping(value = "claim")
 public class ClaimController {
+    private static final Logger logger = LoggerFactory.getLogger(ClaimController.class);
+
     @Autowired
     ClaimService claimService;
     @Autowired
@@ -308,180 +314,32 @@ public class ClaimController {
     public ResponseEntity<?> generatePaymentRequests(@PathVariable String id) {
         try {
             String claimId = id;
+            logger.info("Processing payment request for claim ID: {}", claimId);
+
             ClaimOutboundDto claim = claimService.get(claimId);
-            if (claim.getType().getCode().equals("CASH")) {
-
-                PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
-                paymentRequest.setPaymentMethod(claim.getPaymentMethod().getCode());
-                paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
-                paymentRequest.setReference("CASHCLAIM" + claim.getNumber());
-                paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(claim.getClaimant().getId());
-                try {
-                    paymentRequest.setAmount(claim.getPaidOutAmount().getAmount());
-                } catch (Exception ex) {
-                    paymentRequest.setAmount(new BigDecimal("0"));
-                }
-                try {
-                    paymentRequest.setBranch(claim.getBranch().getCode());
-                } catch (Exception e) {
-                    paymentRequest.setBranch("MODJADJISKLOOF");
-                }
-                paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
-                String paymentRequestId = paymentRequestDto.getId();
-                if (claim.getPaymentMethod().getCode().equals("EFT")) {
-                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
-                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccount.setObjectId(paymentRequestId);
-                    bankAccountService.add(bankAccount);
-//                    paymentRequest.setBankAccount(bankAccount);
-                }
-
-                if (paymentRequestId != null) {
-                    TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-                    transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(paymentRequestId);
-                    transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
-                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-                    transactionService.addLink(transactionLinkDto);
-
-                    TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(paymentRequestId);
-                    paymentRequestService.approve(transactionProcessDto);
-                }
+            if (claim == null) {
+                logger.error("Claim not found for ID: {}", claimId);
+                return ResponseEntity.notFound().build();
             }
 
-            if (claim.getType().getCode().equals("FUNERAL")) {
-                PaymentRequestCreateDto paymentRequest = new PaymentRequestCreateDto();
-                paymentRequest.setPaymentMethod("EFT");
-                paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
-//                paymentRequest.setReference(claim.getMember().getIdentity().getNumber() + "-" + claim.getMember().getName1() + " " + claim.getMember().getName2());
-
-                String itemCode = null;
-                String productId = claim.getMembership().getProduct().getId();
-                ArrayList<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
-                for(ProductAttributeDto attribute : productAttributes){
-                    if(attribute.getAttribute().getCode().equals(XeroUtils.XERO_ITEM_CODE)){
-                        itemCode = attribute.getValue();
-                    }
-                }
-
-                String xeroInvoiceNumber = xeroAccountingService.createInvoice(getFuneralServiceProvider(),partnerService.getFullName(claim.getDeceased()) ,itemCode);
-                paymentRequest.setReference(xeroInvoiceNumber);
-                if (xeroInvoiceNumber == null) {
-                    paymentRequest.setReference(claim.getNumber());
-                }
-                paymentRequest.setDueDate(new Date());
-                paymentRequest.setRecipientId(claim.getClaimant().getId());
-                paymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE").getValue()));
-                paymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                paymentRequest.setRecipientId(claim.getClaimant().getId());
-                PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
-                String paymentRequestId = paymentRequestDto.getId();
-                List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
-                if (bankAccountDtoList.iterator().hasNext()) {
-                    BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-                    BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
-                    bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccountCreateDto.setObjectId(paymentRequestId);
-//                    paymentRequest.setBankAccount(bankAccountCreateDto);
-                    bankAccountService.add(bankAccountCreateDto);
-                }
-
-                if (paymentRequestId != null) {
-                    TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-                    transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(paymentRequestId);
-                    transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
-                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-                    transactionService.addLink(transactionLinkDto);
-
-                    TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(paymentRequestId);
-                    paymentRequestService.approve(transactionProcessDto);
-                }
-
-                PaymentRequestCreateDto groceryPaymentRequest = new PaymentRequestCreateDto();
-                if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
-                    groceryPaymentRequest.setPaymentMethod("CASH");
-                }
-                else {
-                    groceryPaymentRequest.setPaymentMethod("EFT");
-                }
-                groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
-                groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
-                groceryPaymentRequest.setDueDate(new Date());
-                groceryPaymentRequest.setRecipientId(claim.getClaimant().getId());
-                groceryPaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE").getValue()));
-                if(claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")){
-                    groceryPaymentRequest.setBranch(claim.getBranch().getCode());
-                }
-                groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-                String groceryPaymentRequestId = paymentRequestService.create(groceryPaymentRequest).getId();
-                if (groceryPaymentRequestId != null) {
-                    TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-                    transactionLinkDto.setTransaction1(claimId);
-                    transactionLinkDto.setTransaction2(groceryPaymentRequestId);
-                    transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
-                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-                    transactionService.addLink(transactionLinkDto);
-
-                    TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-                    transactionProcessDto.setId(groceryPaymentRequestId);
-                    paymentRequestService.approve(transactionProcessDto);
-                }
-                if (claim.getPaymentMethod().getCode().equals("EFT")) {
-                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
-                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccount.setObjectId(groceryPaymentRequestId);
-                    bankAccountService.add(bankAccount);
-                }
-
-                List<TombstoneRecipientDto> tombstoneRecipientDtos = new ArrayList<>();
-                List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(claim.getMembership().getId()).stream()
-                        .filter(a -> Objects.equals(a.getFunction(), PartnerFunction.TOMBSTONE_RECIPIENT))
-                        .toList();
-                for (TransactionPartnerDto partnerDtos : transactionPartnerDtoList) {
-                    PartnerDto partnerDto = partnerService.get(partnerDtos.getPartner());
-                    if (partnerDto != null) {
-                        TombstoneRecipientDto tombstoneRecipient = new TombstoneRecipientDto();
-                        tombstoneRecipient.setId(partnerDto.getId());
-                        tombstoneRecipient.setFirstName(partnerDto.getName2());
-                        tombstoneRecipient.setMiddleName(partnerDto.getName3());
-                        tombstoneRecipient.setLastName(partnerDto.getName1());
-                        tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
-                        tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
-                        tombstoneRecipientDtos.add(tombstoneRecipient);
-                    }
-                }
-                for(TombstoneRecipientDto tombstoneRecipientDto: tombstoneRecipientDtos){
-                    if(claim.getDeceased().getId().equalsIgnoreCase(tombstoneRecipientDto.getId())){
-                        createTombstonePaymentRequest(claim);
-                    }
-                }
+            switch (claim.getType().getCode()) {
+                case "CASH":
+                    processCashClaim(claim);
+                    break;
+                case "FUNERAL":
+                    processFuneralClaim(claim);
+                    break;
+                case "TOMBSTONE":
+                    createTombstonePaymentRequest(claim);
+                    break;
+                default:
+                    logger.warn("Unknown claim type: {}", claim.getType().getCode());
             }
 
-            if (claim.getType().getCode().equals("TOMBSTONE")) {
-                createTombstonePaymentRequest(claim);
-            }
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            logger.error("Error processing payment request", exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -534,43 +392,218 @@ public class ClaimController {
         return productAttributeDto;
     }
 
-    private void createTombstonePaymentRequest(ClaimOutboundDto claim) throws Exception {
-        PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
-        tombstonePaymentRequest.setPaymentMethod("EFT");
-        tombstonePaymentRequest.setPaymentReason("TOMBSTONE-CLAIM");
-        tombstonePaymentRequest.setReference("TOMBSTONE"+ claim.getNumber());
-        tombstonePaymentRequest.setDueDate(new Date());
-        tombstonePaymentRequest.setRecipientId(claim.getClaimant().getId());
-        tombstonePaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
-        tombstonePaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
-        PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(tombstonePaymentRequest);
-        String tombstonePaymentRequestId = groceryPaymentRequestDto.getId();
-        List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getTombstoneServiceProvider());
-        if (bankAccountDtoList.iterator().hasNext()) {
-            BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
-            BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
-            bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
-            bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
-            bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
-            bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
-            bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
-            bankAccountCreateDto.setObjectId(tombstonePaymentRequestId);
-            bankAccountService.add(bankAccountCreateDto);
-//          paymentRequest.setBankAccount(bankAccountCreateDto);
+    private void processCashClaim(ClaimOutboundDto claim) throws Exception {
+        logger.debug("Processing CASH claim {}", claim.getNumber());
+
+        PaymentRequestCreateDto paymentRequest = buildBasePaymentRequest(claim);
+        paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
+        paymentRequest.setReference("CASHCLAIM" + claim.getNumber());
+
+        setPaymentAmount(paymentRequest, claim.getPaidOutAmount().getAmount());
+        setBranch(paymentRequest, claim.getBranch().getCode(), "MODJADJISKLOOF");
+
+        PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+        processPaymentRequest(claim, paymentRequestDto);
+    }
+
+    private void processFuneralClaim(ClaimOutboundDto claim) throws Exception {
+        logger.debug("Processing FUNERAL claim {}", claim.getNumber());
+
+        // Main funeral payment
+        PaymentRequestCreateDto paymentRequest = buildBasePaymentRequest(claim);
+        paymentRequest.setPaymentMethod("EFT");
+        paymentRequest.setPaymentReason(claim.getType().getCode() + "-CLAIM");
+
+        String xeroInvoiceNumber = generateXeroInvoice(claim);
+        paymentRequest.setReference(xeroInvoiceNumber != null ? xeroInvoiceNumber : claim.getNumber());
+
+        BigDecimal funeralAmount = getProductAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE");
+        paymentRequest.setAmount(funeralAmount);
+
+        PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+        processPaymentRequest(claim, paymentRequestDto);
+
+        // Grocery payment
+        processGroceryPayment(claim);
+
+        // Tombstone recipients
+        processTombstoneRecipients(claim);
+    }
+
+    private String generateXeroInvoice(ClaimOutboundDto claim) {
+        String itemCode = productService.getAttributes(claim.getMembership().getProduct().getId()).stream()
+                .filter(attr -> attr.getAttribute().getCode().equals(XeroUtils.XERO_ITEM_CODE))
+                .findFirst()
+                .map(ProductAttributeDto::getValue)
+                .orElse(null);
+
+        return xeroAccountingService.createInvoice(
+                getFuneralServiceProvider(),
+                partnerService.getFullName(claim.getDeceased()),
+                itemCode
+        );
+    }
+
+    private void processGroceryPayment(ClaimOutboundDto claim) throws Exception {
+        logger.debug("Processing GROCERY payment for claim {}", claim.getNumber());
+
+        PaymentRequestCreateDto groceryPaymentRequest = buildBasePaymentRequest(claim);
+        groceryPaymentRequest.setPaymentReason("GROCERY-CLAIM");
+        groceryPaymentRequest.setReference("GROCERY" + claim.getNumber());
+
+        if (claim.getPaymentMethod().getCode().equalsIgnoreCase("CASH")) {
+            groceryPaymentRequest.setPaymentMethod("CASH");
+            setBranch(groceryPaymentRequest, claim.getBranch().getCode(), "MODJADJISKLOOF");
+        } else {
+            groceryPaymentRequest.setPaymentMethod("EFT");
         }
 
-        if (tombstonePaymentRequestId != null) {
-            TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
-            transactionLinkDto.setTransaction1(claim.getId());
-            transactionLinkDto.setTransaction2(tombstonePaymentRequestId);
-            transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
-            transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
-            transactionService.addLink(transactionLinkDto);
+        BigDecimal groceryAmount = getProductAmount(claim.getMembership().getProduct().getId(), "GROCERY-VALUE");
+        groceryPaymentRequest.setAmount(groceryAmount);
 
-            TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
-            transactionProcessDto.setId(tombstonePaymentRequestId);
-            paymentRequestService.approve(transactionProcessDto);
+        PaymentRequestDto groceryRequestDto = paymentRequestService.create(groceryPaymentRequest);
+        processPaymentRequest(claim, groceryRequestDto);
+    }
+
+    private void processTombstoneRecipients(ClaimOutboundDto claim) {
+        List<TombstoneRecipientDto> recipients = transactionService.getPartners(claim.getMembership().getId()).stream()
+                .filter(p -> Objects.equals(p.getFunction(), PartnerFunction.TOMBSTONE_RECIPIENT))
+                .map(p -> {
+                    try {
+                        return partnerService.get(p.getPartner());
+                    } catch (PartnerNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .filter(Objects::nonNull)
+                .map(this::convertToTombstoneRecipient)
+                .toList();
+
+        recipients.stream()
+                .filter(r -> claim.getDeceased().getId().equalsIgnoreCase(r.getId()))
+                .findFirst()
+                .ifPresent(r -> {
+                    try {
+                        createTombstonePaymentRequest(claim);
+                    } catch (Exception e) {
+                        logger.error("Failed to create tombstone payment", e);
+                    }
+                });
+    }
+
+    private TombstoneRecipientDto convertToTombstoneRecipient(PartnerDto partner) {
+        TombstoneRecipientDto dto = new TombstoneRecipientDto();
+        dto.setId(partner.getId());
+        dto.setFirstName(partner.getName2());
+        dto.setMiddleName(partner.getName3());
+        dto.setLastName(partner.getName1());
+        dto.setGender(partner.getGender().getDescription());
+        dto.setTitle(partner.getTitle().getDescription());
+        return dto;
+    }
+
+    private PaymentRequestCreateDto buildBasePaymentRequest(ClaimOutboundDto claim) {
+        PaymentRequestCreateDto request = new PaymentRequestCreateDto();
+        request.setPaymentMethod(claim.getPaymentMethod().getCode());
+        request.setDueDate(new Date());
+        request.setRecipientId(claim.getClaimant().getId());
+        request.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+        return request;
+    }
+
+    private void setPaymentAmount(PaymentRequestCreateDto request, BigDecimal amount) {
+        try {
+            request.setAmount(amount);
+        } catch (Exception ex) {
+            logger.warn("Failed to set payment amount, defaulting to 0", ex);
+            request.setAmount(BigDecimal.ZERO);
         }
     }
 
+    private void setBranch(PaymentRequestCreateDto request, String branchCode, String defaultBranch) {
+        try {
+            request.setBranch(branchCode);
+        } catch (Exception e) {
+            logger.warn("Failed to set branch, using default: {}", defaultBranch, e);
+            request.setBranch(defaultBranch);
+        }
+    }
+
+    private BigDecimal getProductAmount(String productId, String amountType) {
+        try {
+            return new BigDecimal(getAmount(productId, amountType).getValue());
+        } catch (Exception e) {
+            logger.error("Failed to get {} amount for product {}", amountType, productId, e);
+            return BigDecimal.ZERO;
+        }
+    }
+
+    private void processPaymentRequest(ClaimOutboundDto claim, PaymentRequestDto paymentRequestDto) throws Exception {
+        if (paymentRequestDto == null || paymentRequestDto.getId() == null) {
+            logger.error("Failed to create payment request for claim {}", claim.getNumber());
+            throw new RuntimeException("Payment request creation failed");
+        }
+
+        String paymentRequestId = paymentRequestDto.getId();
+        logger.info("Created payment request with ID: {}", paymentRequestId);
+
+        // Create transaction link
+        TransactionLinkDto link = new TransactionLinkDto();
+        link.setTransaction1(claim.getId());
+        link.setTransaction2(paymentRequestId);
+        link.setType(TransactionType.PAYMENT_REQUEST);
+        link.setCreateBy(UserContext.getCurrentUserPartner());
+        transactionService.addLink(link);
+
+        // Approve the request
+        TransactionProcessDto processDto = new TransactionProcessDto();
+        processDto.setId(paymentRequestId);
+        paymentRequestService.approve(processDto);
+
+        // Handle EFT bank account if needed
+        if ("EFT".equals(claim.getPaymentMethod().getCode())) {
+            BankAccountDto bankAccountDto = bankAccountService.getList(claim.getId()).iterator().next();
+            BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+            bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+            bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+            bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+            bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+            bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+            bankAccount.setObjectId(paymentRequestId);
+            bankAccountService.add(bankAccount);
+        }
+    }
+
+    private void createTombstonePaymentRequest(ClaimOutboundDto claim) throws Exception {
+        logger.debug("Creating TOMBSTONE payment for claim {}", claim.getNumber());
+
+        PaymentRequestCreateDto request = new PaymentRequestCreateDto();
+        request.setPaymentMethod("EFT");
+        request.setPaymentReason("TOMBSTONE-CLAIM");
+        request.setReference("TOMBSTONE" + claim.getNumber());
+        request.setDueDate(new Date());
+        request.setRecipientId(claim.getClaimant().getId());
+        request.setAmount(getProductAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE"));
+        request.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+
+        PaymentRequestDto paymentRequestDto = paymentRequestService.create(request);
+        String paymentRequestId = paymentRequestDto.getId();
+
+        // Add bank account
+        bankAccountService.getList(getTombstoneServiceProvider()).stream()
+                .findFirst()
+                .ifPresent(bankAccountDto -> {
+                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(paymentRequestId);
+                    bankAccountService.add(bankAccount);
+                });
+
+        // Process the payment request
+        processPaymentRequest(claim, paymentRequestDto);
+    }
 }
