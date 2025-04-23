@@ -686,7 +686,6 @@ public class ClaimService {
                 }catch(Exception e){
 
                 }
-                if (bankAccount != null) {
                     drawTableRow.accept(new String[]{
                             "CLAIM PAYOUT AMOUNT",
                             claimOutboundDto.getPaidOutAmount() != null && claimOutboundDto.getPaidOutAmount().getAmount() != null
@@ -712,7 +711,7 @@ public class ClaimService {
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
                     marginY -= tableRowHeight;
-                }
+
                 marginY -= 30;
                 float dateX = marginX + 250;
                 float signatureX = marginX + 50;
