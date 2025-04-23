@@ -2,12 +2,14 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.ClaimDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.membership.MembershipQueryDto;
@@ -53,15 +55,6 @@ public class MembershipController {
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
             return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
-
-    @RequestMapping(value = "{id}/membership-billing", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> billMembership(@PathVariable String id) {
-        try {
-            return ResponseEntity.ok(gson.toJson(membershipService.handleBilling(id)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -232,20 +225,11 @@ public class MembershipController {
 
     @RequestMapping(value = "{id}/membership-lapse", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMembershipLapse(@PathVariable String id) {
+
         try {
             String result = membershipService.handleMembershipLapse(id);
             return ResponseEntity.ok().body(gson.toJson(result));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-    @RequestMapping(value = "/scheduleStatusChange", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> automateMembershipStatusChange() {
-        try {
-            return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
-        }
-        catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
@@ -434,11 +418,42 @@ public class MembershipController {
         }
     }
 
+    @RequestMapping(value = "{id}/bill-membership", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> membershipBilling(@PathVariable String id){
+        try{
+            String invoiceId = membershipService.handleBilling(id);
+            return ResponseEntity.ok(gson.toJson(invoiceId));
+        }
+        catch(Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+
+        }
+    }
+
     @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
         try{
             List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
             return ResponseEntity.ok(gson.toJson(transactionViewEntities));
+        }
+        catch(Exception exception){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "remove-memberships", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteMembershipsWithNoProducts(){
+        try{
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            List<TransactionViewEntity> transactionViewEntities= transactionService.searchV2(transactionViewDto);
+
+            for(TransactionViewEntity entity: transactionViewEntities){
+                if(entity.getProductId() == null){
+                    transactionService.delete(entity.getTransactionId());
+                }
+            }
+            return ResponseEntity.ok("Removed memberships with no products ");
         }
         catch(Exception exception){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
