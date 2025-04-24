@@ -432,7 +432,6 @@ public class BankFileService {
 
     public GroceryBankDto getGroceryAccount(){
         GroceryBankDto groceryBankDto = new GroceryBankDto();
-
         groceryBankDto.setAccountBranch(getBankAccountBranch());
         groceryBankDto.setAccountNumber(getBankAccountNumber());
         groceryBankDto.setAccountHolder(getBankAccountHolder());
