@@ -58,6 +58,8 @@ public class ClaimController {
     SettingService settingService;
     @Autowired
     XeroAccountingService xeroAccountingService;
+    @Autowired
+    BankFileService bankFileService;
 
 
     @Autowired
@@ -515,7 +517,25 @@ public class ClaimController {
         paymentRequest.setAmount(getProductAmount(claim.getMembership().getProduct().getId(), "FUNERAL-VALUE"));
         logger.info("Done retrieving the productAmount ");
         logger.info("Creating Funeral Payment Request ");
-        return paymentRequestService.create(paymentRequest);
+
+        PaymentRequestDto paymentRequestDto = paymentRequestService.create(paymentRequest);
+        try{
+            List<BankAccountDto> bankAccountDtoList = bankAccountService.getList(getFuneralServiceProvider());
+            if (bankAccountDtoList.iterator().hasNext()) {
+                BankAccountDto bankAccountDto = bankAccountDtoList.iterator().next();
+                BankAccountCreateDto bankAccountCreateDto = new BankAccountCreateDto();
+                bankAccountCreateDto.setAccountHolder(bankAccountDto.getAccountHolder());
+                bankAccountCreateDto.setAccountType(bankAccountDto.getAccountType().getCode());
+                bankAccountCreateDto.setBankName(bankAccountDto.getBankName().getCode());
+                bankAccountCreateDto.setAccountNumber(bankAccountDto.getAccountNumber());
+                bankAccountCreateDto.setBranchCode(bankAccountDto.getBranchCode());
+                bankAccountCreateDto.setObjectId(paymentRequestDto.getId());
+                bankAccountService.add(bankAccountCreateDto);
+            }
+        }catch(Exception e){
+
+        }
+        return paymentRequestDto;
     }
 
     private PaymentRequestDto createGroceryPaymentRequest(ClaimOutboundDto claim) throws Exception {
@@ -532,7 +552,7 @@ public class ClaimController {
             paymentRequest.setPaymentMethod(paymentMethod);
 
             // 2. Handle branch - only for CASH payments
-            if ("CASH".equals(paymentMethod)) {
+            if ("CASH".equalsIgnoreCase(paymentMethod)) {
                 String branchCode = "MODJADJISKLOOF"; // Default branch
                 if (claim.getBranch() != null && claim.getBranch().getCode() != null) {
                     branchCode = claim.getBranch().getCode();
@@ -568,6 +588,26 @@ public class ClaimController {
 
             // 5. Create and return payment request
             PaymentRequestDto result = paymentRequestService.create(paymentRequest);
+            GroceryBankDto groceryBankDto = bankFileService.getGroceryAccount();
+            logger.info(groceryBankDto.getAccountNumber());
+            logger.info(groceryBankDto.getAccountBranch());
+            logger.info(groceryBankDto.getAccountType());
+            logger.info(groceryBankDto.getAccountHolder());
+            logger.info(groceryBankDto.getAccountBranchCode());
+            try{
+                BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+
+                bankAccount.setAccountHolder(groceryBankDto.getAccountHolder());
+                bankAccount.setAccountType(groceryBankDto.getAccountType());
+                bankAccount.setBankName("FNB");
+                bankAccount.setAccountNumber(groceryBankDto.getAccountNumber());
+                bankAccount.setBranchCode(groceryBankDto.getAccountBranchCode());
+
+                bankAccount.setObjectId(result.getId());
+                bankAccountService.add(bankAccount);
+            }catch(Exception e){
+                logger.info("Failed to capture banking details for the grocery payment request");
+            }
             if (result == null) {
                 throw new IllegalStateException("Payment request creation returned null");
             }
@@ -625,22 +665,6 @@ public class ClaimController {
         processDto.setId(paymentRequestId);
         paymentRequestService.approve(processDto);
 
-        // Handle EFT bank account if needed
-        try{
-            if ("EFT".equals(claim.getPaymentMethod().getCode())) {
-                BankAccountDto bankAccountDto = bankAccountService.getList(claim.getId()).iterator().next();
-                BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                bankAccount.setObjectId(paymentRequestId);
-                bankAccountService.add(bankAccount);
-            }
-        }catch(Exception e){
-            logger.error("Error adding banking details {}", e.getMessage());
-        }
     }
 
     private void processTombstoneRecipients(ClaimOutboundDto claim) {
