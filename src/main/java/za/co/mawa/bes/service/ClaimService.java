@@ -573,7 +573,6 @@ public class ClaimService {
                             contentStream.lineTo(currentXPos, yPos - tableRowHeight);
                             contentStream.stroke();
                         }
-
                         // Adding text in each cell
                         xPos = marginX;
                         for (int i = 0; i < values.length; i++) {
@@ -585,7 +584,6 @@ public class ClaimService {
 
                             xPos += cellWidth;
                         }
-
                         // Drawing bottom horizontal border
                         contentStream.moveTo(marginX, yPos - tableRowHeight);
                         contentStream.lineTo(marginX + tableWidth, yPos - tableRowHeight);
