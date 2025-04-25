@@ -536,7 +536,6 @@ public class ClaimService {
             try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
                 PDFont fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
                 PDFont fontRegular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-
                 // margins and spacing
                 float marginX = 50;
                 float marginY = 750;
