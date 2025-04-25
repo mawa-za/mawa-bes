@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public interface VoucherDao {
-    VoucherOutboundDto create(VoucherInboundDto createDto) throws Exception;
+    VoucherOutboundDto create(VoucherCreateDto createDto) throws Exception;
     VoucherOutboundDto get(String id) throws Exception;
     List<VoucherOutboundDto> search(VoucherQuery query) throws Exception;
     VoucherOutboundDto edit(String id, VoucherEditDto edit) throws Exception;
