@@ -15,7 +15,6 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
-import za.co.mawa.bes.dto.membership.MembershipDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
@@ -35,7 +34,6 @@ import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.TransactionAmountRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -76,8 +74,10 @@ public class ClaimService {
     @Autowired
     PartnerRepository partnerRepository;
     @Autowired
-    TransactionLinkRepository transactionLinkRepository;
+    BankAccountService bankAccountService;
+    @Autowired
 
+    UserService userService;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -535,7 +535,7 @@ public class ClaimService {
                 // margins and spacing
                 float marginX = 50;
                 float marginY = 750;
-                float lineHeight = 14;
+                float lineHeight = 15;
                 float tableRowHeight = 19;
                 float pageWidth = page.getMediaBox().getWidth();
                 float tableWidth = pageWidth - 100;
@@ -559,22 +559,17 @@ public class ClaimService {
 
                         contentStream.setFont(fontRegular, 10);
 
-                        // Drawing top horizontal border
+                        // Draw top horizontal border
                         contentStream.moveTo(marginX, yPos);
                         contentStream.lineTo(marginX + tableWidth, yPos);
                         contentStream.stroke();
 
-                        // Drawing all vertical borders first
-                        for (int i = 0; i <= values.length; i++) {
-                            float currentXPos = marginX + (i * cellWidth);
-                            contentStream.moveTo(currentXPos, yPos);
-                            contentStream.lineTo(currentXPos, yPos - tableRowHeight);
-                            contentStream.stroke();
-                        }
-
-                        // Adding text in each cell
-                        xPos = marginX;
                         for (int i = 0; i < values.length; i++) {
+                            // Draw left vertical border for each cell
+                            contentStream.moveTo(xPos, yPos);
+                            contentStream.lineTo(xPos, yPos - tableRowHeight);
+                            contentStream.stroke();
+
                             // Add text to cell
                             contentStream.beginText();
                             contentStream.newLineAtOffset(xPos + 5, yPos - 12);
@@ -582,9 +577,21 @@ public class ClaimService {
                             contentStream.endText();
 
                             xPos += cellWidth;
+
+                            // Draw right vertical border for each cell (middle border)
+                            if (i < values.length - 1) {
+                                contentStream.moveTo(xPos, yPos);
+                                contentStream.lineTo(xPos, yPos - tableRowHeight);
+                                contentStream.stroke();
+                            }
                         }
 
-                        // Drawing bottom horizontal border
+                        // vertical border
+                        contentStream.moveTo(xPos, yPos);
+                        contentStream.lineTo(xPos, yPos - tableRowHeight);
+                        contentStream.stroke();
+
+                        // horizontal border
                         contentStream.moveTo(marginX, yPos - tableRowHeight);
                         contentStream.lineTo(marginX + tableWidth, yPos - tableRowHeight);
                         contentStream.stroke();
@@ -617,8 +624,6 @@ public class ClaimService {
                 // Section A: Claim Submission Details (Table)
                 addCenteredSectionTitle.accept("SECTION A: CLAIM SUBMISSION DETAILS", marginY);
                 marginY -= lineHeight;
-                drawTableRow.accept(new String[]{"CLAIM NUMBER", claimOutboundDto.getNumber() != null ? claimOutboundDto.getNumber() : ""}, marginY);
-                marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"OFFICE OF CLAIM SUBMISSION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"POINT OF COLLECTION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
@@ -630,24 +635,9 @@ public class ClaimService {
                 drawTableRow.accept(new String[]{"CLAIM ADMINISTRATOR", currentUser != null ? currentUser : ""}, marginY);
                 marginY -= tableRowHeight * 2;
 
-                String policyNumber = null;
-                try{
-                    List<TransactionLinkEntity> transactionLinkEntity = transactionLinkRepository.getTransactionLink(claimOutboundDto.getId(), TransactionType.CLAIM);
-
-                    for(TransactionLinkEntity entity: transactionLinkEntity){
-                        String membershipID = entity.getTransactionLinkPKEntity().getTransaction1();
-                        MembershipDto membershipDto = membershipService.get(membershipID);
-                        policyNumber = membershipDto.getNumber();
-                    }
-                }catch(Exception e){
-
-                }
-
                 // Section B: Policy Holder Information
                 addCenteredSectionTitle.accept("SECTION B: POLICY HOLDER INFORMATION", marginY);
                 marginY -= lineHeight;
-                drawTableRow.accept(new String[]{"POLICY NUMBER", policyNumber != null ? policyNumber : ""}, marginY);
-                marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"SURNAME", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"FULL NAMES", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() + " " + claimOutboundDto.getCustomer().getName2() : ""}, marginY);
@@ -730,14 +720,14 @@ public class ClaimService {
                     drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
                     marginY -= tableRowHeight;
                 }
-                marginY -= 20;
+                marginY -= 30;
                 float dateX = marginX + 250;
                 float signatureX = marginX + 50;
 
                 contentStream.setFont(fontRegular, 10);
                 contentStream.beginText();
                 contentStream.newLineAtOffset(marginX , marginY);
-                contentStream.showText("Claimant Signature:");
+                contentStream.showText("Signature:");
                 contentStream.endText();
 
                 contentStream.beginText();
@@ -745,12 +735,12 @@ public class ClaimService {
                 contentStream.showText("Date:");
                 contentStream.endText();
 
-                contentStream.moveTo(marginX + 91, marginY - 10);
-                contentStream.lineTo(signatureX + 185, marginY - 10);
+                contentStream.moveTo(marginX + 50, marginY - 10);
+                contentStream.lineTo(signatureX + 170, marginY - 10);
                 contentStream.stroke();
 
-                contentStream.moveTo(dateX + 28, marginY - 10);
-                contentStream.lineTo(dateX + 200, marginY - 10);
+                contentStream.moveTo(dateX + 30, marginY - 10);
+                contentStream.lineTo(dateX + 230, marginY - 10);
                 contentStream.stroke();
 
                 contentStream.close();
