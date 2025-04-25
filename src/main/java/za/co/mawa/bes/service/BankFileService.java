@@ -8,6 +8,7 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.GroceryBankDto;
 import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
@@ -428,4 +429,16 @@ public class BankFileService {
             return "";
         }
     }
+
+    public GroceryBankDto getGroceryAccount(){
+        GroceryBankDto groceryBankDto = new GroceryBankDto();
+        groceryBankDto.setAccountBranch(getBankAccountBranch());
+        groceryBankDto.setAccountNumber(getBankAccountNumber());
+        groceryBankDto.setAccountHolder(getBankAccountHolder());
+        groceryBankDto.setAccountType(getPettyCashBankAccountType());
+        groceryBankDto.setAccountBranchCode(getPettyCashBankAccountBranch());
+
+        return groceryBankDto;
+    }
+
 }
