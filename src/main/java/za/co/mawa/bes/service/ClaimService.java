@@ -686,33 +686,34 @@ public class ClaimService {
                 addCenteredSectionTitle.accept("SECTION E: CASH PAYOUT INFORMATION", marginY);
                 marginY -= lineHeight;
 
-                BankAccountDto bankDetails = claimOutboundDto.getBankDetails();
-                if (bankDetails != null) {
-                    drawTableRow.accept(new String[]{
-                            "CLAIM PAYOUT AMOUNT",
-                            claimOutboundDto.getPaidOutAmount() != null && claimOutboundDto.getPaidOutAmount().getAmount() != null
-                                    ? String.valueOf(claimOutboundDto.getPaidOutAmount().getAmount())
-                                    : ""
-                    }, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"CLAIM PAID OUT TO POLICY HOLDER", ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"NOMINATED BENEFICIARY", ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"POINT OF COLLECTION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"BANK NAME", bankDetails.getBankName() != null ? bankDetails.getBankName().getCode() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", bankDetails.getAccountHolder() != null ? bankDetails.getAccountHolder() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT HOLDER ID NUMBER", bankDetails.getAccountHolder() != null ? bankDetails.getAccountHolder() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT NUMBER", bankDetails.getAccountNumber() != null ? bankDetails.getAccountNumber() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankDetails.getAccountType() != null && bankDetails.getAccountType().getType() != null ? bankDetails.getAccountType().getType() : ""}, marginY);
-                    marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
-                    marginY -= tableRowHeight;
+                BankAccountCreateDto bankAccount = null;
+
+                try{
+                    BankAccountDto bankAccountDto = bankAccountService.getList(claimOutboundDto.getId()).iterator().next();
+                    bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(claimOutboundDto.getId());
+                }catch(Exception e){
+
+                }
+                String accountHolderId = null;
+                String fullName = null;
+                try{
+                    List <PartnerEntity> accountHolder = partnerRepository.findByFullName(bankAccount.getAccountHolder());
+                    if(accountHolder != null){
+                        PartnerEntity partner = accountHolder.getFirst();
+                        List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findByPartner(partner.getId());
+                        PartnerIdentityEntity partnerIdentity = identityEntities.getFirst();
+                        accountHolderId = partnerIdentity.getPartnerIdentityPK().getValue();
+                        fullName = bankAccount.getAccountHolder();
+                    }
+
+                }catch (Exception e){
+
                 }
                 marginY -= 20;
                 float dateX = marginX + 250;
