@@ -1,16 +1,14 @@
 package za.co.mawa.bes.dao;
 
-import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
-import za.co.mawa.bes.dto.voucher.VoucherDto;
-import za.co.mawa.bes.dto.voucher.VoucherEditDto;
-import za.co.mawa.bes.dto.voucher.VoucherQuery;
+import za.co.mawa.bes.dto.voucher.*;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public interface VoucherDao {
-    String create(VoucherCreateDto createDto) throws Exception;
-    VoucherDto get(String id) throws Exception;
-    ArrayList<VoucherDto> search(VoucherQuery query) throws Exception;
-    boolean edit(VoucherEditDto edit,String id) throws Exception;
+    VoucherOutboundDto create(VoucherCreateDto createDto) throws Exception;
+    VoucherOutboundDto get(String id) throws Exception;
+    List<VoucherOutboundDto> search(VoucherQuery query) throws Exception;
+    VoucherOutboundDto edit(String id, VoucherEditDto edit) throws Exception;
     boolean delete(String id) throws Exception;
 }
