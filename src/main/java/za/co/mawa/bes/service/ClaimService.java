@@ -700,7 +700,6 @@ public class ClaimService {
                 }catch(Exception e){
 
                 }
-
                 String accountHolderId = null;
                 String fullName = null;
                 try{
