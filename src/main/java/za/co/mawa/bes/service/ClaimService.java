@@ -566,13 +566,14 @@ public class ClaimService {
                         contentStream.lineTo(marginX + tableWidth, yPos);
                         contentStream.stroke();
 
-                        // Drawing all vertical borders first
+                        // Drawing all vertical borders first (no duplicates)
                         for (int i = 0; i <= values.length; i++) {
                             float currentXPos = marginX + (i * cellWidth);
                             contentStream.moveTo(currentXPos, yPos);
                             contentStream.lineTo(currentXPos, yPos - tableRowHeight);
                             contentStream.stroke();
                         }
+
                         // Adding text in each cell
                         xPos = marginX;
                         for (int i = 0; i < values.length; i++) {
@@ -584,6 +585,7 @@ public class ClaimService {
 
                             xPos += cellWidth;
                         }
+
                         // Drawing bottom horizontal border
                         contentStream.moveTo(marginX, yPos - tableRowHeight);
                         contentStream.lineTo(marginX + tableWidth, yPos - tableRowHeight);
