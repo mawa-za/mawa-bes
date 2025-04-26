@@ -30,14 +30,12 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
-import za.co.mawa.bes.repository.PartnerRepository;
-import za.co.mawa.bes.repository.TransactionAmountRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
-import za.co.mawa.bes.repository.TransactionViewRepository;
+import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
 import java.io.ByteArrayOutputStream;
@@ -82,6 +80,8 @@ public class ClaimService {
     UserService userService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
+    @Autowired
+    PartnerIdentityRepository partnerIdentityRepository;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -700,6 +700,7 @@ public class ClaimService {
                 }catch(Exception e){
 
                 }
+
                 String accountHolderId = null;
                 String fullName = null;
                 try{
@@ -715,6 +716,33 @@ public class ClaimService {
                 }catch (Exception e){
 
                 }
+
+                drawTableRow.accept(new String[]{
+                        "CLAIM PAYOUT AMOUNT",
+                        claimOutboundDto.getPaidOutAmount() != null && claimOutboundDto.getPaidOutAmount().getAmount() != null
+                                ? String.valueOf(claimOutboundDto.getPaidOutAmount().getAmount())
+                                : ""
+                }, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"CLAIM PAID OUT TO POLICY HOLDER", ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"NOMINATED BENEFICIARY", ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"POINT OF COLLECTION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"BANK NAME", bankAccount != null && bankAccount.getBankName() != null? bankAccount.getBankName() : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", fullName != null ? fullName : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"ACCOUNT HOLDER ID NUMBER", accountHolderId != null ? accountHolderId : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"ACCOUNT NUMBER", bankAccount != null && bankAccount.getAccountNumber() != null ? bankAccount.getAccountNumber() : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankAccount != null && bankAccount.getAccountType() != null? bankAccount.getAccountType() : ""}, marginY);
+                marginY -= tableRowHeight;
+                drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
+                marginY -= tableRowHeight;
+
                 marginY -= 20;
                 float dateX = marginX + 250;
                 float signatureX = marginX + 50;

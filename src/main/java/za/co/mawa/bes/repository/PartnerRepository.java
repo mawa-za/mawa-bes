@@ -58,6 +58,9 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
             @Param("type") String type,
             Pageable pageable);
 
+    @Query("SELECT p FROM PartnerEntity p WHERE CONCAT(p.name1, ' ', p.name2) = :fullName")
+    List<PartnerEntity> findByFullName(String fullName);
+
 
 //    @Query(value = "SELECT  p.type as type " +
 //            "FROM partner p " +
