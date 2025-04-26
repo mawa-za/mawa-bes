@@ -715,6 +715,7 @@ public class ClaimService {
 
                 }catch (Exception e){
 
+
                 }
 
                 drawTableRow.accept(new String[]{
