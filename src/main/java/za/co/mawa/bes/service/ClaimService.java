@@ -30,12 +30,14 @@ import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
 import za.co.mawa.bes.entity.PartnerEntity;
-import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
-import za.co.mawa.bes.repository.*;
+import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.TransactionAmountRepository;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
 import java.io.ByteArrayOutputStream;
@@ -80,8 +82,6 @@ public class ClaimService {
     UserService userService;
     @Autowired
     TransactionLinkRepository transactionLinkRepository;
-    @Autowired
-    PartnerIdentityRepository partnerIdentityRepository;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -757,6 +757,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
                 marginY -= tableRowHeight;
+
 
                 marginY -= 20;
                 float dateX = marginX + 250;
