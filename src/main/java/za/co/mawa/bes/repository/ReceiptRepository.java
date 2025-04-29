@@ -11,4 +11,5 @@ import java.util.List;
 @Repository
 public interface ReceiptRepository extends JpaRepository<ReceiptEntity, String> {
     List<ReceiptEntity> findAll(Specification<ReceiptEntity> byCriteria, Sort sort);
+    boolean existsByExtReceiptNumber(String extReceiptNumber);
 }

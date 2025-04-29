@@ -15,6 +15,7 @@ import za.co.mawa.bes.repository.TransactionItemRepository;
 import za.co.mawa.bes.utils.Field;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 @Service
@@ -34,6 +35,8 @@ public class LineItemService {
         try{
             List<LineItemOutboundDto> lineItemOutboundDtoList = new ArrayList<>();
             List<TransactionItemDto> transactionItemDtoList = transactionService.getItems(transaction);
+            BigDecimal vatPercentage = new BigDecimal("0.15");
+
             for(TransactionItemDto transactionItemDto: transactionItemDtoList){
                 LineItemOutboundDto lineItemOutboundDto = new LineItemOutboundDto();
                 lineItemOutboundDto.setTransaction(transactionItemDto.getTransaction());
@@ -42,8 +45,34 @@ public class LineItemService {
                 lineItemOutboundDto.setUnitPrice(transactionItemDto.getUnitPrice());
                 lineItemOutboundDto.setQuantity(transactionItemDto.getQuantity());
                 lineItemOutboundDto.setUom(fieldOptionService.getFieldOption(Field.UOM, transactionItemDto.getBaseUnitOfMeasure()));
-                if(lineItemOutboundDto.getUnitPrice() != null){
+//                if(lineItemOutboundDto.getUnitPrice() != null){
+//                    lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
+//                    lineItemOutboundDto.setTotalIncVat(lineItemOutboundDto.getUnitPrice().multiply(BigDecimal.valueOf(0.15).plus()));
+//                    lineItemOutboundDto.setVATAmount((lineItemOutboundDto.getUnitPrice().multiply(BigDecimal.valueOf(0.15))));
+//                }
+                if (lineItemOutboundDto.getUnitPrice() != null && lineItemOutboundDto.getQuantity() != null) {
+                    BigDecimal totalExcVat = lineItemOutboundDto.getUnitPrice().multiply(lineItemOutboundDto.getQuantity());
+                    lineItemOutboundDto.setTotalExcVat(totalExcVat);
+
                     lineItemOutboundDto.setLineTotal(lineItemOutboundDto.getQuantity().multiply(lineItemOutboundDto.getUnitPrice()));
+
+                    BigDecimal vatAmount = totalExcVat.multiply(vatPercentage);
+                    lineItemOutboundDto.setVATAmount(vatAmount);
+
+                    BigDecimal totalIncVat = totalExcVat.add(vatAmount);
+                    lineItemOutboundDto.setTotalIncVat(totalIncVat);
+
+                    BigDecimal discountAmount = new BigDecimal("0");
+                    lineItemOutboundDto.setDiscountAmount(discountAmount);
+
+                    BigDecimal discountPercentage = new BigDecimal("0");
+
+                    if (totalExcVat.compareTo(BigDecimal.ZERO) != 0) {
+                        discountPercentage = discountAmount.divide(totalExcVat, 2, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+                    }
+                    lineItemOutboundDto.setDiscountPercentage(discountPercentage);
+
+                    lineItemOutboundDto.setVATPercentage(vatPercentage.multiply(new BigDecimal("100")));
                 }
                 lineItemOutboundDtoList.add(lineItemOutboundDto);
             }

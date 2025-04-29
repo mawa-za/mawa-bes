@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.claim;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import za.co.mawa.bes.dto.AddressDto;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.comment.CommentDto;
@@ -13,6 +14,7 @@ import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountOutboundDto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -42,5 +44,7 @@ public class ClaimOutboundDto implements Serializable {
     private BankAccountDto bankDetails;
     private TransactionAmountOutboundDto paidOutAmount;
     private List<CommentDto> comments  = new ArrayList<>();
+    private AddressDto customerAddress;
+    private String amount;
 
 }
