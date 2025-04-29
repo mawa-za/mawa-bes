@@ -715,7 +715,6 @@ public class ClaimService {
                         bankAccount.setObjectId(claimOutboundDto.getId());
                     }
                 }catch(Exception e){
-
                 }
 
                 String accountHolderId = null;
