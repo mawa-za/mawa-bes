@@ -719,7 +719,6 @@ public class ClaimService {
                 }
 
                 String accountHolderId = null;
-                String fullName = null;
                 try{
                     List <PartnerEntity> accountHolder = partnerRepository.findByFullName(bankAccount.getAccountHolder());
                     if(accountHolder != null){
@@ -727,11 +726,9 @@ public class ClaimService {
                         List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findByPartner(partner.getId());
                         PartnerIdentityEntity partnerIdentity = identityEntities.get(0);
                         accountHolderId = partnerIdentity.getPartnerIdentityPK().getValue();
-                        fullName = bankAccount.getAccountHolder().toUpperCase();
                     }
 
                 }catch (Exception e){
-
 
                 }
 
