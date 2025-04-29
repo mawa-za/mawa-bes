@@ -32,6 +32,8 @@ public class TransactionItemEntity implements Serializable {
     private Date validTo;
     @Column(name = "unit_of_measure")
     private String unitOfMeasure;
+    @Column(name = "status")
+    private String status;
 //    @Column(name = "quantity_remaining")
 //    private BigDecimal quantityRemaining;
 
@@ -45,5 +47,6 @@ public class TransactionItemEntity implements Serializable {
         this.unitPrice = transactionItemDto.getUnitPrice();
         this.validFrom = transactionItemDto.getValidFrom();
         this.validTo = transactionItemDto.getValidTo();
+        this.status = transactionItemDto.getStatus();
     }
 }
