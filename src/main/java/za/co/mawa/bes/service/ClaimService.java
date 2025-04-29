@@ -704,14 +704,16 @@ public class ClaimService {
                 BankAccountCreateDto bankAccount = null;
 
                 try{
-                    BankAccountDto bankAccountDto = bankAccountService.getList(claimOutboundDto.getId()).iterator().next();
-                    bankAccount = new BankAccountCreateDto();
-                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                    bankAccount.setObjectId(claimOutboundDto.getId());
+                    List<BankAccountDto> bankAccountDto = bankAccountService.getList(claimOutboundDto.getId());
+                    for(BankAccountDto accountDto: bankAccountDto){
+                        bankAccount = new BankAccountCreateDto();
+                        bankAccount.setAccountHolder(accountDto.getAccountHolder());
+                        bankAccount.setAccountType(accountDto.getAccountType().getCode());
+                        bankAccount.setBankName(accountDto.getBankName().getCode());
+                        bankAccount.setAccountNumber(accountDto.getAccountNumber());
+                        bankAccount.setBranchCode(accountDto.getBranchCode());
+                        bankAccount.setObjectId(claimOutboundDto.getId());
+                    }
                 }catch(Exception e){
 
                 }
@@ -721,9 +723,9 @@ public class ClaimService {
                 try{
                     List <PartnerEntity> accountHolder = partnerRepository.findByFullName(bankAccount.getAccountHolder());
                     if(accountHolder != null){
-                        PartnerEntity partner = accountHolder.getFirst();
+                        PartnerEntity partner = accountHolder.get(0);
                         List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findByPartner(partner.getId());
-                        PartnerIdentityEntity partnerIdentity = identityEntities.getFirst();
+                        PartnerIdentityEntity partnerIdentity = identityEntities.get(0);
                         accountHolderId = partnerIdentity.getPartnerIdentityPK().getValue();
                         fullName = bankAccount.getAccountHolder().toUpperCase();
                     }
@@ -748,7 +750,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"BANK NAME", bankAccount != null && bankAccount.getBankName() != null? bankAccount.getBankName() : ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", fullName != null ? fullName : ""}, marginY);
+                drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", bankAccount != null ? bankAccount.getAccountHolder() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ACCOUNT HOLDER ID NUMBER", accountHolderId != null ? accountHolderId : ""}, marginY);
                 marginY -= tableRowHeight;
