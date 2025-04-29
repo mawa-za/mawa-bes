@@ -674,7 +674,7 @@ public class ClaimService {
                 if (deceased != null) {
                     addCenteredSectionTitle.accept("SECTION C: DECEASED INFORMATION", marginY);
                     marginY -= lineHeight;
-                    drawTableRow.accept(new String[]{"SURNAME", deceased.getName2() != null ? deceased.getName2() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"SURNAME", deceased.getName1() != null ? deceased.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"FULL NAMES", deceased.getName1() != null ? deceased.getName1() + " " + deceased.getName2() + " " + deceased.getName3() : ""}, marginY);
                     marginY -= tableRowHeight;
@@ -687,7 +687,7 @@ public class ClaimService {
                 if (claimant != null) {
                     addCenteredSectionTitle.accept("SECTION D: CLAIMANT INFORMATION (IF NOT POLICY HOLDER)", marginY);
                     marginY -= lineHeight;
-                    drawTableRow.accept(new String[]{"SURNAME", claimant.getName2() != null ? claimant.getName2() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"SURNAME", claimant.getName1() != null ? claimant.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"FULL NAMES", claimant.getName1() != null ? claimant.getName1() + " " + claimant.getName2() : ""}, marginY);
                     marginY -= tableRowHeight;
@@ -725,7 +725,7 @@ public class ClaimService {
                         List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findByPartner(partner.getId());
                         PartnerIdentityEntity partnerIdentity = identityEntities.getFirst();
                         accountHolderId = partnerIdentity.getPartnerIdentityPK().getValue();
-                        fullName = bankAccount.getAccountHolder();
+                        fullName = bankAccount.getAccountHolder().toUpperCase();
                     }
 
                 }catch (Exception e){
