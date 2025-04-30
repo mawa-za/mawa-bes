@@ -96,6 +96,7 @@ public class MembershipService implements MembershipDao {
                         .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                         .orElse(null);
 
+                assert latestItem != null;
                 if(latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
                     throw new RuntimeException("Cannot upgrade while within waiting period");
                 }
@@ -652,15 +653,6 @@ public class MembershipService implements MembershipDao {
             e.printStackTrace();
             return 0;
         }
-    }
-
-    private int getWaitingUpgradePeriod(String productId) {
-        List<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
-        return productAttributes.stream()
-                .filter(attr -> attr.getAttribute().getCode().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD))
-                .findFirst()
-                .map(attr -> Integer.parseInt(attr.getValue()))
-                .orElse(0);
     }
 
     private void addEffectiveDate(TransactionDto transactionDto, MembershipCreateDto membershipCreateDto) throws TransactionDateAddException {

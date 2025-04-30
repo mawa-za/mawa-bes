@@ -865,19 +865,15 @@ public class TransactionService implements TransactionDao {
             // Set validTo based on status
             if(transactionItemDto.getStatus() != null) {
                 // If status is set, use a 90-day validity period
-                transactionItemEntity.setValidTo(addDaysToDate(new Date(), 90));
+                transactionItemEntity.setValidTo(new Date());
             } else {
-                // Otherwise use the default end date
                 transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             }
 
-            // Set the status
             transactionItemEntity.setStatus(transactionItemDto.getStatus());
 
-            // Save the entity
             transactionItemRepository.save(transactionItemEntity);
 
-            // Update the DTO with the generated item ID for reference
             transactionItemDto.setItem(itemUUID);
         } catch (Exception exception) {
             throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
