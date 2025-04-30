@@ -121,7 +121,7 @@ public class MembershipService implements MembershipDao {
                     throw new RuntimeException("No active item found for current membership");
                 }
 
-                // Can't upgrade if in waiting period
+                // Can't upgrade if in awaiting approval
                 log.info(latestItem.getStatus());
                 if (latestItem.getStatus() != null &&
                         latestItem.getStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)) {
@@ -144,10 +144,10 @@ public class MembershipService implements MembershipDao {
 
 
             } catch (Exception e) {
-                // Proper error handling
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
             }
         }
+
         TransactionDto transactionDto = new TransactionDto();
         if(!membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
             transactionDto = transactionService.create(transactionCreateDto);
@@ -156,7 +156,6 @@ public class MembershipService implements MembershipDao {
             transactionDto.setId(membershipCreateDto.getCurrentMembershipId());
         }
         addEffectiveDate(transactionDto, membershipCreateDto);
-
 
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
@@ -175,9 +174,6 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionDto.setStatus(transactionCreateDto.getStatus());
-        if(membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
-            transactionItemDto.setStatus(Status.WAITING_PERIOD);
-        }
         transactionService.addItem(transactionItemDto);
 
         try {
