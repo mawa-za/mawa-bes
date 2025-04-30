@@ -627,10 +627,8 @@ public class MembershipService implements MembershipDao {
         try {
             List<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
 
-            // Debug logging to check what attributes are returned
             System.out.println("Product attributes size: " + productAttributes.size());
 
-            // Safely filter and process attributes with null checks
             return productAttributes.stream()
                     .filter(attr -> attr != null && attr.getAttribute() != null)
                     .filter(attr -> {
@@ -652,7 +650,7 @@ public class MembershipService implements MembershipDao {
         } catch (Exception e) {
             System.out.println("Error retrieving waiting period: " + e.getMessage());
             e.printStackTrace();
-            return 0; // Default to 0 in case of errors
+            return 0;
         }
     }
 
