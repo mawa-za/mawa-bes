@@ -33,6 +33,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.repository.TransactionItemRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -62,6 +63,8 @@ public class MembershipService implements MembershipDao {
     InvoiceService invoiceService;
     @Autowired
     UserService userService;
+    @Autowired
+    TransactionItemRepository transactionItemRepository;
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
         if (partnerService.get(membershipCreateDto.getMemberId()) == null) {
@@ -143,7 +146,7 @@ public class MembershipService implements MembershipDao {
 
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
-        transactionItemDto.setTransaction(transactionDto.getId());
+        transactionItemDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
         transactionItemDto.setProduct(productDto.getId());
         try {
             ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
@@ -264,51 +267,13 @@ public class MembershipService implements MembershipDao {
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
 
             try {
-
-            } catch (Exception e) {
-
-            }
-//            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
-//            membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
-//
-//            TransactionViewDto transactionViewDto = new TransactionViewDto();
-//            transactionViewDto.setType(TransactionType.MEMBERSHIP);
-//            List<MembershipDto> previousMemberships = new ArrayList<>();
-
-//            for (TransactionLinkDto link : transactionLinkDtos) {
-//                try {
-//                    if (link.getType().equalsIgnoreCase("UPGRADE")) {
-//                        previousMemberships.add(get(link.getTransaction2()));
-//                    }
-//
-//                } catch (Exception e) {
-//                }
-//            }
-//            membershipDto.setMembershipHistory(previousMemberships);
-
-            List<TransactionItemDto> transactionItemDtoList = null;
-            try {
-                TransactionItemDto transactionItemDto = new TransactionItemDto();
-                transactionItemDtoList = new ArrayList<>();
                 List<TransactionItemDto> transactionItemDtos = transactionService.getItems(id);
-                for (TransactionItemDto itemDto : transactionItemDtos) {
-                    transactionItemDto.setItem(itemDto.getItem());
-                    transactionItemDto.setStatus(itemDto.getStatus());
-                    transactionItemDto.setTransaction(itemDto.getTransaction());
-                    transactionItemDto.setValidFrom(itemDto.getValidFrom());
-                    transactionItemDto.setValidTo(itemDto.getValidTo());
-                    transactionItemDto.setProduct(itemDto.getProduct());
-                    transactionItemDto.setUnitPrice(itemDto.getUnitPrice());
-                    transactionItemDto.setBaseUnitOfMeasure(itemDto.getBaseUnitOfMeasure());
-                    transactionItemDto.setQuantity(itemDto.getQuantity());
+                List<TransactionItemDto> transactionItemDtoList = new ArrayList<>(transactionItemDtos);
 
-                    transactionItemDtoList.add(transactionItemDto);
-
-                }
+                membershipDto.setItems(transactionItemDtoList);
             } catch (Exception e) {
 
             }
-            membershipDto.setItems(transactionItemDtoList);
 
             return membershipDto;
         } catch (TransactionNotFound e) {
