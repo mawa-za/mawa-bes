@@ -113,7 +113,7 @@ public class BankFileService {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(transactionDto.getId());
                 transactionLinkDto.setTransaction2(paymentRequestDto.getId());
-                transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
+                transactionLinkDto.setType(TransactionType.PAYMENT_BATCH_LINK);
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
 

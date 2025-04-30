@@ -26,6 +26,7 @@ public class PaymentRequestQueryDto implements Serializable {
     private String paymentMethod;
     private String employeeResponsibleId;
     private String branch;
+    private String batchNumber;
     private String status;
     private String transactionNumber;
     private Date dateCreated;

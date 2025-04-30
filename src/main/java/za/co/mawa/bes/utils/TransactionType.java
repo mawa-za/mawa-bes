@@ -28,6 +28,7 @@ public class TransactionType {
     public static  String LEGAL_REPRESENTATIVE_LINK = "LEGAL-REPRESENTATIVE-LINK";
 
     public static String PAYMENT_BATCH = "PAYMENT-BATCH";
+    public static String PAYMENT_BATCH_LINK = "PAYMENT-BATCH-LINK";
     public static String UPGRADE = "UPGRADE";
 
 }
