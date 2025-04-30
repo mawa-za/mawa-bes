@@ -127,7 +127,6 @@ public class MembershipService implements MembershipDao {
                         latestItem.getStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)) {
                     throw new RuntimeException("Cannot upgrade while waiting for approval");
                 }
-
                 // Inactivate the current item
                 TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
                 itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
@@ -141,7 +140,6 @@ public class MembershipService implements MembershipDao {
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
                 membershipEditDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
                 edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
-
 
             } catch (Exception e) {
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
@@ -173,6 +171,7 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setValidFrom(membershipCreateDto.getDateJoined());
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
+        transactionItemDto.setValidTo(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), transactionDto.getStatus())));
         transactionDto.setStatus(transactionCreateDto.getStatus());
         transactionService.addItem(transactionItemDto);
 
@@ -822,6 +821,7 @@ public class MembershipService implements MembershipDao {
                     else{
                         dateEffective.setValue(addDaysToDate(date, getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD")));
                     }
+
                 }
                 else {
                     if(waitingPeriod > 0){
@@ -831,6 +831,11 @@ public class MembershipService implements MembershipDao {
                         dateEffective.setValue(addDaysToDate(date, waitingPeriod));
                     }
                 }
+            }
+            if(dateEffective.getValue().before(date)){
+                MembershipEditDto editDto = new MembershipEditDto();
+                editDto.setStatus(Status.ACTIVE);
+                edit(transactionDto.getId(), editDto);
             }
         }
         transactionService.addDate(dateEffective);

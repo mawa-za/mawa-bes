@@ -892,6 +892,9 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setValidFrom(transactionItemDto.getValidFrom() != null ?
                     transactionItemDto.getValidFrom() : new Date());
 
+            transactionItemEntity.setValidTo(transactionItemDto.getValidTo() != null ?
+                    transactionItemDto.getValidTo() : Conversion.stringToDate(Constant.END_DATE));
+
             if(transactionItemDto.getStatus() != null &&
                     (transactionItemDto.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD) || transactionItemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD))) {
                 int waitingPeriod = 0;
@@ -905,14 +908,14 @@ public class TransactionService implements TransactionDao {
             } else {
                 transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             }
-
             transactionItemEntity.setStatus(transactionItemDto.getStatus());
-
-            transactionItemRepository.save(transactionItemEntity);
 
             transactionItemDto.setItem(itemUUID);
             transactionItemDto.setValidFrom(transactionItemEntity.getValidFrom());
             transactionItemDto.setValidTo(transactionItemEntity.getValidTo());
+
+            transactionItemRepository.save(transactionItemEntity);
+
         } catch (Exception exception) {
             throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
         }
