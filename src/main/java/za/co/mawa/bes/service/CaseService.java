@@ -55,6 +55,7 @@ public class CaseService {
     @Autowired
     TaskService taskService;
 
+
     public CaseDto create(CaseCreateDto caseCreateDto) throws PartnerNotFoundException, ProductNotFoundException,
             TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
 
@@ -66,7 +67,7 @@ public class CaseService {
         transactionCreateDto.setDescription(caseCreateDto.getDescription());
         TransactionDto transactionDto = transactionService.create(transactionCreateDto);
 
-       //CLASSIFICATION AS PRODUCT
+        //CLASSIFICATION AS PRODUCT
 //        if(caseCreateDto.getProduct() != null && !caseCreateDto.getProduct().isEmpty()) {
 //            ProductDto productDto = productService.get(caseCreateDto.getProduct());
 //            TransactionItemDto transactionItemDto = new TransactionItemDto();

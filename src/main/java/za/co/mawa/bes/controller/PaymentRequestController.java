@@ -42,8 +42,8 @@ public class PaymentRequestController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
         try {
-            PaymentRequestDto payment = new PaymentRequestDto();
-            String id = paymentRequestService.create(paymentRequest).getId();
+            PaymentRequestDto payment = paymentRequestService.create(paymentRequest);
+            String id = payment.getId();
             if (id != null) {
                 payment.setId(id);
             }

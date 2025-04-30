@@ -11,10 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.ClaimCancelDto;
-import za.co.mawa.bes.dto.ClaimDisputeDto;
-import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
 import za.co.mawa.bes.dto.comment.CommentDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
@@ -78,6 +75,11 @@ public class ClaimService {
     TransactionAmountRepository transactionAmountRepository;
     @Autowired
     PartnerRepository partnerRepository;
+    @Autowired
+    BankAccountService bankAccountService;
+    @Autowired
+
+    UserService userService;
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -372,6 +374,7 @@ public class ClaimService {
             throw new RuntimeException(e);
         }
     }
+
     public List<ClaimOutboundDto> search(ClaimQueryDto claimQueryDto) {
         List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
         try {
@@ -612,6 +615,14 @@ public class ClaimService {
                     }
                 };
 
+                String currentUser = userService.getCurrentUserPartnerId();
+                Optional<PartnerEntity> user = partnerRepository.findById(currentUser);
+
+                if (user.isPresent()) {
+                    PartnerEntity partner = user.get();
+                    currentUser = partner.getName1() + " " + partner.getName2();
+                }
+
                 // Section A: Claim Submission Details (Table)
                 addCenteredSectionTitle.accept("SECTION A: CLAIM SUBMISSION DETAILS", marginY);
                 marginY -= lineHeight;
@@ -623,7 +634,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"DATE OF CLAIM COLLECTION", ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"CLAIM ADMINISTRATOR", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
+                drawTableRow.accept(new String[]{"CLAIM ADMINISTRATOR", currentUser != null ? currentUser : ""}, marginY);
                 marginY -= tableRowHeight * 2;
 
                 // Section B: Policy Holder Information
@@ -669,9 +680,22 @@ public class ClaimService {
                 // Section E: Bank Details + Signature Field
                 addCenteredSectionTitle.accept("SECTION E: CASH PAYOUT INFORMATION", marginY);
                 marginY -= lineHeight;
-
                 BankAccountDto bankDetails = claimOutboundDto.getBankDetails();
-                if (bankDetails != null) {
+                BankAccountCreateDto bankAccount = null;
+
+                try{
+                    BankAccountDto bankAccountDto = bankAccountService.getList(claimOutboundDto.getId()).iterator().next();
+                    bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(claimOutboundDto.getId());
+                }catch(Exception e){
+
+                }
+                if (bankAccount != null) {
                     drawTableRow.accept(new String[]{
                             "CLAIM PAYOUT AMOUNT",
                             claimOutboundDto.getPaidOutAmount() != null && claimOutboundDto.getPaidOutAmount().getAmount() != null
@@ -685,15 +709,15 @@ public class ClaimService {
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"POINT OF COLLECTION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"BANK NAME", bankDetails.getBankName() != null ? bankDetails.getBankName().getCode() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"BANK NAME", bankAccount.getBankName() != null ? bankAccount.getBankName() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", bankDetails.getAccountHolder() != null ? bankDetails.getAccountHolder() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", bankAccount.getAccountHolder() != null ? bankAccount.getAccountHolder() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"ACCOUNT HOLDER ID NUMBER", bankDetails.getAccountHolder() != null ? bankDetails.getAccountHolder() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT NUMBER", bankDetails.getAccountNumber() != null ? bankDetails.getAccountNumber() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"ACCOUNT NUMBER", bankAccount.getAccountNumber() != null ? bankAccount.getAccountNumber() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankDetails.getAccountType() != null && bankDetails.getAccountType().getType() != null ? bankDetails.getAccountType().getType() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankAccount.getAccountType() != null ? bankAccount.getAccountType() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
                     marginY -= tableRowHeight;
