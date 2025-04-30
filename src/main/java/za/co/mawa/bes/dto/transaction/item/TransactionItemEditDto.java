@@ -23,5 +23,6 @@ public class TransactionItemEditDto implements Serializable {
     private Date validTo;
     private String product;
     private String previousProduct;
+    private String status;
 
 }

@@ -399,6 +399,7 @@ public class TransactionService implements TransactionDao {
                     transactionItemDto.setUnitPrice(item.getUnitPrice());
                     transactionItemDto.setQuantity(item.getQuantity());
                     transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+                    transactionItem.setStatus(item.getStatus());
                     addItem(transactionItemDto);
                     edited = true;
                 } catch (Exception e) {
@@ -816,20 +817,70 @@ public class TransactionService implements TransactionDao {
 
     }
 
+//    @Override
+//    public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
+//        try {
+//            TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
+//            String itemUUID = UUID.randomUUID().toString().replace("-", "");
+//            transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
+//            transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
+//            transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
+//            transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
+//            if(transactionItemDto.getStatus() != null){
+//                transactionItemDto.setValidTo(addDaysToDate(new Date(), 90));
+//            }
+//            transactionItemEntity.setValidFrom(new Date());
+//            transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+//            transactionItemEntity.setStatus(transactionItemDto.getStatus());
+//            transactionItemRepository.save(transactionItemEntity);
+//        } catch (Exception exception) {
+//            throw new TransactionItemAddException("Error adding item to transaction");
+//        }
+//    }
+
     @Override
     public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
         try {
-            TransactionItemEntity transactionItemEntity = new TransactionItemEntity(transactionItemDto);
+            // Generate a new UUID for the item
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
-            transactionItemEntity.getTransactionItemPKEntity().setItem(itemUUID);
+
+            // Create a new entity with the DTO data
+            TransactionItemEntity transactionItemEntity = new TransactionItemEntity();
+
+            // Initialize and set the primary key
+            TransactionItemPKEntity pk = new TransactionItemPKEntity();
+            pk.setTransaction(transactionItemDto.getTransaction());
+            pk.setItem(itemUUID); // Use the new UUID instead of any existing ID
+            transactionItemEntity.setTransactionItemPKEntity(pk);
+
+            // Set the product details
+            transactionItemEntity.setProduct(transactionItemDto.getProduct());
             transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
             transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
             transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
+
+            // Set the validity dates
             transactionItemEntity.setValidFrom(new Date());
-            transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+
+            // Set validTo based on status
+            if(transactionItemDto.getStatus() != null) {
+                // If status is set, use a 90-day validity period
+                transactionItemEntity.setValidTo(addDaysToDate(new Date(), 90));
+            } else {
+                // Otherwise use the default end date
+                transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+            }
+
+            // Set the status
+            transactionItemEntity.setStatus(transactionItemDto.getStatus());
+
+            // Save the entity
             transactionItemRepository.save(transactionItemEntity);
+
+            // Update the DTO with the generated item ID for reference
+            transactionItemDto.setItem(itemUUID);
         } catch (Exception exception) {
-            throw new TransactionItemAddException("Error adding item to transaction");
+            throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
         }
     }
 
@@ -915,6 +966,7 @@ public class TransactionService implements TransactionDao {
         String currentUser = userDetails.getUsername();
         return currentUser;
     }
+
     public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
         List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
         List<PremiumEntity> premiumEntities = new ArrayList<>();
@@ -952,6 +1004,13 @@ public class TransactionService implements TransactionDao {
             }
         }
         return premiumEntities;
+    }
+
+    private static Date addDaysToDate(Date date, int days) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DAY_OF_MONTH, days);
+        return calendar.getTime();
     }
 
 }

@@ -3,6 +3,8 @@ package za.co.mawa.bes.entity.transaction;
 import jakarta.persistence.*;
 import lombok.*;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
+import za.co.mawa.bes.utils.Constant;
+import za.co.mawa.bes.utils.Conversion;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -32,18 +34,21 @@ public class TransactionItemEntity implements Serializable {
     private Date validTo;
     @Column(name = "unit_of_measure")
     private String unitOfMeasure;
+    @Column(name = "status")
+    private String status;
 //    @Column(name = "quantity_remaining")
 //    private BigDecimal quantityRemaining;
 
     public TransactionItemEntity(TransactionItemDto transactionItemDto) {
         this.transactionItemPKEntity = new TransactionItemPKEntity();
         this.transactionItemPKEntity.setTransaction(transactionItemDto.getTransaction());
-        this.transactionItemPKEntity.setItem(transactionItemDto.getItem());
+        // Don't set item ID from the DTO - it should be generated
         this.product = transactionItemDto.getProduct();
         this.quantity = transactionItemDto.getQuantity();
         this.unitOfMeasure = transactionItemDto.getBaseUnitOfMeasure();
         this.unitPrice = transactionItemDto.getUnitPrice();
-        this.validFrom = transactionItemDto.getValidFrom();
-        this.validTo = transactionItemDto.getValidTo();
+        this.validFrom = transactionItemDto.getValidFrom() != null ? transactionItemDto.getValidFrom() : new Date();
+        this.validTo = transactionItemDto.getValidTo() != null ? transactionItemDto.getValidTo() : Conversion.stringToDate(Constant.END_DATE);
+        this.status = transactionItemDto.getStatus();
     }
 }

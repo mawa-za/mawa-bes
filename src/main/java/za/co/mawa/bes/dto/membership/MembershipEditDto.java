@@ -19,4 +19,5 @@ public class MembershipEditDto implements Serializable{
     private BigDecimal premium;
     private String productId;
     private String previousProduct;
+    private Date dateEffective;
 }
