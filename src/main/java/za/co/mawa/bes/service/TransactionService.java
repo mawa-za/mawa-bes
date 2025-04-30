@@ -841,30 +841,23 @@ public class TransactionService implements TransactionDao {
     @Override
     public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
         try {
-            // Generate a new UUID for the item
             String itemUUID = UUID.randomUUID().toString().replace("-", "");
 
-            // Create a new entity with the DTO data
             TransactionItemEntity transactionItemEntity = new TransactionItemEntity();
 
-            // Initialize and set the primary key
             TransactionItemPKEntity pk = new TransactionItemPKEntity();
             pk.setTransaction(transactionItemDto.getTransaction());
-            pk.setItem(itemUUID); // Use the new UUID instead of any existing ID
+            pk.setItem(itemUUID);
             transactionItemEntity.setTransactionItemPKEntity(pk);
 
-            // Set the product details
             transactionItemEntity.setProduct(transactionItemDto.getProduct());
             transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
             transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
             transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
 
-            // Set the validity dates
             transactionItemEntity.setValidFrom(new Date());
 
-            // Set validTo based on status
             if(transactionItemDto.getStatus() != null) {
-                // If status is set, use a 90-day validity period
                 transactionItemEntity.setValidTo(new Date());
             } else {
                 transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
