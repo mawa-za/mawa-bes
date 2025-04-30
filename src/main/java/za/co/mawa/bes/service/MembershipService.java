@@ -157,6 +157,7 @@ public class MembershipService implements MembershipDao {
         } catch (Exception exception) {
 
         }
+        transactionItemDto.setValidFrom(membershipCreateDto.getDateJoined());
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         if(membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
