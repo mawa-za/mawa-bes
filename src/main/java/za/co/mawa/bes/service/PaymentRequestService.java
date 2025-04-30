@@ -185,6 +185,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         return paymentRequestDto;
     }
 
+
     @Override
     public List<PaymentRequestDto> getAll(PaymentRequestQueryDto paymentRequestQueryDto) {
         TransactionQueryDto query = new TransactionQueryDto();
@@ -224,8 +225,9 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setStatus(entity.getTransactionStatus());
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
+                dto.setBatchNumber(entity.getBatchNumber());
+                //note
                 dto.setPaymentReason(entity.getCategory());
-                dto.setReference(entity.getReference());
                 paymentRequestQueryDtos.add(dto);
             }
         } catch (Exception e) {
