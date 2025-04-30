@@ -112,8 +112,8 @@ public class MembershipService implements MembershipDao {
                 // Can't upgrade if in waiting period
                 log.info(latestItem.getStatus());
                 if (latestItem.getStatus() != null &&
-                        latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)) {
-                    throw new RuntimeException("Cannot upgrade while within waiting period");
+                        latestItem.getStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)) {
+                    throw new RuntimeException("Cannot upgrade while waiting for approval");
                 }
 
                 // Inactivate the current item
@@ -146,7 +146,7 @@ public class MembershipService implements MembershipDao {
 
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
-        transactionItemDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+        transactionItemDto.setTransaction(transactionDto.getId());
         transactionItemDto.setProduct(productDto.getId());
         try {
             ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();

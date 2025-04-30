@@ -426,12 +426,10 @@ public class TransactionService implements TransactionDao {
     public boolean editItem(TransactionItemEditDto itemEditDto) throws Exception {
         boolean edited = false;
         try {
-            // Find the item to edit
             TransactionItemEntity itemEntity = transactionItemRepository.findById(
                     new TransactionItemPKEntity(itemEditDto.getTransaction(), itemEditDto.getItem())
             ).orElseThrow(() -> new Exception("Item not found"));
 
-            // Update fields that were provided
             if (itemEditDto.getProduct() != null) {
                 itemEntity.setProduct(itemEditDto.getProduct());
             }
@@ -932,14 +930,12 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
             transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
 
-            // Set validFrom from DTO or use current date as default
             transactionItemEntity.setValidFrom(transactionItemDto.getValidFrom() != null ?
                     transactionItemDto.getValidFrom() : new Date());
 
-            // Handle validTo correctly based on status
             if(transactionItemDto.getStatus() != null &&
                     transactionItemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)) {
-                // For waiting period, calculate end date based on waiting period duration
+
                 int waitingPeriod = getWaitingPeriod(transactionItemDto.getProduct(), Status.WAITING_PERIOD);
                 transactionItemEntity.setValidTo(addDaysToDate(transactionItemEntity.getValidFrom(), waitingPeriod));
             } else {
