@@ -32,5 +32,6 @@ public class TransactionItemDto implements Serializable {
         this.unitPrice = transactionItemEntity.getUnitPrice();
         this.validFrom = transactionItemEntity.getValidFrom();
         this.validTo = transactionItemEntity.getValidTo();
+        this.status = transactionItemEntity.getStatus();
     }
 }

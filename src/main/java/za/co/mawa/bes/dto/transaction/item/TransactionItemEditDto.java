@@ -24,5 +24,6 @@ public class TransactionItemEditDto implements Serializable {
     private String product;
     private String previousProduct;
     private String status;
+    private String item;
 
 }

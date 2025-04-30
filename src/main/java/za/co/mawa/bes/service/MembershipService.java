@@ -1,5 +1,7 @@
 package za.co.mawa.bes.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class MembershipService implements MembershipDao {
+    private static final Logger log = LoggerFactory.getLogger(MembershipService.class);
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -89,31 +92,44 @@ public class MembershipService implements MembershipDao {
         }
 
         if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")){
-            try{
+            try {
+                // Find the latest active item for the current membership
                 TransactionItemDto latestItem = transactionService
                         .getItems(membershipCreateDto.getCurrentMembershipId())
                         .stream()
+                        .filter(item -> item.getStatus() == null ||
+                                !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
                         .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                         .orElse(null);
 
-                assert latestItem != null;
-                if(latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                if (latestItem == null) {
+                    throw new RuntimeException("No active item found for current membership");
+                }
+
+                // Can't upgrade if in waiting period
+                log.info(latestItem.getStatus());
+                if (latestItem.getStatus() != null &&
+                        latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)) {
                     throw new RuntimeException("Cannot upgrade while within waiting period");
                 }
-                if (!Status.WAITING_PERIOD.equalsIgnoreCase(latestItem.getStatus())) {
-                    MembershipEditDto membershipEditDto = new MembershipEditDto();
-                    membershipEditDto.setStatus(Status.WAITING_PERIOD);
-                    edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
-                }
 
+                // Inactivate the current item
                 TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
                 itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+                itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
                 itemEditDto.setProduct(latestItem.getProduct());
                 itemEditDto.setStatus(Status.INACTIVE);
+                itemEditDto.setValidTo(new Date()); // End the item's validity period now
                 transactionService.editItem(itemEditDto);
 
-            }catch(Exception e){
+                // Update the membership status
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(Status.WAITING_PERIOD);
+                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
+            } catch (Exception e) {
+                // Proper error handling
+                throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
             }
         }
         TransactionDto transactionDto = new TransactionDto();
@@ -128,7 +144,6 @@ public class MembershipService implements MembershipDao {
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         TransactionItemDto transactionItemDto = new TransactionItemDto();
         transactionItemDto.setTransaction(transactionDto.getId());
-        transactionItemDto.setProduct(membershipCreateDto.getProductId());
         transactionItemDto.setProduct(productDto.getId());
         try {
             ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();

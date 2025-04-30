@@ -4,8 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
@@ -383,41 +385,81 @@ public class TransactionService implements TransactionDao {
 
     }
 
+//    @Override
+//    public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
+//        boolean edited = false;
+//        if (item.getPreviousProduct() != null && item.getPreviousProduct() != "") {
+//            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getPreviousProduct());
+//            if (transactionItem != null) {
+//                try {
+//                    transactionItem.setValidTo(new Date());
+//                    transactionItemRepository.save(transactionItem);
+//                    ProductDto productDto = productService.get(item.getProduct());
+//                    TransactionItemDto transactionItemDto = new TransactionItemDto();
+//                    transactionItemDto.setTransaction(item.getTransaction());
+//                    transactionItemDto.setProduct(productDto.getId());
+//                    transactionItemDto.setUnitPrice(item.getUnitPrice());
+//                    transactionItemDto.setQuantity(item.getQuantity());
+//                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
+//                    transactionItem.setStatus(item.getStatus());
+//                    addItem(transactionItemDto);
+//                    edited = true;
+//                } catch (Exception e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//
+//        } else {
+//            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getProduct());
+//            if (transactionItem != null) {
+//                transactionItem.setUnitPrice(item.getUnitPrice());
+//                transactionItemRepository.save(transactionItem);
+//                edited = true;
+//
+//            }
+//
+//        }
+//        return edited;
+//    }
+
     @Override
-    public boolean editItem(TransactionItemEditDto item) throws DoesNotExist, Exception {
+    public boolean editItem(TransactionItemEditDto itemEditDto) throws Exception {
         boolean edited = false;
-        if (item.getPreviousProduct() != null && item.getPreviousProduct() != "") {
-            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getPreviousProduct());
-            if (transactionItem != null) {
-                try {
-                    transactionItem.setValidTo(new Date());
-                    transactionItemRepository.save(transactionItem);
-                    ProductDto productDto = productService.get(item.getProduct());
-                    TransactionItemDto transactionItemDto = new TransactionItemDto();
-                    transactionItemDto.setTransaction(item.getTransaction());
-                    transactionItemDto.setProduct(productDto.getId());
-                    transactionItemDto.setUnitPrice(item.getUnitPrice());
-                    transactionItemDto.setQuantity(item.getQuantity());
-                    transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
-                    transactionItem.setStatus(item.getStatus());
-                    addItem(transactionItemDto);
-                    edited = true;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+        try {
+            // Find the item to edit
+            TransactionItemEntity itemEntity = transactionItemRepository.findById(
+                    new TransactionItemPKEntity(itemEditDto.getTransaction(), itemEditDto.getItem())
+            ).orElseThrow(() -> new Exception("Item not found"));
+
+            // Update fields that were provided
+            if (itemEditDto.getProduct() != null) {
+                itemEntity.setProduct(itemEditDto.getProduct());
             }
-
-        } else {
-            TransactionItemEntity transactionItem = transactionItemRepository.getTransactionItem(item.getTransaction(), item.getProduct());
-            if (transactionItem != null) {
-                transactionItem.setUnitPrice(item.getUnitPrice());
-                transactionItemRepository.save(transactionItem);
-                edited = true;
-
+            if (itemEditDto.getQuantity() != null) {
+                itemEntity.setQuantity(itemEditDto.getQuantity());
             }
+            if (itemEditDto.getUnitPrice() != null) {
+                itemEntity.setUnitPrice(itemEditDto.getUnitPrice());
+            }
+            if (itemEditDto.getBaseUnitOfMeasure() != null) {
+                itemEntity.setUnitOfMeasure(itemEditDto.getBaseUnitOfMeasure());
+            }
+            if (itemEditDto.getValidFrom() != null) {
+                itemEntity.setValidFrom(itemEditDto.getValidFrom());
+            }
+            if (itemEditDto.getValidTo() != null) {
+                itemEntity.setValidTo(itemEditDto.getValidTo());
+            }
+            if (itemEditDto.getStatus() != null) {
+                itemEntity.setStatus(itemEditDto.getStatus());
+            }
+            edited = true;
 
+            transactionItemRepository.save(itemEntity);
+            return  edited;
+        } catch (Exception e) {
+            throw new Exception("Error editing transaction item: " + e.getMessage());
         }
-        return edited;
     }
 
     @Override
@@ -838,6 +880,41 @@ public class TransactionService implements TransactionDao {
 //        }
 //    }
 
+//    @Override
+//    public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
+//        try {
+//            String itemUUID = UUID.randomUUID().toString().replace("-", "");
+//
+//            TransactionItemEntity transactionItemEntity = new TransactionItemEntity();
+//
+//            TransactionItemPKEntity pk = new TransactionItemPKEntity();
+//            pk.setTransaction(transactionItemDto.getTransaction());
+//            pk.setItem(itemUUID);
+//            transactionItemEntity.setTransactionItemPKEntity(pk);
+//
+//            transactionItemEntity.setProduct(transactionItemDto.getProduct());
+//            transactionItemEntity.setUnitPrice(transactionItemDto.getUnitPrice());
+//            transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
+//            transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
+//
+//            transactionItemEntity.setValidFrom(new Date());
+//
+//            if(transactionItemDto.getStatus() != null) {
+//                transactionItemEntity.setValidTo(new Date());
+//            } else {
+//                transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+//            }
+//
+//            transactionItemEntity.setStatus(transactionItemDto.getStatus());
+//
+//            transactionItemRepository.save(transactionItemEntity);
+//
+//            transactionItemDto.setItem(itemUUID);
+//        } catch (Exception exception) {
+//            throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
+//        }
+//    }
+
     @Override
     public void addItem(TransactionItemDto transactionItemDto) throws TransactionItemAddException {
         try {
@@ -855,10 +932,16 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setQuantity(transactionItemDto.getQuantity());
             transactionItemEntity.setUnitOfMeasure(transactionItemDto.getBaseUnitOfMeasure());
 
-            transactionItemEntity.setValidFrom(new Date());
+            // Set validFrom from DTO or use current date as default
+            transactionItemEntity.setValidFrom(transactionItemDto.getValidFrom() != null ?
+                    transactionItemDto.getValidFrom() : new Date());
 
-            if(transactionItemDto.getStatus() != null) {
-                transactionItemEntity.setValidTo(new Date());
+            // Handle validTo correctly based on status
+            if(transactionItemDto.getStatus() != null &&
+                    transactionItemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)) {
+                // For waiting period, calculate end date based on waiting period duration
+                int waitingPeriod = getWaitingPeriod(transactionItemDto.getProduct(), Status.WAITING_PERIOD);
+                transactionItemEntity.setValidTo(addDaysToDate(transactionItemEntity.getValidFrom(), waitingPeriod));
             } else {
                 transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             }
@@ -868,6 +951,8 @@ public class TransactionService implements TransactionDao {
             transactionItemRepository.save(transactionItemEntity);
 
             transactionItemDto.setItem(itemUUID);
+            transactionItemDto.setValidFrom(transactionItemEntity.getValidFrom());
+            transactionItemDto.setValidTo(transactionItemEntity.getValidTo());
         } catch (Exception exception) {
             throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
         }
@@ -1000,6 +1085,37 @@ public class TransactionService implements TransactionDao {
         calendar.setTime(date);
         calendar.add(Calendar.DAY_OF_MONTH, days);
         return calendar.getTime();
+    }
+
+    private int getWaitingPeriod(String productId ,String status) {
+        try {
+            List<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
+
+            System.out.println("Product attributes size: " + productAttributes.size());
+
+            return productAttributes.stream()
+                    .filter(attr -> attr != null && attr.getAttribute() != null)
+                    .filter(attr -> {
+                        FieldOptionDto attribute = attr.getAttribute();
+                        return attribute != null &&
+                                attribute.getCode() != null &&
+                                attribute.getCode().equalsIgnoreCase(status);
+                    })
+                    .findFirst()
+                    .map(attr -> {
+                        try {
+                            return Integer.parseInt(attr.getValue());
+                        } catch (NumberFormatException e) {
+                            System.out.println("Failed to parse waiting period value: " + attr.getValue());
+                            return 0;
+                        }
+                    })
+                    .orElse(0);
+        } catch (Exception e) {
+            System.out.println("Error retrieving waiting period: " + e.getMessage());
+            e.printStackTrace();
+            return 0;
+        }
     }
 
 }
