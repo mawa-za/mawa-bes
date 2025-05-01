@@ -35,10 +35,12 @@ import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionDateEntity;
 import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.*;
 import za.co.mawa.bes.repository.PremiumRepository;
+import za.co.mawa.bes.repository.TransactionDateRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -76,6 +78,8 @@ public class MembershipService implements MembershipDao {
     LineItemService lineItemService;
     @Autowired
     PremiumRepository premiumRepository;
+    @Autowired
+    TransactionDateRepository transactionDateRepository;
 
 
     public MembershipDto create(MembershipCreateDto membershipCreateDto) throws PartnerNotFoundException, ProductNotFoundException, TransactionItemAddException, TransactionDateAddException, TransactionPartnerAddException {
@@ -155,18 +159,14 @@ public class MembershipService implements MembershipDao {
         TransactionDto transactionDto = new TransactionDto();
         if(!membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
             transactionDto = transactionService.create(transactionCreateDto);
-            transactionItemDto.setValidTo(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), "WAITING-PERIOD")));
         }
         else{
             transactionDto.setId(membershipCreateDto.getCurrentMembershipId());
-            transactionItemDto.setValidTo(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD")));
         }
         try{
         }catch(Exception e){
 
         }
-
-
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         transactionItemDto.setTransaction(transactionDto.getId());
         transactionItemDto.setProduct(productDto.getId());
@@ -179,15 +179,16 @@ public class MembershipService implements MembershipDao {
         } catch (Exception exception) {
 
         }
-        transactionItemDto.setValidFrom(membershipCreateDto.getDateJoined());
+        try{
+            addEffectiveDate(transactionDto, membershipCreateDto);
+        } catch (Exception e){}
+        TransactionDateEntity entity = transactionDateRepository.getTransactionDatesType(transactionDto.getId(), DateType.EFFECTIVE);
+        transactionItemDto.setValidTo(entity.getValue());
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionItemDto.setValidFrom(new Date());
         transactionItemDto.setStatus(transactionCreateDto.getStatus());
         transactionService.addItem(transactionItemDto);
-        try{
-            addEffectiveDate(transactionDto, membershipCreateDto);
-        } catch (Exception e){}
 
         try {
             TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
