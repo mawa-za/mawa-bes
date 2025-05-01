@@ -892,27 +892,17 @@ public class TransactionService implements TransactionDao {
             transactionItemEntity.setValidFrom(transactionItemDto.getValidFrom() != null ?
                     transactionItemDto.getValidFrom() : new Date());
 
-            if(transactionItemDto.getStatus() != null &&
-                    (transactionItemDto.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD) || transactionItemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD))) {
-                int waitingPeriod = 0;
-                if(transactionItemDto.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
-                    waitingPeriod = getWaitingPeriod(transactionItemDto.getProduct(), Status.UPGRADE_WAITING_PERIOD);
-                }
-                else if(transactionItemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
-                    waitingPeriod = getWaitingPeriod(transactionItemDto.getProduct(), Status.WAITING_PERIOD);
-                }
-                transactionItemEntity.setValidTo(addDaysToDate(transactionItemEntity.getValidFrom(), waitingPeriod));
-            } else {
-                transactionItemEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            }
+            transactionItemEntity.setValidTo(transactionItemDto.getValidTo() != null ?
+                    transactionItemDto.getValidTo() : Conversion.stringToDate(Constant.END_DATE));
 
             transactionItemEntity.setStatus(transactionItemDto.getStatus());
-
-            transactionItemRepository.save(transactionItemEntity);
 
             transactionItemDto.setItem(itemUUID);
             transactionItemDto.setValidFrom(transactionItemEntity.getValidFrom());
             transactionItemDto.setValidTo(transactionItemEntity.getValidTo());
+
+            transactionItemRepository.save(transactionItemEntity);
+
         } catch (Exception exception) {
             throw new TransactionItemAddException("Error adding item to transaction: " + exception.getMessage());
         }
@@ -1040,41 +1030,4 @@ public class TransactionService implements TransactionDao {
         return premiumEntities;
     }
 
-    private static Date addDaysToDate(Date date, int days) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.add(Calendar.DAY_OF_MONTH, days);
-        return calendar.getTime();
-    }
-
-    private int getWaitingPeriod(String productId ,String status) {
-        try {
-            List<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
-
-            System.out.println("Product attributes size: " + productAttributes.size());
-
-            return productAttributes.stream()
-                    .filter(attr -> attr != null && attr.getAttribute() != null)
-                    .filter(attr -> {
-                        FieldOptionDto attribute = attr.getAttribute();
-                        return attribute != null &&
-                                attribute.getCode() != null &&
-                                attribute.getCode().equalsIgnoreCase(status);
-                    })
-                    .findFirst()
-                    .map(attr -> {
-                        try {
-                            return Integer.parseInt(attr.getValue());
-                        } catch (NumberFormatException e) {
-                            System.out.println("Failed to parse waiting period value: " + attr.getValue());
-                            return 0;
-                        }
-                    })
-                    .orElse(0);
-        } catch (Exception e) {
-            System.out.println("Error retrieving waiting period: " + e.getMessage());
-            e.printStackTrace();
-            return 0;
-        }
-    }
 }

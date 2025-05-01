@@ -41,6 +41,6 @@ public class MembershipDto {
     private List<MembershipDto> membershipHistory;
     private List<InvoiceOutboundDto> invoiceHistory;
     private List<TransactionViewEntity> invoices;
-    private List<TransactionItemDto> items;
+    private List<TransactionItemDto> products;
 }
 
