@@ -142,14 +142,19 @@ public class MembershipService implements MembershipDao {
                 itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
                 itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
                 itemEditDto.setProduct(latestItem.getProduct());
-                itemEditDto.setStatus(Status.INACTIVE);
+                if(latestItem.getStatus() != null && latestItem.getStatus().equalsIgnoreCase(Status.ACTIVE)){
+                    itemEditDto.setStatus(Status.ACTIVE);
+                }
+                else{
+                    itemEditDto.setStatus(Status.INACTIVE);
+                }
                 itemEditDto.setValidTo(new Date()); // End the item's validity period now
                 transactionService.editItem(itemEditDto);
 
-                // Update the membership status
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
-                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+            // Update the membership status
+            MembershipEditDto membershipEditDto = new MembershipEditDto();
+            membershipEditDto.setStatus(itemEditDto.getStatus());
+            edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
             } catch (Exception e) {
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
@@ -839,6 +844,8 @@ public class MembershipService implements MembershipDao {
             modifyProductStatus(membershipCreateDto, Status.ACTIVE);
         }
         transactionService.addDate(dateEffective);
+
+
     }
 
     private void modifyProductStatus(MembershipCreateDto membershipCreateDto, String status) throws Exception {
