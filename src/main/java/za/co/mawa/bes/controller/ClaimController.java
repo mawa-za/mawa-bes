@@ -64,6 +64,7 @@ public class ClaimController {
 
     @Autowired
     ProductService productService;
+
     Gson gson = new Gson();
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
