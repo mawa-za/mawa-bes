@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
 import za.co.mawa.bes.dto.AuthenticationDto;
+import za.co.mawa.bes.dto.JwtRequest;
 import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.JwtUserDetailsService;
@@ -49,6 +50,14 @@ public class AuthenticationController {
     public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationDto authenticationDto) throws Exception {
         authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
+        final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
+        return ResponseEntity.ok(new JwtResponse(token));
+    }
+
+    @RequestMapping(value = "/authenticate-app", method = RequestMethod.POST)
+    public ResponseEntity<?> createAppAuthenticationToken(@RequestBody JwtRequest jwtRequest) throws Exception {
+        authenticate(jwtRequest.getApplication(),jwtRequest.getPassword());
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(jwtRequest.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
         return ResponseEntity.ok(new JwtResponse(token));
     }
