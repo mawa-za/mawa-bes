@@ -19,5 +19,8 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     @Query("SELECT p FROM PartnerEntity p WHERE p.name3 = :name3")
     List<PartnerEntity> findPartnerByName3(String name3);
 
+    @Query("SELECT p FROM PartnerEntity p WHERE CONCAT(p.name1, ' ', p.name2) = :fullName")
+    List<PartnerEntity> findByFullName(String fullName);
+
     List<PartnerEntity> findAll(Specification<PartnerEntity> byCriteria, Sort sort);
 }
