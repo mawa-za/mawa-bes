@@ -191,7 +191,12 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionItemDto.setValidFrom(new Date());
-        transactionItemDto.setStatus(transactionCreateDto.getStatus());
+        if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD)).before(new Date())){
+            transactionItemDto.setStatus(Status.ACTIVE);
+        }
+        else {
+            transactionItemDto.setStatus(transactionCreateDto.getStatus());
+        }
         transactionService.addItem(transactionItemDto);
 
         try {
