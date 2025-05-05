@@ -397,10 +397,6 @@ public class MembershipService implements MembershipDao {
             if (membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != "") {
                 transactionEditDto.setStatusReason(membershipDto.getStatusReason());
             }
-            if (transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null) {
-                transactionEditDto.setId(id);
-                transactionService.edit(transactionEditDto);
-            }
             if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
                 partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
                 partnerEdit.setTransaction(id);
@@ -421,6 +417,8 @@ public class MembershipService implements MembershipDao {
                 editDto.setPreviousProduct(membershipDto.getPreviousProduct());
                 edited = transactionService.editItem(editDto);
             }
+            transactionEditDto.setId(id);
+            transactionService.edit(transactionEditDto);
             return edited;
         }
         catch (Exception e){
