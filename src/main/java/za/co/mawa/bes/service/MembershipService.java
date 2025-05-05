@@ -150,10 +150,10 @@ public class MembershipService implements MembershipDao {
                 itemEditDto.setValidTo(new Date()); // End the item's validity period now
                 transactionService.editItem(itemEditDto);
 
-                // Update the membership status
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
-                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+            // Update the membership status
+            MembershipEditDto membershipEditDto = new MembershipEditDto();
+            membershipEditDto.setStatus(itemEditDto.getStatus());
+            edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
             } catch (Exception e) {
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
