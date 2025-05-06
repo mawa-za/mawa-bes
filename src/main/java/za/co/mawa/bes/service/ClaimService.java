@@ -619,7 +619,7 @@ public class ClaimService {
 
                     if (user.isPresent()) {
                         PartnerEntity partner = user.get();
-                        currentUser = partner.getName1() + " " + partner.getName2();
+                        currentUser = partner.getTitle() + " " + partner.getName1() + " " + partner.getName2();
                     }
                 }catch(Exception e){
 
