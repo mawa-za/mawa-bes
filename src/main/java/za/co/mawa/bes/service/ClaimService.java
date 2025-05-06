@@ -618,7 +618,7 @@ public class ClaimService {
 
                     if (user.isPresent()) {
                         PartnerEntity partner = user.get();
-                        currentUser = partner.getName1() + " " + partner.getName2();
+                        currentUser = partner.getTitle() + " " + partner.getName1() + " " + partner.getName2();
                     }
                 }catch(Exception e){
 
@@ -661,8 +661,26 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"SURNAME", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"FULL NAMES", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() + " " + claimOutboundDto.getCustomer().getName2() : ""}, marginY);
-                marginY -= tableRowHeight;
+
+                if (claimOutboundDto.getCustomer() != null) {
+                    StringBuilder fullNameBuilder = new StringBuilder();
+
+                    if (claimOutboundDto.getCustomer().getTitle() != null)
+                        fullNameBuilder.append(claimOutboundDto.getCustomer().getTitle().getCode()).append(" ");
+                    if (claimOutboundDto.getCustomer().getName1() != null)
+                        fullNameBuilder.append(claimOutboundDto.getCustomer().getName1()).append(" ");
+                    if (claimOutboundDto.getCustomer().getName2() != null)
+                        fullNameBuilder.append(claimOutboundDto.getCustomer().getName2()).append(" ");
+                    if (claimOutboundDto.getCustomer().getName3() != null)
+                        fullNameBuilder.append(claimOutboundDto.getCustomer().getName3());
+
+                    String fullName = fullNameBuilder.toString().trim();
+
+                    if (!fullName.isEmpty()) {
+                        drawTableRow.accept(new String[]{"FULL NAMES", fullName}, marginY);
+                        marginY -= tableRowHeight;
+                    }
+                }
                 drawTableRow.accept(new String[]{"CONTACT NUMBER", ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ID NUMBER", claimOutboundDto.getCustomer() != null && claimOutboundDto.getCustomer().getIdentity() != null ? claimOutboundDto.getCustomer().getIdentity().getNumber() : ""}, marginY);
@@ -675,8 +693,27 @@ public class ClaimService {
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", deceased.getName1() != null ? deceased.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"FULL NAMES", deceased.getName1() != null ? deceased.getName1() + " " + deceased.getName2() + " " + deceased.getName3() : ""}, marginY);
-                    marginY -= tableRowHeight;
+
+                    if (deceased != null) {
+                        StringBuilder fullNameBuilder = new StringBuilder();
+
+                        if (deceased.getTitle() != null)
+                            fullNameBuilder.append(deceased.getTitle().getCode()).append(" ");
+                        if (deceased.getName1() != null)
+                            fullNameBuilder.append(deceased.getName1()).append(" ");
+                        if (deceased.getName2() != null)
+                            fullNameBuilder.append(deceased.getName2()).append(" ");
+                        if (deceased.getName3() != null)
+                            fullNameBuilder.append(deceased.getName3());
+
+                        String fullName = fullNameBuilder.toString().trim();
+
+                        if (!fullName.isEmpty()) {
+                            drawTableRow.accept(new String[]{"FULL NAMES", fullName}, marginY);
+                            marginY -= tableRowHeight;
+                        }
+                    }
+
                     drawTableRow.accept(new String[]{"ID NUMBER", deceased.getIdentity() != null ? deceased.getIdentity().getNumber() : ""}, marginY);
                     marginY -= tableRowHeight * 2;
                 }
@@ -688,8 +725,24 @@ public class ClaimService {
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", claimant.getName1() != null ? claimant.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"FULL NAMES", claimant.getName1() != null ? claimant.getName1() + " " + claimant.getName2() : ""}, marginY);
-                    marginY -= tableRowHeight;
+
+                    StringBuilder fullNameBuilder = new StringBuilder();
+
+                    if (claimant.getTitle() != null)
+                        fullNameBuilder.append(claimant.getTitle().getCode()).append(" ");
+                    if (claimant.getName1() != null)
+                        fullNameBuilder.append(claimant.getName1()).append(" ");
+                    if (claimant.getName2() != null)
+                        fullNameBuilder.append(claimant.getName2()).append(" ");
+                    if (claimant.getName3() != null)
+                        fullNameBuilder.append(claimant.getName3());
+
+                    String fullName = fullNameBuilder.toString().trim();
+
+                    if (!fullName.isEmpty()) {
+                        drawTableRow.accept(new String[]{"FULL NAMES", fullName}, marginY);
+                        marginY -= tableRowHeight;
+                    }
                     drawTableRow.accept(new String[]{"ID NUMBER", claimant.getIdentity() != null ? claimant.getIdentity().getNumber() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"CONTACT NUMBER", ""}, marginY);
