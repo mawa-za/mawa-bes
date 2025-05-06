@@ -890,7 +890,7 @@ public class MembershipService implements MembershipDao {
 
             Date today = new Date();
 
-            // Promote waiting items whose validTo is before today to ACTIVE
+            // Promoting waiting items whose validTo is before today to ACTIVE
             for (TransactionItemDto item : items) {
                 String status = item.getStatus();
 
@@ -910,11 +910,11 @@ public class MembershipService implements MembershipDao {
                 }
             }
 
-            // Refresh list after promotion
+            // Refreshing list after promotion
             items = transactionService
                     .getItems(membershipCreateDto.getCurrentMembershipId());
 
-            // Keep only the most recent ACTIVE item, deactivate others
+            // Keeping only the most recent ACTIVE item, deactivate others
             List<TransactionItemDto> activeItems = items.stream()
                     .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
                     .collect(Collectors.toList());
@@ -925,7 +925,7 @@ public class MembershipService implements MembershipDao {
 
             for (TransactionItemDto item : activeItems) {
                 if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
-                    continue; // skip the latest, keep it active
+                    continue; // skipping the latest, keep it active
                 }
 
                 // Deactivate older active items
@@ -940,6 +940,7 @@ public class MembershipService implements MembershipDao {
             }
             try{
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
+
                 membershipEditDto.setStatus(latestItem.getStatus());
                 membershipEditDto.setProductId(latestItem.getProduct());
                 edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
