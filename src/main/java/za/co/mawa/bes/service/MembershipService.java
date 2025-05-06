@@ -355,11 +355,11 @@ public class MembershipService implements MembershipDao {
 
                 if(membershipQueryDto.getDateJoined() !=null){
 
-                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+                    String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
 
-                        match = match && dateJoined.equals(queryDateJoined);
+                    match = match && dateJoined.equals(queryDateJoined);
 
 
                 }
@@ -625,119 +625,13 @@ public class MembershipService implements MembershipDao {
         }
     }
 
-    public String validateMemberships() throws Exception {
-
-        TransactionViewDto transactionViewDto = new TransactionViewDto();
-        transactionViewDto.setType(TransactionType.MEMBERSHIP);
-        LocalDate latestPremiumDate = null;
-        try{
-            //fetching all memberships
-            List<TransactionViewEntity> entities = transactionService.searchV2(transactionViewDto);
-
-            //avoiding membership duplicates
-            Set<TransactionViewEntity> uniqueEntities = new HashSet<>(entities);
-            MembershipEditDto editDto = new MembershipEditDto();
-
-            for (TransactionViewEntity entity : uniqueEntities) {
-                if(entity.getTransactionStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL) || entity.getTransactionStatus().equalsIgnoreCase(Status.INACTIVE)){
-                    continue;
-                }
-                //fetching the waiting period of the membership product
-                int waitingPeriod = 0;
-                membershipDto = new MembershipDto();
-
-                //fetching membership premiums
-                List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipId(entity.getTransactionId());
-                //checking the number of existing premiums
-                long numPremiums = premiumEntities.size();
-                //checking the number of required premiums
-                int numRequiredPremiums = calculateRequiredPremiums(waitingPeriod);
-
-                //checking the number of existing premiums is >= number of required premiums
-                if(numPremiums >= numRequiredPremiums){
-                    if (entity.getDateEffective() != null) {
-                        LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
-                        LocalDate effectiveDate = effectiveDateTime.toLocalDate();
-                        LocalDate today = LocalDate.now();
-
-                        if(premiumEntities != null){
-                            for(PremiumEntity premiumEntity: premiumEntities){
-                                membershipDto = get(entity.getTransactionId());
-
-                                //setting the target date to premium creation date
-                                LocalDate targetDate = LocalDateTime.parse(
-                                        Conversion.dateTimeToString(premiumEntity.getCreationDate()),
-                                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                                ).toLocalDate();
-
-                                //setting the start date to membership date joined
-                                LocalDate startDate = LocalDateTime.parse(
-                                        Conversion.dateTimeToString(membershipDto.getDateJoined()),
-                                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                                ).toLocalDate();
-
-                                //if the there's a waiting period then execute
-                                if(waitingPeriod > 0){
-                                    //checking the premium creation date if it falls within the range
-                                    // between the date joined(start date) and end date(effective date)
-                                    boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
-
-                                    //if it falls within, then continue to wait
-                                    //If the premium are inside the range do not change the status
-                                    //The logic for activating should be the opposite of this
-                                    //check the number of premiums required for a particular waiting period, eg 90 days needs 3 ,60 needs 2 ,and 30 is 1
-                                    //activate when the last premium is outside the range
-                                    if(isWithinRange){
-                                        editDto.setStatus(Status.WAITING_PERIOD);
-                                    }
-                                    //if not, then set it to active
-                                    else{
-                                        if(targetDate.isAfter(effectiveDate)){
-                                            Optional<PremiumEntity> latestPremium = premiumEntities.stream()
-                                                    .max(Comparator.comparing(PremiumEntity::getCreationDate));
-
-                                            if(latestPremium.isPresent()){
-                                                PremiumEntity latest = latestPremium.get();
-
-                                                latestPremiumDate = LocalDateTime.parse(
-                                                        Conversion.dateTimeToString(latest.getCreationDate()),
-                                                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                                                ).toLocalDate();
-
-                                                if(!isDateWithinRange(latestPremiumDate, startDate, effectiveDate)){
-                                                    editDto.setStatus(Status.ACTIVE);
-                                                    Boolean edited = deactivatePreviousMembership();
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                //if there's no waiting period, then set to active
-                                if(today.isAfter(effectiveDate)){
-                                    editDto.setStatus(Status.ACTIVE);
-                                    Boolean edited = deactivatePreviousMembership();
-                                }
-                                //modifying membership status
-                                edit(entity.getTransactionId(), editDto);
-                            }
-
-                        }
-                    }
-                }
-            }
-            return "Validated";
-
-        }catch(Exception e){
-            throw  new Exception(e.getMessage());
-        }
-    }
-
     private static Date addDaysToDate(Date date, int days) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         calendar.add(Calendar.DAY_OF_MONTH, days);
         return calendar.getTime();
     }
+
 
     private static boolean isDateWithinRange(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null || targetDate == null) {
@@ -771,6 +665,7 @@ public class MembershipService implements MembershipDao {
             if (previousMembership == null || previousMembership.getStatus() == null) {
                 return false;  // Invalid membership or status
             }
+
             // fetching status of the previous membership
             String statusCode = previousMembership.getStatus().getCode();
 
@@ -815,6 +710,7 @@ public class MembershipService implements MembershipDao {
         }
     }
 
+
     private void addEffectiveDate(TransactionDto transactionDto, MembershipCreateDto membershipCreateDto) throws Exception {
         int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "WAITING-PERIOD");
 
@@ -827,11 +723,12 @@ public class MembershipService implements MembershipDao {
         Date effectiveDate = null;
 
         if (membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")) {
-            effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined() != null ? membershipCreateDto.getDateJoined() : today, waitingPeriod);
+            effectiveDate = addDaysToDate(new Date(), waitingPeriod);
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             int upgradeWaitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD");
-            effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined() != null ? membershipCreateDto.getDateJoined() : today, upgradeWaitingPeriod);
+            effectiveDate = addDaysToDate(new Date(), upgradeWaitingPeriod);
+
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("TRANSFER")) {
             effectiveDate = today;
@@ -875,3 +772,4 @@ public class MembershipService implements MembershipDao {
 
     }
 }
+
