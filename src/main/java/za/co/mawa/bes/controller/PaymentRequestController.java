@@ -17,7 +17,6 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
-import za.co.mawa.bes.service.BankFileXmlService;
 import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
@@ -26,6 +25,7 @@ import za.co.mawa.bes.utils.TransactionAction;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -36,18 +36,16 @@ public class PaymentRequestController {
     PaymentRequestService paymentRequestService;
     @Autowired
     TransactionService transactionService;
-    @Autowired
-    BankFileXmlService bankFileXmlService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
         try {
-            PaymentRequestDto payment = new PaymentRequestDto();
-            String id = paymentRequestService.create(paymentRequest).getId();
-            if (id != null) {
-                payment.setId(id);
-            }
-            return ResponseEntity.ok().body(gson.toJson(payment));
+//            PaymentRequestDto payment = new PaymentRequestDto();
+//            String id = paymentRequestService.create(paymentRequest);
+//            if (id != null) {
+//                payment.setId(id);
+//            }
+            return ResponseEntity.ok().body(gson.toJson(paymentRequestService.create(paymentRequest)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
@@ -104,6 +102,7 @@ public class PaymentRequestController {
         try {
             TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
             transactionProcessDto.setId(id);
+            transactionProcessDto.setStatus(TransactionAction.APPROVE);
             transactionProcessDto.setStatus(Status.APPROVED);
             if (statusReason != null && statusReason != "") {
                 transactionProcessDto.setReason(statusReason);
@@ -161,8 +160,8 @@ public class PaymentRequestController {
     }
     @RequestMapping(value = "{id}/complete", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> complete(@PathVariable String id,
-                                    @RequestParam(required = false) String statusReason,
-                                    @RequestParam(required = false) String description) {
+                                      @RequestParam(required = false) String statusReason,
+                                      @RequestParam(required = false) String description) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
@@ -177,16 +176,6 @@ public class PaymentRequestController {
             return ResponseEntity.ok(gson.toJson(transactionService.get(transactionEditDto.getId())));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }
-
-    @RequestMapping(value = "{id}/bank-file", method = RequestMethod.GET, produces = MediaType.APPLICATION_XML_VALUE)
-    public ResponseEntity<?> generateBankFile(@PathVariable String id) {
-        try {
-           String base64String =  bankFileXmlService.createBankFile(id);
-            return ResponseEntity.ok(base64String);
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 }

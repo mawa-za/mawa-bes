@@ -632,6 +632,7 @@ public class MembershipService implements MembershipDao {
         return calendar.getTime();
     }
 
+
     private static boolean isDateWithinRange(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null || targetDate == null) {
             return false;
@@ -664,6 +665,7 @@ public class MembershipService implements MembershipDao {
             if (previousMembership == null || previousMembership.getStatus() == null) {
                 return false;  // Invalid membership or status
             }
+
             // fetching status of the previous membership
             String statusCode = previousMembership.getStatus().getCode();
 
@@ -708,6 +710,7 @@ public class MembershipService implements MembershipDao {
         }
     }
 
+
     private void addEffectiveDate(TransactionDto transactionDto, MembershipCreateDto membershipCreateDto) throws Exception {
         int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "WAITING-PERIOD");
 
@@ -725,6 +728,7 @@ public class MembershipService implements MembershipDao {
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             int upgradeWaitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD");
             effectiveDate = addDaysToDate(new Date(), upgradeWaitingPeriod);
+
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("TRANSFER")) {
             effectiveDate = today;
@@ -768,3 +772,4 @@ public class MembershipService implements MembershipDao {
 
     }
 }
+

@@ -43,3 +43,4 @@ public class MembershipDto {
     private List<TransactionViewEntity> invoices;
     private List<TransactionItemDto> products;
 }
+
