@@ -208,7 +208,11 @@ public class MembershipService implements MembershipDao {
         } catch (Exception exception) {
 
         }
-        validateProductStatuses(membershipCreateDto);
+        try{
+            enforceProductStatusRules(membershipCreateDto);
+        }catch(Exception e){
+
+        }
         if(!membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
             if (membershipCreateDto.getDateJoined() != null) {
                 TransactionDateDto dateJoined = new TransactionDateDto();
@@ -872,47 +876,66 @@ public class MembershipService implements MembershipDao {
         }
     }
 
-    private void validateProductStatuses(MembershipCreateDto membershipCreateDto){
+    private void enforceProductStatusRules(MembershipCreateDto membershipCreateDto) throws Exception {
         try {
-            List<TransactionItemDto> activeItems = transactionService
-                    .getItems(membershipCreateDto.getCurrentMembershipId())
-                    .stream()
-                    .filter(item -> item.getStatus() == null ||
-                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
+            List<TransactionItemDto> items = transactionService
+                    .getItems(membershipCreateDto.getCurrentMembershipId());
+
+            Date today = new Date();
+
+            // Promote waiting items whose validTo is before today to ACTIVE
+            for (TransactionItemDto item : items) {
+                String status = item.getStatus();
+
+                if (Status.WAITING_PERIOD.equalsIgnoreCase(status) ||
+                        Status.UPGRADE_WAITING_PERIOD.equalsIgnoreCase(status)) {
+
+                    if (item.getValidTo() != null && item.getValidTo().before(today)) {
+                        TransactionItemEditDto promoteDto = new TransactionItemEditDto();
+                        promoteDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+                        promoteDto.setItem(item.getItem());
+                        promoteDto.setProduct(item.getProduct());
+                        promoteDto.setStatus(Status.ACTIVE);
+                        promoteDto.setValidTo(null); // no end yet, now it's active
+
+                        transactionService.editItem(promoteDto);
+                    }
+                }
+            }
+
+            // Refresh list after promotion
+            items = transactionService
+                    .getItems(membershipCreateDto.getCurrentMembershipId());
+
+            // Keep only the most recent ACTIVE item, deactivate others
+            List<TransactionItemDto> activeItems = items.stream()
+                    .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
                     .collect(Collectors.toList());
 
-            // Find the most recent (latest) active item
-            TransactionItemDto latestItem = activeItems.stream()
+            TransactionItemDto latestActive = activeItems.stream()
                     .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                     .orElse(null);
-            try{
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(latestItem.getStatus());
-                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
-            }catch(Exception e){
 
-            }
             for (TransactionItemDto item : activeItems) {
-                // Skip the latest item (leave it as is)
-                if (latestItem != null && item.getItem().equals(latestItem.getItem())) {
-                    continue;
+                if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
+                    continue; // skip the latest, keep it active
                 }
 
-                // Deactivate all other active items
-                TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
-                itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
-                itemEditDto.setItem(item.getItem());
-                itemEditDto.setProduct(item.getProduct());
-                itemEditDto.setStatus(Status.INACTIVE);
-                itemEditDto.setValidTo(new Date()); // End their validity
+                // Deactivate older active items
+                TransactionItemEditDto deactivateDto = new TransactionItemEditDto();
+                deactivateDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+                deactivateDto.setItem(item.getItem());
+                deactivateDto.setProduct(item.getProduct());
+                deactivateDto.setStatus(Status.INACTIVE);
+                deactivateDto.setValidTo(today); // set end of validity
 
-                transactionService.editItem(itemEditDto);
+                transactionService.editItem(deactivateDto);
             }
 
         } catch (Exception e) {
-            // Consider logging the error
-            System.err.println("Error modifying product status: " + e.getMessage());
+            System.err.println("Error enforcing product status rules: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
 }
