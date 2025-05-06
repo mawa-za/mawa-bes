@@ -827,11 +827,11 @@ public class MembershipService implements MembershipDao {
         Date effectiveDate = null;
 
         if (membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")) {
-            effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined() != null ? membershipCreateDto.getDateJoined() : today, waitingPeriod);
+            effectiveDate = addDaysToDate(new Date(), waitingPeriod);
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             int upgradeWaitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD");
-            effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined() != null ? membershipCreateDto.getDateJoined() : today, upgradeWaitingPeriod);
+            effectiveDate = addDaysToDate(new Date(), upgradeWaitingPeriod);
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("TRANSFER")) {
             effectiveDate = today;
