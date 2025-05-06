@@ -885,7 +885,13 @@ public class MembershipService implements MembershipDao {
             TransactionItemDto latestItem = activeItems.stream()
                     .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                     .orElse(null);
+            try{
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(latestItem.getStatus());
+                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+            }catch(Exception e){
 
+            }
             for (TransactionItemDto item : activeItems) {
                 // Skip the latest item (leave it as is)
                 if (latestItem != null && item.getItem().equals(latestItem.getItem())) {
