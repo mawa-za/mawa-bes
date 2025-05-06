@@ -842,44 +842,51 @@ public class MembershipService implements MembershipDao {
         }
         dateEffective.setValue(effectiveDate);
 
-        if(dateEffective.getValue().before(today)){
-            MembershipEditDto editDto = new MembershipEditDto();
-            editDto.setStatus(Status.ACTIVE);
-            edit(transactionDto.getId(), editDto);
-
-            modifyProductStatus(membershipCreateDto, Status.ACTIVE);
-        }
+//        if(dateEffective.getValue().before(today)){
+//            MembershipEditDto editDto = new MembershipEditDto();
+//            editDto.setStatus(Status.ACTIVE);
+//            edit(transactionDto.getId(), editDto);
+//
+//            modifyProductStatus(membershipCreateDto, Status.ACTIVE);
+//        }
         transactionService.addDate(dateEffective);
     }
 
-    private void modifyProductStatus(MembershipCreateDto membershipCreateDto, String status) throws Exception {
-        try{
-            TransactionItemDto latestItem = transactionService
-                    .getItems(membershipCreateDto.getCurrentMembershipId())
-                    .stream()
-                    .filter(item -> item.getStatus() == null ||
-                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
-                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-                    .orElse(null);
-
-            TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
-            itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
-            itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
-            itemEditDto.setProduct(latestItem.getProduct());
-            itemEditDto.setStatus(status);
-            itemEditDto.setValidTo(new Date()); // End the item's validity period now
-            transactionService.editItem(itemEditDto);
-
-        }
-        catch(Exception e){
-
-        }
-    }
+//    private void modifyProductStatus(MembershipCreateDto membershipCreateDto, String status) throws Exception {
+//        try{
+//            TransactionItemDto latestItem = transactionService
+//                    .getItems(membershipCreateDto.getCurrentMembershipId())
+//                    .stream()
+//                    .filter(item -> item.getStatus() == null ||
+//                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
+//                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+//                    .orElse(null);
+//
+//            TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
+//            itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+//            itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
+//            itemEditDto.setProduct(latestItem.getProduct());
+//            itemEditDto.setStatus(status);
+//            itemEditDto.setValidTo(new Date()); // End the item's validity period now
+//            transactionService.editItem(itemEditDto);
+//
+//        }
+//        catch(Exception e){
+//
+//        }
+//    }
 
     private void enforceProductStatusRules(MembershipCreateDto membershipCreateDto) throws Exception {
         try {
             List<TransactionItemDto> items = transactionService
                     .getItems(membershipCreateDto.getCurrentMembershipId());
+
+            TransactionItemDto latestItem = items
+                    .stream()
+                    .filter(item -> item.getStatus() == null ||
+                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
+                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .orElse(null);
 
             Date today = new Date();
 
@@ -930,6 +937,14 @@ public class MembershipService implements MembershipDao {
                 deactivateDto.setValidTo(today); // set end of validity
 
                 transactionService.editItem(deactivateDto);
+            }
+            try{
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(latestItem.getStatus());
+                membershipEditDto.setProductId(latestItem.getProduct());
+                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+            }catch(Exception e){
+
             }
 
         } catch (Exception e) {
