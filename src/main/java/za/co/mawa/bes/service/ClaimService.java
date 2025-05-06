@@ -662,7 +662,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"SURNAME", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"FULL NAMES", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getTitle() + " " +claimOutboundDto.getCustomer().getName1() + " " + claimOutboundDto.getCustomer().getName2() + " " + claimOutboundDto.getCustomer().getName3() : ""}, marginY);
+                drawTableRow.accept(new String[]{"FULL NAMES", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getTitle().getCode() + " " +claimOutboundDto.getCustomer().getName1() + " " + claimOutboundDto.getCustomer().getName2() + " " + claimOutboundDto.getCustomer().getName3() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"CONTACT NUMBER", ""}, marginY);
                 marginY -= tableRowHeight;
@@ -676,7 +676,7 @@ public class ClaimService {
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", deceased.getName1() != null ? deceased.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"FULL NAMES", deceased.getName1() != null ? deceased.getTitle()+ " "+deceased.getName1() + " " + deceased.getName2() + " " + deceased.getName3() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"FULL NAMES", deceased.getName1() != null ? deceased.getTitle().getCode()+ " "+deceased.getName1() + " " + deceased.getName2() + " " + deceased.getName3() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"ID NUMBER", deceased.getIdentity() != null ? deceased.getIdentity().getNumber() : ""}, marginY);
                     marginY -= tableRowHeight * 2;
@@ -689,7 +689,7 @@ public class ClaimService {
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", claimant.getName1() != null ? claimant.getName1() : ""}, marginY);
                     marginY -= tableRowHeight;
-                    drawTableRow.accept(new String[]{"FULL NAMES", claimant.getName1() != null ? claimant.getTitle()+ " "+ claimant.getName1() + " " + claimant.getName2() + " " + claimant.getName3() : ""}, marginY);
+                    drawTableRow.accept(new String[]{"FULL NAMES", claimant.getName1() != null ? claimant.getTitle().getCode()+ " "+ claimant.getName1() + " " + claimant.getName2() + " " + claimant.getName3() : ""}, marginY);
                     marginY -= tableRowHeight;
                     drawTableRow.accept(new String[]{"ID NUMBER", claimant.getIdentity() != null ? claimant.getIdentity().getNumber() : ""}, marginY);
                     marginY -= tableRowHeight;
