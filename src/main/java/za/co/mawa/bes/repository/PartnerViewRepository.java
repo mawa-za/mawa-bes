@@ -12,4 +12,10 @@ import java.util.List;
 public interface PartnerViewRepository extends JpaRepository<PartnerViewEntity, String> {
     @Query("SELECT p FROM PartnerViewEntity p ORDER BY p.partnerNo")
     List<PartnerViewEntity> findAllOrderedByPartnerNo();
+
+    @Query("SELECT p FROM PartnerViewEntity p WHERE p.identityNumber like :searchString OR " +
+            "p.name1 like :searchString OR " +
+            "p.name2 like :searchString OR " +
+            "p.name3 like :searchString ORDER BY p.partnerNo")
+    List<PartnerViewEntity> findByString(String searchString);
 }
