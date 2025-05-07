@@ -941,6 +941,7 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(deactivateDto);
             }
             try{
+                assert latestItem != null;
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
 
                 membershipEditDto.setStatus(latestItem.getStatus());
