@@ -41,6 +41,7 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "main_partner")
     private String mainPartner;
 
+
     @Column(name = "employee_responsible")
     private String employeeResponsible;
 
@@ -77,6 +78,9 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "reference")
     private String reference;
 
+    @Column(name = "batch_number")
+    private String batchNumber;
+
     @Column(name = "transaction_status")
     private String transactionStatus;
 
@@ -85,6 +89,7 @@ public class TransactionViewEntity implements Serializable {
 
     @Column(name="amount")
     private String amount;
+
     @Column(name = "amount_collected")
     private String amountCollected;
 
@@ -96,6 +101,8 @@ public class TransactionViewEntity implements Serializable {
 
     @Column(name = "productId")
     private String productId;
+
+
 
 }
 
