@@ -660,15 +660,16 @@ public class MembershipService implements MembershipDao {
                     if (entity.getDateEffective() != null) {
                         LocalDateTime effectiveDateTime = LocalDateTime.parse(entity.getDateEffective(), formatter);
                         LocalDate effectiveDate = effectiveDateTime.toLocalDate();
-                        LocalDate today = LocalDate.now();
 
                         for (PremiumEntity premiumEntity : premiumEntities) {
                             List<TransactionItemDto> transactionItemDtos = transactionService.getItems(entity.getTransactionId());
                             transactionItemDtos.sort(Comparator.comparing(TransactionItemDto::getValidTo).reversed());
-                            if(transactionItemDtos.get(0).getStatus() != null){
-                                if(transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.NEW)
-                                        || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
-                                        || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
+                            TransactionItemDto itemDto = transactionItemDtos.get(0);
+
+                            if(itemDto.getStatus() != null){
+                                if(itemDto.getStatus().equalsIgnoreCase(Status.NEW)
+                                        || itemDto.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
+                                        || itemDto.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
 
 
                                     TransactionItemDto transactionItemDto = transactionItemDtos.get(0);
@@ -691,6 +692,14 @@ public class MembershipService implements MembershipDao {
                                             editDto.setStatus(Status.ACTIVE);
                                             //modifying membership status
                                             edit(entity.getTransactionId(), editDto);
+
+                                            TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
+                                            itemEditDto.setStatus(Status.ACTIVE);
+                                            itemEditDto.setTransaction(itemDto.getTransaction());
+                                            itemEditDto.setProduct(itemDto.getProduct());
+
+                                            transactionService.editItem(itemEditDto);
+
                                         }
                                     }
                                 }
