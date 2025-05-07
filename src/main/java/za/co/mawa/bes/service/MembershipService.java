@@ -100,6 +100,7 @@ public class MembershipService implements MembershipDao {
         transactionCreateDto.setSubType(membershipCreateDto.getMembershipType());
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.AWAITING_APPROVAL);
+            transactionItemDto.setStatus(Status.AWAITING_APPROVAL);
             transactionCreateDto.setStatusReason(StatusReason.DOCUMENT_VERIFICATION);
         }
 
@@ -107,12 +108,16 @@ public class MembershipService implements MembershipDao {
             if(getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD ) > 0){
                 if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
                     transactionCreateDto.setStatus(Status.ACTIVE);
+                    transactionItemDto.setStatus(Status.ACTIVE);
                 }
-                else
+                else{
                     transactionCreateDto.setStatus(Status.WAITING_PERIOD);
+                    transactionItemDto.setStatus(Status.WAITING_PERIOD);
+                }
             }
             else {
                 transactionCreateDto.setStatus(Status.NEW);
+                transactionItemDto.setStatus(Status.NEW);
             }
         }
 
@@ -120,6 +125,10 @@ public class MembershipService implements MembershipDao {
             try {
                 if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD )).after(new Date())){
                     transactionCreateDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
+                    transactionItemDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
+                }
+                else{
+                    transactionItemDto.setStatus(Status.ACTIVE);
                 }
                 TransactionItemDto latestItem = transactionService
                         .getItems(membershipCreateDto.getCurrentMembershipId())
@@ -191,15 +200,6 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
         transactionItemDto.setValidFrom(new Date());
-        if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD)).before(new Date())){
-            transactionItemDto.setStatus(Status.ACTIVE);
-        }
-        else if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD)).before(new Date())){
-            transactionItemDto.setStatus(Status.ACTIVE);
-        }
-        else {
-            transactionItemDto.setStatus(transactionCreateDto.getStatus());
-        }
         transactionService.addItem(transactionItemDto);
 
         try {
