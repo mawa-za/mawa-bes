@@ -666,12 +666,12 @@ public class MembershipService implements MembershipDao {
                             List<TransactionItemDto> transactionItemDtos = transactionService.getItems(entity.getTransactionId());
                             transactionItemDtos.sort(Comparator.comparing(TransactionItemDto::getValidTo).reversed());
 
-                            if(transactionItemDtos.getFirst().getStatus().equalsIgnoreCase(Status.NEW)
-                                    || transactionItemDtos.getFirst().getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
-                                    || transactionItemDtos.getFirst().getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
+                            if(transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.NEW)
+                                    || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
+                                    || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
 
 
-                                    TransactionItemDto transactionItemDto = transactionItemDtos.getFirst();
+                                    TransactionItemDto transactionItemDto = transactionItemDtos.get(0);
                                     //setting the target date to premium creation date
                                     LocalDate targetDate = LocalDateTime.parse(
                                             Conversion.dateTimeToString(premiumEntity.getCreationDate()),
