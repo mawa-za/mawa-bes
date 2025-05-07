@@ -212,7 +212,7 @@ public class MembershipService implements MembershipDao {
 
         }
         try{
-            enforceProductStatusRules(membershipCreateDto);
+            enforceProductStatusRules(transactionDto);
         }catch(Exception e){
 
         }
@@ -878,10 +878,10 @@ public class MembershipService implements MembershipDao {
 //        }
 //    }
 
-    private void enforceProductStatusRules(MembershipCreateDto membershipCreateDto) throws Exception {
+    private void enforceProductStatusRules(TransactionDto transactionDto) throws Exception {
         try {
             List<TransactionItemDto> items = transactionService
-                    .getItems(membershipCreateDto.getCurrentMembershipId());
+                    .getItems(transactionDto.getId());
 
             TransactionItemDto latestItem = items
                     .stream()
@@ -901,7 +901,7 @@ public class MembershipService implements MembershipDao {
 
                     if (item.getValidTo() != null && item.getValidTo().before(today)) {
                         TransactionItemEditDto promoteDto = new TransactionItemEditDto();
-                        promoteDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+                        promoteDto.setTransaction(transactionDto.getId());
                         promoteDto.setItem(item.getItem());
                         promoteDto.setProduct(item.getProduct());
                         promoteDto.setStatus(Status.ACTIVE);
@@ -914,7 +914,7 @@ public class MembershipService implements MembershipDao {
 
             // Refreshing list after promotion
             items = transactionService
-                    .getItems(membershipCreateDto.getCurrentMembershipId());
+                    .getItems(transactionDto.getId());
 
             // Keeping only the most recent ACTIVE item, deactivate others
             List<TransactionItemDto> activeItems = items.stream()
@@ -932,7 +932,7 @@ public class MembershipService implements MembershipDao {
 
                 // Deactivate older active items
                 TransactionItemEditDto deactivateDto = new TransactionItemEditDto();
-                deactivateDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
+                deactivateDto.setTransaction(transactionDto.getId());
                 deactivateDto.setItem(item.getItem());
                 deactivateDto.setProduct(item.getProduct());
                 deactivateDto.setStatus(Status.INACTIVE);
@@ -946,7 +946,7 @@ public class MembershipService implements MembershipDao {
 
                 membershipEditDto.setStatus(latestItem.getStatus());
                 membershipEditDto.setProductId(latestItem.getProduct());
-                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+                edit(transactionDto.getId(), membershipEditDto);
             }catch(Exception e){
 
             }
