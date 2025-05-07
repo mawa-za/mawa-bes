@@ -456,6 +456,7 @@ public class PartnerService {
             case "name3" -> entity.getName3();
             case "partnerRole" -> entity.getPartnerRole();
             case "partnerType" -> entity.getPartnerType();
+            case "partnerId" -> entity.getPartnerId();
             default -> null;
         };
     }
