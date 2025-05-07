@@ -842,13 +842,12 @@ public class MembershipService implements MembershipDao {
         }
         dateEffective.setValue(effectiveDate);
 
-//        if(dateEffective.getValue().before(today)){
-//            MembershipEditDto editDto = new MembershipEditDto();
-//            editDto.setStatus(Status.ACTIVE);
-//            edit(transactionDto.getId(), editDto);
-//
-//            modifyProductStatus(membershipCreateDto, Status.ACTIVE);
-//        }
+        if(dateEffective.getValue().before(today)){
+            MembershipEditDto editDto = new MembershipEditDto();
+            editDto.setStatus(Status.ACTIVE);
+            edit(transactionDto.getId(), editDto);
+
+        }
         transactionService.addDate(dateEffective);
     }
 
