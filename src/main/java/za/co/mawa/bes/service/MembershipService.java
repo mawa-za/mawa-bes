@@ -700,6 +700,7 @@ public class MembershipService implements MembershipDao {
                                             itemEditDto.setStatus(Status.ACTIVE);
                                             itemEditDto.setTransaction(itemDto.getTransaction());
                                             itemEditDto.setProduct(itemDto.getProduct());
+                                            itemEditDto.setItem(itemDto.getItem());
 
                                             transactionService.editItem(itemEditDto);
 
