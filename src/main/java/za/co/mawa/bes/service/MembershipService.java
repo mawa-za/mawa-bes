@@ -105,8 +105,8 @@ public class MembershipService implements MembershipDao {
         }
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
-            if(getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD ) > 0){
-                if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
+            if(getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD ) > 0){
+                if(addDaysToDate(new Date(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
                     transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
                 }
