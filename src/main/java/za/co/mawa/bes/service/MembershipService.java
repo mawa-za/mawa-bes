@@ -665,10 +665,10 @@ public class MembershipService implements MembershipDao {
                         for (PremiumEntity premiumEntity : premiumEntities) {
                             List<TransactionItemDto> transactionItemDtos = transactionService.getItems(entity.getTransactionId());
                             transactionItemDtos.sort(Comparator.comparing(TransactionItemDto::getValidTo).reversed());
-
-                            if(transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.NEW)
-                                    || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
-                                    || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
+                            if(transactionItemDtos.get(0).getStatus() != null){
+                                if(transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.NEW)
+                                        || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)
+                                        || transactionItemDtos.get(0).getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
 
 
                                     TransactionItemDto transactionItemDto = transactionItemDtos.get(0);
@@ -693,6 +693,7 @@ public class MembershipService implements MembershipDao {
                                             edit(entity.getTransactionId(), editDto);
                                         }
                                     }
+                                }
                             }
                         }
                     }
