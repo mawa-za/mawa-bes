@@ -687,7 +687,7 @@ public class MembershipService implements MembershipDao {
                                     boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
                                     if(isWithinRange){
                                         //if there's no waiting period, then set to active
-                                        if (effectiveDate.isBefore(today)) {
+                                        if (transactionItemDto.getValidTo().before(new Date())) {
                                             editDto.setStatus(Status.ACTIVE);
                                             //modifying membership status
                                             edit(entity.getTransactionId(), editDto);
