@@ -608,8 +608,12 @@ public class MembershipService implements MembershipDao {
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
             invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
+            String invoiceId = "";
+            try{
+                invoiceId = invoiceService.create(invoiceInboundDto);
+            }catch(Exception e){
 
-            String invoiceId = invoiceService.create(invoiceInboundDto);
+            }
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
             linkDto.setTransaction1(invoiceId);
