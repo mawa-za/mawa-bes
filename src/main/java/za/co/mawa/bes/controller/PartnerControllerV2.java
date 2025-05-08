@@ -38,9 +38,9 @@ public class PartnerControllerV2 {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String searchString){
+    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query){
         try{
-            String response = gson.toJson(partnerServiceV2.searchByString('%'+searchString+'%'));
+            String response = gson.toJson(partnerServiceV2.searchByString('%'+query+'%'));
             return ResponseEntity.ok(response);
         }
         catch(Exception e){

@@ -214,8 +214,8 @@ public class PartnerServiceV2 {
         return relations;
     }
 
-    public ArrayList<PartnerViewEntity> searchByString(String searchString) {
-        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(searchString);
+    public ArrayList<PartnerViewEntity> searchByString(String query) {
+        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(query);
         return new ArrayList<>(partnerViewEntities);
     }
 
