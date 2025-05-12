@@ -31,6 +31,8 @@ public class PartnerControllerV2 {
     @Autowired
     PartnerIdentityService partnerIdentityService;
     @Autowired
+    PartnerIdentityServiceV2 partnerIdentityServiceV2;
+    @Autowired
     PartnerBankAccountService partnerBankAccountService;
     @Autowired
     PartnerAddressService partnerAddressService;
@@ -49,10 +51,19 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postCustomer(@RequestBody PartnerCreateDto partnerCreateDto) throws Exception {
+    public ResponseEntity<?> postCustomer(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
         try {
-            String personDto = partnerService.create(partnerCreateDto).getId();
-            return ResponseEntity.ok(gson.toJson(personDto));
+            PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
+            String id = partnerServiceV2.create(partnerInboundDto).getId();
+            partnerOutboundDto.setId(id);
+
+            PartnerIdentityInboundDto partnerIdentityInboundDto = new PartnerIdentityInboundDto();
+            partnerIdentityInboundDto.setPartner(id);
+            partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
+            partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
+            partnerIdentityServiceV2.add(partnerIdentityInboundDto);
+
+            return ResponseEntity.ok(gson.toJson(partnerOutboundDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
