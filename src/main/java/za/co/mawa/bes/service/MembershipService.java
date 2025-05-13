@@ -115,8 +115,14 @@ public class MembershipService implements MembershipDao {
                 }
             }
             else {
-                transactionCreateDto.setStatus(Status.NEW);
-                transactionItemDto.setStatus(Status.NEW);
+                if(membershipCreateDto.getDateJoined().before(new Date())){
+                    transactionCreateDto.setStatus(Status.ACTIVE);
+                    transactionItemDto.setStatus(Status.ACTIVE);
+                }
+                else{
+                    transactionCreateDto.setStatus(Status.NEW);
+                    transactionItemDto.setStatus(Status.NEW);
+                }
             }
         }
 
