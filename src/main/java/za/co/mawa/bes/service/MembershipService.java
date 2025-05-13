@@ -697,7 +697,13 @@ public class MembershipService implements MembershipDao {
                                             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                                     ).toLocalDate();
 
-                                    boolean isWithinRange = isDateWithinRange(targetDate, startDate, effectiveDate);
+                                    Date today = new Date();
+                                    // Convert to java.time.LocalDate
+                                    LocalDate localDate = today.toInstant()
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate();
+
+                                    boolean isWithinRange = isDateWithinRange(targetDate, startDate, localDate);
                                     if(isWithinRange){
                                         //if there's no waiting period, then set to active
                                         if (transactionItemDto.getValidTo().before(new Date())) {
@@ -727,6 +733,7 @@ public class MembershipService implements MembershipDao {
             throw  new Exception(e.getMessage());
         }
     }
+
 
     private static Date addDaysToDate(Date date, int days) {
         Calendar calendar = Calendar.getInstance();
