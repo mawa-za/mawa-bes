@@ -147,6 +147,12 @@ public class MembershipService implements MembershipDao {
                 if (latestItem == null) {
                     throw new RuntimeException("No active item found for current membership");
                 }
+                if (latestItem.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
+                    throw new RuntimeException("Membership upgrade is not allowed while you are in the upgrade waiting period.");
+                }
+                if (latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                    throw new RuntimeException("Membership upgrade is not allowed while you are in the waiting period.");
+                }
 
                 // Can't upgrade if in awaiting approval
                 log.info(latestItem.getStatus());
