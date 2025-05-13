@@ -104,8 +104,8 @@ public class MembershipService implements MembershipDao {
         }
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
-            if(getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD ) > 0){
-                if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
+            if(getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD ) > 0){
+                if(addDaysToDate(new Date(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
                     transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
                 }
@@ -146,6 +146,12 @@ public class MembershipService implements MembershipDao {
 
                 if (latestItem == null) {
                     throw new RuntimeException("No active item found for current membership");
+                }
+                if (latestItem.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
+                    throw new RuntimeException("Membership upgrade is not allowed while you are in the upgrade waiting period.");
+                }
+                if (latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
+                    throw new RuntimeException("Membership upgrade is not allowed while you are in the waiting period.");
                 }
 
                 // Can't upgrade if in awaiting approval
