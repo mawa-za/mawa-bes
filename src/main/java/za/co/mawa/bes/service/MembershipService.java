@@ -178,7 +178,7 @@ public class MembershipService implements MembershipDao {
 
                 // Update the membership status
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(itemEditDto.getStatus());
+                membershipEditDto.setStatus(transactionItemDto.getStatus());
                 edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
             } catch (Exception e) {
