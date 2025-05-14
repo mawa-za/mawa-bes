@@ -665,10 +665,14 @@ public class MembershipService implements MembershipDao {
             Set<TransactionViewEntity> uniqueEntities = new HashSet<>(entities);
             MembershipEditDto editDto = new MembershipEditDto();
 
+            TransactionDto transactionDto = new TransactionDto();
+
             for (TransactionViewEntity entity : uniqueEntities) {
                 if(entity.getTransactionStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL) || entity.getTransactionStatus().equalsIgnoreCase(Status.INACTIVE)){
                     continue;
                 }
+                transactionDto.setId(entity.getTransactionId());
+
                 //fetching the waiting period of the membership product
                 int waitingPeriod = 0;
 
@@ -738,6 +742,7 @@ public class MembershipService implements MembershipDao {
                         }
                     }
                 }
+                enforceProductStatusRules(transactionDto);
             }
             return "Validated";
 
