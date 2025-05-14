@@ -672,7 +672,6 @@ public class MembershipService implements MembershipDao {
                     continue;
                 }
                 transactionDto.setId(entity.getTransactionId());
-
                 //fetching the waiting period of the membership product
                 int waitingPeriod = 0;
 
@@ -767,43 +766,6 @@ public class MembershipService implements MembershipDao {
 
     private int calculateRequiredPremiums(int waitingPeriodDays) {
         return (waitingPeriodDays + 30 - 1) / 30;
-    }
-
-    private boolean deactivatePreviousMembership() {
-        try {
-            List<TransactionLinkDto> linkDtos = membershipDto.getMembershipHistoryLinks();
-            if (linkDtos == null || linkDtos.isEmpty()) {
-                return false;  // No history found
-            }
-
-            Optional<TransactionLinkDto> previousMembershipLink = linkDtos.stream()
-                    .max(Comparator.comparing(TransactionLinkDto::getCreationDate));
-
-            MembershipDto previousMembership;
-
-            try {
-                previousMembership = get(previousMembershipLink.get().getTransaction2());
-            } catch (Exception e) {
-                return false;  // Failed to fetch previous membership
-            }
-
-            if (previousMembership == null || previousMembership.getStatus() == null) {
-                return false;  // Invalid membership or status
-            }
-            // fetching status of the previous membership
-            String statusCode = previousMembership.getStatus().getCode();
-
-            if (Status.ACTIVE.equalsIgnoreCase(statusCode)) {
-                MembershipEditDto editDto = new MembershipEditDto();
-                editDto.setStatus(Status.INACTIVE);
-                edit(previousMembershipLink.get().getTransaction2(), editDto);
-                return true;
-            }
-            return false; // No action for other statuses
-        } catch (Exception e) {
-            return false;
-        }
-
     }
 
     private int getWaitingPeriod(String productId ,String code) {
@@ -931,7 +893,6 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(deactivateDto);
             }
             try{
-                assert latestItem != null;
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
 
                 membershipEditDto.setStatus(latestItem.getStatus());
