@@ -763,43 +763,6 @@ public class MembershipService implements MembershipDao {
         return (waitingPeriodDays + 30 - 1) / 30;
     }
 
-//    private boolean deactivatePreviousMembership() {
-//        try {
-//            List<TransactionLinkDto> linkDtos = membershipDto.getMembershipHistoryLinks();
-//            if (linkDtos == null || linkDtos.isEmpty()) {
-//                return false;  // No history found
-//            }
-//
-//            Optional<TransactionLinkDto> previousMembershipLink = linkDtos.stream()
-//                    .max(Comparator.comparing(TransactionLinkDto::getCreationDate));
-//
-//            MembershipDto previousMembership;
-//
-//            try {
-//                previousMembership = get(previousMembershipLink.get().getTransaction2());
-//            } catch (Exception e) {
-//                return false;  // Failed to fetch previous membership
-//            }
-//
-//            if (previousMembership == null || previousMembership.getStatus() == null) {
-//                return false;  // Invalid membership or status
-//            }
-//            // fetching status of the previous membership
-//            String statusCode = previousMembership.getStatus().getCode();
-//
-//            if (Status.ACTIVE.equalsIgnoreCase(statusCode)) {
-//                MembershipEditDto editDto = new MembershipEditDto();
-//                editDto.setStatus(Status.INACTIVE);
-//                edit(previousMembershipLink.get().getTransaction2(), editDto);
-//                return true;
-//            }
-//            return false; // No action for other statuses
-//        } catch (Exception e) {
-//            return false;
-//        }
-//
-//    }
-
     private int getWaitingPeriod(String productId ,String code) {
         try {
             List<ProductAttributeDto> productAttributes = productService.getAttributes(productId);
@@ -859,30 +822,6 @@ public class MembershipService implements MembershipDao {
         }
         transactionService.addDate(dateEffective);
     }
-
-//    private void modifyProductStatus(MembershipCreateDto membershipCreateDto, String status) throws Exception {
-//        try{
-//            TransactionItemDto latestItem = transactionService
-//                    .getItems(membershipCreateDto.getCurrentMembershipId())
-//                    .stream()
-//                    .filter(item -> item.getStatus() == null ||
-//                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
-//                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-//                    .orElse(null);
-//
-//            TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
-//            itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
-//            itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
-//            itemEditDto.setProduct(latestItem.getProduct());
-//            itemEditDto.setStatus(status);
-//            itemEditDto.setValidTo(new Date()); // End the item's validity period now
-//            transactionService.editItem(itemEditDto);
-//
-//        }
-//        catch(Exception e){
-//
-//        }
-//    }
 
     private void enforceProductStatusRules(TransactionDto transactionDto) throws Exception {
         try {
@@ -947,9 +886,7 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(deactivateDto);
             }
             try{
-                assert latestItem != null;
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
-
                 membershipEditDto.setStatus(latestItem.getStatus());
                 membershipEditDto.setProductId(latestItem.getProduct());
                 edit(transactionDto.getId(), membershipEditDto);
