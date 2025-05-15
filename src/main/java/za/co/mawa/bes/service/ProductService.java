@@ -347,7 +347,9 @@ public class ProductService implements ProductDao {
                 productAttributeDto.setValue(attributeEntity.getValue());
                 productAttributeDto.setValidFrom(Conversion.dateToString(attributeEntity.getValidFrom()));
                 productAttributeDto.setValidTo(Conversion.dateToString(attributeEntity.getValidTo()));
-                attributes.add(productAttributeDto);
+                if (productAttributeDto.getAttribute() != null){
+                    attributes.add(productAttributeDto);
+                }
             }
             return attributes;
         } catch (Exception ex) {
