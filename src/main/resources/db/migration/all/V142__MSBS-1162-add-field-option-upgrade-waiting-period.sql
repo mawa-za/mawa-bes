@@ -1,0 +1,2 @@
+INSERT IGNORE INTO `field_option` (`code`, `field`, `description`, `valid_from`, `valid_to`)
+VALUES	('UPGRADE-WAITING-PERIOD', 'PRODUCT-ATTRIBUTE', 'Upgrade waiting period', CURRENT_DATE, '9999-12-31');

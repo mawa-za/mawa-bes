@@ -6,24 +6,28 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.ContactCreateDto;
+import za.co.mawa.bes.dto.ContactEditDto;
+import za.co.mawa.bes.dto.ContactQueryDto;
+import za.co.mawa.bes.dto.RolePartnerDto;
 import za.co.mawa.bes.dto.partner.*;
-import za.co.mawa.bes.entity.*;
-import za.co.mawa.bes.service.PartnerBankAccountService;
-import za.co.mawa.bes.service.AddressService;
-import za.co.mawa.bes.service.PartnerAddressService;
-import za.co.mawa.bes.service.PartnerIdentityService;
-import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.entity.PartnerAttributePKEntity;
+import za.co.mawa.bes.entity.PartnerContactPKEntity;
+import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
+import za.co.mawa.bes.entity.PartnerRolePKEntity;
+import za.co.mawa.bes.service.*;
 
 import java.util.List;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "partner")
-public class PartnerController {
+@RequestMapping(value = "v2/partner")
+public class PartnerControllerV2 {
     Gson gson = new Gson();
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    PartnerServiceV2 partnerServiceV2;
     @Autowired
     PartnerIdentityService partnerIdentityService;
     @Autowired
@@ -34,51 +38,9 @@ public class PartnerController {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
-                                        @RequestParam(required = false) String type,
-                                        @RequestParam(required = false) String attributeName,
-                                        @RequestParam(required = false) String attributeValue) throws Exception {
-        try {
-            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
-            if (role != null && role != "") {
-                partnerQueryDto.setRole(role);
-            }
-            if (type != null && type != "") {
-                partnerQueryDto.setType(type);
-            }
-            if (attributeName != null && attributeName != "") {
-                partnerQueryDto.setAttributeName(attributeName);
-                partnerQueryDto.setAttributeValue(attributeValue);
-            }
-            String response = gson.toJson(partnerService.search(partnerQueryDto));
-            return ResponseEntity.ok(response);
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-        }
-    }
-
-
-    @RequestMapping(value = "/v2",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String role,
-                                         @RequestParam(required = false) String type,
-                                         @RequestParam(required = false) String attributeName,
-                                         @RequestParam(required = false) String attributeValue){
+    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query){
         try{
-            PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
-            if (role != null && role != "") {
-                partnerQueryDto.setRole(role);
-            }
-            if (type != null && type != "") {
-                partnerQueryDto.setType(type);
-            }
-            if (attributeName != null && attributeName != "") {
-                partnerQueryDto.setAttributeName(attributeName);
-                partnerQueryDto.setAttributeValue(attributeValue);
-            }
-
-
-
-            String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
+            String response = gson.toJson(partnerServiceV2.searchByString('%'+query+'%'));
             return ResponseEntity.ok(response);
         }
         catch(Exception e){
@@ -342,40 +304,5 @@ public class PartnerController {
         }
     }
 
-    @RequestMapping(value = "relation", method = RequestMethod.POST , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addRelation(@RequestBody RelationDto relation){
-        try {
-            return ResponseEntity.ok(gson.toJson(partnerService.addRelation(relation)));
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-    };
-
-    @RequestMapping(value = "relation/{id}", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllRelation(@PathVariable String id){
-        try {
-            return ResponseEntity.ok(gson.toJson(partnerService.getAllRelations(id)));
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-    };
-
-    @RequestMapping(value = "relation", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getRelation(@RequestBody RelationDto relation){
-        try {
-            return ResponseEntity.ok(gson.toJson(partnerService.getRelationByBothIds(relation)));
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-    };
-
-    @RequestMapping(value = "relation", method = RequestMethod.DELETE , produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteRelation(@RequestBody RelationDto relation){
-        try {
-            return ResponseEntity.ok(gson.toJson(partnerService.removeRelation(relation)));
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-    };
 
 }

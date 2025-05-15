@@ -1,18 +1,12 @@
 package za.co.mawa.bes.service;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Root;
-import org.apache.commons.lang3.StringUtils;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.data.jpa.domain.Specification;
-import jakarta.persistence.criteria.Predicate;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
@@ -20,7 +14,6 @@ import za.co.mawa.bes.dto.prospect.ProspectEditDto;
 import za.co.mawa.bes.dto.prospect.ProspectSearchDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -29,7 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class PartnerService {
+public class PartnerServiceV2 {
 
     @Autowired
     PartnerRoleRepository partnerRoleRepository;
@@ -221,201 +214,9 @@ public class PartnerService {
         return relations;
     }
 
-    public ArrayList<PartnerDto> search(PartnerQueryDto partnerQueryDto) {
-        ArrayList<PartnerDto> finalList = new ArrayList<>();
-        ArrayList<PartnerDto> filteredList = new ArrayList<>();
-        ArrayList<PartnerDto> initialList = new ArrayList<>();
-        boolean pass = false;
-
-        if (partnerQueryDto == null) {
-            List<PartnerEntity> partnerList = partnerRepository.findAll();
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    finalList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-                }
-            }
-            return finalList;
-        }
-
-        if (partnerQueryDto.getType() != null) {
-            ProspectSearchDto searchDto = new ProspectSearchDto();
-            searchDto.setPartnerType(partnerQueryDto.getType());
-            Sort sort = Sort.by("id").descending();
-            List<PartnerEntity> partners = partnerRepository.findAll(findByCriteria(searchDto), sort);
-            for (PartnerEntity partnerType : partners) {
-                try {
-                    initialList.add(get(partnerType.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-
-        if (partnerQueryDto.getRole() != null) {
-            List<PartnerRoleEntity> partnerRoleList = partnerRoleRepository.findPartnerByRole(partnerQueryDto.getRole());
-            for (PartnerRoleEntity partnerRole : partnerRoleList) {
-                Optional<PartnerEntity> partner = partnerRepository.findById(partnerRole.getPartnerRolePK().getId());
-                PartnerEntity partnerEntity = partner.orElse(null);
-                if (partnerEntity != null) {
-                    try {
-                        initialList.add(get(partnerEntity.getId()));
-                    } catch (PartnerNotFoundException e) {
-
-                    }
-                }
-            }
-        }
-
-
-        if (partnerQueryDto.getIdNumber() != null) {
-            List<PartnerIdentityEntity> identityList = partnerIdentityRepository.findPartnerIdentityByValue(partnerQueryDto.getIdNumber());
-            for (PartnerIdentityEntity partnerIdentity : identityList) {
-                PartnerEntity partner = partnerRepository.getById(partnerIdentity.getPartner());
-                if (partner != null) {
-                    try {
-                        initialList.add(get(partner.getId()));
-                    } catch (PartnerNotFoundException e) {
-
-                    }
-                }
-            }
-        }
-
-        if (partnerQueryDto.getIdType() != null && partnerQueryDto.getIdNumber() != null) {
-            PartnerIdentityPKEntity identity = new PartnerIdentityPKEntity();
-            identity.setType(partnerQueryDto.getIdType());
-            identity.setValue(partnerQueryDto.getIdNumber());
-            PartnerIdentityEntity partnerIdentity = partnerIdentityRepository.getById(identity);
-            if (partnerIdentity != null) {
-                PartnerEntity partner = partnerRepository.getById(partnerIdentity.getPartner());
-                if (partner != null) {
-                    try {
-                        initialList.add(get(partner.getId()));
-                    } catch (PartnerNotFoundException e) {
-
-                    }
-                }
-            }
-
-        }
-
-        if (partnerQueryDto.getAttributeName() != null && partnerQueryDto.getAttributeValue() != null) {
-//            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByAttributeValue(partnerQueryDto.getAttributeName(), partnerQueryDto.getAttributeValue());
-            List<PartnerAttributeEntity> partnerAttributeEntities = partnerAttributeRepository.findByValue(partnerQueryDto.getAttributeValue());
-            for (PartnerAttributeEntity partnerAttributeEntity : partnerAttributeEntities) {
-                try {
-                    initialList.add(get(partnerAttributeEntity.getPartnerAttributePKEntity().getPartner()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-
-        }
-
-        if (partnerQueryDto.getCellphone() != null) {
-            List<PartnerContactEntity> contactList = partnerContactRepository.findPartnerByValue(partnerQueryDto.getCellphone());
-            for (PartnerContactEntity partnerContact : contactList) {
-                PartnerEntity partner = partnerRepository.getById(partnerContact.getPartnerContactPK().getPartner());
-                try {
-                    initialList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-
-        if (partnerQueryDto.getEmail() != null) {
-            List<PartnerContactEntity> contactList = partnerContactRepository.findPartnerByValue(partnerQueryDto.getEmail());
-            for (PartnerContactEntity partnerContact : contactList) {
-                PartnerEntity partner = partnerRepository.getById(partnerContact.getPartnerContactPK().getPartner());
-                try {
-                    initialList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-
-        if (partnerQueryDto.getName1() != null) {
-            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName1(partnerQueryDto.getName1());
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    initialList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-        if (partnerQueryDto.getName2() != null) {
-            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName2(partnerQueryDto.getName2());
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    initialList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-
-        if (partnerQueryDto.getName3() != null) {
-            List<PartnerEntity> partnerList = partnerRepository.findPartnerByName3(partnerQueryDto.getName3());
-            for (PartnerEntity partner : partnerList) {
-                try {
-                    initialList.add(get(partner.getId()));
-                } catch (PartnerNotFoundException e) {
-
-                }
-            }
-        }
-        for (PartnerDto pqr : initialList) {
-            if (partnerQueryDto.getIdType() != null && !"".equals(partnerQueryDto.getIdType())) {
-                if (!pqr.getIdentity().getType().equals(partnerQueryDto.getIdType())) {
-                    continue;
-                }
-            }
-
-            if (partnerQueryDto.getIdNumber() != null && !"".equals(partnerQueryDto.getIdNumber())) {
-                if (!pqr.getIdentity().getNumber().equals(partnerQueryDto.getIdNumber())) {
-                    continue;
-                }
-            }
-
-            if (partnerQueryDto.getName1() != null && !"".equals(partnerQueryDto.getName1())) {
-                if (!pqr.getName1().equals(partnerQueryDto.getName1())) {
-                    continue;
-                }
-            }
-
-            if (partnerQueryDto.getName2() != null && !"".equals(partnerQueryDto.getName2())) {
-                if (!pqr.getName2().equals(partnerQueryDto.getName2())) {
-                    continue;
-                }
-            }
-            if (partnerQueryDto.getName3() != null && !"".equals(partnerQueryDto.getName3())) {
-                if (!pqr.getName3().equals(partnerQueryDto.getName3())) {
-                    continue;
-                }
-            }
-            if (partnerQueryDto.getRole() != null && !"".equals(partnerQueryDto.getRole())) {
-                PartnerRolePKEntity rolePK = new PartnerRolePKEntity();
-                rolePK.setId(pqr.getId());
-                rolePK.setRole(partnerQueryDto.getRole());
-                if (partnerRoleRepository.getById(rolePK) == null) {
-                    continue;
-                }
-            }
-            filteredList.add(pqr);
-        }
-
-        String searchStr = "";
-        for (PartnerDto pqr : filteredList) {
-            if (!searchStr.contains(pqr.getId() + '|')) {
-                searchStr = searchStr + pqr.getId() + '|';
-                finalList.add(pqr);
-            }
-        }
-        return finalList;
+    public ArrayList<PartnerViewEntity> searchByString(String query) {
+        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(query);
+        return new ArrayList<>(partnerViewEntities);
     }
 
     public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
@@ -565,8 +366,7 @@ public class PartnerService {
     }
 
 
-    public boolean editRelation(RelationDto relationDto) {
-
+    public boolean editRelation(RelationDto rltn) {
         return false;
     }
 
@@ -597,13 +397,13 @@ public class PartnerService {
     }
 
 
-    public boolean removeRelation(RelationDto relation) {
+    public boolean removeRelation(RelationDto rltn) {
         boolean removed = false;
         try {
             PartnerRelationPKEntity partnerRelationPK = new PartnerRelationPKEntity();
-            partnerRelationPK.setPartner1(relation.getPartner1());
-            partnerRelationPK.setPartner2(relation.getPartner2());
-            partnerRelationPK.setType(relation.getType());
+            partnerRelationPK.setPartner1(rltn.getPartner1());
+            partnerRelationPK.setPartner2(rltn.getPartner2());
+            partnerRelationPK.setType(rltn.getType());
             partnerRelationRepository.deleteById(partnerRelationPK);
             removed = true;
         } catch (Exception e) {
@@ -642,28 +442,17 @@ public class PartnerService {
     }
 
 
-    public ArrayList<RelationOutboundDto> getAllRelations(String partner) throws PartnerNotFoundException {
-        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
-        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByPartnerId(partner);
-        for (PartnerRelationEntity partnerRelation : relationEntities) {
-            RelationOutboundDto relation = new RelationOutboundDto();
-            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
-            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
-            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
-            relations.add(relation);
-        }
-        return relations;
-    }
+    public ArrayList<RelationDto> getRelations(String partner) {
+        ArrayList<RelationDto> relations = new ArrayList<>();
+        List<PartnerRelationEntity> relationsPartner = partnerRelationRepository.findPartnerRelationByPartner1(partner);
+        for (PartnerRelationEntity partnerRelation : relationsPartner) {
+            RelationDto relation = new RelationDto();
+            relation.setPartner1(partnerRelation.getPartnerRelationPK().getPartner1());
+            relation.setPartner2(partnerRelation.getPartnerRelationPK().getPartner2());
+            relation.setType(partnerRelation.getPartnerRelationPK().getType());
 
-    public ArrayList<RelationOutboundDto> getRelationByBothIds( RelationDto relationDto) throws PartnerNotFoundException {
-        ArrayList<RelationOutboundDto> relations = new ArrayList<>();
-        List<PartnerRelationEntity> relationEntities = partnerRelationRepository.findAllByBothPartnerIds(relationDto.getPartner1(), relationDto.getPartner2());
-        for (PartnerRelationEntity partnerRelation : relationEntities) {
-            RelationOutboundDto relation = new RelationOutboundDto();
-            relation.setPartner1(get(partnerRelation.getPartnerRelationPK().getPartner1()));
-            relation.setPartner2(get(partnerRelation.getPartnerRelationPK().getPartner2()));
-            relation.setType(fieldOptionService.getFieldOption(Field.RELATION_TYPE,partnerRelation.getPartnerRelationPK().getType()));
             relations.add(relation);
+
         }
 
         return relations;
