@@ -445,6 +445,12 @@ public class ClaimController {
                     groceryPaymentRequest.setAmount(new BigDecimal("0"));
                 }
 
+                try {
+                    groceryPaymentRequest.setBranch(getDefaultBranch());
+                } catch (Exception e) {
+                    logger.info("Default Grocery Claim Collection Branch not maintained");
+                }
+
                 groceryPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
                 PaymentRequestDto groceryPaymentRequestDto = paymentRequestService.create(groceryPaymentRequest);
                 String groceryPaymentRequestId = groceryPaymentRequestDto.getId();
@@ -460,12 +466,6 @@ public class ClaimController {
                         bankAccount.setBranchCode(bankAccountDto.getBranchCode());
                         bankAccount.setObjectId(groceryPaymentRequestId);
                         bankAccountService.add(bankAccount);
-                    } else {
-                        try {
-                            groceryPaymentRequest.setBranch(claim.getBranch().getCode());
-                        } catch (Exception e) {
-                            groceryPaymentRequest.setBranch("MODJADJISKLOOF");
-                        }
                     }
                 } catch (Exception e) {
 
@@ -541,6 +541,15 @@ public class ClaimController {
         Properties properties = settingService.getSettings("TENANT");
         try {
             return properties.get("COMPANY-NAME").toString();
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    private String getDefaultBranch() {
+        Properties properties = settingService.getSettings("GROCERY-CLAIM");
+        try {
+            return properties.get("DEFAULT-BRANCH").toString();
         } catch (Exception ex) {
             return "";
         }
