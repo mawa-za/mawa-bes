@@ -21,6 +21,7 @@ import java.util.Date;
 public class PaymentRequestDto implements Serializable{
     private String id;
     private String number;
+    private String batchNumber;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private FieldOptionDto paymentReason;
