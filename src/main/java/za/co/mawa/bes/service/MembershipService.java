@@ -216,7 +216,12 @@ public class MembershipService implements MembershipDao {
         transactionItemDto.setValidTo(entity.getValue());
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
-        transactionItemDto.setValidFrom(new Date());
+        if(membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")){
+            transactionItemDto.setValidFrom(membershipCreateDto.getDateJoined());
+        }
+        else {
+            transactionItemDto.setValidFrom(new Date());
+        }
         transactionService.addItem(transactionItemDto);
 
         try {
@@ -808,7 +813,7 @@ public class MembershipService implements MembershipDao {
         Date effectiveDate = null;
 
         if (membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")) {
-            effectiveDate = addDaysToDate(new Date(), waitingPeriod);
+            effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod);
         }
         else if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             int upgradeWaitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), "UPGRADE-WAITING-PERIOD");
