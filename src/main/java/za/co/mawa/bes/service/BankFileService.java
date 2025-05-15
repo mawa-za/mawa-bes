@@ -18,6 +18,7 @@ import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.StatusReason;
 import za.co.mawa.bes.utils.TransactionType;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -64,7 +65,7 @@ public class BankFileService {
     public za.co.mawa.bes.dto.File generateBankFile(List<String> paymentRequestIds) throws Exception {
         try {
             List<PaymentRequestDto> paymentRequestDtoList = new ArrayList<>();
-            TransactionDto transactionDto = createPaymentBatch();
+
             BankFileXmlDto bankFileXmlDto = new BankFileXmlDto();
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -74,23 +75,41 @@ public class BankFileService {
             doc.appendChild(documentElement);
             Element cstmrCdtTrfInitn = doc.createElement("CstmrCdtTrfInitn");
 
-            BigDecimal totalAmount = new BigDecimal(0);
+            List<PaymentRequestDto> processedPaymentRequestDtoList = new ArrayList<>();
             for (String id : paymentRequestIds) {
+//            for (PaymentRequestDto paymentRequestDto : paymentRequestDtoList) {
                 PaymentRequestDto paymentRequestDto = paymentRequestService.get(id);
+                Element pmtInf = PaymentInformation(paymentRequestDto, doc);
+                try {
+                    cstmrCdtTrfInitn.appendChild(pmtInf);
+                    processedPaymentRequestDtoList.add(paymentRequestDto);
+                }catch (Exception ex){
+                    TransactionEditDto transactionEditDto = new TransactionEditDto();
+                    transactionEditDto.setId(paymentRequestDto.getId());
+                    transactionEditDto.setStatus(Status.FAILED);
+                    transactionEditDto.setStatusReason(StatusReason.FILE_GENERATION);
+                    transactionService.edit(transactionEditDto);
+                }
+            }
+
+            BigDecimal totalAmount = new BigDecimal(0);
+            for (PaymentRequestDto paymentRequestDto : processedPaymentRequestDtoList) {
                 if (!paymentRequestDto.getAmount().equals(null)) {
                     totalAmount = totalAmount.add(paymentRequestDto.getAmount());
                 }
                 paymentRequestDtoList.add(paymentRequestDto);
             }
+            if (processedPaymentRequestDtoList.isEmpty()){
+                return null;
+            }
+
+            TransactionDto transactionDto = createPaymentBatch();
             bankFileXmlDto.setId(transactionDto.getNumber());
             bankFileXmlDto.setAmount(totalAmount);
             bankFileXmlDto.setNumberOfTransactions(paymentRequestDtoList.size());
             Element grpHdr = groupHeader(bankFileXmlDto, doc);
             cstmrCdtTrfInitn.appendChild(grpHdr);
 
-            for (PaymentRequestDto paymentRequestDto : paymentRequestDtoList) {
-                cstmrCdtTrfInitn.appendChild(PaymentInformation(paymentRequestDto, doc));
-            }
 
             documentElement.appendChild(cstmrCdtTrfInitn);
             // Transform the DOM Document to an XML File
@@ -109,7 +128,7 @@ public class BankFileService {
 
             // Convert byte array output to Base64
             byte[] xmlBytes = outputStream.toByteArray();
-            for (PaymentRequestDto paymentRequestDto : paymentRequestDtoList) {
+            for (PaymentRequestDto paymentRequestDto : processedPaymentRequestDtoList) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(transactionDto.getId());
                 transactionLinkDto.setTransaction2(paymentRequestDto.getId());
@@ -123,7 +142,7 @@ public class BankFileService {
                 transactionService.edit(transactionEditDto);
             }
             za.co.mawa.bes.dto.File file = new za.co.mawa.bes.dto.File();
-            file.setName(getInitParty() +" - "+transactionDto.getNumber());
+            file.setName(getInitParty() + " - " + transactionDto.getNumber());
             file.setType("xml");
             file.setContent(Base64.getEncoder().encodeToString(xmlBytes));
             file.setOwner(getInitParty());
@@ -243,12 +262,17 @@ public class BankFileService {
             pmtInf.appendChild(dbtrAgt);
 
             Element cdtTrfTxInf = creditTransfer(paymentRequestDto, doc);
+            if (!cdtTrfTxInf.equals(null)) {
+                pmtInf.appendChild(cdtTrfTxInf);
+            }else{
+                pmtInf = null;
+            }
+            return pmtInf;
 
-            pmtInf.appendChild(cdtTrfTxInf);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return null;
         }
-        return pmtInf;
+
     }
 
     private Element creditTransfer(PaymentRequestDto paymentRequestDto, Document doc) {
@@ -352,7 +376,7 @@ public class BankFileService {
             cdtTrfTxInf.appendChild(cdtrAcct);
             cdtTrfTxInf.appendChild(rmtInf);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return null;
         }
         return cdtTrfTxInf;
     }
