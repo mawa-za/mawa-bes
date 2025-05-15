@@ -9,6 +9,8 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomainImpl;
 import za.co.mawa.bes.dto.FieldDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
 
@@ -58,7 +60,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
                 UserContext.setCurrentUser(username);
-                UserContext.setCurrentUserPartner(userService.getUserByName(username).getPartner().getId());
+                UserContext.setCurrentUserPartner(userService.getCurrentUserPartnerId());
             } catch (IllegalArgumentException e) {
                 System.out.println("Unable to get JWT Token");
             } catch (ExpiredJwtException ex) {
