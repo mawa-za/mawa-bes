@@ -180,11 +180,15 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setReference(link.getTransaction2());
             }
         }
-        TransactionLinkEntity link =transactionLinkRepository.getTransactionLinks(id,TransactionType.PAYMENT_BATCH_LINK);
-        if (link.getTransactionLinkPKEntity().getType().equalsIgnoreCase(TransactionType.PAYMENT_BATCH_LINK)) {
-            String batchTransactionId = link.getTransactionLinkPKEntity().getTransaction1();
-            TransactionDto batchTransaction = transactionService.get(batchTransactionId);
-            paymentRequestDto.setBatchNumber(batchTransaction.getNumber());
+        try {
+            TransactionLinkEntity link = transactionLinkRepository.getTransactionLinks(id, TransactionType.PAYMENT_BATCH_LINK);
+            if (link.getTransactionLinkPKEntity().getType().equalsIgnoreCase(TransactionType.PAYMENT_BATCH_LINK)) {
+                String batchTransactionId = link.getTransactionLinkPKEntity().getTransaction1();
+                TransactionDto batchTransaction = transactionService.get(batchTransactionId);
+                paymentRequestDto.setBatchNumber(batchTransaction.getNumber());
+            }
+        } catch (Exception e) {
+
         }
 
         try {
