@@ -108,7 +108,7 @@ public class BankFileService {
             bankFileXmlDto.setAmount(totalAmount);
             bankFileXmlDto.setNumberOfTransactions(paymentRequestDtoList.size());
             Element grpHdr = groupHeader(bankFileXmlDto, doc);
-            cstmrCdtTrfInitn.appendChild(grpHdr);
+            cstmrCdtTrfInitn.insertBefore(grpHdr,cstmrCdtTrfInitn.getFirstChild());
 
 
             documentElement.appendChild(cstmrCdtTrfInitn);
