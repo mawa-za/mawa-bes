@@ -242,7 +242,7 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok().body(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok().body(gson.toJson(partnerIdentityService.getIdentity(type,idValue)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
