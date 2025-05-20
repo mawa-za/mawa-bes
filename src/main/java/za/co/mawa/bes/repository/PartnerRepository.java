@@ -27,10 +27,6 @@ public interface PartnerRepository extends JpaRepository<PartnerEntity, String> 
     @Query("SELECT p FROM PartnerEntity p WHERE CONCAT(p.name1, ' ', p.name2) = :fullName")
     List<PartnerEntity> findByFullName(String fullName);
 
-    @Query("SELECT p FROM PartnerEntity p WHERE CONCAT(p.name1, ' ', p.name2) = :fullName")
-    List<PartnerEntity> findByFullName(String fullName);
-
-
     @Query("SELECT p FROM PartnerEntity p " +
             "WHERE (:name1 IS NULL OR LOWER(p.name1) LIKE CONCAT(LOWER(:name1), '%')) " +
             "  AND (:name2 IS NULL OR LOWER(p.name2) LIKE CONCAT(LOWER(:name2), '%')) " +
