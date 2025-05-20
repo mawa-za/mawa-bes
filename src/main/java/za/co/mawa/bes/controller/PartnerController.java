@@ -242,7 +242,7 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok().body(partnerIdentityService.getIdentity(type,idValue));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -255,7 +255,7 @@ public class PartnerController {
             PartnerIdentityPKEntity pkEntity = new PartnerIdentityPKEntity();
             pkEntity.setType(type);
             pkEntity.setValue(idValue);
-            return ResponseEntity.ok(partnerService.removeIdentity(pkEntity));
+            return ResponseEntity.ok().body(partnerService.removeIdentity(pkEntity));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

@@ -77,11 +77,12 @@ public class ClaimService {
     @Autowired
     BankAccountService bankAccountService;
     @Autowired
-    UserService userService;
-    @Autowired
     TransactionLinkRepository transactionLinkRepository;
     @Autowired
+    UserService userService;
+    @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
+
 
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
@@ -620,6 +621,7 @@ public class ClaimService {
                     if (user.isPresent()) {
                         PartnerEntity partner = user.get();
                         currentUser = partner.getTitle() + " " + partner.getName1() + " " + partner.getName2();
+
                     }
                 }catch(Exception e){
 
@@ -659,6 +661,7 @@ public class ClaimService {
                 addCenteredSectionTitle.accept("SECTION B: POLICY HOLDER INFORMATION", marginY);
                 marginY -= lineHeight;
                 drawTableRow.accept(new String[]{"POLICY NUMBER", policyNumber != null ? policyNumber : ""}, marginY);
+
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"SURNAME", claimOutboundDto.getCustomer() != null ? claimOutboundDto.getCustomer().getName1() : ""}, marginY);
                 marginY -= tableRowHeight;
@@ -693,6 +696,7 @@ public class ClaimService {
                     addCenteredSectionTitle.accept("SECTION C: DECEASED INFORMATION", marginY);
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", deceased.getName1() != null ? deceased.getName1() : ""}, marginY);
+
                     marginY -= tableRowHeight;
 
                     if (deceased != null) {
@@ -725,6 +729,7 @@ public class ClaimService {
                     addCenteredSectionTitle.accept("SECTION D: CLAIMANT INFORMATION (IF NOT POLICY HOLDER)", marginY);
                     marginY -= lineHeight;
                     drawTableRow.accept(new String[]{"SURNAME", claimant.getName1() != null ? claimant.getName1() : ""}, marginY);
+
                     marginY -= tableRowHeight;
 
                     StringBuilder fullNameBuilder = new StringBuilder();

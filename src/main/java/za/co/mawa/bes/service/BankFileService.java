@@ -108,7 +108,7 @@ public class BankFileService {
             bankFileXmlDto.setAmount(totalAmount);
             bankFileXmlDto.setNumberOfTransactions(paymentRequestDtoList.size());
             Element grpHdr = groupHeader(bankFileXmlDto, doc);
-            cstmrCdtTrfInitn.appendChild(grpHdr);
+            cstmrCdtTrfInitn.insertBefore(grpHdr,cstmrCdtTrfInitn.getFirstChild());
 
 
             documentElement.appendChild(cstmrCdtTrfInitn);
@@ -358,12 +358,11 @@ public class BankFileService {
             Element rmtInf = doc.createElement("RmtInf");
             Element ustrd = doc.createElement("Ustrd");
             String reference;
-            List<PartnerIdentityDto> identityDtoArrayList =
-                    partnerIdentityService.getAll(paymentRequestDto.getRecipient().getId()).stream()
-                            .filter(a -> Objects.equals(a.getType().getCode(), "ACCOUNT-NUMBER"))
-                            .toList();
+            List<PartnerIdentityDto> identityDtoArrayList
+                    = partnerIdentityService.getByPartnerType(paymentRequestDto.getRecipient().getId(), "ACCOUNT-NUMBER");
             if (!identityDtoArrayList.isEmpty()) {
                 reference = identityDtoArrayList.iterator().next().getNumber();
+
             } else {
                 reference = paymentRequestDto.getReference();
             }
