@@ -25,9 +25,11 @@ import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
+import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -38,6 +40,8 @@ import java.util.*;
 public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    TransactionLinkRepository transactionLinkRepository;
     @Autowired
     TransactionAmountService transactionAmountService;
     @Autowired
@@ -177,6 +181,17 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
         }
         try {
+            TransactionLinkEntity link = transactionLinkRepository.getTransactionLinks(id, TransactionType.PAYMENT_BATCH_LINK);
+            if (link.getTransactionLinkPKEntity().getType().equalsIgnoreCase(TransactionType.PAYMENT_BATCH_LINK)) {
+                String batchTransactionId = link.getTransactionLinkPKEntity().getTransaction1();
+                TransactionDto batchTransaction = transactionService.get(batchTransactionId);
+                paymentRequestDto.setBatchNumber(batchTransaction.getNumber());
+            }
+        } catch (Exception e) {
+
+        }
+
+        try {
             paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
                     .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
                     .toList().iterator().next().getAmount());
@@ -225,6 +240,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setStatus(entity.getTransactionStatus());
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
+                dto.setReference(entity.getReference());
                 dto.setBatchNumber(entity.getBatchNumber());
                 //note
                 dto.setPaymentReason(entity.getCategory());

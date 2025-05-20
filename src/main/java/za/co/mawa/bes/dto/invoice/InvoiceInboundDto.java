@@ -27,3 +27,4 @@ public class InvoiceInboundDto implements Serializable {
     private String transactionSubType;
 
 }
+

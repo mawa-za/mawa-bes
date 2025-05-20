@@ -5,7 +5,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 
 import java.io.Serializable;
@@ -19,6 +21,7 @@ import java.util.Date;
 public class PaymentRequestDto implements Serializable{
     private String id;
     private String number;
+    private String batchNumber;
     private FieldOptionDto status;
     private FieldOptionDto statusReason;
     private FieldOptionDto paymentReason;
@@ -35,5 +38,7 @@ public class PaymentRequestDto implements Serializable{
     private PartnerDto recipient;
     private PartnerDto employeeResponsible;
     private BankAccountDto bankAccount;
+    private ClaimOutboundDto claim;
+    private FieldOptionDto claimType;
 
 }

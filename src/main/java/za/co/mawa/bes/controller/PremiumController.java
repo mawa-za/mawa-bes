@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
+import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.DepositService;
 import za.co.mawa.bes.service.PremiumService;
@@ -34,6 +35,8 @@ public class PremiumController {
     CashupService cashupService;
     @Autowired
     DepositService depositService;
+    @Autowired
+    PremiumRepository premiumRepository;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
@@ -53,7 +56,7 @@ public class PremiumController {
 //            }
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(exception.getMessage()));
         }
 
     }
@@ -69,10 +72,21 @@ public class PremiumController {
 
     }
 
+//    @RequestMapping(value = "{id}/membership", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<?> getMembershipPremium(@PathVariable String id) {
+//        try {
+//            return ResponseEntity.ok(gson.toJson(premiumRepository.findByMembershipId(id)));
+//        } catch (Exception exception) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+//        }
+//
+//    }
+
     @RequestMapping(value = "/premiums", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
                                          @RequestParam(required = false) String invoiceNumber,
                                          @RequestParam(required = false) String membershipId,
+                                         @RequestParam(required = false) String employeeResponsible,
                                          @RequestParam(required = false) String membershipPeriod,
                                          @RequestParam(required = false) String tenderType,
                                          @RequestParam(required = false) boolean notCashed,
@@ -89,8 +103,12 @@ public class PremiumController {
                 search.setTenderType(tenderType);
             }
             if (createdBy != null && createdBy != "") {
-                search.setEmployeeResponsible(createdBy);
+                search.setCreatedBy(createdBy);
             }
+            if(employeeResponsible != null && employeeResponsible!=""){
+                search.setEmployeeResponsible(employeeResponsible);
+            }
+
             ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
             if (notCashed) {
                 premiumDtoArrayList = premiumService.getReceiptsX(search);
@@ -103,4 +121,5 @@ public class PremiumController {
         }
 
     }
+
 }

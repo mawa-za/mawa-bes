@@ -1,7 +1,6 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -51,7 +50,7 @@ public class ReceiptController {
             ReceiptDto receiptDto = receiptService.createReceipt(receiptCreateDto);
             String cashUpId = null;
            if (receiptCreateDto.getTenderType().equals(TenderType.EFT) || receiptCreateDto.getTenderType().equals(TenderType.CARD)){
-                if(StringUtils.isBlank(receiptCreateDto.getExternalReceiptNo())) {
+                if(receiptCreateDto.getExternalReceiptNo() == null || receiptCreateDto.getExternalReceiptNo() == "") {
 
                     CashupCreateDto cashupCreateDto = new CashupCreateDto();
                     //cashupCreateDto.setEmployeeResponsibleId("AUTOMATIC");
@@ -71,7 +70,7 @@ public class ReceiptController {
             responseMap.put("cashup-Id", cashUpId);
             return ResponseEntity.ok(gson.toJson(responseMap));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(exception.getMessage()));
         }
 
     }

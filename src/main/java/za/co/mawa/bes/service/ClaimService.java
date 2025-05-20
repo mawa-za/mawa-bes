@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import jakarta.mail.Part;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -28,13 +29,11 @@ import za.co.mawa.bes.dto.transaction.link.TransactionLinkOutboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
 import za.co.mawa.bes.dto.voucher.VoucherCreateDto;
-import za.co.mawa.bes.dto.voucher.VoucherInboundDto;
-import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.TransactionNotFound;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
@@ -130,7 +129,7 @@ public class ClaimService {
                 transactionPartnerDto.setFunction(PartnerFunction.DECEASED);
                 transactionPartnerDto.setPartner(claimCreateDto.getDeceasedId());
                 //get the deceased and set the status to deceased
-                try{
+                try {
                     PartnerEntity deceased = partnerRepository.getById(claimCreateDto.getDeceasedId());
                     deceased.setStatus(Status.DECEASED);
                     partnerRepository.save(deceased);
@@ -226,14 +225,15 @@ public class ClaimService {
 
             try {
                 claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
-            if(transactionDto.getDescription() == null ){
+            if (transactionDto.getDescription() == null) {
                 claimOutboundDto.setDescription(transactionDto.getSubDescription());
-            }else {
+            } else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
-          
+
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -294,10 +294,10 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            try{
+            try {
                 List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
-                for(TransactionAmountEntity transactionAmount : transactionAmountEntities){
-                    if(transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)){
+                for (TransactionAmountEntity transactionAmount : transactionAmountEntities) {
+                    if (transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)) {
                         TransactionAmountOutboundDto transactionAmountOutboundDto = new TransactionAmountOutboundDto();
                         transactionAmountOutboundDto.setId(transactionAmount.getId());
                         transactionAmountOutboundDto.setTransaction(id);
@@ -307,7 +307,8 @@ public class ClaimService {
                         claimOutboundDto.setPaidOutAmount(transactionAmountOutboundDto);
                     }
                 }
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
@@ -322,7 +323,8 @@ public class ClaimService {
                 }
                 claimOutboundDto.setComments(comments);
 
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
@@ -332,7 +334,7 @@ public class ClaimService {
         }
     }
 
-    public boolean edit(String id , ClaimEditDto claimEditDto){
+    public boolean edit(String id, ClaimEditDto claimEditDto) {
 
         try {
             boolean edited = false;
@@ -359,7 +361,7 @@ public class ClaimService {
                 edit.setPartnerFunction(PartnerFunction.CLAIMANT);
                 edited = transactionService.partnerEdit(edit);
             }
-            if(claimEditDto.getPaidOutAmount() !=null){
+            if (claimEditDto.getPaidOutAmount() != null) {
                 try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(claimEditDto.getPaidOutAmount());
@@ -374,10 +376,11 @@ public class ClaimService {
 
             return edited;
 
-        }catch (Exception e){
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
     public List<ClaimOutboundDto> search(ClaimQueryDto claimQueryDto) {
         List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
         try {
@@ -446,7 +449,7 @@ public class ClaimService {
                 transactionEditDto.setStatus(ClaimStatus.APPROVED);
                 transactionService.edit(transactionEditDto);
                 approve(id);
-            }else{
+            } else {
                 TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(id);
                 transactionEditDto.setStatus(ClaimStatus.AWAITING_APPROVAL);
@@ -465,14 +468,14 @@ public class ClaimService {
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(id);
             if (voucherClaimTypeList.contains(transactionDto.getSubType())) {
-                VoucherInboundDto voucherInboundDto = new VoucherInboundDto();
+                VoucherCreateDto voucherCreateDto = new VoucherCreateDto();
                 List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(id);
                 Iterator iterator = transactionAmountOutboundDtoList.stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.SERVICE_AMOUNT))
                         .toList().iterator();
                 if (iterator.hasNext()) {
                     TransactionAmountOutboundDto transactionAmountOutboundDto = (TransactionAmountOutboundDto) iterator.next();
-                    voucherInboundDto.setAmount(transactionAmountOutboundDto.getAmount());
+                    voucherCreateDto.setAmount(transactionAmountOutboundDto.getAmount());
                 }
                 List<TransactionPartnerDto> transactionPartnerDtoList = transactionService.getPartners(id);
                 Iterator partnerIterator = transactionPartnerDtoList.stream()
@@ -480,12 +483,10 @@ public class ClaimService {
                         .toList().iterator();
                 if (partnerIterator.hasNext()) {
                     TransactionPartnerDto transactionPartnerDto = (TransactionPartnerDto) partnerIterator.next();
-                    voucherInboundDto.setRecipientId(transactionPartnerDto.getPartner());
+                    voucherCreateDto.setRecipientId(transactionPartnerDto.getPartner());
                 }
-                voucherInboundDto.setContractId(id);
-                try {
-                    voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                voucherCreateDto.setContractId(id);
+                voucherService.create(voucherCreateDto);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -846,3 +847,4 @@ public class ClaimService {
         }
     }
 }
+
