@@ -105,7 +105,7 @@ public class MembershipService implements MembershipDao {
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
             if(getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD ) > 0){
-                if(addDaysToDate(new Date(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
+                if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
                     transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
                 }
@@ -128,8 +128,7 @@ public class MembershipService implements MembershipDao {
 
         if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")){
             try {
-
-                if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD )).after(new Date())){
+                if(addDaysToDate(new Date(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD)).after(new Date())){
                     transactionCreateDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
                     transactionItemDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
                 }
@@ -755,7 +754,6 @@ public class MembershipService implements MembershipDao {
         }
     }
 
-
     private static Date addDaysToDate(Date date, int days) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
@@ -897,10 +895,12 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(deactivateDto);
             }
             try{
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(latestItem.getStatus());
-                membershipEditDto.setProductId(latestItem.getProduct());
-                edit(transactionDto.getId(), membershipEditDto);
+                if(latestItem != null){
+                    MembershipEditDto membershipEditDto = new MembershipEditDto();
+                    membershipEditDto.setStatus(latestItem.getStatus());
+                    membershipEditDto.setProductId(latestItem.getProduct());
+                    edit(transactionDto.getId(), membershipEditDto);
+                }
             }catch(Exception e){
 
             }
