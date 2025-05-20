@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
@@ -832,21 +833,15 @@ public class MembershipService implements MembershipDao {
         transactionService.addDate(dateEffective);
     }
 
+    @Transactional
     private void enforceProductStatusRules(TransactionDto transactionDto) throws Exception {
         try {
+            // Step 1: Get initial items
             List<TransactionItemDto> items = transactionService
                     .getItems(transactionDto.getId());
 
-            TransactionItemDto latestItem = items
-                    .stream()
-                    .filter(item -> item.getStatus() == null ||
-                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
-                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-                    .orElse(null);
-
+            // Step 2: Process waiting period items
             Date today = new Date();
-
-            // Promoting waiting items whose validTo is before today to ACTIVE
             for (TransactionItemDto item : items) {
                 String status = item.getStatus();
 
@@ -866,11 +861,10 @@ public class MembershipService implements MembershipDao {
                 }
             }
 
-            // Refreshing list after promotion
-            items = transactionService
-                    .getItems(transactionDto.getId());
+            // Step 3: Refresh items after promotions
+            items = transactionService.getItems(transactionDto.getId());
 
-            // Keeping only the most recent ACTIVE item, deactivate others
+            // Step 4: Process active items
             List<TransactionItemDto> activeItems = items.stream()
                     .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
                     .collect(Collectors.toList());
@@ -881,7 +875,7 @@ public class MembershipService implements MembershipDao {
 
             for (TransactionItemDto item : activeItems) {
                 if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
-                    continue; // skipping the latest, keep it active
+                    continue; // skip the latest, keep it active
                 }
 
                 // Deactivate older active items
@@ -894,20 +888,28 @@ public class MembershipService implements MembershipDao {
 
                 transactionService.editItem(deactivateDto);
             }
-            try{
-                if(latestItem != null){
-                    MembershipEditDto membershipEditDto = new MembershipEditDto();
-                    membershipEditDto.setStatus(latestItem.getStatus());
-                    membershipEditDto.setProductId(latestItem.getProduct());
-                    edit(transactionDto.getId(), membershipEditDto);
-                }
-            }catch(Exception e){
 
+            // Step 5: Find the truly latest item AFTER all modifications
+            // Refresh again to ensure we have the latest data
+            items = transactionService.getItems(transactionDto.getId());
+
+            TransactionItemDto latestItem = items.stream()
+                    .filter(item -> item.getStatus() == null ||
+                            !Status.INACTIVE.equalsIgnoreCase(item.getStatus()))
+                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .orElse(null);
+
+            // Step 6: Update membership status
+            if (latestItem != null) {
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(latestItem.getStatus());
+                membershipEditDto.setProductId(latestItem.getProduct());
+                edit(transactionDto.getId(), membershipEditDto);
             }
 
         } catch (Exception e) {
-            System.err.println("Error enforcing product status rules: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error enforcing product status rules: " + e.getMessage(), e);
+            throw e;  // Re-throw to ensure caller handles the exception
         }
     }
 
