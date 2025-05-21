@@ -65,19 +65,21 @@ public class BatchController {
             }
             if (!ids.isEmpty()) {
                 File file = bankFileService.generateBankFile(ids);
-                EmailDto emailDto = new EmailDto();
-                emailDto.getFiles().add(file);
-                emailDto.setTo(getEmail());
-                emailDto.setSubject(file.getOwner()+ " Payment Batch: "+ file.getName());
-                emailDto.setTemplate("payment-file-generated");
-                List<PropertyDto> props = new ArrayList<>();
-                props.add(new PropertyDto(HtmlTemplateVariableKey.IDENTIFIER, file.getName()));
-                props.add(new PropertyDto(HtmlTemplateVariableKey.PAYER, file.getOwner()));
-                emailDto.setProperties(props);
-                try {
-                    emailService.send(emailDto);
-                } catch (Exception ex) {
+                if (!file.equals(null)) {
+                    EmailDto emailDto = new EmailDto();
+                    emailDto.getFiles().add(file);
+                    emailDto.setTo(getEmail());
+                    emailDto.setSubject(file.getOwner() + " Payment Batch: " + file.getName());
+                    emailDto.setTemplate("payment-file-generated");
+                    List<PropertyDto> props = new ArrayList<>();
+                    props.add(new PropertyDto(HtmlTemplateVariableKey.IDENTIFIER, file.getName()));
+                    props.add(new PropertyDto(HtmlTemplateVariableKey.PAYER, file.getOwner()));
+                    emailDto.setProperties(props);
+                    try {
+                        emailService.send(emailDto);
+                    } catch (Exception ex) {
 
+                    }
                 }
             }
             return ResponseEntity.ok().build();
