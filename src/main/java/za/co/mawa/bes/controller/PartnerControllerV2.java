@@ -62,7 +62,6 @@ public class PartnerControllerV2 {
             partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
             partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
             partnerIdentityServiceV2.add(partnerIdentityInboundDto);
-
             return ResponseEntity.ok(gson.toJson(partnerOutboundDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
