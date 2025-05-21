@@ -233,7 +233,7 @@ public class MembershipService implements MembershipDao {
 
         }
         try{
-            enforceProductStatusRules(transactionDto);
+            enforceProductStatusRules(transactionDto, membershipCreateDto.getProductId());
         }catch(Exception e){
 
         }
@@ -746,7 +746,7 @@ public class MembershipService implements MembershipDao {
                         }
                     }
                 }
-                enforceProductStatusRules(transactionDto);
+                enforceProductStatusRules(transactionDto, "");
             }
             return "Validated";
 
@@ -835,7 +835,7 @@ public class MembershipService implements MembershipDao {
 
     }
 
-    private void enforceProductStatusRules(TransactionDto transactionDto) throws Exception {
+    private void enforceProductStatusRules(TransactionDto transactionDto, String productId) throws Exception {
         try {
             List<TransactionItemDto> items = transactionService
                     .getItems(transactionDto.getId());
@@ -881,7 +881,7 @@ public class MembershipService implements MembershipDao {
                 deactivateDto.setItem(item.getItem());
                 deactivateDto.setProduct(item.getProduct());
                 deactivateDto.setStatus(Status.INACTIVE);
-                deactivateDto.setValidTo(today); // set end of validity
+                deactivateDto.setValidTo(today);
 
                 transactionService.editItem(deactivateDto);
             }
@@ -898,7 +898,7 @@ public class MembershipService implements MembershipDao {
             if (latestItem != null) {
                 MembershipEditDto membershipEditDto = new MembershipEditDto();
                 membershipEditDto.setStatus(latestItem.getStatus());
-                membershipEditDto.setProductId(latestItem.getProduct());
+                membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
                 edit(transactionDto.getId(), membershipEditDto);
             }
 
