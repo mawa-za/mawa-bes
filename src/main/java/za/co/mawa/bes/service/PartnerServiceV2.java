@@ -17,7 +17,6 @@ import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -58,37 +57,37 @@ public class PartnerServiceV2 {
     PartnerIdentityService partnerIdentityService;
     @Autowired
     PartnerViewRepository partnerViewRepository;
-
-    public PartnerDto create(PartnerCreateDto partnerCreateDto) {
+  
+    public PartnerDto create(PartnerInboundDto partnerInboundDto) {
 
         try {
             PartnerEntity entity = new PartnerEntity();
-            String partnerNo = numberRangeService.generateNumber(partnerCreateDto.getType());
+            String partnerNo = numberRangeService.generateNumber(partnerInboundDto.getPartnerType());
             entity.setNo(partnerNo);
-            entity.setType(partnerCreateDto.getType().toUpperCase());
-            if (partnerCreateDto.getName1() != null) {
-                entity.setName1(partnerCreateDto.getName1().toUpperCase());
+            entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
+            if (partnerInboundDto.getName1() != null) {
+                entity.setName1(partnerInboundDto.getName1().toUpperCase());
             }
-            if (partnerCreateDto.getName2() != null) {
-                entity.setName2(partnerCreateDto.getName2().toUpperCase());
+            if (partnerInboundDto.getName2() != null) {
+                entity.setName2(partnerInboundDto.getName2().toUpperCase());
             }
-            if (partnerCreateDto.getName3() != null) {
-                entity.setName3(partnerCreateDto.getName3().toUpperCase());
+            if (partnerInboundDto.getName3() != null) {
+                entity.setName3(partnerInboundDto.getName3().toUpperCase());
             }
-            if (partnerCreateDto.getBirthDate() != null) {
-                entity.setBirthDate(partnerCreateDto.getBirthDate());
+            if (partnerInboundDto.getBirthDate() != null) {
+                entity.setBirthDate(partnerInboundDto.getBirthDate());
             }
-            if (partnerCreateDto.getGender() != null) {
-                entity.setGender(partnerCreateDto.getGender());
+            if (partnerInboundDto.getGender() != null) {
+                entity.setGender(partnerInboundDto.getGender());
             }
-            if (partnerCreateDto.getLanguage() != null) {
-                entity.setLanguage(partnerCreateDto.getLanguage());
+            if (partnerInboundDto.getLanguage() != null) {
+                entity.setLanguage(partnerInboundDto.getLanguage());
             }
-            if (partnerCreateDto.getMaritalStatus() != null) {
-                entity.setMaritalStatus(partnerCreateDto.getMaritalStatus());
+            if (partnerInboundDto.getMaritalStatus() != null) {
+                entity.setMaritalStatus(partnerInboundDto.getMaritalStatus());
             }
-            if (partnerCreateDto.getTitle() != null) {
-                entity.setTitle(partnerCreateDto.getTitle());
+            if (partnerInboundDto.getTitle() != null) {
+                entity.setTitle(partnerInboundDto.getTitle());
             }
             entity.setStatus(Status.ACTIVE);
             entity.setValidFrom(new Date());
