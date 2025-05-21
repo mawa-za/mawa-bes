@@ -889,12 +889,9 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(deactivateDto);
             }
 
-            // Step 5: Find the truly latest item AFTER all modifications
-            // Refresh again to ensure we have the latest data
             items = transactionService.getItems(transactionDto.getId());
 
             TransactionItemDto latestItem = items.stream()
-                    .filter(item -> item.getStatus() == null)
                     .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                     .orElse(null);
 
@@ -904,7 +901,6 @@ public class MembershipService implements MembershipDao {
                 membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
                 edit(transactionDto.getId(), membershipEditDto);
             }
-
         } catch (Exception e) {
             log.error("Error enforcing product status rules: " + e.getMessage(), e);
             throw e;  // Re-throw to ensure caller handles the exception
