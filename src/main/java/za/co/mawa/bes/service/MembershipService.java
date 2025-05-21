@@ -176,9 +176,9 @@ public class MembershipService implements MembershipDao {
                 transactionService.editItem(itemEditDto);
 
                 // Update the membership status
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(transactionItemDto.getStatus());
-                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
+//                MembershipEditDto membershipEditDto = new MembershipEditDto();
+//                membershipEditDto.setStatus(transactionItemDto.getStatus());
+//                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
             } catch (Exception e) {
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
