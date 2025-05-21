@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.MembershipDao;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
@@ -57,7 +58,6 @@ import java.util.stream.Collectors;
 public class MembershipService implements MembershipDao {
     private static final Logger log = LoggerFactory.getLogger(MembershipService.class);
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
-    private MembershipDto membershipDto = null;
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -287,8 +287,6 @@ public class MembershipService implements MembershipDao {
         return get(transactionDto.getId());
     }
 
-
-
     public MembershipDto get(String id) {
         try {
             TransactionDto transactionDto = transactionService.get(id);
@@ -427,10 +425,6 @@ public class MembershipService implements MembershipDao {
             if (membershipDto.getStatusReason() != null && membershipDto.getStatusReason() != "") {
                 transactionEditDto.setStatusReason(membershipDto.getStatusReason());
             }
-            if (transactionEditDto.getStatusReason() != null || transactionEditDto.getStatus() != null) {
-                transactionEditDto.setId(id);
-                transactionService.edit(transactionEditDto);
-            }
             if (membershipDto.getSalesRepresentativeId() != null && membershipDto.getSalesRepresentativeId() != "") {
                 partnerEdit.setPartnerFunction(PartnerFunction.SALES_REPRESENTATIVE);
                 partnerEdit.setTransaction(id);
@@ -451,6 +445,8 @@ public class MembershipService implements MembershipDao {
                 editDto.setPreviousProduct(membershipDto.getPreviousProduct());
                 edited = transactionService.editItem(editDto);
             }
+            transactionEditDto.setId(id);
+            transactionService.edit(transactionEditDto);
             return edited;
         }
         catch (Exception e){
@@ -635,8 +631,12 @@ public class MembershipService implements MembershipDao {
             invoiceInboundDto.setItems(lineItemInboundDtoList);
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
             invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
+            String invoiceId = "";
+            try{
+                invoiceId = invoiceService.create(invoiceInboundDto);
+            }catch(Exception e){
 
-            String invoiceId = invoiceService.create(invoiceInboundDto);
+            }
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
             linkDto.setTransaction1(invoiceId);
@@ -831,8 +831,6 @@ public class MembershipService implements MembershipDao {
 
         }
         transactionService.addDate(dateEffective);
-
-
     }
 
     private void enforceProductStatusRules(TransactionDto transactionDto, String productId) throws Exception {
@@ -853,7 +851,7 @@ public class MembershipService implements MembershipDao {
                         promoteDto.setItem(item.getItem());
                         promoteDto.setProduct(item.getProduct());
                         promoteDto.setStatus(Status.ACTIVE);
-                        promoteDto.setValidTo(null); // no end yet, now it's active
+                        promoteDto.setValidTo(null);
 
                         transactionService.editItem(promoteDto);
                     }
@@ -872,10 +870,9 @@ public class MembershipService implements MembershipDao {
 
             for (TransactionItemDto item : activeItems) {
                 if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
-                    continue; // skip the latest, keep it active
+                    continue;
                 }
 
-                // Deactivate older active items
                 TransactionItemEditDto deactivateDto = new TransactionItemEditDto();
                 deactivateDto.setTransaction(transactionDto.getId());
                 deactivateDto.setItem(item.getItem());
@@ -885,21 +882,20 @@ public class MembershipService implements MembershipDao {
 
                 transactionService.editItem(deactivateDto);
             }
+            try{
+                items = transactionService.getItems(transactionDto.getId());
 
+                TransactionItemDto latestItem = items.stream()
+                        .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                        .orElse(null);
 
-            items = transactionService.getItems(transactionDto.getId());
-
-            TransactionItemDto latestItem = items.stream()
-                    .filter(item -> item.getStatus() == null ||
-                            !Status.INACTIVE.equalsIgnoreCase(item.getStatus()))
-                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-                    .orElse(null);
-
-            if (latestItem != null) {
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(latestItem.getStatus());
-                membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
-                edit(transactionDto.getId(), membershipEditDto);
+                if (latestItem != null) {
+                    MembershipEditDto membershipEditDto = new MembershipEditDto();
+                    membershipEditDto.setStatus(latestItem.getStatus());
+                    membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
+                    edit(transactionDto.getId(), membershipEditDto);
+                }
+            }catch(Exception e){
             }
 
         } catch (Exception e) {
