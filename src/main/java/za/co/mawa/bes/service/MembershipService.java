@@ -836,11 +836,9 @@ public class MembershipService implements MembershipDao {
     @Transactional
     private void enforceProductStatusRules(TransactionDto transactionDto, String productId) throws Exception {
         try {
-            // Step 1: Get initial items
             List<TransactionItemDto> items = transactionService
                     .getItems(transactionDto.getId());
 
-            // Step 2: Process waiting period items
             Date today = new Date();
             for (TransactionItemDto item : items) {
                 String status = item.getStatus();
@@ -854,17 +852,15 @@ public class MembershipService implements MembershipDao {
                         promoteDto.setItem(item.getItem());
                         promoteDto.setProduct(item.getProduct());
                         promoteDto.setStatus(Status.ACTIVE);
-                        promoteDto.setValidTo(null); // no end yet, now it's active
+                        promoteDto.setValidTo(null);
 
                         transactionService.editItem(promoteDto);
                     }
                 }
             }
 
-            // Step 3: Refresh items after promotions
             items = transactionService.getItems(transactionDto.getId());
 
-            // Step 4: Process active items
             List<TransactionItemDto> activeItems = items.stream()
                     .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
                     .collect(Collectors.toList());
@@ -875,16 +871,15 @@ public class MembershipService implements MembershipDao {
 
             for (TransactionItemDto item : activeItems) {
                 if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
-                    continue; // skip the latest, keep it active
+                    continue;
                 }
 
-                // Deactivate older active items
                 TransactionItemEditDto deactivateDto = new TransactionItemEditDto();
                 deactivateDto.setTransaction(transactionDto.getId());
                 deactivateDto.setItem(item.getItem());
                 deactivateDto.setProduct(item.getProduct());
                 deactivateDto.setStatus(Status.INACTIVE);
-                deactivateDto.setValidTo(today); // set end of validity
+                deactivateDto.setValidTo(today);
 
                 transactionService.editItem(deactivateDto);
             }
@@ -903,7 +898,7 @@ public class MembershipService implements MembershipDao {
             }
         } catch (Exception e) {
             log.error("Error enforcing product status rules: " + e.getMessage(), e);
-            throw e;  // Re-throw to ensure caller handles the exception
+            throw e;
         }
     }
 
