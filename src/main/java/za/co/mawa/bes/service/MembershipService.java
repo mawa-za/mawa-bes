@@ -833,7 +833,6 @@ public class MembershipService implements MembershipDao {
         transactionService.addDate(dateEffective);
     }
 
-    @Transactional
     private void enforceProductStatusRules(TransactionDto transactionDto, String productId) throws Exception {
         try {
             List<TransactionItemDto> items = transactionService
@@ -883,18 +882,22 @@ public class MembershipService implements MembershipDao {
 
                 transactionService.editItem(deactivateDto);
             }
-            items = transactionService.getItems(transactionDto.getId());
+            try{
+                items = transactionService.getItems(transactionDto.getId());
 
-            TransactionItemDto latestItem = items.stream()
-                    .max(Comparator.comparing(TransactionItemDto::getValidTo))
-                    .orElse(null);
+                TransactionItemDto latestItem = items.stream()
+                        .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                        .orElse(null);
 
-            if (latestItem != null) {
-                MembershipEditDto membershipEditDto = new MembershipEditDto();
-                membershipEditDto.setStatus(latestItem.getStatus());
-                membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
-                edit(transactionDto.getId(), membershipEditDto);
+                if (latestItem != null) {
+                    MembershipEditDto membershipEditDto = new MembershipEditDto();
+                    membershipEditDto.setStatus(latestItem.getStatus());
+                    membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
+                    edit(transactionDto.getId(), membershipEditDto);
+                }
+            }catch(Exception e){
             }
+
         } catch (Exception e) {
             log.error("Error enforcing product status rules: " + e.getMessage(), e);
             throw e;
