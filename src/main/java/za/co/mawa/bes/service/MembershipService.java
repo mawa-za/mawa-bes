@@ -887,7 +887,7 @@ public class MembershipService implements MembershipDao {
             items = transactionService.getItems(transactionDto.getId());
 
             TransactionItemDto latestItem = items.stream()
-                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .max(Comparator.comparing(TransactionItemDto::getValidTo))
                     .orElse(null);
 
             if (latestItem != null) {
