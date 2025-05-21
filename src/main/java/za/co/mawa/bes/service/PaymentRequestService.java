@@ -225,6 +225,7 @@ public class PaymentRequestService implements PaymentRequestDao {
                 dto.setStatus(entity.getTransactionStatus());
                 dto.setTransactionNumber(entity.getTransactionNumber());
                 dto.setId(entity.getTransactionId());
+                dto.setReference(entity.getReference());
                 dto.setBatchNumber(entity.getBatchNumber());
                 //note
                 dto.setPaymentReason(entity.getCategory());

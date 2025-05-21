@@ -7,11 +7,13 @@ import lombok.Setter;
 import za.co.mawa.bes.dto.DependentDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PersonDto;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerBasicDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 
 
@@ -37,4 +39,7 @@ public class MembershipDto {
     private FieldOptionDto statusReason;
     private List<TransactionLinkDto> membershipHistoryLinks;
     private List<MembershipDto> membershipHistory;
+    private List<InvoiceOutboundDto> invoiceHistory;
+    private List<TransactionViewEntity> invoices;
+    private List<TransactionItemDto> products;
 }
