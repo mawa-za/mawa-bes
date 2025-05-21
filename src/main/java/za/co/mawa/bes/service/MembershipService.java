@@ -883,7 +883,6 @@ public class MembershipService implements MembershipDao {
 
                 transactionService.editItem(deactivateDto);
             }
-
             items = transactionService.getItems(transactionDto.getId());
 
             TransactionItemDto latestItem = items.stream()
