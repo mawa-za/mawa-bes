@@ -357,9 +357,12 @@ public class MembershipService implements MembershipDao {
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
 
-            try{
+            try {
+                List<TransactionItemDto> transactionItemDtos = transactionService.getItems(id);
+                List<TransactionItemDto> transactionItemDtoList = new ArrayList<>(transactionItemDtos);
 
-            }catch(Exception e){
+                membershipDto.setProducts(transactionItemDtoList);
+            } catch (Exception e) {
 
             }
             List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
