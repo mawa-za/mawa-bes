@@ -175,7 +175,6 @@ public class MembershipService implements MembershipDao {
                     }
                 }
 
-                // IMPORTANT: Only inactivate the previous item if there's NO upgrade waiting period
                 if (!hasUpgradeWaitingPeriod) {
                     TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
                     itemEditDto.setTransaction(existingMembershipId);
@@ -274,7 +273,6 @@ public class MembershipService implements MembershipDao {
         }
 
         if (!membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
-            // Add date joined
             TransactionDateDto dateJoined = new TransactionDateDto();
             dateJoined.setTransaction(transactionDto.getId());
             dateJoined.setType(DateType.JOINED);
@@ -282,7 +280,6 @@ public class MembershipService implements MembershipDao {
                     membershipCreateDto.getDateJoined() : new Date());
             transactionService.addDate(dateJoined);
 
-            // Add last receipt date if provided
             if (membershipCreateDto.getLastReceiptDate() != null) {
                 TransactionDateDto lastReceiptDate = new TransactionDateDto();
                 lastReceiptDate.setTransaction(transactionDto.getId());
@@ -291,7 +288,6 @@ public class MembershipService implements MembershipDao {
                 transactionService.addDate(lastReceiptDate);
             }
 
-            // Add main member partner
             if (membershipCreateDto.getMemberId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -300,7 +296,6 @@ public class MembershipService implements MembershipDao {
                 transactionService.addPartner(transactionPartnerDto);
             }
 
-            // Add sales representative partner
             if (membershipCreateDto.getSalesRepresentativeId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -309,7 +304,6 @@ public class MembershipService implements MembershipDao {
                 transactionService.addPartner(transactionPartnerDto);
             }
 
-            // Add previous insurer partner if provided
             if (membershipCreateDto.getPreviousInsurerId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
