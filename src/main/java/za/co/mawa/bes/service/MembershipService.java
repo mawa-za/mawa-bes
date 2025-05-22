@@ -98,6 +98,7 @@ public class MembershipService implements MembershipDao {
 
         transactionCreateDto.setType(TransactionType.MEMBERSHIP);
         transactionCreateDto.setSubType(membershipCreateDto.getMembershipType());
+
         if (Objects.equals(membershipCreateDto.getCreationType(), "TRANSFER")) {
             transactionCreateDto.setStatus(Status.AWAITING_APPROVAL);
             transactionItemDto.setStatus(Status.AWAITING_APPROVAL);
@@ -105,100 +106,119 @@ public class MembershipService implements MembershipDao {
         }
 
         if (Objects.equals(membershipCreateDto.getCreationType(), "NEW")) {
-            if(getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD ) > 0){
-                if(addDaysToDate(membershipCreateDto.getDateJoined(), getWaitingPeriod(membershipCreateDto.getProductId(),Status.WAITING_PERIOD )).before(new Date())){
+            int waitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), Status.WAITING_PERIOD);
+
+            if (waitingPeriod > 0) {
+                Date effectiveDate = addDaysToDate(membershipCreateDto.getDateJoined(), waitingPeriod);
+                if (effectiveDate.before(new Date())) {
                     transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
-                }
-                else{
+                } else {
                     transactionCreateDto.setStatus(Status.WAITING_PERIOD);
                     transactionItemDto.setStatus(Status.WAITING_PERIOD);
                 }
-            }
-            else {
-                if(membershipCreateDto.getDateJoined().before(new Date())){
+            } else {
+                if (membershipCreateDto.getDateJoined().before(new Date())) {
                     transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
-                }
-                else{
+                } else {
                     transactionCreateDto.setStatus(Status.NEW);
                     transactionItemDto.setStatus(Status.NEW);
                 }
             }
         }
 
-        if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")){
+        String existingMembershipId = null;
+        TransactionItemDto previousActiveItem = null;
+        boolean hasUpgradeWaitingPeriod = false;
+
+        if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             try {
-                if(addDaysToDate(new Date(), getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD)).after(new Date())){
+                existingMembershipId = membershipCreateDto.getCurrentMembershipId();
+                int upgradeWaitingPeriod = getWaitingPeriod(membershipCreateDto.getProductId(), Status.UPGRADE_WAITING_PERIOD);
+
+                hasUpgradeWaitingPeriod = upgradeWaitingPeriod > 0;
+
+                if (hasUpgradeWaitingPeriod) {
                     transactionCreateDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
                     transactionItemDto.setStatus(Status.UPGRADE_WAITING_PERIOD);
-                }
-                else{
+                    log.info("Upgrade has waiting period of {} days", upgradeWaitingPeriod);
+                } else {
+                    transactionCreateDto.setStatus(Status.ACTIVE);
                     transactionItemDto.setStatus(Status.ACTIVE);
+                    log.info("Upgrade has no waiting period, will be active immediately");
                 }
-                TransactionItemDto latestItem = transactionService
-                        .getItems(membershipCreateDto.getCurrentMembershipId())
+
+                // Validate current membership and get latest active item
+                previousActiveItem = transactionService
+                        .getItems(existingMembershipId)
                         .stream()
                         .filter(item -> item.getStatus() == null ||
                                 !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
                         .max(Comparator.comparing(TransactionItemDto::getValidFrom))
                         .orElse(null);
 
-                if (latestItem == null) {
+                if (previousActiveItem == null) {
                     throw new RuntimeException("No active item found for current membership");
                 }
-                if (latestItem.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)){
-                    throw new RuntimeException("Membership upgrade is not allowed while you are in the upgrade waiting period.");
-                }
-                if (latestItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)){
-                    throw new RuntimeException("Membership upgrade is not allowed while you are in the waiting period.");
+
+                // Check if upgrade is allowed
+                if (previousActiveItem.getStatus() != null) {
+                    if (previousActiveItem.getStatus().equalsIgnoreCase(Status.UPGRADE_WAITING_PERIOD)) {
+                        throw new RuntimeException("Membership upgrade is not allowed while you are in the upgrade waiting period.");
+                    }
+                    if (previousActiveItem.getStatus().equalsIgnoreCase(Status.WAITING_PERIOD)) {
+                        throw new RuntimeException("Membership upgrade is not allowed while you are in the waiting period.");
+                    }
+                    if (previousActiveItem.getStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)) {
+                        throw new RuntimeException("Cannot upgrade while waiting for approval");
+                    }
                 }
 
-                // Can't upgrade if in awaiting approval
-                log.info(latestItem.getStatus());
-                if (latestItem.getStatus() != null &&
-                        latestItem.getStatus().equalsIgnoreCase(Status.AWAITING_APPROVAL)) {
-                    throw new RuntimeException("Cannot upgrade while waiting for approval");
-                }
-                // Inactivate the current item
-                TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
-                itemEditDto.setTransaction(membershipCreateDto.getCurrentMembershipId());
-                itemEditDto.setItem(latestItem.getItem()); // Must specify which item to edit
-                itemEditDto.setProduct(latestItem.getProduct());
-
-                if(!latestItem.getStatus().equalsIgnoreCase(Status.ACTIVE)){
+                if (!hasUpgradeWaitingPeriod) {
+                    TransactionItemEditDto itemEditDto = new TransactionItemEditDto();
+                    itemEditDto.setTransaction(existingMembershipId);
+                    itemEditDto.setItem(previousActiveItem.getItem());
+                    itemEditDto.setProduct(previousActiveItem.getProduct());
                     itemEditDto.setStatus(Status.INACTIVE);
+                    itemEditDto.setValidTo(new Date());
+                    transactionService.editItem(itemEditDto);
+                    log.info("Inactivated previous item immediately (no upgrade waiting period)");
+                } else {
+                    // Keep the previous item active during upgrade waiting period
+                    log.info("Keeping previous item active during upgrade waiting period");
                 }
-                else{
-                    itemEditDto.setStatus(transactionCreateDto.getStatus());
-                }
-                itemEditDto.setValidTo(new Date()); // End the item's validity period now
-                transactionService.editItem(itemEditDto);
-
-                // Update the membership status
-//                MembershipEditDto membershipEditDto = new MembershipEditDto();
-//                membershipEditDto.setStatus(transactionItemDto.getStatus());
-//                edit(membershipCreateDto.getCurrentMembershipId(), membershipEditDto);
 
             } catch (Exception e) {
                 throw new RuntimeException("Error during upgrade process: " + e.getMessage(), e);
             }
         }
 
-        TransactionDto transactionDto = new TransactionDto();
-        if(!membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
+        TransactionDto transactionDto;
+        if (!membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
             transactionDto = transactionService.create(transactionCreateDto);
-        }
-        else{
-            transactionDto.setId(membershipCreateDto.getCurrentMembershipId());
-        }
-        try{
-        }catch(Exception e){
+        } else {
+            transactionDto = new TransactionDto();
+            transactionDto.setId(existingMembershipId);
 
+
+            if (hasUpgradeWaitingPeriod && previousActiveItem != null) {
+                transactionCreateDto.setStatus(previousActiveItem.getStatus());
+            }
+            try{
+                TransactionEditDto transactionEditDto = new TransactionEditDto();
+                transactionEditDto.setId(existingMembershipId);
+                transactionEditDto.setStatus(transactionCreateDto.getStatus());
+                transactionService.edit(transactionEditDto);
+            }catch(Exception e){
+
+            }
         }
+
         ProductDto productDto = productService.get(membershipCreateDto.getProductId());
         transactionItemDto.setTransaction(transactionDto.getId());
         transactionItemDto.setProduct(productDto.getId());
+
         try {
             ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
             productPricingQueryDto.setProduct(membershipCreateDto.getProductId());
@@ -206,51 +226,60 @@ public class MembershipService implements MembershipDao {
             ProductPricingDto productPricingDto = productService.getPricing(productPricingQueryDto);
             transactionItemDto.setUnitPrice(productPricingDto.getValue());
         } catch (Exception exception) {
-
+            log.warn("Could not retrieve product pricing: {}", exception.getMessage());
         }
-        try{
+
+        try {
             addEffectiveDate(transactionDto, membershipCreateDto);
-        } catch (Exception e){}
-        TransactionDateEntity entity = transactionDateRepository.getTransactionDatesType(transactionDto.getId(), DateType.EFFECTIVE);
-        transactionItemDto.setValidTo(entity.getValue());
+            TransactionDateEntity entity = transactionDateRepository.getTransactionDatesType(transactionDto.getId(), DateType.EFFECTIVE);
+            if (entity != null) {
+                transactionItemDto.setValidTo(entity.getValue());
+            }
+        } catch (Exception e) {
+            log.warn("Could not add effective date: {}", e.getMessage());
+        }
+
         transactionItemDto.setBaseUnitOfMeasure(productDto.getBaseUnitOfMeasure().getCode());
         transactionItemDto.setQuantity(new BigDecimal("1"));
-        if(membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")){
+
+        if (membershipCreateDto.getCreationType().equalsIgnoreCase("NEW")) {
             transactionItemDto.setValidFrom(membershipCreateDto.getDateJoined());
-        }
-        else{
+        } else {
             transactionItemDto.setValidFrom(new Date());
         }
+
         transactionService.addItem(transactionItemDto);
 
         try {
-            TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(transactionItemDto.getUnitPrice());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(TransactionAmount.MONTHLY_PREMIUM);
-            transactionAmountService.save(transactionAmountInboundDto);
-        } catch (Exception exception) {
-
-        }
-        try{
-            enforceProductStatusRules(transactionDto, membershipCreateDto.getProductId());
-        }catch(Exception e){
-
-        }
-        if(!membershipCreateDto.getCreationType().equalsIgnoreCase(TransactionType.UPGRADE)){
-            if (membershipCreateDto.getDateJoined() != null) {
-                TransactionDateDto dateJoined = new TransactionDateDto();
-                dateJoined.setTransaction(transactionDto.getId());
-                dateJoined.setType(DateType.JOINED);
-                dateJoined.setValue(membershipCreateDto.getDateJoined());
-                transactionService.addDate(dateJoined);
-            } else {
-                TransactionDateDto dateJoined = new TransactionDateDto();
-                dateJoined.setTransaction(transactionDto.getId());
-                dateJoined.setType(DateType.JOINED);
-                dateJoined.setValue(new Date());
-                transactionService.addDate(dateJoined);
+            if (transactionItemDto.getUnitPrice() != null) {
+                TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
+                transactionAmountInboundDto.setAmount(transactionItemDto.getUnitPrice());
+                transactionAmountInboundDto.setTransaction(transactionDto.getId());
+                transactionAmountInboundDto.setType(TransactionAmount.MONTHLY_PREMIUM);
+                transactionAmountService.save(transactionAmountInboundDto);
             }
+        } catch (Exception exception) {
+            log.warn("Could not save transaction amount: {}", exception.getMessage());
+        }
+
+        try {
+            if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE") && hasUpgradeWaitingPeriod) {
+                enforceUpgradeWaitingPeriodRules(transactionDto, membershipCreateDto.getProductId(), previousActiveItem);
+            } else {
+                enforceProductStatusRules(transactionDto);
+            }
+        } catch (Exception e) {
+            log.warn("Could not enforce product status rules: " + e.getMessage());
+        }
+
+        if (!membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE")) {
+            TransactionDateDto dateJoined = new TransactionDateDto();
+            dateJoined.setTransaction(transactionDto.getId());
+            dateJoined.setType(DateType.JOINED);
+            dateJoined.setValue(membershipCreateDto.getDateJoined() != null ?
+                    membershipCreateDto.getDateJoined() : new Date());
+            transactionService.addDate(dateJoined);
+
             if (membershipCreateDto.getLastReceiptDate() != null) {
                 TransactionDateDto lastReceiptDate = new TransactionDateDto();
                 lastReceiptDate.setTransaction(transactionDto.getId());
@@ -258,6 +287,7 @@ public class MembershipService implements MembershipDao {
                 lastReceiptDate.setValue(membershipCreateDto.getLastReceiptDate());
                 transactionService.addDate(lastReceiptDate);
             }
+
             if (membershipCreateDto.getMemberId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
@@ -265,7 +295,6 @@ public class MembershipService implements MembershipDao {
                 transactionPartnerDto.setPartner(membershipCreateDto.getMemberId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-
 
             if (membershipCreateDto.getSalesRepresentativeId() != null) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
@@ -282,6 +311,19 @@ public class MembershipService implements MembershipDao {
                 transactionPartnerDto.setPartner(membershipCreateDto.getPreviousInsurerId());
                 transactionService.addPartner(transactionPartnerDto);
             }
+        }
+
+        try {
+            if (membershipCreateDto.getCreationType().equalsIgnoreCase("UPGRADE") && hasUpgradeWaitingPeriod) {
+                updateMembershipFromSpecificItem(transactionDto.getId(), previousActiveItem);
+                log.info("Updated membership to reflect previous active item during upgrade waiting period");
+            } else {
+                updateMembershipFromLatestItem(transactionDto.getId());
+                log.info("Successfully created/updated membership: {} with type: {}",
+                        transactionDto.getId(), membershipCreateDto.getCreationType());
+            }
+        } catch (Exception e) {
+            log.warn("Could not update membership status: {}", e.getMessage());
         }
 
         return get(transactionDto.getId());
@@ -383,11 +425,11 @@ public class MembershipService implements MembershipDao {
 
                 if(membershipQueryDto.getDateJoined() !=null){
 
-                        String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
+                    String dateJoined = Conversion.dateToString(membershipDto.getDateJoined());
 
-                        String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
+                    String queryDateJoined = Conversion.dateToString(membershipQueryDto.getDateJoined());
 
-                        match = match && dateJoined.equals(queryDateJoined);
+                    match = match && dateJoined.equals(queryDateJoined);
 
 
                 }
@@ -746,7 +788,7 @@ public class MembershipService implements MembershipDao {
                         }
                     }
                 }
-                enforceProductStatusRules(transactionDto, "");
+                enforceProductStatusRules(transactionDto);
             }
             return "Validated";
 
@@ -833,12 +875,13 @@ public class MembershipService implements MembershipDao {
         transactionService.addDate(dateEffective);
     }
 
-    private void enforceProductStatusRules(TransactionDto transactionDto, String productId) throws Exception {
+    private void enforceProductStatusRules(TransactionDto transactionDto) throws Exception {
         try {
             List<TransactionItemDto> items = transactionService
                     .getItems(transactionDto.getId());
 
             Date today = new Date();
+
             for (TransactionItemDto item : items) {
                 String status = item.getStatus();
 
@@ -860,16 +903,18 @@ public class MembershipService implements MembershipDao {
 
             items = transactionService.getItems(transactionDto.getId());
 
+            TransactionItemDto latestItem = items.stream()
+                    .filter(item -> item.getStatus() == null ||
+                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
+                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .orElse(null);
+
             List<TransactionItemDto> activeItems = items.stream()
                     .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
                     .collect(Collectors.toList());
 
-            TransactionItemDto latestActive = activeItems.stream()
-                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-                    .orElse(null);
-
             for (TransactionItemDto item : activeItems) {
-                if (latestActive != null && item.getItem().equals(latestActive.getItem())) {
+                if (latestItem != null && item.getItem().equals(latestItem.getItem())) {
                     continue;
                 }
 
@@ -882,20 +927,20 @@ public class MembershipService implements MembershipDao {
 
                 transactionService.editItem(deactivateDto);
             }
-            try{
-                items = transactionService.getItems(transactionDto.getId());
 
-                TransactionItemDto latestItem = items.stream()
-                        .max(Comparator.comparing(TransactionItemDto::getValidFrom))
-                        .orElse(null);
+            if (latestItem != null) {
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(latestItem.getStatus());
+                membershipEditDto.setProductId(latestItem.getProduct());
 
-                if (latestItem != null) {
-                    MembershipEditDto membershipEditDto = new MembershipEditDto();
-                    membershipEditDto.setStatus(latestItem.getStatus());
-                    membershipEditDto.setProductId(Objects.equals(productId, "") ? latestItem.getProduct() : productId);
-                    edit(transactionDto.getId(), membershipEditDto);
+                if (latestItem.getUnitPrice() != null) {
+                    membershipEditDto.setPremium(latestItem.getUnitPrice());
                 }
-            }catch(Exception e){
+
+                edit(transactionDto.getId(), membershipEditDto);
+
+                log.info("Enforced rules: Updated membership {} with status: {} and product: {}",
+                        transactionDto.getId(), latestItem.getStatus(), latestItem.getProduct());
             }
 
         } catch (Exception e) {
@@ -904,4 +949,113 @@ public class MembershipService implements MembershipDao {
         }
     }
 
+    private void updateMembershipFromLatestItem(String membershipId) {
+        try {
+            List<TransactionItemDto> items = transactionService.getItems(membershipId);
+
+            TransactionItemDto latestItem = items.stream()
+                    .filter(item -> item.getStatus() == null ||
+                            !item.getStatus().equalsIgnoreCase(Status.INACTIVE))
+                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .orElse(null);
+
+            if (latestItem != null) {
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(latestItem.getStatus());
+                membershipEditDto.setProductId(latestItem.getProduct());
+
+                if (latestItem.getUnitPrice() != null) {
+                    membershipEditDto.setPremium(latestItem.getUnitPrice());
+                }
+
+                edit(membershipId, membershipEditDto);
+
+                log.info("Updated membership {} with status: {} and product: {}",
+                        membershipId, latestItem.getStatus(), latestItem.getProduct());
+            } else {
+                log.warn("No active item found for membership: {}", membershipId);
+            }
+        } catch (Exception e) {
+            log.error("Error updating membership from latest item: " + e.getMessage(), e);
+        }
+    }
+
+    private void enforceUpgradeWaitingPeriodRules(TransactionDto transactionDto, String productId, TransactionItemDto previousActiveItem) throws Exception {
+        try {
+            List<TransactionItemDto> items = transactionService.getItems(transactionDto.getId());
+            Date today = new Date();
+
+            for (TransactionItemDto item : items) {
+                if (Status.UPGRADE_WAITING_PERIOD.equalsIgnoreCase(item.getStatus())) {
+                    if (item.getValidTo() != null && item.getValidTo().before(today)) {
+
+                        TransactionItemEditDto promoteDto = new TransactionItemEditDto();
+                        promoteDto.setTransaction(transactionDto.getId());
+                        promoteDto.setItem(item.getItem());
+                        promoteDto.setProduct(item.getProduct());
+                        promoteDto.setStatus(Status.ACTIVE);
+                        promoteDto.setValidTo(null);
+                        transactionService.editItem(promoteDto);
+
+                        if (previousActiveItem != null && Status.ACTIVE.equalsIgnoreCase(previousActiveItem.getStatus())) {
+                            TransactionItemEditDto deactivateDto = new TransactionItemEditDto();
+                            deactivateDto.setTransaction(transactionDto.getId());
+                            deactivateDto.setItem(previousActiveItem.getItem());
+                            deactivateDto.setProduct(previousActiveItem.getProduct());
+                            deactivateDto.setStatus(Status.INACTIVE);
+                            deactivateDto.setValidTo(today);
+                            transactionService.editItem(deactivateDto);
+                            log.info("Inactivated previous item after upgrade waiting period ended");
+                        }
+
+                        log.info("Promoted upgrade item to active after waiting period ended");
+                    }
+                }
+            }
+
+            items = transactionService.getItems(transactionDto.getId());
+            TransactionItemDto currentlyActiveItem = items.stream()
+                    .filter(item -> Status.ACTIVE.equalsIgnoreCase(item.getStatus()))
+                    .max(Comparator.comparing(TransactionItemDto::getValidFrom))
+                    .orElse(previousActiveItem);
+
+            if (currentlyActiveItem != null) {
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(currentlyActiveItem.getStatus());
+                membershipEditDto.setProductId(currentlyActiveItem.getProduct());
+                if (currentlyActiveItem.getUnitPrice() != null) {
+                    membershipEditDto.setPremium(currentlyActiveItem.getUnitPrice());
+                }
+                edit(transactionDto.getId(), membershipEditDto);
+
+                log.info("Updated membership during upgrade waiting period enforcement - Status: {}, Product: {}",
+                        currentlyActiveItem.getStatus(), currentlyActiveItem.getProduct());
+            }
+
+        } catch (Exception e) {
+            log.error("Error enforcing upgrade waiting period rules: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    private void updateMembershipFromSpecificItem(String membershipId, TransactionItemDto item) {
+        try {
+            if (item != null) {
+                MembershipEditDto membershipEditDto = new MembershipEditDto();
+                membershipEditDto.setStatus(item.getStatus());
+                membershipEditDto.setProductId(item.getProduct());
+
+                if (item.getUnitPrice() != null) {
+                    membershipEditDto.setPremium(item.getUnitPrice());
+                }
+
+                edit(membershipId, membershipEditDto);
+
+                log.info("Updated membership {} with status: {} and product: {}",
+                        membershipId, item.getStatus(), item.getProduct());
+            }
+        } catch (Exception e) {
+            log.error("Error updating membership from specific item: " + e.getMessage(), e);
+        }
+    }
 }
