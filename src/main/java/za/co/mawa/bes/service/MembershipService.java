@@ -365,25 +365,6 @@ public class MembershipService implements MembershipDao {
             } catch (Exception e) {
 
             }
-            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
-            membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
-
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.MEMBERSHIP);
-            List<MembershipDto> previousMemberships = new ArrayList<>();
-
-            for(TransactionLinkDto link: transactionLinkDtos){
-                try{
-                    if(link.getType().equalsIgnoreCase("UPGRADE")){
-                        previousMemberships.add(get(link.getTransaction2()));
-                    }
-
-                }
-                catch(Exception e){
-                }
-            }
-            membershipDto.setMembershipHistory(previousMemberships);
-
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
