@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductBasicDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.TransactionLinkDto;
+import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 
 
@@ -37,4 +38,5 @@ public class MembershipDto {
     private FieldOptionDto statusReason;
     private List<TransactionLinkDto> membershipHistoryLinks;
     private List<MembershipDto> membershipHistory;
+    private List<TransactionItemDto> products;
 }

@@ -357,30 +357,14 @@ public class MembershipService implements MembershipDao {
             membershipDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
             membershipDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
 
-            try{
+            try {
+                List<TransactionItemDto> transactionItemDtos = transactionService.getItems(id);
+                List<TransactionItemDto> transactionItemDtoList = new ArrayList<>(transactionItemDtos);
 
-            }catch(Exception e){
+                membershipDto.setProducts(transactionItemDtoList);
+            } catch (Exception e) {
 
             }
-            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
-            membershipDto.setMembershipHistoryLinks(transactionLinkDtos);
-
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.MEMBERSHIP);
-            List<MembershipDto> previousMemberships = new ArrayList<>();
-
-            for(TransactionLinkDto link: transactionLinkDtos){
-                try{
-                    if(link.getType().equalsIgnoreCase("UPGRADE")){
-                        previousMemberships.add(get(link.getTransaction2()));
-                    }
-
-                }
-                catch(Exception e){
-                }
-            }
-            membershipDto.setMembershipHistory(previousMemberships);
-
             return membershipDto;
         } catch (TransactionNotFound e) {
             throw new RuntimeException(e);
