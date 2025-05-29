@@ -52,7 +52,11 @@ public class MembershipController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
+            if (Objects.equals(membershipCreateDto.getCreationType(), "UPGRADE")) {
+                return ResponseEntity.ok(gson.toJson(membershipService.changeProduct(membershipCreateDto)));
+            } else {
+                return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
+            }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
@@ -77,27 +81,27 @@ public class MembershipController {
                                             @RequestParam(required = false) String idNumber) {
         try {
             MembershipQueryDto membershipQueryDto = new MembershipQueryDto();
-            if(status != null && status != "") {
+            if (status != null && status != "") {
                 membershipQueryDto.setStatus(status);
             }
 
-            if(productId != null && productId != "") {
+            if (productId != null && productId != "") {
                 membershipQueryDto.setProductId(productId);
             }
 
-            if(salesRepresentativeId != null && salesRepresentativeId != "") {
+            if (salesRepresentativeId != null && salesRepresentativeId != "") {
                 membershipQueryDto.setSalesRepresentativeId(salesRepresentativeId);
             }
 
-            if(partnerFunction != null && partnerFunction != "") {
+            if (partnerFunction != null && partnerFunction != "") {
                 membershipQueryDto.setPartnerFunction(partnerFunction);
             }
 
-            if(partnerId != null && partnerId != "") {
+            if (partnerId != null && partnerId != "") {
                 membershipQueryDto.setMemberId(partnerId);
             }
 
-            if(idNumber != null && idNumber != "") {
+            if (idNumber != null && idNumber != "") {
                 membershipQueryDto.setIdNumber(idNumber);
             }
 
@@ -120,29 +124,29 @@ public class MembershipController {
         }
     }
 
-    @RequestMapping( value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipsV2(@RequestParam(required = false) String status,
-                                            @RequestParam(required = false) String mainPartner,
-                                            @RequestParam(required = false) String employeeResponsibleName,
-                                            @RequestParam(required = false) String creationDate,
-                                            @RequestParam(required = false) String idNumber) {
+                                              @RequestParam(required = false) String mainPartner,
+                                              @RequestParam(required = false) String employeeResponsibleName,
+                                              @RequestParam(required = false) String creationDate,
+                                              @RequestParam(required = false) String idNumber) {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
 
-            if(status != null && status != "") {
+            if (status != null && status != "") {
                 transactionViewDto.setStatus(status);
             }
 
-            if(employeeResponsibleName != null && employeeResponsibleName != "") {
+            if (employeeResponsibleName != null && employeeResponsibleName != "") {
                 transactionViewDto.setEmployeeResponsibleName(employeeResponsibleName);
             }
 
-            if(mainPartner != null && mainPartner != "") {
+            if (mainPartner != null && mainPartner != "") {
                 transactionViewDto.setMainPartner(mainPartner);
             }
 
-            if(idNumber != null && idNumber != "") {
+            if (idNumber != null && idNumber != "") {
                 transactionViewDto.setIdNumber(idNumber);
             }
 
@@ -219,13 +223,13 @@ public class MembershipController {
 //            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
 //        }
 //    }
-////    getByFilter
+
+    /// /    getByFilter
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editMembership(@PathVariable String id, @RequestBody MembershipEditDto membershipDto) {
         try {
             return ResponseEntity.ok().body(gson.toJson(membershipService.edit(id, membershipDto)));
-        }
-        catch (Exception exception) {
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
@@ -244,8 +248,7 @@ public class MembershipController {
     public ResponseEntity<?> automateMembershipStatusChange() {
         try {
             return ResponseEntity.ok().body(gson.toJson(membershipService.scheduledStatusChange()));
-        }
-        catch (Exception exception) {
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
@@ -263,7 +266,7 @@ public class MembershipController {
     @RequestMapping(value = "{id}/dependent", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDependent(@PathVariable String id, @RequestBody DependentCreateDto dependentDto) {
         try {
-            dependentService.add(dependentDto,id);
+            dependentService.add(dependentDto, id);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -356,11 +359,13 @@ public class MembershipController {
                     tombstoneRecipient.setLastName(partnerDto.getName1());
                     try {
                         tombstoneRecipient.setGender(partnerDto.getGender().getDescription());
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                    }
 
                     try {
                         tombstoneRecipient.setTitle(partnerDto.getTitle().getDescription());
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                    }
 
                     tombstoneRecipientDtos.add(tombstoneRecipient);
                 }
@@ -435,12 +440,11 @@ public class MembershipController {
     }
 
     @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
-        try{
+    public ResponseEntity<?> getMembershipInvoice(@PathVariable String id) {
+        try {
             List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
             return ResponseEntity.ok(gson.toJson(transactionViewEntities));
-        }
-        catch(Exception exception){
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
