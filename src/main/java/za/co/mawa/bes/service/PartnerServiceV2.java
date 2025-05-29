@@ -17,7 +17,6 @@ import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -58,7 +57,7 @@ public class PartnerServiceV2 {
     PartnerIdentityService partnerIdentityService;
     @Autowired
     PartnerViewRepository partnerViewRepository;
-
+  
     public PartnerDto create(PartnerInboundDto partnerInboundDto) {
 
         try {

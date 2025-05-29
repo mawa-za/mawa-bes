@@ -130,8 +130,10 @@ public class PartnerIdentityService {
             partnerIdentityDto.setPartner(id.get().getPartner());
             partnerIdentityDto.setValidFrom(id.get().getValidFrom());
             partnerIdentityDto.setValidTo(id.get().getValidTo());
+
+            return partnerIdentityDto;
         }
-        return partnerIdentityDto;
+        return null ;
     }
 
     public ArrayList<PartnerIdentityDto> getAll(String partner) {

@@ -76,6 +76,8 @@ public class PartnerController {
                 partnerQueryDto.setAttributeValue(attributeValue);
             }
 
+
+
             String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
             return ResponseEntity.ok(response);
         }
@@ -240,7 +242,7 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok().body(gson.toJson(partnerIdentityService.getIdentity(type,idValue)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -253,7 +255,7 @@ public class PartnerController {
             PartnerIdentityPKEntity pkEntity = new PartnerIdentityPKEntity();
             pkEntity.setType(type);
             pkEntity.setValue(idValue);
-            return ResponseEntity.ok(partnerService.removeIdentity(pkEntity));
+            return ResponseEntity.ok().body(partnerService.removeIdentity(pkEntity));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -340,5 +342,40 @@ public class PartnerController {
         }
     }
 
+    @RequestMapping(value = "relation", method = RequestMethod.POST , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.addRelation(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation/{id}", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllRelation(@PathVariable String id){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.getAllRelations(id)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation", method = RequestMethod.GET , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.getRelationByBothIds(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
+
+    @RequestMapping(value = "relation", method = RequestMethod.DELETE , produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteRelation(@RequestBody RelationDto relation){
+        try {
+            return ResponseEntity.ok(gson.toJson(partnerService.removeRelation(relation)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+        }
+    };
 
 }
