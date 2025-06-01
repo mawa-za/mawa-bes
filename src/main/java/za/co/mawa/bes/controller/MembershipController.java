@@ -52,7 +52,12 @@ public class MembershipController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postMembership(@RequestBody MembershipCreateDto membershipCreateDto) {
         try {
-            return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
+            if (Objects.equals(membershipCreateDto.getCreationType(), "UPGRADE")) {
+                return ResponseEntity.ok(gson.toJson(membershipService.changeProduct(membershipCreateDto)));
+            }else{
+                return ResponseEntity.ok(gson.toJson(membershipService.create(membershipCreateDto)));
+            }
+
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
