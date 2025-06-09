@@ -239,8 +239,9 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType") String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            if (getIdentity(type, idValue) != null) {
-                return ResponseEntity.ok(gson.toJson(getIdentity(type, idValue)));
+           PartnerIdentityDto partnerIdentityDto = partnerIdentityService.getIdentity(type, idValue);
+            if (partnerIdentityDto != null) {
+                return ResponseEntity.ok(gson.toJson(partnerIdentityDto));
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
