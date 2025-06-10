@@ -119,19 +119,23 @@ public class PartnerIdentityService {
     }
 
     public PartnerIdentityDto getIdentity(String type, String value) {
-        PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
+
         PartnerIdentityPKEntity pk = new PartnerIdentityPKEntity();
         pk.setValue(value);
         pk.setType(type);
         Optional<PartnerIdentityEntity> id = partnerIdentityRepository.findById(pk);
         if (!id.isEmpty()) {
+            PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
             partnerIdentityDto.setType(fieldOptionService.getFieldOption(Field.ID_TYPE, id.get().getPartnerIdentityPK().getType()));
             partnerIdentityDto.setNumber(id.get().getPartnerIdentityPK().getValue());
             partnerIdentityDto.setPartner(id.get().getPartner());
             partnerIdentityDto.setValidFrom(id.get().getValidFrom());
             partnerIdentityDto.setValidTo(id.get().getValidTo());
+            return partnerIdentityDto;
+        }else{
+            return null;
         }
-        return partnerIdentityDto;
+
     }
 
     public ArrayList<PartnerIdentityDto> getAll(String partner) {

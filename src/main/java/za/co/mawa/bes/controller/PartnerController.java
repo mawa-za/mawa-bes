@@ -58,12 +58,12 @@ public class PartnerController {
     }
 
 
-    @RequestMapping(value = "/v2",method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartners(@RequestParam(required = false) String role,
                                          @RequestParam(required = false) String type,
                                          @RequestParam(required = false) String attributeName,
-                                         @RequestParam(required = false) String attributeValue){
-        try{
+                                         @RequestParam(required = false) String attributeValue) {
+        try {
             PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
             if (role != null && role != "") {
                 partnerQueryDto.setRole(role);
@@ -78,8 +78,7 @@ public class PartnerController {
 
             String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
             return ResponseEntity.ok(response);
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
@@ -237,10 +236,15 @@ public class PartnerController {
     }
 
     @RequestMapping(value = "/identity", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
+    public ResponseEntity<?> getIdentity(@RequestParam("idType") String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+           PartnerIdentityDto partnerIdentityDto = partnerIdentityService.getIdentity(type, idValue);
+            if (partnerIdentityDto != null) {
+                return ResponseEntity.ok(gson.toJson(partnerIdentityDto));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
