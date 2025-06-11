@@ -41,7 +41,8 @@ public class PremiumController {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            throw new RuntimeException(exception.getMessage());
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
 
     }
