@@ -70,7 +70,8 @@ public class PremiumService {
             } catch (Exception e) {
             }
             entity.setMembershipId(premiumCreateDto.getMembershipId());
-            entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
+            TransactionAttributeDto transactionAttributeDto = determinePeriod(premiumCreateDto.getMembershipId());
+            entity.setMembershipPeriod(transactionAttributeDto.getValue());
             entity.setLocation(premiumCreateDto.getLocation());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
@@ -80,6 +81,7 @@ public class PremiumService {
             entity.setTenderType(premiumCreateDto.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
             PremiumEntity premiumEntity = premiumRepository.save(entity);
+            updatePeriod(transactionAttributeDto);
             PremiumDto premiumDto = new PremiumDto();
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
@@ -192,7 +194,7 @@ public class PremiumService {
         };
     }
 
-    private String determinePeriod(String id) {
+    private TransactionAttributeDto determinePeriod(String id) {
         try {
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(id);
@@ -208,8 +210,7 @@ public class PremiumService {
                 monthString = String.format("%02d", month);
             }
             transactionAttributeDto.setValue(yearString + monthString);
-            transactionAttributeService.edit(transactionAttributeDto);
-            return transactionAttributeDto.getValue();
+            return transactionAttributeDto;
         } catch (Exception exception) {
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
             transactionAttributeDto.setTransaction(id);
@@ -219,10 +220,18 @@ public class PremiumService {
             int month = calendar.get(Calendar.MONTH) + 1;
             String monthString = String.format("%02d", month);
             transactionAttributeDto.setValue(Integer.toString(year) + monthString);
-            transactionAttributeService.add(transactionAttributeDto);
-            return transactionAttributeDto.getValue();
+            return transactionAttributeDto;
         }
     }
+
+    private void updatePeriod(TransactionAttributeDto transactionAttributeDto) {
+        try {
+            transactionAttributeService.edit(transactionAttributeDto);
+        } catch (Exception exception) {
+            transactionAttributeService.add(transactionAttributeDto);
+        }
+    }
+
 
     public List<PremiumEntity> search(PremiumSearchDto premiumSearchDto) {
         List<PremiumEntity> premiumEntityList = premiumRepository.findAll();
