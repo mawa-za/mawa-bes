@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.ErrorResponse;
 import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.deposit.DepositCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
@@ -36,24 +37,14 @@ public class PremiumController {
     DepositService depositService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) {
+    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto)  throws RuntimeException{
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
-//            if (premiumCreateDto.getTenderType().equals(TenderType.EFT) || premiumCreateDto.getTenderType().equals(TenderType.CARD)){
-//                CashupCreateDto cashupCreateDto = new CashupCreateDto();
-//                cashupCreateDto.setEmployeeResponsibleId(premiumDto.getEmployeeResponsible());
-//                cashupCreateDto.setSalesArea(premiumCreateDto.getLocation());
-//                cashupCreateDto.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
-//                cashupCreateDto.setReceipts(new ArrayList<>());
-//                String cashupId = cashupService.createNoCash(cashupCreateDto);
-//                DepositCreateDto depositCreateDto = new DepositCreateDto();
-//                depositCreateDto.setTransactionIdLink(cashupId);
-//                depositCreateDto.setAmount(premiumCreateDto.getAmount());
-//                depositService.create(depositCreateDto);
-//            }
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+//            throw new RuntimeException(exception.getMessage());
+            ErrorResponse error = new ErrorResponse(exception.getMessage(), HttpStatus.BAD_REQUEST.value());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(error));
         }
 
     }
