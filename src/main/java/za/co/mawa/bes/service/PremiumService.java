@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ReceiptDao;
+import za.co.mawa.bes.dto.PrintJobRequest;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
@@ -19,16 +20,14 @@ import za.co.mawa.bes.dto.receipt.ReceiptDto;
 import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.PrintJobEntity;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.ReceiptNumberExist;
-import za.co.mawa.bes.repository.PremiumRepository;
-import za.co.mawa.bes.repository.ReceiptRepository;
-import za.co.mawa.bes.repository.TransactionAttributeRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -56,6 +55,8 @@ public class PremiumService {
     UserService userService;
     @Autowired
     MembershipService membershipService;
+    @Autowired
+    PrintJobRepository printJobRepository;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -270,5 +271,63 @@ public class PremiumService {
             }
         }
         return premiumEntities;
+    }
+    public void print(PrintJobRequest printJobRequest){
+        try {
+            PremiumDto premiumDto = get(printJobRequest.getObjectId());
+            PrintJobEntity printJobEntity = new PrintJobEntity();
+            printJobEntity.setPrinterId(printJobRequest.getPrinterId());
+            printJobEntity.setContent(generateReceipt());
+            printJobRepository.save(printJobEntity);
+
+        } catch (DoesNotExist e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String generateReceipt() {
+        StringBuilder sb = new StringBuilder();
+        String line = "------------------------------------------";
+        String storeName = "MY STORE";
+        String cashier = "John";
+        String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+        sb.append(centerText(storeName, 42)).append("\n");
+        sb.append(centerText("VAT No: 123456789", 42)).append("\n");
+        sb.append(line).append("\n");
+        sb.append("Cashier: ").append(cashier).append("\n");
+        sb.append("Date: ").append(dateTime).append("\n");
+        sb.append(line).append("\n");
+
+        sb.append(String.format("%-20s %5s %7s\n", "Item", "Qty", "Total"));
+        sb.append(String.format("%-20s %5d %7.2f\n", "Coca Cola 500ml", 2, 30.00));
+        sb.append(String.format("%-20s %5d %7.2f\n", "Chips Large", 1, 20.00));
+        sb.append(String.format("%-20s %5d %7.2f\n", "Sandwich", 1, 25.00));
+
+        sb.append(line).append("\n");
+
+        double subtotal = 75.00;
+        double tax = 11.25;
+        double total = 86.25;
+        double cash = 100.00;
+        double change = cash - total;
+
+        sb.append(String.format("%-20s %20.2f\n", "Subtotal:", subtotal));
+        sb.append(String.format("%-20s %20.2f\n", "Tax (15%):", tax));
+        sb.append(String.format("%-20s %20.2f\n", "Total:", total));
+        sb.append(String.format("%-20s %20.2f\n", "Cash:", cash));
+        sb.append(String.format("%-20s %20.2f\n", "Change:", change));
+        sb.append(line).append("\n");
+
+        sb.append(centerText("Thank you for shopping!", 42)).append("\n");
+        sb.append(centerText("Visit again!", 42)).append("\n");
+
+        return sb.toString();
+    }
+
+    public String centerText(String text, int width) {
+        int padSize = (width - text.length()) / 2;
+        String pad = " ".repeat(Math.max(0, padSize));
+        return pad + text;
     }
 }
