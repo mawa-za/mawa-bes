@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -62,12 +63,16 @@ public class PremiumController {
     }
 
     @RequestMapping(value = "{id}/print", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> print(@PathVariable String id,
+    public ResponseEntity<?> print(HttpServletRequest request, @PathVariable String id,
                                    @RequestParam String printerId) {
         try {
+            String ipAddress = request.getHeader("X-Forwarded-For");
+            if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+                ipAddress = request.getRemoteAddr();
+            }
             PremiumDto premiumDto = premiumService.get(id);
             PrintJobRequest printJobRequest = new PrintJobRequest();
-            printJobRequest.setPrinterId(printerId);
+            printJobRequest.setPrinterId(ipAddress);
             printJobRequest.setObjectId(id);
             premiumService.print(printJobRequest);
             return ResponseEntity.ok(gson.toJson(premiumDto));

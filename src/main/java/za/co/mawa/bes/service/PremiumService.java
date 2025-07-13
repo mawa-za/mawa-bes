@@ -58,6 +58,9 @@ public class PremiumService {
     @Autowired
     PrintJobRepository printJobRepository;
 
+    @Autowired
+    CompanyInfoService companyInfoService;
+
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
@@ -288,14 +291,13 @@ public class PremiumService {
     public String generateReceipt() {
         StringBuilder sb = new StringBuilder();
         String line = "------------------------------------------";
-        String storeName = "MY STORE";
         String cashier = "John";
         String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 
-        sb.append(centerText(storeName, 42)).append("\n");
+        sb.append(centerText(companyInfoService.getCompanyName(), 42)).append("\n");
         sb.append(centerText("VAT No: 123456789", 42)).append("\n");
         sb.append(line).append("\n");
-        sb.append("Cashier: ").append(cashier).append("\n");
+        sb.append("Process: ").append(cashier).append("\n");
         sb.append("Date: ").append(dateTime).append("\n");
         sb.append(line).append("\n");
 
