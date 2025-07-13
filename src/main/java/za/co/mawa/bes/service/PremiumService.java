@@ -321,7 +321,7 @@ public class PremiumService {
         sb.append(String.format("%-20s %-20s\n", "Amount Paid:", premiumDto.getAmount()));
         String month = fieldOptionService.getOptionalFieldDescription("MONTH", premiumDto.getMembershipPeriod().substring(4,6));
         sb.append(String.format("%-20s %-20s\n", "Payment Period:", month +" "+ premiumDto.getMembershipPeriod().substring(0,4)));
-        sb.append(String.format("%-20s %-20s\n", "Payment Date and Time:", premiumDto.getCreationDate() +" "+ premiumDto.getCreationTime()));
+        sb.append(String.format("%-20s %-20s\n", "Payment Date:", premiumDto.getCreationDate() +" "+ premiumDto.getCreationTime()));
 
         sb.append(line).append("\n");
 
