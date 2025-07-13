@@ -17,4 +17,29 @@ public class CompanyInfoService {
             return "";
         }
     }
+    public String getCompanyAddress() {
+        Properties properties = settingService.getSettings("TENANT");
+        try {
+            return properties.get("COMPANY-ADDRESS").toString();
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+    public String getCompanyTelephoneNumber() {
+        Properties properties = settingService.getSettings("TENANT");
+        try {
+            return properties.get("COMPANY-TELEPHONE-NUMBER").toString();
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    public String getVATNumber() {
+        Properties properties = settingService.getSettings("TENANT");
+        try {
+            return properties.get("VAT-NUMBER").toString();
+        } catch (Exception ex) {
+            return "";
+        }
+    }
 }

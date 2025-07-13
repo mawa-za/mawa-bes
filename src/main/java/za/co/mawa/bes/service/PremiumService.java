@@ -57,7 +57,8 @@ public class PremiumService {
     MembershipService membershipService;
     @Autowired
     PrintJobRepository printJobRepository;
-
+    @Autowired
+    PartnerService partnerService;
     @Autowired
     CompanyInfoService companyInfoService;
 
@@ -280,7 +281,7 @@ public class PremiumService {
             PremiumDto premiumDto = get(printJobRequest.getObjectId());
             PrintJobEntity printJobEntity = new PrintJobEntity();
             printJobEntity.setPrinterId(printJobRequest.getPrinterId());
-            printJobEntity.setContent(generateReceipt());
+            printJobEntity.setContent(generateReceipt(premiumDto));
             printJobRepository.save(printJobEntity);
 
         } catch (DoesNotExist e) {
@@ -288,41 +289,43 @@ public class PremiumService {
         }
     }
 
-    public String generateReceipt() {
+    public String generateReceipt(PremiumDto premiumDto) {
         StringBuilder sb = new StringBuilder();
         String line = "------------------------------------------";
-        String cashier = "John";
         String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 
         sb.append(centerText(companyInfoService.getCompanyName(), 42)).append("\n");
-        sb.append(centerText("VAT No: 123456789", 42)).append("\n");
+        sb.append(centerText(companyInfoService.getCompanyAddress(), 42)).append("\n");
+        sb.append(centerText("Tel: "+companyInfoService.getCompanyTelephoneNumber(), 42)).append("\n");
+        sb.append(centerText("VAT No: "+companyInfoService.getVATNumber(), 42)).append("\n");
         sb.append(line).append("\n");
-        sb.append("Process: ").append(cashier).append("\n");
-        sb.append("Date: ").append(dateTime).append("\n");
+        sb.append("Trace ID: ").append(premiumDto.getId()).append("\n");
+        sb.append("Receipt No: ").append(premiumDto.getReceiptNumber()).append("\n");
+        sb.append("Received By: ").append(partnerService.getFullName(premiumDto.getEmployeeResponsible())).append("\n");
+        sb.append("Print Date: ").append(dateTime).append("\n");
         sb.append(line).append("\n");
+        String idnumber = "";
+        if(!premiumDto.getMembership().getMember().getIdentity().equals(null))
+        {
+          idnumber = premiumDto.getMembership().getMember().getIdentity().getNumber();
+        }
+        sb.append(String.format("%-20s %-20s\n", "Member ID Number:", idnumber));
+        sb.append(String.format("%-20s %-20s\n", "Member Name:",partnerService.getFullName(premiumDto.getMembership().getMember())));
+        sb.append(String.format("%-20s %-20s\n", "Membership Number:", premiumDto.getMembership().getNumber()));
+        sb.append(String.format("%-20s %-20s\n", "Membership Option:", premiumDto.getMembership().getProduct().getDescription()));
 
-        sb.append(String.format("%-20s %5s %7s\n", "Item", "Qty", "Total"));
-        sb.append(String.format("%-20s %5d %7.2f\n", "Coca Cola 500ml", 2, 30.00));
-        sb.append(String.format("%-20s %5d %7.2f\n", "Chips Large", 1, 20.00));
-        sb.append(String.format("%-20s %5d %7.2f\n", "Sandwich", 1, 25.00));
-
-        sb.append(line).append("\n");
-
-        double subtotal = 75.00;
-        double tax = 11.25;
-        double total = 86.25;
-        double cash = 100.00;
-        double change = cash - total;
-
-        sb.append(String.format("%-20s %20.2f\n", "Subtotal:", subtotal));
-        sb.append(String.format("%-20s %20.2f\n", "Tax (15%):", tax));
-        sb.append(String.format("%-20s %20.2f\n", "Total:", total));
-        sb.append(String.format("%-20s %20.2f\n", "Cash:", cash));
-        sb.append(String.format("%-20s %20.2f\n", "Change:", change));
         sb.append(line).append("\n");
 
-        sb.append(centerText("Thank you for shopping!", 42)).append("\n");
-        sb.append(centerText("Visit again!", 42)).append("\n");
+        sb.append(String.format("%-20s %-20s\n", "Tender Type:",premiumDto.getTenderType().getDescription()));
+        sb.append(String.format("%-20s %-20s\n", "Amount Paid:", premiumDto.getAmount()));
+        String month = fieldOptionService.getOptionalFieldDescription("MONTH", premiumDto.getMembershipPeriod().substring(4,6));
+        sb.append(String.format("%-20s %-20s\n", "Payment Period:", month +" "+ premiumDto.getMembershipPeriod().substring(0,4)));
+        sb.append(String.format("%-20s %-20s\n", "Payment Date:", month +" "+ premiumDto.getCreationDate()));
+        sb.append(String.format("%-20s %-20s\n", "Payment Time:", month +" "+ premiumDto.getCreationTime()));
+
+        sb.append(line).append("\n");
+
+        sb.append(centerText("Thank you for your support!", 42)).append("\n");
 
         return sb.toString();
     }

@@ -63,8 +63,7 @@ public class PremiumController {
     }
 
     @RequestMapping(value = "{id}/print", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> print(HttpServletRequest request, @PathVariable String id,
-                                   @RequestParam String printerId) {
+    public ResponseEntity<?> print(HttpServletRequest request, @PathVariable String id) {
         try {
             String ipAddress = request.getHeader("X-Forwarded-For");
             if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
