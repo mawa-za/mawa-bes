@@ -277,19 +277,20 @@ public class PremiumService {
         return premiumEntities;
     }
     public void print(PrintJobRequest printJobRequest){
-        try {
-            PremiumDto premiumDto = get(printJobRequest.getObjectId());
-            PrintJobEntity printJobEntity = new PrintJobEntity();
-            printJobEntity.setPrinterId(printJobRequest.getPrinterId());
-            printJobEntity.setContent(generateReceipt(premiumDto));
-            printJobRepository.save(printJobEntity);
+        PrintJobEntity printJobEntity = new PrintJobEntity();
+        printJobEntity.setPrinterId(printJobRequest.getPrinterId());
+        printJobEntity.setContent(generateReceipt(printJobRequest.getObjectId()));
+        printJobRepository.save(printJobEntity);
 
+    }
+
+    public String generateReceipt(String id) {
+        PremiumDto premiumDto = null;
+        try {
+            premiumDto = get(id);
         } catch (DoesNotExist e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public String generateReceipt(PremiumDto premiumDto) {
         StringBuilder sb = new StringBuilder();
         String line = "------------------------------------------";
         String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
