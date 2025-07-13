@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,8 +35,12 @@ class PrintJobController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getNextJob(@RequestParam String printerId) {
-        return printJobRepository.findByCompletedAndPrinterId(false,printerId).stream()
+    public ResponseEntity<?> getNextJob(HttpServletRequest request) {
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getRemoteAddr();
+        }
+        return printJobRepository.findByCompletedAndPrinterId(false,ipAddress).stream()
                 .findFirst()
                 .map(job -> ResponseEntity.ok(gson.toJson(job)))
                 .orElse(ResponseEntity.noContent().build());
