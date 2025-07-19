@@ -16,4 +16,7 @@ public interface PremiumRepository extends JpaRepository<PremiumEntity, String> 
     @Query("SELECT p FROM PremiumEntity p WHERE p.receiptNumber = :query OR " +
             "p.extReceiptNumber = :query ORDER BY p.receiptNumber")
     List<PremiumEntity> findByString(String query) ;
+
+    @Query("SELECT p FROM PremiumEntity p WHERE p.membershipId = :id ORDER BY p.receiptNumber")
+    List<PremiumEntity> findByMembership(String id) ;
 }
