@@ -1,12 +1,14 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.ErrorResponse;
+import za.co.mawa.bes.dto.PrintJobRequest;
 import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.deposit.DepositCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
@@ -37,7 +39,7 @@ public class PremiumController {
     DepositService depositService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto)  throws RuntimeException{
+    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) throws RuntimeException {
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
             return ResponseEntity.ok(gson.toJson(premiumDto));
@@ -53,6 +55,25 @@ public class PremiumController {
     public ResponseEntity<?> getPremium(@PathVariable String id) {
         try {
             PremiumDto premiumDto = premiumService.get(id);
+            return ResponseEntity.ok(gson.toJson(premiumDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(value = "{id}/print", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> print(HttpServletRequest request, @PathVariable String id) {
+        try {
+            String ipAddress = request.getHeader("X-Forwarded-For");
+            if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+                ipAddress = request.getRemoteAddr();
+            }
+            PremiumDto premiumDto = premiumService.get(id);
+            PrintJobRequest printJobRequest = new PrintJobRequest();
+            printJobRequest.setPrinterId(ipAddress);
+            printJobRequest.setObjectId(id);
+            premiumService.print(printJobRequest);
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
