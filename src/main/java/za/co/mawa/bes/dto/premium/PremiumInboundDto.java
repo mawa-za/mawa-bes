@@ -1,0 +1,23 @@
+package za.co.mawa.bes.dto.premium;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.io.Serializable;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class PremiumInboundDto implements Serializable {
+    private String id;
+    private String membershipId;
+    private String membershipPeriod;
+    private String tenderType;
+    private String location;
+    private String amount;
+    private String terminalId;
+    private String externalReceiptNo;
+
+}
