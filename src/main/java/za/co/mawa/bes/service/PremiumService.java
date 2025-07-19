@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ReceiptDao;
+import za.co.mawa.bes.dto.PrintJobRequest;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
 import za.co.mawa.bes.dto.premium.PremiumInboundDto;
@@ -21,16 +22,14 @@ import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.PrintJobEntity;
 import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.ReceiptNumberExist;
-import za.co.mawa.bes.repository.PremiumRepository;
-import za.co.mawa.bes.repository.ReceiptRepository;
-import za.co.mawa.bes.repository.TransactionAttributeRepository;
-import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
 import java.math.BigDecimal;
@@ -60,6 +59,12 @@ public class PremiumService {
     MembershipService membershipService;
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    PrintJobRepository printJobRepository;
+    @Autowired
+    PartnerService partnerService;
+    @Autowired
+    CompanyInfoService companyInfoService;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -131,6 +136,10 @@ public class PremiumService {
             }
 
             premiumDto.setMembershipPeriod(entity.getMembershipPeriod());
+            try {
+                premiumDto.setMembership(membershipService.get(entity.getMembershipId()));
+            } catch (Exception e) {
+            }
             premiumDto.setAmount(entity.getAmount());
             premiumDto.setTenderType(fieldOptionService.getFieldOption(Field.TENDER_TYPE, entity.getTenderType()));
             premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
@@ -340,5 +349,64 @@ public class PremiumService {
             }
         }
         return premiumEntities;
+    }
+    public void print(PrintJobRequest printJobRequest){
+        PrintJobEntity printJobEntity = new PrintJobEntity();
+        printJobEntity.setPrinterId(printJobRequest.getPrinterId());
+        printJobEntity.setContent(generateReceipt(printJobRequest.getObjectId()));
+        printJobRepository.save(printJobEntity);
+
+    }
+
+    public String generateReceipt(String id) {
+        PremiumDto premiumDto = null;
+        try {
+            premiumDto = get(id);
+        } catch (DoesNotExist e) {
+            throw new RuntimeException(e);
+        }
+        StringBuilder sb = new StringBuilder();
+        String line = "------------------------------------------";
+        String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+        sb.append(centerText(companyInfoService.getCompanyName(), 42)).append("\n");
+        sb.append(centerText(companyInfoService.getCompanyAddress(), 42)).append("\n");
+        sb.append(centerText("Tel: "+companyInfoService.getCompanyTelephoneNumber(), 42)).append("\n");
+        sb.append(centerText("VAT No: "+companyInfoService.getVATNumber(), 42)).append("\n");
+        sb.append(line).append("\n");
+        sb.append("Trace ID: ").append(premiumDto.getId()).append("\n");
+        sb.append("Receipt No: ").append(premiumDto.getReceiptNumber()).append("\n");
+        sb.append("Received By: ").append(partnerService.getFullName(premiumDto.getEmployeeResponsible())).append("\n");
+        sb.append("Print Date: ").append(dateTime).append("\n");
+        sb.append(line).append("\n");
+        String idnumber = "";
+        if(!premiumDto.getMembership().getMember().getIdentity().equals(null))
+        {
+          idnumber = premiumDto.getMembership().getMember().getIdentity().getNumber();
+        }
+        sb.append(String.format("%-20s %-20s\n", "Member ID Number:", idnumber));
+        sb.append(String.format("%-20s %-20s\n", "Member Name:",partnerService.getFullName(premiumDto.getMembership().getMember())));
+        sb.append(String.format("%-20s %-20s\n", "Membership Number:", premiumDto.getMembership().getNumber()));
+        sb.append(String.format("%-20s %-20s\n", "Membership Option:", premiumDto.getMembership().getProduct().getDescription()));
+
+        sb.append(line).append("\n");
+
+        sb.append(String.format("%-20s %-20s\n", "Tender Type:",premiumDto.getTenderType().getDescription()));
+        sb.append(String.format("%-20s %-20s\n", "Amount Paid:", premiumDto.getAmount()));
+        String month = fieldOptionService.getOptionalFieldDescription("MONTH", premiumDto.getMembershipPeriod().substring(4,6));
+        sb.append(String.format("%-20s %-20s\n", "Payment Period:", month +" "+ premiumDto.getMembershipPeriod().substring(0,4)));
+        sb.append(String.format("%-20s %-20s\n", "Payment Date:", premiumDto.getCreationDate() +" "+ premiumDto.getCreationTime()));
+
+        sb.append(line).append("\n");
+
+        sb.append(centerText("Thank you for your support!", 42)).append("\n");
+
+        return sb.toString();
+    }
+
+    public String centerText(String text, int width) {
+        int padSize = (width - text.length()) / 2;
+        String pad = " ".repeat(Math.max(0, padSize));
+        return pad + text;
     }
 }
