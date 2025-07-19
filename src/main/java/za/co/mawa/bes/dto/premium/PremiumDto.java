@@ -27,6 +27,7 @@ public class PremiumDto implements Serializable {
     private String creationTime;
     private PartnerDto employeeResponsible;
     private MembershipDto membership;
+    private String membershipNumber;
     private String membershipPeriod;
     private FieldOptionDto tenderType;
     private FieldOptionDto location;

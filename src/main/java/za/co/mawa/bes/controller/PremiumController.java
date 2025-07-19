@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.cashup.CashupCreateDto;
 import za.co.mawa.bes.dto.deposit.DepositCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
+import za.co.mawa.bes.dto.premium.PremiumInboundDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
 import za.co.mawa.bes.dto.receipt.ReceiptDto;
@@ -39,7 +40,7 @@ public class PremiumController {
     DepositService depositService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto) throws RuntimeException {
+    public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto)  throws RuntimeException{
         try {
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
             return ResponseEntity.ok(gson.toJson(premiumDto));
@@ -75,6 +76,42 @@ public class PremiumController {
             printJobRequest.setObjectId(id);
             premiumService.print(printJobRequest);
             return ResponseEntity.ok(gson.toJson(premiumDto));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updatePremium(@RequestBody PremiumInboundDto premiumInboundDto, @PathVariable String id) {
+        try {
+            premiumInboundDto.setId(id);
+            premiumService.update(premiumInboundDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(value = "{id}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deletePremium(@PathVariable String id) {
+        try {
+            PremiumInboundDto premiumInboundDto = new PremiumInboundDto();
+            premiumInboundDto.setId(id);
+            premiumService.delete(premiumInboundDto);
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+
+    }
+
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllPremiums(@RequestParam(required = false) String query) {
+        try {
+            ArrayList<PremiumDto> premiumDtoArrayList = premiumService.findByString(query);
+            return ResponseEntity.ok(gson.toJson(premiumDtoArrayList));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
