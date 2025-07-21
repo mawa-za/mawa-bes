@@ -83,13 +83,13 @@ public class PremiumController {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> updatePremium(@RequestBody PremiumInboundDto premiumInboundDto, @PathVariable String id) {
+    public ResponseEntity<String> updatePremium(@RequestBody PremiumInboundDto premiumInboundDto, @PathVariable String id) {
         try {
             premiumInboundDto.setId(id);
             premiumService.update(premiumInboundDto);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok("Updated successfully");
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Update failed");
         }
 
     }

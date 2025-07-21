@@ -35,10 +35,7 @@ import za.co.mawa.bes.utils.*;
 import java.math.BigDecimal;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class PremiumService {
@@ -79,8 +76,7 @@ public class PremiumService {
             } catch (Exception e) {
             }
             entity.setMembershipId(premiumCreateDto.getMembershipId());
-            TransactionAttributeDto transactionAttributeDto = determinePeriod(premiumCreateDto.getMembershipId());
-            entity.setMembershipPeriod(transactionAttributeDto.getValue());
+            entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
             entity.setLocation(premiumCreateDto.getLocation());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
@@ -90,7 +86,7 @@ public class PremiumService {
             entity.setTenderType(premiumCreateDto.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
             PremiumEntity premiumEntity = premiumRepository.save(entity);
-            updatePeriod(transactionAttributeDto);
+//            updatePeriod(transactionAttributeDto);
             PremiumDto premiumDto = new PremiumDto();
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
@@ -110,12 +106,13 @@ public class PremiumService {
         }
     }
 
-    public void update(PremiumInboundDto premiumInboundDto){
+    public void update(PremiumInboundDto premiumInboundDto) {
         PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
         entity.setMembershipPeriod(premiumInboundDto.getMembershipPeriod());
         premiumRepository.save(entity);
     }
-    public void delete(PremiumInboundDto premiumInboundDto){
+
+    public void delete(PremiumInboundDto premiumInboundDto) {
         PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
         entity.setMembershipId(null);
         entity.setExtReceiptNumber(null);
@@ -175,17 +172,15 @@ public class PremiumService {
 //            premiumDto.setLocation(fieldOptionService.getFieldOption(Field.SALES_AREA, entity.getLocation()));
             premiumDto.setCreationDate(formatterDate.format(entity.getCreationDate()));
             premiumDto.setCreationTime(formatterTime.format(entity.getCreationTime()));
-            try {
-                premiumDto.setMembershipNumber(transactionService.get(entity.getMembershipId()).getNumber());
-//                premiumDto.setEmployeeResponsible(userService.getUserByName(entity.getCreatedBy()).getPartner());
-            } catch (Exception e) {
 
-            }
+            premiumDto.setMembershipNumber(entity.getMembershipId());
+
             return premiumDto;
         } else {
             return null;
         }
     }
+
     public ArrayList<PremiumDto> getAll() throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
         //Sort sort = Sort.by("number").descending();
@@ -206,6 +201,20 @@ public class PremiumService {
         //Sort sort = Sort.by("number").descending();
         //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         List<PremiumEntity> premiumEntities = premiumRepository.findByString(query);
+        for (PremiumEntity premiumEntity : premiumEntities) {
+            try {
+                premiumDtoArrayList.add(entityToDto(premiumEntity));
+            } catch (Exception e) {
+            }
+        }
+        return premiumDtoArrayList;
+    }
+
+    public ArrayList<PremiumDto> findByMembership(String id) throws Exception {
+        ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
+        //Sort sort = Sort.by("number").descending();
+        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
+        List<PremiumEntity> premiumEntities = premiumRepository.findByMembership(id);
         for (PremiumEntity premiumEntity : premiumEntities) {
             try {
                 premiumDtoArrayList.add(entityToDto(premiumEntity));
@@ -273,12 +282,20 @@ public class PremiumService {
         };
     }
 
-    private TransactionAttributeDto determinePeriod(String id) {
+    private String determinePeriod(String id) {
         try {
-            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
-            transactionAttributeDto.setTransaction(id);
-            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
-            String previousPeriod = transactionAttributeService.get(transactionAttributeDto);
+            String previousPeriod = "";
+            List<PremiumDto> premiums = findByMembership(id);
+
+            PremiumDto maxItem = premiums.stream()
+                    .max(Comparator.comparingInt(i -> Integer.parseInt(i.getMembershipPeriod())))
+                    .orElse(null);
+
+            if (maxItem != null) {
+                previousPeriod = maxItem.getMembershipPeriod();
+            }else{
+                throw new Exception();
+            }
             String yearString = previousPeriod.substring(0, 4);
             String monthString = previousPeriod.substring(4, 6);
             if (Integer.parseInt(monthString) == 12) {
@@ -288,18 +305,13 @@ public class PremiumService {
                 int month = Integer.parseInt(monthString) + 1;
                 monthString = String.format("%02d", month);
             }
-            transactionAttributeDto.setValue(yearString + monthString);
-            return transactionAttributeDto;
+           return yearString + monthString;
         } catch (Exception exception) {
-            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
-            transactionAttributeDto.setTransaction(id);
-            transactionAttributeDto.setAttribute(TransactionAttribute.LAST_PREMIUM_PERIOD);
             Calendar calendar = Calendar.getInstance();
             int year = calendar.get(Calendar.YEAR);
             int month = calendar.get(Calendar.MONTH) + 1;
             String monthString = String.format("%02d", month);
-            transactionAttributeDto.setValue(Integer.toString(year) + monthString);
-            return transactionAttributeDto;
+            return Integer.toString(year) + monthString;
         }
     }
 
@@ -350,7 +362,8 @@ public class PremiumService {
         }
         return premiumEntities;
     }
-    public void print(PrintJobRequest printJobRequest){
+
+    public void print(PrintJobRequest printJobRequest) {
         PrintJobEntity printJobEntity = new PrintJobEntity();
         printJobEntity.setPrinterId(printJobRequest.getPrinterId());
         printJobEntity.setContent(generateReceipt(printJobRequest.getObjectId()));
@@ -371,8 +384,8 @@ public class PremiumService {
 
         sb.append(centerText(companyInfoService.getCompanyName(), 42)).append("\n");
         sb.append(centerText(companyInfoService.getCompanyAddress(), 42)).append("\n");
-        sb.append(centerText("Tel: "+companyInfoService.getCompanyTelephoneNumber(), 42)).append("\n");
-        sb.append(centerText("VAT No: "+companyInfoService.getVATNumber(), 42)).append("\n");
+        sb.append(centerText("Tel: " + companyInfoService.getCompanyTelephoneNumber(), 42)).append("\n");
+        sb.append(centerText("VAT No: " + companyInfoService.getVATNumber(), 42)).append("\n");
         sb.append(line).append("\n");
         sb.append("Trace ID: ").append(premiumDto.getId()).append("\n");
         sb.append("Receipt No: ").append(premiumDto.getReceiptNumber()).append("\n");
@@ -380,22 +393,21 @@ public class PremiumService {
         sb.append("Print Date: ").append(dateTime).append("\n");
         sb.append(line).append("\n");
         String idnumber = "";
-        if(!premiumDto.getMembership().getMember().getIdentity().equals(null))
-        {
-          idnumber = premiumDto.getMembership().getMember().getIdentity().getNumber();
+        if (!premiumDto.getMembership().getMember().getIdentity().equals(null)) {
+            idnumber = premiumDto.getMembership().getMember().getIdentity().getNumber();
         }
         sb.append(String.format("%-20s %-20s\n", "Member ID Number:", idnumber));
-        sb.append(String.format("%-20s %-20s\n", "Member Name:",partnerService.getFullName(premiumDto.getMembership().getMember())));
+        sb.append(String.format("%-20s %-20s\n", "Member Name:", partnerService.getFullName(premiumDto.getMembership().getMember())));
         sb.append(String.format("%-20s %-20s\n", "Membership Number:", premiumDto.getMembership().getNumber()));
         sb.append(String.format("%-20s %-20s\n", "Membership Option:", premiumDto.getMembership().getProduct().getDescription()));
 
         sb.append(line).append("\n");
 
-        sb.append(String.format("%-20s %-20s\n", "Tender Type:",premiumDto.getTenderType().getDescription()));
+        sb.append(String.format("%-20s %-20s\n", "Tender Type:", premiumDto.getTenderType().getDescription()));
         sb.append(String.format("%-20s %-20s\n", "Amount Paid:", premiumDto.getAmount()));
-        String month = fieldOptionService.getOptionalFieldDescription("MONTH", premiumDto.getMembershipPeriod().substring(4,6));
-        sb.append(String.format("%-20s %-20s\n", "Payment Period:", month +" "+ premiumDto.getMembershipPeriod().substring(0,4)));
-        sb.append(String.format("%-20s %-20s\n", "Payment Date:", premiumDto.getCreationDate() +" "+ premiumDto.getCreationTime()));
+        String month = fieldOptionService.getOptionalFieldDescription("MONTH", premiumDto.getMembershipPeriod().substring(4, 6));
+        sb.append(String.format("%-20s %-20s\n", "Payment Period:", month + " " + premiumDto.getMembershipPeriod().substring(0, 4)));
+        sb.append(String.format("%-20s %-20s\n", "Payment Date:", premiumDto.getCreationDate() + " " + premiumDto.getCreationTime()));
 
         sb.append(line).append("\n");
 
