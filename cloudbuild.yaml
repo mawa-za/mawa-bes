@@ -17,5 +17,10 @@ steps:
     args: ['push',
            'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME']
 
+availableSecrets:
+  secretManager:
+    - versionName: projects/mawa-162022/secrets/github-token/versions/latest
+      env: GITHUB_TOKEN
+
 options:
   logging: CLOUD_LOGGING_ONLY
