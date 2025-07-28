@@ -201,7 +201,8 @@ public class PaymentRequestController {
     @RequestMapping(value = "{id}/send-to-bank", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> sendToBank(@PathVariable String id) {
         try {
-            BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(id);
+            PaymentRequestDto paymentRequestDto = paymentRequestService.get(id);
+            BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
             MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
             messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
             messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));

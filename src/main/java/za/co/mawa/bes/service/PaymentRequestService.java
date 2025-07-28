@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -10,10 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import za.co.mawa.bes.dao.PaymentRequestDao;
-import za.co.mawa.bes.dto.BankAccountDto;
-import za.co.mawa.bes.dto.EmailDto;
-import za.co.mawa.bes.dto.PropertyDto;
-import za.co.mawa.bes.dto.TransactionProcessDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -28,6 +26,8 @@ import za.co.mawa.bes.entity.transaction.TransactionBankAccount;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
+import za.co.mawa.bes.fnb.BankPaymentService;
+import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.*;
 
@@ -54,7 +54,11 @@ public class PaymentRequestService implements PaymentRequestDao {
     SettingService settingService;
     @Autowired
     private TransactionRepository transactionRepository;
-
+    @Autowired
+    BankPaymentService bankPaymentService;
+    @Autowired
+    MessageProducerService messageProducerService;
+    Gson gson = new Gson();
     @Override
     public PaymentRequestDto create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -247,14 +251,14 @@ public class PaymentRequestService implements PaymentRequestDao {
             }
             transactionService.edit(transactionEditDto);
             TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-//            EmailDto emailDto = new EmailDto();
-//            emailDto.setTo(userService.getUserByName(transactionDto.getCreatedBy()).getEmail());
-//            emailDto.setSubject("Payment Request Approved");
-//            emailDto.setTemplate("payment-request-approved");
-//            List<PropertyDto> props = new ArrayList<>();
-//            props.add(new PropertyDto(HtmlTemplateVariableKey.NUMBER, transactionDto.getNumber()));
-//            emailDto.setProperties(props);
-//            emailService.send(emailDto);
+            PaymentRequestDto paymentRequestDto = get(transactionProcessDto.getId());
+            BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
+            if(settingService.getSetting("INTEGRATION", "FNB-API").equals("1")){
+                MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
+                messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
+                messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
+                messageProducerService.sendMessage(messageQueueInboundDto);
+            }
         } catch (Exception exception) {
             throw new RuntimeException();
         }

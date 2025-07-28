@@ -31,8 +31,6 @@ import java.util.List;
 @Service
 public class BankPaymentService {
     @Autowired
-    PaymentRequestService paymentRequestService;
-    @Autowired
     SettingService settingService;
     @Autowired
     PartnerIdentityService partnerIdentityService;
@@ -120,10 +118,9 @@ public class BankPaymentService {
         }
     }
 
-    public BankPaymentRequest generateRequest(String paymentResuestId) {
+    public BankPaymentRequest generateRequest(PaymentRequestDto paymentRequestDto) {
         BankPaymentRequest bankPaymentRequest = new BankPaymentRequest();
         try {
-            PaymentRequestDto paymentRequestDto = paymentRequestService.get(paymentResuestId);
             bankPaymentRequest.setGroupHeader(groupHeader(paymentRequestDto));
             List<PaymentInformation> paymentInformationList = new ArrayList<>();
             paymentInformationList.add(paymentInformation(paymentRequestDto));
