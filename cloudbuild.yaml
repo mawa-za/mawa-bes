@@ -10,7 +10,7 @@ steps:
       - -c
       - |
         git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$$github-token"; }; f'
-        git clone https://github.com/your-org/flyway-scripts.git src/main/resources/db/migration
+        git clone https://github.com/mawa-za/flyway-scripts.git src/main/resources/db/migration
 
     secretEnv: [ 'github-token' ]
   - name: 'gcr.io/cloud-builders/docker'
