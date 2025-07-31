@@ -6,14 +6,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.fnb.dto.*;
+import za.co.mawa.bes.service.BankAccountService;
 import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,6 +29,10 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
@@ -34,6 +44,9 @@ public class BankPaymentService {
     SettingService settingService;
     @Autowired
     PartnerIdentityService partnerIdentityService;
+
+    @Autowired
+    BankAccountService bankAccountService;
 
     private String getBaseURL(){
         return settingService.getSetting("BASE-URL", "FNB-API");
@@ -81,21 +94,21 @@ public class BankPaymentService {
     }
 
 
-    public void sendPaymentRequest(JSONObject requestBody, String token ) throws IOException {
+    public void sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(getBaseURL()+"/paymentExecution/initiate/v1");
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
-            connection.setRequestProperty("Authorization", "Bearer " + token);
+            connection.setRequestProperty("Authorization", "Bearer " + getToken());
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
             connection.setDoOutput(true);
 
             // Send request body
             try (OutputStream os = connection.getOutputStream()) {
-                byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                byte[] input = payload.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
                 os.flush();
             }
@@ -135,7 +148,10 @@ public class BankPaymentService {
         GroupHeader grpHdr = new GroupHeader();
         try {
             grpHdr.setMessageId(paymentRequestDto.getId());
-            grpHdr.setCreationDateTime(new Date().toLocaleString());
+            Instant instant = new Date().toInstant();
+            ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
+            String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
+            grpHdr.setCreationDateTime(isoDate);
             grpHdr.setTotalNumberOfTransactions(1);
             grpHdr.setTotalControlSum(paymentRequestDto.getAmount().doubleValue());
             grpHdr.setInitiatingPartyName(settingService.getSetting("COMPANY-NAME", "TENANT"));
@@ -169,9 +185,10 @@ public class BankPaymentService {
             } else if (accountType.equals("SAVINGS")) {
                 debtorAccount.setAccountType("SVGS");
             }
-
+            paymentInformation.setDebtorAccount(debtorAccount);
             DebtorAgent debtorAgent = new DebtorAgent();
             debtorAgent.setBranchId(settingService.getSetting("BRANCH-CODE", "EFT-BANK-ACCOUNT"));
+            paymentInformation.setDebtorAgent(debtorAgent);
 
             CreditTransferTransactionInformation transactionInformation = new CreditTransferTransactionInformation();
 
@@ -180,14 +197,27 @@ public class BankPaymentService {
             amount.setValue(paymentRequestDto.getAmount().doubleValue());
             transactionInformation.setAmount(amount);
 
+            BankAccountDto bankAccountDto;
+            if (paymentRequestDto.getPaymentMethod().getCode().equals("EFT")) {
+                bankAccountDto = bankAccountService.getList(paymentRequestDto.getId()).iterator().next();
+                bankAccountDto.setBranchCode(bankAccountService.getUBC(bankAccountDto.getBankName().getCode()));
+            } else {
+                bankAccountDto = new BankAccountDto();
+                bankAccountDto.setAccountHolder(settingService.getSetting("ACCOUNT-HOLDER", "CASH-BANK-ACCOUNT"));
+                bankAccountDto.setBranchCode(settingService.getSetting("BRANCH-CODE", "CASH-BANK-ACCOUNT"));
+                bankAccountDto.setAccountNumber(settingService.getSetting("ACCOUNT-NUMBER", "CASH-BANK-ACCOUNT"));
+                FieldOptionDto fieldOptionDto = new FieldOptionDto();
+                fieldOptionDto.setCode(settingService.getSetting("ACCOUNT-TYPE", "CASH-BANK-ACCOUNT"));
+                bankAccountDto.setAccountType(fieldOptionDto);
+            }
             Creditor creditor = new Creditor();
-            creditor.setName(paymentRequestDto.getBankAccount().getAccountHolder());
-            creditor.setBicOrBEI(paymentRequestDto.getBankAccount().getBranchCode());
+            creditor.setName(bankAccountDto.getAccountHolder());
+            creditor.setBicOrBEI(bankAccountDto.getBranchCode());
             transactionInformation.setCreditor(creditor);
 
             CreditorAccount creditorAccount = new CreditorAccount();
-            creditorAccount.setAccountNumber(paymentRequestDto.getBankAccount().getAccountNumber());
-            String creditAccountType = paymentRequestDto.getBankAccount().getAccountType().getCode();
+            creditorAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+            String creditAccountType = bankAccountDto.getAccountType().getCode();
             if (creditAccountType.equals("CHEQUE")) {
                 debtorAccount.setAccountType("CACC");
             } else if (creditAccountType.equals("SAVINGS")) {
@@ -196,7 +226,7 @@ public class BankPaymentService {
             transactionInformation.setCreditorAccount(creditorAccount);
 
             CreditorAgent creditorAgent = new CreditorAgent();
-            creditorAgent.setBranchId(paymentRequestDto.getBankAccount().getBranchCode());
+            creditorAgent.setBranchId(bankAccountDto.getBranchCode());
             transactionInformation.setCreditorAgent(creditorAgent);
 
             String reference;
@@ -207,11 +237,17 @@ public class BankPaymentService {
             } else {
                 reference = paymentRequestDto.getReference();
             }
-            String endToend = (paymentRequestDto.getNumber() + paymentRequestDto.getPaymentReason().getDescription()).substring(0,30);
-            transactionInformation.setEndToEndId(endToend);
-            transactionInformation.setRemittanceInformationUnstructured(reference.substring(0,35));
+
+            String endToend = paymentRequestDto.getNumber() + paymentRequestDto.getPaymentReason().getDescription();
+            String limited = endToend.length() > 30 ? endToend.substring(0, 30) : endToend;
+            transactionInformation.setEndToEndId(limited);
+            limited = reference.length() > 35 ? reference.substring(0, 35) : reference;
+            transactionInformation.setRemittanceInformationUnstructured(limited);
             transactionInformation.setRemittanceLocationMethod("EMAL");
-            transactionInformation.setRemittanceLocationElectronicAddress(settingService.getSetting("POP-RECIPIENT", "BANK-PAYMENT"));
+            transactionInformation.setRemittanceLocationElectronicAddress(settingService.getSetting("POP-RECIPIENT", "FNB-API"));
+            List<CreditTransferTransactionInformation> creditTransferTransactionInformationList = new ArrayList<>();
+            creditTransferTransactionInformationList.add(transactionInformation);
+            paymentInformation.setCreditTransferTransactionInformation(creditTransferTransactionInformationList);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

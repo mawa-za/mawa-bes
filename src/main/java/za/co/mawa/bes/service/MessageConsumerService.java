@@ -1,11 +1,13 @@
 package za.co.mawa.bes.service;
 
+import org.hibernate.loader.access.BaseNaturalIdLoadAccessImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
+import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 
 import java.time.LocalDateTime;
@@ -19,6 +21,8 @@ public class MessageConsumerService {
 
     @Autowired
     TenantAdminService tenantAdminService;
+    @Autowired
+    BankPaymentService bankPaymentService;
 
     @Scheduled(fixedDelay = 5000)
     public void processAllTenants() {
@@ -31,6 +35,7 @@ public class MessageConsumerService {
                 for (MessageQueueEntity msg : messageQueueEntities) {
                     try {
                         System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
+                        bankPaymentService.sendPaymentRequest(msg.getPayload());
                         msg.setProcessed(true);
                     } catch (Exception e) {
                         msg.setRetryCount(msg.getRetryCount() + 1);

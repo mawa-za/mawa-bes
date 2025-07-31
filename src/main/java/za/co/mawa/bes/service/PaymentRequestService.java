@@ -249,16 +249,15 @@ public class PaymentRequestService implements PaymentRequestDao {
             if (transactionProcessDto.getReason() != null && transactionProcessDto.getReason() != "") {
                 transactionEditDto.setStatusReason(transactionProcessDto.getReason());
             }
-            transactionService.edit(transactionEditDto);
-            TransactionDto transactionDto = transactionService.get(transactionProcessDto.getId());
-            PaymentRequestDto paymentRequestDto = get(transactionProcessDto.getId());
-            BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
             if(settingService.getSetting("INTEGRATION", "FNB-API").equals("1")){
+                PaymentRequestDto paymentRequestDto = get(transactionProcessDto.getId());
+                BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
                 MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
                 messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
                 messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
                 messageProducerService.sendMessage(messageQueueInboundDto);
             }
+            transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
             throw new RuntimeException();
         }
