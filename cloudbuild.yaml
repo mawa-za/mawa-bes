@@ -4,6 +4,15 @@ steps:
   #    args: ['build', '-t',
   #           'gcr.io/mawa-162022/github.com/raretag-za/mawa:$BRANCH_NAME',
   #           '.']
+  - name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$$github-token"; }; f'
+        git clone https://github.com/your-org/flyway-scripts.git src/main/resources/db/migration
+
+    secretEnv: [ 'github-token' ]
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t',
            'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
@@ -20,7 +29,7 @@ steps:
 availableSecrets:
   secretManager:
     - versionName: projects/mawa-162022/secrets/github-token/versions/latest
-      env: GITHUB_TOKEN
+      env: github-token
 
 options:
   logging: CLOUD_LOGGING_ONLY
