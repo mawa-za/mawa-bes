@@ -170,7 +170,10 @@ public class BankPaymentService {
             paymentInformation.setNumberOfTransactions(1);
             paymentInformation.setControlSum(paymentRequestDto.getAmount().doubleValue());
             paymentInformation.setPaymentTypeInformationServiceLevelCode("SDVA");
-            paymentInformation.setRequestedExecutionDate(paymentRequestDto.getDueDate().toLocaleString());
+            Instant instant = paymentRequestDto.getDueDate().toInstant();
+            ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
+            String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
+            paymentInformation.setRequestedExecutionDate(isoDate);
 
             Debtor debtor = new Debtor();
             debtor.setName(settingService.getSetting("ACCOUNT-HOLDER", "EFT-BANK-ACCOUNT"));
