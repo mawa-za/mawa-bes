@@ -5,6 +5,7 @@ import org.apache.commons.dbcp.BasicDataSource;
 import org.flywaydb.core.Flyway;
 import org.hibernate.cfg.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.dto.TenantDto;
@@ -27,7 +28,9 @@ public class FlywayConfiguration {
     TenantAdminService tenantAdminService;
     @Autowired
     TenantService tenantService;
-    private static final String DB_MIGRATION_TENANTS = "db/migration/all";
+
+    @Value("${spring.flyway.locations}")
+    private String DB_MIGRATION_TENANTS;
     private static final String DB_MIGRATION_SPECIFIC_FOR_TENANT = "db/migration/%s";
     private static final String DEFAULT_SCHEMA = "mawa";
 
