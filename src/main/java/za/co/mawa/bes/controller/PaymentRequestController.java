@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dao.PaymentRequestDao;
+import za.co.mawa.bes.dto.MessageQueueInboundDto;
 import za.co.mawa.bes.dto.TransactionProcessDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -17,7 +18,10 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionEditDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
+import za.co.mawa.bes.fnb.BankPaymentService;
+import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.service.BankFileXmlService;
+import za.co.mawa.bes.service.MessageProducerService;
 import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.ClaimStatus;
@@ -38,6 +42,10 @@ public class PaymentRequestController {
     TransactionService transactionService;
     @Autowired
     BankFileXmlService bankFileXmlService;
+    @Autowired
+    BankPaymentService bankPaymentService;
+    @Autowired
+    MessageProducerService messageProducerService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPaymentRequest(@RequestBody PaymentRequestCreateDto paymentRequest) {
@@ -185,6 +193,21 @@ public class PaymentRequestController {
         try {
            String base64String =  bankFileXmlService.createBankFile(id);
             return ResponseEntity.ok(base64String);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/send-to-bank", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> sendToBank(@PathVariable String id) {
+        try {
+            PaymentRequestDto paymentRequestDto = paymentRequestService.get(id);
+            BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
+            MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
+            messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
+            messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
+            messageProducerService.sendMessage(messageQueueInboundDto);
+            return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

@@ -1,7 +1,0 @@
-ALTER TABLE `attachment` 
-ADD COLUMN `DownlodedBy` VARCHAR(45) NULL AFTER `UploadDate`,
-CHANGE COLUMN `file_type` `UploadedBy` VARCHAR(45) NULL DEFAULT NULL AFTER `id`,
-CHANGE COLUMN `file_name` `DownloadDate` DATETIME NULL DEFAULT NULL AFTER `DownlodedBy`,
-CHANGE COLUMN `creation_by` `UploadTime` DATETIME(6) NULL DEFAULT NULL ,
-CHANGE COLUMN `creation_date` `UploadDate` DATETIME(6) NULL DEFAULT NULL ,
-CHANGE COLUMN `file_content` `file` LONGBLOB NULL DEFAULT NULL ;
