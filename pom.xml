@@ -15,8 +15,8 @@
     <name>mawa-bes</name>
     <description>Mawa Backend Services</description>
     <properties>
-<!--        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>-->
-<!--        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>-->
+        <!--        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>-->
+        <!--        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>-->
         <java.version>17</java.version>
     </properties>
     <profiles>
@@ -197,7 +197,12 @@
             <artifactId>pw-iso20022</artifactId>
             <version>SRU2024-10.2.4</version>
         </dependency>
-
+        <!-- https://mvnrepository.com/artifact/com.github.xeroapi/xero-java -->
+        <dependency>
+            <groupId>com.github.xeroapi</groupId>
+            <artifactId>xero-java</artifactId>
+            <version>12.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

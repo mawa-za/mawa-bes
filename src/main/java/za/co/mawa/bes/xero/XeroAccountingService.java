@@ -4,10 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xero.api.client.AccountingApi;
+import com.xero.models.accounting.Invoice;
+import com.xero.models.accounting.Invoices;
+import com.xero.models.accounting.LineItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.TenantAdminService;
@@ -16,11 +21,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class XeroAccountingService {
@@ -31,12 +39,14 @@ public class XeroAccountingService {
     XeroAuthService xeroAuthService;
     @Autowired
     TenantAdminService tenantAdminService;
+    @Autowired
+    AccountingApi accountingApi;
 
     private static String INVOICE_URL = "https://api.xero.com/api.xro/2.0/Invoices";
     private static String CONTACT_URL = "https://api.xero.com/api.xro/2.0/Contacts";
 
 
-    public String createInvoice(String partnerId , String reference , String itemCode){
+    public InvoiceOutboundDto createInvoice(String partnerId , String reference , String itemCode){
         try {
             //get accessToken and XeroTenantId
             //use the partner id to get the contact id from partner
@@ -207,7 +217,7 @@ public class XeroAccountingService {
         }
     }
 
-    public String sendInvoiceRequest(JSONObject requestBody, String accessToken , String xero_tenant_id) throws IOException {
+    public InvoiceOutboundDto sendInvoiceRequest(JSONObject requestBody, String accessToken , String xero_tenant_id) throws IOException {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(INVOICE_URL);
@@ -251,7 +261,11 @@ public class XeroAccountingService {
             JSONArray invoices = jsonResponse.getJSONArray("Invoices");
             JSONObject firstInvoice = invoices.getJSONObject(0);
             String invoiceNumber = firstInvoice.getString("InvoiceNumber");
-            return invoiceNumber;
+            String invoiceID = firstInvoice.getString("InvoiceNumber");
+            InvoiceOutboundDto invoiceOutboundDto = new InvoiceOutboundDto();
+            invoiceOutboundDto.setNumber(invoiceNumber);
+            invoiceOutboundDto.setId(invoiceID);
+            return invoiceOutboundDto;
 
         } catch (SocketTimeoutException e) {
             throw new IOException("Request timed out: " + e.getMessage(), e);
@@ -286,5 +300,34 @@ public class XeroAccountingService {
             }
         }
         return null;
+    }
+
+    public Invoice addLineItemToInvoice(UUID invoiceId, LineItem lineItem) throws Exception {
+        String tenant = xeroAuthService.checkXeroInfo();
+        String accessToken = xeroAuthService.refreshAccessToken(tenant);
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        JSONObject jsonObject = new JSONObject(tenantProperty);
+        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+        // Fetch existing invoice
+        Invoice invoice = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,0).getInvoices().get(0);
+
+        // Create new line item
+//        LineItem newLineItem = new LineItem()
+//                .description("Additional service")
+//                .quantity(BigDecimal.valueOf(1).doubleValue())
+//                .unitAmount(BigDecimal.valueOf(50).doubleValue())
+//                .accountCode("200"); // Use a valid revenue account code
+
+        // Add new line to existing lines
+        List<LineItem> updatedLines = new ArrayList<>(invoice.getLineItems());
+        updatedLines.add(lineItem);
+        invoice.setLineItems(updatedLines);
+        Invoices invoices = new Invoices();
+        invoices.
+        invoices.setInvoices(new ArrayList<>().add(invoice));
+
+        // Update invoice
+        Invoices updatedInvoice = accountingApi.updateInvoice(accessToken, XeroTenantId, invoiceId, invoice);
+        return updatedInvoice.getInvoices().get(0);
     }
 }

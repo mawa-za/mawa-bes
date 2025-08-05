@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -373,13 +374,13 @@ public class ClaimController {
                 // Set reference from Xero invoice or claim number
                 String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
                 logger.info("Fetching xeroInvoiceCode");
-                String xeroInvoice = xeroAccountingService.createInvoice(
+                InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
                         getFuneralServiceProvider(),
                         partnerService.getFullName(claim.getDeceased()),
                         itemCode
                 );
                 logger.info("Done fetching xeroInvoiceCode");
-                funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice : claim.getNumber());
+                funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
 
                 // setting common payment details
                 logger.info("Setting common payment details ");
@@ -418,6 +419,13 @@ public class ClaimController {
                     transactionLinkDto.setTransaction1(claimId);
                     transactionLinkDto.setTransaction2(paymentRequestId);
                     transactionLinkDto.setType(TransactionLinkType.CLAIM_PAYMENT_REQUEST);
+                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                    transactionService.addLink(transactionLinkDto);
+
+                    transactionLinkDto = new TransactionLinkDto();
+                    transactionLinkDto.setTransaction1(claimId);
+                    transactionLinkDto.setTransaction2(xeroInvoice.getId());
+                    transactionLinkDto.setType(TransactionLinkType.XERO_INVOICE);
                     transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                     transactionService.addLink(transactionLinkDto);
 
@@ -632,13 +640,13 @@ public class ClaimController {
         // Set reference from Xero invoice or claim number
         String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
         logger.info("Fetching xeroInvoiceCode");
-        String xeroInvoice = xeroAccountingService.createInvoice(
+        InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
                 getFuneralServiceProvider(),
                 partnerService.getFullName(claim.getDeceased()),
                 itemCode
         );
         logger.info("Done fetching xeroInvoiceCode");
-        paymentRequest.setReference(xeroInvoice != null ? xeroInvoice : claim.getNumber());
+        paymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
 
         // setting common payment details
         logger.info("Setting common payment details ");
