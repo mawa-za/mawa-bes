@@ -1,6 +1,10 @@
 package za.co.mawa.bes.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nimbusds.jose.shaded.gson.Gson;
+import com.xero.models.accounting.LineItem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.claim.*;
+import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -20,6 +25,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
+import za.co.mawa.bes.dto.transaction.link.TransactionLinkOutboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.*;
@@ -57,6 +63,8 @@ public class ClaimController {
     SettingService settingService;
     @Autowired
     XeroAccountingService xeroAccountingService;
+    @Autowired
+    TransactionLinkService transactionLinkService;
 
     @Autowired
     ProductService productService;
@@ -365,7 +373,6 @@ public class ClaimController {
                     paymentRequestService.approve(transactionProcessDto);
                 }
             }
-
             if (claim.getType().getCode().equals("FUNERAL")) {
                 PaymentRequestCreateDto funeralPaymentRequest = new PaymentRequestCreateDto();
                 funeralPaymentRequest.setPaymentMethod("EFT");
@@ -373,13 +380,13 @@ public class ClaimController {
                 // Set reference from Xero invoice or claim number
                 String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
                 logger.info("Fetching xeroInvoiceCode");
-                String xeroInvoice = xeroAccountingService.createInvoice(
+                InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
                         getFuneralServiceProvider(),
                         partnerService.getFullName(claim.getDeceased()),
                         itemCode
                 );
                 logger.info("Done fetching xeroInvoiceCode");
-                funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice : claim.getNumber());
+                funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
 
                 // setting common payment details
                 logger.info("Setting common payment details ");
@@ -418,6 +425,13 @@ public class ClaimController {
                     transactionLinkDto.setTransaction1(claimId);
                     transactionLinkDto.setTransaction2(paymentRequestId);
                     transactionLinkDto.setType(TransactionLinkType.CLAIM_PAYMENT_REQUEST);
+                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                    transactionService.addLink(transactionLinkDto);
+
+                    transactionLinkDto = new TransactionLinkDto();
+                    transactionLinkDto.setTransaction1(claimId);
+                    transactionLinkDto.setTransaction2(xeroInvoice.getId());
+                    transactionLinkDto.setType(TransactionLinkType.XERO_INVOICE);
                     transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                     transactionService.addLink(transactionLinkDto);
 
@@ -490,9 +504,91 @@ public class ClaimController {
 
             }
 
+            if (claim.getType().getCode().equals("MERGER")) {
+                UUID xeroInvoiceId = UUID.fromString("");
+                PaymentRequestCreateDto funeralPaymentRequest = new PaymentRequestCreateDto();
+                funeralPaymentRequest.setPaymentMethod("EFT");
+                funeralPaymentRequest.setPaymentReason("FUNERAL-CLAIM-MERGE");
+                // Set reference from Xero invoice or claim number
+                String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
+                BigDecimal invoiceAmount = getProductAmount(claim.getMembership().getProduct().getId(), "MERGE-VALUE");
+
+                transactionService.getLinks(claim.getId());
+                List<TransactionLinkOutboundDto> claimChildren = transactionLinkService.getChildren(claim.getId());
+                for (TransactionLinkOutboundDto child : claimChildren) {
+                    if (child.getType().equals(TransactionLinkType.XERO_INVOICE)) {
+                        xeroInvoiceId = UUID.fromString(child.getChild());
+                        break;
+                    }
+                }
+
+                LineItem lineItem = new LineItem();
+                lineItem.setDescription("Funeral upgrade value");
+                lineItem.setQuantity(1.00);
+                lineItem.setLineAmount(invoiceAmount.doubleValue());
+
+                logger.info("Fetching xeroInvoiceCode");
+                InvoiceOutboundDto xeroInvoice = xeroAccountingService.addLineItemToInvoice(xeroInvoiceId, lineItem);
+                logger.info("Done fetching xeroInvoiceCode");
+                funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
+
+                // setting common payment details
+                logger.info("Setting common payment details ");
+                funeralPaymentRequest.setDueDate(new Date());
+                funeralPaymentRequest.setRecipientId(getFuneralServiceProvider());
+                funeralPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+
+                try {
+                    funeralPaymentRequest.setAmount(invoiceAmount);
+                } catch (Exception ex) {
+                    funeralPaymentRequest.setAmount(new BigDecimal("0"));
+                }
+
+                funeralPaymentRequest.setEmployeeResponsibleId(UserContext.getCurrentUserPartner());
+                PaymentRequestDto paymentRequestDto = paymentRequestService.create(funeralPaymentRequest);
+                String paymentRequestId = paymentRequestDto.getId();
+
+                try {
+                    if (funeralPaymentRequest.getPaymentMethod().equals("EFT")) {
+                        BankAccountDto bankAccountDto = bankAccountService.getList(getFuneralServiceProvider()).iterator().next();
+                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                        bankAccount.setObjectId(paymentRequestId);
+                        bankAccountService.add(bankAccount);
+                    }
+                } catch (Exception e) {
+
+                }
+                if (paymentRequestId != null) {
+                    TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
+                    transactionLinkDto.setTransaction1(claimId);
+                    transactionLinkDto.setTransaction2(paymentRequestId);
+                    transactionLinkDto.setType(TransactionLinkType.CLAIM_PAYMENT_REQUEST);
+                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                    transactionService.addLink(transactionLinkDto);
+
+                    transactionLinkDto = new TransactionLinkDto();
+                    transactionLinkDto.setTransaction1(claimId);
+                    transactionLinkDto.setTransaction2(xeroInvoice.getId());
+                    transactionLinkDto.setType(TransactionLinkType.XERO_INVOICE);
+                    transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                    transactionService.addLink(transactionLinkDto);
+
+                    TransactionProcessDto transactionProcessDto = new TransactionProcessDto();
+                    transactionProcessDto.setId(paymentRequestId);
+                    paymentRequestService.approve(transactionProcessDto);
+                }
+
+            }
+
             if (claim.getType().getCode().equals("TOMBSTONE")) {
                 createTombstonePaymentRequest(claim);
             }
+
             if (claim.getType().getCode().equals("GROUP-FUNERAL")) {
                 TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(claimId);
@@ -632,13 +728,13 @@ public class ClaimController {
         // Set reference from Xero invoice or claim number
         String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
         logger.info("Fetching xeroInvoiceCode");
-        String xeroInvoice = xeroAccountingService.createInvoice(
+        InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
                 getFuneralServiceProvider(),
                 partnerService.getFullName(claim.getDeceased()),
                 itemCode
         );
         logger.info("Done fetching xeroInvoiceCode");
-        paymentRequest.setReference(xeroInvoice != null ? xeroInvoice : claim.getNumber());
+        paymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
 
         // setting common payment details
         logger.info("Setting common payment details ");
