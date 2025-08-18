@@ -86,18 +86,18 @@ public class XeroAuthController {
         }
     }
 
-    @GetMapping("/xero/createInvoice")
-    public String createInvoice() {
-        // Store the code for later use in token exchange
-        try {
-
-            return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
-//            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    @GetMapping("/xero/createInvoice")
+//    public String createInvoice() {
+//        // Store the code for later use in token exchange
+//        try {
+//
+//            return xeroAccountingService.createInvoice("ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+////            return xeroAccountingService.createInvoice("ff80808191c16c680191c17d16830000","ff808081932a428001932a4b1b520005", "claim-id","BOOK");
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     @GetMapping("/xero/contact")
     public ResponseEntity<?> getContact() {
