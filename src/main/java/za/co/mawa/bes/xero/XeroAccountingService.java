@@ -27,6 +27,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -309,7 +310,7 @@ public class XeroAccountingService {
         JSONObject jsonObject = new JSONObject(tenantProperty);
         String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
         // Fetch existing invoice
-        Invoice invoice = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,0).getInvoices().get(0);
+        Invoice invoiceToUpdate = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,2).getInvoices().get(0);
 
         // Create new line item
 //        LineItem newLineItem = new LineItem()
@@ -319,15 +320,21 @@ public class XeroAccountingService {
 //                .accountCode("200"); // Use a valid revenue account code
 
         // Add new line to existing lines
-        List<LineItem> updatedLines = new ArrayList<>(invoice.getLineItems());
+        List<LineItem> updatedLines = new ArrayList<>(invoiceToUpdate.getLineItems());
         updatedLines.add(lineItem);
-        invoice.setLineItems(updatedLines);
+        invoiceToUpdate.setLineItems(updatedLines);
         Invoices invoices = new Invoices();
-        invoices.
-        invoices.setInvoices(new ArrayList<>().add(invoice));
+        Invoices invoicesWrapper = new Invoices()
+                .invoices(Collections.singletonList(invoiceToUpdate));
 
-        // Update invoice
-        Invoices updatedInvoice = accountingApi.updateInvoice(accessToken, XeroTenantId, invoiceId, invoice);
-        return updatedInvoice.getInvoices().get(0);
+        Invoices updatedInvoices = accountingApi.updateInvoice(
+                accessToken,
+                XeroTenantId,
+                invoiceToUpdate.getInvoiceID(),
+                invoicesWrapper,
+                2,
+                UUID.randomUUID().toString()
+        );
+        return updatedInvoices.getInvoices().get(0);
     }
 }
