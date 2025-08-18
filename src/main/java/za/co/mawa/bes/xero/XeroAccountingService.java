@@ -303,7 +303,7 @@ public class XeroAccountingService {
         return null;
     }
 
-    public Invoice addLineItemToInvoice(UUID invoiceId, LineItem lineItem) throws Exception {
+    public InvoiceOutboundDto addLineItemToInvoice(UUID invoiceId, LineItem lineItem) throws Exception {
         String tenant = xeroAuthService.checkXeroInfo();
         String accessToken = xeroAuthService.refreshAccessToken(tenant);
         String tenantProperty = tenantAdminService.getTenantProperty(tenant);
@@ -335,6 +335,13 @@ public class XeroAccountingService {
                 2,
                 UUID.randomUUID().toString()
         );
-        return updatedInvoices.getInvoices().get(0);
+
+        Invoice updatedInvoice = updatedInvoices.getInvoices().get(0);
+
+        InvoiceOutboundDto invoiceOutboundDto = new InvoiceOutboundDto();
+        invoiceOutboundDto.setNumber(updatedInvoice.getInvoiceNumber());
+        invoiceOutboundDto.setId(updatedInvoice.getInvoiceID().toString());
+
+        return invoiceOutboundDto;
     }
 }
