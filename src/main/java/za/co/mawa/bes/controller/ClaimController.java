@@ -385,6 +385,9 @@ public class ClaimController {
                         partnerService.getFullName(claim.getDeceased()),
                         itemCode
                 );
+                if (xeroInvoice.getNumber().equals(null)) {
+                    throw new RuntimeException("Xero invoice creation failed");
+                }
                 logger.info("Done fetching xeroInvoiceCode");
                 funeralPaymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : claim.getNumber());
 
@@ -406,17 +409,17 @@ public class ClaimController {
                 String paymentRequestId = paymentRequestDto.getId();
 
                 try {
-                    if (funeralPaymentRequest.getPaymentMethod().equals("EFT")) {
-                        BankAccountDto bankAccountDto = bankAccountService.getList(getFuneralServiceProvider()).iterator().next();
-                        BankAccountCreateDto bankAccount = new BankAccountCreateDto();
-                        bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
-                        bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
-                        bankAccount.setBankName(bankAccountDto.getBankName().getCode());
-                        bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
-                        bankAccount.setBranchCode(bankAccountDto.getBranchCode());
-                        bankAccount.setObjectId(paymentRequestId);
-                        bankAccountService.add(bankAccount);
-                    }
+
+                    BankAccountDto bankAccountDto = bankAccountService.getList(claimId).iterator().next();
+                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(paymentRequestId);
+                    bankAccountService.add(bankAccount);
+
                 } catch (Exception e) {
 
                 }

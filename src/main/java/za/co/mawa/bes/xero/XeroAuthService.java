@@ -122,8 +122,8 @@ public class XeroAuthService {
         String accessToken = extractAccessToken(response);
         createProperty(tenant,XeroUtils.XERO_ACCESS_TOKEN,accessToken);
 
-        String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
-        createProperty(tenant,XeroUtils.XERO_TENANT_ID,xeroTenantId);
+//        String xeroTenantId = sendGetXeroTenantIdRequest(accessToken);
+//        createProperty(tenant,XeroUtils.XERO_TENANT_ID,xeroTenantId);
 
         String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
         createProperty(tenant,XeroUtils.XERO_EXPIRE_AT,expiresAt);
