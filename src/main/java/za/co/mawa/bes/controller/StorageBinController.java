@@ -13,8 +13,8 @@ import za.co.mawa.bes.service.StorageBinService;
 import java.util.List;
 
 @RestController
-@RequestMapping("storage-bin")
-@RequiredArgsConstructor
+@CrossOrigin
+@RequestMapping(value = "storage-bin")
 public class StorageBinController {
 @Autowired
 StorageBinService storageBinService;
@@ -27,7 +27,7 @@ StorageBinService storageBinService;
         storageBinEntity.setRack(storageBinInboundDto.getRack());
         storageBinEntity.setShelf(storageBinInboundDto.getShelf());
         storageBinEntity.setDescription(storageBinInboundDto.getDescription());
-        storageBinEntity.setProductId(storageBinInboundDto.getProduct());
+        storageBinEntity.setProductId(storageBinInboundDto.getProductId());
         storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
         storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
 //        storageBinService.createStorageBin(storageBinEntity);
@@ -43,7 +43,7 @@ StorageBinService storageBinService;
         storageBinEntity.setRack(storageBinInboundDto.getRack());
         storageBinEntity.setShelf(storageBinInboundDto.getShelf());
         storageBinEntity.setDescription(storageBinInboundDto.getDescription());
-        storageBinEntity.setProductId(storageBinInboundDto.getProduct());
+        storageBinEntity.setProductId(storageBinInboundDto.getProductId());
         storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
         storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
 //        storageBinService.createStorageBin(storageBinEntity);
@@ -67,7 +67,8 @@ StorageBinService storageBinService;
 
     @GetMapping
     public ResponseEntity<List<StorageBinEntity>> getAllBins() {
-        return ResponseEntity.ok(storageBinService.getAllBins());
+        List<StorageBinEntity> storageBinEntities = storageBinService.getAllBins();
+        return ResponseEntity.ok(storageBinEntities);
     }
 
     @GetMapping("/warehouse/{warehouseId}")
