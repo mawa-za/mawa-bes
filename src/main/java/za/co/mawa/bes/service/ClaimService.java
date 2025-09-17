@@ -84,7 +84,8 @@ public class ClaimService {
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
 
-
+    @Autowired
+    SettingService settingService;
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
     List<String> autoApprovalTypeList = new ArrayList<>();
@@ -130,7 +131,7 @@ public class ClaimService {
                 transactionPartnerDto.setFunction(PartnerFunction.DECEASED);
                 transactionPartnerDto.setPartner(claimCreateDto.getDeceasedId());
                 //get the deceased and set the status to deceased
-                try{
+                try {
                     PartnerEntity deceased = partnerRepository.getById(claimCreateDto.getDeceasedId());
                     deceased.setStatus(Status.DECEASED);
                     partnerRepository.save(deceased);
@@ -162,6 +163,16 @@ public class ClaimService {
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
             }
+
+            if (claimCreateDto.getClaimId() != null) {
+                TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
+                transactionLinkDto.setTransaction1(transactionDto.getId());
+                transactionLinkDto.setTransaction2(claimCreateDto.getClaimId());
+                transactionLinkDto.setType(TransactionLinkType.CLAIM_COMBINATION);
+                transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+                transactionService.addLink(transactionLinkDto);
+            }
+
             if (claimCreateDto.getContractId() != null) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(claimCreateDto.getContractId());
@@ -193,6 +204,22 @@ public class ClaimService {
                 account.setBranchCode(claimCreateDto.getBankAccount().getBranchCode());
                 account.setAccountType(claimCreateDto.getBankAccount().getAccountType());
                 transactionService.addBankAccount(account);
+            }
+
+            try {
+                if (claimCreateDto.getType().equals("COMBINATION") || claimCreateDto.getType().equals("FUNERAL")) {
+                    BankAccountDto bankAccountDto = bankAccountService.getList(getFuneralServiceProvider()).iterator().next();
+                    BankAccountCreateDto bankAccount = new BankAccountCreateDto();
+                    bankAccount.setAccountHolder(bankAccountDto.getAccountHolder());
+                    bankAccount.setAccountType(bankAccountDto.getAccountType().getCode());
+                    bankAccount.setBankName(bankAccountDto.getBankName().getCode());
+                    bankAccount.setAccountNumber(bankAccountDto.getAccountNumber());
+                    bankAccount.setBranchCode(bankAccountDto.getBranchCode());
+                    bankAccount.setObjectId(claimOutboundDto.getId());
+                    bankAccountService.add(bankAccount);
+                }
+            } catch (Exception e) {
+
             }
             List<TransactionAmountOutboundDto> transactionAmountOutboundDtoList = transactionAmountService.getByTransaction(claimCreateDto.getMembershipId());
             Iterator iterator = transactionAmountOutboundDtoList.stream()
@@ -226,14 +253,15 @@ public class ClaimService {
 
             try {
                 claimOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason().toUpperCase()));
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
-            if(transactionDto.getDescription() == null ){
+            if (transactionDto.getDescription() == null) {
                 claimOutboundDto.setDescription(transactionDto.getSubDescription());
-            }else {
+            } else {
                 claimOutboundDto.setDescription(transactionDto.getDescription());
             }
-          
+
             claimOutboundDto.setType(fieldOptionService.getFieldOption(Field.CLAIM_TYPE, transactionDto.getSubType()));
             claimOutboundDto.setBranch(fieldOptionService.getFieldOption(Field.BRANCH, transactionDto.getLocation()));
             TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
@@ -294,10 +322,10 @@ public class ClaimService {
                 bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
                 claimOutboundDto.setBankDetails(bankAccountDto);
             }
-            try{
+            try {
                 List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
-                for(TransactionAmountEntity transactionAmount : transactionAmountEntities){
-                    if(transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)){
+                for (TransactionAmountEntity transactionAmount : transactionAmountEntities) {
+                    if (transactionAmount.getType().equals(AmountType.PAID_OUT_AMOUNT)) {
                         TransactionAmountOutboundDto transactionAmountOutboundDto = new TransactionAmountOutboundDto();
                         transactionAmountOutboundDto.setId(transactionAmount.getId());
                         transactionAmountOutboundDto.setTransaction(id);
@@ -307,7 +335,8 @@ public class ClaimService {
                         claimOutboundDto.setPaidOutAmount(transactionAmountOutboundDto);
                     }
                 }
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
             try {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
@@ -322,7 +351,8 @@ public class ClaimService {
                 }
                 claimOutboundDto.setComments(comments);
 
-            }catch (Exception e){}
+            } catch (Exception e) {
+            }
 
             return claimOutboundDto;
         } catch (TransactionNotFound exception) {
@@ -332,7 +362,7 @@ public class ClaimService {
         }
     }
 
-    public boolean edit(String id , ClaimEditDto claimEditDto){
+    public boolean edit(String id, ClaimEditDto claimEditDto) {
 
         try {
             boolean edited = false;
@@ -359,7 +389,7 @@ public class ClaimService {
                 edit.setPartnerFunction(PartnerFunction.CLAIMANT);
                 edited = transactionService.partnerEdit(edit);
             }
-            if(claimEditDto.getPaidOutAmount() !=null){
+            if (claimEditDto.getPaidOutAmount() != null) {
                 try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(claimEditDto.getPaidOutAmount());
@@ -374,10 +404,11 @@ public class ClaimService {
 
             return edited;
 
-        }catch (Exception e){
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
     public List<ClaimOutboundDto> search(ClaimQueryDto claimQueryDto) {
         List<ClaimOutboundDto> claimOutboundDtoList = new ArrayList<>();
         try {
@@ -446,7 +477,7 @@ public class ClaimService {
                 transactionEditDto.setStatus(ClaimStatus.APPROVED);
                 transactionService.edit(transactionEditDto);
                 approve(id);
-            }else{
+            } else {
                 TransactionEditDto transactionEditDto = new TransactionEditDto();
                 transactionEditDto.setId(id);
                 transactionEditDto.setStatus(ClaimStatus.AWAITING_APPROVAL);
@@ -485,7 +516,8 @@ public class ClaimService {
                 voucherInboundDto.setContractId(id);
                 try {
                     voucherService.create(voucherInboundDto);
-                }catch (Exception e){}
+                } catch (Exception e) {
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -613,7 +645,7 @@ public class ClaimService {
 
                 String currentUser = null;
 
-                try{
+                try {
                     currentUser = userService.getCurrentUserPartnerId();
                     Optional<PartnerEntity> user = partnerRepository.findById(currentUser);
 
@@ -622,7 +654,7 @@ public class ClaimService {
                         currentUser = partner.getTitle() + " " + partner.getName1() + " " + partner.getName2();
 
                     }
-                }catch(Exception e){
+                } catch (Exception e) {
 
                 }
 
@@ -644,15 +676,15 @@ public class ClaimService {
                 marginY -= tableRowHeight * 2;
 
                 String policyNumber = null;
-                try{
+                try {
                     List<TransactionLinkEntity> transactionLinkEntity = transactionLinkRepository.getTransactionLink(claimOutboundDto.getId(), TransactionType.CLAIM);
 
-                    for(TransactionLinkEntity entity: transactionLinkEntity){
+                    for (TransactionLinkEntity entity : transactionLinkEntity) {
                         String membershipID = entity.getTransactionLinkPKEntity().getTransaction1();
                         MembershipDto membershipDto = membershipService.get(membershipID);
                         policyNumber = membershipDto.getNumber();
                     }
-                }catch(Exception e){
+                } catch (Exception e) {
 
                 }
 
@@ -760,9 +792,9 @@ public class ClaimService {
 
                 BankAccountCreateDto bankAccount = null;
 
-                try{
+                try {
                     List<BankAccountDto> bankAccountDto = bankAccountService.getList(claimOutboundDto.getId());
-                    for(BankAccountDto accountDto: bankAccountDto){
+                    for (BankAccountDto accountDto : bankAccountDto) {
                         bankAccount = new BankAccountCreateDto();
                         bankAccount.setAccountHolder(accountDto.getAccountHolder());
                         bankAccount.setAccountType(accountDto.getAccountType().getCode());
@@ -771,20 +803,20 @@ public class ClaimService {
                         bankAccount.setBranchCode(accountDto.getBranchCode());
                         bankAccount.setObjectId(claimOutboundDto.getId());
                     }
-                }catch(Exception e){
+                } catch (Exception e) {
                 }
 
                 String accountHolderId = null;
-                try{
-                    List <PartnerEntity> accountHolder = partnerRepository.findByFullName(bankAccount.getAccountHolder());
-                    if(accountHolder != null){
+                try {
+                    List<PartnerEntity> accountHolder = partnerRepository.findByFullName(bankAccount.getAccountHolder());
+                    if (accountHolder != null) {
                         PartnerEntity partner = accountHolder.get(0);
                         List<PartnerIdentityEntity> identityEntities = partnerIdentityRepository.findByPartner(partner.getId());
                         PartnerIdentityEntity partnerIdentity = identityEntities.get(0);
                         accountHolderId = partnerIdentity.getPartnerIdentityPK().getValue();
                     }
 
-                }catch (Exception e){
+                } catch (Exception e) {
 
                 }
 
@@ -801,7 +833,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"POINT OF COLLECTION", claimOutboundDto.getBranch() != null ? claimOutboundDto.getBranch().getCode() : ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"BANK NAME", bankAccount != null && bankAccount.getBankName() != null? bankAccount.getBankName() : ""}, marginY);
+                drawTableRow.accept(new String[]{"BANK NAME", bankAccount != null && bankAccount.getBankName() != null ? bankAccount.getBankName() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ACCOUNT HOLDER FULL NAMES", bankAccount != null ? bankAccount.getAccountHolder() : ""}, marginY);
                 marginY -= tableRowHeight;
@@ -809,7 +841,7 @@ public class ClaimService {
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ACCOUNT NUMBER", bankAccount != null && bankAccount.getAccountNumber() != null ? bankAccount.getAccountNumber() : ""}, marginY);
                 marginY -= tableRowHeight;
-                drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankAccount != null && bankAccount.getAccountType() != null? bankAccount.getAccountType() : ""}, marginY);
+                drawTableRow.accept(new String[]{"ACCOUNT TYPE", bankAccount != null && bankAccount.getAccountType() != null ? bankAccount.getAccountType() : ""}, marginY);
                 marginY -= tableRowHeight;
                 drawTableRow.accept(new String[]{"ACCOUNT HOLDER CONTACT NUMBER", ""}, marginY);
                 marginY -= tableRowHeight;
@@ -820,12 +852,12 @@ public class ClaimService {
 
                 contentStream.setFont(fontRegular, 10);
                 contentStream.beginText();
-                contentStream.newLineAtOffset(marginX , marginY);
+                contentStream.newLineAtOffset(marginX, marginY);
                 contentStream.showText("Claimant Signature:");
                 contentStream.endText();
 
                 contentStream.beginText();
-                contentStream.newLineAtOffset(dateX , marginY);
+                contentStream.newLineAtOffset(dateX, marginY);
                 contentStream.showText("Date:");
                 contentStream.endText();
 
@@ -843,6 +875,15 @@ public class ClaimService {
             }
         } catch (Exception e) {
             throw new RuntimeException("Error generating PDF", e);
+        }
+    }
+
+    public String getFuneralServiceProvider() {
+        Properties properties = settingService.getSettings("FUNERAL-CLAIM");
+        try {
+            return properties.get("SERVICE-PROVIDER").toString();
+        } catch (Exception ex) {
+            return "";
         }
     }
 }
