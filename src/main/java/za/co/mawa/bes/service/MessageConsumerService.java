@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import com.nimbusds.jose.shaded.gson.Gson;
 import org.hibernate.loader.access.BaseNaturalIdLoadAccessImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -8,6 +9,8 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
+import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
+import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 
 import java.time.LocalDateTime;
@@ -18,13 +21,15 @@ public class MessageConsumerService {
 
     @Autowired
     private MessageQueueRepository messageQueueRepository;
-
     @Autowired
     TenantAdminService tenantAdminService;
     @Autowired
     BankPaymentService bankPaymentService;
+    @Autowired
+    PaymentRequestService paymentRequestService;
+    Gson gson = new Gson();
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 60000)
     public void processAllTenants() {
         for (TenantDto tenant : tenantAdminService.getAll()) {
             try {
@@ -37,6 +42,10 @@ public class MessageConsumerService {
                         System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
                         bankPaymentService.sendPaymentRequest(msg.getPayload());
                         msg.setProcessed(true);
+                        BankPaymentRequest bankPaymentRequest = gson.fromJson(String.valueOf(msg.getPayload()), BankPaymentRequest.class);
+                        for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                            paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                        }
                     } catch (Exception e) {
                         msg.setRetryCount(msg.getRetryCount() + 1);
                         if (msg.getRetryCount() > 3) {

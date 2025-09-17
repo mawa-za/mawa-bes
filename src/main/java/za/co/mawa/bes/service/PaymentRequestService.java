@@ -263,4 +263,26 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
     }
 
+    public void sendToBank(String id) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.SENT_TO_BANK);
+            transactionService.edit(transactionEditDto);
+        } catch (Exception exception) {
+            throw new RuntimeException();
+        }
+    }
+
+    public void complete(String id) {
+        try {
+            TransactionEditDto transactionEditDto = new TransactionEditDto();
+            transactionEditDto.setId(id);
+            transactionEditDto.setStatus(Status.SENT_TO_BANK);
+            transactionService.edit(transactionEditDto);
+        } catch (Exception exception) {
+            throw new RuntimeException();
+        }
+    }
+
 }
