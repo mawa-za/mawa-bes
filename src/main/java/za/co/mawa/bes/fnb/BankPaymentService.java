@@ -14,10 +14,7 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.fnb.dto.*;
-import za.co.mawa.bes.service.BankAccountService;
-import za.co.mawa.bes.service.PartnerIdentityService;
-import za.co.mawa.bes.service.PaymentRequestService;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.TransactionType;
 
@@ -47,6 +44,8 @@ public class BankPaymentService {
 
     @Autowired
     BankAccountService bankAccountService;
+    @Autowired
+    TransactionService transactionService;
 
     private String getBaseURL(){
         return settingService.getSetting("BASE-URL", "FNB-API");
@@ -67,7 +66,7 @@ public class BankPaymentService {
             conn.setRequestProperty("Authorization", "Basic " + basicAuth);
 
             // Body: grant_type, scope, etc.
-            String data = "grant_type=client_credentials&scope=read";
+            String data = "grant_type=client_credentials&scope=i_can";
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(data.getBytes());
@@ -147,7 +146,7 @@ public class BankPaymentService {
     private GroupHeader groupHeader(PaymentRequestDto paymentRequestDto) {
         GroupHeader grpHdr = new GroupHeader();
         try {
-            grpHdr.setMessageId(paymentRequestDto.getId());
+            grpHdr.setMessageId(createPaymentBatch().getId());
             Instant instant = new Date().toInstant();
             ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
@@ -164,7 +163,7 @@ public class BankPaymentService {
     private PaymentInformation paymentInformation(PaymentRequestDto paymentRequestDto) {
         PaymentInformation paymentInformation = new PaymentInformation();
         try {
-            paymentInformation.setPaymentInformationId(paymentRequestDto.getId());
+            paymentInformation.setPaymentInformationId(paymentRequestDto.getNumber());
             paymentInformation.setPaymentInformationMethod("TRF");
             paymentInformation.setBatchBooking(false);
             paymentInformation.setNumberOfTransactions(1);
@@ -222,9 +221,9 @@ public class BankPaymentService {
             creditorAccount.setAccountNumber(bankAccountDto.getAccountNumber());
             String creditAccountType = bankAccountDto.getAccountType().getCode();
             if (creditAccountType.equals("CHEQUE")) {
-                debtorAccount.setAccountType("CACC");
+                creditorAccount.setAccountType("CACC");
             } else if (creditAccountType.equals("SAVINGS")) {
-                debtorAccount.setAccountType("SVGS");
+                creditorAccount.setAccountType("SVGS");
             }
             transactionInformation.setCreditorAccount(creditorAccount);
 
@@ -267,6 +266,12 @@ public class BankPaymentService {
             }
             return response.toString();
         }
+    }
+
+    public TransactionDto createPaymentBatch() {
+        TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
+        transactionCreateDto.setType(TransactionType.PAYMENT_BATCH);
+        return transactionService.create(transactionCreateDto);
     }
 
 }
