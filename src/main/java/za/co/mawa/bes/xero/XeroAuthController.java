@@ -61,7 +61,8 @@ public class XeroAuthController {
         return ResponseEntity.ok(Map.of("authenticationUrl", authUrl));
     }
 
-    @GetMapping("/xero/callback")
+
+    @RequestMapping(value="/xero/callback" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public String callback(@RequestParam String code, @RequestParam(required = false) String state) {
         // Store the code for later use in token exchange
         try {

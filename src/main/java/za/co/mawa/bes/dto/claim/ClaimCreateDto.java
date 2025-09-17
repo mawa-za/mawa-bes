@@ -14,6 +14,7 @@ import java.util.Date;
 @Setter
 public class ClaimCreateDto implements Serializable {
     private String type;
+    private String claimId;
     private String customerId;
     private String contractId;
     private String claimantId;
