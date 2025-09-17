@@ -507,14 +507,14 @@ public class ClaimController {
 
             }
 
-            if (claim.getType().getCode().equals("MERGER")) {
+            if (claim.getType().getCode().equals("COMBINATION")) {
                 UUID xeroInvoiceId = UUID.fromString("");
                 PaymentRequestCreateDto funeralPaymentRequest = new PaymentRequestCreateDto();
                 funeralPaymentRequest.setPaymentMethod("EFT");
-                funeralPaymentRequest.setPaymentReason("FUNERAL-CLAIM-MERGE");
+                funeralPaymentRequest.setPaymentReason("FUNERAL-CLAIM-COMBINATION");
                 // Set reference from Xero invoice or claim number
                 String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
-                BigDecimal invoiceAmount = getProductAmount(claim.getMembership().getProduct().getId(), "MERGE-VALUE");
+                BigDecimal invoiceAmount = getProductAmount(claim.getMembership().getProduct().getId(), "COMBINATION-VALUE");
 
                 transactionService.getLinks(claim.getId());
                 List<TransactionLinkOutboundDto> claimChildren = transactionLinkService.getChildren(claim.getId());

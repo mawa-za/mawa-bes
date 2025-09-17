@@ -168,7 +168,7 @@ public class ClaimService {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(transactionDto.getId());
                 transactionLinkDto.setTransaction2(claimCreateDto.getClaimId());
-                transactionLinkDto.setType(TransactionLinkType.CLAIM_COMBINED);
+                transactionLinkDto.setType(TransactionLinkType.CLAIM_COMBINATION);
                 transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
                 transactionService.addLink(transactionLinkDto);
             }
