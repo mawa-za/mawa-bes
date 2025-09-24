@@ -219,6 +219,11 @@ public class PartnerServiceV2 {
         return new ArrayList<>(partnerViewEntities);
     }
 
+    public ArrayList<PartnerViewEntity> getByRole(String role) {
+        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByRole(role);
+        return new ArrayList<>(partnerViewEntities);
+    }
+
     public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
         Set<PartnerViewEntity> partnerViewEntities = new HashSet<>();
         try {
