@@ -40,12 +40,16 @@ public class PartnerControllerV2 {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query){
-        try{
-            String response = gson.toJson(partnerServiceV2.searchByString('%'+query+'%'));
+    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
+        try {
+            String response = "";
+            if (!query.isEmpty()) {
+                response = gson.toJson(partnerServiceV2.searchByString('%' + query + '%'));
+            }else if(!role.isEmpty()){
+                response = gson.toJson(partnerServiceV2.getByRole(role));  
+            }
             return ResponseEntity.ok(response);
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
@@ -212,10 +216,10 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(value = "/identity", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
+    public ResponseEntity<?> getIdentity(@RequestParam("idType") String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok(partnerIdentityService.getIdentity(type, idValue));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
