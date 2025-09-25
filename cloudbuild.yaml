@@ -1,20 +1,29 @@
 steps:
-  # Build Docker image
+  # 1️⃣ Docker build with GitHub token
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
-           '.']
-    secretEnv: ['GITHUB_TOKEN']
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
+        '--build-arg',
+        'GITHUB_TOKEN=$$github-token',
+        '.'
+      ]
+    secretEnv: ['github-token']
 
-  # Push Docker image
+  # 2️⃣ Docker push
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME']
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
+      ]
 
 availableSecrets:
   secretManager:
     - versionName: projects/mawa-162022/secrets/github-token/versions/latest
-      env: GITHUB_TOKEN
+      env: github-token
 
 options:
   logging: CLOUD_LOGGING_ONLY
