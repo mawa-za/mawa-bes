@@ -57,46 +57,88 @@ public class PartnerServiceV2 {
     @Autowired
     PartnerIdentityService partnerIdentityService;
     @Autowired
+    PartnerIdentityServiceV2 partnerIdentityServiceV2;
+    @Autowired
     PartnerViewRepository partnerViewRepository;
 
-    public PartnerDto create(PartnerInboundDto partnerInboundDto) {
+    public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
 
         try {
-            PartnerEntity entity = new PartnerEntity();
-            String partnerNo = numberRangeService.generateNumber(partnerInboundDto.getPartnerType());
-            entity.setNo(partnerNo);
-            entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
-            if (partnerInboundDto.getName1() != null) {
-                entity.setName1(partnerInboundDto.getName1().toUpperCase());
+            PartnerIdentityDto partnerIdentityDto = partnerIdentityServiceV2.getIdentity(partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
+            if (partnerIdentityDto == null) {
+                PartnerEntity entity = new PartnerEntity();
+                String partnerNo = numberRangeService.generateNumber(partnerInboundDto.getPartnerType());
+                entity.setNo(partnerNo);
+                entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
+                if (partnerInboundDto.getName1() != null) {
+                    entity.setName1(partnerInboundDto.getName1().toUpperCase());
+                }
+                if (partnerInboundDto.getName2() != null) {
+                    entity.setName2(partnerInboundDto.getName2().toUpperCase());
+                }
+                if (partnerInboundDto.getName3() != null) {
+                    entity.setName3(partnerInboundDto.getName3().toUpperCase());
+                }
+                if (partnerInboundDto.getBirthDate() != null) {
+                    entity.setBirthDate(partnerInboundDto.getBirthDate());
+                }
+                if (partnerInboundDto.getGender() != null) {
+                    entity.setGender(partnerInboundDto.getGender());
+                }
+                if (partnerInboundDto.getLanguage() != null) {
+                    entity.setLanguage(partnerInboundDto.getLanguage());
+                }
+                if (partnerInboundDto.getMaritalStatus() != null) {
+                    entity.setMaritalStatus(partnerInboundDto.getMaritalStatus());
+                }
+                if (partnerInboundDto.getTitle() != null) {
+                    entity.setTitle(partnerInboundDto.getTitle());
+                }
+                entity.setStatus(Status.ACTIVE);
+                entity.setValidFrom(new Date());
+                entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                entity.setCreationDate(new Date());
+                entity.setCreatedBy(getUser());
+                entity = partnerRepository.save(entity);
+
+                if(entity != null){
+
+                    if(partnerInboundDto.getIdentityType() != null && partnerInboundDto.getIdentityNumber() != null){
+                        PartnerIdentityInboundDto partnerIdentityInboundDto = new PartnerIdentityInboundDto();
+                        partnerIdentityInboundDto.setPartner(entity.getId());
+                        partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
+                        partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
+                        partnerIdentityServiceV2.add(partnerIdentityInboundDto);
+                    }
+
+                    if(partnerInboundDto.getPartnerRole() != null){
+                        RolePartnerDto rolePartnerDto = new RolePartnerDto();
+                        rolePartnerDto.setPartner(entity.getId());
+                        rolePartnerDto.setRole(partnerInboundDto.getPartnerRole());
+                        addPartnersRole(rolePartnerDto);
+                    }
+
+                    if(partnerInboundDto.getContactNumber() != null){
+                        ContactInboundDto contactInboundDto = new ContactInboundDto();
+                        contactInboundDto.setPartner(entity.getId());
+                        contactInboundDto.setType("PRIMARY-NUMBER");
+                        contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+                        addPartnerContact(contactInboundDto);
+                    }
+
+                    if(partnerInboundDto.getEmail() != null){
+                        ContactInboundDto contactInboundDto = new ContactInboundDto();
+                        contactInboundDto.setPartner(entity.getId());
+                        contactInboundDto.setType("PRIMARY-EMAIL");
+                        contactInboundDto.setValue(partnerInboundDto.getEmail());
+                        addPartnerContact(contactInboundDto);
+                    }
+                }
+                return getById(entity.getId());
+            }else{
+                return getById(partnerIdentityDto.getPartner());
             }
-            if (partnerInboundDto.getName2() != null) {
-                entity.setName2(partnerInboundDto.getName2().toUpperCase());
-            }
-            if (partnerInboundDto.getName3() != null) {
-                entity.setName3(partnerInboundDto.getName3().toUpperCase());
-            }
-            if (partnerInboundDto.getBirthDate() != null) {
-                entity.setBirthDate(partnerInboundDto.getBirthDate());
-            }
-            if (partnerInboundDto.getGender() != null) {
-                entity.setGender(partnerInboundDto.getGender());
-            }
-            if (partnerInboundDto.getLanguage() != null) {
-                entity.setLanguage(partnerInboundDto.getLanguage());
-            }
-            if (partnerInboundDto.getMaritalStatus() != null) {
-                entity.setMaritalStatus(partnerInboundDto.getMaritalStatus());
-            }
-            if (partnerInboundDto.getTitle() != null) {
-                entity.setTitle(partnerInboundDto.getTitle());
-            }
-            entity.setStatus(Status.ACTIVE);
-            entity.setValidFrom(new Date());
-            entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            entity.setCreationDate(new Date());
-            entity.setCreatedBy(getUser());
-            entity = partnerRepository.save(entity);
-            return get(entity.getId());
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -214,14 +256,24 @@ public class PartnerServiceV2 {
         return relations;
     }
 
-    public ArrayList<PartnerViewEntity> searchByString(String query) {
+    public List<PartnerViewEntity> searchByString(String query) {
         List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(query);
-        return new ArrayList<>(partnerViewEntities);
+        return partnerViewEntities;
     }
 
-    public ArrayList<PartnerViewEntity> getByRole(String role) {
+    public List<PartnerViewEntity> getByRole(String role) {
         List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByRole(role);
-        return new ArrayList<>(partnerViewEntities);
+        return partnerViewEntities;
+    }
+
+    public List<PartnerViewEntity> getAll() {
+        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findAll();
+        return partnerViewEntities;
+    }
+
+    public PartnerViewEntity getById(String id) {
+        PartnerViewEntity partnerViewEntity = partnerViewRepository.getReferenceById(id);
+        return partnerViewEntity;
     }
 
     public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
@@ -265,6 +317,7 @@ public class PartnerServiceV2 {
             default -> null;
         };
     }
+
     public ArrayList<String> getRoles(String id) {
         ArrayList<String> partnerRoles = new ArrayList<>();
         List<PartnerRoleEntity> roleList = partnerRoleRepository.findRoleByPartner(id);
@@ -800,11 +853,11 @@ public class PartnerServiceV2 {
     }
 
 
-    public boolean addPartnerContact(String id, ContactCreateDto contact) throws Exception {
+    public boolean addPartnerContact(ContactInboundDto contact) throws Exception {
         try {
             PartnerContactEntity entity = new PartnerContactEntity();
             PartnerContactPKEntity pk = new PartnerContactPKEntity();
-            pk.setPartner(id);
+            pk.setPartner(contact.getPartner());
             pk.setType(contact.getType());
             entity.setPartnerContactPK(pk);
             entity.setValue(contact.getValue());
