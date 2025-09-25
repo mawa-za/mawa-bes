@@ -1,25 +1,21 @@
-# Stage 1: Build
+# Stage 1: Build with Maven
 FROM maven:3.8.7-openjdk-18 AS build
 
-# Set environment variable for GitHub token (passed as build-arg)
-ARG GITHUB_TOKEN
-
-# Clone flyway scripts into the right location
-RUN git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f' && \
-    git clone https://github.com/mawa-za/flyway-scripts.git src/main/resources/db/migration
-
-# Copy the rest of the app
+# Copy source code
 COPY src /home/app/src
 COPY pom.xml /home/app
+
+# Clone Flyway scripts into the expected location
+RUN git clone https://github.com/mawa-za/mawa-flyway-scripts.git /home/app/src/main/resources/db/migration
 
 # Build the application
 RUN mvn -f /home/app/pom.xml clean install -Pprod
 
 # Stage 2: Runtime
-FROM openjdk:latest
+FROM openjdk:18-jdk-slim
 EXPOSE 8080
 
 ARG JAR_FILE=/home/app/target/mawa-bes.jar
 COPY --from=build ${JAR_FILE} app.jar
 
-ENTRYPOINT ["java","-jar","/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app.jar"]
