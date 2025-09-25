@@ -8,9 +8,7 @@ COPY src /home/app/src
 COPY pom.xml /home/app
 
 # Clone flyway scripts outside of src
-RUN git config --global credential.helper "store --file=/root/.git-credentials" && \
-    echo "https://$GITHUB_TOKEN:@github.com" > /root/.git-credentials && \
-    git clone https://github.com/mawa-za/flyway-scripts.git /flyway-scripts
+RUN git clone https://$GITHUB_TOKEN@github.com/mawa-za/flyway-scripts.git /flyway-scripts
 
 # Copy scripts into src/resources/db/migration
 RUN mkdir -p /home/app/src/main/resources/db/migration && \
