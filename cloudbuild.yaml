@@ -1,20 +1,17 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'build',
-        '-t', 'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
-        '--build-arg', 'GITHUB_TOKEN=$github-token',
-        '.'
-      ]
-    secretEnv: ['github-token']
+    args: [
+      'build',
+      '--build-arg', 'GITHUB_TOKEN=$github-token',
+      '-t', 'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
+      '.'
+    ]
 
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'push',
-        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
-      ]
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
+    ]
 
 availableSecrets:
   secretManager:
