@@ -121,7 +121,7 @@ public class PartnerServiceV2 {
                     if(partnerInboundDto.getContactNumber() != null){
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
-                        contactInboundDto.setType("PRIMARY-NUMBER");
+                        contactInboundDto.setType("CELLPHONE");
                         contactInboundDto.setValue(partnerInboundDto.getContactNumber());
                         addPartnerContact(contactInboundDto);
                     }
@@ -129,7 +129,7 @@ public class PartnerServiceV2 {
                     if(partnerInboundDto.getEmail() != null){
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
-                        contactInboundDto.setType("PRIMARY-EMAIL");
+                        contactInboundDto.setType("EMAIL");
                         contactInboundDto.setValue(partnerInboundDto.getEmail());
                         addPartnerContact(contactInboundDto);
                     }
