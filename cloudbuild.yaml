@@ -1,30 +1,20 @@
 steps:
-  # Docker Build
-  #  - name: 'gcr.io/cloud-builders/docker'
-  #    args: ['build', '-t',
-  #           'gcr.io/mawa-162022/github.com/raretag-za/mawa:$BRANCH_NAME',
-  #           '.']
-  - name: 'gcr.io/cloud-builders/git'
-    entrypoint: 'bash'
+  - name: 'gcr.io/cloud-builders/docker'
     args:
-      - -c
-      - |
-        git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$$github-token"; }; f'
-        git clone https://github.com/mawa-za/flyway-scripts.git flyway-scripts
-
-    secretEnv: [ 'github-token' ]
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
-           '.']
-  # Docker Push
-  #  - name: 'gcr.io/cloud-builders/docker'
-  #    args: ['push',
-  #           'gcr.io/mawa-162022/github.com/raretag-za/mawa:$BRANCH_NAME']
+      [
+        'build',
+        '-t', 'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
+        '--build-arg', 'GITHUB_TOKEN=$github-token',
+        '.'
+      ]
+    secretEnv: ['github-token']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME']
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
+      ]
 
 availableSecrets:
   secretManager:
