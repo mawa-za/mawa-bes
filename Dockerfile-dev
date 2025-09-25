@@ -7,10 +7,9 @@ ARG GITHUB_TOKEN
 COPY src /home/app/src
 COPY pom.xml /home/app
 
-RUN mkdir -p /home/app/src/main/resources/db/migration
-
-# Clone Flyway scripts into resources
-RUN git clone https://$GITHUB_TOKEN@github.com/mawa-za/flyway-scripts.git /home/app/src/main/resources/db/migration
+# Configure Git to use token non-interactively
+RUN git config --global credential.helper "!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f" \
+    && git clone https://github.com/mawa-za/flyway-scripts.git /home/app/src/main/resources/db/migration
 
 # Build project
 RUN mvn -f /home/app/pom.xml clean install -Pdev
