@@ -1,17 +1,17 @@
 FROM maven:3.8.7-openjdk-18 AS build
 
-# Build arg for GitHub token
+# Pass GitHub token as a build argument
 ARG GITHUB_TOKEN
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
-# Copy source code
+# Copy source
 COPY src /home/app/src
 COPY pom.xml /home/app
 
-# Configure Git to use token non-interactively
-RUN git config --global credential.helper "!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f" \
-    && git clone https://github.com/mawa-za/flyway-scripts.git /home/app/src/main/resources/db/migration
+# Clone flyway scripts using PAT
+RUN git clone https://x-access-token:${GITHUB_TOKEN}@github.com/mawa-za/flyway-scripts.git /home/app/src/main/resources/db/migration
 
-# Build project
+# Build the project
 RUN mvn -f /home/app/pom.xml clean install -Pdev
 
 # Runtime image
