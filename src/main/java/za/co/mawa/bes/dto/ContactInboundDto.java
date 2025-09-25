@@ -9,7 +9,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @Setter
-public class ContactCreateDto implements Serializable {
+public class ContactInboundDto implements Serializable {
     private String partner;
     private String type;
     private String value;

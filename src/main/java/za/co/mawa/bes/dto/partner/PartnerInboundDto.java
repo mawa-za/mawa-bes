@@ -12,6 +12,7 @@ import java.util.Date;
 public class PartnerInboundDto {
     private String identityType;
     private String identityNumber;
+    private String partnerRole;
     private String partnerType;
     private String name1;
     private String name2;
@@ -22,5 +23,7 @@ public class PartnerInboundDto {
     private String maritalStatus;
     private String gender;
     private String language;
+    private String email;
+    private String contactNumber;
 
 }

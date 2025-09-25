@@ -100,12 +100,13 @@ public class PartnerIdentityServiceV2 {
 
     }
     public PartnerIdentityDto getIdentity(String type,String value){
-        PartnerIdentityDto partnerIdentityDto = new PartnerIdentityDto();
+        PartnerIdentityDto partnerIdentityDto = null;
        PartnerIdentityPKEntity pk = new PartnerIdentityPKEntity();
        pk.setValue(value);
        pk.setType(type);
        Optional<PartnerIdentityEntity> id = partnerIdentityRepository.findById(pk);
       if (!id.isEmpty()){
+          partnerIdentityDto = new PartnerIdentityDto();
           partnerIdentityDto.setType(fieldOptionService.getFieldOption(Field.ID_TYPE, id.get().getPartnerIdentityPK().getType()));
           partnerIdentityDto.setNumber(id.get().getPartnerIdentityPK().getValue());
           partnerIdentityDto.setPartner(id.get().getPartner());
