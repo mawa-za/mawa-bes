@@ -6,7 +6,7 @@ COPY src /home/app/src
 COPY pom.xml /home/app
 
 # Clone Flyway scripts into the expected location
-RUN git clone https://github.com/mawa-za/flyway-scripts.git /home/app/src/main/resources/db/migration
+RUN git clone https://github.com/mawa-za/mawa-flyway-scripts.git /home/app/src/main/resources/db/migration
 
 # Build the application
 RUN mvn -f /home/app/pom.xml clean install -Pdev
