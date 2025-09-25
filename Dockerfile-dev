@@ -4,8 +4,8 @@ FROM maven:3.8.7-openjdk-18 AS build
 ARG GITHUB_TOKEN
 
 # Copy pom and source code
-COPY pom.xml /home/app
 COPY src /home/app/src
+COPY pom.xml /home/app
 
 # Clone flyway scripts outside of src
 RUN git config --global credential.helper "store --file=/root/.git-credentials" && \
