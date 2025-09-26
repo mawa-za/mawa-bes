@@ -20,7 +20,7 @@ import java.util.List;
 public class MessageConsumerService {
 
     @Autowired
-    private MessageQueueRepository messageQueueRepository;
+    MessageQueueRepository messageQueueRepository;
     @Autowired
     TenantAdminService tenantAdminService;
     @Autowired
@@ -29,9 +29,10 @@ public class MessageConsumerService {
     PaymentRequestService paymentRequestService;
     Gson gson = new Gson();
 
-    @Scheduled(fixedDelay = 60000)
+//    @Scheduled(fixedDelay = 60000)
     public void processAllTenants() {
         for (TenantDto tenant : tenantAdminService.getAll()) {
+
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
                 List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
