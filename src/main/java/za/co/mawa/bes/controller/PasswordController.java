@@ -12,11 +12,16 @@ import za.co.mawa.bes.dto.EmailDto;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.entity.UserEntity;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.service.EmailService;
 import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.UserService;
 import org.thymeleaf.context.Context;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -30,18 +35,23 @@ public class PasswordController {
     @Autowired
     UserService userService;
 
+    @Autowired
+    UserRepository userRepository;
+
     @RequestMapping(value = "forgot-password", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> forgotPassword(@RequestParam String user) {
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
         try {
+            UserEntity userEntity = userRepository.getByEmail(email);
             String tenant = TenantContext.getCurrentTenantURL();
-            UserDto userDto = userService.getUserByName(user);
-            final String token = jwtTokenUtil.generateToken(userDto.getUsername());
-            String resetLink = buildResetEmail(userDto.getPartner().getName2(), tenant, token);
+            final String token = jwtTokenUtil.generateToken(userEntity.getUsername());
+            String resetLink = buildResetEmail(tenant, token);
             EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userDto.getEmail());
+            emailDto.setTo(userEntity.getEmail());
             emailDto.setSubject("Forgot Password");
             emailDto.setTemplate("forgot-password");
-            emailDto.getProperties().add(new PropertyDto("resetLink", resetLink));
+            List<PropertyDto> properties = new ArrayList<>();
+            properties.add(new PropertyDto("resetLink", resetLink));
+            emailDto.setProperties(properties);
             emailService.send(emailDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
@@ -49,11 +59,8 @@ public class PasswordController {
         }
     }
 
-    public String buildResetEmail(String firstname, String domain, String token) {
-        Context context = new Context();
-        context.setVariable("firstname", firstname);
-
-        // Build reset URL
+    public String buildResetEmail(String domain, String token) {
+               // Build reset URL
         return domain.startsWith("http://") || domain.startsWith("https://")
                 ? domain + "/reset-password?token=" + token
                 : "https://" + domain + "/reset-password?token=" + token;
