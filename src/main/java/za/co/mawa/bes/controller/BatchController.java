@@ -16,12 +16,18 @@ import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
+import za.co.mawa.bes.entity.MessageQueueEntity;
+import za.co.mawa.bes.fnb.BankPaymentService;
+import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
+import za.co.mawa.bes.fnb.dto.PaymentInformation;
+import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.service.BankFileService;
 import za.co.mawa.bes.service.EmailService;
 import za.co.mawa.bes.service.PaymentRequestService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.utils.HtmlTemplateVariableKey;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
@@ -48,6 +54,12 @@ public class BatchController {
     MembershipService membershipService;
     @Autowired
     TransactionService transactionService;
+    @Autowired
+    MessageQueueRepository messageQueueRepository;
+    @Autowired
+    TenantAdminService tenantAdminService;
+    @Autowired
+    BankPaymentService bankPaymentService;
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {
@@ -120,6 +132,38 @@ public class BatchController {
         }
         catch (Exception e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+        }
+    }
+
+
+    @RequestMapping(value = "process-message-queue", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> processMessageQueue() {
+        try {
+            List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
+                    .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
+
+            for (MessageQueueEntity msg : messageQueueEntities) {
+                try {
+                    bankPaymentService.sendPaymentRequest(msg.getPayload());
+                    msg.setProcessed(true);
+                    BankPaymentRequest bankPaymentRequest = gson.fromJson(String.valueOf(msg.getPayload()), BankPaymentRequest.class);
+                    for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                        paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                    }
+                } catch (Exception e) {
+                    msg.setRetryCount(msg.getRetryCount() + 1);
+                    if (msg.getRetryCount() > 3) {
+                        msg.setProcessed(true); // Optionally move to DeadLetterQueue
+                    } else {
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                    }
+                }
+                messageQueueRepository.save(msg);
+            }
+
+            return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
