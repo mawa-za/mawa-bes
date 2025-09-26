@@ -74,7 +74,7 @@ public class AuthenticationController {
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 
-    @RequestMapping(value = "/change-password", method = RequestMethod.GET)
+    @RequestMapping(value = "/change-password", method = RequestMethod.POST)
     public ResponseEntity<?> newPassword(@RequestBody UserUpdateDto userUpdateDto) throws Exception {
         String userID = userService.getUserByName(UserContext.getCurrentUser()).getId();
         userUpdateDto.setId(userID);
