@@ -1,5 +1,6 @@
 package za.co.mawa.bes.fnb;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.w3c.dom.Element;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
+import za.co.mawa.bes.dto.OAuthTokenResponse;
 import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
@@ -53,7 +55,7 @@ public class BankPaymentService {
     public String getToken() {
         try {
 
-            URL url = new URL(getBaseURL()+"/oauth/token");
+            URL url = new URL(getBaseURL()+"/oauth2/token/v2");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
@@ -85,7 +87,10 @@ public class BankPaymentService {
             }
             reader.close();
 
-            return response.toString();
+            ObjectMapper mapper = new ObjectMapper();
+            OAuthTokenResponse tokenResponse = mapper.readValue(response.toString(), OAuthTokenResponse.class);
+
+            return tokenResponse.getAccessToken();
 
         } catch (Exception e) {
             return "";
