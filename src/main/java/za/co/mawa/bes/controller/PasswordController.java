@@ -47,8 +47,8 @@ public class PasswordController {
             String resetLink = buildResetEmail(tenant, token);
             EmailDto emailDto = new EmailDto();
             emailDto.setTo(userEntity.getEmail());
-            emailDto.setSubject("Forgot Password");
-            emailDto.setTemplate("forgot-password");
+            emailDto.setSubject("Reset Password");
+            emailDto.setTemplate("reset-password");
             List<PropertyDto> properties = new ArrayList<>();
             properties.add(new PropertyDto("resetLink", resetLink));
             emailDto.setProperties(properties);
