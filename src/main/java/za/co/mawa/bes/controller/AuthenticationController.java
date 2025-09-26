@@ -17,6 +17,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
 import za.co.mawa.bes.dto.AuthenticationDto;
 import za.co.mawa.bes.dto.JwtRequest;
@@ -70,6 +71,13 @@ public class AuthenticationController {
 
     @RequestMapping(value = "/changePassword", method = RequestMethod.GET)
     public ResponseEntity<?> changePassword(@RequestBody UserUpdateDto userUpdateDto) throws Exception {
+        return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
+    }
+
+    @RequestMapping(value = "/change-password", method = RequestMethod.GET)
+    public ResponseEntity<?> newPassword(@RequestBody UserUpdateDto userUpdateDto) throws Exception {
+        String userID = userService.getUserByName(UserContext.getCurrentUser()).getId();
+        userUpdateDto.setId(userID);
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 

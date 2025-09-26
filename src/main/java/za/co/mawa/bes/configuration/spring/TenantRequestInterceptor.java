@@ -39,7 +39,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
 
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
-        if (isPost.test(method) && requestURI.contains("/authenticate")) {
+        if (isPost.test(method) && (requestURI.contains("/authenticate") && requestURI.contains("/forgot-password"))) {
             String tenant = "";
             String tenantHeader = request.getHeader("X-TenantID");
             if (tenantHeader != null) {
@@ -54,6 +54,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
             if (!tenants.isEmpty()) {
                 TenantDto tenantDto = tenants.iterator().next();
                 TenantContext.setCurrentTenant(tenantDto.getId());
+                TenantContext.setCurrentTenantURL(host);
                 return true;
             } else {
                 throw new TenantNotFound("Tenant not found");
@@ -74,6 +75,7 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) {
         TenantContext.clear();
+        TenantContext.clearURL();
     }
 
     private boolean setTenantContext(String tenant) {
