@@ -62,7 +62,7 @@ public class PasswordController {
     public String buildResetEmail(String domain, String token) {
                // Build reset URL
         return domain.startsWith("http://") || domain.startsWith("https://")
-                ? domain + "/reset-password?token=" + token
-                : "https://" + domain + "/reset-password?token=" + token;
+                ? domain + "/#/reset-password?token=" + token
+                : "https://" + domain + "/#/reset-password?token=" + token;
     }
 }
