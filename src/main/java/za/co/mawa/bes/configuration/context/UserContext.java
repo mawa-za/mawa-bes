@@ -13,12 +13,13 @@ public class UserContext {
         return currentUser.get();
     }
     public static void setCurrentUserPartner(String partner) {
-        currentUser.set(partner);
+        currentUserPartner.set(partner);
     }
     public static String getCurrentUserPartner() {
         return currentUserPartner.get();
     }
     public static void clear() {
         currentUser.remove();
+        currentUserPartner.remove();
     }
 }
