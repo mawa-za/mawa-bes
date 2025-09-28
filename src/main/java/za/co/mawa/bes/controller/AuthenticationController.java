@@ -51,7 +51,7 @@ public class AuthenticationController {
     public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationDto authenticationDto) throws Exception {
         authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
-        final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
+        final String token = jwtTokenUtil.generateToken(authenticationDto.getUsername());
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
@@ -59,7 +59,7 @@ public class AuthenticationController {
     public ResponseEntity<?> createAppAuthenticationToken(@RequestBody JwtRequest jwtRequest) throws Exception {
         authenticate(jwtRequest.getApplication(),jwtRequest.getPassword());
         final UserDetails userDetails = userDetailsService.loadUserByUsername(jwtRequest.getUsername());
-        final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
+        final String token = jwtTokenUtil.generateToken(jwtRequest.getUsername());
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
@@ -74,10 +74,11 @@ public class AuthenticationController {
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 
-    @RequestMapping(value = "/change-password", method = RequestMethod.GET)
+    @RequestMapping(value = "/change-password", method = RequestMethod.POST)
     public ResponseEntity<?> newPassword(@RequestBody UserUpdateDto userUpdateDto) throws Exception {
-        String userID = userService.getUserByName(UserContext.getCurrentUser()).getId();
-        userUpdateDto.setId(userID);
+        String username = UserContext.getCurrentUser();
+//        String userID = userService.getUserByName(username).getId();
+        userUpdateDto.setId(username);
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 
