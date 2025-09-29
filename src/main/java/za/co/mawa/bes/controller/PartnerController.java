@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.repository.PartnerViewRepository;
 import za.co.mawa.bes.service.PartnerBankAccountService;
 import za.co.mawa.bes.service.AddressService;
 import za.co.mawa.bes.service.PartnerAddressService;
@@ -32,6 +33,9 @@ public class PartnerController {
     PartnerAddressService partnerAddressService;
     @Autowired
     AddressService addressService;
+
+    @Autowired
+    PartnerViewRepository partnerViewRepository;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPartner(@RequestParam(required = false) String role,
@@ -67,17 +71,20 @@ public class PartnerController {
             PartnerQueryDto partnerQueryDto = new PartnerQueryDto();
             if (role != null && role != "") {
                 partnerQueryDto.setRole(role);
-            }
-            if (type != null && type != "") {
-                partnerQueryDto.setType(type);
-            }
-            if (attributeName != null && attributeName != "") {
-                partnerQueryDto.setAttributeName(attributeName);
-                partnerQueryDto.setAttributeValue(attributeValue);
+                String response = gson.toJson(partnerViewRepository.findByRole(role));
+                return ResponseEntity.ok(response);
+            } else {
+                if (type != null && type != "") {
+                    partnerQueryDto.setType(type);
+                }
+                if (attributeName != null && attributeName != "") {
+                    partnerQueryDto.setAttributeName(attributeName);
+                    partnerQueryDto.setAttributeValue(attributeValue);
+                }
+                String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
+                return ResponseEntity.ok(response);
             }
 
-            String response = gson.toJson(partnerService.getAllPartnersUsingView(partnerQueryDto));
-            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
@@ -239,7 +246,7 @@ public class PartnerController {
     public ResponseEntity<?> getIdentity(@RequestParam("idType") String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-           PartnerIdentityDto partnerIdentityDto = partnerIdentityService.getIdentity(type, idValue);
+            PartnerIdentityDto partnerIdentityDto = partnerIdentityService.getIdentity(type, idValue);
             if (partnerIdentityDto != null) {
                 return ResponseEntity.ok(gson.toJson(partnerIdentityDto));
             } else {
