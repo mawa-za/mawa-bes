@@ -10,6 +10,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class ContactCreateDto implements Serializable {
+    private String partner;
     private String type;
     private String value;
 }

@@ -1,21 +1,29 @@
 steps:
-  # Docker Build
-  #  - name: 'gcr.io/cloud-builders/docker'
-  #    args: ['build', '-t',
-  #           'gcr.io/mawa-162022/github.com/raretag-za/mawa:$BRANCH_NAME',
-  #           '.']
+  # 1️⃣ Docker build with GitHub token
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
-           '.']
-  # Docker Push
-  #  - name: 'gcr.io/cloud-builders/docker'
-  #    args: ['push',
-  #           'gcr.io/mawa-162022/github.com/raretag-za/mawa:$BRANCH_NAME']
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME',
+        '--build-arg',
+        'GITHUB_TOKEN=$$github-token',
+        '.'
+      ]
+    secretEnv: ['github-token']
 
+  # 2️⃣ Docker push
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push',
-           'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME']
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
+      ]
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/mawa-162022/secrets/github-token/versions/latest
+      env: github-token
 
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -11,13 +11,12 @@ import za.co.mawa.bes.dto.ContactEditDto;
 import za.co.mawa.bes.dto.ContactQueryDto;
 import za.co.mawa.bes.dto.RolePartnerDto;
 import za.co.mawa.bes.dto.partner.*;
-import za.co.mawa.bes.entity.PartnerAttributePKEntity;
-import za.co.mawa.bes.entity.PartnerContactPKEntity;
-import za.co.mawa.bes.entity.PartnerIdentityPKEntity;
-import za.co.mawa.bes.entity.PartnerRolePKEntity;
+import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @CrossOrigin
@@ -40,29 +39,44 @@ public class PartnerControllerV2 {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query){
-        try{
-            String response = gson.toJson(partnerServiceV2.searchByString('%'+query+'%'));
+    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
+        try {
+            List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
+            if (!query.isEmpty()) {
+                partnerViewEntities = partnerServiceV2.searchByString('%' + query + '%');
+            } else if (!role.isEmpty()) {
+                partnerViewEntities = partnerServiceV2.getByRole(role);
+            } else if (role.isEmpty() && query.isEmpty()) {
+                partnerViewEntities = partnerServiceV2.getAll();
+            }
+            List<PartnerViewEntity> uniquePartners = new ArrayList<>(
+                    partnerViewEntities.stream()
+                            .collect(Collectors.toMap(
+                                    PartnerViewEntity::getPartnerId,
+                                    p -> p,
+                                    (existing, replacement) -> existing
+                            ))
+                            .values()
+            );
+            String response = gson.toJson(uniquePartners);
             return ResponseEntity.ok(response);
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
         }
     }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postCustomer(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
+    public ResponseEntity<?> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
         try {
+            PartnerViewEntity partnerViewEntity = partnerServiceV2.create(partnerInboundDto);
             PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
-            String id = partnerServiceV2.create(partnerInboundDto).getId();
-            partnerOutboundDto.setId(id);
-
-            PartnerIdentityInboundDto partnerIdentityInboundDto = new PartnerIdentityInboundDto();
-            partnerIdentityInboundDto.setPartner(id);
-            partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
-            partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
-            partnerIdentityServiceV2.add(partnerIdentityInboundDto);
-
+            partnerOutboundDto.setPartnerId(partnerViewEntity.getPartnerId());
+            partnerOutboundDto.setPartnerNo(partnerViewEntity.getPartnerNo());
+            partnerOutboundDto.setIdentityType(partnerViewEntity.getIdentityType());
+            partnerOutboundDto.setIdentityNumber(partnerViewEntity.getIdentityNumber());
+            partnerOutboundDto.setName1(partnerViewEntity.getName1());
+            partnerOutboundDto.setName2(partnerViewEntity.getName2());
+            partnerOutboundDto.setName3(partnerViewEntity.getName3());
             return ResponseEntity.ok(gson.toJson(partnerOutboundDto));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -212,10 +226,10 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(value = "/identity", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getIdentity(@RequestParam("idType" ) String type,
+    public ResponseEntity<?> getIdentity(@RequestParam("idType") String type,
                                          @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            return ResponseEntity.ok(partnerIdentityService.getIdentity(type,idValue));
+            return ResponseEntity.ok(partnerIdentityService.getIdentity(type, idValue));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }

@@ -13,6 +13,9 @@ public interface PartnerViewRepository extends JpaRepository<PartnerViewEntity, 
     @Query("SELECT p FROM PartnerViewEntity p ORDER BY p.partnerNo")
     List<PartnerViewEntity> findAllOrderedByPartnerNo();
 
+    @Query("SELECT p FROM PartnerViewEntity p ORDER BY p.partnerNo")
+    List<PartnerViewEntity> findAll();
+
     @Query("SELECT p FROM PartnerViewEntity p WHERE p.identityNumber like :query OR " +
             "p.partnerNo like :query OR " +
             "p.name1 like :query OR " +
@@ -22,4 +25,5 @@ public interface PartnerViewRepository extends JpaRepository<PartnerViewEntity, 
 
     @Query("SELECT p FROM PartnerViewEntity p WHERE p.partnerRole like :role ORDER BY p.partnerNo")
     List<PartnerViewEntity> findByRole(String role);
+
 }

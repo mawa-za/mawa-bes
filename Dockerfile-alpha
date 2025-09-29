@@ -1,9 +1,33 @@
+# Stage 1: Build with Maven
 FROM maven:3.8.7-openjdk-18 AS build
+
+# Set working directory
+WORKDIR /home/app
+
+# Copy source code and pom
 COPY src /home/app/src
-COPY pom.xml /home/app
-RUN mvn -f /home/app/pom.xml clean install -Palpha
-FROM openjdk:latest
+COPY pom.xml /home/app/
+
+# Clone Flyway scripts into the proper location
+RUN mkdir -p /home/app/src/main/resources/db/migration \
+    && git clone https://github.com/mawa-za/mawa-flyway-scripts.git /tmp/flyway-scripts \
+    && cp -r /tmp/flyway-scripts/* /home/app/src/main/resources/db/migration/ \
+    && rm -rf /tmp/flyway-scripts
+
+RUN ls -R /home/app/src/main/resources/db/migration
+
+# Build the application
+RUN mvn clean install -Palpha
+
+# Stage 2: Runtime
+FROM openjdk:18-jdk-slim
+
+# Expose application port
 EXPOSE 8080
+
+# Copy JAR from build stage
 ARG JAR_FILE=/home/app/target/mawa-bes.jar
 COPY --from=build ${JAR_FILE} app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "/app.jar"]
