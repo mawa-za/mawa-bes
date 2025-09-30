@@ -8,9 +8,9 @@ WORKDIR /home/app
 COPY src /home/app/src
 COPY pom.xml /home/app/
 
-# Clone Flyway scripts into the proper location
+# Clone Flyway scripts from master branch only
 RUN mkdir -p /home/app/src/main/resources/db/migration \
-    && git clone https://github.com/mawa-za/mawa-flyway-scripts.git /tmp/flyway-scripts \
+    && git clone --branch master --single-branch --depth 1 https://github.com/mawa-za/mawa-flyway-scripts.git /tmp/flyway-scripts \
     && cp -r /tmp/flyway-scripts/* /home/app/src/main/resources/db/migration/ \
     && rm -rf /tmp/flyway-scripts
 
