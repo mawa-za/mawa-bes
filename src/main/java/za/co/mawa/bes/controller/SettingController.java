@@ -32,7 +32,7 @@ public class SettingController {
     public ResponseEntity<?> get(@RequestParam String type,
                                  @RequestParam String attribute) {
         try {
-            String response = gson.toJson(settingService.getSetting(attribute, type));
+            String response = gson.toJson(settingService.getSettingObject(attribute, type));
             return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

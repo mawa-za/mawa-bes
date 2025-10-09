@@ -2,6 +2,7 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.SettingOutboundDto;
 import za.co.mawa.bes.entity.SettingEntity;
 import za.co.mawa.bes.entity.SettingPKEntity;
 import za.co.mawa.bes.repository.SettingRepository;
@@ -46,6 +47,20 @@ public class SettingService implements SettingDao {
 
         Optional<SettingEntity> settingEntity = settingRepository.findById(settingPKEntity);
         return settingEntity.map(SettingEntity::getValue).orElse(null);
+    }
+
+    public SettingOutboundDto getSettingObject(String attribute, String type ) {
+        SettingPKEntity settingPKEntity = new SettingPKEntity();
+        settingPKEntity.setSetting(type);
+        settingPKEntity.setAttribute(attribute);
+
+        Optional<SettingEntity> settingEntity = settingRepository.findById(settingPKEntity);
+        String value = settingEntity.map(SettingEntity::getValue).orElse(null);
+        SettingOutboundDto settingOutboundDto = new SettingOutboundDto();
+        settingOutboundDto.setAttribute(attribute);
+        settingOutboundDto.setType(type);
+        settingOutboundDto.setValue(value);
+        return settingOutboundDto;
     }
 
     public void updateSetting(String attribute, String setting, String newValue) {
