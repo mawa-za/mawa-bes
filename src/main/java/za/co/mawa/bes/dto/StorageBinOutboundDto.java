@@ -10,10 +10,14 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class StorageBinOutboundDto implements Serializable {
+    private String binId;
+    private String warehouseId;
     private String aisle;
     private String rack;
+    private String stack;
     private String shelf;
     private String description;
-    private String product;
+    private String productId;
+    private String binCode;
     private boolean published;
 }
