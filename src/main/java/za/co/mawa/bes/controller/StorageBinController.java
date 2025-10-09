@@ -83,6 +83,7 @@ public class StorageBinController {
             storageBinOutboundDto.setPublished(storageBinEntity.getPublished());
             storageBinOutboundDto.setDescription(storageBinEntity.getDescription());
             storageBinOutboundDto.setStack(storageBinEntity.getStack());
+            storageBinOutboundDto.setRack(storageBinEntity.getStack());
             storageBinOutboundDto.setShelf(storageBinEntity.getShelf());
             storageBinOutboundDtoList.add(storageBinOutboundDto);
         }
