@@ -8,10 +8,7 @@ import za.co.mawa.bes.entity.SettingPKEntity;
 import za.co.mawa.bes.repository.SettingRepository;
 import za.co.mawa.bes.dao.SettingDao;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 @Service
 public class SettingService implements SettingDao {
@@ -32,15 +29,19 @@ public class SettingService implements SettingDao {
         return props;
     }
 
-    public Properties getSettings() {
+    public List<SettingOutboundDto> getSettings() {
+        List<SettingOutboundDto> list = new ArrayList<>();
         List<SettingEntity> settings = settingRepository.findAll();
         Iterator<SettingEntity> it = settings.iterator();
-        Properties props = new Properties();
         while (it.hasNext()) {
             SettingEntity setting = it.next();
-            props.put(setting.getSettingsPK().getAttribute(), setting.getValue());
+            SettingOutboundDto settingOutboundDto = new SettingOutboundDto();
+            settingOutboundDto.setAttribute(setting.getSettingsPK().getAttribute());
+            settingOutboundDto.setType(setting.getSettingsPK().getSetting());
+            settingOutboundDto.setValue(setting.getValue());
+            list.add(settingOutboundDto);
         }
-        return props;
+        return list;
     }
 
     public void createSetting(String attribute, String setting, String value) {
