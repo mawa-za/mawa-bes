@@ -17,7 +17,7 @@ public class StorageBinOutboundDto implements Serializable {
     private String stack;
     private String shelf;
     private String description;
-    private String productId;
+    private String product;
     private String binCode;
     private boolean published;
 }
