@@ -12,13 +12,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+
 @Service
 public class SettingService implements SettingDao {
     @Autowired
     SettingRepository settingRepository;
+
     @Override
     public Properties getSettings(String type) {
-        List<SettingEntity> settings =  settingRepository.findAll();
+        List<SettingEntity> settings = settingRepository.findAll();
         Iterator<SettingEntity> it = settings.iterator();
         Properties props = new Properties();
         while (it.hasNext()) {
@@ -29,6 +31,18 @@ public class SettingService implements SettingDao {
         }
         return props;
     }
+
+    public Properties getSettings() {
+        List<SettingEntity> settings = settingRepository.findAll();
+        Iterator<SettingEntity> it = settings.iterator();
+        Properties props = new Properties();
+        while (it.hasNext()) {
+            SettingEntity setting = it.next();
+            props.put(setting.getSettingsPK().getAttribute(), setting.getValue());
+        }
+        return props;
+    }
+
     public void createSetting(String attribute, String setting, String value) {
         SettingEntity newSetting = new SettingEntity();
         SettingPKEntity settingPKEntity = new SettingPKEntity();
@@ -40,7 +54,7 @@ public class SettingService implements SettingDao {
         settingRepository.save(newSetting);
     }
 
-    public String getSetting(String attribute, String setting ) {
+    public String getSetting(String attribute, String setting) {
         SettingPKEntity settingPKEntity = new SettingPKEntity();
         settingPKEntity.setSetting(setting);
         settingPKEntity.setAttribute(attribute);
@@ -49,7 +63,7 @@ public class SettingService implements SettingDao {
         return settingEntity.map(SettingEntity::getValue).orElse(null);
     }
 
-    public SettingOutboundDto getSettingObject(String attribute, String type ) {
+    public SettingOutboundDto getSettingObject(String attribute, String type) {
         SettingPKEntity settingPKEntity = new SettingPKEntity();
         settingPKEntity.setSetting(type);
         settingPKEntity.setAttribute(attribute);
