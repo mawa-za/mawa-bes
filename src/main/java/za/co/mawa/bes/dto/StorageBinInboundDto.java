@@ -14,6 +14,7 @@ public class StorageBinInboundDto implements Serializable {
     private String warehouseId;
     private String aisle;
     private String rack;
+    private String stack;
     private String shelf;
     private String description;
     private String productId;

@@ -33,7 +33,7 @@ public class StorageBinEntity {
     private String aisle;
 
     @Column(name = "rack", length = 10, nullable = false)
-    private String rack;
+    private String stack;
 
     @Column(name = "shelf", length = 10, nullable = false)
     private String shelf;
