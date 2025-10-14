@@ -19,9 +19,9 @@ public class SettingController {
     SettingService settingService;
 
 //    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> getAll(@RequestParam(required = false) String type) {
+//    public ResponseEntity<?> getAll() {
 //        try {
-//            String response = gson.toJson(settingService.getSettings(type));
+//            String response = gson.toJson(settingService.getSettings());
 //            return ResponseEntity.ok(response);
 //        } catch (Exception exception) {
 //            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -29,11 +29,18 @@ public class SettingController {
 //    }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> get(@RequestParam String type,
-                                 @RequestParam String attribute) {
+    public ResponseEntity<?> get(@RequestParam(required = false) String type,
+                                 @RequestParam(required = false) String attribute) {
         try {
-            String response = gson.toJson(settingService.getSettingObject(attribute, type));
-            return ResponseEntity.ok(response);
+            if (type != null && attribute != null) {
+                String response = gson.toJson(settingService.getSettingObject(attribute, type));
+                return ResponseEntity.ok(response);
+            } else if(type == null && attribute == null) {
+                String response = gson.toJson(settingService.getSettings());
+                return ResponseEntity.ok(response);
+            }else{
+                return ResponseEntity.ok().build();
+            }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -43,7 +50,8 @@ public class SettingController {
     public ResponseEntity<?> post(@RequestBody SettingInboundDto settingInboundDto) {
         try {
             settingService.updateSetting(settingInboundDto.getAttribute(), settingInboundDto.getType(), settingInboundDto.getValue());
-            return ResponseEntity.ok().build();
+            String response = gson.toJson(settingService.getSettingObject(settingInboundDto.getAttribute(), settingInboundDto.getType()));
+            return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
@@ -53,7 +61,8 @@ public class SettingController {
     public ResponseEntity<?> put(@RequestBody SettingInboundDto settingInboundDto) {
         try {
             settingService.updateSetting(settingInboundDto.getAttribute(), settingInboundDto.getType(), settingInboundDto.getValue());
-            return ResponseEntity.ok().build();
+            String response = gson.toJson(settingService.getSettingObject(settingInboundDto.getAttribute(), settingInboundDto.getType()));
+            return ResponseEntity.ok(response);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
