@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import za.co.mawa.bes.entity.PartnerViewEntity;
 import za.co.mawa.bes.entity.ProductEntity;
 
 import java.util.List;
@@ -15,5 +16,8 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<ProductEntity,String>
 {
     List<ProductEntity> findAll(Specification<ProductEntity>byCriteria, Sort sort);
+
+    @Query("SELECT p FROM ProductEntity p WHERE p.code like :code ORDER BY p.code")
+    ProductEntity findByCode(String code);
 
 }

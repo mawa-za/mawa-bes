@@ -129,6 +129,15 @@ public class ProductService implements ProductDao {
         }
     }
 
+    public ProductDto getByCode(String code) throws ProductNotFoundException {
+        try {
+            ProductEntity productEntity = productRepository.findByCode(code);
+            return get(productEntity.getId());
+        } catch (EntityNotFoundException exception) {
+            throw new ProductNotFoundException();
+        }
+    }
+
     public ProductBasicDto getBasic(String id) throws ProductNotFoundException {
         try {
             ProductEntity productEntity = productRepository.getById(id);
@@ -310,7 +319,7 @@ public class ProductService implements ProductDao {
                 productAttributeDto.setValue(attributeEntity.getValue());
                 productAttributeDto.setValidFrom(Conversion.dateToString(attributeEntity.getValidFrom()));
                 productAttributeDto.setValidTo(Conversion.dateToString(attributeEntity.getValidTo()));
-                if (productAttributeDto.getAttribute() != null){
+                if (productAttributeDto.getAttribute() != null) {
                     attributes.add(productAttributeDto);
                 }
             }
@@ -370,7 +379,7 @@ public class ProductService implements ProductDao {
 
     public void deleteCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
         try {
-            for(ProductCategoryEntity productCategoryEntity: productCategoryRepository.find(productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())){
+            for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.find(productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())) {
                 productCategoryRepository.deleteById(productCategoryEntity.getId());
             }
         } catch (Exception e) {
