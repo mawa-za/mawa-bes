@@ -73,6 +73,15 @@ public class ProductController {
         }
     }
 
+    @RequestMapping(value = "code/{code}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getProductByCode(@PathVariable String code) {
+        try {
+            return ResponseEntity.ok(gson.toJson(productService.getByCode(code)));
+        } catch (ProductNotFoundException exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductEditDto productEditDto) {
         try {
