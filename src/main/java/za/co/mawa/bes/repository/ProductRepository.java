@@ -17,7 +17,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity,String>
 {
     List<ProductEntity> findAll(Specification<ProductEntity>byCriteria, Sort sort);
 
-    @Query("SELECT p FROM ProductEntity p WHERE p.code like :code ORDER BY p.code")
+    @Query("SELECT p FROM ProductEntity p WHERE p.code = :code ORDER BY p.code")
     ProductEntity findByCode(String code);
 
 }

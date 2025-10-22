@@ -6,9 +6,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.RoleOutboundDto;
 import za.co.mawa.bes.dto.user.*;
+import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.UserExistException;
+import za.co.mawa.bes.repository.UserRoleRepository;
+import za.co.mawa.bes.service.RoleService;
 import za.co.mawa.bes.service.UserService;
 
 import java.util.ArrayList;
@@ -16,11 +20,17 @@ import java.util.List;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "user")
-public class UserController {
+@RequestMapping(value = "v2/user")
+public class UserControllerV2 {
     Gson gson = new Gson();
     @Autowired
     UserService userService;
+
+    @Autowired
+    UserRoleRepository userRoleRepository;
+
+    @Autowired
+    RoleService roleService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto) {
@@ -63,6 +73,11 @@ public class UserController {
 
     @RequestMapping(value = "{id}/role", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getRoles(@PathVariable String id) throws Exception {
+        List<RoleOutboundDto> roles = new ArrayList<>();
+        List<UserRoleEntity> userRoleEntities = userRoleRepository.findUserRoles(id);
+        for(UserRoleEntity userRoleEntity: userRoleEntities){
+            roles.add(roleService.get(userRoleEntity.getUserRolePKEntity().getRole()));
+        }
         return ResponseEntity.ok(userService.getRoles(id));
     }
 
