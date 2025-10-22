@@ -17,7 +17,7 @@ public class MeController {
     Gson gson = new Gson();
     @Autowired
     UserService userService;
-    @RequestMapping(value = "me", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getCurrentUser() {
         try {
             UserDto userDto = userService.getUserByName(userService.getCurrentUser());
