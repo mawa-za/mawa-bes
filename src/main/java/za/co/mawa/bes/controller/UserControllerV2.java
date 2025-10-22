@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "v2/user")
+@RequestMapping(value = "user/v2")
 public class UserControllerV2 {
     Gson gson = new Gson();
     @Autowired
@@ -78,7 +78,7 @@ public class UserControllerV2 {
         for(UserRoleEntity userRoleEntity: userRoleEntities){
             roles.add(roleService.get(userRoleEntity.getUserRolePKEntity().getRole()));
         }
-        return ResponseEntity.ok(userService.getRoles(id));
+        return ResponseEntity.ok(roles);
     }
 
 
