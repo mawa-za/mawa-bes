@@ -138,6 +138,42 @@ public class ProductService implements ProductDao {
         }
     }
 
+    public List<ProductDto> query(String type,String query)  {
+        try {
+            List<ProductDto> productDtoList = new ArrayList<>();
+            List<ProductEntity> productEntities = productRepository.findByQuery(type,query);
+            for(ProductEntity productEntity: productEntities){
+                productDtoList.add(entityToDto(productEntity));
+            }
+            return productDtoList;
+        } catch (EntityNotFoundException exception) {
+            return new ArrayList<>();
+        }
+
+    }
+
+
+    public ProductDto entityToDto(ProductEntity productEntity) {
+        try {
+            ProductDto productDto = new ProductDto();
+            productDto.setId(productEntity.getId());
+            String code = productEntity.getCode() == null ? "" : productEntity.getCode();
+            productDto.setCode(code);
+            productDto.setDescription(productEntity.getDescription());
+            productDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
+//            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+            productDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
+            productDto.setValidTo(productEntity.getValidTo());
+            productDto.setValidFrom(productEntity.getValidFrom());
+            productDto.setPricings(getPricings(productEntity.getId()));
+            productDto.setAttributes(getAttributes(productEntity.getId()));
+            productDto.setCategories(getCategories(productEntity.getId()));
+            return productDto;
+        } catch (EntityNotFoundException exception) {
+            return null;
+        }
+    }
+
     public ProductBasicDto getBasic(String id) throws ProductNotFoundException {
         try {
             ProductEntity productEntity = productRepository.getById(id);
