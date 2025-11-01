@@ -35,6 +35,8 @@ public class StorageBinController {
         storageBinEntity.setDescription(storageBinInboundDto.getDescription());
         storageBinEntity.setProductId(storageBinInboundDto.getProductId());
         storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
+        storageBinEntity.setBatchNumber(storageBinInboundDto.getBatchNumber());
+        storageBinEntity.setExpiryDate(storageBinInboundDto.getExpiryDate());
         storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
 //        storageBinService.createStorageBin(storageBinEntity);
         StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
@@ -50,6 +52,8 @@ public class StorageBinController {
         storageBinEntity.setDescription(storageBinInboundDto.getDescription());
         storageBinEntity.setProductId(storageBinInboundDto.getProductId());
         storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
+        storageBinEntity.setBatchNumber(storageBinInboundDto.getBatchNumber());
+        storageBinEntity.setExpiryDate(storageBinInboundDto.getExpiryDate());
         storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
 //        storageBinService.createStorageBin(storageBinEntity);
         StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
@@ -85,6 +89,8 @@ public class StorageBinController {
             storageBinOutboundDto.setStack(storageBinEntity.getStack());
             storageBinOutboundDto.setRack(storageBinEntity.getStack());
             storageBinOutboundDto.setShelf(storageBinEntity.getShelf());
+            storageBinOutboundDto.setBatchNumber(storageBinEntity.getBatchNumber());
+            storageBinOutboundDto.setExpiryDate(storageBinEntity.getExpiryDate());
             storageBinOutboundDtoList.add(storageBinOutboundDto);
         }
         return ResponseEntity.ok(gson.toJson(storageBinOutboundDtoList));
