@@ -4,10 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.RoleDao;
-import za.co.mawa.bes.dto.RoleDto;
-import za.co.mawa.bes.dto.RoleWorkcenterCreateDto;
-import za.co.mawa.bes.dto.RoleWorkcenterDto;
-import za.co.mawa.bes.dto.WorkcenterDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
 import za.co.mawa.bes.repository.RoleRepository;
@@ -61,13 +58,24 @@ public class RoleService implements RoleDao {
         return roleDtoList;
     }
 
+    public RoleOutboundDto get(String id) {
+        RoleEntity roleEntity = roleRepository.getById(id);
+        RoleOutboundDto roleOutboundDto = new RoleOutboundDto();
+        roleOutboundDto.setId(roleEntity.getId());
+        roleOutboundDto.setName(roleEntity.getDescription());
+        roleOutboundDto.setDescription(roleEntity.getDescription());
+        roleOutboundDto.setValidFrom(roleEntity.getValidFrom());
+        roleOutboundDto.setValidTo(roleEntity.getValidTo());
+        return roleOutboundDto;
+    }
+
     @Override
     public List<RoleWorkcenterDto> getRoleWorkcenters(String role) throws RoleDoesNotExist {
         if (role.equals("SYSTEM")) {
             int i = 0;
             List<RoleWorkcenterDto> roleWorkcenterDtoList = new ArrayList<>();
             List<WorkcenterDto> workcenterDtoList = workcenterService.getAll();
-            for(WorkcenterDto workcenterDto: workcenterDtoList){
+            for (WorkcenterDto workcenterDto : workcenterDtoList) {
                 RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
                 roleWorkcenterDto.setPosition(i);
                 roleWorkcenterDto.setWorkcenter(workcenterDto);

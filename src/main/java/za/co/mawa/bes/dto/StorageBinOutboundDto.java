@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @NoArgsConstructor
 @Getter
@@ -20,4 +21,6 @@ public class StorageBinOutboundDto implements Serializable {
     private String product;
     private String binCode;
     private boolean published;
+    private String batchNumber;
+    private Date expiryDate;
 }
