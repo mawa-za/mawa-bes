@@ -20,4 +20,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity,String>
     @Query("SELECT p FROM ProductEntity p WHERE p.code = :code ORDER BY p.code")
     ProductEntity findByCode(String code);
 
+    @Query("SELECT p FROM ProductEntity p WHERE p.description like :query and p.type = :type ORDER BY p.code")
+    List<ProductEntity> findByQuery(String type,String query);
+
 }

@@ -6,6 +6,7 @@ import org.hibernate.annotations.GenericGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -64,5 +65,11 @@ public class StorageBinEntity {
 
     @Column(name = "product_id")
     private String productId;
+
+    @Column(name = "batch_number")
+    private String batchNumber;
+
+    @Column(name = "expiry_date", insertable = false)
+    private Date expiryDate;
 
 }
