@@ -23,7 +23,8 @@ public class RoleController {
     Gson gson = new Gson();
     @Autowired
     RoleService roleService;
-    @RequestMapping(value = "/role", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createRole(@RequestBody RoleCreateDto roleCreateDto) {
         try {
             RoleDto roleDto = new RoleDto();
@@ -32,13 +33,18 @@ public class RoleController {
             roleDto.setValidFrom(new Date());
             roleDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             roleService.create(roleDto);
+            RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
+            workcenter.setWorkcenter("dashboard");
+            workcenter.setRole(roleDto.getId());
+            workcenter.setPosition(1);
+            roleService.addWorkcenter(workcenter);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
 
-    @RequestMapping(value = "/role", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/role", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getRoles() {
         try {
             return ResponseEntity.ok(gson.toJson(roleService.getAll()));
@@ -47,7 +53,7 @@ public class RoleController {
         }
     }
 
-    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getWorkcenters(@PathVariable String role) {
         try {
             return ResponseEntity.ok(gson.toJson(roleService.getRoleWorkcenters(role)));
@@ -56,10 +62,10 @@ public class RoleController {
         }
     }
 
-    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postWorkcenters(@PathVariable String role, @RequestBody List<RoleWorkcenterCreateDto> roleWorkcenterCreateDtoList) {
         try {
-            for(RoleWorkcenterCreateDto workcenter: roleWorkcenterCreateDtoList){
+            for (RoleWorkcenterCreateDto workcenter : roleWorkcenterCreateDtoList) {
                 workcenter.setRole(role);
                 roleService.addWorkcenter(workcenter);
             }
@@ -68,8 +74,9 @@ public class RoleController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> deleteWorkcenters(@PathVariable String role,@RequestParam(required = true) String workcenter) {
+
+    @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteWorkcenters(@PathVariable String role, @RequestParam(required = true) String workcenter) {
 
         try {
             RoleWorkcenterPKEntity pkEntity = new RoleWorkcenterPKEntity();
@@ -81,7 +88,8 @@ public class RoleController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
     }
-    @RequestMapping(value = "/role/{role}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
+
+    @RequestMapping(value = "/role/{role}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteRole(@PathVariable String role) {
         try {
             boolean deleted = roleService.deleteRole(role);
