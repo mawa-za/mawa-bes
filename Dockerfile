@@ -1,5 +1,5 @@
 # Stage 1: Build with Maven
-FROM maven:3.8.7-openjdk-18 AS build
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 
 # Set working directory
 WORKDIR /home/app
@@ -20,7 +20,7 @@ RUN ls -R /home/app/src/main/resources/db/migration
 RUN mvn clean install -Pprod
 
 # Stage 2: Runtime
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 
 # Expose application port
 EXPOSE 8080
