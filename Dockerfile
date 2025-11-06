@@ -20,7 +20,7 @@ RUN ls -R /home/app/src/main/resources/db/migration
 RUN mvn clean install -Pprod
 
 # Stage 2: Runtime
-FROM openjdk:18-jdk-slim
+FROM openjdk:17-jdk-slim
 
 # Expose application port
 EXPOSE 8080
