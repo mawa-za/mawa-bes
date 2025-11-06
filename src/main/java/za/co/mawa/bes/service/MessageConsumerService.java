@@ -29,7 +29,7 @@ public class MessageConsumerService {
     PaymentRequestService paymentRequestService;
     Gson gson = new Gson();
 
-//    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = 60000)
     public void processAllTenants() {
         for (TenantDto tenant : tenantAdminService.getAll()) {
 
