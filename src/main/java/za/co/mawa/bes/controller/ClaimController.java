@@ -508,7 +508,7 @@ public class ClaimController {
             }
 
             if (claim.getType().getCode().equals("COMBINATION")) {
-                UUID xeroInvoiceId = UUID.fromString("");
+                String xeroInvoiceIdStr = "";
                 PaymentRequestCreateDto funeralPaymentRequest = new PaymentRequestCreateDto();
                 funeralPaymentRequest.setPaymentMethod("EFT");
                 funeralPaymentRequest.setPaymentReason("FUNERAL-CLAIM-COMBINATION");
@@ -520,11 +520,11 @@ public class ClaimController {
                 List<TransactionLinkOutboundDto> claimChildren = transactionLinkService.getChildren(claim.getId());
                 for (TransactionLinkOutboundDto child : claimChildren) {
                     if (child.getType().equals(TransactionLinkType.XERO_INVOICE)) {
-                        xeroInvoiceId = UUID.fromString(child.getChild());
+                        xeroInvoiceIdStr = child.getChild();
                         break;
                     }
                 }
-
+                UUID xeroInvoiceId = UUID.fromString(xeroInvoiceIdStr);
                 LineItem lineItem = new LineItem();
                 lineItem.setDescription("Funeral upgrade value");
                 lineItem.setQuantity(1.00);

@@ -262,7 +262,7 @@ public class XeroAccountingService {
             JSONArray invoices = jsonResponse.getJSONArray("Invoices");
             JSONObject firstInvoice = invoices.getJSONObject(0);
             String invoiceNumber = firstInvoice.getString("InvoiceNumber");
-            String invoiceID = firstInvoice.getString("InvoiceNumber");
+            String invoiceID = firstInvoice.getString("InvoiceID");
             InvoiceOutboundDto invoiceOutboundDto = new InvoiceOutboundDto();
             invoiceOutboundDto.setNumber(invoiceNumber);
             invoiceOutboundDto.setId(invoiceID);
