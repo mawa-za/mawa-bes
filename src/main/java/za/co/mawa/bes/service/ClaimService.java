@@ -148,7 +148,7 @@ public class ClaimService {
                 transactionPartnerDto.setPartner(claimCreateDto.getClaimantId());
                 transactionService.addPartner(transactionPartnerDto);
             }
-            if (claimCreateDto.getInformantId() != null) {
+            if (!claimCreateDto.getInformantId().isEmpty()) {
                 TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
                 transactionPartnerDto.setTransaction(transactionDto.getId());
                 transactionPartnerDto.setFunction(PartnerFunction.INFORMANT);
@@ -164,7 +164,7 @@ public class ClaimService {
                 transactionService.addLink(transactionLinkDto);
             }
 
-            if (claimCreateDto.getClaimId() != null) {
+            if (!claimCreateDto.getClaimId().isEmpty()) {
                 TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
                 transactionLinkDto.setTransaction1(claimCreateDto.getClaimId());
                 transactionLinkDto.setTransaction2(transactionDto.getId());
@@ -195,16 +195,6 @@ public class ClaimService {
                 transactionDateDto.setValue(claimCreateDto.getBurialDate());
                 transactionService.addDate(transactionDateDto);
             }
-            if (claimCreateDto.getBankAccount() != null) {
-                TransactionAccountDto account = new TransactionAccountDto();
-                account.setAccountHolder(claimCreateDto.getBankAccount().getAccountHolder());
-                account.setTransaction(claimOutboundDto.getId());
-                account.setAccountNumber(claimCreateDto.getBankAccount().getAccountNumber());
-                account.setBankName(claimCreateDto.getBankAccount().getBankName());
-                account.setBranchCode(claimCreateDto.getBankAccount().getBranchCode());
-                account.setAccountType(claimCreateDto.getBankAccount().getAccountType());
-                transactionService.addBankAccount(account);
-            }
 
             try {
                 if (claimCreateDto.getType().equals("COMBINATION") || claimCreateDto.getType().equals("FUNERAL")) {
@@ -217,6 +207,18 @@ public class ClaimService {
                     bankAccount.setBranchCode(bankAccountDto.getBranchCode());
                     bankAccount.setObjectId(claimOutboundDto.getId());
                     bankAccountService.add(bankAccount);
+                } else {
+                    if (claimCreateDto.getBankAccount() != null) {
+                        TransactionAccountDto account = new TransactionAccountDto();
+                        account.setAccountHolder(claimCreateDto.getBankAccount().getAccountHolder());
+                        account.setTransaction(claimOutboundDto.getId());
+                        account.setAccountNumber(claimCreateDto.getBankAccount().getAccountNumber());
+                        account.setBankName(claimCreateDto.getBankAccount().getBankName());
+                        account.setBranchCode(claimCreateDto.getBankAccount().getBranchCode());
+                        account.setAccountType(claimCreateDto.getBankAccount().getAccountType());
+                        transactionService.addBankAccount(account);
+                    }
+
                 }
             } catch (Exception e) {
 
@@ -312,15 +314,19 @@ public class ClaimService {
                     claimOutboundDto.setDeathDate(transactionDateDto.getValue());
                 }
             }
-            TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
-            if (transactionBankAccountDto != null) {
-                BankAccountDto bankAccountDto = new BankAccountDto();
-                bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
-                bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
-                bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
-                bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
-                bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
-                claimOutboundDto.setBankDetails(bankAccountDto);
+            try {
+                TransactionBankAccountDto transactionBankAccountDto = transactionBankAccountService.get(id);
+                if (transactionBankAccountDto != null) {
+                    BankAccountDto bankAccountDto = new BankAccountDto();
+                    bankAccountDto.setAccountHolder(transactionBankAccountDto.getAccountHolder());
+                    bankAccountDto.setBankName(transactionBankAccountDto.getBankName());
+                    bankAccountDto.setBranchCode(transactionBankAccountDto.getBranchCode());
+                    bankAccountDto.setAccountType(transactionBankAccountDto.getAccountType());
+                    bankAccountDto.setAccountNumber(transactionBankAccountDto.getAccountNumber());
+                    claimOutboundDto.setBankDetails(bankAccountDto);
+                }
+            } catch (Exception e) {
+
             }
             try {
                 List<TransactionAmountEntity> transactionAmountEntities = transactionAmountRepository.getByTransaction(id);
