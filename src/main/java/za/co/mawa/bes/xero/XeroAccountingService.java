@@ -95,52 +95,61 @@ public class XeroAccountingService {
 //            lineItem.put("LineAmount", 40);
             lineItems.add(lineItem);
 
-
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","HEARSE");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 2);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","FAMCAR7");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","CORPSE-COLLECTION");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","STORAGE");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","STANDARD-TENT");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 100);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","STANDARD-CHAIR");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 24);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","WATER-500ML");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 24);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","COOL-DRINK-330ML");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 24);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","JUICE-330ML");
             lineItems.add(lineItem);
 
+            lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
             lineItem.put("ItemCode","DECORATION");
