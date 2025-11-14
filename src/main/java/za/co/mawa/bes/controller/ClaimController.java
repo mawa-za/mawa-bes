@@ -508,23 +508,28 @@ public class ClaimController {
             }
 
             if (claim.getType().getCode().equals("COMBINATION")) {
-                UUID xeroInvoiceId = UUID.fromString("");
+                String xeroInvoiceIdStr = "";
                 PaymentRequestCreateDto funeralPaymentRequest = new PaymentRequestCreateDto();
                 funeralPaymentRequest.setPaymentMethod("EFT");
                 funeralPaymentRequest.setPaymentReason("FUNERAL-CLAIM-COMBINATION");
                 // Set reference from Xero invoice or claim number
                 String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
                 BigDecimal invoiceAmount = getProductAmount(claim.getMembership().getProduct().getId(), "COMBINATION-VALUE");
-
-                transactionService.getLinks(claim.getId());
-                List<TransactionLinkOutboundDto> claimChildren = transactionLinkService.getChildren(claim.getId());
-                for (TransactionLinkOutboundDto child : claimChildren) {
-                    if (child.getType().equals(TransactionLinkType.XERO_INVOICE)) {
-                        xeroInvoiceId = UUID.fromString(child.getChild());
+                List<TransactionLinkOutboundDto> claimParent = transactionLinkService.getParent(claim.getId());
+                for (TransactionLinkOutboundDto parent : claimParent) {
+                    if (parent.getType().equals(TransactionLinkType.CLAIM_COMBINATION)) {
+                        List<TransactionLinkOutboundDto> claimChildren = transactionLinkService.getChildren(parent.getParent());
+                        for (TransactionLinkOutboundDto child : claimChildren) {
+                            if (child.getType().equals(TransactionLinkType.XERO_INVOICE)) {
+                                xeroInvoiceIdStr = child.getChild();
+                                break;
+                            }
+                        }
                         break;
                     }
                 }
 
+                UUID xeroInvoiceId = UUID.fromString(xeroInvoiceIdStr);
                 LineItem lineItem = new LineItem();
                 lineItem.setDescription("Funeral upgrade value");
                 lineItem.setQuantity(1.00);
