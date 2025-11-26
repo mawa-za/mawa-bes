@@ -159,6 +159,8 @@ public class BankPaymentService {
             Integer daysToAdd = 0;
             if (!setting.equals(null)){
                 daysToAdd = Integer.parseInt(setting);
+            }else{
+                settingService.createSetting("ADD-DAYS-CREATION-DATE","FNB-API", "0");
             }
             String dueDate = Conversion.addDaysToDate(new Date(), daysToAdd).toString();
             grpHdr.setCreationDateTime(dueDate);
