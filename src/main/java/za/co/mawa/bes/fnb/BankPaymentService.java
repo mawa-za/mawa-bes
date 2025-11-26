@@ -156,15 +156,21 @@ public class BankPaymentService {
             Instant instant = new Date().toInstant();
             ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
-            String setting = settingService.getSetting("ADD-DAYS-CREATION-DATE", "FNB-API");
-            Integer daysToAdd = 0;
+
             try {
-                daysToAdd = Integer.parseInt(setting);
+                String dateSetting = settingService.getSetting("PAYMENT-CREATION-DATE", "FNB-API");
+                if (!dateSetting.isEmpty()){
+                    String creationDate = dateSetting;
+                    grpHdr.setCreationDateTime(creationDate);
+                }else{
+                    String creationDate = Conversion.dateToString(new Date());
+                    grpHdr.setCreationDateTime(creationDate);
+                }
             } catch (Exception e) {
-                settingService.createSetting("ADD-DAYS-CREATION-DATE", "FNB-API", "0");
+                settingService.createSetting("PAYMENT-CREATION-DATE", "FNB-API", "");
+                String creationDate = Conversion.dateToString(new Date());
+                grpHdr.setCreationDateTime(creationDate);
             }
-            String dueDate = Conversion.dateToString(Conversion.addDaysToDate(new Date(), daysToAdd));
-            grpHdr.setCreationDateTime(dueDate);
             grpHdr.setTotalNumberOfTransactions(1);
             grpHdr.setTotalControlSum(paymentRequestDto.getAmount().doubleValue());
             grpHdr.setInitiatingPartyName(settingService.getSetting("COMPANY-NAME", "TENANT"));
