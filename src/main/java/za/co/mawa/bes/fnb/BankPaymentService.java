@@ -49,13 +49,14 @@ public class BankPaymentService {
     @Autowired
     TransactionService transactionService;
 
-    private String getBaseURL(){
+    private String getBaseURL() {
         return settingService.getSetting("BASE-URL", "FNB-API");
     }
+
     public String getToken() {
         try {
 
-            URL url = new URL(getBaseURL()+"/oauth2/token/v2");
+            URL url = new URL(getBaseURL() + "/oauth2/token/v2");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
@@ -101,7 +102,7 @@ public class BankPaymentService {
     public void sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
         try {
-            URL url = new URL(getBaseURL()+"/paymentExecution/initiate/v1");
+            URL url = new URL(getBaseURL() + "/paymentExecution/initiate/v1");
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
@@ -155,14 +156,14 @@ public class BankPaymentService {
             Instant instant = new Date().toInstant();
             ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
-            String setting  = settingService.getSetting("ADD-DAYS-CREATION-DATE", "FNB-API");
+            String setting = settingService.getSetting("ADD-DAYS-CREATION-DATE", "FNB-API");
             Integer daysToAdd = 0;
-            if (!setting.equals(null)){
+            try {
                 daysToAdd = Integer.parseInt(setting);
-            }else{
-                settingService.createSetting("ADD-DAYS-CREATION-DATE","FNB-API", "0");
+            } catch (Exception e) {
+                settingService.createSetting("ADD-DAYS-CREATION-DATE", "FNB-API", "0");
             }
-            String dueDate = Conversion.addDaysToDate(new Date(), daysToAdd).toString();
+            String dueDate = Conversion.dateToString(Conversion.addDaysToDate(new Date(), daysToAdd));
             grpHdr.setCreationDateTime(dueDate);
             grpHdr.setTotalNumberOfTransactions(1);
             grpHdr.setTotalControlSum(paymentRequestDto.getAmount().doubleValue());
