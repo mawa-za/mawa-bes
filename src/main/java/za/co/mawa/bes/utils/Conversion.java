@@ -129,6 +129,6 @@ public class Conversion {
 
     public static Integer stringToInteger(String value) {
         value = value.replace(",", "");
-        return new Integer(value);
+        return Integer.parseInt(value);
     }
 }
