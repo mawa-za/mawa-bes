@@ -192,8 +192,11 @@ public class BankPaymentService {
             Instant instant = paymentRequestDto.getDueDate().toInstant();
             ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
-            paymentInformation.setRequestedExecutionDate(Conversion.dateToString(paymentRequestDto.getDueDate()));
-
+            if(paymentRequestDto.getDueDate().after(new Date())) {
+                paymentInformation.setRequestedExecutionDate(Conversion.dateToString(paymentRequestDto.getDueDate()));
+            }else{
+                paymentInformation.setRequestedExecutionDate(Conversion.dateToString(new Date()));
+            }
             Debtor debtor = new Debtor();
             debtor.setName(settingService.getSetting("ACCOUNT-HOLDER", "EFT-BANK-ACCOUNT"));
             debtor.setBicOrBEI(settingService.getSetting("BRANCH-CODE", "EFT-BANK-ACCOUNT"));
