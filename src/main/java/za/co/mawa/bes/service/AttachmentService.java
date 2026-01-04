@@ -74,7 +74,7 @@ public class AttachmentService implements AttachmentDao {
     public AttachmentOutboundDto getDocumentByType(AttachmentInboundDto attachmentInboundDto) throws DoesNotExist {
         AttachmentEntity attachmentEntity = attachmentRepository.findByObjectDocumentType(attachmentInboundDto.getObjectId(), attachmentInboundDto.getDocumentType());
         AttachmentOutboundDto attachmentOutboundDto = new AttachmentOutboundDto();
-        attachmentOutboundDto.setFile(get(attachmentEntity.getId()));
+        attachmentOutboundDto.setFile(Base64.getEncoder().encodeToString(attachmentEntity.getFile()));
         attachmentOutboundDto.setExtension(attachmentEntity.getExtension());
         return attachmentOutboundDto;
     }
