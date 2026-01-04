@@ -48,14 +48,16 @@ public class MessageConsumerService {
                                 for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
                                     paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
                                 }
+                                msg.setProcessed(true);
                                 break;
-                            case "EMAIL-INVOICE":
+                            case "INVOICE-EMAIL":
                                 paymentRequestService.sendInvoiceFile(msg.getPayload());
+                                msg.setProcessed(true);
                                 break;
                             default:
                                 // code block
                         }
-                        msg.setProcessed(true);
+
                     } catch (Exception e) {
                         msg.setRetryCount(msg.getRetryCount() + 1);
                         if (msg.getRetryCount() > 3) {
