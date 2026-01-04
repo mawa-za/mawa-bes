@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
+import za.co.mawa.bes.dto.attachment.AttachmentInboundDto;
+import za.co.mawa.bes.dto.attachment.AttachmentOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.exception.DoesNotExist;
@@ -67,6 +69,14 @@ public class AttachmentService implements AttachmentDao {
             throw new DoesNotExist();
             // return null;
         }
+    }
+
+    public AttachmentOutboundDto getDocumentByType(AttachmentInboundDto attachmentInboundDto) throws DoesNotExist {
+        AttachmentEntity attachmentEntity = attachmentRepository.findByObjectDocumentType(attachmentInboundDto.getObjectId(), attachmentInboundDto.getDocumentType());
+        AttachmentOutboundDto attachmentOutboundDto = new AttachmentOutboundDto();
+        attachmentOutboundDto.setFile(get(attachmentEntity.getId()));
+        attachmentOutboundDto.setExtension(attachmentEntity.getExtension());
+        return attachmentOutboundDto;
     }
 
     public AttachmentDto getOne(String id) throws DoesNotExist {
