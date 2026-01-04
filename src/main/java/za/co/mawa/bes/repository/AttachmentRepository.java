@@ -11,6 +11,6 @@ public interface AttachmentRepository extends JpaRepository<AttachmentEntity,Str
     @Query("SELECT a FROM AttachmentEntity a WHERE a.objectId = :objectId")
     List<AttachmentEntity> findByObjectId(String objectId);
 
-    @Query("SELECT a FROM AttachmentEntity a WHERE a.objectId = :objectId AND a.documentType = :type")
+    @Query("SELECT a FROM AttachmentEntity a WHERE a.objectId = :objectId AND a.documentType = :documentType")
     AttachmentEntity findByObjectDocumentType(String objectId, String documentType);
 }
