@@ -117,7 +117,7 @@ public class BankAccountService {
                 code = "460005";
                 break;
             case "SBSA":
-                code = "51001";
+                code = "051001";
                 break;
             case "TYME-BANK":
                 code = "678910";
