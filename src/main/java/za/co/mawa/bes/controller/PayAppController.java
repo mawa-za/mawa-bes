@@ -1,0 +1,99 @@
+package za.co.mawa.bes.controller;
+
+import com.nimbusds.jose.shaded.gson.Gson;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.MembershipOutboundDto;
+import za.co.mawa.bes.dto.MembershipPlanOutboundDto;
+import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.ProductQueryDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.ProductService;
+import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.TransactionType;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@RestController
+@CrossOrigin
+@RequestMapping(value = "pay-app")
+public class PayAppController {
+    Gson gson = new Gson();
+    @Autowired
+    TransactionService transactionService;
+    @Autowired
+    ProductService productService;
+
+    @RequestMapping(value = "members", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getMembers(@RequestParam(required = false) String status,
+                                        @RequestParam(required = false) String mainPartner,
+                                        @RequestParam(required = false) String employeeResponsibleName,
+                                        @RequestParam(required = false) String creationDate,
+                                        @RequestParam(required = false) String idNumber) {
+        try {
+            List<MembershipOutboundDto> membershipOutboundDtoList = new ArrayList<>();
+            TransactionViewDto transactionViewDto = new TransactionViewDto();
+            transactionViewDto.setType(TransactionType.MEMBERSHIP);
+            if (status != null && status != "") {
+                transactionViewDto.setStatus("ACTIVE");
+            }
+            for (TransactionViewEntity transactionViewEntity : transactionService.searchV2(transactionViewDto)) {
+                MembershipOutboundDto membershipOutboundDto = new MembershipOutboundDto();
+                membershipOutboundDto.setMemberId(transactionViewEntity.getTransactionId());
+                membershipOutboundDto.setMembershipNo(transactionViewEntity.getTransactionNumber());
+                membershipOutboundDto.setIdNumber(transactionViewEntity.getIdentityNumber());
+                membershipOutboundDto.setFullName(transactionViewEntity.getMainPartner());
+                membershipOutboundDto.setPlanId(transactionViewEntity.getProductId());
+                membershipOutboundDto.setActive(true);
+                membershipOutboundDto.setUpdatedAt(Conversion.dateTimeToString(new Date()));
+                membershipOutboundDtoList.add(membershipOutboundDto);
+            }
+            return ResponseEntity.ok(gson.toJson(membershipOutboundDtoList));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "plans", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
+                                         @RequestParam(required = false) String category,
+                                         @RequestParam(required = false) String type) {
+        try {
+            List<MembershipPlanOutboundDto> membershipPlanOutboundDtoList = new ArrayList<>();
+            ProductQueryDto productQueryDto = new ProductQueryDto();
+            productQueryDto.setCategory("MEMBERSHIP");
+            productQueryDto.setType("MEMBERSHIP");
+
+            for (ProductDto productDto : productService.search(productQueryDto)) {
+                MembershipPlanOutboundDto membershipPlanOutboundDto = new MembershipPlanOutboundDto();
+                membershipPlanOutboundDto.setPlanId(productDto.getId());
+                membershipPlanOutboundDto.setName(productDto.getDescription());
+
+                ProductPricingQueryDto productPricingQueryDto = new ProductPricingQueryDto();
+                productPricingQueryDto.setProduct(productDto.getId());
+                productPricingQueryDto.setPricing("MONTHLY-PREMIUM");
+                try {
+                    ProductPricingDto productPricingDto = productService.getPricing(productPricingQueryDto);
+                    String amountStr = productPricingDto.getValue().toString().replace(".", "");
+                    membershipPlanOutboundDto.setPremiumCents(amountStr);
+                } catch (Exception e) {
+                }
+                membershipPlanOutboundDto.setActive(true);
+                membershipPlanOutboundDtoList.add(membershipPlanOutboundDto);
+            }
+            return ResponseEntity.ok(gson.toJson(membershipPlanOutboundDtoList));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+}
