@@ -80,6 +80,11 @@ public class JwtTokenUtil implements Serializable {
         return doGenerateToken(claims, username);
     }
 
+    public String generateRefreshToken(String username) {
+        Map<String, Object> claims = new HashMap<>();
+        return doGenerateRefreshToken(claims, username);
+    }
+
     private String doGenerateToken(Map<String, Object> claims, String subject) {
         claims.put(JwtClaim.TENANT_ID.getValue(),TenantContext.getCurrentTenant());
         return Jwts.builder()
