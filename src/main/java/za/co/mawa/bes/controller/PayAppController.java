@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.service.PremiumService;
 import za.co.mawa.bes.service.ProductService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.Conversion;
@@ -33,6 +34,8 @@ public class PayAppController {
     TransactionService transactionService;
     @Autowired
     ProductService productService;
+    @Autowired
+    PremiumService premiumService;
 
     @RequestMapping(value = "members", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembers(@RequestParam(required = false) String status,
@@ -56,6 +59,7 @@ public class PayAppController {
                 membershipOutboundDto.setPlanId(transactionViewEntity.getProductId());
                 membershipOutboundDto.setActive(true);
                 membershipOutboundDto.setUpdatedAt(Conversion.dateTimeToString(new Date()));
+                membershipOutboundDto.setPaidUpToPeriod(premiumService.determinePeriod(transactionViewEntity.getTransactionId()));
                 membershipOutboundDtoList.add(membershipOutboundDto);
             }
             return ResponseEntity.ok(gson.toJson(membershipOutboundDtoList));
