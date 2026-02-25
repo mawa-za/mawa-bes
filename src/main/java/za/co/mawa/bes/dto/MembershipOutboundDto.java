@@ -17,6 +17,7 @@ public class MembershipOutboundDto implements Serializable {
     private String fullName;
     private String idNumber;
     private String planId;
+    private String paidUpToPeriod;
     private boolean active;
     private String updatedAt;
 }

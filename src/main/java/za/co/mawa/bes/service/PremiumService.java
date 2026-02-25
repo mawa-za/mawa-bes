@@ -282,7 +282,7 @@ public class PremiumService {
         };
     }
 
-    private String determinePeriod(String id) {
+    public String determinePeriod(String id) {
         try {
             String previousPeriod = "";
             List<PremiumDto> premiums = findByMembership(id);
