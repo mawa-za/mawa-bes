@@ -5,7 +5,7 @@
 <p>Please find login details for your new user below:</p>
 <p>Username: <span th:text="${username}"/></p>
 <p>Password: <span th:text="${password}"/></p>
-<p>System Access URL/Mobile Application Tenant:<span th:text="${url}"/></p>
+<p>System Access URL/Mobile Application Tenant: <a th:href="${url}" target="_blank" th:text="${url}"></a></p>
 <p>
   Regards, Application Support
 </p>
