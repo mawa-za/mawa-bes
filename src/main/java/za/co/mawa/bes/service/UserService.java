@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.UserDao;
 import za.co.mawa.bes.dto.EmailDto;
@@ -47,6 +48,8 @@ public class UserService implements UserDao {
     SimpleKeyGenerator keyGenerator;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    SettingService settingService;
     private String secret;
     public static final String SYSTEM_USER = "system";
     public static final String DEFAULT_SYSTEM_PASSWORD = "system";
@@ -107,6 +110,8 @@ public class UserService implements UserDao {
         List<PropertyDto> props = new ArrayList<>();
         props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
         props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
+        props.add(new PropertyDto(HtmlTemplateVariableKey.TENANT_URL, buildTenantURL()));
+
         emailDto.setProperties(props);
         try {
             emailService.send(emailDto);
@@ -114,6 +119,17 @@ public class UserService implements UserDao {
 
         }
         return userDto;
+    }
+
+    public String buildTenantURL() {
+
+        String domain = settingService.getSetting("ACCESS-URL","TENANT");
+        if(domain == null){
+            domain = TenantContext.getCurrentTenantURL();
+        }
+        return domain.startsWith("http://") || domain.startsWith("https://")
+                ? domain
+                : "https://" + domain;
     }
 
     @Override
