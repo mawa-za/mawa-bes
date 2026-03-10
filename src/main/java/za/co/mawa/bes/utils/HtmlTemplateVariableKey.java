@@ -13,4 +13,5 @@ public class HtmlTemplateVariableKey {
     public static String IDENTIFIER = "identifier";
     public static String PAYER = "payer";
     public static String PAYMENT_NAME = "payment.name";
+    public static String TENANT_URL = "url";
 }

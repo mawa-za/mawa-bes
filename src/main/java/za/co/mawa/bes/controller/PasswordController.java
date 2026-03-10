@@ -14,10 +14,7 @@ import za.co.mawa.bes.dto.membership.MembershipCreateDto;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.service.EmailService;
-import za.co.mawa.bes.service.EncryptionService;
-import za.co.mawa.bes.service.JwtUserDetailsService;
-import za.co.mawa.bes.service.UserService;
+import za.co.mawa.bes.service.*;
 import org.thymeleaf.context.Context;
 
 import java.util.ArrayList;
@@ -34,6 +31,8 @@ public class PasswordController {
     EmailService emailService;
     @Autowired
     UserService userService;
+    @Autowired
+    SettingService settingService;
 
     @Autowired
     UserRepository userRepository;
@@ -42,7 +41,10 @@ public class PasswordController {
     public ResponseEntity<?> forgotPassword(@RequestParam String email) {
         try {
             UserEntity userEntity = userRepository.getByEmail(email);
-            String tenant = TenantContext.getCurrentTenantURL();
+            String tenant = settingService.getSetting("ACCESS-URL","TENANT");
+            if(tenant == null){
+                tenant = TenantContext.getCurrentTenantURL();
+            }
             final String token = jwtTokenUtil.generateToken(userEntity.getUsername());
             String resetLink = buildResetEmail(tenant, token);
             EmailDto emailDto = new EmailDto();
