@@ -124,8 +124,8 @@ public class PayAppController {
 
             PremiumEntity entity = new PremiumEntity();
             entity.setId(premiumInboundDto.getDeviceReceiptId());
-            if (!StringUtils.isBlank(premiumInboundDto.getReceiptNumber())) {
-                entity.setReceiptNumber(premiumInboundDto.getReceiptNumber());
+            if (!StringUtils.isBlank(premiumInboundDto.getReceiptNo())) {
+                entity.setReceiptNumber(premiumInboundDto.getReceiptNo());
             } else {
                 entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
             }
@@ -134,14 +134,14 @@ public class PayAppController {
 //            entity.setLocation(premiumInboundDto.getLocation());
             entity.setTerminalId(premiumInboundDto.getDeviceId());
 
-            String ts = premiumInboundDto.getPaidAt();
+            String ts = premiumInboundDto.getCreatedAt();
 
             Instant instant = Instant.parse(ts);
             Date date = Date.from(instant);
 
             entity.setCreationDate(date);
             entity.setCreationTime(date);
-            entity.setCreatedBy(premiumInboundDto.getCapturedByUserId());
+            entity.setCreatedBy(premiumInboundDto.getUserId());
             entity.setTenderType(premiumInboundDto.getPaymentMethod().toUpperCase());
             BigDecimal amount = new BigDecimal(premiumInboundDto.getAmountCents()).divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
             entity.setAmount(amount);

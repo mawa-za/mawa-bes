@@ -12,12 +12,12 @@ import java.io.Serializable;
 @Setter
 public class PremiumInboundDto implements Serializable {
     private String deviceReceiptId;
-    private String receiptNumber;
+    private String receiptNo;
     private String memberId;
     private String paymentPeriod;
     private int amountCents;
     private String paymentMethod;
-    private String paidAt;
-    private String capturedByUserId;
+    private String createdAt;
+    private String userId;
     private String deviceId;
 }
