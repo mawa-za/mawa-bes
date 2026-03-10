@@ -66,23 +66,27 @@ public class PremiumService {
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
             PremiumEntity entity = new PremiumEntity();
-            entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
-            try {
-                if (!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
-                    entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
-                } else {
-                    entity.setExtReceiptNumber(null);
-                }
-            } catch (Exception e) {
+
+            if (!StringUtils.isBlank(premiumCreateDto.getReceiptNo())) {
+                entity.setReceiptNumber(premiumCreateDto.getReceiptNo());
+            } else {
+                entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
             }
+
+            if (!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
+                entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
+            } else {
+                entity.setExtReceiptNumber(null);
+            }
+
             entity.setMembershipId(premiumCreateDto.getMembershipId());
-            entity.setMembershipPeriod(determinePeriod(premiumCreateDto.getMembershipId()));
+            entity.setMembershipPeriod(premiumCreateDto.getMembershipPeriod());
             entity.setLocation(premiumCreateDto.getLocation());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
             entity.setCreationTime(new Date());
             entity.setCreationTime(new Date());
-            entity.setCreatedBy(getUser());
+            entity.setCreatedBy(premiumCreateDto.getCreatedBy());
             entity.setTenderType(premiumCreateDto.getTenderType().toUpperCase());
             entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
             PremiumEntity premiumEntity = premiumRepository.save(entity);
@@ -293,7 +297,7 @@ public class PremiumService {
 
             if (maxItem != null) {
                 previousPeriod = maxItem.getMembershipPeriod();
-            }else{
+            } else {
                 throw new Exception();
             }
             String yearString = previousPeriod.substring(0, 4);
@@ -305,7 +309,7 @@ public class PremiumService {
                 int month = Integer.parseInt(monthString) + 1;
                 monthString = String.format("%02d", month);
             }
-           return yearString + monthString;
+            return yearString + monthString;
         } catch (Exception exception) {
             Calendar calendar = Calendar.getInstance();
             int year = calendar.get(Calendar.YEAR);
