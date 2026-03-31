@@ -26,6 +26,8 @@ import za.co.mawa.bes.utils.TenderType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @RestController
 @CrossOrigin
@@ -42,6 +44,21 @@ public class PremiumController {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto)  throws RuntimeException{
         try {
+
+            List<PremiumDto> premiums = premiumService.findByMembership(premiumCreateDto.getMembershipId());
+
+            List<PremiumDto> periodPremiums = premiums.stream()
+                    .filter(a -> Objects.equals(a.getMembershipPeriod(), premiumCreateDto.getMembershipPeriod()))
+                    .toList();
+            if (!periodPremiums.isEmpty()) {
+                throw new Exception("Error: Receipt exists for period");
+            }
+
+            if (!premiums.stream().filter(a -> Objects.equals(a.getMembershipPeriod(), premiumCreateDto.getMembershipPeriod()))
+                    .toList().isEmpty())
+            {
+                throw new Exception("Error: Receipt number already exists.");
+            }
             PremiumDto premiumDto = premiumService.create(premiumCreateDto);
             return ResponseEntity.ok(gson.toJson(premiumDto));
         } catch (Exception exception) {
