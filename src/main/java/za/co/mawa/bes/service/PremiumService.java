@@ -94,7 +94,7 @@ public class PremiumService {
             } catch (Exception e) {
             }
             entity.setMembershipId(premiumCreateDto.getMembershipId());
-            entity.setMembershipPeriod(premiumCreateDto.getMembershipId());
+            entity.setMembershipPeriod(premiumCreateDto.getMembershipPeriod());
             entity.setLocation(premiumCreateDto.getLocation());
             entity.setTerminalId(premiumCreateDto.getTerminalId());
             entity.setCreationDate(new Date());
