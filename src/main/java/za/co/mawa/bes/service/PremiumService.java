@@ -68,21 +68,6 @@ public class PremiumService {
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
 
-            List<PremiumDto> premiums = findByMembership(premiumCreateDto.getMembershipId());
-
-            List<PremiumDto> periodPremiums = premiums.stream()
-                    .filter(a -> Objects.equals(a.getMembershipPeriod(), premiumCreateDto.getMembershipPeriod()))
-                    .toList();
-            if (!periodPremiums.isEmpty()) {
-                throw new Exception("Error: Receipt exists for period");
-            }
-
-            if (!premiums.stream().filter(a -> Objects.equals(a.getMembershipPeriod(), premiumCreateDto.getMembershipPeriod()))
-                    .toList().isEmpty())
-            {
-                throw new Exception("Error: Receipt number already exists.");
-            }
-
             PremiumEntity entity = new PremiumEntity();
             entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
             try {
