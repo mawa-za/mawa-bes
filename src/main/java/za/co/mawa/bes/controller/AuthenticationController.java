@@ -100,7 +100,24 @@ public class AuthenticationController {
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 
-    @RequestMapping(value = "/refreshToken", method = RequestMethod.GET)
+    @RequestMapping(value = "/refresh-token", method = RequestMethod.POST)
+    public ResponseEntity<?> tokenRefresh(@RequestBody AuthenticationDto authenticationDto) throws Exception {
+        authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
+        final String accessToken = jwtTokenUtil.generateToken(authenticationDto.getUsername());
+        final String refreshToken = jwtTokenUtil.generateRefreshToken(authenticationDto.getUsername());
+
+        UserDto userDto = userService.getUserByName(authenticationDto.getUsername());
+        AuthenticationResponseDto authenticationResponseDto = new AuthenticationResponseDto();
+        authenticationResponseDto.setAccessToken(accessToken);
+        authenticationResponseDto.setRefreshToken(refreshToken);
+        authenticationResponseDto.setUsername(authenticationDto.getUsername());
+        authenticationResponseDto.setUserId(userDto.getId());
+        authenticationResponseDto.setDisplayName(userDto.getPartner().getName2() +" "+ userDto.getPartner().getName1());
+        return ResponseEntity.ok(gson.toJson(authenticationResponseDto));
+    }
+
+    @RequestMapping(value = "/refreshToken", method = RequestMethod.POST)
     public ResponseEntity<?> refreshtoken(HttpServletRequest request) throws Exception {
         // From the HttpRequest get the claims
         DefaultClaims claims = (io.jsonwebtoken.impl.DefaultClaims) request.getAttribute("claims");
