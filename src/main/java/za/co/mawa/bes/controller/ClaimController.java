@@ -380,7 +380,7 @@ public class ClaimController {
                 // Set reference from Xero invoice or claim number
                 String itemCode = getProductItemCode(claim.getMembership().getProduct().getId());
                 logger.info("Fetching xeroInvoiceCode");
-                InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
+                InvoiceOutboundDto xeroInvoice = xeroAccountingService.createFuneralInvoice(
                         getFuneralServiceProvider(),
                         partnerService.getFullName(claim.getDeceased()),
                         itemCode
@@ -668,10 +668,17 @@ public class ClaimController {
     }
 
     private void createTombstonePaymentRequest(ClaimOutboundDto claim) throws Exception {
+
+        InvoiceOutboundDto xeroInvoice = xeroAccountingService.createInvoice(
+                getTombstoneServiceProvider(),
+                partnerService.getFullName(claim.getMember()),
+                "MM45"
+        );
+
         PaymentRequestCreateDto tombstonePaymentRequest = new PaymentRequestCreateDto();
         tombstonePaymentRequest.setPaymentMethod("EFT");
         tombstonePaymentRequest.setPaymentReason("TOMBSTONE-CLAIM");
-        tombstonePaymentRequest.setReference("TOMBSTONE" + claim.getNumber());
+        tombstonePaymentRequest.setReference(xeroInvoice != null ? xeroInvoice.getNumber() : "TOMBSTONE" + claim.getNumber());
         tombstonePaymentRequest.setDueDate(new Date());
         tombstonePaymentRequest.setRecipientId(claim.getClaimant().getId());
         tombstonePaymentRequest.setAmount(new BigDecimal(getAmount(claim.getMembership().getProduct().getId(), "TOMBSTONE-VALUE").getValue()));
@@ -700,7 +707,14 @@ public class ClaimController {
             TransactionLinkDto transactionLinkDto = new TransactionLinkDto();
             transactionLinkDto.setTransaction1(claim.getId());
             transactionLinkDto.setTransaction2(tombstonePaymentRequestId);
-            transactionLinkDto.setType(TransactionType.PAYMENT_REQUEST);
+            transactionLinkDto.setType(TransactionLinkType.CLAIM_PAYMENT_REQUEST);
+            transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
+            transactionService.addLink(transactionLinkDto);
+
+            transactionLinkDto = new TransactionLinkDto();
+            transactionLinkDto.setTransaction1(claim.getId());
+            transactionLinkDto.setTransaction2(xeroInvoice.getId());
+            transactionLinkDto.setType(TransactionLinkType.XERO_INVOICE);
             transactionLinkDto.setCreateBy(UserContext.getCurrentUserPartner());
             transactionService.addLink(transactionLinkDto);
 
