@@ -28,7 +28,8 @@ public class WebSecurityConfig {
     public static final String[] AUTH_WHITELIST = {
             "/authenticate",
             "/v2/authenticate",
-            "/forgot-password"
+            "/forgot-password",
+            "/refresh-token"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] TENANT_WHITELIST = {
