@@ -41,12 +41,23 @@ public class MessageConsumerService {
                 for (MessageQueueEntity msg : messageQueueEntities) {
                     try {
                         System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
-                        bankPaymentService.sendPaymentRequest(msg.getPayload());
-                        msg.setProcessed(true);
-                        BankPaymentRequest bankPaymentRequest = gson.fromJson(String.valueOf(msg.getPayload()), BankPaymentRequest.class);
-                        for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                            paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                        switch (msg.getType()) {
+                            case "FNB-EFT-PAYMENT":
+                                bankPaymentService.sendPaymentRequest(msg.getPayload());
+                                BankPaymentRequest bankPaymentRequest = gson.fromJson(String.valueOf(msg.getPayload()), BankPaymentRequest.class);
+                                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                                    paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                                }
+                                msg.setProcessed(true);
+                                break;
+                            case "INVOICE-EMAIL":
+                                paymentRequestService.sendInvoiceFile(msg.getPayload());
+                                msg.setProcessed(true);
+                                break;
+                            default:
+                                // code block
                         }
+
                     } catch (Exception e) {
                         msg.setRetryCount(msg.getRetryCount() + 1);
                         if (msg.getRetryCount() > 3) {
@@ -65,5 +76,21 @@ public class MessageConsumerService {
             }
         }
     }
+
+    private void sendInvoice(MessageQueueEntity msg) {
+        try {
+            paymentRequestService.sendInvoiceFile(msg.getPayload());
+            msg.setProcessed(true);
+        } catch (Exception e) {
+            msg.setRetryCount(msg.getRetryCount() + 1);
+            if (msg.getRetryCount() > 3) {
+                msg.setProcessed(true); // Optionally move to DeadLetterQueue
+            } else {
+                msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+            }
+        }
+        messageQueueRepository.save(msg);
+    }
 }
+
 
