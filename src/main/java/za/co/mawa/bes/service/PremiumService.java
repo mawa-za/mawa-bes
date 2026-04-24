@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ReceiptDao;
 import za.co.mawa.bes.dto.PrintJobRequest;
+import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
 import za.co.mawa.bes.dto.premium.PremiumInboundDto;
@@ -29,6 +30,7 @@ import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.ReceiptNumberExist;
+import za.co.mawa.bes.exception.RoleDoesNotExist;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
 
@@ -65,6 +67,7 @@ public class PremiumService {
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
+
             PremiumEntity entity = new PremiumEntity();
 
             if (!StringUtils.isBlank(premiumCreateDto.getReceiptNo())) {
@@ -290,11 +293,9 @@ public class PremiumService {
         try {
             String previousPeriod = "";
             List<PremiumDto> premiums = findByMembership(id);
-
             PremiumDto maxItem = premiums.stream()
                     .max(Comparator.comparingInt(i -> Integer.parseInt(i.getMembershipPeriod())))
                     .orElse(null);
-
             if (maxItem != null) {
                 previousPeriod = maxItem.getMembershipPeriod();
             } else {
