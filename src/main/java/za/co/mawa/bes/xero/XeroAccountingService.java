@@ -95,6 +95,77 @@ public class XeroAccountingService {
 //            lineItem.put("LineAmount", 40);
             lineItems.add(lineItem);
 
+            invoice.set("LineItems", lineItems);
+
+            // Wrap inside the Invoices array
+            ObjectNode root = objectMapper.createObjectNode();
+            ArrayNode invoices = objectMapper.createArrayNode();
+            invoices.add(invoice);
+            root.set("Invoices", invoices);
+
+            // Convert to JSON String
+            String jsonString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+            JSONObject invoiceJson = new JSONObject(jsonString);
+//            String XeroTenantId = getXeroTenantId(accessToken);
+//            System.out.println("tenant id " + XeroTenantId);
+            return sendInvoiceRequest(invoiceJson , accessToken ,XeroTenantId );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public InvoiceOutboundDto createFuneralInvoice(String partnerId , String reference , String itemCode){
+        try {
+            //get accessToken and XeroTenantId
+            //use the partner id to get the contact id from partner
+            //if authentication fails, refresh token
+            //schedule function to refresh refresh token after 30 days
+            //get this tenant from the partnerId
+//            String tenant = TenantContext.getCurrentTenant();
+//            String tenant = getContactIdFromPartner(partnerId);
+            String tenant = xeroAuthService.checkXeroInfo();
+            String accessToken = xeroAuthService.refreshAccessToken(tenant);
+
+            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+            JSONObject jsonObject = new JSONObject(tenantProperty);
+            String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            // Create root node
+            ObjectNode invoice = objectMapper.createObjectNode();
+            invoice.put("Type", "ACCREC");
+
+            // Create Contact node
+            ObjectNode contact = objectMapper.createObjectNode();
+            contact.put("ContactID", getContactIdFromPartner(partnerId));
+//            contact.put("ContactID", "3786a1f7-d899-4dc5-a0e9-cc972ae89299");
+            invoice.set("Contact", contact);
+
+            // Add Dates
+//            invoice.put("Date", "2019-03-11");
+//            invoice.put("DueDate", "2018-12-10");
+
+            // Reference & Status
+            invoice.put("Reference", reference);
+//            invoice.put("Status", "AUTHORISED");
+
+            // Create LineItems array
+            ArrayNode lineItems = objectMapper.createArrayNode();
+            ObjectNode lineItem = objectMapper.createObjectNode();
+//            lineItem.put("Description", "Acme Tires");
+            lineItem.put("Quantity", 1);
+//            lineItem.put("UnitAmount", 20);
+//            lineItem.put("AccountCode", "200");
+            lineItem.put("ItemCode",itemCode);
+//            lineItem.put("TaxType", "NONE");
+//            lineItem.put("LineAmount", 40);
+            lineItems.add(lineItem);
+
             lineItem = objectMapper.createObjectNode();
             lineItem.put("Quantity", 1);
             lineItem.put("UnitAmount", 0);
