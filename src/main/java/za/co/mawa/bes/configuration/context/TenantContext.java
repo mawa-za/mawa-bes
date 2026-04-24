@@ -17,6 +17,7 @@ public abstract class TenantContext {
 
     public static void clear() {
         currentTenant.remove();
+        currentTenantURL.remove();
     }
 
 

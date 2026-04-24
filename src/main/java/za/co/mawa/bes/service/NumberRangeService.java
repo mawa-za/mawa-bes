@@ -37,6 +37,27 @@ public class NumberRangeService {
 
     }
 
+    public NumberRangeEntity get(String object) {
+       return numberRangeRepository.getRangeByObject(object);
+    }
+
+    public void update(NumberRangeDto numberRangeDto) {
+        try {
+            if (numberRangeRepository.getRangeByObject(numberRangeDto.getObject()) == null) {
+                NumberRangeEntity numberRangeEntity = new NumberRangeEntity();
+                numberRangeEntity.setObject(numberRangeDto.getObject());
+                numberRangeEntity.setCurrent(START);
+                numberRangeEntity.setStart(START);
+                numberRangeEntity.setEnd(END);
+                numberRangeEntity.setValidFrom(new Date());
+                numberRangeRepository.save(numberRangeEntity);
+            }
+        } catch (Exception exception) {
+
+        }
+
+    }
+
     public String generateNumberOld(String object) throws NumberRangeObjectNotFound {
 
         try {

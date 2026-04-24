@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import za.co.mawa.bes.dao.PaymentRequestDao;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.dto.attachment.AttachmentInboundDto;
+import za.co.mawa.bes.dto.attachment.AttachmentOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestCreateDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
@@ -57,8 +59,11 @@ public class PaymentRequestService implements PaymentRequestDao {
     @Autowired
     BankPaymentService bankPaymentService;
     @Autowired
+    AttachmentService attachmentService;
+    @Autowired
     MessageProducerService messageProducerService;
     Gson gson = new Gson();
+
     @Override
     public PaymentRequestDto create(PaymentRequestCreateDto paymentRequestCreateDto) throws Exception {
         TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
@@ -70,7 +75,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         TransactionDto transaction = transactionService.create(transactionCreateDto);
         if (transaction.getId() != null) {
             if (paymentRequestCreateDto.getAmount() != null) {
-                       try {
+                try {
                     TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
                     transactionAmountInboundDto.setAmount(paymentRequestCreateDto.getAmount());
                     transactionAmountInboundDto.setTransaction(transaction.getId());
@@ -138,9 +143,9 @@ public class PaymentRequestService implements PaymentRequestDao {
         paymentRequestDto.setId(transactionDto.getId());
         paymentRequestDto.setNumber(transactionDto.getNumber());
 
-        if(transactionDto.getDescription() == null ){
+        if (transactionDto.getDescription() == null) {
             paymentRequestDto.setDescription(transactionDto.getSubDescription());
-        }else {
+        } else {
             paymentRequestDto.setDescription(transactionDto.getDescription());
         }
 
@@ -249,17 +254,51 @@ public class PaymentRequestService implements PaymentRequestDao {
             if (transactionProcessDto.getReason() != null && transactionProcessDto.getReason() != "") {
                 transactionEditDto.setStatusReason(transactionProcessDto.getReason());
             }
-            if(settingService.getSetting("INTEGRATION", "FNB-API").equals("1")){
+            if (settingService.getSetting("INTEGRATION", "FNB-API").equals("1")) {
                 PaymentRequestDto paymentRequestDto = get(transactionProcessDto.getId());
                 BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
-                MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
+                MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
                 messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
                 messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
+                messageProducerService.sendMessage(messageQueueInboundDto);
+            }
+            if (settingService.getSetting("EMAIL-INVOICE", "XERO").equals("1")) {
+                MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
+                messageQueueInboundDto.setType("INVOICE-EMAIL");
+                messageQueueInboundDto.setPayload(transactionProcessDto.getId());
                 messageProducerService.sendMessage(messageQueueInboundDto);
             }
             transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
             throw new RuntimeException();
+        }
+    }
+
+    public void sendInvoiceFile(String id) {
+        AttachmentInboundDto attachmentInboundDto = new AttachmentInboundDto();
+        attachmentInboundDto.setDocumentType("INVOICE");
+        attachmentInboundDto.setObjectId(id);
+        try {
+            AttachmentOutboundDto attachmentOutboundDto = attachmentService.getDocumentByType(attachmentInboundDto);
+            String email = settingService.getSetting("INVOICE-EMAIL-ADDRESS", "XERO");
+            EmailDto emailDto = new EmailDto();
+            emailDto.setTo(email);
+            emailDto.setSubject("Invoice");
+            emailDto.setTemplate("invoice-email");
+            List<PropertyDto> props = new ArrayList<>();
+            List<File> files = new ArrayList<>();
+            File invoice =  new File();
+            invoice.setContent(attachmentOutboundDto.getFile());
+            invoice.setType(attachmentOutboundDto.getExtension());
+            invoice.setName("Invoice");
+            files.add(invoice);
+//            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_FIRST_NAME,partnerDto.getName2()));
+//        props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, password));
+            emailDto.setFiles(files);
+            emailDto.setProperties(props);
+            emailService.send(emailDto);
+        } catch (DoesNotExist e) {
+            throw new RuntimeException(e);
         }
     }
 

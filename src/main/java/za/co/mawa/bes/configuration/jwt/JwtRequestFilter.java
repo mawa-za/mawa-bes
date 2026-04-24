@@ -1,19 +1,12 @@
 package za.co.mawa.bes.configuration.jwt;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
-import za.co.mawa.bes.configuration.security.domain.SecurityDomainImpl;
-import za.co.mawa.bes.dto.FieldDto;
-import za.co.mawa.bes.dto.partner.PartnerDto;
-import za.co.mawa.bes.dto.user.UserDto;
-import za.co.mawa.bes.service.JwtUserDetailsService;
-import io.jsonwebtoken.ExpiredJwtException;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,18 +14,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.UserService;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
-    @Autowired
-    private SecurityDomainImpl securityDomain;
+
+    private static final Logger log = LoggerFactory.getLogger(JwtRequestFilter.class);
 
     @Autowired
     private JwtUserDetailsService jwtUserDetailsService;
@@ -41,80 +33,82 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private JwtTokenUtil jwtTokenUtil;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return "/authenticate".endsWith(path)
+                || "/refresh-token".endsWith(path);
+    }
 
-        final String requestTokenHeader = request.getHeader("Authorization");
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain
+    ) throws ServletException, IOException {
 
-        String username = null;
-        String jwtToken = null;
-        // JWT Token is in the form "Bearer token". Remove Bearer word and get
-        // only the Token
-        if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
-            jwtToken = requestTokenHeader.substring(7);
-            String tenant = securityDomain.getTenantIdFromJwt(request);
-            TenantContext.setCurrentTenant(tenant);
-            try {
-                username = jwtTokenUtil.getUsernameFromToken(jwtToken);
+        try {
+            final String authHeader = request.getHeader("Authorization");
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String jwtToken = authHeader.substring(7);
+
+                String username = jwtTokenUtil.getUsernameFromToken(jwtToken);
+                String tenantId = jwtTokenUtil.getTenantIdFromToken(jwtToken);
+
+                TenantContext.setCurrentTenant(tenantId);
                 UserContext.setCurrentUser(username);
-                UserContext.setCurrentUserPartner(userService.getCurrentUserPartnerId());
-            } catch (IllegalArgumentException e) {
-                System.out.println("Unable to get JWT Token");
-            } catch (ExpiredJwtException ex) {
-                System.out.println("JWT Token has expired");
-                String isRefreshToken = request.getHeader("isRefreshToken");
-                String requestURL = request.getRequestURL().toString();
-                // allow for Refresh Token creation if following conditions are true.
-                if (isRefreshToken != null && isRefreshToken.equals("true") && requestURL.contains("refreshtoken")) {
-                    allowForRefreshToken(ex, request);
-                } else
-                    request.setAttribute("exception", ex);
-            } catch (Exception e) {
-                System.out.println("User partner not found");
+
+                if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
+
+                    if (jwtTokenUtil.validateAccessToken(jwtToken, userDetails)) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request)
+                        );
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                        try {
+                            UserContext.setCurrentUserPartner(userService.getCurrentUserPartnerId());
+                        } catch (Exception e) {
+                            log.warn("Unable to resolve partner for user {}", username, e);
+                        }
+                    }
+                }
             }
-        } else {
-            logger.warn("JWT Token does not begin with Bearer String");
+
+            chain.doFilter(request, response);
+
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.warn("JWT authentication failed: {}", ex.getMessage());
+            request.setAttribute("exception", ex);
+            chain.doFilter(request, response);
+        } finally {
+            clearContexts();
         }
-
-        // Once we get the token validate it.
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            UserDetails userDetails = this.jwtUserDetailsService.loadUserByUsername(username);
-
-            // if token is valid configure Spring Security to manually set
-            // authentication
-            if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken
-                        .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                // After setting the Authentication in the context, we specify
-                // that the current user is authenticated. So it passes the
-                // Spring Security Configurations successfully.
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-            }
-        }
-
-        chain.doFilter(request, response);
     }
 
-    private void allowForRefreshToken(ExpiredJwtException ex, HttpServletRequest request) {
+    private void clearContexts() {
+        try {
+            TenantContext.clear();
+        } catch (Exception e) {
+            log.debug("Unable to clear TenantContext", e);
+        }
 
-        // create a UsernamePasswordAuthenticationToken with null values.
-        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                null, null, null);
-        // After setting the Authentication in the context, we specify
-        // that the current user is authenticated. So it passes the
-        // Spring Security Configurations successfully.
-        SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-        // Set the claims so that in controller we will be using it to create
-        // new JWT
-        request.setAttribute("claims", ex.getClaims());
-
+        try {
+            UserContext.clear();
+        } catch (Exception e) {
+            log.debug("Unable to clear UserContext", e);
+        }
     }
-
 }

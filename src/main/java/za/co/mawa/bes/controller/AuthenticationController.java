@@ -4,12 +4,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.impl.DefaultClaims;
 
 
 import jakarta.servlet.http.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,8 +20,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.configuration.jwt.JwtRefreshService;
 import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
 import za.co.mawa.bes.dto.AuthenticationDto;
+import za.co.mawa.bes.dto.AuthenticationResponseDto;
 import za.co.mawa.bes.dto.JwtRequest;
 import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
@@ -55,6 +59,23 @@ public class AuthenticationController {
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
+    @RequestMapping(value = "/v2/authenticate", method = RequestMethod.POST)
+    public ResponseEntity<?> authenticate(@RequestBody AuthenticationDto authenticationDto) throws Exception {
+        authenticate(authenticationDto.getUsername(),authenticationDto.getPassword());
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationDto.getUsername());
+        final String accessToken = jwtTokenUtil.generateToken(authenticationDto.getUsername());
+        final String refreshToken = jwtTokenUtil.generateRefreshToken(authenticationDto.getUsername());
+
+        UserDto userDto = userService.getUserByName(authenticationDto.getUsername());
+        AuthenticationResponseDto authenticationResponseDto = new AuthenticationResponseDto();
+        authenticationResponseDto.setAccessToken(accessToken);
+        authenticationResponseDto.setRefreshToken(refreshToken);
+        authenticationResponseDto.setUsername(authenticationDto.getUsername());
+        authenticationResponseDto.setUserId(userDto.getId());
+        authenticationResponseDto.setDisplayName(userDto.getPartner().getName2() +" "+ userDto.getPartner().getName1());
+        return ResponseEntity.ok(gson.toJson(authenticationResponseDto));
+    }
+
     @RequestMapping(value = "/authenticate-app", method = RequestMethod.POST)
     public ResponseEntity<?> createAppAuthenticationToken(@RequestBody JwtRequest jwtRequest) throws Exception {
         authenticate(jwtRequest.getApplication(),jwtRequest.getPassword());
@@ -82,14 +103,16 @@ public class AuthenticationController {
         return ResponseEntity.ok(userService.updatePassword(userUpdateDto));
     }
 
-    @RequestMapping(value = "/refreshToken", method = RequestMethod.GET)
-    public ResponseEntity<?> refreshtoken(HttpServletRequest request) throws Exception {
-        // From the HttpRequest get the claims
-        DefaultClaims claims = (io.jsonwebtoken.impl.DefaultClaims) request.getAttribute("claims");
-        Map<String, Object> expectedMap = getMapFromIoJsonwebtokenClaims(claims);
-        String token = jwtTokenUtil.doGenerateRefreshToken(expectedMap, expectedMap.get("sub").toString());
-        return ResponseEntity.ok(new JwtResponse(token));
-    }
+
+
+//    @RequestMapping(value = "/refreshToken", method = RequestMethod.POST)
+//    public ResponseEntity<?> refreshtoken(HttpServletRequest request) throws Exception {
+//        // From the HttpRequest get the claims
+//        DefaultClaims claims = (io.jsonwebtoken.impl.DefaultClaims) request.getAttribute("claims");
+//        Map<String, Object> expectedMap = getMapFromIoJsonwebtokenClaims(claims);
+//        String token = jwtTokenUtil.doGenerateRefreshToken(expectedMap, expectedMap.get("sub").toString());
+//        return ResponseEntity.ok(new JwtResponse(token));
+//    }
 
     public Map<String, Object> getMapFromIoJsonwebtokenClaims(DefaultClaims claims) {
         Map<String, Object> expectedMap = new HashMap<String, Object>();

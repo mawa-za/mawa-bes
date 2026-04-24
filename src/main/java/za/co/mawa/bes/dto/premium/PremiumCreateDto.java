@@ -18,5 +18,7 @@ public class PremiumCreateDto implements Serializable {
     private String amount;
     private String terminalId;
     private String externalReceiptNo;
+    private String receiptNo;
+    private String createdBy;
 
 }
