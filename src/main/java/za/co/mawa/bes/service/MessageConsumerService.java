@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
@@ -16,6 +17,7 @@ import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.repository.TransactionRepository;
+import za.co.mawa.bes.utils.TransactionAttribute;
 import za.co.mawa.bes.utils.TransactionLinkType;
 import za.co.mawa.bes.utils.TransactionType;
 
@@ -37,6 +39,8 @@ public class MessageConsumerService {
     TransactionLinkService transactionLinkService;
     @Autowired
     TransactionRepository transactionRepository;
+    @Autowired
+    TransactionAttributeService transactionAttributeService;
     Gson gson = new Gson();
 
     @Scheduled(fixedDelay = 60000)
@@ -59,11 +63,11 @@ public class MessageConsumerService {
                                 for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
                                     TransactionEntity transactionEntity = transactionRepository.findTransactionByTypeNumber(TransactionType.PAYMENT_REQUEST,paymentInformation.getPaymentInformationId());
                                     paymentRequestService.sendToBank(transactionEntity.getId());
-                                    TransactionLinkInboundDto link = new TransactionLinkInboundDto();
-                                    link.setParent(transactionEntity.getId());
-                                    link.setChild(instructionId);
-                                    link.setType(TransactionLinkType.BANK_INSTRUCTION_ID);
-                                    transactionLinkService.create(link);
+                                    TransactionAttributeDto attribute = new TransactionAttributeDto();
+                                    attribute.setTransaction(transactionEntity.getId());
+                                    attribute.setAttribute(TransactionAttribute.BANK_INSTRUCTION_ID);
+                                    attribute.setValue(instructionId);
+                                    transactionAttributeService.add(attribute);
                                 }
                                 msg.setProcessed(true);
                                 break;
