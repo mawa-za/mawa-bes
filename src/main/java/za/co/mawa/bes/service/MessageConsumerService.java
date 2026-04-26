@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.hibernate.loader.access.BaseNaturalIdLoadAccessImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,11 +8,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.utils.TransactionLinkType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,10 +30,13 @@ public class MessageConsumerService {
     BankPaymentService bankPaymentService;
     @Autowired
     PaymentRequestService paymentRequestService;
+    @Autowired
+    TransactionLinkService transactionLinkService;
     Gson gson = new Gson();
 
     @Scheduled(fixedDelay = 60000)
     public void processAllTenants() {
+        ObjectMapper mapper = new ObjectMapper();
         for (TenantDto tenant : tenantAdminService.getAll()) {
 
             try {
@@ -44,6 +50,15 @@ public class MessageConsumerService {
                         switch (msg.getType()) {
                             case "FNB-EFT-PAYMENT":
                                 String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
+                                BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
+                                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                                    paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                                    TransactionLinkInboundDto link = new TransactionLinkInboundDto();
+                                    link.setParent(paymentInformation.getPaymentInformationId());
+                                    link.setChild(instructionId);
+                                    link.setParent(TransactionLinkType.BANK_INSTRUCTION_ID);
+                                    transactionLinkService.create(link);
+                                }
                                 msg.setProcessed(true);
                                 break;
                             case "INVOICE-EMAIL":

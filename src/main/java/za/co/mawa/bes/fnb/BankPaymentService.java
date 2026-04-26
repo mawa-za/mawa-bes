@@ -48,12 +48,6 @@ public class BankPaymentService {
     @Autowired
     TransactionService transactionService;
 
-    @Autowired
-    PaymentRequestService paymentRequestService;
-
-    @Autowired
-    TransactionLinkService transactionLinkService;
-
     private String getBaseURL() {
         return settingService.getSetting("BASE-URL", "FNB-API");
     }
@@ -136,16 +130,6 @@ public class BankPaymentService {
                 }
                 ObjectMapper mapper = new ObjectMapper();
                 BankPaymentResponse bankPaymentResponse = mapper.readValue(response.toString(), BankPaymentResponse.class);
-
-                BankPaymentRequest bankPaymentRequest = mapper.readValue(payload, BankPaymentRequest.class);
-                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                    paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
-                    TransactionLinkInboundDto link = new TransactionLinkInboundDto();
-                    link.setParent(paymentInformation.getPaymentInformationId());
-                    link.setChild(bankPaymentResponse.getInstructionId());
-                    link.setParent(TransactionLinkType.BANK_INSTRUCTION_ID);
-                    transactionLinkService.create(link);
-                }
                 return bankPaymentResponse.getInstructionId();
 
             } else {
