@@ -5,4 +5,5 @@ public class TransactionLinkType {
     public static String XERO_INVOICE = "XERO-INVOICE";
     public static String CLAIM_COMBINED = "CLAIM-COMBINED";
     public static String CLAIM_COMBINATION = "CLAIM-COMBINATION";
+    public static String BANK_INSTRUCTION_ID = "BANK-INSTRUCTION-ID";
 }
