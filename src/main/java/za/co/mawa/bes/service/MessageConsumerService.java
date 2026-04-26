@@ -10,11 +10,14 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
+import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.repository.TransactionRepository;
 import za.co.mawa.bes.utils.TransactionLinkType;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +35,8 @@ public class MessageConsumerService {
     PaymentRequestService paymentRequestService;
     @Autowired
     TransactionLinkService transactionLinkService;
+    @Autowired
+    TransactionRepository transactionRepository;
     Gson gson = new Gson();
 
     @Scheduled(fixedDelay = 60000)
@@ -52,11 +57,12 @@ public class MessageConsumerService {
                                 String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
                                 BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
                                 for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                    paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
+                                    TransactionEntity transactionEntity = transactionRepository.findTransactionByTypeNumber(TransactionType.PAYMENT_REQUEST,paymentInformation.getPaymentInformationId());
+                                    paymentRequestService.sendToBank(transactionEntity.getId());
                                     TransactionLinkInboundDto link = new TransactionLinkInboundDto();
-                                    link.setParent(paymentInformation.getPaymentInformationId());
+                                    link.setParent(transactionEntity.getId());
                                     link.setChild(instructionId);
-                                    link.setParent(TransactionLinkType.BANK_INSTRUCTION_ID);
+                                    link.setType(TransactionLinkType.BANK_INSTRUCTION_ID);
                                     transactionLinkService.create(link);
                                 }
                                 msg.setProcessed(true);

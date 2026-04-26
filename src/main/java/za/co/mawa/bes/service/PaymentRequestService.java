@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -304,6 +305,7 @@ public class PaymentRequestService implements PaymentRequestDao {
         }
     }
 
+    @Transactional
     public void sendToBank(String id) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();

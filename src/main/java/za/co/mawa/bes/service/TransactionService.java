@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
 import za.co.mawa.bes.dto.product.ProductDto;
 import za.co.mawa.bes.dto.transaction.*;
@@ -137,7 +138,8 @@ public class TransactionService implements TransactionDao {
                         entity.setSubDescription(transactionEditDto.getDescription());
                     }
                 }
-                entity.setChangedBy(getUser());
+
+                entity.setChangedBy(UserContext.getCurrentUser());
                 transactionRepository.save(entity);
             } catch (Exception e) {
                 throw new RuntimeException(e);
