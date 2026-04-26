@@ -15,15 +15,14 @@ import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
 import za.co.mawa.bes.fnb.dto.*;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Conversion;
+import za.co.mawa.bes.utils.TransactionLinkType;
 import za.co.mawa.bes.utils.TransactionType;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
@@ -99,8 +98,9 @@ public class BankPaymentService {
     }
 
 
-    public void sendPaymentRequest(String payload) throws IOException {
+    public String sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
+        BufferedReader reader = null;
         try {
             URL url = new URL(getBaseURL() + "/paymentExecution/initiate/v1");
             connection = (HttpURLConnection) url.openConnection();
@@ -119,7 +119,20 @@ public class BankPaymentService {
             }
 
             int responseCode = connection.getResponseCode();
-            if (responseCode >= 300) {
+            if (responseCode < 300) {
+                InputStream stream;
+                stream = connection.getInputStream();
+                reader = new BufferedReader(new InputStreamReader(stream));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                ObjectMapper mapper = new ObjectMapper();
+                BankPaymentResponse bankPaymentResponse = mapper.readValue(response.toString(), BankPaymentResponse.class);
+                return bankPaymentResponse.getInstructionId();
+
+            } else {
                 String errorResponse = readErrorStream(connection);
                 throw new IOException(String.format("Request failed with code: %d. Response: %s",
                         responseCode, errorResponse));
@@ -159,10 +172,10 @@ public class BankPaymentService {
 
             try {
                 String dateSetting = settingService.getSetting("PAYMENT-CREATION-DATE", "FNB-API");
-                if (!dateSetting.isEmpty()){
+                if (!dateSetting.isEmpty()) {
                     String creationDate = dateSetting;
                     grpHdr.setCreationDateTime(creationDate);
-                }else{
+                } else {
                     String creationDate = Conversion.dateToString(new Date());
                     grpHdr.setCreationDateTime(creationDate);
                 }
@@ -192,9 +205,9 @@ public class BankPaymentService {
             Instant instant = paymentRequestDto.getDueDate().toInstant();
             ZonedDateTime zdt = instant.atZone(ZoneOffset.UTC);
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
-            if(paymentRequestDto.getDueDate().after(new Date())) {
+            if (paymentRequestDto.getDueDate().after(new Date())) {
                 paymentInformation.setRequestedExecutionDate(Conversion.dateToString(paymentRequestDto.getDueDate()));
-            }else{
+            } else {
                 paymentInformation.setRequestedExecutionDate(Conversion.dateToString(new Date()));
             }
             Debtor debtor = new Debtor();
