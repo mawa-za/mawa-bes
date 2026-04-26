@@ -23,7 +23,7 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity,S
     List<TransactionEntity> findTransactionByChangedBy(String changedBy,String type);
     @Query(value = "SELECT * FROM transaction t WHERE t.location = :location AND t.type = :type", nativeQuery = true)
     List<TransactionEntity> findTransactionByLocation(String location,String type);
-
-
+    @Query(value = "SELECT * FROM transaction t WHERE t.type = :type AND t.number = :number limit 1", nativeQuery = true)
+    TransactionEntity findTransactionByTypeNumber(String type, String number);
 
 }
