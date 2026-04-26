@@ -43,11 +43,7 @@ public class MessageConsumerService {
                         System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
                         switch (msg.getType()) {
                             case "FNB-EFT-PAYMENT":
-                                bankPaymentService.sendPaymentRequest(msg.getPayload());
-                                BankPaymentRequest bankPaymentRequest = gson.fromJson(String.valueOf(msg.getPayload()), BankPaymentRequest.class);
-                                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                    paymentRequestService.sendToBank(paymentInformation.getPaymentInformationId());
-                                }
+                                String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
                                 msg.setProcessed(true);
                                 break;
                             case "INVOICE-EMAIL":
