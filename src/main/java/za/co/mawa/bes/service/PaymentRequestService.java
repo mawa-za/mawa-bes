@@ -23,6 +23,7 @@ import za.co.mawa.bes.dto.transaction.*;
 import za.co.mawa.bes.dto.transaction.account.TransactionAccountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountDto;
 import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
+import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
 import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
@@ -45,6 +46,8 @@ public class PaymentRequestService implements PaymentRequestDao {
     TransactionService transactionService;
     @Autowired
     TransactionAmountService transactionAmountService;
+    @Autowired
+    TransactionAttributeService transactionAttributeService;
     @Autowired
     UserService userService;
     @Autowired
@@ -188,6 +191,17 @@ public class PaymentRequestService implements PaymentRequestDao {
                 paymentRequestDto.setReference(link.getTransaction2());
             }
         }
+
+        try {
+            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
+            transactionAttributeDto.setTransaction(id);
+            transactionAttributeDto.setAttribute(TransactionAttribute.BANK_INSTRUCTION_ID);
+            transactionAttributeService.get(transactionAttributeDto);
+            paymentRequestDto.setInstructionId(transactionAttributeDto.getValue());
+        }catch (Exception e) {
+
+        }
+
         try {
             paymentRequestDto.setAmount(transactionAmountService.getByTransaction(id).stream()
                     .filter(a -> Objects.equals(a.getType().getCode(), TransactionAmount.PAYMENT_AMOUNT))
