@@ -141,7 +141,59 @@ public class BankPaymentService {
         } catch (SocketTimeoutException e) {
             throw new IOException("Request timed out: " + e.getMessage(), e);
         } catch (IOException e) {
-            throw new IOException("Failed to send invoice request: " + e.getMessage(), e);
+            throw new IOException("Failed to send payment request: " + e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+
+    public BankPaymentResponse getPaymentReport(String instructionId) throws IOException {
+        HttpURLConnection connection = null;
+        BufferedReader reader = null;
+        try {
+            URL url = new URL(getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId);
+            connection = (HttpURLConnection) url.openConnection();
+
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Authorization", "Bearer " + getToken());
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setDoOutput(true);
+
+            // Send request body
+//            try (OutputStream os = connection.getOutputStream()) {
+//                byte[] input = payload.getBytes(StandardCharsets.UTF_8);
+//                os.write(input, 0, input.length);
+//                os.flush();
+//            }
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 300) {
+                InputStream stream;
+                stream = connection.getInputStream();
+                reader = new BufferedReader(new InputStreamReader(stream));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                ObjectMapper mapper = new ObjectMapper();
+                BankPaymentResponse bankPaymentResponse = mapper.readValue(response.toString(), BankPaymentResponse.class);
+                return bankPaymentResponse;
+
+            } else {
+                String errorResponse = readErrorStream(connection);
+                throw new IOException(String.format("Request failed with code: %d. Response: %s",
+                        responseCode, errorResponse));
+            }
+
+        } catch (SocketTimeoutException e) {
+            throw new IOException("Request timed out: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new IOException("Failed to retrieve report: " + e.getMessage(), e);
         } finally {
             if (connection != null) {
                 connection.disconnect();
