@@ -35,5 +35,6 @@ public class PaymentRequestDto implements Serializable{
     private PartnerDto recipient;
     private PartnerDto employeeResponsible;
     private BankAccountDto bankAccount;
+    private String instructionId;
 
 }
