@@ -20,6 +20,7 @@ import za.co.mawa.bes.dto.transaction.TransactionQueryDto;
 import za.co.mawa.bes.dto.transaction.TransactionQueryResultDto;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
+import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.service.BankFileXmlService;
 import za.co.mawa.bes.service.MessageProducerService;
 import za.co.mawa.bes.service.PaymentRequestService;
@@ -167,10 +168,11 @@ public class PaymentRequestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+
     @RequestMapping(value = "{id}/complete", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> complete(@PathVariable String id,
-                                    @RequestParam(required = false) String statusReason,
-                                    @RequestParam(required = false) String description) {
+                                      @RequestParam(required = false) String statusReason,
+                                      @RequestParam(required = false) String description) {
         try {
             TransactionEditDto transactionEditDto = new TransactionEditDto();
             transactionEditDto.setId(id);
@@ -191,7 +193,7 @@ public class PaymentRequestController {
     @RequestMapping(value = "{id}/bank-file", method = RequestMethod.GET, produces = MediaType.APPLICATION_XML_VALUE)
     public ResponseEntity<?> generateBankFile(@PathVariable String id) {
         try {
-           String base64String =  bankFileXmlService.createBankFile(id);
+            String base64String = bankFileXmlService.createBankFile(id);
             return ResponseEntity.ok(base64String);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
@@ -203,11 +205,26 @@ public class PaymentRequestController {
         try {
             PaymentRequestDto paymentRequestDto = paymentRequestService.get(id);
             BankPaymentRequest bankPaymentRequest = bankPaymentService.generateRequest(paymentRequestDto);
-            MessageQueueInboundDto messageQueueInboundDto  = new MessageQueueInboundDto();
+            MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
             messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
             messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
             messageProducerService.sendMessage(messageQueueInboundDto);
             return ResponseEntity.ok().build();
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getBankReport(@PathVariable String id) {
+        try {
+            PaymentRequestDto paymentRequestDto = paymentRequestService.get(id);
+            if (paymentRequestDto.getInstructionId() != null) {
+                BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paymentRequestDto.getInstructionId());
+                return ResponseEntity.ok(gson.toJson(bankPaymentResponse));
+            }else{
+                return ResponseEntity.ok().build();
+            }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
