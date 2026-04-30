@@ -41,7 +41,7 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("calendar","Calendar",""));
         workcenterDtoList.add(new WorkcenterDto("appointment","Appointments","search"));
 //        workcenterDtoList.add(new WorkcenterDto("time-tracker","Time Tracker","search"));
-        workcenterDtoList.add(new WorkcenterDto("company-setup","Company Settings",""));
+        workcenterDtoList.add(new WorkcenterDto("company-info","Company Information",""));
         workcenterDtoList.add(new WorkcenterDto("system-configuration","System Configuration",""));
 //        workcenterDtoList.add(new WorkcenterDto("report","Reports",""));
         workcenterDtoList.add(new WorkcenterDto("user","Users","search"));
@@ -59,7 +59,7 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("warehouse-layout-display","Warehouse Layout",""));
         workcenterDtoList.add(new WorkcenterDto("warehouse-layout-config","Warehouse Layout Configurator",""));
         workcenterDtoList.add(new WorkcenterDto("case-file","Case Files","search"));
-        workcenterDtoList.add(new WorkcenterDto("settings","Settings",""));
+        workcenterDtoList.add(new WorkcenterDto("system-setting","System Settings",""));
         workcenterDtoList.add(new WorkcenterDto("business-partner","Business Partners","search"));
         return workcenterDtoList;
     }
