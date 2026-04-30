@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "user/v2")
+@RequestMapping(value = "/v2/user")
 public class UserControllerV2 {
     Gson gson = new Gson();
     @Autowired

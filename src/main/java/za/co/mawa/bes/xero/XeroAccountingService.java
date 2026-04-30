@@ -475,4 +475,14 @@ public class XeroAccountingService {
 
         return invoiceOutboundDto;
     }
+
+    public Invoice getInvoice(UUID invoiceId) throws Exception {
+        String tenant = xeroAuthService.checkXeroInfo();
+        String accessToken = xeroAuthService.refreshAccessToken(tenant);
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        JSONObject jsonObject = new JSONObject(tenantProperty);
+        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+        Invoice invoice = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,2).getInvoices().get(0);
+        return invoice;
+    }
 }
