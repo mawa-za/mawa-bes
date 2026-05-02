@@ -27,6 +27,7 @@ import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemDto;
 import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
+import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAmountPKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionDateEntity;
@@ -670,21 +671,22 @@ public class MembershipService implements MembershipDao {
             invoiceInboundDto.setTransactionSubType(InvoiceType.MEMBERSHIP);
             invoiceInboundDto.setInvoiceType(InvoiceType.MEMBERSHIP);
 
-            String invoiceId = invoiceService.create(invoiceInboundDto);
+            InvoiceEntity invoice = new InvoiceEntity();
+            InvoiceEntity inv = invoiceService.createInvoice(invoice);
 
             TransactionLinkDto linkDto = new TransactionLinkDto();
-            linkDto.setTransaction1(invoiceId);
+            linkDto.setTransaction1(inv.getId());
             linkDto.setTransaction2(id);
             linkDto.setType(TransactionType.MEMBERSHIP);
             transactionService.addLink(linkDto);
 
             linkDto = new TransactionLinkDto();
             linkDto.setTransaction1(id);
-            linkDto.setTransaction2(invoiceId);
+            linkDto.setTransaction2(inv.getId());
             linkDto.setType(TransactionType.INVOICE);
             transactionService.addLink(linkDto);
 
-            return invoiceId;
+            return inv.getId();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
