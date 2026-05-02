@@ -23,6 +23,8 @@ public class RoleController {
     Gson gson = new Gson();
     @Autowired
     RoleService roleService;
+    @Autowired
+    WorkcenterService workcenterService;
 
     @RequestMapping(value = "/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createRole(@RequestBody RoleCreateDto roleCreateDto) {
@@ -56,7 +58,11 @@ public class RoleController {
     @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getWorkcenters(@PathVariable String role) {
         try {
-            return ResponseEntity.ok(gson.toJson(roleService.getRoleWorkcenters(role)));
+            if (role.equals("SYSTEM")) {
+                return ResponseEntity.ok(gson.toJson(workcenterService.getAll()));
+            } else {
+                return ResponseEntity.ok(gson.toJson(roleService.getRoleWorkcenters(role)));
+            }
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
