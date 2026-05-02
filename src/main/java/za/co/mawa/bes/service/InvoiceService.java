@@ -9,6 +9,7 @@ import za.co.mawa.bes.repository.InvoiceLineRepository;
 import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,5 +53,21 @@ public class InvoiceService {
 
     public void deleteInvoice(String invoiceId) {
         invoiceRepository.deleteById(invoiceId);
+    }
+    public List<InvoiceEntity> getAllInvoices() {
+        return invoiceRepository.findAll();
+    }
+
+    public List<InvoiceEntity> getInvoicesByStatus(String status) {
+        return invoiceRepository.findByStatus(status);
+    }
+
+    public List<InvoiceEntity> getInvoicesByPartnerId(String partnerId) {
+        return invoiceRepository.findByPartnerId(partnerId);
+    }
+
+    public List<InvoiceEntity> getInvoicesByDate(String invoiceDate) {
+        LocalDate date = LocalDate.parse(invoiceDate);
+        return invoiceRepository.findByInvoiceDate(date);
     }
 }
