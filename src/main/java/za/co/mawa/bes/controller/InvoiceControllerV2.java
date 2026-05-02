@@ -1,6 +1,8 @@
 package za.co.mawa.bes.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.entity.InvoiceEntity;
@@ -23,6 +25,29 @@ public class InvoiceControllerV2 {
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
         InvoiceEntity createdInvoice = invoiceService.createInvoice(invoice);
         return ResponseEntity.ok(createdInvoice);
+    }
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status,
+                                         @RequestParam(required = false) String partnerId,
+                                         @RequestParam(required = false) String invoiceDate) {
+        try {
+            List<InvoiceEntity> invoices;
+
+            // Check and apply filters if specified
+            if (status != null && !status.isEmpty()) {
+                invoices = invoiceService.getInvoicesByStatus(status);
+            } else if (partnerId != null && !partnerId.isEmpty()) {
+                invoices = invoiceService.getInvoicesByPartnerId(partnerId);
+            } else if (invoiceDate != null && !invoiceDate.isEmpty()) {
+                invoices = invoiceService.getInvoicesByDate(invoiceDate);
+            } else {
+                invoices = invoiceService.getAllInvoices(); // Fetch all invoices if no filters are provided
+            }
+
+            return ResponseEntity.ok(invoices);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error retrieving invoices: " + exception.getMessage());
+        }
     }
 
     @GetMapping(value = "{id}")
