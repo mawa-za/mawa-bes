@@ -1,225 +1,56 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
-import za.co.mawa.bes.dto.*;
-import za.co.mawa.bes.dto.claim.ClaimDto;
-import za.co.mawa.bes.dto.claim.ClaimQueryDto;
-import za.co.mawa.bes.dto.invoice.*;
-import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.amount.TransactionAmountInboundDto;
-import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
-import za.co.mawa.bes.dto.transaction.bank.account.TransactionBankAccountDto;
-import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionAmountEntity;
-import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
-import za.co.mawa.bes.exception.TransactionNotFound;
-import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.entity.InvoiceLineEntity;
+import za.co.mawa.bes.entity.InvoicePaymentEntity;
+import za.co.mawa.bes.repository.InvoiceLineRepository;
+import za.co.mawa.bes.repository.InvoicePaymentRepository;
+import za.co.mawa.bes.repository.InvoiceRepository;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class InvoiceService {
+
     @Autowired
-    TransactionService transactionService;
+    private InvoiceRepository invoiceRepository;
+
     @Autowired
-    PricingService pricingService;
+    private InvoiceLineRepository invoiceLineRepository;
+
     @Autowired
-    LineItemService lineItemService;
-    @Autowired
-    FieldOptionService fieldOptionService;
-    @Autowired
-    PartnerService partnerService;
-    @Autowired
-    TransactionAttributeService transactionAttributeService;
-    @Autowired
-    TransactionAmountService transactionAmountService;
+    private InvoicePaymentRepository invoicePaymentRepository;
 
-    public String create(InvoiceInboundDto invoiceInboundDto) {
-        try {
-            TransactionCreateDto transactionCreateDto = new TransactionCreateDto();
-            transactionCreateDto.setType(TransactionType.INVOICE);
-            transactionCreateDto.setStatus(Status.DRAFT);
-            TransactionDto transactionDto = transactionService.create(transactionCreateDto);
-            if (invoiceInboundDto.getInvoiceDate() != null) {
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.INVOICE_DATE);
-                transactionDateDto.setValue(invoiceInboundDto.getInvoiceDate());
-                transactionService.addDate(transactionDateDto);
-            }
-            if (invoiceInboundDto.getDueDate() != null) {
-                TransactionDateDto transactionDateDto = new TransactionDateDto();
-                transactionDateDto.setTransaction(transactionDto.getId());
-                transactionDateDto.setType(DateType.DUE_DATE);
-                transactionDateDto.setValue(invoiceInboundDto.getDueDate());
-                transactionService.addDate(transactionDateDto);
-            }
-
-            if (invoiceInboundDto.getCustomerId() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.CUSTOMER);
-                transactionPartnerDto.setPartner(invoiceInboundDto.getCustomerId());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            if (invoiceInboundDto.getSalesRepresentative() != null) {
-                TransactionPartnerDto transactionPartnerDto = new TransactionPartnerDto();
-                transactionPartnerDto.setTransaction(transactionDto.getId());
-                transactionPartnerDto.setFunction(PartnerFunction.SALES_REPRESENTATIVE);
-                transactionPartnerDto.setPartner(invoiceInboundDto.getSalesRepresentative());
-                transactionService.addPartner(transactionPartnerDto);
-            }
-            for (LineItemInboundDto lineItemInboundDto : invoiceInboundDto.getItems()) {
-                lineItemInboundDto.setTransaction(transactionDto.getId());
-                lineItemService.add(lineItemInboundDto);
-            }
-
-            TransactionAmountInboundDto transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getDiscountAmount());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(TransactionAmount.DISCOUNT_AMOUNT);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getVATAmount());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(TransactionAmount.VAT_AMOUNT);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getTotalIncVat());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(AmountType.TOTAL_INC_VAT);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getTotalExcVat());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(AmountType.TOTAL_EXC_VAT);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getVATPercentage());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(AmountType.VAT_PERCENTAGE);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            transactionAmountInboundDto = new TransactionAmountInboundDto();
-            transactionAmountInboundDto.setAmount(invoiceInboundDto.getPricing().getDiscountPercentage());
-            transactionAmountInboundDto.setTransaction(transactionDto.getId());
-            transactionAmountInboundDto.setType(AmountType.DISCOUNT_PERCENTAGE);
-            transactionAmountService.save(transactionAmountInboundDto);
-
-            return get(transactionDto.getId()).getId();
-        } catch (Exception exception) {
-            throw new RuntimeException(exception);
-        }
+    public InvoiceEntity createInvoice(InvoiceEntity invoice) {
+        invoice.setId(UUID.randomUUID().toString());
+        invoice.getLines().forEach(line -> {
+            line.setId(UUID.randomUUID().toString());
+            line.setInvoice(invoice); // Ensure proper linkage
+        });
+        invoice.getPayments().forEach(payment -> {
+            payment.setId(UUID.randomUUID().toString());
+            payment.setInvoice(invoice); // Ensure proper linkage
+        });
+        return invoiceRepository.save(invoice);
     }
 
-    public InvoiceOutboundDto get(String id) {
-        InvoiceOutboundDto invoiceOutboundDto = new InvoiceOutboundDto();
-        try {
-            TransactionDto transactionDto = transactionService.get(id);
-            invoiceOutboundDto.setId(transactionDto.getId());
-            invoiceOutboundDto.setNumber(transactionDto.getNumber());
-            invoiceOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
-            invoiceOutboundDto.setStatusReason(fieldOptionService.getFieldOption(Field.STATUS_REASON, transactionDto.getStatusReason()));
-//            TransactionAttributeDto transactionAttributeDto = new TransactionAttributeDto();
-//            transactionAttributeDto.setTransaction(transactionDto.getId());
-//            transactionAttributeDto.setAttribute(TransactionAttribute.PAYMENT_METHOD);
-//            invoiceOutboundDto.setPaymentTerms(fieldOptionService.getFieldOption(Field.PAYMENT_TERMS, transactionAttributeService.get(transactionAttributeDto)));
-            try {
-                for (TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)) {
-                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.CUSTOMER)) {
-                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            invoiceOutboundDto.setCustomer((partnerService.get(transactionPartnerDto.getPartner())));
-                        }
-                    }
-                    if (Objects.equals(transactionPartnerDto.getFunction(), PartnerFunction.SALES_REPRESENTATIVE)) {
-                        if (partnerService.get(transactionPartnerDto.getPartner()) != null) {
-                            invoiceOutboundDto.setSalesRepresentative((partnerService.get(transactionPartnerDto.getPartner())));
-                        }
-                    }
-                }
-            } catch (Exception e) {
-
-            }
-            for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (Objects.equals(transactionDateDto.getType(), DateType.INVOICE_DATE)) {
-                    invoiceOutboundDto.setInvoiceDate(transactionDateDto.getValue());
-                }
-                if (Objects.equals(transactionDateDto.getType(), DateType.DUE_DATE)) {
-                    invoiceOutboundDto.setDueDate(transactionDateDto.getValue());
-                }
-            }
-            for(TransactionLinkDto link:transactionService.getLinks(id)){
-                if(link.getType().equalsIgnoreCase(TransactionType.MEMBERSHIP)){
-                    invoiceOutboundDto.setSubTransactionId(link.getTransaction2());
-                }
-            }
-
-            invoiceOutboundDto.setItems(lineItemService.getAll(id));
-            invoiceOutboundDto.setAmounts(transactionAmountService.getByTransaction(id));
-            invoiceOutboundDto.setDates(transactionService.getDates(id));
-        } catch (TransactionNotFound exception) {
-
-        }
-        return invoiceOutboundDto;
+    public Optional<InvoiceEntity> getInvoice(String invoiceId) {
+        return invoiceRepository.findById(invoiceId);
     }
 
-    public List<InvoiceOutboundDto> search(InvoiceQueryDto invoiceQueryDto) {
-        List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
-        try {
-            TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
-            if (invoiceQueryDto.getStatus() != null && invoiceQueryDto.getStatus() != "") {
-                transactionQueryDto.setStatus(invoiceQueryDto.getStatus());
-            }
-            if (invoiceQueryDto.getNumber() != null && invoiceQueryDto.getNumber() != "") {
-                transactionQueryDto.setNumber(invoiceQueryDto.getNumber());
-            }
-            if (invoiceQueryDto.getCustomer() != null & invoiceQueryDto.getCustomer() != "") {
-                transactionQueryDto.setPartnerNo(invoiceQueryDto.getCustomer());
-                transactionQueryDto.setPartnerFunction(PartnerFunction.CUSTOMER);
-            }
-            transactionQueryDto.setType(TransactionType.INVOICE);
-            for (String id : transactionService.search(transactionQueryDto)) {
-                try {
-                    invoiceOutboundDtoList.add(get(id));
-                } catch (Exception exception) {
-                }
-            }
-        } catch (Exception exception) {
-        }
-        return invoiceOutboundDtoList;
+    public List<InvoiceLineEntity> getInvoiceLines(String invoiceId) {
+        return invoiceLineRepository.findByInvoiceId(invoiceId);
     }
 
-    public List<TransactionViewEntity> getMembershipInvoices(String id){
-        try{
-            TransactionViewDto transactionViewDto = new TransactionViewDto();
-            transactionViewDto.setType(TransactionType.INVOICE);
-            List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
-            Set<TransactionViewEntity> uniqueTransactionViewEntities = new HashSet<>(transactionViewEntities);
-            List<TransactionLinkDto> transactionLinkDtos = transactionService.getLinks(id);
-            List<TransactionViewEntity> invoices = new ArrayList<>();
+    public List<InvoicePaymentEntity> getInvoicePayments(String invoiceId) {
+        return invoicePaymentRepository.findByInvoiceId(invoiceId);
+    }
 
-            for(TransactionLinkDto link: transactionLinkDtos){
-                if(link.getType().equalsIgnoreCase("INVOICE")){
-                    for(TransactionViewEntity entity : uniqueTransactionViewEntities){
-                        if(Objects.equals(entity.getTransactionId(), link.getTransaction2())){
-                            invoices.add(entity);
-                        }
-                    }
-                }
-            }
-            return invoices;
-        }
-        catch(Exception ex){
-            throw new RuntimeException("No invoices found");
-        }
+    public void deleteInvoice(String invoiceId) {
+        invoiceRepository.deleteById(invoiceId);
     }
 }
