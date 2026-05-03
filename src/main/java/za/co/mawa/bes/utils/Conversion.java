@@ -131,4 +131,14 @@ public class Conversion {
         value = value.replace(",", "");
         return Integer.parseInt(value);
     }
+
+    public static Integer safeLongToInteger(Long value) {
+        if (value == null) return null;
+
+        if (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE) {
+            throw new ArithmeticException("Integer overflow: " + value);
+        }
+
+        return value.intValue();
+    }
 }

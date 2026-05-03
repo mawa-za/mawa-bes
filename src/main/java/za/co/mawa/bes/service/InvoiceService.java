@@ -2,6 +2,7 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
@@ -9,6 +10,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.InvoiceLineRepository;
 import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDate;
@@ -82,4 +84,38 @@ public class InvoiceService {
         LocalDate date = LocalDate.parse(invoiceDate);
         return invoiceRepository.findByInvoiceDate(date);
     }
+
+
+    public InvoiceOutboundDto mapToDto(InvoiceEntity invoice) {
+        // Map the main InvoiceEntity to DTO
+        InvoiceOutboundDto dto = new InvoiceOutboundDto();
+        dto.setId(invoice.getId());
+        dto.setPartnerId(invoice.getPartnerId());
+        dto.setInvoiceDate(invoice.getInvoiceDate());
+        dto.setDueDate(invoice.getDueDate());
+        dto.setStatus(invoice.getStatus());
+        dto.setSubtotalCents(Conversion.safeLongToInteger(invoice.getSubtotalCents()));
+        dto.setTaxCents(Conversion.safeLongToInteger(invoice.getTaxCents()));
+        dto.setDiscountCents(Conversion.safeLongToInteger(invoice.getDiscountCents()));
+        dto.setTotalCents(Conversion.safeLongToInteger(invoice.getTotalCents()));
+        dto.setCurrency(invoice.getCurrency());
+
+        // Map the line items to the nested DTO
+        List<InvoiceOutboundDto.InvoiceLineDto> lineDtos = invoice.getLines().stream().map(line -> {
+            InvoiceOutboundDto.InvoiceLineDto lineDto = new InvoiceOutboundDto.InvoiceLineDto();
+            lineDto.setProductId(line.getProductId());
+            lineDto.setDescription(line.getDescription());
+            lineDto.setQuantity(line.getQuantity().intValue());
+            lineDto.setUnitPriceCents(Conversion.safeLongToInteger(line.getUnitPriceCents()));
+            lineDto.setDiscountCents(Conversion.safeLongToInteger(line.getDiscountCents()));
+            lineDto.setTaxCents(Conversion.safeLongToInteger(line.getTaxCents()));
+            lineDto.setSubtotalCents(Conversion.safeLongToInteger(line.getSubtotalCents()));
+            lineDto.setTotalCents(Conversion.safeLongToInteger(line.getTotalCents()));
+            return lineDto;
+        }).toList();
+
+        dto.setLines(lineDtos);
+        return dto;
+    }
+
 }
