@@ -5,6 +5,7 @@ import java.util.List;
 
 public class InvoiceOutboundDto {
     private String id;
+    private String invoiceNo;
     private String partnerId;
     private LocalDate invoiceDate;
     private LocalDate dueDate;
@@ -100,6 +101,14 @@ public class InvoiceOutboundDto {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getInvoiceNo() {
+        return invoiceNo;
+    }
+
+    public void setInvoiceNo(String invoiceNo) {
+        this.invoiceNo = invoiceNo;
     }
 
     public String getPartnerId() {

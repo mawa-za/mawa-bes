@@ -90,6 +90,7 @@ public class InvoiceService {
         // Map the main InvoiceEntity to DTO
         InvoiceOutboundDto dto = new InvoiceOutboundDto();
         dto.setId(invoice.getId());
+        dto.setInvoiceNo(invoice.getInvoiceNo());
         dto.setPartnerId(invoice.getPartnerId());
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setDueDate(invoice.getDueDate());
