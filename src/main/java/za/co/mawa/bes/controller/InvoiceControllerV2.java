@@ -86,4 +86,14 @@ public class InvoiceControllerV2 {
         invoiceService.deleteInvoice(id);
         return ResponseEntity.ok("Invoice deleted successfully");
     }
+
+    @PostMapping("/{id}/pdf/base64")
+    public ResponseEntity<String> generateInvoicePdfBase64(@PathVariable String id) {
+        // Call the service to generate the Base64 string
+        String base64Pdf = invoiceService.generateInvoicePdfAsBase64(id);
+
+        // Return the Base64 PDF wrapped as plain text
+        return ResponseEntity.ok(base64Pdf);
+    }
+
 }
