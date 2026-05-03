@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
@@ -24,7 +25,9 @@ public class InvoiceControllerV2 {
     @PostMapping
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
         InvoiceEntity createdInvoice = invoiceService.createInvoice(invoice);
-        return ResponseEntity.ok(createdInvoice);
+        InvoiceOutboundDto invoiceOutboundDto = new InvoiceOutboundDto();
+        invoiceOutboundDto.setId(createdInvoice.getId());
+        return ResponseEntity.ok(invoiceOutboundDto);
     }
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status,

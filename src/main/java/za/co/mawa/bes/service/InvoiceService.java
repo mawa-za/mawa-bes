@@ -5,11 +5,14 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.InvoiceLineRepository;
 import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,14 +29,23 @@ public class InvoiceService {
     @Autowired
     private InvoicePaymentRepository invoicePaymentRepository;
 
+    @Autowired
+    NumberRangeService numberRangeService;
+
     public InvoiceEntity createInvoice(InvoiceEntity invoice) {
-        invoice.setId(UUID.randomUUID().toString());
+//        invoice.setId(UUID.randomUUID().toString());
+        try {
+            invoice.setInvoiceNo(numberRangeService.generateNumber(TransactionType.INVOICE));
+        } catch (NumberRangeObjectNotFound e) {
+            throw new RuntimeException(e);
+        }
+
         invoice.getLines().forEach(line -> {
-            line.setId(UUID.randomUUID().toString());
+//            line.setId(UUID.randomUUID().toString());
             line.setInvoice(invoice); // Ensure proper linkage
         });
         invoice.getPayments().forEach(payment -> {
-            payment.setId(UUID.randomUUID().toString());
+//            payment.setId(UUID.randomUUID().toString());
             payment.setInvoice(invoice); // Ensure proper linkage
         });
         return invoiceRepository.save(invoice);
