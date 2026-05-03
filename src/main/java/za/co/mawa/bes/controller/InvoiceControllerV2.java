@@ -5,11 +5,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
 import za.co.mawa.bes.service.InvoiceService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +26,9 @@ public class InvoiceControllerV2 {
     @PostMapping
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
         InvoiceEntity createdInvoice = invoiceService.createInvoice(invoice);
-        return ResponseEntity.ok(createdInvoice);
+        InvoiceOutboundDto responseDto = invoiceService.mapToDto(createdInvoice);
+        return ResponseEntity.ok(responseDto);
+
     }
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status,
@@ -32,6 +36,7 @@ public class InvoiceControllerV2 {
                                          @RequestParam(required = false) String invoiceDate) {
         try {
             List<InvoiceEntity> invoices;
+            List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
 
             // Check and apply filters if specified
             if (status != null && !status.isEmpty()) {
@@ -43,8 +48,11 @@ public class InvoiceControllerV2 {
             } else {
                 invoices = invoiceService.getAllInvoices(); // Fetch all invoices if no filters are provided
             }
-
-            return ResponseEntity.ok(invoices);
+            for (InvoiceEntity invoice : invoices) {
+                InvoiceOutboundDto invoiceOutboundDto = invoiceService.mapToDto(invoice);
+                invoiceOutboundDtoList.add(invoiceOutboundDto);
+            }
+            return ResponseEntity.ok(invoiceOutboundDtoList);
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error retrieving invoices: " + exception.getMessage());
         }
@@ -54,7 +62,8 @@ public class InvoiceControllerV2 {
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
         Optional<InvoiceEntity> invoice = invoiceService.getInvoice(id);
         if (invoice.isPresent()) {
-            return ResponseEntity.ok(invoice.get());
+            InvoiceOutboundDto invoiceOutboundDto = invoiceService.mapToDto(invoice.get());
+            return ResponseEntity.ok(invoiceOutboundDto);
         } else {
             return ResponseEntity.status(404).body("Invoice not found");
         }
