@@ -1,6 +1,8 @@
 package za.co.mawa.bes.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +11,11 @@ import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
+import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.service.InvoicePDFService;
 import za.co.mawa.bes.service.InvoiceService;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +27,10 @@ public class InvoiceControllerV2 {
 
     @Autowired
     private InvoiceService invoiceService;
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+    @Autowired
+    private InvoicePDFService invoicePDFService;
 
     @PostMapping
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
@@ -87,13 +96,18 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok("Invoice deleted successfully");
     }
 
-    @PostMapping("/{id}/pdf/base64")
-    public ResponseEntity<String> generateInvoicePdfBase64(@PathVariable String id) {
-        // Call the service to generate the Base64 string
-        String base64Pdf = invoiceService.generateInvoicePdfAsBase64(id);
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<ByteArrayResource> generateInvoicePdf(@PathVariable String id) {
+        InvoiceEntity invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + id));
 
-        // Return the Base64 PDF wrapped as plain text
-        return ResponseEntity.ok(base64Pdf);
+        ByteArrayOutputStream pdfOutput = invoicePDFService.generateInvoicePdf(invoice);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice_" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new ByteArrayResource(pdfOutput.toByteArray()));
     }
+
 
 }

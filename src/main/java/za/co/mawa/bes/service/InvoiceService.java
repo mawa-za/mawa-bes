@@ -21,6 +21,7 @@ import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -128,59 +129,5 @@ public class InvoiceService {
         return dto;
     }
 
-
-
-    public String generateInvoicePdfAsBase64(String invoiceId) {
-        // Fetch the invoice by ID
-        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + invoiceId));
-
-        // Create a PDF in memory using ByteArrayOutputStream
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PdfWriter pdfWriter = new PdfWriter(out);
-
-        try (Document document = new Document(new com.itextpdf.kernel.pdf.PdfDocument(pdfWriter))) {
-            // Add invoice title
-            document.add(new Paragraph("Invoice")
-                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
-                    .setFontSize(16));
-
-            // Add invoice metadata
-            document.add(new Paragraph("Invoice ID: " + invoice.getId()));
-            document.add(new Paragraph("Partner ID: " + invoice.getPartnerId()));
-            document.add(new Paragraph("Invoice Date: " + invoice.getInvoiceDate()));
-            document.add(new Paragraph("Due Date: " + invoice.getDueDate()));
-            document.add(new Paragraph("Status: " + invoice.getStatus()));
-            document.add(new Paragraph("Total: " + (float) invoice.getTotalCents() / 100 + " " + invoice.getCurrency()));
-            document.add(new Paragraph("\n"));
-
-            // Add line items table
-            Table table = new Table(new float[]{3, 8, 2, 3, 3, 3});
-            table.addHeaderCell(new Cell().add(new Paragraph("Product ID")));
-            table.addHeaderCell(new Cell().add(new Paragraph("Description")));
-            table.addHeaderCell(new Cell().add(new Paragraph("Qty")));
-            table.addHeaderCell(new Cell().add(new Paragraph("Unit Price (cents)")));
-            table.addHeaderCell(new Cell().add(new Paragraph("Subtotal (cents)")));
-            table.addHeaderCell(new Cell().add(new Paragraph("Tax (cents)")));
-
-            for (InvoiceLineEntity line : invoice.getLines()) {
-                table.addCell(new Cell().add(new Paragraph(line.getProductId())));
-                table.addCell(new Cell().add(new Paragraph(line.getDescription())));
-                table.addCell(new Cell().add(new Paragraph(String.valueOf(line.getQuantity()))));
-                table.addCell(new Cell().add(new Paragraph(String.valueOf(line.getUnitPriceCents()))));
-                table.addCell(new Cell().add(new Paragraph(String.valueOf(line.getSubtotalCents()))));
-                table.addCell(new Cell().add(new Paragraph(String.valueOf(line.getTaxCents()))));
-            }
-
-            document.add(table);
-            document.add(new Paragraph("\nThank you for your business!"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error while generating PDF: " + e.getMessage());
-        }
-
-        // Convert the PDF byte array to Base64
-        return Base64.getEncoder().encodeToString(out.toByteArray());
-    }
 
 }
