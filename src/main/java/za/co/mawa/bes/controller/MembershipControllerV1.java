@@ -13,10 +13,7 @@ import za.co.mawa.bes.dto.membership.MembershipEditDto;
 import za.co.mawa.bes.dto.membership.MembershipQueryDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
-import za.co.mawa.bes.dto.transaction.item.TransactionItemEditDto;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
-import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.TransactionViewRepository;
 import za.co.mawa.bes.service.*;
@@ -27,8 +24,8 @@ import java.util.*;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "v2/membership")
-public class MembershipControllerV2 {
+@RequestMapping(value = "v1/membership")
+public class MembershipControllerV1 {
     @Autowired
     TransactionService transactionService;
     @Autowired

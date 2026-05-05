@@ -30,7 +30,8 @@ public class InvoicePDFService {
             PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
 
             // --- HEADER (Company Logo and Info) ---
-            ImageData logoData = ImageDataFactory.create("path/to/logo.png");  // Replace with the actual path to your logo
+            ImageData logoData = ImageDataFactory.create(getClass().getResource("images/logo.png"));
+//            ImageData logoData = ImageDataFactory.create("https://upload.wikimedia.org/wikipedia/commons/3/3f/Logo_Test.png");  // Replace with the actual path to your logo
             Image logo = new Image(logoData).scaleToFit(150, 40); // Resize the logo for better fit
             document.add(new Paragraph().add(logo).setTextAlignment(TextAlignment.LEFT));
 

@@ -96,7 +96,7 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok("Invoice deleted successfully");
     }
 
-    @GetMapping("/{id}/pdf")
+    @GetMapping("{id}/pdf")
     public ResponseEntity<ByteArrayResource> generateInvoicePdf(@PathVariable String id) {
         InvoiceEntity invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + id));
