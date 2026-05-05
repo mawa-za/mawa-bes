@@ -27,7 +27,7 @@ import java.util.*;
 
 @RestController
 @CrossOrigin
-@RequestMapping(value = "v2/membership")
+@RequestMapping(value = "v1/membership")
 public class MembershipControllerV2 {
     @Autowired
     TransactionService transactionService;
