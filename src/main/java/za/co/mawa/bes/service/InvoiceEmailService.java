@@ -15,10 +15,10 @@ import java.util.stream.Collectors;
 @Service
 public class InvoiceEmailService {
 
-    @Value("${application.tenant.url}") // The tenant's base URL
+//    @Value("${application.tenant.url}") // The tenant's base URL
     private String tenantUrl;
 
-    @Value("${application.server.url}") // Back-end server's base URL
+//    @Value("${application.server.url}") // Back-end server's base URL
     private String serverUrl;
 
     private final ResourceLoader resourceLoader;

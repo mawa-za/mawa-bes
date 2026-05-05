@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller.v2;
 
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,18 +13,20 @@ import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/v2/membership")
-public class MembershipController {
+public class MembershipControllerV2 {
 
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
 
-    public MembershipController(
+    public MembershipControllerV2(
             MembershipPlanService membershipPlanService,
+            @Qualifier("MembershipServiceV2")
             MembershipService membershipService,
             MembershipDependentService membershipDependentService) {
         this.membershipPlanService = membershipPlanService;

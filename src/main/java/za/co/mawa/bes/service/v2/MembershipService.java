@@ -9,7 +9,7 @@ import za.co.mawa.bes.repository.v2.MembershipRepository;
 
 import java.util.Optional;
 
-@Service
+@Service(value = "MembershipServiceV2")
 public class MembershipService {
 
     private final MembershipRepository membershipRepository;
