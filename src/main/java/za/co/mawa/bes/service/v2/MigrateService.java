@@ -75,7 +75,7 @@ public class MigrateService {
     }
 
 
-//    @Scheduled(cron = "0 */10 * * * *")
+    @Scheduled(cron = "0 */10 * * * *")
     public void migrateMemberships() {
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
@@ -89,7 +89,7 @@ public class MigrateService {
                     MembershipEntity membership = membershipRepository.findByOldId(transactionViewEntity.getTransactionId()).orElse(null);
                     if (membership == null) {
                         membership = new MembershipEntity();
-                        membership.setId(transactionViewEntity.getTransactionId());
+                        membership.setOldId(transactionViewEntity.getTransactionId());
                         membership.setMemberId(transactionViewEntity.getMainPartnerId());
                         membership.setMembershipNo(transactionViewEntity.getTransactionNumber());
                         MembershipPlanEntity membershipPlanEntity = membershipPlanRepository.findByOldId(transactionViewEntity.getProductId()).orElse(null);
