@@ -75,7 +75,7 @@ public class MigrateService {
     }
 
 
-    @Scheduled(cron = "0 */10 * * * *")
+//    @Scheduled(cron = "0 */10 * * * *")
     public void migrateMemberships() {
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);

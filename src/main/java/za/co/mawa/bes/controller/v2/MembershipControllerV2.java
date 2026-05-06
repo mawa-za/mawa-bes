@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller.v2;
 
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,13 +14,15 @@ import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
+import za.co.mawa.bes.service.v2.MigrateService;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/v2/membership")
+@RequestMapping("v2/membership")
 public class MembershipControllerV2 {
-
+    @Autowired
+    MigrateService migrateService;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -37,6 +40,11 @@ public class MembershipControllerV2 {
     // ------------------------------------------
     // Membership Plan Endpoints
     // ------------------------------------------
+    @GetMapping("migrate")
+    public ResponseEntity<?> migrate() {
+        migrateService.migrateMemberships();
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/plans")
     public ResponseEntity<Page<MembershipPlanEntity>> listMembershipPlans(Pageable pageable) {
