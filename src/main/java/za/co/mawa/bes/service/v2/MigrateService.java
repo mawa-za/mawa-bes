@@ -63,18 +63,19 @@ public class MigrateService {
                         membershipPlanEntity.setCurrency("ZAR");
                         membershipPlanEntity.setMaxDependents(15);
                         membershipPlanEntity.setActive(true);
+                        membershipPlanEntity.setPremiumCents(19000L);
                         membershipPlanService.createPlan(membershipPlanEntity);
                     }
 
                 }
             } catch (Exception e) {
-
+                System.err.println("Error processing tenant "+ e.getMessage());
             }
 
     }
 
 
-    @Scheduled(cron = "0 */10 * * * *")
+//    @Scheduled(cron = "0 */10 * * * *")
     public void migrateMemberships() {
         TransactionViewDto transactionViewDto = new TransactionViewDto();
         transactionViewDto.setType(TransactionType.MEMBERSHIP);
