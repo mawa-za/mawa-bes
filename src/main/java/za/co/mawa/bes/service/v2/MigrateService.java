@@ -69,7 +69,7 @@ public class MigrateService {
 
                 }
             } catch (Exception e) {
-
+                System.err.println("Error processing tenant "+ e.getMessage());
             }
 
     }
