@@ -11,6 +11,7 @@ import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("v2/payroll-payment-batch")
 @RequiredArgsConstructor

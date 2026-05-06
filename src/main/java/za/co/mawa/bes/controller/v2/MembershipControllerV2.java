@@ -18,6 +18,7 @@ import za.co.mawa.bes.service.v2.MigrateService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("v2/membership")
 public class MembershipControllerV2 {
