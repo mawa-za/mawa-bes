@@ -92,7 +92,8 @@ public class MigrateService {
                         membership.setId(transactionViewEntity.getTransactionId());
                         membership.setMemberId(transactionViewEntity.getMainPartnerId());
                         membership.setMembershipNo(transactionViewEntity.getTransactionNumber());
-                        membership.setPlanId(transactionViewEntity.getProductId());
+                        MembershipPlanEntity membershipPlanEntity = membershipPlanRepository.findByOldId(transactionViewEntity.getProductId()).orElse(null);
+                        membership.setPlanId(membershipPlanEntity.getId());
                         membership.setStatus(transactionViewEntity.getTransactionStatus());
                         membership.setStartDate(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
                         membership.setJoinDate(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
