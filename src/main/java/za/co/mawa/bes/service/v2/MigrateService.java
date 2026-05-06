@@ -63,6 +63,7 @@ public class MigrateService {
                         membershipPlanEntity.setCurrency("ZAR");
                         membershipPlanEntity.setMaxDependents(15);
                         membershipPlanEntity.setActive(true);
+                        membershipPlanEntity.setPremiumCents(19000L);
                         membershipPlanService.createPlan(membershipPlanEntity);
                     }
 
