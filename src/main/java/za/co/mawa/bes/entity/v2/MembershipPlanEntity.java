@@ -60,5 +60,7 @@ public class MembershipPlanEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
+    @Column(name = "old_id")
+    private String oldId;
     // Getters and Setters
 }

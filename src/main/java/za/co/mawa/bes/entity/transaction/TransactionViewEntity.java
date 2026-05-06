@@ -38,17 +38,32 @@ public class TransactionViewEntity implements Serializable {
     @Column(name = "identity_number")
     private String identityNumber;
 
+    @Column(name = "main_partner_id")
+    private String mainPartnerId;
+
     @Column(name = "main_partner")
     private String mainPartner;
+
+    @Column(name = "employee_responsible_id")
+    private String employeeResponsibleId;
 
     @Column(name = "employee_responsible")
     private String employeeResponsible;
 
+    @Column(name = "recipient_id")
+    private String recipientId;
+
     @Column(name="recipient")
     private String recipient;
 
+    @Column(name = "created_by_id")
+    private String createdById;
+
     @Column(name = "created_by")
     private String createdBy;
+
+    @Column(name = "changed_by_id")
+    private String changedById;
 
     @Column(name = "changed_by")
     private String changedBy;
