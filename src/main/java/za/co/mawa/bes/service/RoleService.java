@@ -72,7 +72,7 @@ public class RoleService implements RoleDao {
     @Override
     public List<RoleWorkcenterDto> getRoleWorkcenters(String role) throws RoleDoesNotExist {
         if (role.equals("SYSTEM")) {
-            int i = 0;
+            int i = 1;
             List<RoleWorkcenterDto> roleWorkcenterDtoList = new ArrayList<>();
             List<WorkcenterDto> workcenterDtoList = workcenterService.getAll();
             for (WorkcenterDto workcenterDto : workcenterDtoList) {
