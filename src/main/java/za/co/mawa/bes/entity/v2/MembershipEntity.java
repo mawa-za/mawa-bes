@@ -29,7 +29,7 @@ public class MembershipEntity {
     private String memberId;
 
     @NotBlank
-    @Column(name = "membership_no", nullable = false, unique = true, length = 50)
+    @Column(name = "membership_no", unique = true, length = 50)
     private String membershipNo;
 
     @NotBlank
