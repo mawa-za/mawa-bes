@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,7 +18,10 @@ import lombok.*;
 @Table(name = "invoice")
 public class InvoiceEntity {
 
+    private static final long serialVersionUID = 1L;
     @Id
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
     @Column(name = "invoice_no", nullable = false, unique = true)
@@ -62,8 +66,8 @@ public class InvoiceEntity {
     @Column(name = "notes")
     private String notes;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+//    @Column(name = "created_at", updatable = false)
+//    private LocalDateTime createdAt;
 
     @Column(name = "created_by")
     private String createdBy;

@@ -2,6 +2,7 @@ package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
 @NoArgsConstructor
@@ -13,7 +14,10 @@ import java.time.LocalDateTime;
 @Table(name = "invoice_payment")
 public class InvoicePaymentEntity {
 
+    private static final long serialVersionUID = 1L;
     @Id
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
     @ManyToOne
