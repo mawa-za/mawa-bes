@@ -105,6 +105,7 @@ public class MigrateService {
                             MembershipDependentEntity membershipDependentEntity = new MembershipDependentEntity();
                             membershipDependentEntity.setMembershipId(createdMembership.getId());
                             membershipDependentEntity.setDependentPartnerId(dependent.getId());
+                            membershipDependentEntity.setRelationship("DEPENDENT");
                             membershipDependentEntity.setUpdatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                             membershipDependentEntity.setCreatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                             membershipDependentEntity.setCreatedBy(transactionViewEntity.getCreatedById());
@@ -113,13 +114,14 @@ public class MigrateService {
                         }
 
                     } else {
-                        List<MembershipDependentEntity> dependentEntityList = membershipDependentService.getDependentsByMembershipId(membership.getOldId());
+                        List<MembershipDependentEntity> dependentEntityList = membershipDependentService.getDependentsByMembershipId(membership.getId());
                         for (PartnerDto dependent : dependentList) {
                             boolean isDependentExist = dependentEntityList.stream().anyMatch(e -> e.getDependentPartnerId().equals(dependent.getId()));
                             if (!isDependentExist) {
                                 MembershipDependentEntity membershipDependentEntity = new MembershipDependentEntity();
                                 membershipDependentEntity.setMembershipId(membership.getId());
                                 membershipDependentEntity.setDependentPartnerId(dependent.getId());
+                                membershipDependentEntity.setRelationship("DEPENDENT");
                                 membershipDependentEntity.setUpdatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                                 membershipDependentEntity.setCreatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                                 membershipDependentEntity.setCreatedBy(transactionViewEntity.getCreatedById());
