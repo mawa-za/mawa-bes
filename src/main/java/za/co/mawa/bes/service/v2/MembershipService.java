@@ -4,12 +4,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.Optional;
 
 @Service(value = "MembershipServiceV2")
@@ -35,6 +38,8 @@ public class MembershipService {
     public MembershipEntity createMembership(MembershipEntity membership) {
         try {
             String id = numberRangeService.generateNumber(TransactionType.MEMBERSHIP);
+            membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+            membership.setCreatedBy(UserContext.getCurrentUserPartner());
             membership.setMembershipNo(id);
             return membershipRepository.save(membership);
         } catch (NumberRangeObjectNotFound e) {
