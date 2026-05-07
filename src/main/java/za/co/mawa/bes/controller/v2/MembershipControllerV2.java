@@ -99,7 +99,7 @@ public class MembershipControllerV2 {
     }
 
     @PostMapping
-    public ResponseEntity<MembershipEntity> createMembership(@Valid @RequestBody MembershipEntity membership) {
+    public ResponseEntity<MembershipEntity> createMembership(@RequestBody MembershipEntity membership) {
         MembershipEntity createdMembership = membershipService.createMembership(membership);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdMembership);
     }

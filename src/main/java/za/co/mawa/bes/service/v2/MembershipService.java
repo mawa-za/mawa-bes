@@ -5,7 +5,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
+import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.Optional;
 
@@ -13,6 +16,8 @@ import java.util.Optional;
 public class MembershipService {
 
     private final MembershipRepository membershipRepository;
+    @Autowired
+    NumberRangeService numberRangeService;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -28,7 +33,14 @@ public class MembershipService {
     }
 
     public MembershipEntity createMembership(MembershipEntity membership) {
-        return membershipRepository.save(membership);
+        try {
+            String id = numberRangeService.generateNumber(TransactionType.MEMBERSHIP);
+            membership.setMembershipNo(id);
+            return membershipRepository.save(membership);
+        } catch (NumberRangeObjectNotFound e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     public Optional<MembershipEntity> updateMembership(String id, MembershipEntity membership) {
