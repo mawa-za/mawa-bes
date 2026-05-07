@@ -58,11 +58,7 @@ public class RoleController {
     @RequestMapping(value = "/role/{role}/workcenter", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getWorkcenters(@PathVariable String role) {
         try {
-            if (role.equals("SYSTEM")) {
-                return ResponseEntity.ok(gson.toJson(workcenterService.getAll()));
-            } else {
-                return ResponseEntity.ok(gson.toJson(roleService.getRoleWorkcenters(role)));
-            }
+            return ResponseEntity.ok(gson.toJson(roleService.getRoleWorkcenters(role)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
