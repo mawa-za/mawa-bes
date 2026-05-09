@@ -1,4 +1,4 @@
-package za.co.mawa.bes.controller;
+package za.co.mawa.bes.controller.v2;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import jakarta.servlet.http.HttpServletRequest;
@@ -128,34 +128,9 @@ public class PremiumControllerV2 {
 //    }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPremiums(@RequestParam(required = false) String receiptType,
-                                         @RequestParam(required = false) String invoiceNumber,
-                                         @RequestParam(required = false) String membershipId,
-                                         @RequestParam(required = false) String membershipPeriod,
-                                         @RequestParam(required = false) String tenderType,
-                                         @RequestParam(required = false) boolean notCashed,
-                                         @RequestParam(name = "user", required = false) String createdBy) {
+    public ResponseEntity<?> getPremiums(@RequestParam(required = false) String membershipId) {
         try {
-            PremiumSearchDto search = new PremiumSearchDto();
-            if (membershipId != null && membershipId != "") {
-                search.setMembershipId(membershipId);
-            }
-            if (membershipPeriod != null && membershipPeriod != "") {
-                search.setMembershipPeriod(membershipPeriod);
-            }
-            if (tenderType != null && tenderType != "") {
-                search.setTenderType(tenderType);
-            }
-            if (createdBy != null && createdBy != "") {
-                search.setEmployeeResponsible(createdBy);
-            }
-            ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-            if (notCashed) {
-                premiumDtoArrayList = premiumService.getReceiptsX(search);
-            } else {
-                premiumDtoArrayList = premiumService.getReceipts(search);
-            }
-            return ResponseEntity.ok(gson.toJson(premiumDtoArrayList));
+            return ResponseEntity.ok(gson.toJson(premiumService.findByMembership(membershipId)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
