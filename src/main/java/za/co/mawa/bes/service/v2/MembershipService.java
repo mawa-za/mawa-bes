@@ -31,6 +31,10 @@ public class MembershipService {
         return membershipRepository.findAll(pageable);
     }
 
+    public Page<MembershipEntity> getMembershipsByMemberId(String memberId, Pageable pageable) {
+        return membershipRepository.findByMemberId(memberId,pageable);
+    }
+
     public Optional<MembershipEntity> getMembershipById(String id) {
         return membershipRepository.findById(id);
     }
