@@ -87,8 +87,10 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping
-    public ResponseEntity<Page<MembershipEntity>> listMemberships(Pageable pageable) {
-        return ResponseEntity.ok(membershipService.getAllMemberships(pageable));
+    public ResponseEntity<Page<MembershipEntity>> listMemberships(Pageable pageable,
+                                                                  @RequestParam(required = false) String memberId
+                                                                  ) {
+        return ResponseEntity.ok(membershipService.getMembershipsByMemberId(memberId, pageable));
     }
 
     @GetMapping("/{id}")
