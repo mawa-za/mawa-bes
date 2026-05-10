@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
+import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
@@ -24,6 +25,8 @@ import java.util.List;
 public class MembershipControllerV2 {
     @Autowired
     MigrateService migrateService;
+    @Autowired
+    MembershipRepository membershipRepository;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -91,6 +94,11 @@ public class MembershipControllerV2 {
                                                                   @RequestParam(required = false) List<String> memberId
                                                                   ) {
         return ResponseEntity.ok(membershipService.getMembershipsByMemberId(memberId, pageable));
+    }
+
+    @GetMapping(value = "/all")
+    public ResponseEntity<List<MembershipEntity>> getMemberships() {
+        return ResponseEntity.ok(membershipRepository.findAll());
     }
 
     @GetMapping("/{id}")

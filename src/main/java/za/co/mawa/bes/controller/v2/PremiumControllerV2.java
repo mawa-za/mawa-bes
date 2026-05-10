@@ -116,16 +116,6 @@ public class PremiumControllerV2 {
 
     }
 
-//    @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> getAllPremiums(@RequestParam(required = false) String query) {
-//        try {
-//            ArrayList<PremiumDto> premiumDtoArrayList = premiumService.findByString(query);
-//            return ResponseEntity.ok(gson.toJson(premiumDtoArrayList));
-//        } catch (Exception exception) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
-//        }
-//
-//    }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPremiums(@RequestParam(required = false) String membershipId) {

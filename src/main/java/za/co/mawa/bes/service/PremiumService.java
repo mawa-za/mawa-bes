@@ -28,6 +28,7 @@ import za.co.mawa.bes.entity.ReceiptEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
 import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
+import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.ReceiptNumberExist;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
@@ -38,6 +39,8 @@ import java.math.BigDecimal;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import za.co.mawa.bes.repository.v2.MembershipRepository;
 
 @Service
 public class PremiumService {
@@ -64,6 +67,8 @@ public class PremiumService {
     PartnerService partnerService;
     @Autowired
     CompanyInfoService companyInfoService;
+    @Autowired
+    MembershipRepository membershipRepository;
 
     public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
         try {
@@ -219,8 +224,6 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> findByMembership(String id) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        //Sort sort = Sort.by("number").descending();
-        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
         List<PremiumEntity> premiumEntities = premiumRepository.findByMembership(id);
         for (PremiumEntity premiumEntity : premiumEntities) {
             try {
