@@ -224,15 +224,6 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> findByMembership(String id) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        List<PremiumEntity> oldPremiumEntities;
-        //Sort sort = Sort.by("number").descending();
-        //List<PremiumEntity> premiumEntities = premiumRepository.findAll(findByCriteria(premiumSearchDto), sort);
-        MembershipEntity membershipEntity = membershipRepository.findById(id).orElse(null);
-        if (membershipEntity != null) {
-            if(membershipEntity.getOldId() != null) {
-                oldPremiumEntities = premiumRepository.findByMembership(membershipEntity.getOldId());
-            }
-        }
         List<PremiumEntity> premiumEntities = premiumRepository.findByMembership(id);
         for (PremiumEntity premiumEntity : premiumEntities) {
             try {
