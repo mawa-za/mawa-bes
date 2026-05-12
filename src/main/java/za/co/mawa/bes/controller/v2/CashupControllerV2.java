@@ -1,6 +1,8 @@
 package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,8 +19,9 @@ import java.util.Map;
 @RequestMapping("/v2/cashup")
 @RequiredArgsConstructor
 public class CashupControllerV2 {
-
-    private final CashupService cashupService;
+@Autowired
+@Qualifier("CashupServiceV2")
+CashupService cashupService;
 
     /**
      * Offline app submits cashup to backend.
