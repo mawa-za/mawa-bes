@@ -1,5 +1,6 @@
 package za.co.mawa.bes.controller.v2;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
         import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
@@ -23,7 +24,8 @@ public class GroupSocietyControllerV2 {
 
     private final GroupSocietyService groupSocietyService;
 
-    public GroupSocietyControllerV2(GroupSocietyService groupSocietyService) {
+    public GroupSocietyControllerV2(@Qualifier("MembershipServiceV2")
+                                    GroupSocietyService groupSocietyService) {
         this.groupSocietyService = groupSocietyService;
     }
 

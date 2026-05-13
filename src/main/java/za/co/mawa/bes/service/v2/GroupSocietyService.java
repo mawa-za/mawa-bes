@@ -20,7 +20,7 @@ import za.co.mawa.bes.repository.v2.GroupSocietyRepository;
 import java.time.LocalDate;
 import java.util.List;
 
-@Service
+@Service(value = "GroupSocietyServiceV2")
 public class GroupSocietyService {
 
     private final GroupSocietyRepository groupSocietyRepository;
