@@ -24,7 +24,7 @@ public class GroupSocietyControllerV2 {
 
     private final GroupSocietyService groupSocietyService;
 
-    public GroupSocietyControllerV2(@Qualifier("MembershipServiceV2")
+    public GroupSocietyControllerV2(@Qualifier("GroupSocietyServiceV2")
                                     GroupSocietyService groupSocietyService) {
         this.groupSocietyService = groupSocietyService;
     }
