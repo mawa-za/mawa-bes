@@ -15,10 +15,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+@CrossOrigin
 @RestController
 @RequestMapping("/v2/cashup")
 @RequiredArgsConstructor
 public class CashupControllerV2 {
+
 @Autowired
 @Qualifier("CashupServiceV2")
 CashupService cashupService;
