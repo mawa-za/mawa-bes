@@ -12,6 +12,7 @@ import za.co.mawa.bes.service.v2.MembershipClaimService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("/v2/membership-claim")
 public class MembershipClaimControllerV2 {
