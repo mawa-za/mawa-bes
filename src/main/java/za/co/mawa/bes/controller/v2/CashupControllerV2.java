@@ -52,7 +52,7 @@ CashupService cashupService;
         return ResponseEntity.ok(cashupService.getCashupsByDevice(deviceId));
     }
 
-    @GetMapping("/{all}")
+    @GetMapping("/all")
     public ResponseEntity<List<CashupSummaryResponse>> getAll() {
         return ResponseEntity.ok(
                 cashupService.getAll()
