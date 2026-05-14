@@ -116,6 +116,15 @@ public class CashupService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CashupSummaryResponse> getAll() {
+        return cashupRepository
+                .findAll()
+                .stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
     @Transactional
     public CashupResponse approveCashup(String id, String approvedBy) {
         CashupEntity cashup = cashupRepository.findById(id)
