@@ -156,29 +156,6 @@ public class PayAppController {
             ));
 
         }
-//        catch (DuplicateReceiptException e) {
-//
-//            return ResponseEntity.ok(new ReceiptSyncResponse(
-//                    "DUPLICATE",
-//                    e.getExistingId(),
-//                    e.getReceiptNumber(),
-//                    null,
-//                    "Receipt already processed"
-//            ));
-//
-//        } catch (InvalidMemberException e) {
-//
-//            return ResponseEntity.badRequest().body(
-//                    new ReceiptSyncResponse(
-//                            "FAILED",
-//                            null,
-//                            null,
-//                            "INVALID_MEMBER",
-//                            e.getMessage()
-//                    )
-//            );
-//
-//        }
         catch (Exception e) {
 
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
