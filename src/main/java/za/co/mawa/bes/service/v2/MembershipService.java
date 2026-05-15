@@ -6,13 +6,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -26,6 +30,9 @@ public class MembershipService {
     private final MembershipRepository membershipRepository;
     @Autowired
     NumberRangeService numberRangeService;
+
+    @Autowired
+    PremiumRepository premiumRepository;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -97,4 +104,5 @@ public class MembershipService {
         }
         return false;
     }
+
 }
