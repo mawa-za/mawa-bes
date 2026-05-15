@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface MembershipDependentRepository extends JpaRepository<MembershipDependentEntity, String> {
     List<MembershipDependentEntity> findByMembershipId(String membershipId);
+    boolean existsByMembershipIdAndDependentPartnerId(String membershipId, String dependentPartnerId);
 }

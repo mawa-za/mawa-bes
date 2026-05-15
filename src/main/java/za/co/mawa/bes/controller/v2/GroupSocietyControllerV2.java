@@ -19,7 +19,7 @@ import java.util.List;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/v2/group-societY")
+@RequestMapping("/v2/group-society")
 public class GroupSocietyControllerV2 {
 
     private final GroupSocietyService groupSocietyService;
