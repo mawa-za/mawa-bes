@@ -16,10 +16,7 @@ import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
-import za.co.mawa.bes.service.DependentService;
-import za.co.mawa.bes.service.ProductService;
-import za.co.mawa.bes.service.TenantAdminService;
-import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.ZoneId;
@@ -47,6 +44,8 @@ public class MigrateService {
     MembershipPlanRepository membershipPlanRepository;
     @Autowired
     MembershipPlanService membershipPlanService;
+    @Autowired
+    PremiumService premiumService;
 
 //    @Scheduled(cron = "0 */10 * * * *")
     public void migrateMembershipPlans() {
@@ -100,6 +99,7 @@ public class MigrateService {
                         membership.setCreatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                         membership.setCreatedBy(transactionViewEntity.getCreatedById());
                         membership.setUpdatedBy(transactionViewEntity.getChangedById());
+                        membership.setPaidUpToPeriod(premiumService.getPaidUpToPeriod(transactionViewEntity.getTransactionId()));
                         MembershipEntity createdMembership = membershipService.createMembership(membership);
                         for (PartnerDto dependent : dependentList) {
                             MembershipDependentEntity membershipDependentEntity = new MembershipDependentEntity();

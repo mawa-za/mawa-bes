@@ -99,6 +99,7 @@ public class PremiumService {
             entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
             PremiumEntity premiumEntity = premiumRepository.save(entity);
 //            updatePeriod(transactionAttributeDto);
+            updatePaidUpToPeriod(premiumCreateDto.getMembershipId());
             PremiumDto premiumDto = new PremiumDto();
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
@@ -320,6 +321,32 @@ public class PremiumService {
             int month = calendar.get(Calendar.MONTH) + 1;
             String monthString = String.format("%02d", month);
             return Integer.toString(year) + monthString;
+        }
+    }
+
+    public void updatePaidUpToPeriod(String membershipId) {
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        membership.setPaidUpToPeriod(getPaidUpToPeriod(membershipId));
+        membershipRepository.save(membership);
+    }
+
+
+    public String getPaidUpToPeriod(String id) {
+        try {
+            String previousPeriod = "";
+            List<PremiumDto> premiums = findByMembership(id);
+            PremiumDto maxItem = premiums.stream()
+                    .max(Comparator.comparingInt(i -> Integer.parseInt(i.getMembershipPeriod())))
+                    .orElse(null);
+            if (maxItem != null) {
+                return maxItem.getMembershipPeriod();
+            } else {
+                throw new Exception();
+            }
+        } catch (Exception exception) {
+            return "";
         }
     }
 
