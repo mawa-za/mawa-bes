@@ -105,34 +105,4 @@ public class MembershipService {
         return false;
     }
 
-    public void updatePaidUpToPeriod(String membershipId) {
-        MembershipEntity membership = membershipRepository.findById(membershipId)
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
-
-        // Retrieve all premiums for this membership
-        List<PremiumEntity> premiums = premiumRepository.findByMembership(membershipId);
-
-        // Calculate the paid up to period
-        LocalDate paidUpToDate = calculatePaidUpDate(premiums);
-
-        // Format as required (e.g., YYYYMM format)
-        String paidUpToPeriod = paidUpToDate.format(DateTimeFormatter.ofPattern("yyyyMM"));
-
-        // Update the membership entity
-        membership.setPaidUpToPeriod(paidUpToPeriod);
-        membershipRepository.save(membership);
-    }
-
-    private LocalDate calculatePaidUpDate(List<PremiumEntity> premiums) {
-        // Assumes premiums contain payment dates and amounts
-        LocalDate maxPaidUpDate = LocalDate.now();
-
-        for (PremiumEntity premium : premiums) {
-            // Process payment logic, adding duration based on premium frequency
-            maxPaidUpDate = maxPaidUpDate.plusMonths(premium.getMonthsCovered());
-        }
-
-        return maxPaidUpDate;
-    }
-
 }
