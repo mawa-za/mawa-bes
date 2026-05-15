@@ -6,13 +6,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.utils.TransactionType;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -26,6 +30,9 @@ public class MembershipService {
     private final MembershipRepository membershipRepository;
     @Autowired
     NumberRangeService numberRangeService;
+
+    @Autowired
+    PremiumRepository premiumRepository;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -97,4 +104,35 @@ public class MembershipService {
         }
         return false;
     }
+
+    public void updatePaidUpToPeriod(String membershipId) {
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        // Retrieve all premiums for this membership
+        List<PremiumEntity> premiums = premiumRepository.findByMembership(membershipId);
+
+        // Calculate the paid up to period
+        LocalDate paidUpToDate = calculatePaidUpDate(premiums);
+
+        // Format as required (e.g., YYYYMM format)
+        String paidUpToPeriod = paidUpToDate.format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+        // Update the membership entity
+        membership.setPaidUpToPeriod(paidUpToPeriod);
+        membershipRepository.save(membership);
+    }
+
+    private LocalDate calculatePaidUpDate(List<PremiumEntity> premiums) {
+        // Assumes premiums contain payment dates and amounts
+        LocalDate maxPaidUpDate = LocalDate.now();
+
+        for (PremiumEntity premium : premiums) {
+            // Process payment logic, adding duration based on premium frequency
+            maxPaidUpDate = maxPaidUpDate.plusMonths(premium.getMonthsCovered());
+        }
+
+        return maxPaidUpDate;
+    }
+
 }
