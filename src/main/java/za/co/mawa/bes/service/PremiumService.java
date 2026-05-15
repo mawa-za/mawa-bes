@@ -99,6 +99,7 @@ public class PremiumService {
             entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
             PremiumEntity premiumEntity = premiumRepository.save(entity);
 //            updatePeriod(transactionAttributeDto);
+            updatePaidUpToPeriod(premiumCreateDto.getMembershipId());
             PremiumDto premiumDto = new PremiumDto();
             premiumDto.setId(premiumEntity.getId());
             return premiumDto;
