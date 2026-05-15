@@ -146,7 +146,7 @@ public class PayAppController {
             BigDecimal amount = new BigDecimal(premiumInboundDto.getAmountCents()).divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
             entity.setAmount(amount);
             PremiumEntity premiumEntity = premiumRepository.save(entity);
-
+            premiumService.updatePaidUpToPeriod(premiumInboundDto.getMemberId());
             return ResponseEntity.ok(new ReceiptSyncResponse(
                     "SUCCESS",
                     premiumEntity.getId(),
