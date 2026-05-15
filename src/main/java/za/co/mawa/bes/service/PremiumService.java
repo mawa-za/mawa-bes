@@ -323,6 +323,32 @@ public class PremiumService {
         }
     }
 
+    public void updatePaidUpToPeriod(String membershipId) {
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        membership.setPaidUpToPeriod(getPaidUpToPeriod(membershipId));
+        membershipRepository.save(membership);
+    }
+
+
+    public String getPaidUpToPeriod(String id) {
+        try {
+            String previousPeriod = "";
+            List<PremiumDto> premiums = findByMembership(id);
+            PremiumDto maxItem = premiums.stream()
+                    .max(Comparator.comparingInt(i -> Integer.parseInt(i.getMembershipPeriod())))
+                    .orElse(null);
+            if (maxItem != null) {
+                return maxItem.getMembershipPeriod();
+            } else {
+                throw new Exception();
+            }
+        } catch (Exception exception) {
+            return "";
+        }
+    }
+
     private void updatePeriod(TransactionAttributeDto transactionAttributeDto) {
         try {
             transactionAttributeService.edit(transactionAttributeDto);
