@@ -2,7 +2,6 @@ package za.co.mawa.bes.service.v2;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import za.co.mawa.bes.dto.payment.*;
 import za.co.mawa.bes.dto.v2.payment.*;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
