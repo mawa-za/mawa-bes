@@ -11,6 +11,7 @@ import za.co.mawa.bes.service.v2.PaymentRequestService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("/v2/payment-request")
 public class PaymentRequestControllerV2 {
