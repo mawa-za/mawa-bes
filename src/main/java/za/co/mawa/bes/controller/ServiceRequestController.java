@@ -20,9 +20,7 @@ import za.co.mawa.bes.utils.PartnerFunction;
 import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "service-request")
+
 public class ServiceRequestController {
     @Autowired
     ServiceRequestService serviceRequestService;

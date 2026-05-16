@@ -27,9 +27,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "/purchase-order")
+
 public class PurchaseOrderController {
     @Autowired
     TransactionService transactionService;

@@ -1,4 +1,4 @@
-package za.co.mawa.bes.controller;
+package za.co.mawa.bes.controller.v2;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;

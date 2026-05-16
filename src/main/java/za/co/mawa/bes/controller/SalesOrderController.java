@@ -23,8 +23,7 @@ import za.co.mawa.bes.utils.TransactionType;
 
 import java.util.Date;
 
-@RestController
-@CrossOrigin
+
 public class SalesOrderController {
     @Autowired
     TransactionService transactionService;
