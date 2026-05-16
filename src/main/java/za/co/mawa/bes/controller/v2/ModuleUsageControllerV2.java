@@ -10,6 +10,7 @@ import za.co.mawa.bes.service.v2.ModuleUsageService;
 import java.util.List;
 import java.util.Map;
 
+@CrossOrigin
 @RestController
 @RequestMapping("/v2/module-usage")
 public class ModuleUsageControllerV2 {
