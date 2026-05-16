@@ -17,8 +17,7 @@ import za.co.mawa.bes.utils.PartnerType;
 
 
 import java.util.ArrayList;
-@RestController
-@CrossOrigin
+
 public class ProspectController {
     Gson gson = new Gson();
 
