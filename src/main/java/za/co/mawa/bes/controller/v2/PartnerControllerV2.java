@@ -1,4 +1,4 @@
-package za.co.mawa.bes.controller;
+package za.co.mawa.bes.controller.v2;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-//@RestController
-//@CrossOrigin
-//@RequestMapping(value = "v2/partner")
+@RestController
+@CrossOrigin
+@RequestMapping(value = "v2/partner")
 public class PartnerControllerV2 {
     Gson gson = new Gson();
     @Autowired
@@ -39,7 +39,7 @@ public class PartnerControllerV2 {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
+    public ResponseEntity<List<PartnerViewEntity>> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
         try {
             List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
             if (!query.isEmpty()) {
@@ -58,15 +58,14 @@ public class PartnerControllerV2 {
                             ))
                             .values()
             );
-            String response = gson.toJson(uniquePartners);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(uniquePartners);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+            return ResponseEntity.badRequest().build();
         }
     }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
+    public ResponseEntity<PartnerOutboundDto> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
         try {
             PartnerViewEntity partnerViewEntity = partnerServiceV2.create(partnerInboundDto);
             PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
@@ -77,9 +76,9 @@ public class PartnerControllerV2 {
             partnerOutboundDto.setName1(partnerViewEntity.getName1());
             partnerOutboundDto.setName2(partnerViewEntity.getName2());
             partnerOutboundDto.setName3(partnerViewEntity.getName3());
-            return ResponseEntity.ok(gson.toJson(partnerOutboundDto));
+            return ResponseEntity.ok(partnerOutboundDto);
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.badRequest().build();
         }
     }
 

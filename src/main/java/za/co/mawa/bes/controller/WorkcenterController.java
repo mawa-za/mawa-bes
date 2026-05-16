@@ -23,8 +23,8 @@ public class WorkcenterController {
     WorkcenterService workcenterService;
     Gson gson = new Gson();
     @RequestMapping(value = "/workcenter", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getWorkcenters() {
-        return ResponseEntity.ok(gson.toJson(workcenterService.getAll()));
+    public ResponseEntity<List<WorkcenterDto>> getWorkcenters() {
+        return ResponseEntity.ok(workcenterService.getAll());
     }
 
     private String readFromInputStream(InputStream inputStream)
