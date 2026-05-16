@@ -1,4 +1,4 @@
-package za.co.mawa.bes.service.impl;
+package za.co.mawa.bes.service.v2.impl;
 
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.PageRequest;
@@ -7,11 +7,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.moduleusage.ModuleUsageResponse;
 import za.co.mawa.bes.dto.moduleusage.TrackModuleUsageRequest;
-import za.co.mawa.bes.entity.ModuleUsageEventEntity;
-import za.co.mawa.bes.entity.UserModuleUsageEntity;
-import za.co.mawa.bes.repository.ModuleUsageEventRepository;
-import za.co.mawa.bes.repository.UserModuleUsageRepository;
-import za.co.mawa.bes.service.ModuleUsageService;
+import za.co.mawa.bes.entity.v2.ModuleUsageEventEntity;
+import za.co.mawa.bes.entity.v2.UserModuleUsageEntity;
+import za.co.mawa.bes.repository.v2.ModuleUsageEventRepository;
+import za.co.mawa.bes.repository.v2.UserModuleUsageRepository;
+import za.co.mawa.bes.service.v2.ModuleUsageService;
 
 import java.time.LocalDateTime;
 import java.util.List;

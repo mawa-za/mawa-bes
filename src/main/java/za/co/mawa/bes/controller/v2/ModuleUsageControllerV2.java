@@ -1,22 +1,22 @@
-package za.co.mawa.bes.controller;
+package za.co.mawa.bes.controller.v2;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.moduleusage.ModuleUsageResponse;
 import za.co.mawa.bes.dto.moduleusage.TrackModuleUsageRequest;
-import za.co.mawa.bes.service.ModuleUsageService;
+import za.co.mawa.bes.service.v2.ModuleUsageService;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/module-usage")
-public class ModuleUsageController {
+@RequestMapping("/v2/module-usage")
+public class ModuleUsageControllerV2 {
 
     private final ModuleUsageService moduleUsageService;
 
-    public ModuleUsageController(ModuleUsageService moduleUsageService) {
+    public ModuleUsageControllerV2(ModuleUsageService moduleUsageService) {
         this.moduleUsageService = moduleUsageService;
     }
 

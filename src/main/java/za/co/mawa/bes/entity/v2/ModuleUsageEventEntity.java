@@ -1,4 +1,4 @@
-package za.co.mawa.bes.entity;
+package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

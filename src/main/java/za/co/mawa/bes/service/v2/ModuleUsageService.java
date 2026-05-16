@@ -1,4 +1,4 @@
-package za.co.mawa.bes.service;
+package za.co.mawa.bes.service.v2;
 
 import za.co.mawa.bes.dto.moduleusage.ModuleUsageResponse;
 import za.co.mawa.bes.dto.moduleusage.TrackModuleUsageRequest;
