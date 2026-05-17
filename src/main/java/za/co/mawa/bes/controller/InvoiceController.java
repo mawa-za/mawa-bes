@@ -28,9 +28,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "invoice")
+
 public class InvoiceController {
     @Autowired
     TransactionService transactionService;
