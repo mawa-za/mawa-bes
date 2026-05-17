@@ -208,7 +208,7 @@ public class PaymentRequestController {
             MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
             messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
             messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
-            messageProducerService.sendMessage(messageQueueInboundDto);
+//            messageProducerService.sendMessage(messageQueueInboundDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
