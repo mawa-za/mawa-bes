@@ -28,6 +28,7 @@ public class ApprovalService {
     private final ApprovalWorkflowStepRepository workflowStepRepository;
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ApprovalActionRepository approvalActionRepository;
+    private final ApprovalCompletionHandlerRegistry completionHandlerRegistry;
 
     @Transactional
     public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -258,6 +259,8 @@ public class ApprovalService {
             approvalRequest.setStatus(ApprovalStatus.APPROVED);
             approvalRequest.setFinalActionBy(actionBy);
             approvalRequest.setFinalActionAt(new Date());
+
+            completionHandlerRegistry.handleApproved(approvalRequest, actionBy);
         } else {
             approvalRequest.setCurrentStepNo(nextStep.getStepNo());
             approvalRequest.setStatus(ApprovalStatus.IN_PROGRESS);

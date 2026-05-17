@@ -6,5 +6,9 @@ public enum PaymentRequestStatus {
     APPROVED,
     REJECTED,
     CANCELLED,
-    PAID
+    PAID,
+    PROCESSED,
+    SUBMITTED,
+    QUEUED_FOR_PAYMENT,
+    FAILED
 }

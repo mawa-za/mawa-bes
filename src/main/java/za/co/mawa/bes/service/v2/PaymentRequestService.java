@@ -13,6 +13,7 @@ import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 @Service(value = "PaymentRequestServiceV2")
@@ -204,9 +205,52 @@ public class PaymentRequestService {
         return statusHistoryRepository.findByPaymentRequestIdOrderByChangedAtAsc(id);
     }
 
-    private PaymentRequestEntity findById(String id) {
+    public PaymentRequestEntity findById(String id) {
         return paymentRequestRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Payment request not found: " + id));
+    }
+
+    @Transactional
+    public void markApproved(String paymentRequestId, String approvedBy) {
+        PaymentRequestEntity entity = paymentRequestRepository.findById(paymentRequestId)
+                .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestId));
+
+        if (entity.getStatus() == PaymentRequestStatus.APPROVED) {
+            return;
+        }
+
+        if (entity.getStatus() == PaymentRequestStatus.REJECTED ||
+                entity.getStatus() == PaymentRequestStatus.CANCELLED ||
+                entity.getStatus() == PaymentRequestStatus.PAID ||
+                entity.getStatus() == PaymentRequestStatus.PROCESSED) {
+            throw new RuntimeException("Payment request cannot be approved from status: " + entity.getStatus());
+        }
+
+        entity.setStatus(PaymentRequestStatus.APPROVED);
+        entity.setApprovedBy(approvedBy);
+        entity.setApprovedAt(new Date());
+        entity.setUpdatedBy(approvedBy);
+
+        paymentRequestRepository.save(entity);
+    }
+
+    @Transactional
+    public void markQueuedForPayment(String paymentRequestId, String updatedBy) {
+        PaymentRequestEntity entity = paymentRequestRepository.findById(paymentRequestId)
+                .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestId));
+
+        if (entity.getStatus() == PaymentRequestStatus.QUEUED_FOR_PAYMENT) {
+            return;
+        }
+
+        if (entity.getStatus() != PaymentRequestStatus.APPROVED) {
+            throw new RuntimeException("Payment request must be APPROVED before queueing payment");
+        }
+
+        entity.setStatus(PaymentRequestStatus.QUEUED_FOR_PAYMENT);
+        entity.setUpdatedBy(updatedBy);
+
+        paymentRequestRepository.save(entity);
     }
 
     private void validateCreateRequest(PaymentRequestCreateRequest request) {
