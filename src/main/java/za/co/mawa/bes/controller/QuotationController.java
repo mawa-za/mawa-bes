@@ -27,9 +27,7 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.util.Date;
 import java.util.List;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "/quotation")
+
 public class QuotationController {
     @Autowired
     TransactionService transactionService;

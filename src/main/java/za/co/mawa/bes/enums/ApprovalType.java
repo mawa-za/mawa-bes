@@ -7,5 +7,9 @@ public enum ApprovalType {
     CASHUP,
     INVOICE,
     PURCHASE_ORDER,
-    JOURNAL
+    JOURNAL,
+    PAYMENT_REQUEST,
+    SUPPLIER_INVOICE,
+    CUSTOMER_REFUND,
 }
+

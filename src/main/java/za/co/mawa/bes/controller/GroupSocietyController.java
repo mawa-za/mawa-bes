@@ -35,9 +35,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "group-society")
+
 public class GroupSocietyController {
     @Autowired
     TransactionService transactionService;

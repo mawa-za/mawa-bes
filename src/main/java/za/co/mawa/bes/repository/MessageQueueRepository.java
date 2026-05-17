@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface MessageQueueRepository  extends JpaRepository<MessageQueueEntity, Long> {
     List<MessageQueueEntity> findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime now);
+    boolean existsByTypeAndReferenceId(String type, String referenceId);
 }

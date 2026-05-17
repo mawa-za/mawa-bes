@@ -92,6 +92,38 @@ public class MembershipClaimService {
         return getById(saved.getId());
     }
 
+    private void validateCashClaimPaymentDetails(MembershipClaimCreateRequest request) {
+        if (!"CASH".equalsIgnoreCase(String.valueOf(request.getClaimType()))) {
+            return;
+        }
+
+        if (request.getPayoutMethod() == null || request.getPayoutMethod().isBlank()) {
+            throw new RuntimeException("Payout method is required for CASH claims");
+        }
+
+        if ("EFT".equalsIgnoreCase(request.getPayoutMethod())) {
+            if (request.getBankName() == null || request.getBankName().isBlank()) {
+                throw new RuntimeException("Bank name is required for EFT payout");
+            }
+
+            if (request.getAccountHolderName() == null || request.getAccountHolderName().isBlank()) {
+                throw new RuntimeException("Account holder name is required for EFT payout");
+            }
+
+            if (request.getAccountNumber() == null || request.getAccountNumber().isBlank()) {
+                throw new RuntimeException("Account number is required for EFT payout");
+            }
+
+            if (request.getBranchCode() == null || request.getBranchCode().isBlank()) {
+                throw new RuntimeException("Branch code is required for EFT payout");
+            }
+
+            if (request.getAccountType() == null || request.getAccountType().isBlank()) {
+                throw new RuntimeException("Account type is required for EFT payout");
+            }
+        }
+    }
+
     public List<MembershipClaimResponse> getAll() {
         return claimRepository.findAll()
                 .stream()
@@ -364,6 +396,7 @@ public class MembershipClaimService {
                 && !request.getLinkedClaimIds().isEmpty()) {
             throw new IllegalArgumentException("Linked claims are only allowed for COMBINATION claims.");
         }
+        validateCashClaimPaymentDetails(request);
     }
 
     private void validateDeceasedAgainstMembership(
@@ -474,6 +507,13 @@ public class MembershipClaimService {
                 .setCreatedBy(entity.getCreatedBy())
                 .setUpdatedAt(entity.getUpdatedAt())
                 .setUpdatedBy(entity.getUpdatedBy())
-                .setLinkedClaims(linkedClaims);
+                .setLinkedClaims(linkedClaims)
+                .setPayoutMethod(entity.getPayoutMethod())
+                .setBankName(entity.getBankName())
+                .setAccountHolderName(entity.getAccountHolderName())
+                .setAccountNumber(entity.getAccountNumber())
+                .setBranchCode(entity.getBranchCode())
+                .setAccountType(entity.getAccountType());
+
     }
 }

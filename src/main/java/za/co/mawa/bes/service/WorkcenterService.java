@@ -20,7 +20,11 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("dashboard","Dashboard",""));
 //        workcenterDtoList.add(new WorkcenterDto("home","Home",""));
 //        workcenterDtoList.add(new WorkcenterDto("prospect","Prospects","search"));
-//        workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
+        workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
+        workcenterDtoList.add(new WorkcenterDto("client","Clients","search"));
+        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
+        workcenterDtoList.add(new WorkcenterDto("supplier","Suppliers","search"));
+        workcenterDtoList.add(new WorkcenterDto("member","Members","search"));
 //        workcenterDtoList.add(new WorkcenterDto("organisation","Organisations","search"));
 //        workcenterDtoList.add(new WorkcenterDto("sales-order","Sales Orders","search"));
         workcenterDtoList.add(new WorkcenterDto("invoice","Invoices","search"));
@@ -32,7 +36,7 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("leave-approval","Leave Approvals","search"));
 //        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
 //        workcenterDtoList.add(new WorkcenterDto("quotation","Quotations","search"));
-        workcenterDtoList.add(new WorkcenterDto("claim","Claims","search"));
+        workcenterDtoList.add(new WorkcenterDto("membership-claim","Membership Claims","search"));
         workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
         workcenterDtoList.add(new WorkcenterDto("product","Products","search"));
 //        workcenterDtoList.add(new WorkcenterDto("complaint","Complaints","search"));
