@@ -277,13 +277,13 @@ public class PaymentRequestService implements PaymentRequestDao {
                 MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
                 messageQueueInboundDto.setType("FNB-EFT-PAYMENT");
                 messageQueueInboundDto.setPayload(gson.toJson(bankPaymentRequest));
-                messageProducerService.sendMessage(messageQueueInboundDto);
+//                messageProducerService.sendMessage(messageQueueInboundDto);
             }
             if (settingService.getSetting("EMAIL-INVOICE", "XERO").equals("1")) {
                 MessageQueueInboundDto messageQueueInboundDto = new MessageQueueInboundDto();
                 messageQueueInboundDto.setType("INVOICE-EMAIL");
                 messageQueueInboundDto.setPayload(transactionProcessDto.getId());
-                messageProducerService.sendMessage(messageQueueInboundDto);
+//                messageProducerService.sendMessage(messageQueueInboundDto);
             }
             transactionService.edit(transactionEditDto);
         } catch (Exception exception) {
