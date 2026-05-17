@@ -8,5 +8,8 @@ public enum ApprovalType {
     INVOICE,
     PURCHASE_ORDER,
     JOURNAL,
-    PAYMENT_REQUEST
+    PAYMENT_REQUEST,
+    SUPPLIER_INVOICE,
+    CUSTOMER_REFUND,
 }
+

@@ -5,18 +5,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
-import za.co.mawa.bes.enums.ApprovalMode;
+import za.co.mawa.bes.enums.ApproverType;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @NoArgsConstructor
 @Getter
 @Setter
 @Entity
-@Table(name = "approval_workflow_step")
-public class ApprovalWorkflowStepEntity {
+@Table(name = "approval_workflow_step_approver")
+public class ApprovalWorkflowStepApproverEntity {
 
     @Id
     @GeneratedValue(generator = "system-uuid")
@@ -24,21 +22,18 @@ public class ApprovalWorkflowStepEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workflow_id", nullable = false)
-    private ApprovalWorkflowEntity workflow;
-
-    @Column(name = "step_no", nullable = false)
-    private Integer stepNo;
-
-    @Column(name = "step_name", nullable = false)
-    private String stepName;
+    @JoinColumn(name = "workflow_step_id", nullable = false)
+    private ApprovalWorkflowStepEntity workflowStep;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "approval_mode", nullable = false)
-    private ApprovalMode approvalMode = ApprovalMode.ANY_ONE;
+    @Column(name = "approver_type", nullable = false)
+    private ApproverType approverType;
 
-    @Column(name = "required_approvals", nullable = false)
-    private Integer requiredApprovals = 1;
+    @Column(name = "approver_value", nullable = false)
+    private String approverValue;
+
+    @Column(name = "approver_name")
+    private String approverName;
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
@@ -54,7 +49,4 @@ public class ApprovalWorkflowStepEntity {
 
     @Column(name = "updated_by")
     private String updatedBy;
-
-    @OneToMany(mappedBy = "workflowStep", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ApprovalWorkflowStepApproverEntity> approvers = new ArrayList<>();
 }

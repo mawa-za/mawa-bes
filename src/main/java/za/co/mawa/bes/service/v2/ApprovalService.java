@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
-import za.co.mawa.bes.entity.v2.ApprovalActionEntity;
-import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
-import za.co.mawa.bes.entity.v2.ApprovalWorkflowEntity;
-import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepEntity;
+import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.enums.ApprovalActionType;
 import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
@@ -16,7 +13,7 @@ import za.co.mawa.bes.repository.v2.ApprovalActionRepository;
 import za.co.mawa.bes.repository.v2.ApprovalRequestRepository;
 import za.co.mawa.bes.repository.v2.ApprovalWorkflowRepository;
 import za.co.mawa.bes.repository.v2.ApprovalWorkflowStepRepository;
-
+import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepApproverEntity;
 import java.util.Date;
 import java.util.List;
 
@@ -30,44 +27,44 @@ public class ApprovalService {
     private final ApprovalActionRepository approvalActionRepository;
     private final ApprovalCompletionHandlerRegistry completionHandlerRegistry;
 
-    @Transactional
-    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
-        if (request.getSteps() == null || request.getSteps().isEmpty()) {
-            throw new RuntimeException("At least one approval workflow step is required");
-        }
-
-        workflowRepository.findByApprovalTypeAndActiveTrue(request.getApprovalType())
-                .ifPresent(existing -> {
-                    throw new RuntimeException("Active workflow already exists for approval type: " + request.getApprovalType());
-                });
-
-        ApprovalWorkflowEntity workflow = new ApprovalWorkflowEntity();
-        workflow.setApprovalType(request.getApprovalType());
-        workflow.setName(request.getName());
-        workflow.setDescription(request.getDescription());
-        workflow.setActive(true);
-        workflow.setCreatedBy(createdBy);
-
-        workflow = workflowRepository.save(workflow);
-
-        for (ApprovalWorkflowStepCreateRequest stepRequest : request.getSteps()) {
-            ApprovalWorkflowStepEntity step = new ApprovalWorkflowStepEntity();
-            step.setWorkflowId(workflow.getId());
-            step.setStepNo(stepRequest.getStepNo());
-            step.setStepName(stepRequest.getStepName());
-            step.setApproverType(stepRequest.getApproverType());
-            step.setApproverValue(stepRequest.getApproverValue());
-            step.setRequiredApprovals(
-                    stepRequest.getRequiredApprovals() == null ? 1 : stepRequest.getRequiredApprovals()
-            );
-            step.setActive(true);
-            step.setCreatedBy(createdBy);
-
-            workflowStepRepository.save(step);
-        }
-
-        return workflow;
-    }
+//    @Transactional
+//    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
+//        if (request.getSteps() == null || request.getSteps().isEmpty()) {
+//            throw new RuntimeException("At least one approval workflow step is required");
+//        }
+//
+//        workflowRepository.findByApprovalTypeAndActiveTrue(request.getApprovalType())
+//                .ifPresent(existing -> {
+//                    throw new RuntimeException("Active workflow already exists for approval type: " + request.getApprovalType());
+//                });
+//
+//        ApprovalWorkflowEntity workflow = new ApprovalWorkflowEntity();
+//        workflow.setApprovalType(request.getApprovalType());
+//        workflow.setName(request.getName());
+//        workflow.setDescription(request.getDescription());
+//        workflow.setActive(true);
+//        workflow.setCreatedBy(createdBy);
+//
+//        workflow = workflowRepository.save(workflow);
+//
+//        for (ApprovalWorkflowStepCreateRequest stepRequest : request.getSteps()) {
+//            ApprovalWorkflowStepEntity step = new ApprovalWorkflowStepEntity();
+//            step.setWorkflowId(workflow.getId());
+//            step.setStepNo(stepRequest.getStepNo());
+//            step.setStepName(stepRequest.getStepName());
+//            step.setApproverType(stepRequest.getApproverType());
+//            step.setApproverValue(stepRequest.getApproverValue());
+//            step.setRequiredApprovals(
+//                    stepRequest.getRequiredApprovals() == null ? 1 : stepRequest.getRequiredApprovals()
+//            );
+//            step.setActive(true);
+//            step.setCreatedBy(createdBy);
+//
+//            workflowStepRepository.save(step);
+//        }
+//
+//        return workflow;
+//    }
 
     @Transactional
     public ApprovalRequestResponse submitForApproval(ApprovalSubmitRequest request) {
@@ -126,8 +123,7 @@ public class ApprovalService {
                 .findByWorkflowIdAndStepNoAndActiveTrue(
                         approvalRequest.getWorkflowId(),
                         approvalRequest.getCurrentStepNo()
-                )
-                .orElseThrow(() -> new RuntimeException("Current approval step not found"));
+                ).orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
         validateApprover(currentStep, request.getActionBy());
 
@@ -244,7 +240,7 @@ public class ApprovalService {
 
     private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, String actionBy) {
         List<ApprovalWorkflowStepEntity> steps =
-                workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(
+                workflowStepRepository.findByWorkflowIdOrderByStepNoAsc(
                         approvalRequest.getWorkflowId()
                 );
 
@@ -287,20 +283,80 @@ public class ApprovalService {
      * - if approverType = MANAGER, user must be manager of requester
      */
     private void validateApprover(ApprovalWorkflowStepEntity step, String actionBy) {
-        if (step.getApproverType() == ApproverType.USER) {
-            if (!step.getApproverValue().equals(actionBy)) {
-                throw new RuntimeException("User is not allowed to approve this step");
-            }
+        if (step == null) {
+            throw new RuntimeException("Approval step is required");
         }
 
-        /**
-         * ROLE, GROUP and MANAGER validation should be connected to your existing
-         * user/security structure.
-         *
-         * For now, USER validation is enforced directly.
-         */
+        if (actionBy == null || actionBy.isBlank()) {
+            throw new RuntimeException("Action user is required");
+        }
+
+        if (step.getApprovers() == null || step.getApprovers().isEmpty()) {
+            throw new RuntimeException("No approvers configured for this approval step");
+        }
+
+        boolean allowed = step.getApprovers()
+                .stream()
+                .filter(approver -> approver.getActive() == null || approver.getActive())
+                .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy));
+
+        if (!allowed) {
+            throw new RuntimeException("User is not allowed to approve this step");
+        }
     }
 
+    private boolean isUserAllowedForApproverRule(
+            ApprovalWorkflowStepApproverEntity approver,
+            String actionBy
+    ) {
+        if (approver.getApproverType() == null) {
+            return false;
+        }
+
+        if (approver.getApproverValue() == null || approver.getApproverValue().isBlank()) {
+            return false;
+        }
+
+        switch (approver.getApproverType()) {
+            case USER:
+                return approver.getApproverValue().equals(actionBy);
+
+            case ROLE:
+                return userHasRole(actionBy, approver.getApproverValue());
+
+            case GROUP:
+                return userBelongsToGroup(actionBy, approver.getApproverValue());
+
+            case MANAGER:
+                return isManager(actionBy);
+
+            default:
+                return false;
+        }
+    }
+    private boolean userHasRole(String userId, String roleCode) {
+        // TODO: Connect to your existing user/role table or security service.
+        // Example:
+        // return userRoleRepository.existsByUserIdAndRoleCode(userId, roleCode);
+
+        return false;
+    }
+
+    private boolean userBelongsToGroup(String userId, String groupCode) {
+        // TODO: Connect to your existing group/team table if you have one.
+        // Example:
+        // return userGroupRepository.existsByUserIdAndGroupCode(userId, groupCode);
+
+        return false;
+    }
+
+    private boolean isManager(String userId) {
+        // TODO: Connect to your employee/manager structure.
+        // Example:
+        // return employeeRepository.existsByUserIdAndIsManagerTrue(userId);
+
+        return false;
+    }
     private void recordAction(
             String approvalRequestId,
             Integer stepNo,
