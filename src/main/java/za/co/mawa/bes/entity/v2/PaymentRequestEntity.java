@@ -1,6 +1,9 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.PaymentMethod;
 import za.co.mawa.bes.enums.PaymentRequestSourceType;
@@ -10,7 +13,11 @@ import za.co.mawa.bes.enums.PaymentRequestType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 
+@NoArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "payment_request")
 public class PaymentRequestEntity {
@@ -108,6 +115,13 @@ public class PaymentRequestEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
+    @Column(name = "approved_by", length = 36)
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date approvedAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -126,60 +140,4 @@ public class PaymentRequestEntity {
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
-
-    public String getId() { return id; }
-    public String getRequestNo() { return requestNo; }
-    public void setRequestNo(String requestNo) { this.requestNo = requestNo; }
-    public PaymentRequestType getRequestType() { return requestType; }
-    public void setRequestType(PaymentRequestType requestType) { this.requestType = requestType; }
-    public PaymentRequestSourceType getSourceType() { return sourceType; }
-    public void setSourceType(PaymentRequestSourceType sourceType) { this.sourceType = sourceType; }
-    public String getSourceId() { return sourceId; }
-    public void setSourceId(String sourceId) { this.sourceId = sourceId; }
-    public String getPayeePartnerId() { return payeePartnerId; }
-    public void setPayeePartnerId(String payeePartnerId) { this.payeePartnerId = payeePartnerId; }
-    public String getPayeeName() { return payeeName; }
-    public void setPayeeName(String payeeName) { this.payeeName = payeeName; }
-    public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
-    public String getCurrency() { return currency; }
-    public void setCurrency(String currency) { this.currency = currency; }
-    public PaymentMethod getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
-    public String getBankName() { return bankName; }
-    public void setBankName(String bankName) { this.bankName = bankName; }
-    public String getAccountHolder() { return accountHolder; }
-    public void setAccountHolder(String accountHolder) { this.accountHolder = accountHolder; }
-    public String getAccountNumber() { return accountNumber; }
-    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
-    public String getBranchCode() { return branchCode; }
-    public void setBranchCode(String branchCode) { this.branchCode = branchCode; }
-    public String getAccountType() { return accountType; }
-    public void setAccountType(String accountType) { this.accountType = accountType; }
-    public String getInvoiceNo() { return invoiceNo; }
-    public void setInvoiceNo(String invoiceNo) { this.invoiceNo = invoiceNo; }
-    public String getExternalReference() { return externalReference; }
-    public void setExternalReference(String externalReference) { this.externalReference = externalReference; }
-    public String getPaymentReason() { return paymentReason; }
-    public void setPaymentReason(String paymentReason) { this.paymentReason = paymentReason; }
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
-    public LocalDate getRequestedPaymentDate() { return requestedPaymentDate; }
-    public void setRequestedPaymentDate(LocalDate requestedPaymentDate) { this.requestedPaymentDate = requestedPaymentDate; }
-    public PaymentRequestStatus getStatus() { return status; }
-    public void setStatus(PaymentRequestStatus status) { this.status = status; }
-    public String getApprovalRequestId() { return approvalRequestId; }
-    public void setApprovalRequestId(String approvalRequestId) { this.approvalRequestId = approvalRequestId; }
-    public LocalDate getPaidDate() { return paidDate; }
-    public void setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; }
-    public String getPaidReference() { return paidReference; }
-    public void setPaidReference(String paidReference) { this.paidReference = paidReference; }
-    public String getPaidBy() { return paidBy; }
-    public void setPaidBy(String paidBy) { this.paidBy = paidBy; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public String getUpdatedBy() { return updatedBy; }
-    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
 }
