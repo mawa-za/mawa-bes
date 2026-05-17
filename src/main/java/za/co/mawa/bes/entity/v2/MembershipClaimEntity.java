@@ -78,7 +78,7 @@ public class MembershipClaimEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payout_method", length = 20)
-    private MembershipClaimPayoutMethod payoutMethod;
+    private PaymentMethod payoutMethod;
 
     @Column(name = "bank_name", length = 100)
     private String bankName;

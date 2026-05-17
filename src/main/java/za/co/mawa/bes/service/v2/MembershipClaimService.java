@@ -507,6 +507,13 @@ public class MembershipClaimService {
                 .setCreatedBy(entity.getCreatedBy())
                 .setUpdatedAt(entity.getUpdatedAt())
                 .setUpdatedBy(entity.getUpdatedBy())
-                .setLinkedClaims(linkedClaims);
+                .setLinkedClaims(linkedClaims)
+                .setPayoutMethod(entity.getPayoutMethod())
+                .setBankName(entity.getBankName())
+                .setAccountHolderName(entity.getAccountHolderName())
+                .setAccountNumber(entity.getAccountNumber())
+                .setBranchCode(entity.getBranchCode())
+                .setAccountType(entity.getAccountType());
+
     }
 }

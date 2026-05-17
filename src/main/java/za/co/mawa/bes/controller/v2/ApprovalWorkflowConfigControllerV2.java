@@ -11,6 +11,7 @@ import za.co.mawa.bes.service.v2.ApprovalWorkflowConfigService;
 import java.math.BigDecimal;
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/approval-workflow")
