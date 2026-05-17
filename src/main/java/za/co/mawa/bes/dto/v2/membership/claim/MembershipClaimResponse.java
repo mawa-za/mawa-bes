@@ -3,6 +3,8 @@ package za.co.mawa.bes.dto.v2.membership.claim;
 import za.co.mawa.bes.enums.MembershipClaimDeceasedType;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
+import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.enums.BankAccountType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,8 +45,74 @@ public class MembershipClaimResponse {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+    private PaymentMethod payoutMethod;
 
     private List<LinkedMembershipClaimResponse> linkedClaims = new ArrayList<>();
+
+    // New fields for bank details
+    private String bankName;
+    private String accountHolderName;
+    private String accountNumber;
+    private String branchCode;
+    private BankAccountType accountType;
+
+    // Getters and setters for bank details
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public MembershipClaimResponse setBankName(String bankName) {
+        this.bankName = bankName;
+        return this;
+    }
+
+    public String getAccountHolderName() {
+        return accountHolderName;
+    }
+
+    public MembershipClaimResponse setAccountHolderName(String accountHolderName) {
+        this.accountHolderName = accountHolderName;
+        return this;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public MembershipClaimResponse setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+        return this;
+    }
+
+    public String getBranchCode() {
+        return branchCode;
+    }
+
+    public MembershipClaimResponse setBranchCode(String branchCode) {
+        this.branchCode = branchCode;
+        return this;
+    }
+
+    public BankAccountType getAccountType() {
+        return accountType;
+    }
+
+    public MembershipClaimResponse setAccountType(BankAccountType accountType) {
+        this.accountType = accountType;
+        return this;
+    }
+
+    // Existing getters and setters remain unchanged
+
+    public PaymentMethod getPayoutMethod() {
+        return payoutMethod;
+    }
+
+    public MembershipClaimResponse setPayoutMethod(PaymentMethod payoutMethod) {
+        this.payoutMethod = payoutMethod;
+        return this;
+    }
 
     public String getId() {
         return id;
