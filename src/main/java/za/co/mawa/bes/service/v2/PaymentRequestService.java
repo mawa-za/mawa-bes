@@ -1,7 +1,11 @@
 package za.co.mawa.bes.service.v2;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import za.co.mawa.bes.dto.BankAccountCreateDto;
+import za.co.mawa.bes.dto.BankAccountDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.v2.payment.*;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
@@ -10,6 +14,7 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
+import za.co.mawa.bes.service.SettingService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,6 +27,9 @@ public class PaymentRequestService {
     private final PaymentRequestRepository paymentRequestRepository;
     private final PaymentRequestStatusHistoryRepository statusHistoryRepository;
 
+    @Autowired
+    SettingService settingService;
+
     public PaymentRequestService(
             PaymentRequestRepository paymentRequestRepository,
             PaymentRequestStatusHistoryRepository statusHistoryRepository
@@ -32,6 +40,14 @@ public class PaymentRequestService {
 
     @Transactional
     public PaymentRequestResponse create(PaymentRequestCreateRequest request, String currentUser) {
+        if (request.getPaymentMethod() == PaymentMethod.CASH) {
+            BankAccountCreateDto bankAccountCreateDto = getCashBankAccount();
+            request.setBankName(bankAccountCreateDto.getBankName());
+            request.setAccountHolder(bankAccountCreateDto.getAccountHolder());
+            request.setBranchCode(bankAccountCreateDto.getBranchCode());
+            request.setAccountNumber(bankAccountCreateDto.getAccountNumber());
+            request.setAccountType(bankAccountCreateDto.getAccountType());
+        }
         validateCreateRequest(request);
 
         PaymentRequestEntity entity = new PaymentRequestEntity();
@@ -309,6 +325,16 @@ public class PaymentRequestService {
 
     private String defaultCurrency(String currency) {
         return currency == null || currency.isBlank() ? "ZAR" : currency;
+    }
+
+    private BankAccountCreateDto getCashBankAccount() {
+        BankAccountCreateDto bankAccountDto = new BankAccountCreateDto();
+        bankAccountDto.setAccountHolder(settingService.getSetting("ACCOUNT-HOLDER", "CASH-BANK-ACCOUNT"));
+        bankAccountDto.setBankName(settingService.getSetting("BANK-NAME", "CASH-BANK-ACCOUNT"));
+        bankAccountDto.setBranchCode(settingService.getSetting("BRANCH-CODE", "CASH-BANK-ACCOUNT"));
+        bankAccountDto.setAccountNumber(settingService.getSetting("ACCOUNT-NUMBER", "CASH-BANK-ACCOUNT"));
+        bankAccountDto.setAccountType(settingService.getSetting("ACCOUNT-TYPE", "CASH-BANK-ACCOUNT"));
+        return bankAccountDto;
     }
 
     private PaymentRequestResponse toResponse(PaymentRequestEntity entity) {
