@@ -251,6 +251,11 @@ public class PaymentRequestService {
     }
 
     @Transactional
+    public void linkApproval(PaymentRequestEntity entity) {
+        paymentRequestRepository.save(entity);
+    }
+
+    @Transactional
     public void markQueuedForPayment(String paymentRequestId, String updatedBy) {
         PaymentRequestEntity entity = paymentRequestRepository.findById(paymentRequestId)
                 .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestId));
