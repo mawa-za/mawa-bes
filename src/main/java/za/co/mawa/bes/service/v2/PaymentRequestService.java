@@ -21,7 +21,7 @@ import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
-@Service(value = "PaymentRequestServiceV2")
+@Service(value = "paymentRequestServiceV2")
 public class PaymentRequestService {
 
     private final PaymentRequestRepository paymentRequestRepository;
