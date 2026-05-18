@@ -36,6 +36,7 @@ public class PaymentRequestApprovalHandler implements ApprovalCompletionHandler,
 
     @Override
     public void onSubmit(ApprovalRequestEntity approvalRequest, String actionBy) {
+        paymentRequestService.submit(approvalRequest.getReferenceId(), actionBy);
         String paymentRequestId = approvalRequest.getReferenceId();
         PaymentRequestEntity paymentRequest =  paymentRequestService.findById(paymentRequestId);
         paymentRequest.setApprovalRequestId(approvalRequest.getId());
