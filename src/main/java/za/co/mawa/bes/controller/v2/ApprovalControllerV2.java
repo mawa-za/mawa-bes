@@ -17,7 +17,7 @@ import java.util.List;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/v2/approval")
+@RequestMapping("v2/approval")
 @RequiredArgsConstructor
 public class ApprovalControllerV2 {
 
