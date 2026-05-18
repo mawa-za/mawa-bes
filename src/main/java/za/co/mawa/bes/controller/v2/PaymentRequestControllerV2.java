@@ -1,12 +1,18 @@
 package za.co.mawa.bes.controller.v2;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.v2.payment.*;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
+import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
+import za.co.mawa.bes.fnb.v2.BankPaymentService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
 
 import java.util.List;
@@ -16,9 +22,13 @@ import java.util.List;
 @RequestMapping("/v2/payment-request")
 public class PaymentRequestControllerV2 {
 
+    @Autowired
+    @Qualifier("bankPaymentServiceV2")
+    BankPaymentService bankPaymentService;
+
     private final PaymentRequestService paymentRequestService;
 
-    public PaymentRequestControllerV2(@Qualifier("PaymentRequestServiceV2") PaymentRequestService paymentRequestService) {
+    public PaymentRequestControllerV2(@Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService) {
         this.paymentRequestService = paymentRequestService;
     }
 
@@ -102,5 +112,20 @@ public class PaymentRequestControllerV2 {
     @GetMapping("/{id}/history")
     public ResponseEntity<List<PaymentRequestStatusHistoryEntity>> getHistory(@PathVariable String id) {
         return ResponseEntity.ok(paymentRequestService.getHistory(id));
+    }
+
+    @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BankPaymentResponse> getBankReport(@PathVariable String id) {
+        try {
+           PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
+            if (paymentRequestResponse.getExternalReference() != null) {
+                BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paymentRequestResponse.getPaidReference());
+                return ResponseEntity.ok(bankPaymentResponse);
+            }else{
+                return ResponseEntity.ok().build();
+            }
+        } catch (Exception exception) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
