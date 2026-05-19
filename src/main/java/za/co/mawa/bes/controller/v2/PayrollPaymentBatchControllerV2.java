@@ -3,10 +3,7 @@ package za.co.mawa.bes.controller.v2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.v2.PayrollPaymentBatchCopyRequest;
-import za.co.mawa.bes.dto.v2.PayrollPaymentBatchCreateRequest;
-import za.co.mawa.bes.dto.v2.PayrollPaymentBatchResponse;
-import za.co.mawa.bes.dto.v2.PayrollPaymentItemRequest;
+import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 
 import java.util.List;
@@ -25,6 +22,16 @@ public class PayrollPaymentBatchControllerV2 {
             @RequestHeader(value = "X-User-Id", required = false) String userId
     ) {
         PayrollPaymentBatchResponse response = payrollPaymentBatchService.createBatch(request, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{batchId}")
+    public ResponseEntity<PayrollPaymentBatchResponse> editBatch(
+            @PathVariable String batchId,
+            @RequestBody PayrollPaymentBatchEditRequest request,
+            @RequestHeader("X-User-Id") String userId
+    ) {
+        PayrollPaymentBatchResponse response = payrollPaymentBatchService.editBatch(batchId, request, userId);
         return ResponseEntity.ok(response);
     }
 
