@@ -47,6 +47,11 @@ public class MembershipClaimResponse {
     private String updatedBy;
     private PaymentMethod payoutMethod;
 
+    private String approvalRequestId;
+    private String approvedBy;
+    private LocalDateTime approvedAt;
+    private String paymentRequestId;
+
     private List<LinkedMembershipClaimResponse> linkedClaims = new ArrayList<>();
 
     // New fields for bank details
@@ -56,6 +61,35 @@ public class MembershipClaimResponse {
     private String branchCode;
     private BankAccountType accountType;
 
+    public String getApprovalRequestId() {
+        return approvalRequestId;
+    }
+    public MembershipClaimResponse setApprovalRequestId(String approvalRequestId) {
+        this.approvalRequestId = approvalRequestId;
+        return this;
+    }
+    public String getApprovedBy() {
+        return approvedBy;
+    }
+    public MembershipClaimResponse setApprovedBy(String approvedBy) {
+        this.approvedBy = approvedBy;
+        return this;
+    }
+
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
+    public MembershipClaimResponse setApprovedAt(LocalDateTime approvedAt) {
+        this.approvedAt = approvedAt;
+        return this;
+    }
+    public String getPaymentRequestId() {
+        return paymentRequestId;
+    }
+    public MembershipClaimResponse setPaymentRequestId(String paymentRequestId) {
+        this.paymentRequestId = paymentRequestId;
+        return this;
+    }
     // Getters and setters for bank details
 
     public String getBankName() {

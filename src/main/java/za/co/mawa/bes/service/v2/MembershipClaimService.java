@@ -5,9 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.v2.membership.claim.*;
-import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
-import za.co.mawa.bes.entity.v2.MembershipClaimLinkEntity;
-import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.dto.v2.payment.PaymentRequestResponse;
+import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.enums.MembershipClaimDeceasedType;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
@@ -220,6 +219,22 @@ public class MembershipClaimService {
         entity.setStatus(MembershipClaimStatus.SUBMITTED);
         entity.setUpdatedBy(userId);
 
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
+    public MembershipClaimResponse linkApproval(ApprovalRequestEntity approvalRequest, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(approvalRequest.getReferenceId());
+        entity.setApprovalRequestId(approvalRequest.getId());
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
+    public MembershipClaimResponse linkPaymentRequest(PaymentRequestResponse paymentRequestResponse, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(paymentRequestResponse.getSourceId());
+        entity.setPaymentRequestId(paymentRequestResponse.getId());
+        entity.setUpdatedBy(userId);
         return toResponse(claimRepository.save(entity));
     }
 
