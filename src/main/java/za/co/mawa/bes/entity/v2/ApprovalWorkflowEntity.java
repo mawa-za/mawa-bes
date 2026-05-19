@@ -2,12 +2,17 @@ package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ApprovalType;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -23,24 +28,34 @@ public class ApprovalWorkflowEntity {
     @Column(name = "approval_type", nullable = false, unique = true)
     private ApprovalType approvalType;
 
-    @Column(nullable = false)
+    @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false)
+    @Column(name = "min_amount")
+    private BigDecimal minAmount;
+
+    @Column(name = "max_amount")
+    private BigDecimal maxAmount;
+
+    @Column(name = "active", nullable = false)
     private Boolean active = true;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private Date createdAt;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "created_by")
     private String createdBy;
 
-    @Column(name = "updated_at", insertable = false)
-    private Date updatedAt;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @Column(name = "updated_by")
     private String updatedBy;
+
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("stepNo ASC")
+    private List<ApprovalWorkflowStepEntity> steps = new ArrayList<>();
 }

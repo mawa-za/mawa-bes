@@ -17,19 +17,19 @@ import java.util.List;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/v2/approvals")
+@RequestMapping("v2/approval")
 @RequiredArgsConstructor
 public class ApprovalControllerV2 {
 
     private final ApprovalService approvalService;
 
-    @PostMapping("/workflows")
-    public ApprovalWorkflowEntity createWorkflow(
-            @RequestBody ApprovalWorkflowCreateRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) String userId
-    ) {
-        return approvalService.createWorkflow(request, userId);
-    }
+//    @PostMapping("/workflows")
+//    public ApprovalWorkflowEntity createWorkflow(
+//            @RequestBody ApprovalWorkflowCreateRequest request,
+//            @RequestHeader(value = "X-User-Id", required = false) String userId
+//    ) {
+//        return approvalService.createWorkflow(request, userId);
+//    }
 
     @PostMapping("/submit")
     public ApprovalRequestResponse submitForApproval(

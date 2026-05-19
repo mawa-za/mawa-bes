@@ -9,8 +9,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import za.co.mawa.bes.service.ServiceRequestService;
 
-@RestController
-@CrossOrigin
+
 public class InquiryController {
     Gson gson = new Gson();
     @Autowired

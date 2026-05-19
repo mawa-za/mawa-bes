@@ -18,9 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "v2/partner")
+//@RestController
+//@CrossOrigin
+//@RequestMapping(value = "v2/partner")
 public class PartnerControllerV2 {
     Gson gson = new Gson();
     @Autowired

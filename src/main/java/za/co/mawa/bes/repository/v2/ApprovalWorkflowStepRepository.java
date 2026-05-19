@@ -8,7 +8,11 @@ import java.util.Optional;
 
 public interface ApprovalWorkflowStepRepository extends JpaRepository<ApprovalWorkflowStepEntity, String> {
 
-    List<ApprovalWorkflowStepEntity> findByWorkflowIdAndActiveTrueOrderByStepNoAsc(String workflowId);
+    List<ApprovalWorkflowStepEntity> findByWorkflowIdOrderByStepNoAsc(String workflowId);
 
     Optional<ApprovalWorkflowStepEntity> findByWorkflowIdAndStepNoAndActiveTrue(String workflowId, Integer stepNo);
+
+    boolean existsByWorkflowIdAndStepNo(String workflowId, Integer stepNo);
+
+    List<ApprovalWorkflowStepEntity> findByWorkflowIdAndActiveTrueOrderByStepNoAsc(String workflowId);
 }

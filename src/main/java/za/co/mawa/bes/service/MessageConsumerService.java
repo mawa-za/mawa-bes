@@ -2,24 +2,18 @@ package za.co.mawa.bes.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
-import org.hibernate.loader.access.BaseNaturalIdLoadAccessImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
-import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
-import za.co.mawa.bes.dto.transaction.link.TransactionLinkInboundDto;
+import za.co.mawa.bes.dto.v2.payment.PaymentRequestUpdateRequest;
 import za.co.mawa.bes.entity.MessageQueueEntity;
-import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
-import za.co.mawa.bes.repository.TransactionRepository;
-import za.co.mawa.bes.utils.TransactionAttribute;
-import za.co.mawa.bes.utils.TransactionLinkType;
-import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,19 +22,16 @@ import java.util.List;
 public class MessageConsumerService {
 
     @Autowired
+    UserService userService;
+    @Autowired
     MessageQueueRepository messageQueueRepository;
     @Autowired
     TenantAdminService tenantAdminService;
     @Autowired
     BankPaymentService bankPaymentService;
     @Autowired
-    PaymentRequestService paymentRequestService;
-    @Autowired
-    TransactionLinkService transactionLinkService;
-    @Autowired
-    TransactionRepository transactionRepository;
-    @Autowired
-    TransactionAttributeService transactionAttributeService;
+    @Qualifier("paymentRequestServiceV2")
+    za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
     Gson gson = new Gson();
 
     @Scheduled(fixedDelay = 60000)
@@ -61,18 +52,14 @@ public class MessageConsumerService {
                                 String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
                                 BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
                                 for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                    TransactionEntity transactionEntity = transactionRepository.findTransactionByTypeNumber(TransactionType.PAYMENT_REQUEST,paymentInformation.getPaymentInformationId());
-                                    paymentRequestService.sendToBank(transactionEntity.getId());
-                                    TransactionAttributeDto attribute = new TransactionAttributeDto();
-                                    attribute.setTransaction(transactionEntity.getId());
-                                    attribute.setAttribute(TransactionAttribute.BANK_INSTRUCTION_ID);
-                                    attribute.setValue(instructionId);
-                                    transactionAttributeService.add(attribute);
+                                    PaymentRequestUpdateRequest request = new PaymentRequestUpdateRequest();
+                                    request.setPaidReference(instructionId);
+                                    paymentRequestService.update(msg.getReferenceId(), request, userService.getUserByName("BGUSER").getId());
                                 }
                                 msg.setProcessed(true);
                                 break;
                             case "INVOICE-EMAIL":
-                                paymentRequestService.sendInvoiceFile(msg.getPayload());
+//                                paymentRequestService.sendInvoiceFile(msg.getPayload());
                                 msg.setProcessed(true);
                                 break;
                             default:
@@ -100,7 +87,7 @@ public class MessageConsumerService {
 
     private void sendInvoice(MessageQueueEntity msg) {
         try {
-            paymentRequestService.sendInvoiceFile(msg.getPayload());
+//            paymentRequestService.sendInvoiceFile(msg.getPayload());
             msg.setProcessed(true);
         } catch (Exception e) {
             msg.setRetryCount(msg.getRetryCount() + 1);
