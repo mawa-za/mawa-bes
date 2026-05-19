@@ -18,11 +18,11 @@ import java.math.BigDecimal;
 
 @Component
 @RequiredArgsConstructor
-public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler, ApprovalSubmissionHandler  {
+public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler, ApprovalSubmissionHandler {
     @Autowired
     PaymentRequestService paymentRequestService;
-
-     MembershipClaimService membershipClaimService;
+    @Autowired
+    MembershipClaimService membershipClaimService;
 
     @Override
     public ApprovalType supports() {
@@ -56,7 +56,7 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
                 paymentRequestCreateRequest.setBankName(membershipClaimResponse.getBankName());
                 paymentRequestCreateRequest.setBranchCode(membershipClaimResponse.getBranchCode());
                 PaymentRequestResponse paymentRequestResponse = paymentRequestService.create(paymentRequestCreateRequest, actionBy);
-                membershipClaimService.linkPaymentRequest(paymentRequestResponse,actionBy);
+                membershipClaimService.linkPaymentRequest(paymentRequestResponse, actionBy);
             }
         }
     }
