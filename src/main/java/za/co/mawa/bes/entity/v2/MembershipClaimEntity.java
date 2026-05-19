@@ -76,6 +76,18 @@ public class MembershipClaimEntity {
     @Column(name = "updated_by", length = 36)
     private String updatedBy;
 
+    @Column(name = "approval_request_id")
+    private String approvalRequestId;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    @Column(name = "approved_by", length = 36)
+    private String approvedBy;
+
+    @Column(name = "payment_request_id", length = 255)
+    private String paymentRequestId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "payout_method", length = 20)
     private PaymentMethod payoutMethod;

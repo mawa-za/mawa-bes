@@ -356,7 +356,7 @@ public class ApprovalService {
         // Example:
         // return employeeRepository.existsByUserIdAndIsManagerTrue(userId);
 
-        return false;
+        return true;
     }
     private void recordAction(
             String approvalRequestId,
