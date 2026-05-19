@@ -26,6 +26,7 @@ public class ApprovalService {
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ApprovalActionRepository approvalActionRepository;
     private final ApprovalCompletionHandlerRegistry completionHandlerRegistry;
+    private final ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -109,7 +110,7 @@ public class ApprovalService {
                 request.getRequesterId(),
                 "Submitted for approval"
         );
-
+        submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
         return toResponse(entity);
     }
 

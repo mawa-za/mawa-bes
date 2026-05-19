@@ -67,6 +67,23 @@ public class NumberAllocationService {
         );
     }
 
+    @Transactional
+    public String allocateNumber(String seqType) {
+        normalizeSeqType(seqType);
+
+        NumberSequenceEntity sequence = numberSequenceRepository
+                .findBySeqTypeForUpdate(seqType)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Number sequence not configured for type: " + seqType
+                ));
+
+        Long fromNo = sequence.getNextNo();
+        Long nextNo = fromNo + 1;
+        sequence.setNextNo(nextNo);
+        numberSequenceRepository.save(sequence);
+        return fromNo.toString();
+    }
+
     public NumberAllocationResponse getLatestActiveRange(String deviceId, String seqType) {
         if (deviceId == null || deviceId.trim().isEmpty()) {
             throw new IllegalArgumentException("deviceId is required");

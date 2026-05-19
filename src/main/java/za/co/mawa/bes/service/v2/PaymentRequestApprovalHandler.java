@@ -18,7 +18,7 @@ import za.co.mawa.bes.service.SettingService;
 
 @Component
 @RequiredArgsConstructor
-public class PaymentRequestApprovalHandler implements ApprovalCompletionHandler {
+public class PaymentRequestApprovalHandler implements ApprovalCompletionHandler, ApprovalSubmissionHandler {
 
     private final PaymentRequestService paymentRequestService;
     private final MessageProducerService messageProducerService;
@@ -32,6 +32,16 @@ public class PaymentRequestApprovalHandler implements ApprovalCompletionHandler 
     @Override
     public ApprovalType supports() {
         return ApprovalType.PAYMENT_REQUEST;
+    }
+
+    @Override
+    public void onSubmit(ApprovalRequestEntity approvalRequest, String actionBy) {
+        paymentRequestService.submit(approvalRequest.getReferenceId(), actionBy);
+        String paymentRequestId = approvalRequest.getReferenceId();
+        PaymentRequestEntity paymentRequest =  paymentRequestService.findById(paymentRequestId);
+        paymentRequest.setApprovalRequestId(approvalRequest.getId());
+        paymentRequest.setUpdatedBy(actionBy);
+        paymentRequestService.linkApproval(paymentRequest);
     }
 
     @Override

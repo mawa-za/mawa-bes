@@ -68,6 +68,96 @@ public class PayrollPaymentBatchService {
     }
 
     @Transactional
+    public PayrollPaymentBatchResponse editBatch(String batchId, PayrollPaymentBatchEditRequest request, String userId) {
+        PayrollPaymentBatchEntity batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Payroll payment batch not found: " + batchId));
+
+        if (batch.getStatus() != PayrollPaymentBatchStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT payroll payment batches can be edited");
+        }
+
+        // Update batch details
+        if (request.getBatchNo() != null && !request.getBatchNo().isBlank()) {
+            batchRepository.findByBatchNo(request.getBatchNo()).ifPresent(existing -> {
+                if (!existing.getId().equals(batchId)) {
+                    throw new RuntimeException("Payroll payment batch number already exists: " + request.getBatchNo());
+                }
+            });
+            batch.setBatchNo(request.getBatchNo());
+        }
+
+        if (request.getDescription() != null) {
+            batch.setDescription(request.getDescription());
+        }
+
+        if (request.getPayPeriod() != null && !request.getPayPeriod().isBlank()) {
+            if (!request.getPayPeriod().matches("\\d{6}")) {
+                throw new RuntimeException("Pay period must be in YYYYMM format");
+            }
+            batch.setPayPeriod(request.getPayPeriod());
+        }
+
+        if (request.getPaymentDate() != null) {
+            batch.setPaymentDate(request.getPaymentDate());
+        }
+
+        if (request.getNotes() != null) {
+            batch.setNotes(request.getNotes());
+        }
+
+        batch.setUpdatedBy(userId);
+        batchRepository.save(batch);
+
+        // Edit items in the batch, if provided
+        if (request.getItems() != null) {
+            for (PayrollPaymentItemEditRequest itemRequest : request.getItems()) {
+                PayrollPaymentItemEntity item = itemRepository.findById(itemRequest.getId())
+                        .orElseThrow(() -> new RuntimeException("Payroll payment item not found: " + itemRequest.getId()));
+
+                if (!item.getBatchId().equals(batchId)) {
+                    throw new RuntimeException("Item does not belong to this payroll payment batch");
+                }
+
+                // Update item fields if present
+                if (itemRequest.getEmployeeName() != null) {
+                    item.setEmployeeName(itemRequest.getEmployeeName());
+                }
+                if (itemRequest.getBankName() != null) {
+                    item.setBankName(itemRequest.getBankName());
+                }
+                if (itemRequest.getBranchCode() != null) {
+                    item.setBranchCode(itemRequest.getBranchCode());
+                }
+                if (itemRequest.getAccountNo() != null) {
+                    item.setAccountNo(itemRequest.getAccountNo());
+                }
+                if (itemRequest.getAmountCents() != null) {
+                    if (itemRequest.getAmountCents() <= 0) {
+                        throw new RuntimeException("Item amount must be greater than zero");
+                    }
+                    item.setAmountCents(itemRequest.getAmountCents());
+                }
+
+                item.setUpdatedBy(userId);
+                itemRepository.save(item);
+            }
+        }
+
+        recalculateBatchTotals(batch.getId());
+
+        createAudit(
+                batchId,
+                "EDITED",
+                null,
+                batch.getStatus().name(),
+                "Payroll payment batch and items edited",
+                userId
+        );
+
+        return getBatch(batchId);
+    }
+
+    @Transactional
     public PayrollPaymentBatchResponse copyPreviousBatch(
             String sourceBatchId,
             PayrollPaymentBatchCopyRequest request,
