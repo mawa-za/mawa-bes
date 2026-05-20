@@ -13,6 +13,7 @@ import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
+import za.co.mawa.bes.enums.DependentType;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
@@ -105,7 +106,7 @@ public class MigrateService {
                             MembershipDependentEntity membershipDependentEntity = new MembershipDependentEntity();
                             membershipDependentEntity.setMembershipId(createdMembership.getId());
                             membershipDependentEntity.setDependentPartnerId(dependent.getId());
-                            membershipDependentEntity.setRelationship("DEPENDENT");
+                            membershipDependentEntity.setDependentType(DependentType.ANY);
                             membershipDependentEntity.setUpdatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                             membershipDependentEntity.setCreatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                             membershipDependentEntity.setCreatedBy(transactionViewEntity.getCreatedById());
@@ -121,7 +122,7 @@ public class MigrateService {
                                 MembershipDependentEntity membershipDependentEntity = new MembershipDependentEntity();
                                 membershipDependentEntity.setMembershipId(membership.getId());
                                 membershipDependentEntity.setDependentPartnerId(dependent.getId());
-                                membershipDependentEntity.setRelationship("DEPENDENT");
+                                membershipDependentEntity.setDependentType(DependentType.ANY);
                                 membershipDependentEntity.setUpdatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                                 membershipDependentEntity.setCreatedAt(transactionViewEntity.getCreationDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                                 membershipDependentEntity.setCreatedBy(transactionViewEntity.getCreatedById());
