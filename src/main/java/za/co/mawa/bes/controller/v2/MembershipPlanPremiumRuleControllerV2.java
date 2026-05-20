@@ -9,6 +9,7 @@ import za.co.mawa.bes.service.v2.MembershipPlanPremiumRuleService;
 import java.security.Principal;
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("v2/membership/plans/{planId}/premium-rule")
 @RequiredArgsConstructor
