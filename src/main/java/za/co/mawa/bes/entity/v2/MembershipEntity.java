@@ -8,6 +8,8 @@ import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @NoArgsConstructor
@@ -35,6 +37,10 @@ public class MembershipEntity {
     @NotBlank
     @Column(name = "plan_id", nullable = false, length = 36)
     private String planId;
+
+    @NotNull
+    @Column(name = "premium_cents", nullable = false)
+    private Long premiumCents;
 
     @NotNull
     @Column(name = "start_date", nullable = false)
@@ -67,6 +73,8 @@ public class MembershipEntity {
 
     @Column(name = "old_id")
     private String oldId;
-
-    // Getters and Setters
+//
+//    @ToString.Exclude
+//    @OneToMany(mappedBy = "membershipId", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private List<MembershipDependentEntity> dependents = new ArrayList<>();
 }

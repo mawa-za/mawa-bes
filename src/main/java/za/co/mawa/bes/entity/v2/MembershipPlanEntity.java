@@ -68,5 +68,8 @@ public class MembershipPlanEntity {
     @ToString.Exclude
     @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MembershipPlanClaimPayoutEntity> claimPayouts = new ArrayList<>();
-    // Getters and Setters
+
+    @ToString.Exclude
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MembershipPlanPremiumRuleEntity> premiumRules = new ArrayList<>();
 }
