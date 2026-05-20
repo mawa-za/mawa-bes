@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.PremiumRepository;
@@ -33,6 +34,17 @@ public class MembershipService {
 
     @Autowired
     PremiumRepository premiumRepository;
+
+    @Autowired
+    MembershipDependentService membershipDependentService;
+    @Autowired
+    MembershipPlanPremiumRuleService membershipPlanPremiumRuleService;
+    @Autowired
+    NumberAllocationService numberAllocationService;
+    @Autowired
+    MembershipPlanService membershipPlanService;
+    @Autowired
+    MembershipUpdateHandlerRegistry membershipHandlerRegistry;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -71,19 +83,20 @@ public class MembershipService {
 
     public MembershipEntity createMembership(MembershipEntity membership) {
         try {
-            String id = numberRangeService.generateNumber(TransactionType.MEMBERSHIP);
+            String id = numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP);
             membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
             membership.setMembershipNo(id);
+            membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId()).get().getPremiumCents());
             return membershipRepository.save(membership);
-        } catch (NumberRangeObjectNotFound e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
     }
 
     public Optional<MembershipEntity> updateMembership(String id, MembershipEntity membership) {
-        return membershipRepository.findById(id)
+        membershipRepository.findById(id)
                 .map(existingMembership -> {
                     existingMembership.setMemberId(membership.getMemberId());
                     existingMembership.setMembershipNo(membership.getMembershipNo());
@@ -95,6 +108,8 @@ public class MembershipService {
                     existingMembership.setJoinDate(membership.getJoinDate());
                     return membershipRepository.save(existingMembership);
                 });
+        membershipHandlerRegistry.handleUpdate(membership.getId());
+        return membershipRepository.findById(id);
     }
 
     public boolean deleteMembership(String id) {

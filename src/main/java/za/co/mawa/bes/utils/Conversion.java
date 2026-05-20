@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.logging.Level;
@@ -140,5 +142,13 @@ public class Conversion {
         }
 
         return value.intValue();
+    }
+
+    private static Integer calculateAge(LocalDate dateOfBirth) {
+        if (dateOfBirth == null) {
+            throw new RuntimeException("Date of birth is required to calculate premium");
+        }
+
+        return Period.between(dateOfBirth, LocalDate.now()).getYears();
     }
 }
