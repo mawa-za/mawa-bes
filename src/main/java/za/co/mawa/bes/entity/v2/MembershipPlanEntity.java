@@ -7,6 +7,8 @@ import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @NoArgsConstructor
@@ -62,5 +64,12 @@ public class MembershipPlanEntity {
 
     @Column(name = "old_id")
     private String oldId;
-    // Getters and Setters
+
+    @ToString.Exclude
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MembershipPlanClaimPayoutEntity> claimPayouts = new ArrayList<>();
+
+    @ToString.Exclude
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MembershipPlanPremiumRuleEntity> premiumRules = new ArrayList<>();
 }
