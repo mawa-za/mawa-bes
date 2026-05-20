@@ -11,7 +11,7 @@ import java.security.Principal;
 import java.util.List;
 
 @RestController
-@RequestMapping("v2/membership/plan/{planId}/claim-payout")
+@RequestMapping("v2/membership/plans/{planId}/claim-payout")
 @RequiredArgsConstructor
 public class MembershipPlanClaimPayoutControllerV2 {
 

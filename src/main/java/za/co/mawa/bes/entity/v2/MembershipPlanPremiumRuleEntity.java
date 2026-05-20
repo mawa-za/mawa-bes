@@ -1,15 +1,12 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.DependentType;
-import za.co.mawa.bes.enums.MembershipClaimType;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,27 +14,44 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "membership_dependent", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"membership_id", "dependent_partner_id"})
-})
-public class MembershipDependentEntity {
+@Table(
+        name = "membership_plan_premium_rule",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_plan_dependent_age_range",
+                        columnNames = {"plan_id", "dependent_type", "min_age", "max_age"}
+                )
+        }
+)
+public class MembershipPlanPremiumRuleEntity {
 
     @Id
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
-    @NotBlank
-    @Column(name = "membership_id", nullable = false, length = 36)
-    private String membershipId;
+    @NotNull
+    @ToString.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    private MembershipPlanEntity plan;
 
-    @NotBlank
-    @Column(name = "dependent_partner_id", nullable = false, length = 36)
-    private String dependentPartnerId;
-
+    @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "relationship", nullable = false, length = 50)
+    @Column(name = "dependent_type", nullable = false, length = 50)
     private DependentType dependentType;
+
+    @NotNull
+    @Column(name = "min_age", nullable = false)
+    private Integer minAge;
+
+    @NotNull
+    @Column(name = "max_age", nullable = false)
+    private Integer maxAge;
+
+    @NotNull
+    @Column(name = "additional_premium_cents", nullable = false)
+    private Long additionalPremiumCents;
 
     @NotNull
     private Boolean active = true;
@@ -53,6 +67,4 @@ public class MembershipDependentEntity {
 
     @Column(name = "updated_by")
     private String updatedBy;
-
-    // Getters and Setters
 }

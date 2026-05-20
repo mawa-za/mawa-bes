@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Service
 public class MembershipDependentService {
+    @Autowired
+    MembershipUpdateHandlerRegistry membershipHandlerRegistry;
 
     private final MembershipDependentRepository membershipDependentRepository;
 
@@ -24,18 +26,23 @@ public class MembershipDependentService {
 
     public MembershipDependentEntity addDependent(String membershipId, MembershipDependentEntity dependent) {
         dependent.setMembershipId(membershipId);
-        return membershipDependentRepository.save(dependent);
+        MembershipDependentEntity newDependent = membershipDependentRepository.save(dependent);
+        membershipHandlerRegistry.handleUpdate(membershipId);
+        return membershipDependentRepository.findById(newDependent.getId()).orElseThrow();
     }
 
     public Optional<MembershipDependentEntity> updateDependent(String membershipId, String dependentId, MembershipDependentEntity dependent) {
-        return membershipDependentRepository.findById(dependentId)
+        membershipDependentRepository.findById(dependentId)
                 .filter(existingDependent -> existingDependent.getMembershipId().equals(membershipId))
                 .map(existingDependent -> {
                     existingDependent.setDependentPartnerId(dependent.getDependentPartnerId());
-                    existingDependent.setRelationship(dependent.getRelationship());
+                    existingDependent.setDependentType(dependent.getDependentType());
                     existingDependent.setActive(dependent.getActive());
                     return membershipDependentRepository.save(existingDependent);
                 });
+
+        membershipHandlerRegistry.handleUpdate(membershipId);
+        return membershipDependentRepository.findById(dependentId);
     }
 
     public boolean deleteDependent(String membershipId, String dependentId) {
@@ -44,6 +51,7 @@ public class MembershipDependentService {
 
         if (dependent.isPresent()) {
             membershipDependentRepository.deleteById(dependentId);
+            membershipHandlerRegistry.handleUpdate(membershipId);
             return true;
         }
         return false;
