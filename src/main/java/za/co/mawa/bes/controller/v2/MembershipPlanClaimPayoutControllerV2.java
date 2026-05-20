@@ -10,6 +10,7 @@ import za.co.mawa.bes.service.v2.MembershipPlanClaimPayoutService;
 import java.security.Principal;
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequestMapping("v2/membership/plans/{planId}/claim-payout")
 @RequiredArgsConstructor
