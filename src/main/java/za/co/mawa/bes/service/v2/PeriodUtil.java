@@ -31,4 +31,7 @@ public final class PeriodUtil {
             return false;
         }
     }
+    public static boolean isNextPeriod(String currentPeriodYYYYMM, String nextPeriodYYYYMM) {
+        return nextPeriod(currentPeriodYYYYMM).equals(nextPeriodYYYYMM);
+    }
 }

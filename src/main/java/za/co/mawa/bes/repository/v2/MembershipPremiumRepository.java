@@ -23,4 +23,9 @@ public interface MembershipPremiumRepository extends JpaRepository<MembershipPre
     );
 
     boolean existsByMembershipIdAndPeriodYYYYMM(String membershipId, String periodYYYYMM);
+
+    List<MembershipPremiumEntity> findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
+            String membershipId,
+            PremiumStatus status
+    );
 }
