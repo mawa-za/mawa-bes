@@ -6,9 +6,10 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.service.v2.ReceiptService;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v2/receipts")
+@RequestMapping("v2/receipts")
 public class ReceiptControllerV2 {
 
     private final ReceiptService receiptService;

@@ -6,9 +6,10 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.service.v2.MembershipPremiumPaymentService;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v2/payment-batches")
+@RequestMapping("v2/payment-batches")
 public class PaymentBatchControllerV2 {
 
     private final MembershipPremiumPaymentService membershipPremiumPaymentService;

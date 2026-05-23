@@ -6,9 +6,10 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.PaymentSyncOfflineResponseDto;
 import za.co.mawa.bes.service.v2.MembershipPremiumSyncOfflineService;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v2/sync")
+@RequestMapping("v2/sync")
 public class OfflineSyncControllerV2 {
 
     private final MembershipPremiumSyncOfflineService membershipPremiumSyncOfflineService;

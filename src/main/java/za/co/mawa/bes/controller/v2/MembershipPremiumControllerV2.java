@@ -7,9 +7,10 @@ import za.co.mawa.bes.service.v2.MembershipPremiumService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v2/memberships/{membershipId}/premiums")
+@RequestMapping("v2/memberships/{membershipId}/premiums")
 public class MembershipPremiumControllerV2 {
 
     private final MembershipPremiumService membershipPremiumService;
