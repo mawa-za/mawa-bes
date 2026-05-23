@@ -15,7 +15,7 @@ import za.co.mawa.bes.repository.v2.ReceiptRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Service
+@Service(value = "ReceiptServiceV2")
 @RequiredArgsConstructor
 public class ReceiptService {
 

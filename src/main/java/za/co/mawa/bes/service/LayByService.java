@@ -32,8 +32,8 @@ public class LayByService implements LayByDao {
     TransactionService transactionService;
     @Autowired
     TransactionAmountService transactionAmountService;
-    @Autowired
-    ReceiptService receiptService;
+//    @Autowired
+//    ReceiptService receiptService;
     @Autowired
     ProductService productService;
     @Autowired
@@ -131,7 +131,7 @@ public class LayByService implements LayByDao {
             ReceiptSearchDto receiptSearch = new ReceiptSearchDto();
             receiptSearch.setReceiptType(TransactionType.LAYBY);
             receiptSearch.setInvoiceNumber(layByDetails.getNumber());
-            layByDetails.setReceipts(receiptService.getReceipts(receiptSearch));
+//            layByDetails.setReceipts(receiptService.getReceipts(receiptSearch));
             try {
                 BigDecimal voucherAmount = transactionAmountService.getByTransaction(id).stream()
                         .filter(a -> Objects.equals(a.getType().getCode(), AmountType.TOTAL_INC_VAT))
