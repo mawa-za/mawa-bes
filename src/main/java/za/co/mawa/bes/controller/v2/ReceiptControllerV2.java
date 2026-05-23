@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
         import za.co.mawa.bes.dto.v2.ReceiptPrintDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
@@ -12,7 +13,7 @@ import za.co.mawa.bes.service.v2.ReceiptService;
 @RequestMapping("v2/receipts")
 public class ReceiptControllerV2 {
 
-    private final ReceiptService receiptService;
+    private final @Qualifier("ReceiptServiceV2")ReceiptService receiptService;
 
     @GetMapping("/{receiptId}")
     public ReceiptResponseDto getReceipt(

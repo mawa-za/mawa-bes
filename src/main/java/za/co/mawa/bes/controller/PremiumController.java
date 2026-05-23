@@ -21,7 +21,7 @@ import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
 import za.co.mawa.bes.service.CashupService;
 import za.co.mawa.bes.service.DepositService;
 import za.co.mawa.bes.service.PremiumService;
-import za.co.mawa.bes.service.ReceiptService;
+//import za.co.mawa.bes.service.ReceiptService;
 import za.co.mawa.bes.utils.TenderType;
 
 import java.math.BigDecimal;

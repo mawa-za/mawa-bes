@@ -49,8 +49,7 @@ public class GroupSocietyService {
     PartnerService partnerService;
     @Autowired
     FieldOptionService fieldOptionService;
-    @Autowired
-    ReceiptService receiptService;
+
     @Autowired
     ClaimService claimService;
     @Autowired
@@ -185,13 +184,13 @@ public class GroupSocietyService {
             BigDecimal openingBalance = new BigDecimal("0.00");
             ReceiptSearchDto receiptSearchDto = new ReceiptSearchDto();
             receiptSearchDto.setTransaction(id);
-            for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
-                try {
-                    BigDecimal amount = receiptDto.getAmount();
-                    totalDeposited = totalDeposited.add(amount);
-                } catch (Exception exception) {
-                }
-            }
+//            for (ReceiptDto receiptDto : receiptService.getReceipts(receiptSearchDto)) {
+//                try {
+//                    BigDecimal amount = receiptDto.getAmount();
+//                    totalDeposited = totalDeposited.add(amount);
+//                } catch (Exception exception) {
+//                }
+//            }
             TransactionQueryDto transactionQueryDto = new TransactionQueryDto();
             transactionQueryDto.setType(TransactionType.CLAIM);
             transactionQueryDto.setParent(id);

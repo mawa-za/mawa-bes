@@ -39,8 +39,8 @@ public class PurchaseOrderController {
     LineItemService lineItemService;
     @Autowired
     PartnerService partnerService;
-    @Autowired
-    ReceiptService receiptService;
+//    @Autowired
+//    ReceiptService receiptService;
     @Autowired
     FieldOptionService fieldOptionService;
     Gson gson = new Gson();
@@ -252,7 +252,7 @@ public class PurchaseOrderController {
                 ReceiptSearchDto receiptSearch = new ReceiptSearchDto();
                 receiptSearch.setReceiptType(TransactionType.PURCHASE_ORDER);
                 receiptSearch.setInvoiceNumber(transactionDto.getNumber());
-                PO.setReceipts(receiptService.getReceipts(receiptSearch));
+//                PO.setReceipts(receiptService.getReceipts(receiptSearch));
             }
             return PO;
         }catch (Exception exception){

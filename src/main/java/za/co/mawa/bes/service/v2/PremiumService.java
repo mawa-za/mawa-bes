@@ -36,7 +36,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
 
-@Service
+@Service(value = "PremiumServiceV2")
 public class PremiumService {
 
     @Autowired
