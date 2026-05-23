@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
@@ -12,7 +13,7 @@ import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
-        import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.service.NotificationService;
 
@@ -29,7 +30,7 @@ public class MembershipPremiumPaymentService {
     private final ReceiptMapper receiptMapper;
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
-
+    private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
     @Autowired
     NumberAllocationService numberAllocationService;
 
@@ -64,7 +65,7 @@ public class MembershipPremiumPaymentService {
                 null
         );
 
-        String paidUpTo = getLastPeriod(receipts);
+        String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
 
         return PaymentBatchResponseDto.builder()
                 .id(batch.getId())

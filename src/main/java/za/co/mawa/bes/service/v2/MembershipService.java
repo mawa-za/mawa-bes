@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,13 +10,17 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.PremiumRepository;
+import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,6 +34,8 @@ import jakarta.persistence.criteria.Predicate;
 public class MembershipService {
 
     private final MembershipRepository membershipRepository;
+    @Autowired
+    MembershipPremiumRepository membershipPremiumRepository;
     @Autowired
     NumberRangeService numberRangeService;
 
@@ -118,6 +125,55 @@ public class MembershipService {
             return true;
         }
         return false;
+    }
+    @Transactional
+    public String recalculatePaidUpToPeriod(String membershipId) {
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+
+        List<MembershipPremiumEntity> paidPremiums =
+                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
+                        membershipId,
+                        PremiumStatus.PAID
+                );
+
+        String paidUpToPeriod = calculateContinuousPaidUpToPeriod(paidPremiums);
+
+        membership.setPaidUpToPeriod(paidUpToPeriod);
+        membership.setUpdatedAt(LocalDateTime.now());
+
+        membershipRepository.save(membership);
+
+        return paidUpToPeriod;
+    }
+
+    private String calculateContinuousPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
+        if (paidPremiums == null || paidPremiums.isEmpty()) {
+            return null;
+        }
+
+        String paidUpToPeriod = null;
+
+        for (MembershipPremiumEntity premium : paidPremiums) {
+            String currentPeriod = premium.getPeriodYYYYMM();
+
+            if (!PeriodUtil.isValidPeriod(currentPeriod)) {
+                continue;
+            }
+
+            if (paidUpToPeriod == null) {
+                paidUpToPeriod = currentPeriod;
+                continue;
+            }
+
+            if (PeriodUtil.isNextPeriod(paidUpToPeriod, currentPeriod)) {
+                paidUpToPeriod = currentPeriod;
+            } else {
+                break;
+            }
+        }
+
+        return paidUpToPeriod;
     }
 
 }
