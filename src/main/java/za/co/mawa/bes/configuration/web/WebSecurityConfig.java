@@ -34,8 +34,9 @@ public class WebSecurityConfig {
             "/refresh-token"
             // other public endpoints of your API may be appended to this array
     };
-    public static final String[] TENANT_WHITELIST = {
-            "/versions"
+    public static final String[] LOG_EXCLUSION = {
+            "/print-job",
+            "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] SWAGGER_WHITELIST = {

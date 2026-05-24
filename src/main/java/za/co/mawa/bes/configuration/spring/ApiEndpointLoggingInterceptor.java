@@ -5,9 +5,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.util.ContentCachingRequestWrapper;
+import org.springframework.web.util.ContentCachingResponseWrapper;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.ApiEndpointLogEntity;
 import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,6 +23,8 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
 
     private static final String START_TIME_ATTRIBUTE = "apiLogStartTime";
     private static final String REQUEST_ID_ATTRIBUTE = "apiLogRequestId";
+
+    private static final int MAX_BODY_LENGTH = 10000;
 
     @Override
     public boolean preHandle(
@@ -59,6 +65,14 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
         log.setDurationMs(durationMs);
         log.setCreatedAt(LocalDateTime.now());
 
+        if (shouldHideBody(request.getRequestURI())) {
+            log.setRequestBody("[HIDDEN]");
+            log.setResponseBody("[HIDDEN]");
+        } else {
+            log.setRequestBody(limitBody(getRequestBody(request)));
+            log.setResponseBody(limitBody(getResponseBody(response)));
+        }
+
         boolean success = response.getStatus() < 400 && ex == null;
         log.setSuccess(success);
 
@@ -66,11 +80,60 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
             log.setErrorMessage(ex.getMessage());
         }
 
-        // Optional: populate from your UserContext
         log.setUserId(getCurrentUserIdSafe());
         log.setUsername(getCurrentUsernameSafe());
 
         logService.saveAsync(log);
+    }
+
+    private String getRequestBody(HttpServletRequest request) {
+        if (!(request instanceof ContentCachingRequestWrapper wrapper)) {
+            return null;
+        }
+
+        byte[] content = wrapper.getContentAsByteArray();
+
+        if (content.length == 0) {
+            return null;
+        }
+
+        return new String(content, StandardCharsets.UTF_8);
+    }
+
+    private String getResponseBody(HttpServletResponse response) {
+        if (!(response instanceof ContentCachingResponseWrapper wrapper)) {
+            return null;
+        }
+
+        byte[] content = wrapper.getContentAsByteArray();
+
+        if (content.length == 0) {
+            return null;
+        }
+
+        return new String(content, StandardCharsets.UTF_8);
+    }
+
+    private String limitBody(String body) {
+        if (body == null) {
+            return null;
+        }
+
+        if (body.length() <= MAX_BODY_LENGTH) {
+            return body;
+        }
+
+        return body.substring(0, MAX_BODY_LENGTH) + "... [TRUNCATED]";
+    }
+
+    private boolean shouldHideBody(String path) {
+        return path.contains("/auth")
+                || path.contains("/authenticate")
+                || path.contains("/forgot-password")
+                || path.contains("/refresh-token")
+                || path.contains("/password")
+                || path.contains("/bank")
+                || path.contains("/payment");
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -85,8 +148,7 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
 
     private String getCurrentUserIdSafe() {
         try {
-            // return UserContext.getUserId();
-            return null;
+            return UserContext.getCurrentUserId();
         } catch (Exception e) {
             return null;
         }
@@ -94,8 +156,7 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
 
     private String getCurrentUsernameSafe() {
         try {
-            // return UserContext.getUsername();
-            return null;
+            return UserContext.getCurrentUser();
         } catch (Exception e) {
             return null;
         }
