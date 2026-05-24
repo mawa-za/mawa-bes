@@ -70,8 +70,8 @@ public class PartnerServiceV2 {
             PartnerIdentityDto partnerIdentityDto = partnerIdentityServiceV2.getIdentity(partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
             if (partnerIdentityDto == null) {
                 PartnerEntity entity = new PartnerEntity();
-                if (partnerInboundDto.getPartnerNo() != null) {
-                    String partnerNo = numberAllocationService.allocateNumber(partnerInboundDto.getPartnerType());
+                if (partnerInboundDto.getPartnerNo() == null) {
+                    String partnerNo = numberAllocationService.allocateNumber("PARTNER");
                     entity.setNo(partnerNo);
                 }else{
                     entity.setNo(partnerInboundDto.getPartnerNo());
