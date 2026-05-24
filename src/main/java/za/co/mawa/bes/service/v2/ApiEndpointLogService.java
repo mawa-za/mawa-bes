@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.ApiEndpointLogEntity;
 import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 
@@ -17,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Component
+
 @RequiredArgsConstructor
 public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
 
@@ -32,7 +33,8 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
         return path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/actuator")
-                || path.startsWith("/api-endpoint-logs");
+                || path.startsWith("/print-job")
+                || path.startsWith("/v2/authenticate");
     }
 
     @Override
@@ -146,9 +148,7 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
 
     private String getCurrentUserIdSafe() {
         try {
-            // Replace with your existing UserContext if available
-            // return UserContext.getUserId();
-            return null;
+            return UserContext.getCurrentUserId();
         } catch (Exception e) {
             return null;
         }
@@ -156,9 +156,7 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
 
     private String getCurrentUsernameSafe() {
         try {
-            // Replace with your existing UserContext if available
-            // return UserContext.getUsername();
-            return null;
+            return UserContext.getCurrentUser();
         } catch (Exception e) {
             return null;
         }

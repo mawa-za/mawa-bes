@@ -15,9 +15,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import za.co.mawa.bes.configuration.ApiEndpointLoggingFilter;
 import za.co.mawa.bes.configuration.jwt.JwtAuthenticationEntryPoint;
 import za.co.mawa.bes.configuration.jwt.JwtRequestFilter;
 import za.co.mawa.bes.service.JwtUserDetailsService;
+import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 
 @Configuration
 @EnableGlobalMethodSecurity(
@@ -56,11 +58,21 @@ public class WebSecurityConfig {
     JwtUserDetailsService userDetailsService;
 
     @Autowired
+    ApiEndpointLogService apiEndpointLogService;
+
+    @Autowired
     private JwtAuthenticationEntryPoint unauthorizedHandler;
 
     @Bean
     public JwtRequestFilter authenticationJwtTokenFilter() {
         return new JwtRequestFilter();
+    }
+
+    @Bean
+    public ApiEndpointLoggingFilter apiEndpointLoggingFilter(
+            ApiEndpointLogService apiEndpointLogService
+    ) {
+        return new ApiEndpointLoggingFilter(apiEndpointLogService);
     }
 
     @Bean
@@ -94,6 +106,7 @@ public class WebSecurityConfig {
                 );
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(apiEndpointLoggingFilter(apiEndpointLogService), JwtRequestFilter.class);
         return http.build();
     }
 
