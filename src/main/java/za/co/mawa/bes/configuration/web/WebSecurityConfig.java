@@ -69,13 +69,6 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public ApiEndpointLoggingFilter apiEndpointLoggingFilter(
-            ApiEndpointLogService apiEndpointLogService
-    ) {
-        return new ApiEndpointLoggingFilter(apiEndpointLogService);
-    }
-
-    @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
@@ -106,7 +99,6 @@ public class WebSecurityConfig {
                 );
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(apiEndpointLoggingFilter(apiEndpointLogService), JwtRequestFilter.class);
         return http.build();
     }
 

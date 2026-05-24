@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.entity.v2.ApiEndpointLogEntity;
 import za.co.mawa.bes.repository.v2.ApiEndpointLogRepository;
 
@@ -13,13 +14,18 @@ public class ApiEndpointLogService {
 
     private final ApiEndpointLogRepository repository;
 
+    public void saveAsync(ApiEndpointLogEntity endpointLog) {
+        String tenant = TenantContext.getCurrentTenant();
+        asyncSave(endpointLog, tenant);
+    }
+
     @Async
-    public void save(ApiEndpointLogEntity log) {
+    public void asyncSave(ApiEndpointLogEntity endpointLog, String tenant) {
         try {
-            repository.save(log);
-        } catch (Exception e) {
-            // Do not break the actual API call if logging fails
-            System.err.println("Failed to save endpoint log: " + e.getMessage());
+            TenantContext.setCurrentTenant(tenant);
+            repository.save(endpointLog);
+        } finally {
+            TenantContext.clear();
         }
     }
 }

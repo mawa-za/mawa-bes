@@ -91,7 +91,7 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
             log.setUserId(getCurrentUserIdSafe());
             log.setUsername(getCurrentUsernameSafe());
 
-            logService.save(log);
+            logService.saveAsync(log);
 
             wrappedResponse.copyBodyToResponse();
         }
