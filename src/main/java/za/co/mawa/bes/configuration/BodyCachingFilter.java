@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -13,6 +15,7 @@ import za.co.mawa.bes.configuration.web.WebSecurityConfig;
 import java.io.IOException;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class BodyCachingFilter extends OncePerRequestFilter {
 
     @Override
@@ -22,7 +25,7 @@ public class BodyCachingFilter extends OncePerRequestFilter {
         for (String excluded : WebSecurityConfig.SWAGGER_WHITELIST) {
             String pattern = excluded.replace("/**", "");
 
-            if (path.startsWith(pattern)) {
+            if (!pattern.isBlank() && path.startsWith(pattern)) {
                 return true;
             }
         }
