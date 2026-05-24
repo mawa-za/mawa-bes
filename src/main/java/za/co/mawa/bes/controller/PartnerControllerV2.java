@@ -39,7 +39,7 @@ public class PartnerControllerV2 {
     AddressService addressService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
+    public ResponseEntity<List<PartnerViewEntity>> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
         try {
             List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
             if (!query.isEmpty()) {
@@ -58,10 +58,9 @@ public class PartnerControllerV2 {
                             ))
                             .values()
             );
-            String response = gson.toJson(uniquePartners);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(uniquePartners);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+            return ResponseEntity.badRequest().build();
         }
     }
 
