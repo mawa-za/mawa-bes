@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.web.servlet.config.annotation.*;
+import za.co.mawa.bes.configuration.spring.ApiEndpointLoggingInterceptor;
 import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
 
 @Configuration
@@ -15,10 +16,13 @@ public class WebConfiguration  implements WebMvcConfigurer    {
 
     @Autowired
     private TenantRequestInterceptor tenantInterceptor;
+    @Autowired
+    private ApiEndpointLoggingInterceptor apiEndpointLoggingInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
+        registry.addInterceptor(apiEndpointLoggingInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
     }
 
     @Override
