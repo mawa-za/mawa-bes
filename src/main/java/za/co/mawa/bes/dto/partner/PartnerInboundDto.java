@@ -12,6 +12,7 @@ import java.util.Date;
 public class PartnerInboundDto {
     private String identityType;
     private String identityNumber;
+    private String partnerNo;
     private String partnerRole;
     private String partnerType;
     private String name1;

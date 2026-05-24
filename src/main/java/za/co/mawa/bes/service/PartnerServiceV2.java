@@ -16,6 +16,7 @@ import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
+import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.utils.*;
 
 import java.util.*;
@@ -60,6 +61,8 @@ public class PartnerServiceV2 {
     PartnerIdentityServiceV2 partnerIdentityServiceV2;
     @Autowired
     PartnerViewRepository partnerViewRepository;
+    @Autowired
+    NumberAllocationService numberAllocationService;
 
     public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
 
@@ -67,8 +70,13 @@ public class PartnerServiceV2 {
             PartnerIdentityDto partnerIdentityDto = partnerIdentityServiceV2.getIdentity(partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
             if (partnerIdentityDto == null) {
                 PartnerEntity entity = new PartnerEntity();
-                String partnerNo = numberRangeService.generateNumber(partnerInboundDto.getPartnerType());
-                entity.setNo(partnerNo);
+                if (partnerInboundDto.getPartnerNo() != null) {
+                    String partnerNo = numberAllocationService.allocateNumber(partnerInboundDto.getPartnerType());
+                    entity.setNo(partnerNo);
+                }else{
+                    entity.setNo(partnerInboundDto.getPartnerNo());
+                }
+
                 entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
                 if (partnerInboundDto.getName1() != null) {
                     entity.setName1(partnerInboundDto.getName1().toUpperCase());
