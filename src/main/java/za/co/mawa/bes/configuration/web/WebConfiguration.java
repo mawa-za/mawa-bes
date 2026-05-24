@@ -22,7 +22,7 @@ public class WebConfiguration  implements WebMvcConfigurer    {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
-        registry.addInterceptor(apiEndpointLoggingInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
+        registry.addInterceptor(apiEndpointLoggingInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.LOG_EXCLUSION);
     }
 
     @Override
