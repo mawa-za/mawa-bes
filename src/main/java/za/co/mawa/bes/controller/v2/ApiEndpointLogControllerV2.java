@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.ApiEndpointLogResponseDto;
 import za.co.mawa.bes.service.v2.ApiEndpointLogQueryService;
 
+@CrossOrigin
 @RestController
 @RequestMapping("v2/api-endpoint-logs")
 @RequiredArgsConstructor
