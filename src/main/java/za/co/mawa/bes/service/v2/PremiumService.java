@@ -1,48 +1,46 @@
-package za.co.mawa.bes.service;
+package za.co.mawa.bes.service.v2;
 
 import jakarta.persistence.criteria.Predicate;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dao.ReceiptDao;
+import za.co.mawa.bes.dto.v2.PremiumInboundDto;
 import za.co.mawa.bes.dto.PrintJobRequest;
-import za.co.mawa.bes.dto.WorkcenterDto;
-import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
-import za.co.mawa.bes.dto.premium.PremiumInboundDto;
 import za.co.mawa.bes.dto.premium.PremiumSearchDto;
-import za.co.mawa.bes.dto.receipt.ReceiptCreateDto;
-import za.co.mawa.bes.dto.receipt.ReceiptDto;
-import za.co.mawa.bes.dto.receipt.ReceiptSearchDto;
-import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.transaction.attribute.TransactionAttributeDto;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.PrintJobEntity;
-//import za.co.mawa.bes.entity.ReceiptEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAttributeEntity;
-import za.co.mawa.bes.entity.transaction.TransactionAttributePKEntity;
 import za.co.mawa.bes.entity.transaction.TransactionLinkEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.exception.ReceiptNumberExist;
-import za.co.mawa.bes.exception.RoleDoesNotExist;
-import za.co.mawa.bes.repository.*;
-import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.repository.PremiumRepository;
+import za.co.mawa.bes.repository.PrintJobRepository;
+import za.co.mawa.bes.repository.TransactionLinkRepository;
+import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
+import za.co.mawa.bes.repository.v2.MembershipRepository;
+import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.service.MembershipService;
+import za.co.mawa.bes.utils.Field;
+import za.co.mawa.bes.utils.NumberRangeType;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
-import java.sql.SQLIntegrityConstraintViolationException;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 
-import za.co.mawa.bes.repository.v2.MembershipRepository;
-
-@Service
+@Service(value = "PremiumServiceV2")
 public class PremiumService {
 
     @Autowired
@@ -69,40 +67,39 @@ public class PremiumService {
     CompanyInfoService companyInfoService;
     @Autowired
     MembershipRepository membershipRepository;
+    @Autowired
+    MembershipPremiumRepository membershipPremiumRepository;
+    @Autowired
+    NumberAllocationService numberAllocationService;
 
-    public PremiumDto create(PremiumCreateDto premiumCreateDto) throws Exception {
+    public PremiumEntity create(PremiumInboundDto premiumInboundDto) throws Exception {
         try {
-
             PremiumEntity entity = new PremiumEntity();
-
-            if (!StringUtils.isBlank(premiumCreateDto.getReceiptNo())) {
-                entity.setReceiptNumber(premiumCreateDto.getReceiptNo());
+            entity.setId(premiumInboundDto.getDeviceReceiptId());
+            if (!StringUtils.isBlank(premiumInboundDto.getReceiptNo())) {
+                entity.setReceiptNumber(premiumInboundDto.getReceiptNo());
             } else {
-                entity.setReceiptNumber(numberRangeService.generateNumber(NumberRangeType.RECEIPT));
+                entity.setReceiptNumber(numberAllocationService.allocateNumber(NumberRangeType.RECEIPT));
             }
+            entity.setMembershipId(premiumInboundDto.getMemberId());
+            entity.setMembershipPeriod(premiumInboundDto.getPaymentPeriod());
+//            entity.setLocation(premiumInboundDto.getLocation());
+            entity.setTerminalId(premiumInboundDto.getDeviceId());
 
-            if (!StringUtils.isBlank(premiumCreateDto.getExternalReceiptNo())) {
-                entity.setExtReceiptNumber(premiumCreateDto.getExternalReceiptNo());
-            } else {
-                entity.setExtReceiptNumber(null);
-            }
+            String ts = premiumInboundDto.getCreatedAt();
 
-            entity.setMembershipId(premiumCreateDto.getMembershipId());
-            entity.setMembershipPeriod(premiumCreateDto.getMembershipPeriod());
-            entity.setLocation(premiumCreateDto.getLocation());
-            entity.setTerminalId(premiumCreateDto.getTerminalId());
-            entity.setCreationDate(new Date());
-            entity.setCreationTime(new Date());
-            entity.setCreationTime(new Date());
-            entity.setCreatedBy(premiumCreateDto.getCreatedBy());
-            entity.setTenderType(premiumCreateDto.getTenderType().toUpperCase());
-            entity.setAmount(new BigDecimal(premiumCreateDto.getAmount()));
+            Instant instant = Instant.parse(ts);
+            Date date = Date.from(instant);
+
+            entity.setCreationDate(date);
+            entity.setCreationTime(date);
+            entity.setCreatedBy(premiumInboundDto.getUserId());
+            entity.setTenderType(premiumInboundDto.getPaymentMethod().toUpperCase());
+            BigDecimal amount = new BigDecimal(premiumInboundDto.getAmountCents()).divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
+            entity.setAmount(amount);
             PremiumEntity premiumEntity = premiumRepository.save(entity);
-//            updatePeriod(transactionAttributeDto);
-            updatePaidUpToPeriod(premiumCreateDto.getMembershipId());
-            PremiumDto premiumDto = new PremiumDto();
-            premiumDto.setId(premiumEntity.getId());
-            return premiumDto;
+            updatePaidUpToPeriod(premiumInboundDto.getMemberId());
+            return premiumEntity;
         } catch (DataIntegrityViolationException e) {
             if (e.getCause() instanceof ConstraintViolationException) {
                 ConstraintViolationException cve = (ConstraintViolationException) e.getCause();
@@ -119,18 +116,18 @@ public class PremiumService {
         }
     }
 
-    public void update(PremiumInboundDto premiumInboundDto) {
-        PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
-        entity.setMembershipPeriod(premiumInboundDto.getMembershipPeriod());
-        premiumRepository.save(entity);
-    }
+//    public void update(PremiumInboundDto premiumInboundDto) {
+//        PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
+//        entity.setMembershipPeriod(premiumInboundDto.getMembershipPeriod());
+//        premiumRepository.save(entity);
+//    }
 
-    public void delete(PremiumInboundDto premiumInboundDto) {
-        PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
-        entity.setMembershipId(null);
-        entity.setExtReceiptNumber(null);
-        premiumRepository.save(entity);
-    }
+//    public void delete(PremiumInboundDto premiumInboundDto) {
+//        PremiumEntity entity = premiumRepository.getById(premiumInboundDto.getId());
+//        entity.setMembershipId(null);
+//        entity.setExtReceiptNumber(null);
+//        premiumRepository.save(entity);
+//    }
 
     public PremiumDto get(String id) throws DoesNotExist {
         PremiumEntity entity = premiumRepository.getById(id);
@@ -332,6 +329,54 @@ public class PremiumService {
         membershipRepository.save(membership);
     }
 
+    public String recalculatePaidUpToPeriod(String membershipId) {
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+
+        List<MembershipPremiumEntity> paidPremiums =
+                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
+                        membershipId,
+                        PremiumStatus.PAID
+                );
+
+        String paidUpToPeriod = calculateContinuousPaidUpToPeriod(paidPremiums);
+
+        membership.setPaidUpToPeriod(paidUpToPeriod);
+        membership.setUpdatedAt(LocalDateTime.now());
+
+        membershipRepository.save(membership);
+
+        return paidUpToPeriod;
+    }
+
+    private String calculateContinuousPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
+        if (paidPremiums == null || paidPremiums.isEmpty()) {
+            return null;
+        }
+
+        String paidUpToPeriod = null;
+
+        for (MembershipPremiumEntity premium : paidPremiums) {
+            String currentPeriod = premium.getPeriodYYYYMM();
+
+            if (!PeriodUtil.isValidPeriod(currentPeriod)) {
+                continue;
+            }
+
+            if (paidUpToPeriod == null) {
+                paidUpToPeriod = currentPeriod;
+                continue;
+            }
+
+            if (PeriodUtil.isNextPeriod(paidUpToPeriod, currentPeriod)) {
+                paidUpToPeriod = currentPeriod;
+            } else {
+                break;
+            }
+        }
+
+        return paidUpToPeriod;
+    }
 
     public String getPaidUpToPeriod(String id) {
         try {
