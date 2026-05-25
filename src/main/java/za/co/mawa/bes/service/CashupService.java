@@ -39,8 +39,6 @@ import java.util.stream.Collectors;
 @Service
 public class CashupService implements CashupDao {
     @Autowired
-    ReceiptService receiptService;
-    @Autowired
     TransactionAmountService transactionAmountService;
     @Autowired
     TransactionService transactionService;
@@ -82,7 +80,7 @@ public class CashupService implements CashupDao {
         */
         String id = null;
         for(String receiptId : cashupCreateDto.getReceipts()){
-            receiptsFiltered.add(receiptService.getReceipt(receiptId));
+//            receiptsFiltered.add(receiptService.getReceipt(receiptId));
         }
         if (receiptsFiltered.size() > 0) {
             BigDecimal amount = BigDecimal.ZERO;
@@ -329,7 +327,7 @@ public class CashupService implements CashupDao {
                 List<TransactionLinkDto> links = transactionService.getLinks(id);
                 for (TransactionLinkDto link : links) {
                     ReceiptDto receipt = new ReceiptDto();
-                    receipt = receiptService.getReceipt(link.getTransaction2());
+//                    receipt = receiptService.getReceipt(link.getTransaction2());
                     receipts.add(receipt);
                 }
                 cashupDto.setReceipts(receipts);

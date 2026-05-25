@@ -80,6 +80,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
                         try {
                             UserContext.setCurrentUserPartner(userService.getCurrentUserPartnerId());
+                            UserContext.setCurrentUserId(userService.getCurrentUserId());
                         } catch (Exception e) {
                             log.warn("Unable to resolve partner for user {}", username, e);
                         }

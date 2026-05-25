@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-@RestController
-@CrossOrigin
-@RequestMapping(value = "v2/premium")
+//@RestController
+//@CrossOrigin
+//@RequestMapping(value = "v2/premium")
 public class PremiumControllerV2 {
     Gson gson = new Gson();
     @Autowired
