@@ -53,7 +53,7 @@ public class PayAppController {
     @Autowired
     NumberRangeService numberRangeService;
 
-    @RequestMapping(value = "members", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "membership", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembers(@RequestParam(required = false) String status,
                                         @RequestParam(required = false) String mainPartner,
                                         @RequestParam(required = false) String employeeResponsibleName,
@@ -119,9 +119,7 @@ public class PayAppController {
 
     @RequestMapping(value = "receipt-sync", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> syncReceipt(@RequestBody PremiumInboundDto premiumInboundDto) throws RuntimeException {
-
         try {
-
             PremiumEntity entity = new PremiumEntity();
             entity.setId(premiumInboundDto.getDeviceReceiptId());
             if (!StringUtils.isBlank(premiumInboundDto.getReceiptNo())) {

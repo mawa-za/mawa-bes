@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
+import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
@@ -21,7 +22,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 @Component
-public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
+public class TenantRequestInterceptor implements HandlerInterceptor {
     @Autowired
     TenantAdminService tenantAdminService;
     private SecurityDomain securityDomain;
@@ -72,14 +73,18 @@ public class TenantRequestInterceptor implements AsyncHandlerInterceptor {
 
     }
 
-    @Override
-    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) {
-        TenantContext.clear();
-        TenantContext.clearURL();
-    }
-
     private boolean setTenantContext(String tenant) {
         TenantContext.setCurrentTenant(tenant);
         return true;
+    }
+    @Override
+    public void afterCompletion(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Object handler,
+            Exception ex
+    ) {
+        TenantContext.clear();
+        TenantContext.clearURL();
     }
 }

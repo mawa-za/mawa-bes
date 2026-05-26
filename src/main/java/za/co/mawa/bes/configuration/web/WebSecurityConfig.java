@@ -15,9 +15,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import za.co.mawa.bes.configuration.ApiEndpointLoggingFilter;
 import za.co.mawa.bes.configuration.jwt.JwtAuthenticationEntryPoint;
 import za.co.mawa.bes.configuration.jwt.JwtRequestFilter;
 import za.co.mawa.bes.service.JwtUserDetailsService;
+import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 
 @Configuration
 @EnableGlobalMethodSecurity(
@@ -32,8 +34,9 @@ public class WebSecurityConfig {
             "/refresh-token"
             // other public endpoints of your API may be appended to this array
     };
-    public static final String[] TENANT_WHITELIST = {
-            "/versions"
+    public static final String[] LOG_EXCLUSION = {
+            "/print-job",
+            "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] SWAGGER_WHITELIST = {
@@ -54,6 +57,9 @@ public class WebSecurityConfig {
     };
     @Autowired
     JwtUserDetailsService userDetailsService;
+
+    @Autowired
+    ApiEndpointLogService apiEndpointLogService;
 
     @Autowired
     private JwtAuthenticationEntryPoint unauthorizedHandler;
