@@ -64,12 +64,4 @@ public class MembershipPlanEntity {
 
     @Column(name = "old_id")
     private String oldId;
-
-    @ToString.Exclude
-    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MembershipPlanClaimPayoutEntity> claimPayouts = new ArrayList<>();
-
-    @ToString.Exclude
-    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MembershipPlanPremiumRuleEntity> premiumRules = new ArrayList<>();
 }
