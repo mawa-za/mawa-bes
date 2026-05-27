@@ -227,14 +227,7 @@ public class MembershipPremiumPaymentService {
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {
-        /*
-         * TODO:
-         * Replace this with your actual premium calculation:
-         * - membership plan base premium
-         * - dependent premium additions
-         * - age-based premium rules
-         */
-        return 25000L;
+        return membershipService.getMembershipById(membershipId).get().getPremiumCents();
     }
 
     private void validate(MembershipPremiumPaymentCreateRequest request) {
