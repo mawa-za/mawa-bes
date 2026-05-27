@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
@@ -25,6 +26,7 @@ public class MembershipPremiumSyncOfflineService {
     private final MembershipPremiumService membershipPremiumService;
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
+    private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
 
     @Transactional
     public PaymentSyncOfflineResponseDto sync(MembershipPremiumPaymentSyncOfflineRequest request) {
@@ -196,11 +198,8 @@ public class MembershipPremiumSyncOfflineService {
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {
-        /*
-         * TODO:
-         * Replace with your actual premium calculation.
-         */
-        return 25000L;
+
+        return membershipService.getMembershipById(membershipId).get().getPremiumCents();
     }
 
     private void validate(MembershipPremiumPaymentSyncOfflineRequest request) {
