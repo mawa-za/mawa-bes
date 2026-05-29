@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.CaseBillingSummaryResponse;
 import za.co.mawa.bes.service.v2.CaseBillingService;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")
