@@ -3,16 +3,37 @@ package za.co.mawa.bes.controller.v2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.CaseEventCreateRequest;
+import za.co.mawa.bes.dto.v2.CaseEventStatusUpdateRequest;
 import za.co.mawa.bes.entity.v2.CaseEventEntity;
 import za.co.mawa.bes.service.v2.CaseEventService;
+
 import java.util.List;
 
-@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")
 public class CaseEventControllerV2 {
+
     private final CaseEventService caseEventService;
-    @PostMapping("/{caseId}/events") public CaseEventEntity create(@PathVariable String caseId, @RequestBody CaseEventCreateRequest request) { return caseEventService.create(caseId, request, null); }
-    @GetMapping("/{caseId}/events") public List<CaseEventEntity> findByCase(@PathVariable String caseId) { return caseEventService.findByCaseId(caseId); }
+
+    @PostMapping("/{caseId}/events")
+    public CaseEventEntity create(
+            @PathVariable String caseId,
+            @RequestBody CaseEventCreateRequest request
+    ) {
+        return caseEventService.create(caseId, request, null);
+    }
+
+    @GetMapping("/{caseId}/events")
+    public List<CaseEventEntity> findByCase(@PathVariable String caseId) {
+        return caseEventService.findByCaseId(caseId);
+    }
+
+    @PatchMapping("/events/{eventId}/status")
+    public CaseEventEntity updateStatus(
+            @PathVariable String eventId,
+            @RequestBody CaseEventStatusUpdateRequest request
+    ) {
+        return caseEventService.updateStatus(eventId, request);
+    }
 }
