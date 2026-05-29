@@ -6,6 +6,7 @@ import za.co.mawa.bes.dto.v2.CaseInvoiceGenerateRequest;
 import za.co.mawa.bes.dto.v2.CaseInvoiceGenerationResponse;
 import za.co.mawa.bes.service.v2.CaseInvoiceGenerationService;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")

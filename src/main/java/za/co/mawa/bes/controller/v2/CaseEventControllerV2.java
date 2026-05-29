@@ -9,6 +9,7 @@ import za.co.mawa.bes.service.v2.CaseEventService;
 
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")
