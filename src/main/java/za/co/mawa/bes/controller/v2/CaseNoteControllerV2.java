@@ -7,6 +7,7 @@ import za.co.mawa.bes.entity.v2.CaseNoteEntity;
 import za.co.mawa.bes.service.v2.CaseNoteService;
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")

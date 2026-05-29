@@ -7,6 +7,7 @@ import za.co.mawa.bes.entity.v2.CaseTimeEntryEntity;
 import za.co.mawa.bes.service.v2.CaseTimeEntryService;
 import java.util.List;
 
+@CrossOrigin
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("v2/cases")
