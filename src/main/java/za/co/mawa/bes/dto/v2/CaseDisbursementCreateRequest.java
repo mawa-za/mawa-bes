@@ -9,9 +9,12 @@ import java.time.LocalDate;
 @Getter
 @Setter
 public class CaseDisbursementCreateRequest {
+
     private LocalDate disbursementDate;
     private CaseDisbursementType disbursementType;
     private String description;
     private Long amountCents;
     private Boolean billable;
+    private Boolean paidFromTrust;
+    private String trustTransactionId;
 }

@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.CaseDisbursementCreateRequest;
 import za.co.mawa.bes.entity.v2.CaseDisbursementEntity;
 import za.co.mawa.bes.repository.v2.CaseDisbursementRepository;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CaseDisbursementService {
+
     private final CaseDisbursementRepository caseDisbursementRepository;
     private final LegalCaseService legalCaseService;
     private final CaseBillingService caseBillingService;
@@ -20,20 +22,33 @@ public class CaseDisbursementService {
     @Transactional
     public CaseDisbursementEntity create(String caseId, CaseDisbursementCreateRequest request, String createdBy) {
         legalCaseService.findById(caseId);
+
         CaseDisbursementEntity entity = new CaseDisbursementEntity();
         entity.setCaseId(caseId);
         entity.setDisbursementDate(request.getDisbursementDate() != null ? request.getDisbursementDate() : LocalDate.now());
         entity.setDisbursementType(request.getDisbursementType());
         entity.setDescription(request.getDescription());
         entity.setAmountCents(request.getAmountCents());
-        if (request.getBillable() != null) entity.setBillable(request.getBillable());
+
+        if (request.getBillable() != null) {
+            entity.setBillable(request.getBillable());
+        }
+
+        if (request.getPaidFromTrust() != null) {
+            entity.setPaidFromTrust(request.getPaidFromTrust());
+        }
+
+        entity.setTrustTransactionId(request.getTrustTransactionId());
         entity.setBilled(false);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setCreatedBy(createdBy);
+
         CaseDisbursementEntity saved = caseDisbursementRepository.save(entity);
         caseBillingService.recalculateCaseTotals(caseId);
         return saved;
     }
 
-    public List<CaseDisbursementEntity> findByCaseId(String caseId) { return caseDisbursementRepository.findByCaseIdOrderByDisbursementDateDesc(caseId); }
+    public List<CaseDisbursementEntity> findByCaseId(String caseId) {
+        return caseDisbursementRepository.findByCaseIdOrderByDisbursementDateDesc(caseId);
+    }
 }
