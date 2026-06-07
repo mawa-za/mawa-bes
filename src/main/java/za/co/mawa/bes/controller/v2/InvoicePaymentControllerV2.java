@@ -5,8 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.funeral.CaptureInvoicePaymentDto;
-import za.co.mawa.bes.service.FuneralManagementService;
+import za.co.mawa.bes.dto.v2.funeral.CaptureInvoicePaymentDto;
+import za.co.mawa.bes.service.v2.FuneralManagementService;
 
 @RestController
 @CrossOrigin

@@ -7,9 +7,9 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import za.co.mawa.bes.dto.funeral.*;
-import za.co.mawa.bes.entity.*;
-import za.co.mawa.bes.repository.*;
+import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.entity.v2.*;
+import za.co.mawa.bes.repository.v2.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
