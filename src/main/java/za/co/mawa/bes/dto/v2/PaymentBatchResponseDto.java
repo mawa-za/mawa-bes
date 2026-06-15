@@ -1,36 +1,41 @@
 package za.co.mawa.bes.dto.v2;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
+import za.co.mawa.bes.enums.PaymentBatchStatus;
+import za.co.mawa.bes.enums.ReceiptSourceType;
+import za.co.mawa.bes.enums.SyncStatus;
 
-@Getter
-@Setter
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PaymentBatchResponseDto {
 
     private String id;
-
     private String paymentBatchNo;
-
-    private String sourceType;
-
+    private ReceiptSourceType sourceType;
+    private String receivedFromPartnerId;
     private String membershipId;
-
     private String paymentMethod;
-
     private Long totalAmountCents;
-
     private LocalDateTime paymentDate;
-
-    private String status;
-
-    private String syncStatus;
-
-    private String paidUpToPeriod;
-
-    private List<ReceiptResponseDto> receipts;
+    private String location;
+    private String employeeResponsible;
+    private String deviceId;
+    private String terminalId;
+    private String localPaymentBatchId;
+    private PaymentBatchStatus status;
+    private SyncStatus syncStatus;
+    private String notes;
+    private String legacyPremiumPaymentId;
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

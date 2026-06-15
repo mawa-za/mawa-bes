@@ -25,11 +25,23 @@ import za.co.mawa.bes.utils.PriceType;
 
 import java.math.BigDecimal;
 import java.util.List;
+import za.co.mawa.bes.dto.ProductAttributePKCreateRequestDto;
+import za.co.mawa.bes.dto.ProductAttributePKResponseDto;
+import za.co.mawa.bes.dto.ProductAttributePKUpdateRequestDto;
+import za.co.mawa.bes.dto.ProductPricingPKCreateRequestDto;
+import za.co.mawa.bes.dto.ProductPricingPKResponseDto;
+import za.co.mawa.bes.dto.ProductPricingPKUpdateRequestDto;
+import za.co.mawa.bes.mapper.ProductAttributePKMapper;
+import za.co.mawa.bes.mapper.ProductPricingPKMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "product")
 public class ProductController {
+
+    private final ProductAttributePKMapper productAttributePKMapper;
+    private final ProductPricingPKMapper productPricingPKMapper;
     @Autowired
     ProductService productService;
     Gson gson = new Gson();
@@ -123,7 +135,7 @@ public class ProductController {
     @RequestMapping(value = "{id}/attribute", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteAttribute(@PathVariable String id, @RequestParam String attribute) {
         try {
-            ProductAttributePKEntity pk = new ProductAttributePKEntity();
+            ProductAttributePKResponseDto pk = new ProductAttributePKEntity();
             pk.setProduct(id);
             pk.setAttribute(attribute);
             return ResponseEntity.ok(gson.toJson(productService.deleteAttribute(pk)));
@@ -181,7 +193,7 @@ public class ProductController {
     @RequestMapping(value = "{id}/pricing", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deletePricing(@PathVariable String id, @RequestParam String pricing) {
         try {
-            ProductPricingPKEntity productPricingPKEntity = new ProductPricingPKEntity();
+            ProductPricingPKResponseDto productPricingPKEntity = new ProductPricingPKEntity();
             productPricingPKEntity.setProduct(id);
             productPricingPKEntity.setPricing(pricing);
             productService.deletePricing(productPricingPKEntity);
