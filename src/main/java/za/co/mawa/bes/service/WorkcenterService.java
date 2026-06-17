@@ -64,7 +64,7 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("warehouse-layout-display","Warehouse Layout",""));
 //        workcenterDtoList.add(new WorkcenterDto("warehouse-layout-config","Warehouse Layout Configurator",""));
         workcenterDtoList.add(new WorkcenterDto("legal-case","Legal Cases","search"));
-//        workcenterDtoList.add(new WorkcenterDto("system-setting","System Settings",""));
+        workcenterDtoList.add(new WorkcenterDto("employee-engagement","Employee Engagement",""));
         workcenterDtoList.add(new WorkcenterDto("business-partner","Business Partners","search"));
         workcenterDtoList.add(new WorkcenterDto("payroll-batch","Payroll Batch","search"));
         workcenterDtoList.add(new WorkcenterDto("approvals","Approvals","search"));
