@@ -1,26 +1,28 @@
 package za.co.mawa.bes.dto.v2;
 
-import lombok.Builder;
-import lombok.Getter;
-import za.co.mawa.bes.enums.DependentType;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-@Getter
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MembershipPlanPremiumRuleResponseDto {
 
     private String id;
-
-    private String planId;
-
-    private String planName;
-
-    private DependentType dependentType;
-
-    private Integer minAge;
-
-    private Integer maxAge;
-
+    private String plan;
+    private String dependentTypeId;
+    private String minAgeId;
+    private String maxAgeId;
     private Long additionalPremiumCents;
-
     private Boolean active;
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

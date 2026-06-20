@@ -35,11 +35,23 @@ import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.dto.MessageQueueCreateRequestDto;
+import za.co.mawa.bes.dto.MessageQueueResponseDto;
+import za.co.mawa.bes.dto.MessageQueueUpdateRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewCreateRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewResponseDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewUpdateRequestDto;
+import za.co.mawa.bes.mapper.MessageQueueMapper;
+import za.co.mawa.bes.mapper.transaction.TransactionViewMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
 public class BatchController {
+
+    private final MessageQueueMapper messageQueueMapper;
+    private final TransactionViewMapper transactionViewMapper;
     Gson gson = new Gson();
     private static final Logger log = LoggerFactory.getLogger(BatchController.class);
     @Autowired
@@ -102,7 +114,7 @@ public class BatchController {
         try {
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
-            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            List<TransactionViewResponseDto> membershipEntities = transactionService.searchV2(transactionViewDto);
             String result = membershipService.handleMembershipLapse(membershipEntities);
 
             return ResponseEntity.ok().body(gson.toJson(result));
@@ -116,7 +128,7 @@ public class BatchController {
         try{
             TransactionViewDto transactionViewDto = new TransactionViewDto();
             transactionViewDto.setType(TransactionType.MEMBERSHIP);
-            List<TransactionViewEntity> membershipEntities = transactionService.searchV2(transactionViewDto);
+            List<TransactionViewResponseDto> membershipEntities = transactionService.searchV2(transactionViewDto);
 
             Set<TransactionViewEntity> uniqueMemberships = new HashSet<>(membershipEntities);
 
@@ -139,7 +151,7 @@ public class BatchController {
     @RequestMapping(value = "process-message-queue", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> processMessageQueue() {
         try {
-            List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
+            List<MessageQueueResponseDto> messageQueueEntities = messageQueueRepository
                     .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
 
             for (MessageQueueEntity msg : messageQueueEntities) {

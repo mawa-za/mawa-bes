@@ -16,6 +16,11 @@ import za.co.mawa.bes.repository.PrintJobRepository;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import za.co.mawa.bes.dto.PrintJobCreateRequestDto;
+import za.co.mawa.bes.dto.PrintJobResponseDto;
+import za.co.mawa.bes.dto.PrintJobUpdateRequestDto;
+import za.co.mawa.bes.mapper.PrintJobMapper;
+
 
 @RestController
 @RequestMapping("/print-job")
@@ -48,7 +53,7 @@ class PrintJobController {
 
     @PostMapping("/{id}/complete")
     public ResponseEntity<?> markJobComplete(@PathVariable long id) {
-        PrintJobEntity job = printJobRepository.getById(id);
+        PrintJobResponseDto job = printJobRepository.getById(id);
         if (job != null) {
             job.setCompleted(true);
             printJobRepository.save(job);

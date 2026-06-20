@@ -14,19 +14,26 @@ import za.co.mawa.bes.service.StorageBinService;
 
 import java.util.ArrayList;
 import java.util.List;
+import za.co.mawa.bes.dto.StorageBinCreateRequestDto;
+import za.co.mawa.bes.dto.StorageBinResponseDto;
+import za.co.mawa.bes.dto.StorageBinUpdateRequestDto;
+import za.co.mawa.bes.mapper.StorageBinMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "storage-bin")
 public class StorageBinController {
+
+    private final StorageBinMapper storageBinMapper;
     @Autowired
     StorageBinService storageBinService;
 
     Gson gson = new Gson();
 
     @PostMapping
-    public ResponseEntity<StorageBinEntity> createBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
-        StorageBinEntity storageBinEntity = new StorageBinEntity();
+    public ResponseEntity<StorageBinResponseDto> createBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
+        StorageBinResponseDto storageBinEntity = new StorageBinEntity();
         storageBinEntity.setWarehouseId(TenantContext.getCurrentTenant());
         storageBinEntity.setBinId(storageBinInboundDto.getBinId());
         storageBinEntity.setAisle(storageBinInboundDto.getAisle());
@@ -44,8 +51,8 @@ public class StorageBinController {
     }
 
     @PutMapping
-    public ResponseEntity<StorageBinEntity> editBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
-        StorageBinEntity storageBinEntity = new StorageBinEntity();
+    public ResponseEntity<StorageBinResponseDto> editBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
+        StorageBinResponseDto storageBinEntity = new StorageBinEntity();
         storageBinEntity.setWarehouseId(TenantContext.getCurrentTenant());
         storageBinEntity.setAisle(storageBinInboundDto.getAisle());
         storageBinEntity.setShelf(storageBinInboundDto.getShelf());
@@ -61,14 +68,14 @@ public class StorageBinController {
     }
 
     @GetMapping("/{binId}")
-    public ResponseEntity<StorageBinEntity> getBinById(@PathVariable String binId) {
+    public ResponseEntity<StorageBinResponseDto> getBinById(@PathVariable String binId) {
         return storageBinService.getStorageBinById(binId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/code/{binCode}")
-    public ResponseEntity<StorageBinEntity> getBinByCode(@PathVariable String binCode) {
+    public ResponseEntity<StorageBinResponseDto> getBinByCode(@PathVariable String binCode) {
         return storageBinService.getStorageBinByCode(binCode)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -77,7 +84,7 @@ public class StorageBinController {
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllBins() {
         List<StorageBinOutboundDto> storageBinOutboundDtoList = new ArrayList<>();
-        List<StorageBinEntity> storageBinEntities = storageBinService.getAllBins();
+        List<StorageBinResponseDto> storageBinEntities = storageBinService.getAllBins();
         for(StorageBinEntity storageBinEntity: storageBinEntities){
             StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
             storageBinOutboundDto.setBinId(storageBinEntity.getBinId());
@@ -97,7 +104,7 @@ public class StorageBinController {
     }
 
     @GetMapping("/warehouse/{warehouseId}")
-    public ResponseEntity<List<StorageBinEntity>> getBinsByWarehouse(@PathVariable String warehouseId) {
+    public ResponseEntity<List<StorageBinResponseDto>> getBinsByWarehouse(@PathVariable String warehouseId) {
         return ResponseEntity.ok(storageBinService.getBinsByWarehouse(warehouseId));
     }
 

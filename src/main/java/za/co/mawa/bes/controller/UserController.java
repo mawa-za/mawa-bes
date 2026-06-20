@@ -13,11 +13,18 @@ import za.co.mawa.bes.service.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
+import za.co.mawa.bes.dto.UserRolePKCreateRequestDto;
+import za.co.mawa.bes.dto.UserRolePKResponseDto;
+import za.co.mawa.bes.dto.UserRolePKUpdateRequestDto;
+import za.co.mawa.bes.mapper.UserRolePKMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "user")
 public class UserController {
+
+    private final UserRolePKMapper userRolePKMapper;
     Gson gson = new Gson();
     @Autowired
     UserService userService;
@@ -103,7 +110,7 @@ public class UserController {
     @RequestMapping(value = "{id}/role", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteRole(@PathVariable String id, @RequestParam("userRole") String userRole) throws Exception {
         try {
-            UserRolePKEntity pkEntity = new UserRolePKEntity();
+            UserRolePKResponseDto pkEntity = new UserRolePKEntity();
             pkEntity.setRole(userRole);
             pkEntity.setUser(id);
             return ResponseEntity.ok().body(gson.toJson(userService.deleteRole(pkEntity)));

@@ -17,11 +17,33 @@ import za.co.mawa.bes.service.PartnerIdentityService;
 import za.co.mawa.bes.service.PartnerService;
 
 import java.util.List;
+import za.co.mawa.bes.dto.PartnerAttributePKCreateRequestDto;
+import za.co.mawa.bes.dto.PartnerAttributePKResponseDto;
+import za.co.mawa.bes.dto.PartnerAttributePKUpdateRequestDto;
+import za.co.mawa.bes.dto.PartnerContactPKCreateRequestDto;
+import za.co.mawa.bes.dto.PartnerContactPKResponseDto;
+import za.co.mawa.bes.dto.PartnerContactPKUpdateRequestDto;
+import za.co.mawa.bes.dto.PartnerIdentityPKCreateRequestDto;
+import za.co.mawa.bes.dto.PartnerIdentityPKResponseDto;
+import za.co.mawa.bes.dto.PartnerIdentityPKUpdateRequestDto;
+import za.co.mawa.bes.dto.PartnerRolePKCreateRequestDto;
+import za.co.mawa.bes.dto.PartnerRolePKResponseDto;
+import za.co.mawa.bes.dto.PartnerRolePKUpdateRequestDto;
+import za.co.mawa.bes.mapper.PartnerAttributePKMapper;
+import za.co.mawa.bes.mapper.PartnerContactPKMapper;
+import za.co.mawa.bes.mapper.PartnerIdentityPKMapper;
+import za.co.mawa.bes.mapper.PartnerRolePKMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "partner")
 public class PartnerController {
+
+    private final PartnerAttributePKMapper partnerAttributePKMapper;
+    private final PartnerContactPKMapper partnerContactPKMapper;
+    private final PartnerIdentityPKMapper partnerIdentityPKMapper;
+    private final PartnerRolePKMapper partnerRolePKMapper;
     Gson gson = new Gson();
     @Autowired
     PartnerService partnerService;
@@ -147,7 +169,7 @@ public class PartnerController {
     @RequestMapping(value = "{id}/role", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deletePartnerRole(@PathVariable String id, @RequestParam(required = true) String role) {
         try {
-            PartnerRolePKEntity entity = new PartnerRolePKEntity();
+            PartnerRolePKResponseDto entity = new PartnerRolePKEntity();
             entity.setId(id);
             entity.setRole(role);
             return ResponseEntity.ok(gson.toJson(partnerService.deleteRoles(entity)));
@@ -171,7 +193,7 @@ public class PartnerController {
                                                 @RequestBody ContactEditDto contactDto,
                                                 @RequestParam String contactType) {
         try {
-            PartnerContactPKEntity entityPk = new PartnerContactPKEntity();
+            PartnerContactPKResponseDto entityPk = new PartnerContactPKEntity();
             entityPk.setType(contactType);
             entityPk.setPartner(id);
             boolean partnerDto = partnerService.contactEdit(entityPk, contactDto);
@@ -218,7 +240,7 @@ public class PartnerController {
     public ResponseEntity<?> deleteContact(@PathVariable String id, @RequestParam(required = true) String type
     ) {
         try {
-            PartnerContactPKEntity pk = new PartnerContactPKEntity();
+            PartnerContactPKResponseDto pk = new PartnerContactPKEntity();
             pk.setPartner(id);
             pk.setType(type);
             boolean partnerDto = partnerService.removePartnerContact(pk);
@@ -261,7 +283,7 @@ public class PartnerController {
     public ResponseEntity<?> deleteIdentity(@RequestParam("idType") String type,
                                             @RequestParam("idNumber") String idValue) throws Exception {
         try {
-            PartnerIdentityPKEntity pkEntity = new PartnerIdentityPKEntity();
+            PartnerIdentityPKResponseDto pkEntity = new PartnerIdentityPKEntity();
             pkEntity.setType(type);
             pkEntity.setValue(idValue);
             return ResponseEntity.ok(partnerService.removeIdentity(pkEntity));
@@ -322,7 +344,7 @@ public class PartnerController {
     @RequestMapping(value = "{id}/attribute", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> removeAttribute(@PathVariable String id, @RequestParam String attribute) {
         try {
-            PartnerAttributePKEntity pkEntity = new PartnerAttributePKEntity();
+            PartnerAttributePKResponseDto pkEntity = new PartnerAttributePKEntity();
             pkEntity.setAttribute(attribute);
             pkEntity.setPartner(id);
             return ResponseEntity.ok(gson.toJson(partnerService.deleteAttribute(pkEntity)));
