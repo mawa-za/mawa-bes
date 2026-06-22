@@ -1,6 +1,8 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,6 +12,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(name = "uq_number_sequence_type", columnNames = "seq_type")
         }
 )
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class NumberSequenceEntity {
 
     @Id
@@ -28,31 +34,4 @@ public class NumberSequenceEntity {
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime updatedAt;
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getSeqType() {
-        return seqType;
-    }
-
-    public void setSeqType(String seqType) {
-        this.seqType = seqType;
-    }
-
-    public Long getNextNo() {
-        return nextNo;
-    }
-
-    public void setNextNo(Long nextNo) {
-        this.nextNo = nextNo;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
 }

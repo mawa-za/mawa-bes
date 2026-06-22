@@ -1,6 +1,7 @@
 package za.co.mawa.bes.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.io.Serializable;
 
@@ -11,6 +12,10 @@ import java.io.Serializable;
  */
 @Entity
 @Table(name = "settings")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SettingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
