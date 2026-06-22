@@ -15,6 +15,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class ProductEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

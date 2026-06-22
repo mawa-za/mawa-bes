@@ -10,6 +10,7 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionItemPKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;

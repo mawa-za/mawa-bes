@@ -10,6 +10,8 @@ import za.co.mawa.bes.enums.CasePartyType;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity

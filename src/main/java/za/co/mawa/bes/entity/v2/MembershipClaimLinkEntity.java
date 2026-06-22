@@ -1,12 +1,17 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "membership_claim_link")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MembershipClaimLinkEntity {
 
     @Id
@@ -32,35 +37,4 @@ public class MembershipClaimLinkEntity {
         this.createdAt = LocalDateTime.now();
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public String getParentClaimId() {
-        return parentClaimId;
-    }
-
-    public void setParentClaimId(String parentClaimId) {
-        this.parentClaimId = parentClaimId;
-    }
-
-    public String getLinkedClaimId() {
-        return linkedClaimId;
-    }
-
-    public void setLinkedClaimId(String linkedClaimId) {
-        this.linkedClaimId = linkedClaimId;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
 }

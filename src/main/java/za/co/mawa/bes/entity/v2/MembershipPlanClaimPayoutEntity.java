@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @ToString
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(
         name = "membership_plan_claim_payout",

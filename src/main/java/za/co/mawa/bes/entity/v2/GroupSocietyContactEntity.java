@@ -1,12 +1,17 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.util.Date;
 
 @Entity
 @Table(name = "group_society_contact")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GroupSocietyContactEntity {
 
     @Id
@@ -42,79 +47,4 @@ public class GroupSocietyContactEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
-    public String getId() {
-        return id;
-    }
-
-    public String getGroupSocietyId() {
-        return groupSocietyId;
-    }
-
-    public void setGroupSocietyId(String groupSocietyId) {
-        this.groupSocietyId = groupSocietyId;
-    }
-
-    public String getContactName() {
-        return contactName;
-    }
-
-    public void setContactName(String contactName) {
-        this.contactName = contactName;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public String getMobileNo() {
-        return mobileNo;
-    }
-
-    public void setMobileNo(String mobileNo) {
-        this.mobileNo = mobileNo;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Boolean getPrimaryContact() {
-        return primaryContact;
-    }
-
-    public void setPrimaryContact(Boolean primaryContact) {
-        this.primaryContact = primaryContact;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Date getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
 }
