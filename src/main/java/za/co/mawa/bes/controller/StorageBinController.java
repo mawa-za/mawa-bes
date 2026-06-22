@@ -23,53 +23,57 @@ import za.co.mawa.bes.mapper.StorageBinMapper;
 @RestController
 @CrossOrigin
 @RequestMapping(value = "storage-bin")
+@RequiredArgsConstructor
 public class StorageBinController {
-
     private final StorageBinMapper storageBinMapper;
-    @Autowired
-    StorageBinService storageBinService;
+    private final StorageBinService storageBinService;
 
     Gson gson = new Gson();
 
     @PostMapping
     public ResponseEntity<StorageBinResponseDto> createBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
-        StorageBinResponseDto storageBinEntity = new StorageBinEntity();
-        storageBinEntity.setWarehouseId(TenantContext.getCurrentTenant());
-        storageBinEntity.setBinId(storageBinInboundDto.getBinId());
-        storageBinEntity.setAisle(storageBinInboundDto.getAisle());
-        storageBinEntity.setStack(storageBinInboundDto.getStack());
-        storageBinEntity.setShelf(storageBinInboundDto.getShelf());
-        storageBinEntity.setDescription(storageBinInboundDto.getDescription());
-        storageBinEntity.setProductId(storageBinInboundDto.getProductId());
-        storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
-        storageBinEntity.setBatchNumber(storageBinInboundDto.getBatchNumber());
-        storageBinEntity.setExpiryDate(storageBinInboundDto.getExpiryDate());
-        storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
-//        storageBinService.createStorageBin(storageBinEntity);
-        StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
-        return ResponseEntity.ok(storageBinService.createStorageBin(storageBinEntity));
+        StorageBinEntity storageBinEntity = StorageBinEntity.builder()
+                .warehouseId(TenantContext.getCurrentTenant())
+                .binId(storageBinInboundDto.getBinId())
+                .aisle(storageBinInboundDto.getAisle())
+                .stack(storageBinInboundDto.getStack())
+                .shelf(storageBinInboundDto.getShelf())
+                .description(storageBinInboundDto.getDescription())
+                .productId(storageBinInboundDto.getProductId())
+                .binCode(storageBinInboundDto.getBinCode())
+                .batchNumber(storageBinInboundDto.getBatchNumber())
+                .expiryDate(storageBinInboundDto.getExpiryDate())
+                .published(Boolean.valueOf(storageBinInboundDto.getPublished()))
+                .build();
+
+        StorageBinEntity savedEntity = storageBinService.createStorageBin(storageBinEntity);
+        return ResponseEntity.ok(storageBinMapper.toResponse(savedEntity));
     }
 
     @PutMapping
     public ResponseEntity<StorageBinResponseDto> editBin(@RequestBody StorageBinInboundDto storageBinInboundDto) {
-        StorageBinResponseDto storageBinEntity = new StorageBinEntity();
-        storageBinEntity.setWarehouseId(TenantContext.getCurrentTenant());
-        storageBinEntity.setAisle(storageBinInboundDto.getAisle());
-        storageBinEntity.setShelf(storageBinInboundDto.getShelf());
-        storageBinEntity.setDescription(storageBinInboundDto.getDescription());
-        storageBinEntity.setProductId(storageBinInboundDto.getProductId());
-        storageBinEntity.setBinCode(storageBinInboundDto.getBinCode());
-        storageBinEntity.setBatchNumber(storageBinInboundDto.getBatchNumber());
-        storageBinEntity.setExpiryDate(storageBinInboundDto.getExpiryDate());
-        storageBinEntity.setPublished(Boolean.valueOf(storageBinInboundDto.getPublished()));
-//        storageBinService.createStorageBin(storageBinEntity);
-        StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
-        return ResponseEntity.ok(storageBinService.createStorageBin(storageBinEntity));
+        StorageBinEntity storageBinEntity = StorageBinEntity.builder()
+                .warehouseId(TenantContext.getCurrentTenant())
+                .binId(storageBinInboundDto.getBinId())
+                .aisle(storageBinInboundDto.getAisle())
+                .stack(storageBinInboundDto.getStack())
+                .shelf(storageBinInboundDto.getShelf())
+                .description(storageBinInboundDto.getDescription())
+                .productId(storageBinInboundDto.getProductId())
+                .binCode(storageBinInboundDto.getBinCode())
+                .batchNumber(storageBinInboundDto.getBatchNumber())
+                .expiryDate(storageBinInboundDto.getExpiryDate())
+                .published(Boolean.valueOf(storageBinInboundDto.getPublished()))
+                .build();
+
+        StorageBinEntity updatedEntity = storageBinService.createStorageBin(storageBinEntity);
+        return ResponseEntity.ok(storageBinMapper.toResponse(updatedEntity));
     }
 
     @GetMapping("/{binId}")
     public ResponseEntity<StorageBinResponseDto> getBinById(@PathVariable String binId) {
         return storageBinService.getStorageBinById(binId)
+                .map(storageBinMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -77,6 +81,7 @@ public class StorageBinController {
     @GetMapping("/code/{binCode}")
     public ResponseEntity<StorageBinResponseDto> getBinByCode(@PathVariable String binCode) {
         return storageBinService.getStorageBinByCode(binCode)
+                .map(storageBinMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -84,7 +89,7 @@ public class StorageBinController {
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllBins() {
         List<StorageBinOutboundDto> storageBinOutboundDtoList = new ArrayList<>();
-        List<StorageBinResponseDto> storageBinEntities = storageBinService.getAllBins();
+        List<StorageBinEntity> storageBinEntities = storageBinService.getAllBins();
         for(StorageBinEntity storageBinEntity: storageBinEntities){
             StorageBinOutboundDto storageBinOutboundDto = new StorageBinOutboundDto();
             storageBinOutboundDto.setBinId(storageBinEntity.getBinId());
@@ -105,7 +110,10 @@ public class StorageBinController {
 
     @GetMapping("/warehouse/{warehouseId}")
     public ResponseEntity<List<StorageBinResponseDto>> getBinsByWarehouse(@PathVariable String warehouseId) {
-        return ResponseEntity.ok(storageBinService.getBinsByWarehouse(warehouseId));
+        List<StorageBinResponseDto> responses = storageBinService.getBinsByWarehouse(warehouseId).stream()
+                .map(storageBinMapper::toResponse)
+                .toList();
+        return ResponseEntity.ok(responses);
     }
 
     @DeleteMapping("/{binId}")

@@ -13,6 +13,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "payroll_payment_batch")
 public class PayrollPaymentBatchEntity {

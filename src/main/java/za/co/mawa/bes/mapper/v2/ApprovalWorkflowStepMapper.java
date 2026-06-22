@@ -13,19 +13,16 @@ public class ApprovalWorkflowStepMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `stepNo` to `stepNoId` once the related entity id getter is confirmed.
-        // TODO: map relation field `stepName` to `stepNameId` once the related entity id getter is confirmed.
-        // TODO: map relation field `approvalMode` to `approvalModeId` once the related entity id getter is confirmed.
         return ApprovalWorkflowStepResponseDto.builder()
                 .id(entity.getId())
-                .workflow(entity.getWorkflow())
+                .workflow(entity.getWorkflow() != null ? entity.getWorkflow().getId() : null)
                 .requiredApprovals(entity.getRequiredApprovals())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
                 .updatedAt(entity.getUpdatedAt())
                 .updatedBy(entity.getUpdatedBy())
-                .approvers(entity.getApprovers())
+                .approvers(entity.getApprovers() != null ? entity.getApprovers().stream().map(za.co.mawa.bes.entity.v2.ApprovalWorkflowStepApproverEntity::getId).toList() : null)
                 .build();
     }
 
@@ -34,10 +31,8 @@ public class ApprovalWorkflowStepMapper {
             return null;
         }
         return ApprovalWorkflowStepEntity.builder()
-                .workflow(request.getWorkflow())
                 .requiredApprovals(request.getRequiredApprovals())
                 .active(request.getActive())
-                .approvers(request.getApprovers())
                 .build();
     }
 
@@ -46,9 +41,7 @@ public class ApprovalWorkflowStepMapper {
             return;
         }
         entity.setId(request.getId());
-        entity.setWorkflow(request.getWorkflow());
         entity.setRequiredApprovals(request.getRequiredApprovals());
         entity.setActive(request.getActive());
-        entity.setApprovers(request.getApprovers());
     }
 }

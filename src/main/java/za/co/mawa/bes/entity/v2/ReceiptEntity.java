@@ -12,6 +12,8 @@ import za.co.mawa.bes.enums.SyncStatus;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity
