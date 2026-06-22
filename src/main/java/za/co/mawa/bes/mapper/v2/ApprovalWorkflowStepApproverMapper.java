@@ -13,12 +13,12 @@ public class ApprovalWorkflowStepApproverMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `approverType` to `approverTypeId` once the related entity id getter is confirmed.
-        // TODO: map relation field `approverValue` to `approverValueId` once the related entity id getter is confirmed.
-        // TODO: map relation field `approverName` to `approverNameId` once the related entity id getter is confirmed.
         return ApprovalWorkflowStepApproverResponseDto.builder()
                 .id(entity.getId())
-                .workflowStep(entity.getWorkflowStep())
+                .workflowStep(entity.getWorkflowStep() != null ? entity.getWorkflowStep().getId() : null)
+                .approverTypeId(entity.getApproverType() != null ? entity.getApproverType().name() : null)
+                .approverValueId(entity.getApproverValue())
+                .approverNameId(entity.getApproverName())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
@@ -32,7 +32,8 @@ public class ApprovalWorkflowStepApproverMapper {
             return null;
         }
         return ApprovalWorkflowStepApproverEntity.builder()
-                .workflowStep(request.getWorkflowStep())
+                .approverValue(request.getApproverValueId())
+                .approverName(request.getApproverNameId())
                 .active(request.getActive())
                 .build();
     }
@@ -42,7 +43,8 @@ public class ApprovalWorkflowStepApproverMapper {
             return;
         }
         entity.setId(request.getId());
-        entity.setWorkflowStep(request.getWorkflowStep());
+        entity.setApproverValue(request.getApproverValueId());
+        entity.setApproverName(request.getApproverNameId());
         entity.setActive(request.getActive());
     }
 }

@@ -13,11 +13,11 @@ public class MembershipPlanClaimPayoutMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `claimType` to `claimTypeId` once the related entity id getter is confirmed.
-        // TODO: map relation field `dependentType` to `dependentTypeId` once the related entity id getter is confirmed.
         return MembershipPlanClaimPayoutResponseDto.builder()
                 .id(entity.getId())
-                .plan(entity.getPlan())
+                .plan(entity.getPlan() != null ? entity.getPlan().getId() : null)
+                .claimTypeId(entity.getClaimType() != null ? entity.getClaimType().name() : null)
+                .dependentTypeId(entity.getDependentType() != null ? entity.getDependentType().name() : null)
                 .payoutAmountCents(entity.getPayoutAmountCents())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
@@ -32,7 +32,8 @@ public class MembershipPlanClaimPayoutMapper {
             return null;
         }
         return MembershipPlanClaimPayoutEntity.builder()
-                .plan(request.getPlan())
+                .claimType(request.getClaimTypeId() != null ? za.co.mawa.bes.enums.MembershipClaimType.valueOf(request.getClaimTypeId()) : null)
+                .dependentType(request.getDependentTypeId() != null ? za.co.mawa.bes.enums.DependentType.valueOf(request.getDependentTypeId()) : null)
                 .payoutAmountCents(request.getPayoutAmountCents())
                 .active(request.getActive())
                 .build();
@@ -43,7 +44,8 @@ public class MembershipPlanClaimPayoutMapper {
             return;
         }
         entity.setId(request.getId());
-        entity.setPlan(request.getPlan());
+        entity.setClaimType(request.getClaimTypeId() != null ? za.co.mawa.bes.enums.MembershipClaimType.valueOf(request.getClaimTypeId()) : null);
+        entity.setDependentType(request.getDependentTypeId() != null ? za.co.mawa.bes.enums.DependentType.valueOf(request.getDependentTypeId()) : null);
         entity.setPayoutAmountCents(request.getPayoutAmountCents());
         entity.setActive(request.getActive());
     }

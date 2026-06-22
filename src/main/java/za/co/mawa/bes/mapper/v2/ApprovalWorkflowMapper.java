@@ -26,7 +26,7 @@ public class ApprovalWorkflowMapper {
                 .createdBy(entity.getCreatedBy())
                 .updatedAt(entity.getUpdatedAt())
                 .updatedBy(entity.getUpdatedBy())
-                .steps(entity.getSteps())
+                .steps(entity.getSteps() != null ? entity.getSteps().stream().map(za.co.mawa.bes.entity.v2.ApprovalWorkflowStepEntity::getId).toList() : null)
                 .build();
     }
 
@@ -41,7 +41,6 @@ public class ApprovalWorkflowMapper {
                 .minAmount(request.getMinAmount())
                 .maxAmount(request.getMaxAmount())
                 .active(request.getActive())
-                .steps(request.getSteps())
                 .build();
     }
 
@@ -56,6 +55,5 @@ public class ApprovalWorkflowMapper {
         entity.setMinAmount(request.getMinAmount());
         entity.setMaxAmount(request.getMaxAmount());
         entity.setActive(request.getActive());
-        entity.setSteps(request.getSteps());
     }
 }

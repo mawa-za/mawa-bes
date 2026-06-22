@@ -13,12 +13,12 @@ public class MembershipPlanPremiumRuleMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `dependentType` to `dependentTypeId` once the related entity id getter is confirmed.
-        // TODO: map relation field `minAge` to `minAgeId` once the related entity id getter is confirmed.
-        // TODO: map relation field `maxAge` to `maxAgeId` once the related entity id getter is confirmed.
         return MembershipPlanPremiumRuleResponseDto.builder()
                 .id(entity.getId())
-                .plan(entity.getPlan())
+                .plan(entity.getPlan() != null ? entity.getPlan().getId() : null)
+                .dependentTypeId(entity.getDependentType() != null ? entity.getDependentType().name() : null)
+                .minAgeId(entity.getMinAge() != null ? entity.getMinAge().toString() : null)
+                .maxAgeId(entity.getMaxAge() != null ? entity.getMaxAge().toString() : null)
                 .additionalPremiumCents(entity.getAdditionalPremiumCents())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
@@ -33,7 +33,9 @@ public class MembershipPlanPremiumRuleMapper {
             return null;
         }
         return MembershipPlanPremiumRuleEntity.builder()
-                .plan(request.getPlan())
+                .dependentType(request.getDependentTypeId() != null ? za.co.mawa.bes.enums.DependentType.valueOf(request.getDependentTypeId()) : null)
+                .minAge(request.getMinAgeId() != null ? Integer.valueOf(request.getMinAgeId()) : null)
+                .maxAge(request.getMaxAgeId() != null ? Integer.valueOf(request.getMaxAgeId()) : null)
                 .additionalPremiumCents(request.getAdditionalPremiumCents())
                 .active(request.getActive())
                 .build();
@@ -44,7 +46,9 @@ public class MembershipPlanPremiumRuleMapper {
             return;
         }
         entity.setId(request.getId());
-        entity.setPlan(request.getPlan());
+        entity.setDependentType(request.getDependentTypeId() != null ? za.co.mawa.bes.enums.DependentType.valueOf(request.getDependentTypeId()) : null);
+        entity.setMinAge(request.getMinAgeId() != null ? Integer.valueOf(request.getMinAgeId()) : null);
+        entity.setMaxAge(request.getMaxAgeId() != null ? Integer.valueOf(request.getMaxAgeId()) : null);
         entity.setAdditionalPremiumCents(request.getAdditionalPremiumCents());
         entity.setActive(request.getActive());
     }
