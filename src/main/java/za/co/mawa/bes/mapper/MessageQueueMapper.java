@@ -20,7 +20,7 @@ public class MessageQueueMapper {
                 .referenceId(entity.getReferenceId())
                 .referenceNo(entity.getReferenceNo())
                 .payload(entity.getPayload())
-                .processed(entity.getProcessed())
+                .processed(entity.isProcessed())
                 .retryCount(entity.getRetryCount())
                 .nextAttemptAt(entity.getNextAttemptAt())
                 .build();
@@ -35,7 +35,7 @@ public class MessageQueueMapper {
                 .referenceId(request.getReferenceId())
                 .referenceNo(request.getReferenceNo())
                 .payload(request.getPayload())
-                .processed(request.getProcessed())
+                .processed(request.isProcessed())
                 .retryCount(request.getRetryCount())
                 .nextAttemptAt(request.getNextAttemptAt())
                 .build();
@@ -50,7 +50,7 @@ public class MessageQueueMapper {
         entity.setReferenceId(request.getReferenceId());
         entity.setReferenceNo(request.getReferenceNo());
         entity.setPayload(request.getPayload());
-        entity.setProcessed(request.getProcessed());
+        entity.setProcessed(request.isProcessed());
         entity.setRetryCount(request.getRetryCount());
         entity.setNextAttemptAt(request.getNextAttemptAt());
     }

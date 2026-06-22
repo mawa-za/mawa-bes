@@ -1,7 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.*;
 

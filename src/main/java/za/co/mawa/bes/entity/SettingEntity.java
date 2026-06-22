@@ -20,7 +20,7 @@ public class SettingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @EmbeddedId
-    protected SettingPKEntity settingsPKEntity;
+    protected SettingPKEntity settingsPK;
     @Column(name = "value", length = 60)
     private String value;
 

@@ -16,6 +16,7 @@ import java.util.Date;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 @Table(name = "transaction_view")
 public class TransactionViewEntity implements Serializable {
 

@@ -16,7 +16,7 @@ public class PartnerDatePKEntity implements Serializable {
     @Basic(optional = false)
     //@NotNull
     @Column(name = "partner_no", length = 20)
-    private String partner_no;
+    private String partnerNumber;
     @Basic(optional = false)
     //@NotNull
     @Column(name = "type", length = 20)
