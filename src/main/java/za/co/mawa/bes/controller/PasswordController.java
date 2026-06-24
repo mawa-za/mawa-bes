@@ -19,17 +19,11 @@ import org.thymeleaf.context.Context;
 
 import java.util.ArrayList;
 import java.util.List;
-import za.co.mawa.bes.dto.UserCreateRequestDto;
-import za.co.mawa.bes.dto.UserResponseDto;
-import za.co.mawa.bes.dto.UserUpdateRequestDto;
-import za.co.mawa.bes.mapper.UserMapper;
 
 
 @RestController
 @CrossOrigin
 public class PasswordController {
-
-    private final UserMapper userMapper;
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
     @Autowired
@@ -47,7 +41,7 @@ public class PasswordController {
     @RequestMapping(value = "forgot-password", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> forgotPassword(@RequestParam String email) {
         try {
-            UserResponseDto userEntity = userRepository.getByEmail(email);
+            UserEntity userEntity = userRepository.getByEmail(email);
             String tenant = settingService.getSetting("ACCESS-URL","TENANT");
             if(tenant == null){
                 tenant = TenantContext.getCurrentTenantURL();

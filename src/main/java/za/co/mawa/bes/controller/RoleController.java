@@ -15,18 +15,12 @@ import za.co.mawa.bes.utils.Conversion;
 
 import java.util.Date;
 import java.util.List;
-import za.co.mawa.bes.dto.RoleWorkcenterPKCreateRequestDto;
-import za.co.mawa.bes.dto.RoleWorkcenterPKResponseDto;
-import za.co.mawa.bes.dto.RoleWorkcenterPKUpdateRequestDto;
-import za.co.mawa.bes.mapper.RoleWorkcenterPKMapper;
 
 
 
 @RestController
 @CrossOrigin
 public class RoleController {
-
-    private final RoleWorkcenterPKMapper roleWorkcenterPKMapper;
     Gson gson = new Gson();
     @Autowired
     RoleService roleService;
@@ -88,7 +82,7 @@ public class RoleController {
     public ResponseEntity<?> deleteWorkcenters(@PathVariable String role, @RequestParam(required = true) String workcenter) {
 
         try {
-            RoleWorkcenterPKResponseDto pkEntity = new RoleWorkcenterPKEntity();
+            RoleWorkcenterPKEntity pkEntity = new RoleWorkcenterPKEntity();
             pkEntity.setWorkcenter(workcenter);
             pkEntity.setRole(role);
             boolean deleted = roleService.deleteWorkcenter(pkEntity);

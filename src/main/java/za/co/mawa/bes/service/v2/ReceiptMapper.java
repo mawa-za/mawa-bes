@@ -20,13 +20,13 @@ public class ReceiptMapper {
                 .receiptNo(receipt.getReceiptNo())
                 .paymentBatchId(receipt.getPaymentBatchId())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
-                .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
+                .sourceType(receipt.getSourceType())
                 .membershipId(receipt.getMembershipId())
                 .receiptDate(receipt.getReceiptDate())
                 .paymentMethod(receipt.getPaymentMethod())
                 .totalAmountCents(receipt.getTotalAmountCents())
-                .status(receipt.getStatus() == null ? null : receipt.getStatus().name())
-                .syncStatus(receipt.getSyncStatus() == null ? null : receipt.getSyncStatus().name())
+                .status(receipt.getStatus())
+                .syncStatus(receipt.getSyncStatus())
                 .printed(receipt.getPrinted())
                 .printCount(receipt.getPrintCount())
                 .allocations(allocations.stream().map(this::toAllocationDto).toList())
@@ -36,13 +36,13 @@ public class ReceiptMapper {
     public ReceiptAllocationResponseDto toAllocationDto(ReceiptAllocationEntity allocation) {
         return ReceiptAllocationResponseDto.builder()
                 .id(allocation.getId())
-                .allocationType(allocation.getAllocationType() == null ? null : allocation.getAllocationType().name())
+                .allocationType(allocation.getAllocationType())
                 .referenceId(allocation.getReferenceId())
                 .referenceNo(allocation.getReferenceNo())
                 .periodYYYYMM(allocation.getPeriodYYYYMM())
                 .membershipId(allocation.getMembershipId())
                 .amountCents(allocation.getAmountCents())
-                .status(allocation.getStatus() == null ? null : allocation.getStatus().name())
+                .status(allocation.getStatus())
                 .build();
     }
 }

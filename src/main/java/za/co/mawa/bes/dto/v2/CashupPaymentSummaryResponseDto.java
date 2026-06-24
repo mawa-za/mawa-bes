@@ -1,8 +1,6 @@
 package za.co.mawa.bes.dto.v2;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,11 +11,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CashupPaymentSummaryResponseDto {
-
     private String id;
-    private String cashup;
-    private String paymentMethodId;
-    private String amountCentsId;
-    private String paymentCountId;
+    private String cashupId;
+    private String paymentMethod;
+    private Long amountCents;
+    private Integer paymentCount;
     private LocalDateTime createdAt;
 }

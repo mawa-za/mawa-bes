@@ -10,9 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CashupPaymentSummaryCreateRequestDto {
-
-    private String cashup;
-    private String paymentMethodId;
-    private String amountCentsId;
-    private String paymentCountId;
+    private String cashupId;
+    private String paymentMethod;
+    private Long amountCents;
+    private Integer paymentCount;
 }

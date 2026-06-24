@@ -190,11 +190,11 @@ public class MembershipPremiumSyncOfflineService {
 
         ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
 
-        if (lastReceipt.getAllocations() == null || lastReceipt.getAllocations().isEmpty()) {
+        if ((lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()) == null || (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).isEmpty()) {
             return null;
         }
 
-        return lastReceipt.getAllocations().get(0).getPeriodYYYYMM();
+        return (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).get(0).getPeriodYYYYMM();
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

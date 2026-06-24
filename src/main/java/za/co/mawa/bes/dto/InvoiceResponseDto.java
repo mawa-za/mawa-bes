@@ -33,6 +33,6 @@ public class InvoiceResponseDto {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
-    private List<String> lines;
-    private List<String> paymentsIds;
+    private List<String> lineIds;
+    private List<String> paymentIds;
 }

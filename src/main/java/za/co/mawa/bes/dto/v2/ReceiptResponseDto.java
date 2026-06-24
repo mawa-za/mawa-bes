@@ -2,6 +2,7 @@ package za.co.mawa.bes.dto.v2;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
@@ -42,4 +43,6 @@ public class ReceiptResponseDto {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+
+    private List<ReceiptAllocationResponseDto> allocations;
 }
