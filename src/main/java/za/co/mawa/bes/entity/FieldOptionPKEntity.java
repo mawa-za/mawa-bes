@@ -14,6 +14,7 @@ import java.util.Objects;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 public class FieldOptionPKEntity implements Serializable {
     @Column(name = "field")
     private String field;

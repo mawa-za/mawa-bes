@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Setter
 @EqualsAndHashCode
 @ToString
+@Builder
 public class PartnerAddressPKEntity implements Serializable {
     @Basic(optional = false)
     //@NotNull

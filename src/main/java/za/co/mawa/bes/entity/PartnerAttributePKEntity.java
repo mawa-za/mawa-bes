@@ -12,6 +12,7 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@Builder
 public class PartnerAttributePKEntity implements Serializable {
     @Column(name = "partner")
     private String partner;

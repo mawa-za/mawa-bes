@@ -16,6 +16,7 @@ import java.util.Date;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 @Table(name = "partner_view")
 public class PartnerViewEntity implements Serializable {
     @Id

@@ -14,6 +14,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionPartnerEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
@@ -39,6 +40,4 @@ public class TransactionPartnerEntity implements Serializable {
     @Column(name = "changedBy")
     private String changedBy;
 
-    public TransactionPartnerEntity(TransactionPartnerDto transactionPartnerDto) {
-    }
 }

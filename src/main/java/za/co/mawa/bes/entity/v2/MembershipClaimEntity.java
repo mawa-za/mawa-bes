@@ -1,7 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.*;
 
@@ -9,6 +9,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "membership_claim")
 public class MembershipClaimEntity {

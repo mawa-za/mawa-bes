@@ -60,7 +60,7 @@ public class ReceiptRangeService {
         seqRepo.save(seq);
 
         // 4) Create allocation
-        final var alloc = new ReceiptRangeAllocationEntity(deviceId, from, to);
+        final var alloc = new ReceiptRangeAllocationEntity(null, deviceId, from, to, from, null, java.time.Instant.now());
         allocRepo.save(alloc);
 
         return new AllocateResponse(deviceId, from, to, alloc.getNextNo());

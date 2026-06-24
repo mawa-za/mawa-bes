@@ -12,6 +12,8 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@EqualsAndHashCode
+@Builder
 public class TransactionAttributePKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;

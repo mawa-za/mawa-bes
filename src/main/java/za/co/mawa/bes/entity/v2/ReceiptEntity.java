@@ -1,9 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
@@ -12,6 +10,8 @@ import za.co.mawa.bes.enums.SyncStatus;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity

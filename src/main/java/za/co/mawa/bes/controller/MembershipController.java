@@ -23,12 +23,17 @@ import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.*;
 
 import java.text.SimpleDateFormat;
+import za.co.mawa.bes.dto.transaction.TransactionViewCreateRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewResponseDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewUpdateRequestDto;
+
 import java.util.*;
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "membership")
 public class MembershipController {
+
     @Autowired
     TransactionService transactionService;
     @Autowired
@@ -173,7 +178,7 @@ public class MembershipController {
 //    @RequestMapping(value = "/v2", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 //    public ResponseEntity<?> getMembershipsUsingView(){
 //        try {
-//            List<TransactionViewEntity> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
+//            List<TransactionViewResponseDto> transactionViewEntities = transactionViewRepository.findAllByType(TransactionType.MEMBERSHIP);
 //            return ResponseEntity.ok().body(gson.toJson(transactionViewEntities));
 //        } catch (Exception e) {
 //            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
@@ -442,7 +447,7 @@ public class MembershipController {
     @RequestMapping(value = "{id}/invoice", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getMembershipInvoice(@PathVariable String id){
         try{
-//            List<TransactionViewEntity> transactionViewEntities = invoiceService.getMembershipInvoices(id);
+//            List<TransactionViewResponseDto> transactionViewEntities = invoiceService.getMembershipInvoices(id);
 //            return ResponseEntity.ok(gson.toJson(transactionViewEntities));
             return ResponseEntity.ok().build();
         }

@@ -17,6 +17,7 @@ import java.util.UUID;
 @ToString
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(name = "membership")
 public class MembershipEntity {

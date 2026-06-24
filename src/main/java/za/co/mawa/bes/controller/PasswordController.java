@@ -20,6 +20,7 @@ import org.thymeleaf.context.Context;
 import java.util.ArrayList;
 import java.util.List;
 
+
 @RestController
 @CrossOrigin
 public class PasswordController {

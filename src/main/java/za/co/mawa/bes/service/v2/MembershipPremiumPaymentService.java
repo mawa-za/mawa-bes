@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
+import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
@@ -70,13 +71,13 @@ public class MembershipPremiumPaymentService {
         return PaymentBatchResponseDto.builder()
                 .id(batch.getId())
                 .paymentBatchNo(batch.getPaymentBatchNo())
-                .sourceType(batch.getSourceType().name())
+                .sourceType(batch.getSourceType())
                 .membershipId(batch.getMembershipId())
                 .paymentMethod(batch.getPaymentMethod())
                 .totalAmountCents(batch.getTotalAmountCents())
                 .paymentDate(batch.getPaymentDate())
-                .status(batch.getStatus().name())
-                .syncStatus(batch.getSyncStatus().name())
+                .status(batch.getStatus())
+                .syncStatus(batch.getSyncStatus())
                 .paidUpToPeriod(paidUpTo)
                 .receipts(receipts)
                 .build();
@@ -204,11 +205,12 @@ public class MembershipPremiumPaymentService {
 
         ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
 
-        if (lastReceipt.getAllocations() == null || lastReceipt.getAllocations().isEmpty()) {
+        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
+        if (allocations == null || allocations.isEmpty()) {
             return PeriodUtil.currentPeriod();
         }
 
-        String lastPeriod = lastReceipt.getAllocations().get(0).getPeriodYYYYMM();
+        String lastPeriod = allocations.get(0).getPeriodYYYYMM();
         return PeriodUtil.nextPeriod(lastPeriod);
     }
 
@@ -219,11 +221,12 @@ public class MembershipPremiumPaymentService {
 
         ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
 
-        if (lastReceipt.getAllocations() == null || lastReceipt.getAllocations().isEmpty()) {
+        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
+        if (allocations == null || allocations.isEmpty()) {
             return null;
         }
 
-        return lastReceipt.getAllocations().get(0).getPeriodYYYYMM();
+        return allocations.get(0).getPeriodYYYYMM();
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

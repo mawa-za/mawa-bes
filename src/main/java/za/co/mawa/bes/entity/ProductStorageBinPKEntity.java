@@ -9,6 +9,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ProductStorageBinPKEntity implements Serializable {
     @Column(name = "bin_id")
     private String binId;
