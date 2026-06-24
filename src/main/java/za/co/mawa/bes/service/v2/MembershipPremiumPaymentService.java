@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
+import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
@@ -204,11 +205,12 @@ public class MembershipPremiumPaymentService {
 
         ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
 
-        if ((lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()) == null || (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).isEmpty()) {
+        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
+        if (allocations == null || allocations.isEmpty()) {
             return PeriodUtil.currentPeriod();
         }
 
-        String lastPeriod = (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).get(0).getPeriodYYYYMM();
+        String lastPeriod = allocations.get(0).getPeriodYYYYMM();
         return PeriodUtil.nextPeriod(lastPeriod);
     }
 
@@ -219,11 +221,12 @@ public class MembershipPremiumPaymentService {
 
         ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
 
-        if ((lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()) == null || (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).isEmpty()) {
+        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
+        if (allocations == null || allocations.isEmpty()) {
             return null;
         }
 
-        return (lastReceipt.getAllocations() == null ? java.util.Collections.emptyList() : lastReceipt.getAllocations()).get(0).getPeriodYYYYMM();
+        return allocations.get(0).getPeriodYYYYMM();
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

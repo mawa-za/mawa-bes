@@ -182,7 +182,7 @@ public class ProductController {
     @RequestMapping(value = "{id}/pricing", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deletePricing(@PathVariable String id, @RequestParam String pricing) {
         try {
-            ProductPricingPKResponseDto productPricingPKEntity = new ProductPricingPKEntity();
+            ProductPricingPKEntity productPricingPKEntity = new ProductPricingPKEntity();
             productPricingPKEntity.setProduct(id);
             productPricingPKEntity.setPricing(pricing);
             productService.deletePricing(productPricingPKEntity);
