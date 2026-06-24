@@ -36,10 +36,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import za.co.mawa.bes.dto.PremiumCreateRequestDto;
-import za.co.mawa.bes.dto.PremiumResponseDto;
-import za.co.mawa.bes.dto.PremiumUpdateRequestDto;
-import za.co.mawa.bes.mapper.PremiumMapper;
 
 
 @RestController
@@ -47,7 +43,6 @@ import za.co.mawa.bes.mapper.PremiumMapper;
 @RequestMapping(value = "pay-app")
 public class PayAppController {
 
-    private final PremiumMapper premiumMapper;
     Gson gson = new Gson();
     @Autowired
     TransactionService transactionService;
