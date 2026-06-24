@@ -8,7 +8,7 @@ import za.co.mawa.bes.entity.v2.ReceiptEntity;
 
 import java.util.List;
 
-@Component
+@Component("serviceReceiptMapper")
 public class ReceiptMapper {
 
     public ReceiptResponseDto toDto(
