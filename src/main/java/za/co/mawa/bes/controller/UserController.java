@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,14 +14,22 @@ import za.co.mawa.bes.service.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
+import za.co.mawa.bes.dto.UserRolePKCreateRequestDto;
+import za.co.mawa.bes.dto.UserRolePKResponseDto;
+import za.co.mawa.bes.dto.UserRolePKUpdateRequestDto;
+import za.co.mawa.bes.mapper.UserRolePKMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "user")
+@RequiredArgsConstructor
 public class UserController {
+
+    private final UserRolePKMapper userRolePKMapper;
     Gson gson = new Gson();
-    @Autowired
-    UserService userService;
+
+    private final UserService userService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto) {

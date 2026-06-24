@@ -3,15 +3,15 @@ package za.co.mawa.bes.configuration.hibernate;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.engine.jdbc.connections.spi.AbstractDataSourceBasedMultiTenantConnectionProviderImpl;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-//@Component
+// @Component
 @RequiredArgsConstructor
-public class TenantConnectionProvider extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl {
+public class TenantConnectionProvider extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
+
     @Autowired
     private final DataSource dataSource;
 

@@ -1,6 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDate;
@@ -8,6 +9,10 @@ import java.util.Date;
 
 @Entity
 @Table(name = "group_society_member")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GroupSocietyMemberEntity {
 
     @Id
@@ -51,95 +56,4 @@ public class GroupSocietyMemberEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
-    public String getId() {
-        return id;
-    }
-
-    public String getGroupSocietyId() {
-        return groupSocietyId;
-    }
-
-    public void setGroupSocietyId(String groupSocietyId) {
-        this.groupSocietyId = groupSocietyId;
-    }
-
-    public String getMemberId() {
-        return memberId;
-    }
-
-    public void setMemberId(String memberId) {
-        this.memberId = memberId;
-    }
-
-    public String getMembershipId() {
-        return membershipId;
-    }
-
-    public void setMembershipId(String membershipId) {
-        this.membershipId = membershipId;
-    }
-
-    public String getEmployeeNo() {
-        return employeeNo;
-    }
-
-    public void setEmployeeNo(String employeeNo) {
-        this.employeeNo = employeeNo;
-    }
-
-    public String getExternalRef() {
-        return externalRef;
-    }
-
-    public void setExternalRef(String externalRef) {
-        this.externalRef = externalRef;
-    }
-
-    public LocalDate getJoinDate() {
-        return joinDate;
-    }
-
-    public void setJoinDate(LocalDate joinDate) {
-        this.joinDate = joinDate;
-    }
-
-    public LocalDate getExitDate() {
-        return exitDate;
-    }
-
-    public void setExitDate(LocalDate exitDate) {
-        this.exitDate = exitDate;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Date getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
 }

@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 @Embeddable
 public class RoleWorkcenterPKEntity implements Serializable {
     private String role;

@@ -13,6 +13,7 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TenantPropertyEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId

@@ -64,7 +64,7 @@ public class CashupRangeService {
         seqRepo.save(seq);
 
         // 4) Create allocation
-        final var alloc = new CashupRangeAllocationEntity(deviceId, from, to);
+        final var alloc = new CashupRangeAllocationEntity(null, deviceId, from, to, from, null, java.time.Instant.now());
         allocRepo.save(alloc);
 
         return new AllocateResponse(deviceId, from, to, alloc.getNextNo());

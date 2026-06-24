@@ -18,6 +18,7 @@ import za.co.mawa.bes.service.PartnerService;
 
 import java.util.List;
 
+
 @RestController
 @CrossOrigin
 @RequestMapping(value = "partner")

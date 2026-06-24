@@ -16,6 +16,11 @@ import za.co.mawa.bes.repository.PrintJobRepository;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import za.co.mawa.bes.dto.PrintJobCreateRequestDto;
+import za.co.mawa.bes.dto.PrintJobResponseDto;
+import za.co.mawa.bes.dto.PrintJobUpdateRequestDto;
+import za.co.mawa.bes.mapper.PrintJobMapper;
+
 
 @RestController
 @RequestMapping("/print-job")
