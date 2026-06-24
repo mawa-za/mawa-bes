@@ -13,6 +13,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class ProductPricingEntity {
     private static final long serialVersionUID = 1L;
     @EmbeddedId

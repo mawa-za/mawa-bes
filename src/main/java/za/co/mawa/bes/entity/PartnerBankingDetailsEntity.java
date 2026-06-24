@@ -12,6 +12,7 @@ import java.util.Date;
 @Setter
 @EqualsAndHashCode
 @ToString
+@Builder
 @Entity
 @Table(name = "partner_bank_account")
 public class PartnerBankingDetailsEntity implements Serializable {

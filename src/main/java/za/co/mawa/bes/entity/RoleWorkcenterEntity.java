@@ -12,6 +12,7 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@Builder
 public class RoleWorkcenterEntity implements Serializable {
     @EmbeddedId
     RoleWorkcenterPKEntity roleWorkcenterPKEntity;

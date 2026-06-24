@@ -1,42 +1,48 @@
 package za.co.mawa.bes.dto.v2;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import za.co.mawa.bes.enums.ReceiptSourceType;
+import za.co.mawa.bes.enums.ReceiptStatus;
+import za.co.mawa.bes.enums.SyncStatus;
 
-@Getter
-@Setter
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReceiptResponseDto {
 
     private String id;
-
     private String receiptNo;
-
     private String paymentBatchId;
-
     private String paymentBatchNo;
-
-    private String sourceType;
-
+    private ReceiptSourceType sourceType;
+    private String receivedFromPartnerId;
     private String membershipId;
-
     private LocalDateTime receiptDate;
-
     private String paymentMethod;
-
     private Long totalAmountCents;
-
-    private String status;
-
-    private String syncStatus;
-
+    private ReceiptStatus status;
+    private SyncStatus syncStatus;
+    private String location;
+    private String employeeResponsible;
+    private String deviceId;
+    private String terminalId;
+    private String externalReceiptNo;
     private Boolean printed;
-
     private Integer printCount;
+    private String legacyPremiumPaymentId;
+    private String notes;
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 
     private List<ReceiptAllocationResponseDto> allocations;
 }

@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,31 +36,36 @@ import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.dto.MessageQueueCreateRequestDto;
+import za.co.mawa.bes.dto.MessageQueueResponseDto;
+import za.co.mawa.bes.dto.MessageQueueUpdateRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewCreateRequestDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewResponseDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewUpdateRequestDto;
+import za.co.mawa.bes.mapper.MessageQueueMapper;
+import za.co.mawa.bes.mapper.transaction.TransactionViewMapper;
+
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "batch")
+@RequiredArgsConstructor
 public class BatchController {
+
+    private final MessageQueueMapper messageQueueMapper;
+    private final TransactionViewMapper transactionViewMapper;
     Gson gson = new Gson();
     private static final Logger log = LoggerFactory.getLogger(BatchController.class);
-    @Autowired
-    PaymentRequestService paymentRequestService;
-    @Autowired
-    BankFileService bankFileService;
-    @Autowired
-    EmailService emailService;
-    @Autowired
-    SettingService settingService;
-    @Autowired
-    MembershipService membershipService;
-    @Autowired
-    TransactionService transactionService;
-    @Autowired
-    MessageQueueRepository messageQueueRepository;
-    @Autowired
-    TenantAdminService tenantAdminService;
-    @Autowired
-    BankPaymentService bankPaymentService;
+
+    private final PaymentRequestService paymentRequestService;
+    private final BankFileService bankFileService;
+    private final EmailService emailService;
+    private final SettingService settingService;
+    private final MembershipService membershipService;
+    private final TransactionService transactionService;
+    private final MessageQueueRepository messageQueueRepository;
+    private final TenantAdminService tenantAdminService;
+    private final BankPaymentService bankPaymentService;
 
     @RequestMapping(value = "bank-file", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateBankFile() {

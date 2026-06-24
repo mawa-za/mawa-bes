@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @ToString
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(name = "invoice_line")
 public class InvoiceLineEntity {

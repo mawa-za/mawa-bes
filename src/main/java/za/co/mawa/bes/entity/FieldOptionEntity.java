@@ -14,6 +14,7 @@ import java.util.Date;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 public class FieldOptionEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId

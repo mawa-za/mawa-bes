@@ -11,6 +11,7 @@ import java.util.Date;
 @Setter
 @EqualsAndHashCode
 @ToString
+@Builder
 @Entity
 @Table(name = "partner_address")
 public class PartnerAddressEntity implements Serializable {

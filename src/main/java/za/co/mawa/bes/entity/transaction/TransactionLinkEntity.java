@@ -14,6 +14,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionLinkEntity implements Serializable {
 
 
@@ -28,13 +29,4 @@ public class TransactionLinkEntity implements Serializable {
     @Temporal(TemporalType.DATE)
     private Date creation_date;
 
-    public TransactionLinkEntity(TransactionLinkDto transactionLinkDto) {
-        this.transactionLinkPKEntity = new TransactionLinkPKEntity();
-        this.transactionLinkPKEntity.setTransaction1(transactionLinkDto.getTransaction1());
-        this.transactionLinkPKEntity.setTransaction2(transactionLinkDto.getTransaction2());
-        this.transactionLinkPKEntity.setType(transactionLinkDto.getType());
-        this.created_by = transactionLinkDto.getCreateBy();
-        this.creation_date = transactionLinkDto.getCreationDate();
-
-    }
 }

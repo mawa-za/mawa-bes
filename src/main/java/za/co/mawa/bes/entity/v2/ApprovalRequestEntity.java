@@ -1,8 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
@@ -11,6 +10,9 @@ import java.util.Date;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "approval_request")
 public class ApprovalRequestEntity {

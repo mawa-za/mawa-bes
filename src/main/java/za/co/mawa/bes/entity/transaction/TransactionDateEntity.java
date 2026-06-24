@@ -14,6 +14,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionDateEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
@@ -21,12 +22,5 @@ public class TransactionDateEntity implements Serializable {
     @Column(name = "value")
     @Temporal(TemporalType.TIMESTAMP)
     private Date value;
-
-    public TransactionDateEntity(TransactionDateDto transactionDateDto) {
-        this.transactionDatePKEntity = new TransactionDatePKEntity();
-        this.transactionDatePKEntity.setTransaction(transactionDateDto.getTransaction());
-        this.transactionDatePKEntity.setType(transactionDateDto.getType());
-        this.value = (transactionDateDto.getValue());
-    }
 
 }

@@ -1,15 +1,15 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.CasePriority;
 import za.co.mawa.bes.enums.CaseTaskStatus;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity

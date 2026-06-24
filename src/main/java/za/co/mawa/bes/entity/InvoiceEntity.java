@@ -14,6 +14,7 @@ import org.hibernate.annotations.GenericGenerator;
 @ToString
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(name = "invoice")
 public class InvoiceEntity {

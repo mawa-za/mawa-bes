@@ -12,6 +12,7 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionTextPKEntity implements Serializable {
     @Column(name = "transaction")
     private String transaction;

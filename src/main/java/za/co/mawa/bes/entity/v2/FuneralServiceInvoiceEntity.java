@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
+@Builder
 @Entity
 @Table(name = "funeral_service_invoice")
 public class FuneralServiceInvoiceEntity {

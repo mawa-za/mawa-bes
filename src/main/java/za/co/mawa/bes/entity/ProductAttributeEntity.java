@@ -13,6 +13,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class ProductAttributeEntity implements Serializable {
     @EmbeddedId
     ProductAttributePKEntity productAttributePKEntity;

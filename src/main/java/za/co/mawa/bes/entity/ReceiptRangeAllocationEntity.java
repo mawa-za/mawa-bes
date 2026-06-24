@@ -2,7 +2,9 @@ package za.co.mawa.bes.entity;
 
 
 import jakarta.persistence.*;
-        import java.time.Instant;
+import lombok.*;
+
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -12,6 +14,10 @@ import jakarta.persistence.*;
                 columnNames = {"device_id", "status"}
         )
 )
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ReceiptRangeAllocationEntity {
 
     @Id
@@ -36,22 +42,4 @@ public class ReceiptRangeAllocationEntity {
     @Column(name = "allocated_at", nullable = false)
     private Instant allocatedAt = Instant.now();
 
-    protected ReceiptRangeAllocationEntity() {}
-
-    public ReceiptRangeAllocationEntity(String deviceId, long fromNo, long toNo) {
-        this.deviceId = deviceId;
-        this.fromNo = fromNo;
-        this.toNo = toNo;
-        this.nextNo = fromNo;
-    }
-
-    public Long getId() { return id; }
-    public String getDeviceId() { return deviceId; }
-    public long getFromNo() { return fromNo; }
-    public long getToNo() { return toNo; }
-    public long getNextNo() { return nextNo; }
-    public String getStatus() { return status; }
-
-    public void setNextNo(long nextNo) { this.nextNo = nextNo; }
-    public void setStatus(String status) { this.status = status; }
 }

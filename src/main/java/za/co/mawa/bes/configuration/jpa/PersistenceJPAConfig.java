@@ -3,7 +3,7 @@ package za.co.mawa.bes.configuration.jpa;
 import org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl;
 import org.hibernate.cfg.Environment;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
-import org.hibernate.dialect.MySQL57Dialect;
+import org.hibernate.dialect.MySQLDialect;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -38,7 +38,7 @@ public class PersistenceJPAConfig {
 //        jpaProperties.put(Environment.FORMAT_SQL, true);
 //
 //        jpaProperties.put(Environment.PHYSICAL_NAMING_STRATEGY, PhysicalNamingStrategyStandardImpl.class);
-//        jpaProperties.put(Environment.DIALECT, MySQL57Dialect.class);
+//        jpaProperties.put(Environment.DIALECT, MySQLDialect.class);
 //
 //        em.setJpaPropertyMap(jpaProperties);
 //        return em;

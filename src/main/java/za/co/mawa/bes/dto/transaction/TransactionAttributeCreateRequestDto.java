@@ -1,0 +1,21 @@
+package za.co.mawa.bes.dto.transaction;
+
+import java.util.Date;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TransactionAttributeCreateRequestDto {
+
+    private String transaction;
+    private String attribute;
+    private String value;
+    private Date validFrom;
+    private Date validTo;
+}

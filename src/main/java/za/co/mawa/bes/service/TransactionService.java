@@ -160,12 +160,13 @@ public class TransactionService implements TransactionDao {
 
     @Override
     public void addDate(TransactionDateDto transactionDateDto) throws TransactionDateAddException {
-        TransactionDateEntity transactionDateEntity = new TransactionDateEntity(transactionDateDto);
-        if (transactionDateDto.getValue() != null) {
-            transactionDateEntity.setValue(transactionDateDto.getValue());
-        } else {
-            transactionDateEntity.setValue(new Date());
-        }
+        TransactionDateEntity transactionDateEntity = TransactionDateEntity.builder()
+                .transactionDatePKEntity(TransactionDatePKEntity.builder()
+                        .transaction(transactionDateDto.getTransaction())
+                        .type(transactionDateDto.getType())
+                        .build())
+                .value(transactionDateDto.getValue() != null ? transactionDateDto.getValue() : new Date())
+                .build();
         try {
             transactionDateRepository.save(transactionDateEntity);
         } catch (Exception ex) {
@@ -238,12 +239,15 @@ public class TransactionService implements TransactionDao {
     @Override
     public void addLink(TransactionLinkDto transactionLinkDto) throws Exception {
 
-        TransactionLinkEntity transactionLinkEntity = new TransactionLinkEntity(transactionLinkDto);
-        if (transactionLinkDto.getCreationDate() != null) {
-            transactionLinkEntity.setCreation_date(transactionLinkDto.getCreationDate());
-        } else {
-            transactionLinkEntity.setCreation_date(new Date());
-        }
+        TransactionLinkEntity transactionLinkEntity = TransactionLinkEntity.builder()
+                .transactionLinkPKEntity(TransactionLinkPKEntity.builder()
+                        .transaction1(transactionLinkDto.getTransaction1())
+                        .transaction2(transactionLinkDto.getTransaction2())
+                        .type(transactionLinkDto.getType())
+                        .build())
+                .created_by(transactionLinkDto.getCreateBy())
+                .creation_date(transactionLinkDto.getCreationDate() != null ? transactionLinkDto.getCreationDate() : new Date())
+                .build();
         try {
             transactionLinkRepository.save(transactionLinkEntity);
         } catch (Exception ex) {

@@ -14,6 +14,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionTextEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId

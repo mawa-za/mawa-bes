@@ -1,9 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ApprovalMode;
 
@@ -12,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity

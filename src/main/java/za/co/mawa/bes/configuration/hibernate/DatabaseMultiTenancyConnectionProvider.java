@@ -5,19 +5,19 @@ import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.stereotype.Component;
-import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.service.TenantService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Map;
-import java.util.Properties;
 
 @Component
-    public class DatabaseMultiTenancyConnectionProvider implements MultiTenantConnectionProvider, HibernatePropertiesCustomizer {
+public class DatabaseMultiTenancyConnectionProvider implements MultiTenantConnectionProvider<String>, HibernatePropertiesCustomizer {
+
     @Autowired
     DataSource dataSource;
+
     @Override
     public Connection getAnyConnection() throws SQLException {
         return dataSource.getConnection();
@@ -29,14 +29,16 @@ import java.util.Properties;
     }
 
     @Override
-    public Connection getConnection(String schema) throws SQLException {
-        Connection connection = dataSource.getConnection();
-        connection.createStatement().execute(String.format("USE %s;", schema));
+    public Connection getConnection(String tenantIdentifier) throws SQLException {
+        Connection connection = getAnyConnection();
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(String.format("USE %s;", tenantIdentifier));
+        }
         return connection;
     }
 
     @Override
-    public void releaseConnection(String s, Connection connection) throws SQLException {
+    public void releaseConnection(String tenantIdentifier, Connection connection) throws SQLException {
         connection.close();
     }
 
@@ -46,18 +48,17 @@ import java.util.Properties;
     }
 
     @Override
-    public boolean isUnwrappableAs(Class<?> aClass) {
+    public boolean isUnwrappableAs(Class<?> unwrapType) {
         return false;
     }
 
     @Override
-    public <T> T unwrap(Class<T> aClass) {
-        throw new UnsupportedOperationException("Can't unwrap this.");
+    public <T> T unwrap(Class<T> unwrapType) {
+        throw new UnsupportedOperationException("Cannot unwrap " + unwrapType);
     }
 
     @Override
     public void customize(Map<String, Object> hibernateProperties) {
-//        Properties props = tenantService.getTenantProperties(TenantContext.getCurrentTenant());
         hibernateProperties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, this);
     }
 }
