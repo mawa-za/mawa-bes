@@ -19,7 +19,7 @@ public class PrintJobMapper {
                 .creationTimestamp(entity.getCreationTimestamp())
                 .printerId(entity.getPrinterId())
                 .content(entity.getContent())
-                .completed(entity.getCompleted())
+                .completed(entity.isCompleted())
                 .completedTimestamp(entity.getCompletedTimestamp())
                 .build();
     }
@@ -32,7 +32,7 @@ public class PrintJobMapper {
                 .creationTimestamp(request.getCreationTimestamp())
                 .printerId(request.getPrinterId())
                 .content(request.getContent())
-                .completed(request.getCompleted())
+                .completed(request.isCompleted())
                 .completedTimestamp(request.getCompletedTimestamp())
                 .build();
     }
@@ -45,7 +45,7 @@ public class PrintJobMapper {
         entity.setCreationTimestamp(request.getCreationTimestamp());
         entity.setPrinterId(request.getPrinterId());
         entity.setContent(request.getContent());
-        entity.setCompleted(request.getCompleted());
+        entity.setCompleted(request.isCompleted());
         entity.setCompletedTimestamp(request.getCompletedTimestamp());
     }
 }

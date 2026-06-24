@@ -15,7 +15,7 @@ public class PartnerDatePKMapper {
         }
 
         return PartnerDatePKResponseDto.builder()
-                .partner_no(entity.getPartner_no())
+                .partner_no(entity.getPartnerNumber())
                 .type(entity.getType())
                 .build();
     }
@@ -25,7 +25,7 @@ public class PartnerDatePKMapper {
             return null;
         }
         return PartnerDatePKEntity.builder()
-                .partner_no(request.getPartner_no())
+                .partnerNumber(request.getPartner_no())
                 .type(request.getType())
                 .build();
     }
@@ -34,7 +34,7 @@ public class PartnerDatePKMapper {
         if (entity == null || request == null) {
             return;
         }
-        entity.setPartner_no(request.getPartner_no());
+        entity.setPartnerNumber(request.getPartner_no());
         entity.setType(request.getType());
     }
 }
