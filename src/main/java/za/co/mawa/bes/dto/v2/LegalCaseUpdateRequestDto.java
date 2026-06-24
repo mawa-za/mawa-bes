@@ -7,6 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import za.co.mawa.bes.enums.CaseBillingType;
+import za.co.mawa.bes.enums.CasePriority;
+import za.co.mawa.bes.enums.LegalCaseStatus;
+import za.co.mawa.bes.enums.LegalCaseType;
 
 @Data
 @Builder

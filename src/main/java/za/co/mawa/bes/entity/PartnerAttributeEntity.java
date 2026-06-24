@@ -12,6 +12,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class PartnerAttributeEntity implements Serializable {
     @EmbeddedId
     PartnerAttributePKEntity partnerAttributePKEntity;

@@ -10,6 +10,8 @@ import java.io.Serializable;
 @ToString
 @Getter
 @Setter
+@EqualsAndHashCode
+@Builder
 public class TenantPropertyPKEntity implements Serializable {
     private String tenant;
     private String property;

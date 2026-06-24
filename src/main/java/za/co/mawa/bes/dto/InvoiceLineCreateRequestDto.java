@@ -10,12 +10,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InvoiceLineCreateRequestDto {
-
-    private String invoice;
-    private String productIdId;
-    private String descriptionId;
-    private String quantityId;
-    private String unitPriceCentsId;
+    private String invoiceId;
+    private String productId;
+    private String description;
+    private Double quantity;
+    private Long unitPriceCents;
     private Long discountCents;
     private Long taxCents;
     private Long subtotalCents;

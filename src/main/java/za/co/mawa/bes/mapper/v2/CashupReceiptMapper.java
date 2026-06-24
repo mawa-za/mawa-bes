@@ -13,13 +13,13 @@ public class CashupReceiptMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `receiptId` to `receiptIdId` once the related entity id getter is confirmed.
-        // TODO: map relation field `receiptNo` to `receiptNoId` once the related entity id getter is confirmed.
-        // TODO: map relation field `amountCents` to `amountCentsId` once the related entity id getter is confirmed.
-        // TODO: map relation field `paymentMethod` to `paymentMethodId` once the related entity id getter is confirmed.
         return CashupReceiptResponseDto.builder()
                 .id(entity.getId())
-                .cashup(entity.getCashup())
+                .cashup(entity.getCashup() != null ? entity.getCashup().getId() : null)
+                .receiptIdId(entity.getReceiptId())
+                .receiptNoId(entity.getReceiptNo() != null ? entity.getReceiptNo().toString() : null)
+                .amountCentsId(entity.getAmountCents() != null ? entity.getAmountCents().toString() : null)
+                .paymentMethodId(entity.getPaymentMethod())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
@@ -29,7 +29,10 @@ public class CashupReceiptMapper {
             return null;
         }
         return CashupReceiptEntity.builder()
-                .cashup(request.getCashup())
+                .receiptId(request.getReceiptIdId())
+                .receiptNo(request.getReceiptNoId() != null ? Long.valueOf(request.getReceiptNoId()) : null)
+                .amountCents(request.getAmountCentsId() != null ? Long.valueOf(request.getAmountCentsId()) : null)
+                .paymentMethod(request.getPaymentMethodId())
                 .build();
     }
 
@@ -38,6 +41,9 @@ public class CashupReceiptMapper {
             return;
         }
         entity.setId(request.getId());
-        entity.setCashup(request.getCashup());
+        entity.setReceiptId(request.getReceiptIdId());
+        entity.setReceiptNo(request.getReceiptNoId() != null ? Long.valueOf(request.getReceiptNoId()) : null);
+        entity.setAmountCents(request.getAmountCentsId() != null ? Long.valueOf(request.getAmountCentsId()) : null);
+        entity.setPaymentMethod(request.getPaymentMethodId());
     }
 }

@@ -53,7 +53,7 @@ class PrintJobController {
 
     @PostMapping("/{id}/complete")
     public ResponseEntity<?> markJobComplete(@PathVariable long id) {
-        PrintJobResponseDto job = printJobRepository.getById(id);
+        PrintJobEntity job = printJobRepository.getById(id);
         if (job != null) {
             job.setCompleted(true);
             printJobRepository.save(job);

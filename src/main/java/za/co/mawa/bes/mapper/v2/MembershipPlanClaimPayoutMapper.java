@@ -1,10 +1,12 @@
 package za.co.mawa.bes.mapper.v2;
 
 import org.springframework.stereotype.Component;
-import za.co.mawa.bes.entity.v2.MembershipPlanClaimPayoutEntity;
 import za.co.mawa.bes.dto.v2.MembershipPlanClaimPayoutCreateRequestDto;
 import za.co.mawa.bes.dto.v2.MembershipPlanClaimPayoutResponseDto;
 import za.co.mawa.bes.dto.v2.MembershipPlanClaimPayoutUpdateRequestDto;
+import za.co.mawa.bes.entity.v2.MembershipPlanClaimPayoutEntity;
+import za.co.mawa.bes.enums.DependentType;
+import za.co.mawa.bes.enums.MembershipClaimType;
 
 @Component
 public class MembershipPlanClaimPayoutMapper {
@@ -13,17 +15,16 @@ public class MembershipPlanClaimPayoutMapper {
         if (entity == null) {
             return null;
         }
-        // TODO: map relation field `claimType` to `claimTypeId` once the related entity id getter is confirmed.
-        // TODO: map relation field `dependentType` to `dependentTypeId` once the related entity id getter is confirmed.
+
         return MembershipPlanClaimPayoutResponseDto.builder()
                 .id(entity.getId())
-                .plan(entity.getPlan())
+                .planId(entity.getPlan() != null ? entity.getPlan().getId() : null)
+                .planCode(entity.getPlan() != null ? entity.getPlan().getPlanCode() : null)
+                .planName(entity.getPlan() != null ? entity.getPlan().getName() : null)
+                .claimType(entity.getClaimType())
+                .dependentType(entity.getDependentType())
                 .payoutAmountCents(entity.getPayoutAmountCents())
                 .active(entity.getActive())
-                .createdAt(entity.getCreatedAt())
-                .createdBy(entity.getCreatedBy())
-                .updatedAt(entity.getUpdatedAt())
-                .updatedBy(entity.getUpdatedBy())
                 .build();
     }
 
@@ -31,20 +32,31 @@ public class MembershipPlanClaimPayoutMapper {
         if (request == null) {
             return null;
         }
-        return MembershipPlanClaimPayoutEntity.builder()
-                .plan(request.getPlan())
-                .payoutAmountCents(request.getPayoutAmountCents())
-                .active(request.getActive())
-                .build();
+
+        MembershipPlanClaimPayoutEntity entity = new MembershipPlanClaimPayoutEntity();
+        entity.setClaimType(parseMembershipClaimType(request.getClaimTypeId()));
+        entity.setDependentType(parseDependentType(request.getDependentTypeId()));
+        entity.setPayoutAmountCents(request.getPayoutAmountCents());
+        entity.setActive(request.getActive() == null ? Boolean.TRUE : request.getActive());
+        return entity;
     }
 
     public void updateEntity(MembershipPlanClaimPayoutEntity entity, MembershipPlanClaimPayoutUpdateRequestDto request) {
         if (entity == null || request == null) {
             return;
         }
-        entity.setId(request.getId());
-        entity.setPlan(request.getPlan());
+
+        entity.setClaimType(parseMembershipClaimType(request.getClaimTypeId()));
+        entity.setDependentType(parseDependentType(request.getDependentTypeId()));
         entity.setPayoutAmountCents(request.getPayoutAmountCents());
         entity.setActive(request.getActive());
+    }
+
+    private MembershipClaimType parseMembershipClaimType(String value) {
+        return value == null || value.isBlank() ? null : MembershipClaimType.valueOf(value);
+    }
+
+    private DependentType parseDependentType(String value) {
+        return value == null || value.isBlank() ? null : DependentType.valueOf(value);
     }
 }

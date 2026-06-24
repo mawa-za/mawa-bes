@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @ToString
 @Getter
 @Setter
+@Builder
 public class MessageQueueEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -12,6 +12,7 @@ import java.util.Date;
 @ToString
 @Getter
 @Setter
+@Builder
 public class TransactionAttachmentEntity implements Serializable {
     @EmbeddedId
     TransactionAttachmentPKEntity transactionAttachmentPKEntity;

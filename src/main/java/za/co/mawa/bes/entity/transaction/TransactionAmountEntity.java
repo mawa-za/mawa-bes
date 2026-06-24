@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 public class TransactionAmountEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id

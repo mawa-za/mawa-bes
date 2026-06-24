@@ -9,6 +9,7 @@ import org.hibernate.annotations.GenericGenerator;
 @Getter
 @Setter
 @ToString
+@Builder
 @Entity
 @Table(name = "funeral_membership_cover")
 public class FuneralMembershipCoverEntity {

@@ -29,6 +29,6 @@ public class InvoiceUpdateRequestDto {
     private Long balanceCents;
     private String currency;
     private String notes;
-    private List<String> lines;
-    private List<String> paymentsIds;
+    private List<String> lineIds;
+    private List<String> paymentIds;
 }

@@ -1,6 +1,7 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDate;
@@ -8,6 +9,10 @@ import java.util.Date;
 
 @Entity
 @Table(name = "group_society_account_txn")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GroupSocietyAccountTxnEntity {
 
     @Id
@@ -63,127 +68,4 @@ public class GroupSocietyAccountTxnEntity {
     @Column(name = "created_by")
     private String createdBy;
 
-    public String getId() {
-        return id;
-    }
-
-    public String getGroupSocietyId() {
-        return groupSocietyId;
-    }
-
-    public void setGroupSocietyId(String groupSocietyId) {
-        this.groupSocietyId = groupSocietyId;
-    }
-
-    public String getTxnType() {
-        return txnType;
-    }
-
-    public void setTxnType(String txnType) {
-        this.txnType = txnType;
-    }
-
-    public String getDirection() {
-        return direction;
-    }
-
-    public void setDirection(String direction) {
-        this.direction = direction;
-    }
-
-    public Long getAmountCents() {
-        return amountCents;
-    }
-
-    public void setAmountCents(Long amountCents) {
-        this.amountCents = amountCents;
-    }
-
-    public Long getBalanceBeforeCents() {
-        return balanceBeforeCents;
-    }
-
-    public void setBalanceBeforeCents(Long balanceBeforeCents) {
-        this.balanceBeforeCents = balanceBeforeCents;
-    }
-
-    public Long getBalanceAfterCents() {
-        return balanceAfterCents;
-    }
-
-    public void setBalanceAfterCents(Long balanceAfterCents) {
-        this.balanceAfterCents = balanceAfterCents;
-    }
-
-    public LocalDate getTxnDate() {
-        return txnDate;
-    }
-
-    public void setTxnDate(LocalDate txnDate) {
-        this.txnDate = txnDate;
-    }
-
-    public Date getTxnDatetime() {
-        return txnDatetime;
-    }
-
-    public String getReferenceType() {
-        return referenceType;
-    }
-
-    public void setReferenceType(String referenceType) {
-        this.referenceType = referenceType;
-    }
-
-    public String getReferenceId() {
-        return referenceId;
-    }
-
-    public void setReferenceId(String referenceId) {
-        this.referenceId = referenceId;
-    }
-
-    public String getReferenceNo() {
-        return referenceNo;
-    }
-
-    public void setReferenceNo(String referenceNo) {
-        this.referenceNo = referenceNo;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getPeriod() {
-        return period;
-    }
-
-    public void setPeriod(String period) {
-        this.period = period;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
 }

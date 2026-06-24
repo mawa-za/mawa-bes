@@ -1,11 +1,17 @@
 package za.co.mawa.bes.entity.v2;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "module_usage_event")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ModuleUsageEventEntity {
 
     @Id
@@ -53,30 +59,4 @@ public class ModuleUsageEventEntity {
         }
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-
-    public String getModuleCode() { return moduleCode; }
-    public void setModuleCode(String moduleCode) { this.moduleCode = moduleCode; }
-
-    public String getModuleName() { return moduleName; }
-    public void setModuleName(String moduleName) { this.moduleName = moduleName; }
-
-    public String getModulePath() { return modulePath; }
-    public void setModulePath(String modulePath) { this.modulePath = modulePath; }
-
-    public String getWorkcenterId() { return workcenterId; }
-    public void setWorkcenterId(String workcenterId) { this.workcenterId = workcenterId; }
-
-    public LocalDateTime getUsedAt() { return usedAt; }
-    public void setUsedAt(LocalDateTime usedAt) { this.usedAt = usedAt; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
 }

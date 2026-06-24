@@ -2,6 +2,7 @@ package za.co.mawa.bes.dto.v2;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import za.co.mawa.bes.enums.PaymentBatchStatus;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.SyncStatus;
@@ -38,4 +39,7 @@ public class PaymentBatchResponseDto {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+
+    private String paidUpToPeriod;
+    private List<ReceiptResponseDto> receipts;
 }

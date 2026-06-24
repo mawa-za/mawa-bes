@@ -1,19 +1,21 @@
 package za.co.mawa.bes.mapper;
 
 import org.springframework.stereotype.Component;
-import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.dto.InvoiceCreateRequestDto;
 import za.co.mawa.bes.dto.InvoiceResponseDto;
 import za.co.mawa.bes.dto.InvoiceUpdateRequestDto;
+import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.entity.InvoiceLineEntity;
+import za.co.mawa.bes.entity.InvoicePaymentEntity;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class InvoiceMapper {
-
     public InvoiceResponseDto toResponse(InvoiceEntity entity) {
-        if (entity == null) {
-            return null;
-        }
-        // TODO: map relation field `payments` to `paymentsIds` once the related entity id getter is confirmed.
+        if (entity == null) return null;
         return InvoiceResponseDto.builder()
                 .id(entity.getId())
                 .invoiceNo(entity.getInvoiceNo())
@@ -33,14 +35,12 @@ public class InvoiceMapper {
                 .createdBy(entity.getCreatedBy())
                 .updatedAt(entity.getUpdatedAt())
                 .updatedBy(entity.getUpdatedBy())
-                .lines(entity.getLines())
+                .lineIds(toLineIds(entity.getLines()))
+                .paymentIds(toPaymentIds(entity.getPayments()))
                 .build();
     }
-
     public InvoiceEntity toEntity(InvoiceCreateRequestDto request) {
-        if (request == null) {
-            return null;
-        }
+        if (request == null) return null;
         return InvoiceEntity.builder()
                 .invoiceNo(request.getInvoiceNo())
                 .externalRef(request.getExternalRef())
@@ -56,14 +56,10 @@ public class InvoiceMapper {
                 .balanceCents(request.getBalanceCents())
                 .currency(request.getCurrency())
                 .notes(request.getNotes())
-                .lines(request.getLines())
                 .build();
     }
-
     public void updateEntity(InvoiceEntity entity, InvoiceUpdateRequestDto request) {
-        if (entity == null || request == null) {
-            return;
-        }
+        if (entity == null || request == null) return;
         entity.setId(request.getId());
         entity.setInvoiceNo(request.getInvoiceNo());
         entity.setExternalRef(request.getExternalRef());
@@ -79,6 +75,13 @@ public class InvoiceMapper {
         entity.setBalanceCents(request.getBalanceCents());
         entity.setCurrency(request.getCurrency());
         entity.setNotes(request.getNotes());
-        entity.setLines(request.getLines());
+    }
+    private List<String> toLineIds(List<InvoiceLineEntity> lines) {
+        if (lines == null) return Collections.emptyList();
+        return lines.stream().map(InvoiceLineEntity::getId).collect(Collectors.toList());
+    }
+    private List<String> toPaymentIds(List<InvoicePaymentEntity> payments) {
+        if (payments == null) return Collections.emptyList();
+        return payments.stream().map(InvoicePaymentEntity::getId).collect(Collectors.toList());
     }
 }

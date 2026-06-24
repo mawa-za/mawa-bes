@@ -36,10 +36,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import za.co.mawa.bes.dto.PremiumCreateRequestDto;
-import za.co.mawa.bes.dto.PremiumResponseDto;
-import za.co.mawa.bes.dto.PremiumUpdateRequestDto;
-import za.co.mawa.bes.mapper.PremiumMapper;
 
 
 @RestController
@@ -47,7 +43,6 @@ import za.co.mawa.bes.mapper.PremiumMapper;
 @RequestMapping(value = "pay-app")
 public class PayAppController {
 
-    private final PremiumMapper premiumMapper;
     Gson gson = new Gson();
     @Autowired
     TransactionService transactionService;
@@ -127,7 +122,7 @@ public class PayAppController {
     @RequestMapping(value = "receipt-sync", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> syncReceipt(@RequestBody PremiumInboundDto premiumInboundDto) throws RuntimeException {
         try {
-            PremiumResponseDto entity = new PremiumEntity();
+            PremiumEntity entity = new PremiumEntity();
             entity.setId(premiumInboundDto.getDeviceReceiptId());
             if (!StringUtils.isBlank(premiumInboundDto.getReceiptNo())) {
                 entity.setReceiptNumber(premiumInboundDto.getReceiptNo());
@@ -150,7 +145,7 @@ public class PayAppController {
             entity.setTenderType(premiumInboundDto.getPaymentMethod().toUpperCase());
             BigDecimal amount = new BigDecimal(premiumInboundDto.getAmountCents()).divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
             entity.setAmount(amount);
-            PremiumResponseDto premiumEntity = premiumRepository.save(entity);
+            PremiumEntity premiumEntity = premiumRepository.save(entity);
             premiumService.updatePaidUpToPeriod(premiumInboundDto.getMemberId());
             return ResponseEntity.ok(new ReceiptSyncResponse(
                     "SUCCESS",

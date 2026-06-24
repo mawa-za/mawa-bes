@@ -12,6 +12,7 @@ import java.util.Objects;
 @ToString
 @Getter
 @Setter
+@Builder
 public class RoleEntity {
     private static final long serialVersionUID = 1L;
     @Id

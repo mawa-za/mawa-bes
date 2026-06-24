@@ -16,6 +16,7 @@ import java.util.Date;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Builder
 public class TransactionAttributeEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id

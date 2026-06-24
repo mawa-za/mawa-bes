@@ -17,6 +17,7 @@ import org.hibernate.annotations.GenericGenerator;
 @ToString
 @Getter
 @Setter
+@Builder
 public class PartnerEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

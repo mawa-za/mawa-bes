@@ -26,7 +26,6 @@ import java.text.SimpleDateFormat;
 import za.co.mawa.bes.dto.transaction.TransactionViewCreateRequestDto;
 import za.co.mawa.bes.dto.transaction.TransactionViewResponseDto;
 import za.co.mawa.bes.dto.transaction.TransactionViewUpdateRequestDto;
-import za.co.mawa.bes.mapper.transaction.TransactionViewMapper;
 
 import java.util.*;
 
@@ -35,7 +34,6 @@ import java.util.*;
 @RequestMapping(value = "membership")
 public class MembershipController {
 
-    private final TransactionViewMapper transactionViewMapper;
     @Autowired
     TransactionService transactionService;
     @Autowired

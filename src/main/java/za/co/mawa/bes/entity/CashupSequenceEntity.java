@@ -4,9 +4,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.*;
 
 @Entity
 @Table(name = "cashup_sequence")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CashupSequenceEntity {
 
     @Id
@@ -15,14 +20,4 @@ public class CashupSequenceEntity {
     @Column(name = "next_no", nullable = false)
     private long nextNo;
 
-    protected CashupSequenceEntity() {}
-
-    public CashupSequenceEntity(Integer id, long nextNo) {
-        this.id = id;
-        this.nextNo = nextNo;
-    }
-
-    public Integer getId() { return id; }
-    public long getNextNo() { return nextNo; }
-    public void setNextNo(long nextNo) { this.nextNo = nextNo; }
 }
