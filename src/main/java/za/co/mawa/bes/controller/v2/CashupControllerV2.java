@@ -52,6 +52,16 @@ CashupService cashupService;
         return ResponseEntity.ok(cashupService.getCashupsByDevice(deviceId));
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<CashupSummaryResponse> getActiveCashup(
+            @RequestParam String deviceId,
+            @RequestParam String userId
+    ) {
+        return cashupService.getActiveCashup(deviceId, userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/all")
     public ResponseEntity<List<CashupSummaryResponse>> getAll() {
         return ResponseEntity.ok(
