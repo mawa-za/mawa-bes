@@ -1,0 +1,1 @@
+org.springframework.boot.env.EnvironmentPostProcessor=za.co.mawa.bes.configuration.gcp.GcpSecretManagerEnvironmentPostProcessor

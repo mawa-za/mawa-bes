@@ -8,4 +8,6 @@ import java.util.List;
 public interface CashupPaymentSummaryRepository extends JpaRepository<CashupPaymentSummaryEntity, String> {
 
     List<CashupPaymentSummaryEntity> findByCashupId(String cashupId);
+
+    void deleteByCashupId(String cashupId);
 }
