@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,5 +17,6 @@ public class FuneralPackageUpdateRequestDto {
     private String name;
     private Long basePriceCents;
     private String inclusionsJson;
+    private List<String> inclusions;
     private Boolean active;
 }

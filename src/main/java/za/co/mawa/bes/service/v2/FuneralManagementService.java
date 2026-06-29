@@ -121,7 +121,7 @@ public class FuneralManagementService {
         FuneralPackageEntity entity = new FuneralPackageEntity();
         entity.setName(request.getName().trim());
         entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
-        entity.setInclusionsJson(request.getInclusionsJson());
+        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
         entity.setActive(request.getActive() == null || request.getActive());
         return funeralPackageRepository.save(entity);
     }
@@ -133,7 +133,7 @@ public class FuneralManagementService {
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setName(request.getName().trim());
         entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
-        entity.setInclusionsJson(request.getInclusionsJson());
+        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
         if (request.getActive() != null) {
             entity.setActive(request.getActive());
         }
@@ -145,6 +145,26 @@ public class FuneralManagementService {
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setActive(false);
         funeralPackageRepository.save(entity);
+    }
+
+
+    private String resolveInclusionsJson(String inclusionsJson, List<String> inclusions) {
+        if (inclusions != null) {
+            try {
+                return objectMapper.writeValueAsString(inclusions);
+            } catch (JsonProcessingException e) {
+                throw new IllegalArgumentException("Invalid funeral package inclusions", e);
+            }
+        }
+        if (inclusionsJson == null || inclusionsJson.isBlank()) {
+            return "[]";
+        }
+        try {
+            objectMapper.readTree(inclusionsJson);
+            return inclusionsJson;
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("inclusionsJson must be valid JSON", e);
+        }
     }
 
     private FuneralPackageEntity getFuneralPackageOrThrow(String id) {
