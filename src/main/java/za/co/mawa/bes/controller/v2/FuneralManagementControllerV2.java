@@ -16,6 +16,15 @@ public class FuneralManagementControllerV2 {
 
     private final FuneralManagementService funeralManagementService;
 
+    @GetMapping("/pickup-requests")
+    public ResponseEntity<?> getPickupRequests() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getPickupRequests());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PostMapping(value = "/pickup-request", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createPickupRequest(@RequestBody CreatePickupRequestDto request) {
         try {

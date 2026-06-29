@@ -33,6 +33,10 @@ public class FuneralManagementService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    public List<FuneralPickupRequestEntity> getPickupRequests() {
+        return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
+    }
+
     @Transactional
     public FuneralPickupRequestEntity createPickupRequest(CreatePickupRequestDto request) {
         validateRequired(request.getDeceasedName(), "deceasedName");

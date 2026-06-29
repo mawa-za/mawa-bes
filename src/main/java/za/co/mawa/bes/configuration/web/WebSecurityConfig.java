@@ -16,11 +16,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.CorsConfiguration;
 import za.co.mawa.bes.configuration.ApiEndpointLoggingFilter;
 import za.co.mawa.bes.configuration.jwt.JwtAuthenticationEntryPoint;
 import za.co.mawa.bes.configuration.jwt.JwtRequestFilter;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.v2.ApiEndpointLogService;
+
+import java.util.List;
 
 @Configuration
 @EnableGlobalMethodSecurity(
@@ -86,6 +91,28 @@ public class WebSecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of(
+                "Authorization",
+                "X-TenantID",
+                "X-Tenant-Id",
+                "X-UserID",
+                "X-User-Id",
+                "X-Role"
+        ));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
 
