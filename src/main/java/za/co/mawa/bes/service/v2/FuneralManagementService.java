@@ -8,6 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
+import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
 
@@ -99,7 +101,55 @@ public class FuneralManagementService {
     }
 
     public List<FuneralPackageEntity> getPackages() {
-        return funeralPackageRepository.findByActiveTrue();
+        return getPackages(true);
+    }
+
+    public List<FuneralPackageEntity> getPackages(boolean activeOnly) {
+        if (activeOnly) {
+            return funeralPackageRepository.findByActiveTrue();
+        }
+        return funeralPackageRepository.findAll();
+    }
+
+    public FuneralPackageEntity getPackage(String id) {
+        return getFuneralPackageOrThrow(id);
+    }
+
+    @Transactional
+    public FuneralPackageEntity createPackage(FuneralPackageCreateRequestDto request) {
+        validateRequired(request.getName(), "name");
+        FuneralPackageEntity entity = new FuneralPackageEntity();
+        entity.setName(request.getName().trim());
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
+        entity.setInclusionsJson(request.getInclusionsJson());
+        entity.setActive(request.getActive() == null || request.getActive());
+        return funeralPackageRepository.save(entity);
+    }
+
+    @Transactional
+    public FuneralPackageEntity updatePackage(String id, FuneralPackageUpdateRequestDto request) {
+        validateRequired(id, "id");
+        validateRequired(request.getName(), "name");
+        FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
+        entity.setName(request.getName().trim());
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
+        entity.setInclusionsJson(request.getInclusionsJson());
+        if (request.getActive() != null) {
+            entity.setActive(request.getActive());
+        }
+        return funeralPackageRepository.save(entity);
+    }
+
+    @Transactional
+    public void deletePackage(String id) {
+        FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
+        entity.setActive(false);
+        funeralPackageRepository.save(entity);
+    }
+
+    private FuneralPackageEntity getFuneralPackageOrThrow(String id) {
+        return funeralPackageRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + id));
     }
 
     /**
