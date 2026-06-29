@@ -189,6 +189,7 @@ public class FuneralManagementService {
 
     @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
+        populateServiceRequestDefaults(request);
         validateRequired(request.getDeceasedName(), "deceasedName");
         validateRequired(request.getPackageId(), "packageId");
         validateRequired(request.getFamilyRepId(), "familyRepId");
@@ -724,6 +725,27 @@ public class FuneralManagementService {
                     VALUES (?, 'EXT-FUNERAL-COVER', 'External Funeral Cover', 'Placeholder plan for claims from external Mawa tenants', 0, 'ZAR', 1, CURRENT_TIMESTAMP)
                     """, planId);
             return planId;
+        }
+    }
+
+
+    private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {
+        if (request == null) return;
+        if ((request.getDeceasedName() == null || request.getDeceasedName().isBlank())
+                && request.getMortuaryInventoryId() != null
+                && !request.getMortuaryInventoryId().isBlank()) {
+            mortuaryInventoryRepository.findById(request.getMortuaryInventoryId())
+                    .ifPresent(inventory -> {
+                        request.setDeceasedName(inventory.getDeceasedName());
+                        if ((request.getDeceasedIdentityNumber() == null || request.getDeceasedIdentityNumber().isBlank())
+                                && inventory.getIdentityNumber() != null) {
+                            request.setDeceasedIdentityNumber(inventory.getIdentityNumber());
+                        }
+                        if ((request.getDeceasedPartnerId() == null || request.getDeceasedPartnerId().isBlank())
+                                && inventory.getDeceasedPartnerId() != null) {
+                            request.setDeceasedPartnerId(inventory.getDeceasedPartnerId());
+                        }
+                    });
         }
     }
 
