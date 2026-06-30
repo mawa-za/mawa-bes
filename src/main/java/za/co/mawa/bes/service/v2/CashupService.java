@@ -20,7 +20,9 @@ import za.co.mawa.bes.repository.v2.CashupRepository;
 import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -341,27 +343,81 @@ public class CashupService {
             Map<String, Long> amountByMethod,
             Map<String, Integer> countByMethod
     ) {
-        cashupPaymentSummaryRepository.deleteByCashupId(cashup.getId());
+        List<CashupPaymentSummaryEntity> existingSummaries =
+                cashupPaymentSummaryRepository.findByCashupId(cashup.getId());
+
+        Map<String, CashupPaymentSummaryEntity> existingByMethod = new HashMap<>();
+        for (CashupPaymentSummaryEntity existing : existingSummaries) {
+            String paymentMethod = normalizePaymentMethod(existing.getPaymentMethod());
+            if (paymentMethod != null) {
+                existingByMethod.put(paymentMethod, existing);
+            }
+        }
 
         if (amountByMethod == null || amountByMethod.isEmpty()) {
+            if (!existingSummaries.isEmpty()) {
+                cashupPaymentSummaryRepository.deleteAll(existingSummaries);
+            }
             return;
         }
 
-        List<CashupPaymentSummaryEntity> summaries = new ArrayList<>();
+        List<CashupPaymentSummaryEntity> summariesToSave = new ArrayList<>();
 
         amountByMethod.forEach((method, amount) -> {
-            CashupPaymentSummaryEntity entity = new CashupPaymentSummaryEntity();
-            entity.setCashup(cashup);
-            entity.setPaymentMethod(method);
+            String paymentMethod = normalizePaymentMethod(method);
+            if (paymentMethod == null) {
+                return;
+            }
+
+            CashupPaymentSummaryEntity entity = existingByMethod.remove(paymentMethod);
+            if (entity == null) {
+                entity = new CashupPaymentSummaryEntity();
+                entity.setCashup(cashup);
+                entity.setPaymentMethod(paymentMethod);
+            }
+
             entity.setAmountCents(defaultLong(amount));
+            entity.setPaymentCount(defaultInt(resolvePaymentCount(countByMethod, method, paymentMethod)));
 
-            Integer count = countByMethod != null ? countByMethod.get(method) : null;
-            entity.setPaymentCount(defaultInt(count));
-
-            summaries.add(entity);
+            summariesToSave.add(entity);
         });
 
-        cashupPaymentSummaryRepository.saveAll(summaries);
+        if (!existingByMethod.isEmpty()) {
+            cashupPaymentSummaryRepository.deleteAll(existingByMethod.values());
+        }
+
+        if (!summariesToSave.isEmpty()) {
+            cashupPaymentSummaryRepository.saveAll(summariesToSave);
+        }
+    }
+
+    private Integer resolvePaymentCount(Map<String, Integer> countByMethod, String originalMethod, String normalizedMethod) {
+        if (countByMethod == null || countByMethod.isEmpty()) {
+            return null;
+        }
+
+        Integer count = countByMethod.get(originalMethod);
+        if (count != null) {
+            return count;
+        }
+
+        count = countByMethod.get(normalizedMethod);
+        if (count != null) {
+            return count;
+        }
+
+        for (Map.Entry<String, Integer> entry : countByMethod.entrySet()) {
+            if (normalizedMethod.equals(normalizePaymentMethod(entry.getKey()))) {
+                return entry.getValue();
+            }
+        }
+
+        return null;
+    }
+
+    private String normalizePaymentMethod(String method) {
+        String value = clean(method);
+        return value == null ? null : value.toUpperCase(Locale.ROOT);
     }
 
     private void replaceReceipts(CashupEntity cashup, List<CashupReceiptRequest> receipts) {
