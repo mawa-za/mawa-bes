@@ -15,7 +15,15 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "payment_batch")
+@Table(
+        name = "payment_batch",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_payment_batch_device_local",
+                        columnNames = {"device_id", "local_payment_batch_id"}
+                )
+        }
+)
 public class PaymentBatchEntity {
 
     @Id
