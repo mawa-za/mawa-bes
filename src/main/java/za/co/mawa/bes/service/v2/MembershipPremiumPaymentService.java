@@ -10,6 +10,8 @@ import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
@@ -31,6 +33,7 @@ public class MembershipPremiumPaymentService {
     private final ReceiptMapper receiptMapper;
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
+    private final MembershipPlanService membershipPlanService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
     @Autowired
     NumberAllocationService numberAllocationService;
@@ -230,7 +233,23 @@ public class MembershipPremiumPaymentService {
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {
-        return membershipService.getMembershipById(membershipId).get().getPremiumCents();
+        MembershipEntity membership = membershipService.getMembershipById(membershipId)
+                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+
+        if (membership.getPremiumCents() != null && membership.getPremiumCents() > 0) {
+            return membership.getPremiumCents();
+        }
+
+        if (membership.getPlanId() != null && !membership.getPlanId().isBlank()) {
+            MembershipPlanEntity plan = membershipPlanService.getPlanById(membership.getPlanId())
+                    .orElseThrow(() -> new RuntimeException("Membership plan not found: " + membership.getPlanId()));
+
+            if (plan.getPremiumCents() != null && plan.getPremiumCents() > 0) {
+                return plan.getPremiumCents();
+            }
+        }
+
+        throw new RuntimeException("Unable to determine monthly premium for membership: " + membershipId);
     }
 
     private void validate(MembershipPremiumPaymentCreateRequest request) {
