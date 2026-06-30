@@ -41,7 +41,7 @@ public class CashupEntity {
     private Integer receiptCount = 0;
 
     @Column(name = "status", nullable = false, length = 30)
-    private String status = "SUBMITTED";
+    private String status = "AWAITING_DEPOSITS";
 
     @Column(name = "deposit_total_cents", nullable = false)
     private Long depositTotalCents = 0L;
