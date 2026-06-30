@@ -23,5 +23,10 @@ public class CashupSummaryResponse {
 
     private String status;
 
+    private Long depositTotalCents;
+    private Integer depositCount;
+    private String approvalRequestId;
+
     private List<CashupPaymentSummaryDto> payments;
+    private List<CashupDepositResponse> deposits;
 }
