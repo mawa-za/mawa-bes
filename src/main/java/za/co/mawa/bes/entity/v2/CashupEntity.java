@@ -43,6 +43,15 @@ public class CashupEntity {
     @Column(name = "status", nullable = false, length = 30)
     private String status = "SUBMITTED";
 
+    @Column(name = "deposit_total_cents", nullable = false)
+    private Long depositTotalCents = 0L;
+
+    @Column(name = "deposit_count", nullable = false)
+    private Integer depositCount = 0;
+
+    @Column(name = "approval_request_id", length = 255)
+    private String approvalRequestId;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

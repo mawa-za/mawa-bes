@@ -4,9 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.payapp.*;
+import com.google.gson.Gson;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.entity.v2.CashupDepositEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
+import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
 import za.co.mawa.bes.repository.v2.CashupRepository;
@@ -30,6 +36,9 @@ public class CashupService {
     private final CashupRepository cashupRepository;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final CashupReceiptRepository cashupReceiptRepository;
+    private final CashupDepositRepository cashupDepositRepository;
+    private final ApprovalService approvalService;
+    private final Gson gson;
 
     /**
      * Upserts the cashup received from the offline Flutter app.
@@ -109,7 +118,11 @@ public class CashupService {
                 .totalCents(cashup.getTotalCents())
                 .receiptCount(cashup.getReceiptCount())
                 .status(cashup.getStatus())
+                .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
+                .depositCount(defaultInt(cashup.getDepositCount()))
+                .approvalRequestId(cashup.getApprovalRequestId())
                 .payments(payments)
+                .deposits(getDeposits(cashup.getId()))
                 .build();
     }
 
@@ -148,6 +161,117 @@ public class CashupService {
                 .stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+    @Transactional
+    public CashupDepositResponse createDeposit(String cashupId, CashupDepositRequest request) {
+        CashupEntity cashup = cashupRepository.findById(cashupId)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
+
+        if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())
+                && !"DRAFT".equalsIgnoreCase(cashup.getStatus())
+                && !"NEW".equalsIgnoreCase(cashup.getStatus())) {
+            throw new IllegalStateException("Deposits can only be created while the cashup is open/draft");
+        }
+
+        validateDepositRequest(request);
+
+        CashupDepositEntity deposit = new CashupDepositEntity();
+        deposit.setCashup(cashup);
+        deposit.setDepositDate(parseDate(request.getDepositDate()));
+        deposit.setAmountCents(defaultLong(request.getAmountCents()));
+        deposit.setPaymentMethod(clean(request.getPaymentMethod()));
+        deposit.setBankName(clean(request.getBankName()));
+        deposit.setReferenceNo(clean(request.getReferenceNo()));
+        deposit.setNotes(clean(request.getNotes()));
+        deposit.setCreatedBy(clean(request.getCreatedBy()));
+        deposit.setUpdatedBy(clean(request.getCreatedBy()));
+
+        deposit = cashupDepositRepository.save(deposit);
+        recalculateDeposits(cashup);
+
+        return toDepositResponse(deposit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CashupDepositResponse> getDeposits(String cashupId) {
+        return cashupDepositRepository.findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashupId)
+                .stream()
+                .map(this::toDepositResponse)
+                .toList();
+    }
+
+    @Transactional
+    public void deleteDeposit(String cashupId, String depositId) {
+        CashupEntity cashup = cashupRepository.findById(cashupId)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
+
+        CashupDepositEntity deposit = cashupDepositRepository.findById(depositId)
+                .orElseThrow(() -> new IllegalArgumentException("Deposit not found: " + depositId));
+
+        if (deposit.getCashup() == null || !cashupId.equals(deposit.getCashup().getId())) {
+            throw new IllegalArgumentException("Deposit does not belong to cashup: " + cashupId);
+        }
+
+        if (STATUS_APPROVED.equalsIgnoreCase(cashup.getStatus()) || STATUS_SUBMITTED.equalsIgnoreCase(cashup.getStatus())) {
+            throw new IllegalStateException("Deposits cannot be deleted after cashup submission");
+        }
+
+        cashupDepositRepository.delete(deposit);
+        recalculateDeposits(cashup);
+    }
+
+    @Transactional
+    public CashupResponse submitForApproval(String id, CashupSubmitForApprovalRequest request) {
+        CashupEntity cashup = cashupRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + id));
+
+        if (cashup.getApprovalRequestId() != null && !cashup.getApprovalRequestId().isBlank()) {
+            return CashupResponse.builder()
+                    .status("IGNORED")
+                    .cashupId(cashup.getId())
+                    .cashupNo(cashup.getCashupNo())
+                    .approvalRequestId(cashup.getApprovalRequestId())
+                    .message("Cashup already has an approval request")
+                    .build();
+        }
+
+        if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())
+                && !"DRAFT".equalsIgnoreCase(cashup.getStatus())
+                && !"NEW".equalsIgnoreCase(cashup.getStatus())) {
+            throw new IllegalStateException("Only open/draft cashups can be submitted for approval");
+        }
+
+        recalculateDeposits(cashup);
+        String requesterId = request != null && request.getRequesterId() != null && !request.getRequesterId().isBlank()
+                ? request.getRequesterId()
+                : cashup.getUserId();
+
+        ApprovalSubmitRequest approvalRequest = new ApprovalSubmitRequest();
+        approvalRequest.setApprovalType(ApprovalType.CASHUP);
+        approvalRequest.setReferenceId(cashup.getId());
+        approvalRequest.setReferenceNo(String.valueOf(cashup.getCashupNo()));
+        approvalRequest.setTitle("Cashup Approval: #" + cashup.getCashupNo());
+        approvalRequest.setDescription("Cashup submitted for approval. Total collected: "
+                + defaultLong(cashup.getTotalCents())
+                + " cents, deposits: " + defaultLong(cashup.getDepositTotalCents()) + " cents.");
+        approvalRequest.setRequesterId(requesterId);
+        approvalRequest.setPayloadJson(gson.toJson(toSummary(cashup)));
+
+        ApprovalRequestResponse approvalResponse = approvalService.submitForApproval(approvalRequest);
+
+        cashup.setStatus(STATUS_SUBMITTED);
+        cashup.setApprovalRequestId(approvalResponse.getId());
+        cashup.setUpdatedBy(requesterId);
+        cashupRepository.save(cashup);
+
+        return CashupResponse.builder()
+                .status("SUCCESS")
+                .cashupId(cashup.getId())
+                .cashupNo(cashup.getCashupNo())
+                .approvalRequestId(approvalResponse.getId())
+                .message("Cashup submitted for approval")
+                .build();
     }
 
     @Transactional
@@ -272,7 +396,68 @@ public class CashupService {
                 .totalCents(cashup.getTotalCents())
                 .receiptCount(cashup.getReceiptCount())
                 .status(cashup.getStatus())
+                .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
+                .depositCount(defaultInt(cashup.getDepositCount()))
+                .approvalRequestId(cashup.getApprovalRequestId())
+                .deposits(getDeposits(cashup.getId()))
                 .build();
+    }
+
+    @Transactional
+    public void markSubmittedFromApproval(String cashupId, String approvalRequestId, String actionBy) {
+        CashupEntity cashup = cashupRepository.findById(cashupId)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
+        cashup.setStatus(STATUS_SUBMITTED);
+        cashup.setApprovalRequestId(approvalRequestId);
+        cashup.setUpdatedBy(actionBy);
+        cashupRepository.save(cashup);
+    }
+
+    @Transactional
+    public void markApprovedFromApproval(String cashupId, String actionBy) {
+        CashupEntity cashup = cashupRepository.findById(cashupId)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
+        cashup.setStatus(STATUS_APPROVED);
+        cashup.setUpdatedBy(actionBy);
+        cashupRepository.save(cashup);
+    }
+
+    private void validateDepositRequest(CashupDepositRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Deposit request is required");
+        }
+        if (request.getAmountCents() == null || request.getAmountCents() <= 0) {
+            throw new IllegalArgumentException("amountCents must be greater than zero");
+        }
+        if (request.getDepositDate() == null || request.getDepositDate().isBlank()) {
+            throw new IllegalArgumentException("depositDate is required");
+        }
+    }
+
+    private void recalculateDeposits(CashupEntity cashup) {
+        List<CashupDepositEntity> deposits = cashupDepositRepository.findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId());
+        long total = deposits.stream().mapToLong(item -> defaultLong(item.getAmountCents())).sum();
+        cashup.setDepositTotalCents(total);
+        cashup.setDepositCount(deposits.size());
+        cashupRepository.save(cashup);
+    }
+
+    private CashupDepositResponse toDepositResponse(CashupDepositEntity entity) {
+        return CashupDepositResponse.builder()
+                .id(entity.getId())
+                .cashupId(entity.getCashup() != null ? entity.getCashup().getId() : null)
+                .depositDate(entity.getDepositDate())
+                .amountCents(defaultLong(entity.getAmountCents()))
+                .paymentMethod(entity.getPaymentMethod())
+                .bankName(entity.getBankName())
+                .referenceNo(entity.getReferenceNo())
+                .notes(entity.getNotes())
+                .createdBy(entity.getCreatedBy())
+                .build();
+    }
+
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void validateRequest(CashupRequest request) {
