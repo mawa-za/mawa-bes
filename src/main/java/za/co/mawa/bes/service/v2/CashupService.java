@@ -31,6 +31,8 @@ import java.util.Optional;
 public class CashupService {
 
     private static final String STATUS_OPEN = "OPEN";
+    private static final String STATUS_AWAITING_DEPOSITS = "AWAITING_DEPOSITS";
+    private static final String STATUS_COMPLETED = "COMPLETED"; // Legacy device-completed status
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
@@ -49,7 +51,7 @@ public class CashupService {
      * 1. Device always has an active/open cashup.
      * 2. Every receipt is attached to the active cashup immediately.
      * 3. The app keeps syncing the same cashup while it is OPEN.
-     * 4. When the cashier submits/closes the cashup, the same cashup is synced as SUBMITTED.
+     * 4. When the cashier closes the cashup on the device, the same cashup is synced as AWAITING_DEPOSITS.
      *
      * Because of this, duplicate cashupNo must NOT be treated as an error. It is the normal
      * continuous-sync path and should update the existing portal cashup.
@@ -73,12 +75,12 @@ public class CashupService {
                     .build();
         }
 
-        if (!created && STATUS_SUBMITTED.equalsIgnoreCase(cashup.getStatus()) && STATUS_OPEN.equals(requestedStatus)) {
+        if (!created && isClosedForDeviceSync(cashup) && STATUS_OPEN.equals(requestedStatus)) {
             return CashupResponse.builder()
                     .status("IGNORED")
                     .cashupId(cashup.getId())
                     .cashupNo(cashup.getCashupNo())
-                    .message("Cashup is already submitted; stale OPEN device sync ignored")
+                    .message("Cashup is already awaiting deposits/submitted; stale OPEN device sync ignored")
                     .build();
         }
 
@@ -170,10 +172,8 @@ public class CashupService {
         CashupEntity cashup = cashupRepository.findById(cashupId)
                 .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
 
-        if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())
-                && !"DRAFT".equalsIgnoreCase(cashup.getStatus())
-                && !"NEW".equalsIgnoreCase(cashup.getStatus())) {
-            throw new IllegalStateException("Deposits can only be created while the cashup is open/draft");
+        if (!canCaptureDeposit(cashup)) {
+            throw new IllegalStateException("Deposits can only be created before the cashup is submitted for approval");
         }
 
         validateDepositRequest(request);
@@ -238,10 +238,8 @@ public class CashupService {
                     .build();
         }
 
-        if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())
-                && !"DRAFT".equalsIgnoreCase(cashup.getStatus())
-                && !"NEW".equalsIgnoreCase(cashup.getStatus())) {
-            throw new IllegalStateException("Only open/draft cashups can be submitted for approval");
+        if (!canSubmitForApproval(cashup)) {
+            throw new IllegalStateException("Only cashups awaiting deposits/open/draft cashups can be submitted for approval");
         }
 
         recalculateDeposits(cashup);
@@ -549,8 +547,22 @@ public class CashupService {
     private String resolveStatus(CashupRequest request) {
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             String status = request.getStatus().trim().toUpperCase();
-            if (STATUS_OPEN.equals(status) || STATUS_SUBMITTED.equals(status)) {
-                return status;
+            if (STATUS_OPEN.equals(status)) {
+                return STATUS_OPEN;
+            }
+            if (STATUS_AWAITING_DEPOSITS.equals(status) || "DEPOSIT_PENDING".equals(status)) {
+                return STATUS_AWAITING_DEPOSITS;
+            }
+            if (STATUS_COMPLETED.equals(status) || "CLOSED".equals(status)) {
+                // Backwards compatibility: earlier MAWAPay builds used COMPLETED to mean
+                // "cashier closed the device cashup". In ERP this must be the deposit stage.
+                return STATUS_AWAITING_DEPOSITS;
+            }
+            if (STATUS_SUBMITTED.equals(status)) {
+                // Backwards compatibility: older MAWAPay clients used SUBMITTED to mean
+                // "cashier closed the device cashup". In ERP this must still be editable
+                // for deposits before it is submitted for approval.
+                return STATUS_AWAITING_DEPOSITS;
             }
             throw new IllegalArgumentException("Invalid cashup status from device: " + request.getStatus());
         }
@@ -559,17 +571,40 @@ public class CashupService {
         if (notes.contains("LOCAL STATUS: OPEN") || notes.contains("LOCAL STATUS: ACTIVE_CASHUP")) {
             return STATUS_OPEN;
         }
-        if (notes.contains("LOCAL STATUS: SUBMITTED") || notes.contains("LOCAL STATUS: CLOSED")) {
-            return STATUS_SUBMITTED;
+        if (notes.contains("LOCAL STATUS: AWAITING_DEPOSITS")
+                || notes.contains("LOCAL STATUS: DEPOSIT_PENDING")
+                || notes.contains("LOCAL STATUS: COMPLETED")
+                || notes.contains("LOCAL STATUS: SUBMITTED")
+                || notes.contains("LOCAL STATUS: CLOSED")) {
+            return STATUS_AWAITING_DEPOSITS;
         }
 
         // Backwards compatibility for older clients that used this endpoint only at final cashup time.
-        return STATUS_SUBMITTED;
+        return STATUS_AWAITING_DEPOSITS;
     }
 
     private boolean isLocked(CashupEntity cashup) {
         return STATUS_APPROVED.equalsIgnoreCase(cashup.getStatus())
                 || STATUS_REJECTED.equalsIgnoreCase(cashup.getStatus());
+    }
+
+    private boolean isClosedForDeviceSync(CashupEntity cashup) {
+        return STATUS_AWAITING_DEPOSITS.equalsIgnoreCase(cashup.getStatus())
+                || STATUS_COMPLETED.equalsIgnoreCase(cashup.getStatus())
+                || STATUS_SUBMITTED.equalsIgnoreCase(cashup.getStatus());
+    }
+
+    private boolean canCaptureDeposit(CashupEntity cashup) {
+        String status = cashup.getStatus() == null ? "" : cashup.getStatus().trim().toUpperCase(Locale.ROOT);
+        return STATUS_AWAITING_DEPOSITS.equals(status)
+                || STATUS_COMPLETED.equals(status) // Legacy compatibility for already-synced cashups
+                || STATUS_OPEN.equals(status)
+                || "DRAFT".equals(status)
+                || "NEW".equals(status);
+    }
+
+    private boolean canSubmitForApproval(CashupEntity cashup) {
+        return canCaptureDeposit(cashup);
     }
 
     private LocalDate parseDate(String value) {
