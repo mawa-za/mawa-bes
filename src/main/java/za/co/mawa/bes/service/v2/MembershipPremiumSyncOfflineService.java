@@ -5,14 +5,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
-import za.co.mawa.bes.entity.v2.MembershipEntity;
-import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
-import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
+        import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
-import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+        import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDateTime;
@@ -28,7 +26,6 @@ public class MembershipPremiumSyncOfflineService {
     private final MembershipPremiumService membershipPremiumService;
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
-    private final MembershipPlanService membershipPlanService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
 
     @Transactional
@@ -202,23 +199,8 @@ public class MembershipPremiumSyncOfflineService {
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {
-        MembershipEntity membership = membershipService.getMembershipById(membershipId)
-                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
 
-        if (membership.getPremiumCents() != null && membership.getPremiumCents() > 0) {
-            return membership.getPremiumCents();
-        }
-
-        if (membership.getPlanId() != null && !membership.getPlanId().isBlank()) {
-            MembershipPlanEntity plan = membershipPlanService.getPlanById(membership.getPlanId())
-                    .orElseThrow(() -> new RuntimeException("Membership plan not found: " + membership.getPlanId()));
-
-            if (plan.getPremiumCents() != null && plan.getPremiumCents() > 0) {
-                return plan.getPremiumCents();
-            }
-        }
-
-        throw new RuntimeException("Unable to determine monthly premium for membership: " + membershipId);
+        return membershipService.getMembershipById(membershipId).get().getPremiumCents();
     }
 
     private void validate(MembershipPremiumPaymentSyncOfflineRequest request) {
