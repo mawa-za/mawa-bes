@@ -8,6 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
+import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
 
@@ -32,6 +34,10 @@ public class FuneralManagementService {
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+
+    public List<FuneralPickupRequestEntity> getPickupRequests() {
+        return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
+    }
 
     @Transactional
     public FuneralPickupRequestEntity createPickupRequest(CreatePickupRequestDto request) {
@@ -95,7 +101,75 @@ public class FuneralManagementService {
     }
 
     public List<FuneralPackageEntity> getPackages() {
-        return funeralPackageRepository.findByActiveTrue();
+        return getPackages(true);
+    }
+
+    public List<FuneralPackageEntity> getPackages(boolean activeOnly) {
+        if (activeOnly) {
+            return funeralPackageRepository.findByActiveTrue();
+        }
+        return funeralPackageRepository.findAll();
+    }
+
+    public FuneralPackageEntity getPackage(String id) {
+        return getFuneralPackageOrThrow(id);
+    }
+
+    @Transactional
+    public FuneralPackageEntity createPackage(FuneralPackageCreateRequestDto request) {
+        validateRequired(request.getName(), "name");
+        FuneralPackageEntity entity = new FuneralPackageEntity();
+        entity.setName(request.getName().trim());
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
+        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
+        entity.setActive(request.getActive() == null || request.getActive());
+        return funeralPackageRepository.save(entity);
+    }
+
+    @Transactional
+    public FuneralPackageEntity updatePackage(String id, FuneralPackageUpdateRequestDto request) {
+        validateRequired(id, "id");
+        validateRequired(request.getName(), "name");
+        FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
+        entity.setName(request.getName().trim());
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
+        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
+        if (request.getActive() != null) {
+            entity.setActive(request.getActive());
+        }
+        return funeralPackageRepository.save(entity);
+    }
+
+    @Transactional
+    public void deletePackage(String id) {
+        FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
+        entity.setActive(false);
+        funeralPackageRepository.save(entity);
+    }
+
+
+    private String resolveInclusionsJson(String inclusionsJson, List<String> inclusions) {
+        if (inclusions != null) {
+            try {
+                return objectMapper.writeValueAsString(inclusions);
+            } catch (JsonProcessingException e) {
+                throw new IllegalArgumentException("Invalid funeral package inclusions", e);
+            }
+        }
+        if (inclusionsJson == null || inclusionsJson.isBlank()) {
+            return "[]";
+        }
+        try {
+            objectMapper.readTree(inclusionsJson);
+            return inclusionsJson;
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("inclusionsJson must be valid JSON", e);
+        }
+    }
+
+    private FuneralPackageEntity getFuneralPackageOrThrow(String id) {
+        return funeralPackageRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + id));
     }
 
     /**
@@ -115,6 +189,7 @@ public class FuneralManagementService {
 
     @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
+        populateServiceRequestDefaults(request);
         validateRequired(request.getDeceasedName(), "deceasedName");
         validateRequired(request.getPackageId(), "packageId");
         validateRequired(request.getFamilyRepId(), "familyRepId");
@@ -650,6 +725,27 @@ public class FuneralManagementService {
                     VALUES (?, 'EXT-FUNERAL-COVER', 'External Funeral Cover', 'Placeholder plan for claims from external Mawa tenants', 0, 'ZAR', 1, CURRENT_TIMESTAMP)
                     """, planId);
             return planId;
+        }
+    }
+
+
+    private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {
+        if (request == null) return;
+        if ((request.getDeceasedName() == null || request.getDeceasedName().isBlank())
+                && request.getMortuaryInventoryId() != null
+                && !request.getMortuaryInventoryId().isBlank()) {
+            mortuaryInventoryRepository.findById(request.getMortuaryInventoryId())
+                    .ifPresent(inventory -> {
+                        request.setDeceasedName(inventory.getDeceasedName());
+                        if ((request.getDeceasedIdentityNumber() == null || request.getDeceasedIdentityNumber().isBlank())
+                                && inventory.getIdentityNumber() != null) {
+                            request.setDeceasedIdentityNumber(inventory.getIdentityNumber());
+                        }
+                        if ((request.getDeceasedPartnerId() == null || request.getDeceasedPartnerId().isBlank())
+                                && inventory.getDeceasedPartnerId() != null) {
+                            request.setDeceasedPartnerId(inventory.getDeceasedPartnerId());
+                        }
+                    });
         }
     }
 

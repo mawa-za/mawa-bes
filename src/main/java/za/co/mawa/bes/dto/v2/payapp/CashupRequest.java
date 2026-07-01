@@ -22,6 +22,13 @@ public class CashupRequest {
      */
     private String date;
 
+    /**
+     * OPEN while the device is actively receipting.
+     * SUBMITTED when the cashier closes/submits the cashup.
+     * Older Flutter payloads may omit this; the service will infer from notes where possible.
+     */
+    private String status;
+
     private Long totalCents;
     private Integer receiptCount;
 

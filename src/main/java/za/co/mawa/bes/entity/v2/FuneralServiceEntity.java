@@ -49,8 +49,7 @@ public class FuneralServiceEntity {
     @Column(name = "total_amount_cents", nullable = false)
     private Long totalAmountCents = 0L;
 
-    @Lob
-    @Column(name = "extras_json")
+    @Column(name = "extras_json", columnDefinition = "json")
     private String extrasJson;
 
     @Column(name = "status", nullable = false)

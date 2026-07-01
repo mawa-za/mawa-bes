@@ -6,6 +6,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
+import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.service.v2.FuneralManagementService;
 
 @RestController
@@ -15,6 +17,15 @@ import za.co.mawa.bes.service.v2.FuneralManagementService;
 public class FuneralManagementControllerV2 {
 
     private final FuneralManagementService funeralManagementService;
+
+    @GetMapping("/pickup-requests")
+    public ResponseEntity<?> getPickupRequests() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getPickupRequests());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
 
     @PostMapping(value = "/pickup-request", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createPickupRequest(@RequestBody CreatePickupRequestDto request) {
@@ -62,9 +73,46 @@ public class FuneralManagementControllerV2 {
     }
 
     @GetMapping("/packages")
-    public ResponseEntity<?> getPackages() {
+    public ResponseEntity<?> getPackages(@RequestParam(defaultValue = "true") boolean activeOnly) {
         try {
-            return ResponseEntity.ok(funeralManagementService.getPackages());
+            return ResponseEntity.ok(funeralManagementService.getPackages(activeOnly));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping("/packages/{id}")
+    public ResponseEntity<?> getPackage(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getPackage(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @PostMapping(value = "/packages", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> createPackage(@RequestBody FuneralPackageCreateRequestDto request) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.createPackage(request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @PutMapping(value = "/packages/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updatePackage(@PathVariable String id, @RequestBody FuneralPackageUpdateRequestDto request) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updatePackage(id, request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @DeleteMapping("/packages/{id}")
+    public ResponseEntity<?> deletePackage(@PathVariable String id) {
+        try {
+            funeralManagementService.deletePackage(id);
+            return ResponseEntity.noContent().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
