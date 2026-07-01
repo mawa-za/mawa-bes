@@ -215,18 +215,23 @@ public class FuneralManagementService {
     @Transactional
     public List<FuneralClaimDto> initiateClaims(String funeralServiceId, InitiateFuneralClaimsDto request) {
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
-        if (request.getMemberships() == null || request.getMemberships().isEmpty()) {
+        List<String> selectedMemberships = request.getMemberships();
+        if (selectedMemberships == null || selectedMemberships.isEmpty()) {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
         if (service.getDeceasedPartnerId() == null || service.getDeceasedPartnerId().isBlank()) {
             throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership_claim can be created");
         }
 
-        Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, request.getMemberships());
+        Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, selectedMemberships);
+        if (coverMap.isEmpty()) {
+            throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
+        }
+
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralClaimDto> response = new ArrayList<>();
 
-        for (String selectionId : request.getMemberships()) {
+        for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
             if (cover == null || remaining <= 0) continue;
             long claimAmount = Math.min(defaultLong(cover.getCoverAmountCents()), remaining);
