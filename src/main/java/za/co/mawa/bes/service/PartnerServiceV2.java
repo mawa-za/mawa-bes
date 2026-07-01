@@ -67,7 +67,15 @@ public class PartnerServiceV2 {
     public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
 
         try {
-            PartnerIdentityDto partnerIdentityDto = partnerIdentityServiceV2.getIdentity(partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
+            String identityType = partnerInboundDto.getIdentityType() == null ? null : partnerInboundDto.getIdentityType().trim();
+            String identityNumber = partnerInboundDto.getIdentityNumber() == null ? null : partnerInboundDto.getIdentityNumber().trim();
+            boolean hasIdentity = identityType != null && !identityType.isEmpty()
+                    && identityNumber != null && !identityNumber.isEmpty();
+
+            PartnerIdentityDto partnerIdentityDto = hasIdentity
+                    ? partnerIdentityServiceV2.getIdentity(identityType, identityNumber)
+                    : null;
+
             if (partnerIdentityDto == null) {
                 PartnerEntity entity = new PartnerEntity();
                 if (partnerInboundDto.getPartnerNo() == null) {
@@ -77,7 +85,10 @@ public class PartnerServiceV2 {
                     entity.setNo(partnerInboundDto.getPartnerNo());
                 }
 
-                entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
+                String partnerType = partnerInboundDto.getPartnerType() == null || partnerInboundDto.getPartnerType().trim().isEmpty()
+                        ? PartnerType.INDIVIDUAL
+                        : partnerInboundDto.getPartnerType().trim().toUpperCase();
+                entity.setType(partnerType);
                 if (partnerInboundDto.getName1() != null) {
                     entity.setName1(partnerInboundDto.getName1().toUpperCase());
                 }
@@ -111,11 +122,11 @@ public class PartnerServiceV2 {
 
                 if(entity != null){
 
-                    if(partnerInboundDto.getIdentityType() != null && partnerInboundDto.getIdentityNumber() != null){
+                    if(hasIdentity){
                         PartnerIdentityInboundDto partnerIdentityInboundDto = new PartnerIdentityInboundDto();
                         partnerIdentityInboundDto.setPartner(entity.getId());
-                        partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
-                        partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
+                        partnerIdentityInboundDto.setType(identityType);
+                        partnerIdentityInboundDto.setNumber(identityNumber);
                         partnerIdentityServiceV2.add(partnerIdentityInboundDto);
                     }
 
