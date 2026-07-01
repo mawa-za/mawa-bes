@@ -37,6 +37,9 @@ public class WebSecurityConfig {
             "/authenticate",
             "/v2/authenticate",
             "/forgot-password",
+            "/v2/forgot-password",
+            "/reset-password",
+            "/v2/reset-password",
             "/refresh-token"
             // other public endpoints of your API may be appended to this array
     };
