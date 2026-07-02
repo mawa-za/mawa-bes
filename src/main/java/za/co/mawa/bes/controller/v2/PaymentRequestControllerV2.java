@@ -13,6 +13,7 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.fnb.v2.BankPaymentService;
+import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
 
 import java.util.List;
@@ -27,9 +28,14 @@ public class PaymentRequestControllerV2 {
     BankPaymentService bankPaymentService;
 
     private final PaymentRequestService paymentRequestService;
+    private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
 
-    public PaymentRequestControllerV2(@Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService) {
+    public PaymentRequestControllerV2(
+            @Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService,
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService
+    ) {
         this.paymentRequestService = paymentRequestService;
+        this.fnbPaymentQueueService = fnbPaymentQueueService;
     }
 
     @PostMapping
@@ -107,6 +113,15 @@ public class PaymentRequestControllerV2 {
             @RequestHeader(value = "X-User-Id", required = false) String currentUser
     ) {
         return ResponseEntity.ok(paymentRequestService.markPaid(id, request, currentUser));
+    }
+
+    @PostMapping("/{id}/send-to-bank")
+    public ResponseEntity<PaymentRequestResponse> sendToBank(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        fnbPaymentQueueService.queueAfterApproval(id, null, currentUser);
+        return ResponseEntity.ok(paymentRequestService.getById(id));
     }
 
     @GetMapping("/{id}/history")
