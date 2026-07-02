@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
-import za.co.mawa.bes.dto.v2.payment.PaymentRequestUpdateRequest;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
@@ -51,11 +50,20 @@ public class MessageConsumerService {
                             case "FNB-EFT-PAYMENT":
                                 String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
                                 BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
-                                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                    PaymentRequestUpdateRequest request = new PaymentRequestUpdateRequest();
-                                    request.setPaidReference(instructionId);
-                                    paymentRequestService.update(msg.getReferenceId(), request, userService.getUserByName("BGUSER").getId());
+                                String systemUserId = userService.getUserByName("BGUSER").getId();
+
+                                if (msg.getReferenceId() != null && !msg.getReferenceId().isBlank()) {
+                                    paymentRequestService.markSentToBank(msg.getReferenceId(), instructionId, systemUserId);
+                                } else {
+                                    for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                                        paymentRequestService.markSentToBank(
+                                                paymentInformation.getPaymentInformationId(),
+                                                instructionId,
+                                                systemUserId
+                                        );
+                                    }
                                 }
+
                                 msg.setProcessed(true);
                                 break;
                             case "INVOICE-EMAIL":
