@@ -1,21 +1,17 @@
 # Google Secret Manager setup for Mawa BES
 
-This project now supports loading selected Spring Boot properties from Google Secret Manager before the application context starts.
+Mawa BES loads sensitive Spring Boot properties from Google Secret Manager during application bootstrap.
 
-## What was added
+The loader runs as a Spring `EnvironmentPostProcessor`, before datasource, JWT and mail configuration are bound. This means Cloud Run can provide a mapping of Spring property names to Google Secret Manager secret names, and the code will inject the secret values into the Spring environment before normal beans start.
 
-- `GcpSecretManagerEnvironmentPostProcessor`
-- Google Cloud Secret Manager Maven dependency
-- Spring Boot bootstrap registration under `META-INF`
+## Runtime environment variables
 
-The loader runs before datasource, JWT and mail properties are bound, so it can override values from `application-*.properties`.
-
-## Required Cloud Run environment variables
+Set these on the Cloud Run service:
 
 ```bash
 GCP_SECRET_ENABLED=true
-GCP_PROJECT_ID=mawa-prod
-GCP_SECRET_MAPPINGS=spring.datasource.password=mawa-db-password,hibernate.connection.password=mawa-db-password,jwt.secret=mawa-jwt-secret
+GCP_PROJECT_ID=mawa-162022
+GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret,hibernate.connection.url=mawa-dev-db-url,hibernate.connection.username=mawa-dev-db-username,hibernate.connection.password=mawa-dev-db-password,spring.datasource.url=mawa-dev-db-url,spring.datasource.username=mawa-dev-db-username,spring.datasource.password=mawa-dev-db-password,flyway.url=mawa-dev-db-url,flyway.user=mawa-dev-db-username,flyway.password=mawa-dev-db-password,spring.mail.password=mawa-mail-password,mawa.admin.api.password=mawa-admin-api-password
 ```
 
 Mapping format:
@@ -29,57 +25,99 @@ Version is optional and defaults to `latest`.
 Examples:
 
 ```bash
-GCP_SECRET_MAPPINGS=jwt.secret=mawa-jwt-secret
-GCP_SECRET_MAPPINGS=jwt.secret=mawa-jwt-secret:3
-GCP_SECRET_MAPPINGS=spring.mail.password=mawa-mail-password,mawa.admin.api.password=mawa-admin-api-password
+GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret
+GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret:3
+GCP_SECRET_MAPPINGS=jwt.secret=projects/mawa-162022/secrets/mawa-dev-jwt-secret/versions/latest
 ```
 
-You may also use full resource names:
+## Recommended secret names per environment
 
-```bash
-GCP_SECRET_MAPPINGS=jwt.secret=projects/mawa-prod/secrets/mawa-jwt-secret/versions/latest
+Create separate secrets per environment so dev, beta, alpha, prep and prod can rotate independently.
+
+```text
+mawa-dev-db-url
+mawa-dev-db-username
+mawa-dev-db-password
+mawa-dev-jwt-secret
+mawa-dev-mail-password
+mawa-dev-admin-api-password
+
+mawa-prod-db-url
+mawa-prod-db-username
+mawa-prod-db-password
+mawa-prod-jwt-secret
+mawa-prod-mail-password
+mawa-prod-admin-api-password
 ```
 
-## Recommended mappings for current phase-1 properties
+Use the environment-specific names in the Cloud Run `GCP_SECRET_MAPPINGS` variable for that service.
 
-The current environment files contain both Hibernate and Spring datasource password properties. Map both to the same DB password secret so every existing class receives the overridden value:
+## Creating secrets
+
+Example:
 
 ```bash
-GCP_SECRET_MAPPINGS=spring.datasource.password=mawa-db-password,hibernate.connection.password=mawa-db-password,flyway.password=mawa-db-password,jwt.secret=mawa-jwt-secret,mawa.admin.api.password=mawa-admin-api-password
+printf '%s' 'jdbc:mysql://HOST/mawa' | gcloud secrets create mawa-dev-db-url --data-file=- --replication-policy=automatic
+printf '%s' 'root' | gcloud secrets create mawa-dev-db-username --data-file=- --replication-policy=automatic
+printf '%s' 'CHANGE_ME' | gcloud secrets create mawa-dev-db-password --data-file=- --replication-policy=automatic
+printf '%s' 'CHANGE_ME_LONG_RANDOM_JWT_SECRET' | gcloud secrets create mawa-dev-jwt-secret --data-file=- --replication-policy=automatic
+```
+
+When rotating a value, add a new version instead of changing source code:
+
+```bash
+printf '%s' 'NEW_VALUE' | gcloud secrets versions add mawa-dev-db-password --data-file=-
 ```
 
 ## IAM required
 
-The Cloud Run service account must have access to read secrets:
+The Cloud Run runtime service account must be allowed to read the mapped secrets:
 
 ```bash
-gcloud projects add-iam-policy-binding PROJECT_ID \
+gcloud secrets add-iam-policy-binding mawa-dev-db-password \
   --member="serviceAccount:CLOUD_RUN_SERVICE_ACCOUNT" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-For tighter security, grant `roles/secretmanager.secretAccessor` on individual secrets instead of the whole project.
+Grant access per secret where possible, not project-wide.
+
+## Cloud KMS / CMEK note
+
+Google Secret Manager encrypts secrets at rest. If MAWA requires customer-managed encryption keys, configure each Secret Manager secret with a Cloud KMS customer-managed key at the GCP resource level. No code change is required for this app; the app still reads the secret through Secret Manager.
 
 ## Local development
 
-Keep this disabled locally unless you have Application Default Credentials configured:
+Keep Secret Manager disabled locally unless the developer has Application Default Credentials configured:
 
 ```properties
 gcp.secret-manager.enabled=false
 ```
 
-To test locally:
+Local run with environment variables:
+
+```bash
+export DB_URL='jdbc:mysql://localhost:3306/mawa'
+export DB_USERNAME='root'
+export DB_PASSWORD='local-password'
+export JWT_SECRET='local-long-random-secret'
+export MAIL_PASSWORD='local-mail-password'
+export MAWA_ADMIN_API_PASSWORD='local-admin-password'
+./mvnw spring-boot:run -Pdev
+```
+
+Local run through Secret Manager:
 
 ```bash
 gcloud auth application-default login
 export GCP_SECRET_ENABLED=true
-export GCP_PROJECT_ID=mawa-dev
-export GCP_SECRET_MAPPINGS="jwt.secret=mawa-dev-jwt-secret"
+export GCP_PROJECT_ID=mawa-162022
+export GCP_SECRET_MAPPINGS='jwt.secret=mawa-dev-jwt-secret,hibernate.connection.password=mawa-dev-db-password,spring.datasource.password=mawa-dev-db-password,flyway.password=mawa-dev-db-password'
 ./mvnw spring-boot:run -Pdev
 ```
 
-## Notes
+## Rules
 
-- Do not store new secret values in `application-*.properties`.
-- Secret values are not logged. Only the Spring property name and secret reference are logged.
-- The secret property source is added first, so it overrides existing property files and environment-derived placeholders.
+- Do not commit database passwords, JWT secrets, mail passwords, keystore passwords, API keys, refresh tokens or access tokens.
+- Do not commit Android signing keystores or `key.properties`.
+- Secret values must not be logged.
+- The source repository should only contain placeholders and secret names, never secret values.
