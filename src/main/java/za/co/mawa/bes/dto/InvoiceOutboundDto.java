@@ -15,6 +15,10 @@ public class InvoiceOutboundDto {
     private Integer discountCents;
     private Integer totalCents;
     private String currency;
+    private String xeroInvoiceId;
+    private String xeroInvoiceNo;
+    private String integrationStatus;
+    private String integrationError;
 
     private List<InvoiceLineDto> lines;
 
@@ -181,6 +185,38 @@ public class InvoiceOutboundDto {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getXeroInvoiceId() {
+        return xeroInvoiceId;
+    }
+
+    public void setXeroInvoiceId(String xeroInvoiceId) {
+        this.xeroInvoiceId = xeroInvoiceId;
+    }
+
+    public String getXeroInvoiceNo() {
+        return xeroInvoiceNo;
+    }
+
+    public void setXeroInvoiceNo(String xeroInvoiceNo) {
+        this.xeroInvoiceNo = xeroInvoiceNo;
+    }
+
+    public String getIntegrationStatus() {
+        return integrationStatus;
+    }
+
+    public void setIntegrationStatus(String integrationStatus) {
+        this.integrationStatus = integrationStatus;
+    }
+
+    public String getIntegrationError() {
+        return integrationError;
+    }
+
+    public void setIntegrationError(String integrationError) {
+        this.integrationError = integrationError;
     }
 
     public List<InvoiceLineDto> getLines() {
