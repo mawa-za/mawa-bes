@@ -96,6 +96,17 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok("Invoice deleted successfully");
     }
 
+    @PostMapping(value = "{id}/send-to-xero")
+    public ResponseEntity<?> sendInvoiceToXero(@PathVariable String id) {
+        try {
+            InvoiceEntity invoice = invoiceService.queueInvoiceForXero(id);
+            return ResponseEntity.ok(invoiceService.mapToDto(invoice));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Failed to queue invoice for Xero: " + exception.getMessage());
+        }
+    }
+
     @GetMapping("{id}/pdf")
     public ResponseEntity<ByteArrayResource> generateInvoicePdf(@PathVariable String id) {
         InvoiceEntity invoice = invoiceRepository.findById(id)

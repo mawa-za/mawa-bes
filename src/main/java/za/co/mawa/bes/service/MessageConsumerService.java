@@ -13,6 +13,7 @@ import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.xero.XeroInvoicePushService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,8 @@ public class MessageConsumerService {
     @Autowired
     @Qualifier("paymentRequestServiceV2")
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
+    @Autowired
+    XeroInvoicePushService xeroInvoicePushService;
     Gson gson = new Gson();
 
     @Scheduled(fixedDelay = 60000)
@@ -70,11 +73,18 @@ public class MessageConsumerService {
 //                                paymentRequestService.sendInvoiceFile(msg.getPayload());
                                 msg.setProcessed(true);
                                 break;
+                            case "XERO-INVOICE":
+                                xeroInvoicePushService.pushInvoice(resolveInvoiceId(msg));
+                                msg.setProcessed(true);
+                                break;
                             default:
                                 // code block
                         }
 
                     } catch (Exception e) {
+                        if ("XERO-INVOICE".equals(msg.getType())) {
+                            xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                        }
                         msg.setRetryCount(msg.getRetryCount() + 1);
                         if (msg.getRetryCount() > 3) {
                             msg.setProcessed(true); // Optionally move to DeadLetterQueue
@@ -91,6 +101,13 @@ public class MessageConsumerService {
                 TenantContext.clear();
             }
         }
+    }
+
+    private String resolveInvoiceId(MessageQueueEntity msg) {
+        if (msg.getReferenceId() != null && !msg.getReferenceId().isBlank()) {
+            return msg.getReferenceId();
+        }
+        return msg.getPayload();
     }
 
     private void sendInvoice(MessageQueueEntity msg) {

@@ -121,3 +121,7 @@ export GCP_SECRET_MAPPINGS='jwt.secret=mawa-dev-jwt-secret,hibernate.connection.
 - Do not commit Android signing keystores or `key.properties`.
 - Secret values must not be logged.
 - The source repository should only contain placeholders and secret names, never secret values.
+
+## Tenant integration secrets
+
+Runtime integration credentials for Xero and FNB should be stored per tenant in Google Secret Manager. See `docs/TENANT_INTEGRATION_SECRETS.md` for the required tenant property and setting names.

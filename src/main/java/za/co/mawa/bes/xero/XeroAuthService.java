@@ -7,6 +7,7 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
 import za.co.mawa.bes.dto.TenantPropertyDto;
 import za.co.mawa.bes.entity.SettingEntity;
 import za.co.mawa.bes.entity.SettingPKEntity;
@@ -26,6 +27,8 @@ public class XeroAuthService {
     SettingService settingService;
     @Autowired
     TenantAdminService tenantAdminService;
+    @Autowired
+    GcpTenantSecretService gcpTenantSecretService;
 
 //    @Getter
 //    private static final String CLIENT_ID = "71674DC318314EBAAF07D16186E42D02";
@@ -58,11 +61,10 @@ public class XeroAuthService {
 
         try {
             String tenant = TenantContext.getCurrentTenant();
-            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-            JSONObject jsonObject = new JSONObject(tenantProperty);
-            String client_id = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
-            String client_secret = jsonObject.getString(XeroUtils.XERO_CLIENT_SECRET);
-            String redirectUrl = jsonObject.getString(XeroUtils.XERO_REDIRECT_URL);
+            JSONObject jsonObject = tenantProperties(tenant);
+            String client_id = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
+            String client_secret = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_SECRET);
+            String redirectUrl = requiredXeroProperty(jsonObject, XeroUtils.XERO_REDIRECT_URL);
 
             String requestBody = "grant_type=authorization_code" +
                     "&code=" + authorizationCode +
@@ -104,11 +106,10 @@ public class XeroAuthService {
 //        String tenant = TenantContext.getCurrentTenant();
 
 //        String refreshToken = settingService.getSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE);
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String refreshToken = jsonObject.getString(XeroUtils.XERO_REFRESH_TOKEN);
-        String client_id = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
-        String client_secret = jsonObject.getString(XeroUtils.XERO_CLIENT_SECRET);
+        JSONObject jsonObject = tenantProperties(tenant);
+        String refreshToken = requiredXeroProperty(jsonObject, XeroUtils.XERO_REFRESH_TOKEN);
+        String client_id = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
+        String client_secret = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_SECRET);
 
         String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
 
@@ -276,14 +277,25 @@ public class XeroAuthService {
     }
 
     public void createProperty(String tenant, String property, String value) {
-        //get admin token
-        String adminJwtToken = tenantAdminService.getAdminToken();
+        JSONObject properties = tenantProperties(tenant);
+        String secretReference = gcpTenantSecretService.findTenantPropertySecretReference(properties, property);
+        String directReference = properties.optString(property, null);
+        if ((secretReference == null || secretReference.isBlank())
+                && gcpTenantSecretService.isSecretReference(directReference)) {
+            secretReference = directReference;
+        }
+        if (secretReference != null && !secretReference.isBlank()) {
+            gcpTenantSecretService.addSecretVersion(secretReference, value);
+            return;
+        }
+
+        // Backward compatibility only: if a secret reference is not configured yet,
+        // continue writing to tenant properties so existing tenants do not break.
         TenantPropertyDto tenantPropertyDto = new TenantPropertyDto();
         tenantPropertyDto.setTenant(tenant);
         tenantPropertyDto.setProperty(property);
         tenantPropertyDto.setValue(value);
-        String resp = tenantAdminService.addTenantProperty(tenant , tenantPropertyDto);
-//        System.out.println(resp);
+        tenantAdminService.addTenantProperty(tenant , tenantPropertyDto);
     }
 
     public String updateProperty(String tenant, String setting ) {
@@ -292,24 +304,60 @@ public class XeroAuthService {
     }
 
     public String checkXeroInfo(){
-        //check if current tenant has xero info
-        //if yes, return the tenant
-        // else check if it's linked to other mawa tenant xero info
         String tenant = TenantContext.getCurrentTenant();
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String client_id = jsonObject.optString(XeroUtils.XERO_REFRESH_TOKEN, null);
-        String serviceProviderTenant = jsonObject.optString(XeroUtils.XERO_MAWA_SERVICE_PROVIDER_LINK, null);
+        JSONObject currentTenantProperties = tenantProperties(tenant);
 
-        if(client_id != null && client_id != ""){
+        String refreshToken = getXeroProperty(currentTenantProperties, XeroUtils.XERO_REFRESH_TOKEN);
+        if (!isBlank(refreshToken)) {
             return tenant;
         }
 
-        if(serviceProviderTenant != null && serviceProviderTenant != ""){
-            return serviceProviderTenant;
+        String serviceProviderTenant = getXeroProperty(currentTenantProperties, XeroUtils.XERO_MAWA_SERVICE_PROVIDER_LINK);
+        if (!isBlank(serviceProviderTenant)) {
+            JSONObject serviceProviderProperties = tenantProperties(serviceProviderTenant);
+            String serviceProviderRefreshToken = getXeroProperty(serviceProviderProperties, XeroUtils.XERO_REFRESH_TOKEN);
+            if (!isBlank(serviceProviderRefreshToken)) {
+                return serviceProviderTenant;
+            }
         }
 
         return null;
+    }
+
+    public String getXeroProperty(String tenant, String property) {
+        return getXeroProperty(tenantProperties(tenant), property);
+    }
+
+    public String getXeroProperty(String tenant, String property, String defaultValue) {
+        String value = getXeroProperty(tenantProperties(tenant), property);
+        return isBlank(value) ? defaultValue : value;
+    }
+
+    private String getXeroProperty(JSONObject properties, String property) {
+        return gcpTenantSecretService.resolveTenantProperty(properties, property);
+    }
+
+    private String requiredXeroProperty(JSONObject properties, String property) {
+        String value = getXeroProperty(properties, property);
+        if (isBlank(value)) {
+            throw new IllegalStateException("Missing required Xero configuration: " + property + ". Store a Google Secret Manager reference in " + property + "-SECRET or configure the tenant property.");
+        }
+        return value;
+    }
+
+    private JSONObject tenantProperties(String tenant) {
+        if (isBlank(tenant)) {
+            return new JSONObject();
+        }
+        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
+        if (isBlank(tenantProperty)) {
+            return new JSONObject();
+        }
+        return new JSONObject(tenantProperty);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty() || "null".equalsIgnoreCase(value.trim());
     }
 
     private static String readErrorStream(HttpURLConnection connection) throws IOException {
