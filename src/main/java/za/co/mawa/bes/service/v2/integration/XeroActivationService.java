@@ -5,11 +5,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
+import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationRequestDto;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationResponseDto;
 import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
 import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.xero.XeroAuthService;
 
 import java.net.URLEncoder;
@@ -22,15 +24,18 @@ public class XeroActivationService {
 
     private final GcpTenantSecretService gcpTenantSecretService;
     private final SettingService settingService;
+    private final TenantAdminService tenantAdminService;
     private final Environment environment;
     private final XeroAuthService xeroAuthService;
 
     public XeroActivationService(GcpTenantSecretService gcpTenantSecretService,
                                  SettingService settingService,
+                                 TenantAdminService tenantAdminService,
                                  Environment environment,
                                  XeroAuthService xeroAuthService) {
         this.gcpTenantSecretService = gcpTenantSecretService;
         this.settingService = settingService;
+        this.tenantAdminService = tenantAdminService;
         this.environment = environment;
         this.xeroAuthService = xeroAuthService;
     }
@@ -48,18 +53,21 @@ public class XeroActivationService {
         }
 
         String env = environmentName();
-        String tenantKey = normaliseTenantForSecretName(tenant);
+        String tenantHost = resolveTenantHost(tenant);
+        String tenantKey = normaliseTenantForSecretName(tenantHost);
         String prefix = "mawa-" + env + "-" + tenantKey + "-xero-";
 
         String clientIdSecret = prefix + "client-id";
         String clientSecretSecret = prefix + "secret-key";
         String refreshTokenSecret = prefix + "refresh-token";
         String tenantIdSecret = prefix + "tenant-id";
+        String accessTokenSecret = prefix + "access-token";
 
         gcpTenantSecretService.createOrAddSecretVersion(clientIdSecret, request.getClientId().trim());
         gcpTenantSecretService.createOrAddSecretVersion(clientSecretSecret, request.getClientSecret().trim());
         gcpTenantSecretService.createSecretIfMissing(refreshTokenSecret);
         gcpTenantSecretService.createSecretIfMissing(tenantIdSecret);
+        gcpTenantSecretService.createSecretIfMissing(accessTokenSecret);
 
         String redirectUrl = buildRedirectUrl(request.getRedirectUrl());
         boolean enableInvoices = request.getInvoiceIntegrationEnabled() == null || request.getInvoiceIntegrationEnabled();
@@ -67,11 +75,12 @@ public class XeroActivationService {
         settingService.upsertSetting("CLIENT-ID-SECRET", XERO_GROUP, clientIdSecret);
         settingService.upsertSetting("SECRET-KEY-SECRET", XERO_GROUP, clientSecretSecret);
         settingService.upsertSetting("REFRESH-TOKEN-SECRET", XERO_GROUP, refreshTokenSecret);
+        settingService.upsertSetting("ACCESS-TOKEN-SECRET", XERO_GROUP, accessTokenSecret);
         settingService.upsertSetting("TENANT-ID-SECRET", XERO_GROUP, tenantIdSecret);
         settingService.upsertSetting("REDIRECT-URL", XERO_GROUP, redirectUrl);
         settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, String.valueOf(enableInvoices));
 
-        String authenticationUrl = buildAuthenticationUrl(request.getClientId().trim(), redirectUrl, tenant);
+        String authenticationUrl = buildAuthenticationUrl(request.getClientId().trim(), redirectUrl, tenantHost);
 
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(enableInvoices)
@@ -90,6 +99,11 @@ public class XeroActivationService {
         try {
             return xeroAuthService.getConnectionsForCurrentTenant();
         } catch (Exception e) {
+            if (isInvalidGrant(e)) {
+                settingService.upsertSetting("INTEGRATION-STATUS", XERO_GROUP, "REAUTHORISATION_REQUIRED");
+                settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
+                throw new IllegalStateException("Xero authorisation has expired or the stored refresh token is invalid. Click Activate / Reconnect Xero again to authorise the organisation.", e);
+            }
             throw new IllegalStateException("Unable to retrieve Xero organisations. Complete Xero authorisation first.", e);
         }
     }
@@ -106,6 +120,11 @@ public class XeroActivationService {
                     .message("Xero organisation selected and invoice integration enabled.")
                     .build();
         } catch (Exception e) {
+            if (isInvalidGrant(e)) {
+                settingService.upsertSetting("INTEGRATION-STATUS", XERO_GROUP, "REAUTHORISATION_REQUIRED");
+                settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
+                throw new IllegalStateException("Xero authorisation has expired or the stored refresh token is invalid. Click Activate / Reconnect Xero again before selecting the organisation.", e);
+            }
             throw new IllegalStateException("Unable to save selected Xero organisation", e);
         }
     }
@@ -117,6 +136,18 @@ public class XeroActivationService {
                 .organisationSelectionRequired(false)
                 .message("Xero invoice integration disabled for this tenant. Secret references were retained for future reactivation.")
                 .build();
+    }
+
+    private boolean isInvalidGrant(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase().contains("invalid_grant")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private String buildAuthenticationUrl(String clientId, String redirectUrl, String tenant) {
@@ -136,6 +167,27 @@ public class XeroActivationService {
         }
         baseUrl = baseUrl.replaceAll("/+$", "");
         return baseUrl.endsWith("/xero/callback") ? baseUrl : baseUrl + "/xero/callback";
+    }
+
+
+    private String resolveTenantHost(String tenantId) {
+        String currentTenantUrl = TenantContext.getCurrentTenantURL();
+        if (StringUtils.hasText(currentTenantUrl)) {
+            return currentTenantUrl.trim();
+        }
+        if (StringUtils.hasText(tenantId)) {
+            try {
+                return tenantAdminService.getAll().stream()
+                        .filter(tenant -> tenantId.equals(tenant.getId()))
+                        .map(TenantDto::getHost)
+                        .filter(StringUtils::hasText)
+                        .findFirst()
+                        .orElse(tenantId);
+            } catch (Exception ignored) {
+                return tenantId;
+            }
+        }
+        return "tenant";
     }
 
     private String environmentName() {

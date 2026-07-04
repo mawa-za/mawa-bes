@@ -39,6 +39,9 @@ public class XeroAuthController {
     public ResponseEntity<Map<String, String>> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
 
         String tenant = TenantContext.getCurrentTenant();
+        String tenantState = org.springframework.util.StringUtils.hasText(TenantContext.getCurrentTenantURL())
+                ? TenantContext.getCurrentTenantURL()
+                : tenant;
 
         if(xeroAuthDto.getRedirectUrl() != null){
             String redirectUrl = xeroAuthDto.getRedirectUrl() + "/xero/callback";
@@ -59,7 +62,7 @@ public class XeroAuthController {
                 "&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
                 "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
                 "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8) +
-                "&state=" + URLEncoder.encode(tenant, StandardCharsets.UTF_8);
+                "&state=" + URLEncoder.encode(tenantState, StandardCharsets.UTF_8);
 
         return ResponseEntity.ok(Map.of("authenticationUrl", authUrl));
     }
@@ -73,8 +76,12 @@ public class XeroAuthController {
             if (!StringUtils.hasText(state)) {
                 throw new IllegalStateException("Xero callback is missing tenant state. Please start the connection from /xero/connect again.");
             }
-            TenantContext.setCurrentTenant(state);
-            XeroAuthService.XeroOAuthResult result = xeroAuthService.completeInitialAuthorisation(state, code);
+            String resolvedTenant = TenantContext.getCurrentTenant();
+            if (!StringUtils.hasText(resolvedTenant)) {
+                throw new IllegalStateException("Xero callback tenant could not be resolved from state. Please start the connection from /xero/connect again.");
+            }
+            TenantContext.setCurrentTenantURL(state);
+            XeroAuthService.XeroOAuthResult result = xeroAuthService.completeInitialAuthorisation(resolvedTenant, code);
 
             if (result.isOrganisationSelectionRequired()) {
                 String organisations = result.getConnections().stream()

@@ -93,3 +93,20 @@ Value: false
 ```
 
 It does not delete secret references or secret values. This allows easy reactivation/reconnect later.
+
+
+## Tenant key used for generated secret names
+
+Self-service activation now generates host-based secret names by default. The backend uses `TenantContext.getCurrentTenantURL()` when available, otherwise it looks up the tenant record by the current tenant id and uses the tenant `host`.
+
+Example for tenant host `dev.app.mawa.co.za`:
+
+```text
+mawa-dev-dev-app-mawa-co-za-xero-client-id
+mawa-dev-dev-app-mawa-co-za-xero-secret-key
+mawa-dev-dev-app-mawa-co-za-xero-refresh-token
+mawa-dev-dev-app-mawa-co-za-xero-access-token
+mawa-dev-dev-app-mawa-co-za-xero-tenant-id
+```
+
+Existing tenant-id-based secret names are still supported if they are already saved in Group `XERO` settings. A tenant will move to host-based names the next time Xero is activated or reconnected through MAWA Settings.
