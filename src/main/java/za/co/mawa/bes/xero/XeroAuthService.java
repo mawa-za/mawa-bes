@@ -130,6 +130,41 @@ public class XeroAuthService {
         return accessToken;
     }
 
+    /**
+     * Returns the still-valid access token captured during OAuth before using the refresh token.
+     *
+     * This is important during the multi-organisation selection flow. The OAuth callback has just
+     * received a valid access token and refresh token. If the UI first loads /connections and then
+     * saves the selected organisation, refreshing on both calls can rotate the Xero refresh token
+     * unnecessarily and can fail with invalid_grant when an old/PENDING token is still configured.
+     */
+    private String getValidAccessToken(String tenant) throws IOException {
+        if (!isBlank(tenant)) {
+            TenantContext.setCurrentTenant(tenant);
+        }
+        JSONObject jsonObject = tenantProperties(tenant);
+        String accessToken = getXeroProperty(jsonObject, XeroUtils.XERO_ACCESS_TOKEN);
+        String expiresAt = getXeroProperty(jsonObject, XeroUtils.XERO_EXPIRE_AT);
+
+        if (!isBlank(accessToken) && !isExpiredOrNearExpiry(expiresAt)) {
+            return accessToken;
+        }
+
+        return refreshAccessToken(tenant);
+    }
+
+    private boolean isExpiredOrNearExpiry(String expiresAt) {
+        if (isBlank(expiresAt)) {
+            return true;
+        }
+        try {
+            long expiry = Long.parseLong(expiresAt.trim());
+            return expiry <= (System.currentTimeMillis() + 60_000L);
+        } catch (NumberFormatException ex) {
+            return true;
+        }
+    }
+
     private static String sendTokenRequest(String requestBody, String clientId, String clientSecret) throws IOException {
         String authString = clientId + ":" + clientSecret;
         String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
@@ -191,7 +226,7 @@ public class XeroAuthService {
 
     public List<XeroConnectionDto> getConnectionsForCurrentTenant() throws IOException {
         String tenant = TenantContext.getCurrentTenant();
-        String accessToken = refreshAccessToken(tenant);
+        String accessToken = getValidAccessToken(tenant);
         return getConnections(accessToken);
     }
 
