@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
+import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.util.StringUtils;
 
@@ -42,12 +44,9 @@ public class XeroAuthController {
             String redirectUrl = xeroAuthDto.getRedirectUrl() + "/xero/callback";
            xeroAuthService.createProperty(tenant,XeroUtils.XERO_REDIRECT_URL,redirectUrl);
         }
-        if(xeroAuthDto.getClientId() != null){
-            xeroAuthService.createProperty(tenant,XeroUtils.XERO_CLIENT_ID,xeroAuthDto.getClientId());
-        }
-        if(xeroAuthDto.getClientSecret() != null){
-            xeroAuthService.createProperty(tenant,XeroUtils.XERO_CLIENT_SECRET,xeroAuthDto.getClientSecret());
-        }
+        // Client ID and Client Secret must be captured through /v2/integrations/xero/activate.
+        // That endpoint writes the values to Google Secret Manager and stores only secret references
+        // in Group: XERO settings. Do not persist raw Xero credentials from /xero/connect.
 
         String clientId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_CLIENT_ID);
         String redirectUrl = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_REDIRECT_URL);
@@ -75,15 +74,40 @@ public class XeroAuthController {
                 throw new IllegalStateException("Xero callback is missing tenant state. Please start the connection from /xero/connect again.");
             }
             TenantContext.setCurrentTenant(state);
-            xeroAuthService.getInitialTokens(state, code);
+            XeroAuthService.XeroOAuthResult result = xeroAuthService.completeInitialAuthorisation(state, code);
 
-            XeroAccountingService xeroAccountingService = new XeroAccountingService();
-//            return xeroAccountingService.createInvoice(XeroAuthService.getAccessToken(), XeroAuthService.getXeroTenantId());
-            return "successful";
+            if (result.isOrganisationSelectionRequired()) {
+                String organisations = result.getConnections().stream()
+                        .map(connection -> escapeHtml(connection.getTenantName()) + " (" + escapeHtml(connection.getTenantType()) + ")")
+                        .collect(Collectors.joining("<br/>"));
+                return "<html><body>"
+                        + "<h2>Xero authorisation completed</h2>"
+                        + "<p>Multiple Xero organisations are linked to this Xero user.</p>"
+                        + "<p>Return to MAWA Settings &gt; XERO and click <b>Select Organisation</b>.</p>"
+                        + "<p>Available organisations:</p><p>" + organisations + "</p>"
+                        + "</body></html>";
+            }
+
+            return "<html><body>"
+                    + "<h2>Xero authorisation completed</h2>"
+                    + "<p>Connected organisation: " + escapeHtml(result.getSelectedTenantName()) + "</p>"
+                    + "<p>You can close this window and return to MAWA.</p>"
+                    + "</body></html>";
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String escapeHtml(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     @GetMapping("/xero/refreshToken")

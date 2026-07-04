@@ -79,16 +79,21 @@ public class SettingService implements SettingDao {
     }
 
     public void updateSetting(String attribute, String setting, String newValue) {
+        upsertSetting(attribute, setting, newValue);
+    }
+
+    public void upsertSetting(String attribute, String setting, String value) {
         SettingPKEntity settingPKEntity = new SettingPKEntity();
         settingPKEntity.setSetting(setting);
         settingPKEntity.setAttribute(attribute);
 
-        Optional<SettingEntity> settingEntity = settingRepository.findById(settingPKEntity);
-        if (settingEntity.isPresent()) {
-            SettingEntity existingSetting = settingEntity.get();
-            existingSetting.setValue(newValue);
-            settingRepository.save(existingSetting);
-        }
+        SettingEntity settingEntity = settingRepository.findById(settingPKEntity).orElseGet(() -> {
+            SettingEntity newSetting = new SettingEntity();
+            newSetting.setSettingsPK(settingPKEntity);
+            return newSetting;
+        });
+        settingEntity.setValue(value);
+        settingRepository.save(settingEntity);
     }
 
     public void deleteSetting(String attribute, String setting) {
