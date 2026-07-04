@@ -24,6 +24,8 @@ public class FlywayConfiguration {
     DataSource dataSource;
     @Autowired
     EncryptionService encryptionService;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    private String encryptionSecret;
     @Autowired
     TenantAdminService tenantAdminService;
     @Autowired
@@ -77,12 +79,24 @@ public class FlywayConfiguration {
             dataSource.setDriverClassName(properties.get(Environment.DRIVER).toString());
             dataSource.setUrl(properties.get(Environment.URL).toString());
             dataSource.setUsername(properties.get(Environment.USER).toString());
-            String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(), properties.get("jwt.secret").toString());
+            String password = encryptionService.decrypt(properties.get(Environment.PASS).toString(), resolveEncryptionSecret(properties));
             dataSource.setPassword(password);
             return Pair.of(properties.get(Environment.DEFAULT_SCHEMA).toString(), dataSource);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
+    }
+
+    private String resolveEncryptionSecret(Properties properties) {
+        Object tenantEncryptionSecret = properties.get("mawa.encryption.secret");
+        if (tenantEncryptionSecret != null && !tenantEncryptionSecret.toString().isBlank()) {
+            return tenantEncryptionSecret.toString();
+        }
+        Object legacyTenantJwtSecret = properties.get("jwt.secret");
+        if (legacyTenantJwtSecret != null && !legacyTenantJwtSecret.toString().isBlank()) {
+            return legacyTenantJwtSecret.toString();
+        }
+        return encryptionSecret;
     }
 }
