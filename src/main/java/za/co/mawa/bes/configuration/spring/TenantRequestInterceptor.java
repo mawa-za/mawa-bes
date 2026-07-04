@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.springframework.util.StringUtils;
 
 @Component
 public class TenantRequestInterceptor implements HandlerInterceptor {
@@ -41,6 +42,20 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
         if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+        if (isGet.test(method) && requestURI.contains("/xero/callback")) {
+            String tenant = firstNonBlank(
+                    request.getParameter("state"),
+                    request.getHeader("X-Tenant-Id"),
+                    request.getHeader("X-TenantID")
+            );
+            if (!StringUtils.hasText(tenant)) {
+                throw new TenantNotProvided();
+            }
+            String resolvedTenant = resolveTenantIdOrHost(tenant);
+            TenantContext.setCurrentTenant(resolvedTenant);
+            TenantContext.setCurrentTenantURL(tenant);
             return true;
         }
         if (isPost.test(method) && (requestURI.contains("/authenticate") || requestURI.contains("/forgot-password") || requestURI.contains("/reset-password"))) {
@@ -79,6 +94,30 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
     private boolean setTenantContext(String tenant) {
         TenantContext.setCurrentTenant(tenant);
         return true;
+    }
+
+    private String resolveTenantIdOrHost(String tenantOrHost) throws TenantNotFound {
+        if (!StringUtils.hasText(tenantOrHost)) {
+            throw new TenantNotFound("Tenant not found");
+        }
+        String value = tenantOrHost.trim();
+        return tenantAdminService.getAll().stream()
+                .filter(tenant -> Objects.equals(tenant.getId(), value) || Objects.equals(tenant.getHost(), value))
+                .findFirst()
+                .map(TenantDto::getId)
+                .orElse(value);
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
     @Override
     public void afterCompletion(

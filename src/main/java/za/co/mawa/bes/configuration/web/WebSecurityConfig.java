@@ -40,7 +40,8 @@ public class WebSecurityConfig {
             "/v2/forgot-password",
             "/reset-password",
             "/v2/reset-password",
-            "/refresh-token"
+            "/refresh-token",
+            "/xero/callback"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] LOG_EXCLUSION = {
