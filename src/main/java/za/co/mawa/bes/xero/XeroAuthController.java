@@ -47,10 +47,11 @@ public class XeroAuthController {
             xeroAuthService.createProperty(tenant,XeroUtils.XERO_CLIENT_SECRET,xeroAuthDto.getClientSecret());
         }
 
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String clientId = jsonObject.getString(XeroUtils.XERO_CLIENT_ID);
-        String redirectUrl = jsonObject.getString(XeroUtils.XERO_REDIRECT_URL);
+        String clientId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_CLIENT_ID);
+        String redirectUrl = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_REDIRECT_URL);
+        if (clientId == null || clientId.isBlank() || redirectUrl == null || redirectUrl.isBlank()) {
+            throw new IllegalStateException("Xero client id and redirect URL must be configured. Use Google Secret Manager references for sensitive Xero values.");
+        }
 
 
         String authUrl = XeroAuthService.getAUTH_URL() + "?response_type=code" +

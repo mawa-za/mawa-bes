@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.BankFileXmlDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
@@ -41,6 +42,8 @@ public class BankPaymentService {
     @Autowired
     SettingService settingService;
     @Autowired
+    GcpTenantSecretService gcpTenantSecretService;
+    @Autowired
     PartnerIdentityService partnerIdentityService;
 
     @Autowired
@@ -49,7 +52,7 @@ public class BankPaymentService {
     TransactionService transactionService;
 
     private String getBaseURL() {
-        return settingService.getSetting("BASE-URL", "FNB-API");
+        return gcpTenantSecretService.resolveSetting("BASE-URL", "FNB-API");
     }
 
     public String getToken() {
@@ -62,8 +65,8 @@ public class BankPaymentService {
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
             // If client credentials are required in Basic Auth header
-            String clientId = settingService.getSetting("CLIENT-ID", "FNB-API");
-            String clientSecret = settingService.getSetting("CLIENT-SECRET", "FNB-API");
+            String clientId = gcpTenantSecretService.resolveSetting("CLIENT-ID", "FNB-API");
+            String clientSecret = gcpTenantSecretService.resolveSetting("CLIENT-SECRET", "FNB-API");
             String basicAuth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
             conn.setRequestProperty("Authorization", "Basic " + basicAuth);
 
@@ -223,7 +226,7 @@ public class BankPaymentService {
             String isoDate = zdt.format(DateTimeFormatter.ISO_DATE_TIME);
 
             try {
-                String dateSetting = settingService.getSetting("PAYMENT-CREATION-DATE", "FNB-API");
+                String dateSetting = gcpTenantSecretService.resolveSetting("PAYMENT-CREATION-DATE", "FNB-API");
                 if (!dateSetting.isEmpty()) {
                     String creationDate = dateSetting;
                     grpHdr.setCreationDateTime(creationDate);
@@ -268,7 +271,7 @@ public class BankPaymentService {
             paymentInformation.setDebtor(debtor);
 
             DebtorAccount debtorAccount = new DebtorAccount();
-            debtorAccount.setAccountNumber(settingService.getSetting("ACCOUNT-NUMBER", "EFT-BANK-ACCOUNT"));
+            debtorAccount.setAccountNumber(gcpTenantSecretService.resolveSetting("ACCOUNT-NUMBER", "EFT-BANK-ACCOUNT"));
             String accountType = settingService.getSetting("ACCOUNT-TYPE", "EFT-BANK-ACCOUNT");
             if (accountType.equals("CHEQUE")) {
                 debtorAccount.setAccountType("CACC");
@@ -295,7 +298,7 @@ public class BankPaymentService {
                 bankAccountDto = new BankAccountDto();
                 bankAccountDto.setAccountHolder(settingService.getSetting("ACCOUNT-HOLDER", "CASH-BANK-ACCOUNT"));
                 bankAccountDto.setBranchCode(settingService.getSetting("BRANCH-CODE", "CASH-BANK-ACCOUNT"));
-                bankAccountDto.setAccountNumber(settingService.getSetting("ACCOUNT-NUMBER", "CASH-BANK-ACCOUNT"));
+                bankAccountDto.setAccountNumber(gcpTenantSecretService.resolveSetting("ACCOUNT-NUMBER", "CASH-BANK-ACCOUNT"));
                 FieldOptionDto fieldOptionDto = new FieldOptionDto();
                 fieldOptionDto.setCode(settingService.getSetting("ACCOUNT-TYPE", "CASH-BANK-ACCOUNT"));
                 bankAccountDto.setAccountType(fieldOptionDto);
@@ -334,7 +337,7 @@ public class BankPaymentService {
             limited = reference.length() > 35 ? reference.substring(0, 35) : reference;
             transactionInformation.setRemittanceInformationUnstructured(limited);
             transactionInformation.setRemittanceLocationMethod("EMAL");
-            transactionInformation.setRemittanceLocationElectronicAddress(settingService.getSetting("POP-RECIPIENT", "FNB-API"));
+            transactionInformation.setRemittanceLocationElectronicAddress(gcpTenantSecretService.resolveSetting("POP-RECIPIENT", "FNB-API"));
             List<CreditTransferTransactionInformation> creditTransferTransactionInformationList = new ArrayList<>();
             creditTransferTransactionInformationList.add(transactionInformation);
             paymentInformation.setCreditTransferTransactionInformation(creditTransferTransactionInformationList);

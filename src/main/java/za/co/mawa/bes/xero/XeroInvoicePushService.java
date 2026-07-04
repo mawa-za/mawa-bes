@@ -81,19 +81,12 @@ public class XeroInvoicePushService {
             }
 
             String accessToken = xeroAuthService.refreshAccessToken(xeroConfigTenant);
-            JSONObject xeroProperties = new JSONObject(tenantAdminService.getTenantProperty(xeroConfigTenant));
-            String xeroTenantId = xeroProperties.optString(XeroUtils.XERO_TENANT_ID, null);
-            if (isBlank(xeroTenantId)) {
-                xeroTenantId = xeroProperties.optString("XERO-TENANT-ID", null);
-            }
+            String xeroTenantId = xeroAuthService.getXeroProperty(xeroConfigTenant, XeroUtils.XERO_TENANT_ID);
             if (isBlank(xeroTenantId)) {
                 throw new IOException("Xero tenant id is not configured");
             }
 
-            String invoiceUrl = xeroProperties.optString("XERO-BASE-URL", DEFAULT_INVOICE_URL);
-            if (isBlank(invoiceUrl)) {
-                invoiceUrl = DEFAULT_INVOICE_URL;
-            }
+            String invoiceUrl = xeroAuthService.getXeroProperty(xeroConfigTenant, "XERO-BASE-URL", DEFAULT_INVOICE_URL);
 
             ObjectNode payload = buildInvoicePayload(invoice);
             JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload);
