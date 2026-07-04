@@ -38,8 +38,8 @@ public class PasswordController {
     @Autowired
     UserRepository userRepository;
 
-    @Value("${mawa.encryption.secret:${jwt.secret}}")
-    private String encryptionSecret;
+    @Value("${jwt.secret}")
+    private String secret;
 
     @RequestMapping(
             value = {"forgot-password", "v2/forgot-password"},
@@ -108,7 +108,7 @@ public class PasswordController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid reset token"));
             }
 
-            userEntity.setPassword(encryptionService.encrypt(request.getPassword(), encryptionSecret).getBytes());
+            userEntity.setPassword(encryptionService.encrypt(request.getPassword(), secret).getBytes());
             userEntity.setPasswordStatus(PasswordStatus.PRODUCTIVE);
             userRepository.save(userEntity);
             return ResponseEntity.ok(Map.of("message", "Password reset successfully"));

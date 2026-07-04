@@ -15,6 +15,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import org.springframework.util.StringUtils;
+
 import static io.swagger.v3.core.util.PrimitiveType.createProperty;
 
 @RestController
@@ -55,9 +57,10 @@ public class XeroAuthController {
 
 
         String authUrl = XeroAuthService.getAUTH_URL() + "?response_type=code" +
-                "&client_id=" + clientId +
+                "&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
                 "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
-                "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8);
+                "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8) +
+                "&state=" + URLEncoder.encode(tenant, StandardCharsets.UTF_8);
 
         return ResponseEntity.ok(Map.of("authenticationUrl", authUrl));
     }
@@ -65,9 +68,14 @@ public class XeroAuthController {
 
     @RequestMapping(value="/xero/callback" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public String callback(@RequestParam String code, @RequestParam(required = false) String state) {
-        // Store the code for later use in token exchange
+        // Xero redirects back without Authorization or X-Tenant-Id headers.
+        // The tenant is therefore carried in OAuth state from /xero/connect.
         try {
-            xeroAuthService.getInitialTokens(code);
+            if (!StringUtils.hasText(state)) {
+                throw new IllegalStateException("Xero callback is missing tenant state. Please start the connection from /xero/connect again.");
+            }
+            TenantContext.setCurrentTenant(state);
+            xeroAuthService.getInitialTokens(state, code);
 
             XeroAccountingService xeroAccountingService = new XeroAccountingService();
 //            return xeroAccountingService.createInvoice(XeroAuthService.getAccessToken(), XeroAuthService.getXeroTenantId());

@@ -57,10 +57,17 @@ public class XeroAuthService {
 //    private static long expiresAt = System.currentTimeMillis() + (1800 * 1000);
 
 
-    public  String getInitialTokens(String authorizationCode) throws IOException {
+    public String getInitialTokens(String authorizationCode) throws IOException {
+        return getInitialTokens(TenantContext.getCurrentTenant(), authorizationCode);
+    }
+
+    public  String getInitialTokens(String tenant, String authorizationCode) throws IOException {
 
         try {
-            String tenant = TenantContext.getCurrentTenant();
+            if (isBlank(tenant)) {
+                throw new IllegalStateException("Xero tenant is required to complete OAuth callback");
+            }
+            TenantContext.setCurrentTenant(tenant);
             JSONObject jsonObject = tenantProperties(tenant);
             String client_id = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
             String client_secret = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_SECRET);
@@ -106,6 +113,9 @@ public class XeroAuthService {
 //        String tenant = TenantContext.getCurrentTenant();
 
 //        String refreshToken = settingService.getSetting(XeroUtils.XERO_REFRESH_TOKEN ,XeroUtils.XERO_INVOICE);
+        if (!isBlank(tenant)) {
+            TenantContext.setCurrentTenant(tenant);
+        }
         JSONObject jsonObject = tenantProperties(tenant);
         String refreshToken = requiredXeroProperty(jsonObject, XeroUtils.XERO_REFRESH_TOKEN);
         String client_id = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
@@ -277,14 +287,14 @@ public class XeroAuthService {
     }
 
     public void createProperty(String tenant, String property, String value) {
-        JSONObject properties = tenantProperties(tenant);
-        String secretReference = gcpTenantSecretService.findTenantPropertySecretReference(properties, property);
-        String directReference = properties.optString(property, null);
-        if ((secretReference == null || secretReference.isBlank())
-                && gcpTenantSecretService.isSecretReference(directReference)) {
-            secretReference = directReference;
+        if (isBlank(tenant)) {
+            throw new IllegalStateException("Tenant is required when storing Xero property " + property);
         }
-        if (secretReference != null && !secretReference.isBlank()) {
+        TenantContext.setCurrentTenant(tenant);
+
+        JSONObject properties = tenantProperties(tenant);
+        String secretReference = findSecretReferenceForProperty(properties, property);
+        if (!isBlank(secretReference)) {
             gcpTenantSecretService.addSecretVersion(secretReference, value);
             return;
         }
@@ -325,16 +335,75 @@ public class XeroAuthService {
     }
 
     public String getXeroProperty(String tenant, String property) {
+        if (!isBlank(tenant)) {
+            TenantContext.setCurrentTenant(tenant);
+        }
         return getXeroProperty(tenantProperties(tenant), property);
     }
 
     public String getXeroProperty(String tenant, String property, String defaultValue) {
+        if (!isBlank(tenant)) {
+            TenantContext.setCurrentTenant(tenant);
+        }
         String value = getXeroProperty(tenantProperties(tenant), property);
         return isBlank(value) ? defaultValue : value;
     }
 
     private String getXeroProperty(JSONObject properties, String property) {
-        return gcpTenantSecretService.resolveTenantProperty(properties, property);
+        String value = gcpTenantSecretService.resolveTenantProperty(properties, property);
+        if (!isBlank(value)) {
+            return value;
+        }
+
+        // Preferred MAWA settings format:
+        // Group: XERO, Attribute: CLIENT-ID-SECRET / SECRET-KEY-SECRET / REFRESH-TOKEN-SECRET / TENANT-ID-SECRET.
+        value = gcpTenantSecretService.resolveSetting(toXeroSettingAttribute(property), "XERO");
+        if (!isBlank(value)) {
+            return value;
+        }
+
+        // Compatibility for settings that were maintained with the full legacy property name.
+        return gcpTenantSecretService.resolveSetting(property, "XERO");
+    }
+
+    private String findSecretReferenceForProperty(JSONObject properties, String property) {
+        String secretReference = gcpTenantSecretService.findTenantPropertySecretReference(properties, property);
+        String directReference = properties == null ? null : properties.optString(property, null);
+        if (isBlank(secretReference) && gcpTenantSecretService.isSecretReference(directReference)) {
+            secretReference = directReference;
+        }
+        if (!isBlank(secretReference)) {
+            return secretReference;
+        }
+
+        secretReference = gcpTenantSecretService.findSettingSecretReference(toXeroSettingAttribute(property), "XERO");
+        if (!isBlank(secretReference)) {
+            return secretReference;
+        }
+
+        secretReference = gcpTenantSecretService.findSettingSecretReference(property, "XERO");
+        if (!isBlank(secretReference)) {
+            return secretReference;
+        }
+
+        String settingValue = settingService.getSetting(toXeroSettingAttribute(property), "XERO");
+        if (gcpTenantSecretService.isSecretReference(settingValue)) {
+            return settingValue;
+        }
+
+        settingValue = settingService.getSetting(property, "XERO");
+        if (gcpTenantSecretService.isSecretReference(settingValue)) {
+            return settingValue;
+        }
+
+        return null;
+    }
+
+    private String toXeroSettingAttribute(String property) {
+        if (isBlank(property)) {
+            return property;
+        }
+        return property.startsWith("XERO-") ? property.substring("XERO-".length()) : property;
     }
 
     private String requiredXeroProperty(JSONObject properties, String property) {

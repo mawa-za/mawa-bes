@@ -39,7 +39,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         return "/authenticate".endsWith(path)
-                || "/refresh-token".endsWith(path);
+                || "/refresh-token".endsWith(path)
+                || "/xero/callback".equals(path);
     }
 
     @Override
