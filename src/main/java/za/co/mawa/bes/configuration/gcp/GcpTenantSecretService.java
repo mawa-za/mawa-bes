@@ -1,8 +1,14 @@
 package za.co.mawa.bes.configuration.gcp;
 
+import com.google.api.gax.rpc.AlreadyExistsException;
+import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.secretmanager.v1.AccessSecretVersionRequest;
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.AddSecretVersionRequest;
+import com.google.cloud.secretmanager.v1.CreateSecretRequest;
+import com.google.cloud.secretmanager.v1.GetSecretRequest;
+import com.google.cloud.secretmanager.v1.Replication;
+import com.google.cloud.secretmanager.v1.Secret;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.protobuf.ByteString;
 import org.json.JSONObject;
@@ -19,19 +25,6 @@ import java.util.Map;
  * Resolves tenant-level integration secrets from Google Secret Manager.
  *
  * Tenant properties/settings should store secret references, not secret values.
- * Supported reference properties for a normal key such as XERO-SECRET-KEY are:
- *   XERO-SECRET-KEY-GCP-SECRET
- *   XERO-SECRET-KEY-SECRET-NAME
- *   XERO-SECRET-KEY-SECRET-REF
- *   XERO-SECRET-KEY-SECRET
- *
- * The value itself may also be a reference, for example:
- *   gcp-secret://mawa-dev-localhost-xero-secret-key
- *   sm://mawa-dev-localhost-xero-secret-key
- *   projects/mawa-162022/secrets/mawa-dev-localhost-xero-secret-key/versions/latest
- *   mawa-dev-localhost-xero-secret-key:3
- *
- * Direct/plain values remain supported as a compatibility fallback only.
  */
 @Service
 public class GcpTenantSecretService {
@@ -147,6 +140,57 @@ public class GcpTenantSecretService {
             client.addSecretVersion(request);
         } catch (IOException ex) {
             throw new IllegalStateException("Unable to create Google Secret Manager client. Check Cloud Run service account / Application Default Credentials.", ex);
+        }
+    }
+
+    /**
+     * Creates the secret container if it is missing, then appends a new secret version.
+     * Use this for self-service integration activation from MAWA settings screens.
+     */
+    public void createOrAddSecretVersion(String secretReference, String value) {
+        SecretReference reference = SecretReference.from(secretReference, projectId());
+        try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+            ensureSecretExists(client, reference);
+            AddSecretVersionRequest request = AddSecretVersionRequest.newBuilder()
+                    .setParent(reference.toSecretName())
+                    .setPayload(com.google.cloud.secretmanager.v1.SecretPayload.newBuilder()
+                            .setData(ByteString.copyFromUtf8(value == null ? "" : value))
+                            .build())
+                    .build();
+            client.addSecretVersion(request);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create Google Secret Manager client. Check Cloud Run service account / Application Default Credentials.", ex);
+        }
+    }
+
+    public void createSecretIfMissing(String secretReference) {
+        SecretReference reference = SecretReference.from(secretReference, projectId());
+        try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+            ensureSecretExists(client, reference);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create Google Secret Manager client. Check Cloud Run service account / Application Default Credentials.", ex);
+        }
+    }
+
+    private void ensureSecretExists(SecretManagerServiceClient client, SecretReference reference) {
+        try {
+            client.getSecret(GetSecretRequest.newBuilder().setName(reference.toSecretName()).build());
+        } catch (NotFoundException ex) {
+            try {
+                Secret secret = Secret.newBuilder()
+                        .setReplication(Replication.newBuilder()
+                                .setAutomatic(Replication.Automatic.newBuilder().build())
+                                .build())
+                        .build();
+                CreateSecretRequest request = CreateSecretRequest.newBuilder()
+                        .setParent("projects/" + reference.projectId())
+                        .setSecretId(reference.secretName())
+                        .setSecret(secret)
+                        .build();
+                client.createSecret(request);
+            } catch (AlreadyExistsException ignored) {
+                // Another request created it between getSecret and createSecret.
+            }
         }
     }
 
