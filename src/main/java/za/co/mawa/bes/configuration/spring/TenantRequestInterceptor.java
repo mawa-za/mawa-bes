@@ -60,7 +60,10 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         }
         if (isPost.test(method) && (requestURI.contains("/authenticate") || requestURI.contains("/forgot-password") || requestURI.contains("/reset-password"))) {
             String tenant = "";
-            String tenantHeader = request.getHeader("X-TenantID");
+            String tenantHeader = firstNonBlank(
+                    request.getHeader("X-TenantID"),
+                    request.getHeader("X-Tenant-Id")
+            );
             if (tenantHeader != null) {
                 tenant = tenantHeader.split(":")[0];
             } else {

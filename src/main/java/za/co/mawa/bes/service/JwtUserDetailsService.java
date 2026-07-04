@@ -19,8 +19,8 @@ import za.co.mawa.bes.utils.Status;
 public class JwtUserDetailsService implements UserDetailsService {
     @Autowired
     EncryptionService encryptionService;
-    @Value("${jwt.secret}")
-    private String secret;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    private String encryptionSecret;
     @Autowired
     UserService userService;
 
@@ -36,7 +36,7 @@ public class JwtUserDetailsService implements UserDetailsService {
                 if (userDto.getStatus().equals(Status.LOCKED)){
                     accountNonLocked = false;
                 }
-                String decryptedPassword = encryptionService.decrypt(userDto.getPassword().toString(), secret);
+                String decryptedPassword = encryptionService.decrypt(userDto.getPassword().toString(), encryptionSecret);
                 User user = new User(userDto.getUsername(), new BCryptPasswordEncoder().encode(decryptedPassword),
                 enabled, accountNonExpired, credentialsNonExpired, accountNonLocked, new ArrayList<>());
                 return user;
