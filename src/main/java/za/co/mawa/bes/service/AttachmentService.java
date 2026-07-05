@@ -47,12 +47,17 @@ public class AttachmentService implements AttachmentDao {
             throw new IllegalArgumentException("Attachment file is required");
         }
         byte[] bytes = Base64.getDecoder().decode(stripDataUrlPrefix(attachmentCreateDto.getFile()));
-        return saveBytes(bytes, attachmentCreateDto.getExtension(), attachmentCreateDto.getDocumentType(), attachmentCreateDto.getObjectId());
+        return saveBytes(bytes, attachmentCreateDto.getExtension(), attachmentCreateDto.getObjectType(), attachmentCreateDto.getObjectId(), attachmentCreateDto.getDocumentType());
     }
 
     @Transactional
     public AttachmentEntity saveBytes(byte[] bytes, String extension, String documentType, String objectId) {
-        AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(bytes, extension, objectId, documentType);
+        return saveBytes(bytes, extension, documentType, objectId, documentType);
+    }
+
+    @Transactional
+    public AttachmentEntity saveBytes(byte[] bytes, String extension, String objectType, String objectId, String documentType) {
+        AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(bytes, extension, objectType, objectId, documentType);
 
         AttachmentEntity attachmentEntity = new AttachmentEntity();
         attachmentEntity.setUploadBy(UserContext.getCurrentUser());
@@ -148,6 +153,7 @@ public class AttachmentService implements AttachmentDao {
             AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(
                     attachmentEntity.getFile(),
                     attachmentEntity.getExtension(),
+                    attachmentEntity.getDocumentType(),
                     attachmentEntity.getObjectId(),
                     attachmentEntity.getDocumentType()
             );
