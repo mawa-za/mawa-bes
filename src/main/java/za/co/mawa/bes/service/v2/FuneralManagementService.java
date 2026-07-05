@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
+import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +35,7 @@ public class FuneralManagementService {
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final ClaimFormGenerationService claimFormGenerationService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -288,6 +290,7 @@ public class FuneralManagementService {
             link.setSourceReference(cover.getSourceReference());
             link.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
             funeralServiceClaimRepository.save(link);
+            claimFormGenerationService.generateForSubmittedClaim(membershipClaimId);
 
             response.add(readClaimDto(membershipClaimId));
             remaining -= claimAmount;
