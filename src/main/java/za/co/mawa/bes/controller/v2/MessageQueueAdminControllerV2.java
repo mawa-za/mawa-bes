@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.message.MessageQueueAdminDto;
 import za.co.mawa.bes.dto.v2.message.MessageQueueAdminListResponse;
+import za.co.mawa.bes.dto.v2.message.MessageQueueScheduleSettingsDto;
 import za.co.mawa.bes.service.MessageQueueAdminService;
 
 import java.util.Map;
@@ -45,5 +46,25 @@ public class MessageQueueAdminControllerV2 {
     @PostMapping("/process-now")
     public ResponseEntity<Map<String, Object>> processNow() {
         return ResponseEntity.ok(Map.of("processed", service.processNow()));
+    }
+
+    @GetMapping("/schedule")
+    public ResponseEntity<MessageQueueScheduleSettingsDto> getSchedule() {
+        return ResponseEntity.ok(service.getScheduleSettings());
+    }
+
+    @PutMapping("/schedule")
+    public ResponseEntity<MessageQueueScheduleSettingsDto> updateSchedule(@RequestBody MessageQueueScheduleSettingsDto request) {
+        return ResponseEntity.ok(service.updateScheduleSettings(request));
+    }
+
+    @PostMapping("/schedule/start")
+    public ResponseEntity<MessageQueueScheduleSettingsDto> startSchedule() {
+        return ResponseEntity.ok(service.startScheduler());
+    }
+
+    @PostMapping("/schedule/stop")
+    public ResponseEntity<MessageQueueScheduleSettingsDto> stopSchedule() {
+        return ResponseEntity.ok(service.stopScheduler());
     }
 }

@@ -17,6 +17,8 @@ import za.co.mawa.bes.xero.XeroInvoicePushService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class MessageConsumerService {
@@ -34,13 +36,25 @@ public class MessageConsumerService {
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
     @Autowired
     XeroInvoicePushService xeroInvoicePushService;
+    @Autowired
+    SettingService settingService;
     Gson gson = new Gson();
 
-    @Scheduled(fixedDelay = 60000)
+    private static final String QUEUE_GROUP = "MESSAGE-QUEUE";
+    private static final String ENABLED = "ENABLED";
+    private static final String INTERVAL_SECONDS = "INTERVAL-SECONDS";
+    private static final String BATCH_SIZE = "BATCH-SIZE";
+    private final Map<String, LocalDateTime> lastRunByTenant = new ConcurrentHashMap<>();
+
+    @Scheduled(fixedDelay = 30000)
     public void processAllTenants() {
         for (TenantDto tenant : tenantAdminService.getAll()) {
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
+                if (!isSchedulerEnabled() || !isDueToRun()) {
+                    continue;
+                }
+                lastRunByTenant.put(TenantContext.getCurrentTenant(), LocalDateTime.now());
                 processCurrentTenant();
             } catch (Exception e) {
                 System.err.println("Error processing tenant " + tenant + ": " + e.getMessage());
@@ -50,11 +64,54 @@ public class MessageConsumerService {
         }
     }
 
+    public boolean isSchedulerEnabled() {
+        String enabled = settingService.getSetting(ENABLED, QUEUE_GROUP);
+        return enabled == null || enabled.isBlank() || "true".equalsIgnoreCase(enabled) || "1".equals(enabled) || "Y".equalsIgnoreCase(enabled);
+    }
+
+    public int getSchedulerIntervalSeconds() {
+        String value = settingService.getSetting(INTERVAL_SECONDS, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(30, parsed);
+        } catch (Exception ignored) {
+            return 60;
+        }
+    }
+
+    public int getBatchSize() {
+        String value = settingService.getSetting(BATCH_SIZE, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(1, Math.min(parsed, 100));
+        } catch (Exception ignored) {
+            return 10;
+        }
+    }
+
+    public LocalDateTime getLastRunAt() { return lastRunByTenant.get(TenantContext.getCurrentTenant()); }
+
+    public LocalDateTime getNextRunAt() {
+        if (!isSchedulerEnabled()) return null;
+        LocalDateTime lastRunAt = getLastRunAt();
+        if (lastRunAt == null) return LocalDateTime.now();
+        return lastRunAt.plusSeconds(getSchedulerIntervalSeconds());
+    }
+
+    private boolean isDueToRun() {
+        LocalDateTime lastRunAt = getLastRunAt();
+        return lastRunAt == null || !lastRunAt.plusSeconds(getSchedulerIntervalSeconds()).isAfter(LocalDateTime.now());
+    }
+
     public int processCurrentTenant() {
         ObjectMapper mapper = new ObjectMapper();
         int processedCount = 0;
         List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
                 .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
+        int batchSize = getBatchSize();
+        if (messageQueueEntities.size() > batchSize) {
+            messageQueueEntities = messageQueueEntities.subList(0, batchSize);
+        }
 
         for (MessageQueueEntity msg : messageQueueEntities) {
             try {

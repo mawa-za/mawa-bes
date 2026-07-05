@@ -232,6 +232,16 @@ public class MembershipClaimService {
     }
 
     @Transactional
+    public MembershipClaimResponse markApprovedFromWorkflow(String id, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(id);
+        entity.setStatus(MembershipClaimStatus.APPROVED);
+        entity.setApprovedBy(userId);
+        entity.setApprovedAt(java.time.LocalDateTime.now());
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
     public MembershipClaimResponse linkApproval(ApprovalRequestEntity approvalRequest, String userId) {
         MembershipClaimEntity entity = getClaimEntity(approvalRequest.getReferenceId());
         entity.setApprovalRequestId(approvalRequest.getId());

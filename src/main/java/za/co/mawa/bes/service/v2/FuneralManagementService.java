@@ -8,11 +8,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
+import za.co.mawa.bes.enums.ApprovalType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +38,7 @@ public class FuneralManagementService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final ClaimFormGenerationService claimFormGenerationService;
+    private final ApprovalService approvalService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -264,7 +267,7 @@ public class FuneralManagementService {
                     (id, claim_no, membership_id, claim_type, deceased_type, deceased_partner_id, date_of_death,
                      claim_date, cause_of_death, death_certificate_no, claimant_partner_id, claim_amount_cents,
                      status, notes, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, CURRENT_TIMESTAMP)
                     """,
                     membershipClaimId,
                     claimNo,
@@ -290,7 +293,6 @@ public class FuneralManagementService {
             link.setSourceReference(cover.getSourceReference());
             link.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
             funeralServiceClaimRepository.save(link);
-            claimFormGenerationService.generateForSubmittedClaim(membershipClaimId);
 
             response.add(readClaimDto(membershipClaimId));
             remaining -= claimAmount;
@@ -299,6 +301,32 @@ public class FuneralManagementService {
         service.setStatus("CLAIMS_INITIATED");
         funeralServiceRepository.save(service);
         return response;
+    }
+
+
+    @Transactional
+    public FuneralClaimDto submitClaimForApproval(String membershipClaimId, String userId) {
+        Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
+        String status = String.valueOf(claim.get("status"));
+        if (!"DRAFT".equalsIgnoreCase(status)) {
+            throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
+        }
+
+        ApprovalSubmitRequest request = new ApprovalSubmitRequest();
+        request.setApprovalType(ApprovalType.CLAIM);
+        request.setReferenceId(membershipClaimId);
+        request.setReferenceNo(String.valueOf(claim.get("claim_no")));
+        request.setTitle("Membership claim " + claim.get("claim_no"));
+        request.setDescription("Funeral arrangement claim submitted for approval");
+        request.setRequesterId(userId);
+        try {
+            request.setPayloadJson(objectMapper.writeValueAsString(claim));
+        } catch (JsonProcessingException ignored) {
+            request.setPayloadJson("{}");
+        }
+        approvalService.submitForApproval(request);
+        updateFuneralServiceClaimStatus(membershipClaimId);
+        return readClaimDto(membershipClaimId);
     }
 
     public List<FuneralClaimDto> getClaims(String funeralServiceId) {
