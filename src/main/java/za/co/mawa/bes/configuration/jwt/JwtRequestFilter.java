@@ -45,6 +45,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || "/reset-password".equals(path)
                 || "/v2/reset-password".equals(path)
                 || "/refresh-token".equals(path)
+                || "/v2/refresh-token".equals(path)
                 || "/xero/callback".equals(path);
     }
 
