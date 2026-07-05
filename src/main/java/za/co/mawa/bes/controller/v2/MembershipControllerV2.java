@@ -44,10 +44,14 @@ public class MembershipControllerV2 {
     // ------------------------------------------
     // Membership Plan Endpoints
     // ------------------------------------------
-    @GetMapping("migrate")
+    @PostMapping("migrate")
     public ResponseEntity<?> migrate() {
-        migrateService.migrateMemberships();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(migrateService.migrateMemberships());
+    }
+
+    @GetMapping("migrate")
+    public ResponseEntity<?> migrateLegacyGet() {
+        return ResponseEntity.ok(migrateService.migrateMemberships());
     }
 
     @GetMapping("/plans")
