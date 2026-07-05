@@ -24,6 +24,11 @@ public class AttachmentMapper {
                 .downloadBy(entity.getDownloadBy())
                 .downloadDate(entity.getDownloadDate())
                 .extension(entity.getExtension())
+                .filePath(entity.getFilePath())
+                .storageBucket(entity.getStorageBucket())
+                .storageProvider(entity.getStorageProvider())
+                .contentType(entity.getContentType())
+                .fileSize(entity.getFileSize())
                 .build();
     }
 

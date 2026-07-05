@@ -19,6 +19,10 @@ public class AttachmentDto implements Serializable {
    private FieldOptionDto documentType;
    private String extension;
    private String objectId;
+   private String filePath;
+   private String storageProvider;
+   private String contentType;
+   private Long fileSize;
    private Date uploadDate;
    private Date uploadTime;
    private PartnerDto uploadBy;
