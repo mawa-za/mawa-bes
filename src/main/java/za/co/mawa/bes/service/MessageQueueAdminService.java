@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.message.MessageQueueAdminDto;
 import za.co.mawa.bes.dto.v2.message.MessageQueueAdminListResponse;
+import za.co.mawa.bes.dto.v2.message.MessageQueueScheduleSettingsDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 
@@ -19,6 +20,9 @@ import java.util.stream.Collectors;
 public class MessageQueueAdminService {
     private final MessageQueueRepository repository;
     private final MessageConsumerService messageConsumerService;
+    private final SettingService settingService;
+
+    private static final String QUEUE_GROUP = "MESSAGE-QUEUE";
 
     public MessageQueueAdminListResponse search(String type, String status, String reference, int page, int size) {
         List<MessageQueueAdminDto> filtered = repository.findAll().stream()
@@ -62,6 +66,35 @@ public class MessageQueueAdminService {
 
     public int processNow() {
         return messageConsumerService.processCurrentTenant();
+    }
+
+    public MessageQueueScheduleSettingsDto getScheduleSettings() {
+        return MessageQueueScheduleSettingsDto.builder()
+                .enabled(messageConsumerService.isSchedulerEnabled())
+                .intervalSeconds(messageConsumerService.getSchedulerIntervalSeconds())
+                .batchSize(messageConsumerService.getBatchSize())
+                .lastRunAt(messageConsumerService.getLastRunAt() == null ? null : messageConsumerService.getLastRunAt().toString())
+                .nextRunAt(messageConsumerService.getNextRunAt() == null ? null : messageConsumerService.getNextRunAt().toString())
+                .build();
+    }
+
+    public MessageQueueScheduleSettingsDto updateScheduleSettings(MessageQueueScheduleSettingsDto request) {
+        int interval = request.getIntervalSeconds() <= 0 ? 60 : Math.max(30, request.getIntervalSeconds());
+        int batch = request.getBatchSize() <= 0 ? 10 : Math.max(1, Math.min(request.getBatchSize(), 100));
+        settingService.upsertSetting("ENABLED", QUEUE_GROUP, String.valueOf(request.isEnabled()));
+        settingService.upsertSetting("INTERVAL-SECONDS", QUEUE_GROUP, String.valueOf(interval));
+        settingService.upsertSetting("BATCH-SIZE", QUEUE_GROUP, String.valueOf(batch));
+        return getScheduleSettings();
+    }
+
+    public MessageQueueScheduleSettingsDto startScheduler() {
+        settingService.upsertSetting("ENABLED", QUEUE_GROUP, "true");
+        return getScheduleSettings();
+    }
+
+    public MessageQueueScheduleSettingsDto stopScheduler() {
+        settingService.upsertSetting("ENABLED", QUEUE_GROUP, "false");
+        return getScheduleSettings();
     }
 
     private boolean matchesStatus(MessageQueueEntity entity, String status) {

@@ -37,8 +37,8 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
 
     @Override
     public void onApproved(ApprovalRequestEntity approvalRequest, String actionBy) {
-        MembershipClaimResponse membershipClaimResponse = membershipClaimService.getById(approvalRequest.getReferenceId());
-        if (membershipClaimResponse == null) {
+        MembershipClaimResponse membershipClaimResponse = membershipClaimService.markApprovedFromWorkflow(approvalRequest.getReferenceId(), actionBy);
+        if (membershipClaimResponse != null) {
             if (membershipClaimResponse.getClaimType().equals(MembershipClaimType.CASH)) {
                 PaymentRequestCreateRequest paymentRequestCreateRequest = new PaymentRequestCreateRequest();
                 paymentRequestCreateRequest.setRequestType(PaymentRequestType.CLAIM_PAYOUT);
