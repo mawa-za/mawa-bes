@@ -187,6 +187,19 @@ public class FuneralManagementService {
         return result;
     }
 
+    public List<FuneralServiceRequestResponseDto> getServiceRequests(String query, String status) {
+        String normalizedQuery = query == null ? null : query.trim();
+        String normalizedStatus = status == null ? null : status.trim();
+        return funeralServiceRepository.search(normalizedQuery, normalizedStatus)
+                .stream()
+                .map(this::toServiceResponse)
+                .collect(Collectors.toList());
+    }
+
+    public FuneralServiceRequestResponseDto getServiceRequest(String id) {
+        return toServiceResponse(getFuneralServiceOrThrow(id));
+    }
+
     @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
@@ -807,6 +820,8 @@ public class FuneralManagementService {
                 .funeralArea(entity.getFuneralArea())
                 .totalAmountCents(entity.getTotalAmountCents())
                 .status(entity.getStatus())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
