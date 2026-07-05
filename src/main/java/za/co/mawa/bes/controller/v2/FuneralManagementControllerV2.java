@@ -127,6 +127,26 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @GetMapping("/service-requests")
+    public ResponseEntity<?> getServiceRequests(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String status) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getServiceRequests(query, status));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping("/service-request/{id}")
+    public ResponseEntity<?> getServiceRequest(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getServiceRequest(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PostMapping(value = "/service-request", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createServiceRequest(@RequestBody FuneralServiceRequestDto request) {
         try {
@@ -149,6 +169,18 @@ public class FuneralManagementControllerV2 {
     public ResponseEntity<?> getClaims(@PathVariable String id) {
         try {
             return ResponseEntity.ok(funeralManagementService.getClaims(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @PostMapping(value = "/claims/{membershipClaimId}/submit-for-approval")
+    public ResponseEntity<?> submitClaimForApproval(
+            @PathVariable String membershipClaimId,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.submitClaimForApproval(membershipClaimId, userId));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }

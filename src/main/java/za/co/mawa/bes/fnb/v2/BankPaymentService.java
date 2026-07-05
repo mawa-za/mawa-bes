@@ -3,6 +3,7 @@ package za.co.mawa.bes.fnb.v2;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
 import za.co.mawa.bes.dto.OAuthTokenResponse;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
@@ -37,6 +38,7 @@ public class BankPaymentService {
     private final SettingService settingService;
     private final TransactionService transactionService;
     private final ObjectMapper objectMapper;
+    private final GcpTenantSecretService gcpTenantSecretService;
 
     private static final String FNB_API_SETTING_GROUP = "FNB-API";
     private static final String TENANT_SETTING_GROUP = "TENANT";
@@ -50,7 +52,7 @@ public class BankPaymentService {
     private static final int REMITTANCE_MAX_LENGTH = 35;
 
     private String getBaseURL() {
-        String baseUrl = settingService.getSetting("BASE-URL", FNB_API_SETTING_GROUP);
+        String baseUrl = gcpTenantSecretService.resolveSetting("BASE-URL", FNB_API_SETTING_GROUP);
 
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new RuntimeException("FNB API base URL setting is missing");
@@ -70,8 +72,8 @@ public class BankPaymentService {
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-            String clientId = settingService.getSetting("CLIENT-ID", FNB_API_SETTING_GROUP);
-            String clientSecret = settingService.getSetting("CLIENT-SECRET", FNB_API_SETTING_GROUP);
+            String clientId = gcpTenantSecretService.resolveSetting("CLIENT-ID", FNB_API_SETTING_GROUP);
+            String clientSecret = gcpTenantSecretService.resolveSetting("CLIENT-SECRET", FNB_API_SETTING_GROUP);
 
             if (isBlank(clientId) || isBlank(clientSecret)) {
                 throw new RuntimeException("FNB client credentials are missing");
@@ -381,7 +383,7 @@ public class BankPaymentService {
 
     private String resolveCreationDateTime() {
         try {
-            String dateSetting = settingService.getSetting("PAYMENT-CREATION-DATE", FNB_API_SETTING_GROUP);
+            String dateSetting = gcpTenantSecretService.resolveSetting("PAYMENT-CREATION-DATE", FNB_API_SETTING_GROUP);
 
             if (!isBlank(dateSetting)) {
                 return dateSetting;
@@ -399,7 +401,7 @@ public class BankPaymentService {
             return paymentRequest.getCurrency();
         }
 
-        String tenantCurrency = settingService.getSetting("CURRENCY", TENANT_SETTING_GROUP);
+        String tenantCurrency = gcpTenantSecretService.resolveSetting("CURRENCY", TENANT_SETTING_GROUP);
 
         if (!isBlank(tenantCurrency)) {
             return tenantCurrency;
@@ -507,10 +509,10 @@ public class BankPaymentService {
     }
 
     private String requiredSetting(String key, String group) {
-        String value = settingService.getSetting(key, group);
+        String value = gcpTenantSecretService.resolveSetting(key, group);
 
         if (isBlank(value)) {
-            throw new RuntimeException("Missing required setting: " + group + " / " + key);
+            throw new RuntimeException("Missing required setting: " + group + " / " + key + ". Store a Google Secret Manager reference in " + key + "-SECRET or configure the tenant setting.");
         }
 
         return value;

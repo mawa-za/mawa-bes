@@ -20,22 +20,26 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service(value = "paymentRequestServiceV2")
 public class PaymentRequestService {
 
     private final PaymentRequestRepository paymentRequestRepository;
     private final PaymentRequestStatusHistoryRepository statusHistoryRepository;
+    private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
 
     @Autowired
     SettingService settingService;
 
     public PaymentRequestService(
             PaymentRequestRepository paymentRequestRepository,
-            PaymentRequestStatusHistoryRepository statusHistoryRepository
+            PaymentRequestStatusHistoryRepository statusHistoryRepository,
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService
     ) {
         this.paymentRequestRepository = paymentRequestRepository;
         this.statusHistoryRepository = statusHistoryRepository;
+        this.fnbPaymentQueueService = fnbPaymentQueueService;
     }
 
     @Transactional
@@ -164,6 +168,12 @@ public class PaymentRequestService {
 
         PaymentRequestEntity saved = paymentRequestRepository.save(entity);
         saveHistory(saved.getId(), oldStatus, newStatus, request.getComment(), currentUser);
+
+        if (newStatus == PaymentRequestStatus.APPROVED) {
+            fnbPaymentQueueService.queueAfterApproval(saved.getId(), saved.getRequestNo(), currentUser);
+            saved = paymentRequestRepository.findById(saved.getId()).orElse(saved);
+        }
+
         return toResponse(saved);
     }
 
@@ -242,12 +252,15 @@ public class PaymentRequestService {
             throw new RuntimeException("Payment request cannot be approved from status: " + entity.getStatus());
         }
 
+        PaymentRequestStatus oldStatus = entity.getStatus();
         entity.setStatus(PaymentRequestStatus.APPROVED);
         entity.setApprovedBy(approvedBy);
         entity.setApprovedAt(new Date());
         entity.setUpdatedBy(approvedBy);
 
         paymentRequestRepository.save(entity);
+        saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.APPROVED,
+                "Payment request approved", approvedBy);
     }
 
     @Transactional
@@ -268,10 +281,48 @@ public class PaymentRequestService {
             throw new RuntimeException("Payment request must be APPROVED before queueing payment");
         }
 
+        PaymentRequestStatus oldStatus = entity.getStatus();
         entity.setStatus(PaymentRequestStatus.QUEUED_FOR_PAYMENT);
         entity.setUpdatedBy(updatedBy);
 
         paymentRequestRepository.save(entity);
+        saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.QUEUED_FOR_PAYMENT,
+                "Payment request queued for FNB EFT payment", updatedBy);
+    }
+
+    @Transactional
+    public void markSentToBank(String paymentRequestIdOrRequestNo, String instructionId, String updatedBy) {
+        PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+
+        if (entity.getStatus() == PaymentRequestStatus.PROCESSED &&
+                instructionId != null && instructionId.equals(entity.getPaidReference())) {
+            return;
+        }
+
+        if (entity.getStatus() != PaymentRequestStatus.QUEUED_FOR_PAYMENT &&
+                entity.getStatus() != PaymentRequestStatus.APPROVED &&
+                entity.getStatus() != PaymentRequestStatus.PROCESSED) {
+            throw new RuntimeException("Payment request cannot be marked as sent to bank from status: " + entity.getStatus());
+        }
+
+        PaymentRequestStatus oldStatus = entity.getStatus();
+        entity.setStatus(PaymentRequestStatus.PROCESSED);
+        entity.setPaidReference(instructionId);
+        entity.setUpdatedBy(updatedBy);
+
+        paymentRequestRepository.save(entity);
+        saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PROCESSED,
+                "Payment request sent to FNB. Instruction ID: " + instructionId, updatedBy);
+    }
+
+    private PaymentRequestEntity findByIdOrRequestNo(String paymentRequestIdOrRequestNo) {
+        Optional<PaymentRequestEntity> byId = paymentRequestRepository.findById(paymentRequestIdOrRequestNo);
+        if (byId.isPresent()) {
+            return byId.get();
+        }
+
+        return paymentRequestRepository.findByRequestNo(paymentRequestIdOrRequestNo)
+                .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestIdOrRequestNo));
     }
 
     private void validateCreateRequest(PaymentRequestCreateRequest request) {

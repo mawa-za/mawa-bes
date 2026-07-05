@@ -19,6 +19,7 @@ import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.TransactionType;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -44,6 +45,9 @@ public class InvoiceService {
     @Autowired
     NumberRangeService numberRangeService;
 
+    @Autowired
+    XeroInvoiceQueueService xeroInvoiceQueueService;
+
     public InvoiceEntity createInvoice(InvoiceEntity invoice) {
 //        invoice.setId(UUID.randomUUID().toString());
         try {
@@ -60,7 +64,9 @@ public class InvoiceService {
 //            payment.setId(UUID.randomUUID().toString());
             payment.setInvoice(invoice); // Ensure proper linkage
         });
-        return invoiceRepository.save(invoice);
+        InvoiceEntity savedInvoice = invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(savedInvoice);
+        return savedInvoice;
     }
 
     public Optional<InvoiceEntity> getInvoice(String invoiceId) {
@@ -78,6 +84,14 @@ public class InvoiceService {
     public void deleteInvoice(String invoiceId) {
         invoiceRepository.deleteById(invoiceId);
     }
+
+    public InvoiceEntity queueInvoiceForXero(String invoiceId) {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + invoiceId));
+        xeroInvoiceQueueService.queueInvoice(invoice);
+        return invoiceRepository.findById(invoiceId).orElse(invoice);
+    }
+
     public List<InvoiceEntity> getAllInvoices() {
         return invoiceRepository.findAll();
     }
@@ -110,6 +124,10 @@ public class InvoiceService {
         dto.setDiscountCents(Conversion.safeLongToInteger(invoice.getDiscountCents()));
         dto.setTotalCents(Conversion.safeLongToInteger(invoice.getTotalCents()));
         dto.setCurrency(invoice.getCurrency());
+        dto.setXeroInvoiceId(invoice.getXeroInvoiceId());
+        dto.setXeroInvoiceNo(invoice.getXeroInvoiceNo());
+        dto.setIntegrationStatus(invoice.getIntegrationStatus());
+        dto.setIntegrationError(invoice.getIntegrationError());
 
         // Map the line items to the nested DTO
         List<InvoiceOutboundDto.InvoiceLineDto> lineDtos = invoice.getLines().stream().map(line -> {

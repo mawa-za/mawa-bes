@@ -27,7 +27,7 @@ import java.util.Map;
  * Enable with:
  *   GCP_SECRET_ENABLED=true
  *   GCP_PROJECT_ID=your-gcp-project
- *   GCP_SECRET_MAPPINGS=spring.datasource.password=mawa-db-password,jwt.secret=mawa-jwt-secret
+ *   GCP_SECRET_MAPPINGS=spring.datasource.password=mawa-db-password,jwt.secret=mawa-jwt-secret,mawa.encryption.secret=mawa-encryption-secret
  *
  * Mapping format:
  *   spring.property.name=secret-name[:version]

@@ -59,9 +59,7 @@ public class XeroAccountingService {
             String tenant = xeroAuthService.checkXeroInfo();
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
 
-            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-            JSONObject jsonObject = new JSONObject(tenantProperty);
-            String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+            String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
 
             ObjectMapper objectMapper = new ObjectMapper();
 
@@ -130,9 +128,7 @@ public class XeroAccountingService {
             String tenant = xeroAuthService.checkXeroInfo();
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
 
-            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-            JSONObject jsonObject = new JSONObject(tenantProperty);
-            String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+            String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
 
             ObjectMapper objectMapper = new ObjectMapper();
 
@@ -253,9 +249,7 @@ public class XeroAccountingService {
 
         String tenant = xeroAuthService.checkXeroInfo();
         String accessToken = xeroAuthService.refreshAccessToken(tenant);
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+        String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
 
         return sendContactsRequest(accessToken,XeroTenantId);
     }
@@ -437,9 +431,7 @@ public class XeroAccountingService {
     public InvoiceOutboundDto addLineItemToInvoice(UUID invoiceId, LineItem lineItem) throws Exception {
         String tenant = xeroAuthService.checkXeroInfo();
         String accessToken = xeroAuthService.refreshAccessToken(tenant);
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+        String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
         // Fetch existing invoice
         Invoice invoiceToUpdate = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,2).getInvoices().get(0);
 
@@ -479,9 +471,7 @@ public class XeroAccountingService {
     public Invoice getInvoice(UUID invoiceId) throws Exception {
         String tenant = xeroAuthService.checkXeroInfo();
         String accessToken = xeroAuthService.refreshAccessToken(tenant);
-        String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-        JSONObject jsonObject = new JSONObject(tenantProperty);
-        String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
+        String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
         Invoice invoice = accountingApi.getInvoice(accessToken, XeroTenantId, invoiceId,2).getInvoices().get(0);
         return invoice;
     }

@@ -1,26 +1,19 @@
-# Mawa BES - Google Secret Manager implementation
+# Mawa BES
 
-These files were generated against the uploaded `mawa-bes.zip` project on branch `phase-1`.
+## Secret management
 
-## Changed / added files
+Sensitive configuration must be supplied at runtime through Google Secret Manager or environment variables. Do not commit real database passwords, JWT secrets, mail passwords, admin API passwords, API keys or tokens.
+
+See:
 
 ```text
-pom.xml
-src/main/java/za/co/mawa/bes/configuration/gcp/GcpSecretManagerEnvironmentPostProcessor.java
-src/main/resources/META-INF/spring.factories
-src/main/resources/META-INF/spring/org.springframework.boot.env.EnvironmentPostProcessor
-src/main/resources/application.properties
 docs/GOOGLE_SECRET_MANAGER_SETUP.md
 ```
 
-## Build note
-
-A compile was attempted with `./mvnw -DskipTests compile`, but the Maven wrapper could not download Maven because this environment could not resolve `repo.maven.apache.org`.
-
-## Cloud Run example
+Minimum Cloud Run settings:
 
 ```bash
 GCP_SECRET_ENABLED=true
-GCP_PROJECT_ID=mawa-prod
-GCP_SECRET_MAPPINGS=spring.datasource.password=mawa-db-password,hibernate.connection.password=mawa-db-password,flyway.password=mawa-db-password,jwt.secret=mawa-jwt-secret,mawa.admin.api.password=mawa-admin-api-password
+GCP_PROJECT_ID=mawa-162022
+GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret,hibernate.connection.url=mawa-dev-db-url,hibernate.connection.username=mawa-dev-db-username,hibernate.connection.password=mawa-dev-db-password,spring.datasource.url=mawa-dev-db-url,spring.datasource.username=mawa-dev-db-username,spring.datasource.password=mawa-dev-db-password,flyway.url=mawa-dev-db-url,flyway.user=mawa-dev-db-username,flyway.password=mawa-dev-db-password,spring.mail.password=mawa-dev-mail-password,mawa.admin.api.password=mawa-dev-admin-api-password
 ```

@@ -10,9 +10,11 @@ import za.co.mawa.bes.dto.payment.request.PaymentRequestDto;
 import za.co.mawa.bes.dto.v2.payment.*;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
+import za.co.mawa.bes.enums.PaymentMethod;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.fnb.v2.BankPaymentService;
+import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
 
 import java.util.List;
@@ -27,9 +29,14 @@ public class PaymentRequestControllerV2 {
     BankPaymentService bankPaymentService;
 
     private final PaymentRequestService paymentRequestService;
+    private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
 
-    public PaymentRequestControllerV2(@Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService) {
+    public PaymentRequestControllerV2(
+            @Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService,
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService
+    ) {
         this.paymentRequestService = paymentRequestService;
+        this.fnbPaymentQueueService = fnbPaymentQueueService;
     }
 
     @PostMapping
@@ -109,6 +116,15 @@ public class PaymentRequestControllerV2 {
         return ResponseEntity.ok(paymentRequestService.markPaid(id, request, currentUser));
     }
 
+    @PostMapping("/{id}/send-to-bank")
+    public ResponseEntity<PaymentRequestResponse> sendToBank(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        fnbPaymentQueueService.queueAfterApproval(id, null, currentUser);
+        return ResponseEntity.ok(paymentRequestService.getById(id));
+    }
+
     @GetMapping("/{id}/history")
     public ResponseEntity<List<PaymentRequestStatusHistoryEntity>> getHistory(@PathVariable String id) {
         return ResponseEntity.ok(paymentRequestService.getHistory(id));
@@ -116,16 +132,25 @@ public class PaymentRequestControllerV2 {
 
     @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BankPaymentResponse> getBankReport(@PathVariable String id) {
+        PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
+
+        if (paymentRequestResponse.getPaymentMethod() != PaymentMethod.EFT) {
+            return ResponseEntity.noContent().build();
+        }
+
+        String paidReference = paymentRequestResponse.getPaidReference();
+        if (paidReference == null || paidReference.isBlank()) {
+            return ResponseEntity.noContent().build();
+        }
+
         try {
-           PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
-            if (paymentRequestResponse.getExternalReference() != null) {
-                BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paymentRequestResponse.getPaidReference());
-                return ResponseEntity.ok(bankPaymentResponse);
-            }else{
-                return ResponseEntity.ok().build();
+            BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paidReference);
+            if (bankPaymentResponse == null) {
+                return ResponseEntity.noContent().build();
             }
+            return ResponseEntity.ok(bankPaymentResponse);
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.noContent().build();
         }
     }
 }

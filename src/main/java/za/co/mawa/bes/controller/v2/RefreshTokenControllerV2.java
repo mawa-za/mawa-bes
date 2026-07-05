@@ -1,6 +1,8 @@
 package za.co.mawa.bes.controller.v2;
 
 import io.jsonwebtoken.JwtException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,20 +20,16 @@ import za.co.mawa.bes.configuration.jwt.JwtResponse;
 public class RefreshTokenControllerV2 {
     @Autowired
     JwtRefreshService jwtRefreshService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     @RequestMapping(value = "/refresh-token", method = RequestMethod.POST)
     public ResponseEntity<?> tokenRefresh(HttpServletRequest request) throws Exception {
 
         try {
-            String refreshToken = "";
-            final String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                refreshToken = authHeader.substring(7);
-            }
-//            String refreshToken = request.getHeader("Refresh-Token");
+            String refreshToken = extractRefreshToken(request);
 
             if (refreshToken == null || refreshToken.isBlank()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Refresh-Token header is required");
+                        .body("Refresh token is required in Authorization Bearer, Refresh-Token header, or refreshToken request body");
             }
 
             JwtResponse response = jwtRefreshService.refresh(refreshToken);
@@ -43,4 +41,32 @@ public class RefreshTokenControllerV2 {
                     .body(ex.getMessage());
         }
     }
+    private String extractRefreshToken(HttpServletRequest request) {
+        final String refreshHeader = request.getHeader("Refresh-Token");
+        if (refreshHeader != null && !refreshHeader.isBlank()) {
+            return refreshHeader.trim();
+        }
+
+        try {
+            String body = request.getReader().lines().reduce("", (a, b) -> a + b);
+            if (body != null && !body.isBlank()) {
+                JsonNode json = objectMapper.readTree(body);
+                for (String key : new String[]{"refreshToken", "refresh_token", "refresh"}) {
+                    JsonNode value = json.get(key);
+                    if (value != null && !value.asText().isBlank()) {
+                        return value.asText().trim();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        final String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7).trim();
+        }
+
+        return null;
+    }
+
 }

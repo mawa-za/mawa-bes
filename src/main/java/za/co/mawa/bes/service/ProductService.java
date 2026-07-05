@@ -29,6 +29,7 @@ import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -51,25 +52,25 @@ public class ProductService implements ProductDao {
         try {
             ProductEntity productEntity = new ProductEntity();
             if (productCreateDto.getCode() != null && productCreateDto.getCode() != "") {
-                productEntity.setCode(productCreateDto.getCode());
+                productEntity.setCode(productCreateDto.getCode().trim().toUpperCase());
             } else {
                 String autogenerate = productCreateDto.getAutoGenerateCode() == null ? "" : productCreateDto.getAutoGenerateCode();
                 if (autogenerate.toUpperCase().equalsIgnoreCase("X")) {
                     productEntity.setCode(numberRangeService.generateNumber(NumberRangeType.PRODUCT));
                 }
             }
-            productEntity.setDescription(productCreateDto.getDescription());
-            productEntity.setType(productCreateDto.getType().toUpperCase());
+            productEntity.setDescription(productCreateDto.getDescription() == null ? "" : productCreateDto.getDescription().trim().toUpperCase());
+            productEntity.setType(productCreateDto.getType() == null ? "GENERAL" : productCreateDto.getType().trim().toUpperCase());
 //            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
             productEntity.setValidFrom(new Date());
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-            productEntity.setUom(productCreateDto.getBaseUnitOfMeasure().toUpperCase());
+            productEntity.setUom(productCreateDto.getBaseUnitOfMeasure() == null ? "EA" : productCreateDto.getBaseUnitOfMeasure().trim().toUpperCase());
             ProductDto productDto = get(productRepository.save(productEntity).getId());
             if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
                 productPricingCreateDto.setProduct(productDto.getId());
-                productPricingCreateDto.setPricing(productCreateDto.getPricingType());
-                productPricingCreateDto.setValue(productCreateDto.getPrice());
+                productPricingCreateDto.setPricing(productCreateDto.getPricingType().trim().toUpperCase());
+                productPricingCreateDto.setValue(productCreateDto.getPrice() == null ? BigDecimal.ZERO : productCreateDto.getPrice());
                 productPricingCreateDto.setValidFrom(new Date());
                 productPricingCreateDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                 addPricing(productPricingCreateDto);
@@ -198,18 +199,32 @@ public class ProductService implements ProductDao {
         try {
             ProductEntity productEntity = productRepository.getById(productEditDto.getId());
             if (productEditDto.getCode() != null && productEditDto.getCode() != "") {
-                productEntity.setCode(productEditDto.getCode());
+                productEntity.setCode(productEditDto.getCode().trim().toUpperCase());
             }
             if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
 //                productEntity.setCategory(productEditDto.getCategory());
             }
             if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
-                productEntity.setDescription(productEditDto.getDescription());
+                productEntity.setDescription(productEditDto.getDescription().trim().toUpperCase());
+            }
+            if (productEditDto.getType() != null && productEditDto.getType() != "") {
+                productEntity.setType(productEditDto.getType().trim().toUpperCase());
             }
             if (productEditDto.getBaseUnitOfMeasure() != null && productEditDto.getBaseUnitOfMeasure() != "") {
-                productEntity.setUom(productEditDto.getBaseUnitOfMeasure().toUpperCase());
+                productEntity.setUom(productEditDto.getBaseUnitOfMeasure().trim().toUpperCase());
             }
             productRepository.save(productEntity);
+            if (productEditDto.getPrice() != null) {
+                ProductPricingCreateDto pricingCreateDto = new ProductPricingCreateDto();
+                pricingCreateDto.setProduct(productEditDto.getId());
+                pricingCreateDto.setPricing(productEditDto.getPricingType() == null || productEditDto.getPricingType().isBlank()
+                        ? PriceType.SELLING_PRICE
+                        : productEditDto.getPricingType().trim().toUpperCase());
+                pricingCreateDto.setValue(productEditDto.getPrice());
+                pricingCreateDto.setValidFrom(new Date());
+                pricingCreateDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                addPricing(pricingCreateDto);
+            }
         } catch (Exception exception) {
             throw new ProductUpdateFailure();
         }
@@ -218,10 +233,10 @@ public class ProductService implements ProductDao {
     @Override
     public void delete(String id) throws ProductDeleteFailure {
         try {
-            productRepository.deleteById(id);
             for (ProductPricingEntity price : productPricingRepository.findByProduct(id)) {
                 deletePricing(price.getProductPricingPKEntity());
             }
+            productRepository.deleteById(id);
         } catch (Exception exception) {
             throw new ProductDeleteFailure();
         }
@@ -466,7 +481,14 @@ public class ProductService implements ProductDao {
                 predicate = cb.and(predicate, cb.equal(root.get("code"), productQuery.getCode()));
             }
             if (productQuery.getType() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("type"), productQuery.getType()));
+                predicate = cb.and(predicate, cb.equal(root.get("type"), productQuery.getType().trim().toUpperCase()));
+            }
+            if (productQuery.getDescription() != null && !productQuery.getDescription().isBlank()) {
+                String search = "%" + productQuery.getDescription().trim().toUpperCase() + "%";
+                predicate = cb.and(predicate, cb.or(
+                        cb.like(cb.upper(root.get("code")), search),
+                        cb.like(cb.upper(root.get("description")), search)
+                ));
             }
             return predicate;
         };

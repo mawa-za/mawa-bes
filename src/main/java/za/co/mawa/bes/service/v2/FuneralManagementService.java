@@ -8,10 +8,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.funeral.*;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
+import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
+import za.co.mawa.bes.enums.ApprovalType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +37,9 @@ public class FuneralManagementService {
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final ClaimFormGenerationService claimFormGenerationService;
+    private final ApprovalService approvalService;
+    private final NumberAllocationService numberAllocationService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -187,6 +193,19 @@ public class FuneralManagementService {
         return result;
     }
 
+    public List<FuneralServiceRequestResponseDto> getServiceRequests(String query, String status) {
+        String normalizedQuery = query == null ? null : query.trim();
+        String normalizedStatus = status == null ? null : status.trim();
+        return funeralServiceRepository.search(normalizedQuery, normalizedStatus)
+                .stream()
+                .map(this::toServiceResponse)
+                .collect(Collectors.toList());
+    }
+
+    public FuneralServiceRequestResponseDto getServiceRequest(String id) {
+        return toServiceResponse(getFuneralServiceOrThrow(id));
+    }
+
     @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
@@ -198,6 +217,7 @@ public class FuneralManagementService {
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
 
         FuneralServiceEntity entity = new FuneralServiceEntity();
+        entity.setServiceRequestNo(generateFuneralServiceRequestNo());
         entity.setMortuaryInventoryId(request.getMortuaryInventoryId());
         entity.setDeceasedName(request.getDeceasedName());
         entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
@@ -206,6 +226,8 @@ public class FuneralManagementService {
         entity.setFamilyRepId(request.getFamilyRepId());
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
+        entity.setDeathCertificateNo(request.getDeathCertificateNo());
+        entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
         entity.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus("ARRANGEMENT_CREATED");
@@ -215,25 +237,31 @@ public class FuneralManagementService {
     @Transactional
     public List<FuneralClaimDto> initiateClaims(String funeralServiceId, InitiateFuneralClaimsDto request) {
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
-        if (request.getMemberships() == null || request.getMemberships().isEmpty()) {
+        List<String> selectedMemberships = request.getMemberships();
+        if (selectedMemberships == null || selectedMemberships.isEmpty()) {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
         if (service.getDeceasedPartnerId() == null || service.getDeceasedPartnerId().isBlank()) {
             throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership_claim can be created");
         }
 
-        Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, request.getMemberships());
+        Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, selectedMemberships);
+        if (coverMap.isEmpty()) {
+            throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
+        }
+
+        String claimType = request.getEffectiveClaimType(selectedMemberships.size());
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralClaimDto> response = new ArrayList<>();
 
-        for (String selectionId : request.getMemberships()) {
+        for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
             if (cover == null || remaining <= 0) continue;
-            long claimAmount = Math.min(defaultLong(cover.getCoverAmountCents()), remaining);
+            long claimAmount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
-            String claimNo = generateClaimNo();
+            String claimNo = generateMembershipClaimNo();
             String membershipId = COVER_SOURCE_LOCAL.equals(cover.getCoverSource())
                     ? cover.getSourceMembershipId()
                     : createExternalMembershipPlaceholderIfRequired(cover);
@@ -243,17 +271,18 @@ public class FuneralManagementService {
                     (id, claim_no, membership_id, claim_type, deceased_type, deceased_partner_id, date_of_death,
                      claim_date, cause_of_death, death_certificate_no, claimant_partner_id, claim_amount_cents,
                      status, notes, created_at)
-                    VALUES (?, ?, ?, 'FUNERAL', ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, CURRENT_TIMESTAMP)
                     """,
                     membershipClaimId,
                     claimNo,
                     membershipId,
+                    claimType,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
                     defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
                     service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate(),
                     LocalDate.now(),
-                    request.getCauseOfDeath(),
-                    request.getDeathCertificateNo(),
+                    defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
+                    defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
                     service.getFamilyRepId(),
                     claimAmount,
                     request.getNotes());
@@ -276,6 +305,32 @@ public class FuneralManagementService {
         service.setStatus("CLAIMS_INITIATED");
         funeralServiceRepository.save(service);
         return response;
+    }
+
+
+    @Transactional
+    public FuneralClaimDto submitClaimForApproval(String membershipClaimId, String userId) {
+        Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
+        String status = String.valueOf(claim.get("status"));
+        if (!"DRAFT".equalsIgnoreCase(status)) {
+            throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
+        }
+
+        ApprovalSubmitRequest request = new ApprovalSubmitRequest();
+        request.setApprovalType(ApprovalType.CLAIM);
+        request.setReferenceId(membershipClaimId);
+        request.setReferenceNo(String.valueOf(claim.get("claim_no")));
+        request.setTitle("Membership claim " + claim.get("claim_no"));
+        request.setDescription("Funeral arrangement claim submitted for approval");
+        request.setRequesterId(userId);
+        try {
+            request.setPayloadJson(objectMapper.writeValueAsString(claim));
+        } catch (JsonProcessingException ignored) {
+            request.setPayloadJson("{}");
+        }
+        approvalService.submitForApproval(request);
+        updateFuneralServiceClaimStatus(membershipClaimId);
+        return readClaimDto(membershipClaimId);
     }
 
     public List<FuneralClaimDto> getClaims(String funeralServiceId) {
@@ -340,18 +395,19 @@ public class FuneralManagementService {
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
 
         if (request.getMemberships() != null && !request.getMemberships().isEmpty()) {
+            String claimType = request.getEffectiveClaimType(request.getMemberships().size());
             Map<String, FuneralMembershipCoverDto> covers = resolveSelectedCovers(null, request.getMemberships());
             for (String selectionId : request.getMemberships()) {
                 FuneralMembershipCoverDto cover = covers.get(selectionId);
                 if (cover == null || remaining <= 0) continue;
-                long amount = Math.min(defaultLong(cover.getCoverAmountCents()), remaining);
+                long amount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
                 if (amount <= 0) continue;
                 splits.add(FuneralInvoiceSplitDto.builder()
                         .entityName(cover.getBurialSocietyName())
                         .entityType("BURIAL_SOCIETY")
                         .partnerId(cover.getBurialSocietyPartnerId())
                         .amountCents(amount)
-                        .description("Estimated funeral cover pending claim approval")
+                        .description("Estimated " + claimType.toLowerCase() + " cover pending claim approval")
                         .coverSource(cover.getCoverSource())
                         .sourceTenantId(cover.getSourceTenantId())
                         .build());
@@ -445,7 +501,9 @@ public class FuneralManagementService {
                        m.membership_no AS membership_no,
                        p.id AS deceased_partner_id,
                        'MAIN_MEMBER' AS deceased_type,
-                       COALESCE(MAX(pay.payout_amount_cents), 0) AS cover_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
                   FROM partner_identity pi
@@ -453,7 +511,6 @@ public class FuneralManagementService {
                   JOIN membership m ON m.member_id = p.id
                   JOIN membership_plan mp ON mp.id = m.plan_id
              LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
-                       AND pay.claim_type = 'FUNERAL'
                        AND pay.active = 1
                        AND pay.dependent_type IN ('MAIN_MEMBER', 'ANY')
                  WHERE pi.value = ?
@@ -466,7 +523,9 @@ public class FuneralManagementService {
                        m.membership_no AS membership_no,
                        p.id AS deceased_partner_id,
                        'DEPENDENT' AS deceased_type,
-                       COALESCE(MAX(pay.payout_amount_cents), 0) AS cover_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
                   FROM partner_identity pi
@@ -475,7 +534,6 @@ public class FuneralManagementService {
                   JOIN membership m ON m.id = md.membership_id
                   JOIN membership_plan mp ON mp.id = m.plan_id
              LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
-                       AND pay.claim_type = 'FUNERAL'
                        AND pay.active = 1
                        AND pay.dependent_type IN (md.relationship, 'DEPENDENT', 'ANY')
                  WHERE pi.value = ?
@@ -491,6 +549,8 @@ public class FuneralManagementService {
                 .deceasedPartnerId(rs.getString("deceased_partner_id"))
                 .deceasedType(rs.getString("deceased_type"))
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
+                .funeralAmountCents(rs.getLong("funeral_amount_cents"))
+                .combinationAmountCents(rs.getLong("combination_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -502,6 +562,8 @@ public class FuneralManagementService {
                 .deceasedPartnerId(rs.getString("deceased_partner_id"))
                 .deceasedType(rs.getString("deceased_type"))
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
+                .funeralAmountCents(rs.getLong("funeral_amount_cents"))
+                .combinationAmountCents(rs.getLong("combination_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -516,6 +578,8 @@ public class FuneralManagementService {
                 .burialSocietyName(cover.getBurialSocietyName())
                 .burialSocietyPartnerId(cover.getBurialSocietyPartnerId())
                 .coverAmountCents(cover.getCoverAmountCents())
+                .funeralAmountCents(cover.getCoverAmountCents())
+                .combinationAmountCents(cover.getCoverAmountCents())
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(cover.getSourceTenantId())
                 .sourceTenantName(cover.getSourceTenantName())
@@ -560,23 +624,32 @@ public class FuneralManagementService {
                   JOIN membership_plan mp ON mp.id = m.plan_id
                  WHERE m.id = ? AND m.status = 'ACTIVE'
                 """, membershipId);
-        Long payout = jdbcTemplate.query("""
-                SELECT COALESCE(MAX(payout_amount_cents), 0)
-                  FROM membership_plan_claim_payout
-                 WHERE plan_id = ? AND claim_type = 'FUNERAL' AND active = 1
-                   AND dependent_type IN (?, 'ANY')
-                """, rs -> rs.next() ? rs.getLong(1) : 0L,
-                membership.get("plan_id"), "MAIN_MEMBER".equals(deceasedType) ? "MAIN_MEMBER" : "DEPENDENT");
+        String dependentType = "MAIN_MEMBER".equals(deceasedType) ? "MAIN_MEMBER" : "DEPENDENT";
+        Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
+        Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
                 .sourceMembershipId(membershipId)
                 .membershipNumber(String.valueOf(membership.get("membership_no")))
                 .deceasedPartnerId(deceasedPartnerId)
                 .deceasedType(deceasedType)
-                .coverAmountCents(payout)
+                .coverAmountCents(funeralPayout)
+                .funeralAmountCents(funeralPayout)
+                .combinationAmountCents(combinationPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
                 .build();
+    }
+
+    private Long findMembershipPlanPayout(Object planId, String claimType, String dependentType) {
+        if (planId == null) return 0L;
+        return jdbcTemplate.query("""
+                SELECT COALESCE(MAX(payout_amount_cents), 0)
+                  FROM membership_plan_claim_payout
+                 WHERE plan_id = ? AND claim_type = ? AND active = 1
+                   AND dependent_type IN (?, 'ANY')
+                """, rs -> rs.next() ? rs.getLong(1) : 0L,
+                planId, claimType, dependentType);
     }
 
     private List<FuneralInvoiceSplitDto> buildSplitsFromApprovedClaims(FuneralServiceEntity service) {
@@ -682,8 +755,9 @@ public class FuneralManagementService {
         if (!isApprovedStatus(status)) {
             return 0L;
         }
-        Long approvedAmount = asLong(row.get("approved_amount_cents"));
-        return approvedAmount == null ? asLong(row.get("claim_amount_cents")) : approvedAmount;
+        Object approvedValue = row.get("approved_amount_cents");
+        Long approvedAmount = approvedValue == null ? null : asLong(approvedValue);
+        return approvedAmount == null || approvedAmount <= 0 ? asLong(row.get("claim_amount_cents")) : approvedAmount;
     }
 
     private String resolveInvoicePartnerForClaim(FuneralClaimDto claim) {
@@ -772,6 +846,7 @@ public class FuneralManagementService {
     private FuneralServiceRequestResponseDto toServiceResponse(FuneralServiceEntity entity) {
         return FuneralServiceRequestResponseDto.builder()
                 .id(entity.getId())
+                .serviceRequestNo(entity.getServiceRequestNo())
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())
@@ -780,8 +855,12 @@ public class FuneralManagementService {
                 .familyRepId(entity.getFamilyRepId())
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
+                .deathCertificateNo(entity.getDeathCertificateNo())
+                .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
                 .status(entity.getStatus())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
@@ -813,8 +892,28 @@ public class FuneralManagementService {
         return "MORT-" + time.toLocalDate().toString().replace("-", "") + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String generateClaimNo() {
-        return "CLM-FUN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+    private String generateMembershipClaimNo() {
+        try {
+            return numberAllocationService.allocateNumber("MEMBERSHIP_CLAIM");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("CLAIM");
+            } catch (Exception ignoredAgain) {
+                return "CLM-FUN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
+    }
+
+    private String generateFuneralServiceRequestNo() {
+        try {
+            return numberAllocationService.allocateNumber("FUNERAL_SERVICE_REQUEST");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("SERVICE-REQUEST");
+            } catch (Exception ignoredAgain) {
+                return "FSR-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
     }
 
     private String generateInvoiceNo() {
