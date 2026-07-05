@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -19,4 +20,6 @@ public class FuneralServiceRequestResponseDto {
     private String funeralArea;
     private Long totalAmountCents;
     private String status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
