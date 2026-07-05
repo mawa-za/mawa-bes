@@ -22,6 +22,11 @@ public class InitiateFuneralClaimsDto {
     private List<String> membershipIds;
     private List<String> sourceReferences;
 
+    /**
+     * Preferred claim amount mode from Flutter. If omitted, backend derives it from selected count.
+     */
+    private String claimType;
+
     private String causeOfDeath;
     private String deathCertificateNo;
     private String notes;
@@ -40,6 +45,17 @@ public class InitiateFuneralClaimsDto {
 
     public List<String> getSourceReferences() {
         return sourceReferences;
+    }
+
+    public String getClaimType() {
+        return claimType;
+    }
+
+    public String getEffectiveClaimType(int selectedCoverCount) {
+        String value = claimType == null ? "" : claimType.trim().toUpperCase();
+        if ("COMBINATION".equals(value)) return "COMBINATION";
+        if ("FUNERAL".equals(value)) return "FUNERAL";
+        return selectedCoverCount > 1 ? "COMBINATION" : "FUNERAL";
     }
 
     public String getCauseOfDeath() {

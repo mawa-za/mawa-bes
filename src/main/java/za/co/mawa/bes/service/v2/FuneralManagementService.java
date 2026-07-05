@@ -228,13 +228,14 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
         }
 
+        String claimType = request.getEffectiveClaimType(selectedMemberships.size());
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralClaimDto> response = new ArrayList<>();
 
         for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
             if (cover == null || remaining <= 0) continue;
-            long claimAmount = Math.min(defaultLong(cover.getCoverAmountCents()), remaining);
+            long claimAmount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
@@ -248,11 +249,12 @@ public class FuneralManagementService {
                     (id, claim_no, membership_id, claim_type, deceased_type, deceased_partner_id, date_of_death,
                      claim_date, cause_of_death, death_certificate_no, claimant_partner_id, claim_amount_cents,
                      status, notes, created_at)
-                    VALUES (?, ?, ?, 'FUNERAL', ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, CURRENT_TIMESTAMP)
                     """,
                     membershipClaimId,
                     claimNo,
                     membershipId,
+                    claimType,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
                     defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
                     service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate(),
@@ -345,18 +347,19 @@ public class FuneralManagementService {
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
 
         if (request.getMemberships() != null && !request.getMemberships().isEmpty()) {
+            String claimType = request.getEffectiveClaimType(request.getMemberships().size());
             Map<String, FuneralMembershipCoverDto> covers = resolveSelectedCovers(null, request.getMemberships());
             for (String selectionId : request.getMemberships()) {
                 FuneralMembershipCoverDto cover = covers.get(selectionId);
                 if (cover == null || remaining <= 0) continue;
-                long amount = Math.min(defaultLong(cover.getCoverAmountCents()), remaining);
+                long amount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
                 if (amount <= 0) continue;
                 splits.add(FuneralInvoiceSplitDto.builder()
                         .entityName(cover.getBurialSocietyName())
                         .entityType("BURIAL_SOCIETY")
                         .partnerId(cover.getBurialSocietyPartnerId())
                         .amountCents(amount)
-                        .description("Estimated funeral cover pending claim approval")
+                        .description("Estimated " + claimType.toLowerCase() + " cover pending claim approval")
                         .coverSource(cover.getCoverSource())
                         .sourceTenantId(cover.getSourceTenantId())
                         .build());
@@ -450,7 +453,9 @@ public class FuneralManagementService {
                        m.membership_no AS membership_no,
                        p.id AS deceased_partner_id,
                        'MAIN_MEMBER' AS deceased_type,
-                       COALESCE(MAX(pay.payout_amount_cents), 0) AS cover_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
                   FROM partner_identity pi
@@ -458,7 +463,6 @@ public class FuneralManagementService {
                   JOIN membership m ON m.member_id = p.id
                   JOIN membership_plan mp ON mp.id = m.plan_id
              LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
-                       AND pay.claim_type = 'FUNERAL'
                        AND pay.active = 1
                        AND pay.dependent_type IN ('MAIN_MEMBER', 'ANY')
                  WHERE pi.value = ?
@@ -471,7 +475,9 @@ public class FuneralManagementService {
                        m.membership_no AS membership_no,
                        p.id AS deceased_partner_id,
                        'DEPENDENT' AS deceased_type,
-                       COALESCE(MAX(pay.payout_amount_cents), 0) AS cover_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
                   FROM partner_identity pi
@@ -480,7 +486,6 @@ public class FuneralManagementService {
                   JOIN membership m ON m.id = md.membership_id
                   JOIN membership_plan mp ON mp.id = m.plan_id
              LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
-                       AND pay.claim_type = 'FUNERAL'
                        AND pay.active = 1
                        AND pay.dependent_type IN (md.relationship, 'DEPENDENT', 'ANY')
                  WHERE pi.value = ?
@@ -496,6 +501,8 @@ public class FuneralManagementService {
                 .deceasedPartnerId(rs.getString("deceased_partner_id"))
                 .deceasedType(rs.getString("deceased_type"))
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
+                .funeralAmountCents(rs.getLong("funeral_amount_cents"))
+                .combinationAmountCents(rs.getLong("combination_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -507,6 +514,8 @@ public class FuneralManagementService {
                 .deceasedPartnerId(rs.getString("deceased_partner_id"))
                 .deceasedType(rs.getString("deceased_type"))
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
+                .funeralAmountCents(rs.getLong("funeral_amount_cents"))
+                .combinationAmountCents(rs.getLong("combination_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -521,6 +530,8 @@ public class FuneralManagementService {
                 .burialSocietyName(cover.getBurialSocietyName())
                 .burialSocietyPartnerId(cover.getBurialSocietyPartnerId())
                 .coverAmountCents(cover.getCoverAmountCents())
+                .funeralAmountCents(cover.getCoverAmountCents())
+                .combinationAmountCents(cover.getCoverAmountCents())
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(cover.getSourceTenantId())
                 .sourceTenantName(cover.getSourceTenantName())
@@ -565,23 +576,32 @@ public class FuneralManagementService {
                   JOIN membership_plan mp ON mp.id = m.plan_id
                  WHERE m.id = ? AND m.status = 'ACTIVE'
                 """, membershipId);
-        Long payout = jdbcTemplate.query("""
-                SELECT COALESCE(MAX(payout_amount_cents), 0)
-                  FROM membership_plan_claim_payout
-                 WHERE plan_id = ? AND claim_type = 'FUNERAL' AND active = 1
-                   AND dependent_type IN (?, 'ANY')
-                """, rs -> rs.next() ? rs.getLong(1) : 0L,
-                membership.get("plan_id"), "MAIN_MEMBER".equals(deceasedType) ? "MAIN_MEMBER" : "DEPENDENT");
+        String dependentType = "MAIN_MEMBER".equals(deceasedType) ? "MAIN_MEMBER" : "DEPENDENT";
+        Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
+        Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
                 .sourceMembershipId(membershipId)
                 .membershipNumber(String.valueOf(membership.get("membership_no")))
                 .deceasedPartnerId(deceasedPartnerId)
                 .deceasedType(deceasedType)
-                .coverAmountCents(payout)
+                .coverAmountCents(funeralPayout)
+                .funeralAmountCents(funeralPayout)
+                .combinationAmountCents(combinationPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
                 .build();
+    }
+
+    private Long findMembershipPlanPayout(Object planId, String claimType, String dependentType) {
+        if (planId == null) return 0L;
+        return jdbcTemplate.query("""
+                SELECT COALESCE(MAX(payout_amount_cents), 0)
+                  FROM membership_plan_claim_payout
+                 WHERE plan_id = ? AND claim_type = ? AND active = 1
+                   AND dependent_type IN (?, 'ANY')
+                """, rs -> rs.next() ? rs.getLong(1) : 0L,
+                planId, claimType, dependentType);
     }
 
     private List<FuneralInvoiceSplitDto> buildSplitsFromApprovedClaims(FuneralServiceEntity service) {
