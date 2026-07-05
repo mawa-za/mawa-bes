@@ -38,69 +38,74 @@ public class MessageConsumerService {
 
     @Scheduled(fixedDelay = 60000)
     public void processAllTenants() {
-        ObjectMapper mapper = new ObjectMapper();
         for (TenantDto tenant : tenantAdminService.getAll()) {
-
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
-                List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
-                        .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
-
-                for (MessageQueueEntity msg : messageQueueEntities) {
-                    try {
-                        System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
-                        switch (msg.getType()) {
-                            case "FNB-EFT-PAYMENT":
-                                String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
-                                BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
-                                String systemUserId = userService.getUserByName("BGUSER").getId();
-
-                                if (msg.getReferenceId() != null && !msg.getReferenceId().isBlank()) {
-                                    paymentRequestService.markSentToBank(msg.getReferenceId(), instructionId, systemUserId);
-                                } else {
-                                    for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                        paymentRequestService.markSentToBank(
-                                                paymentInformation.getPaymentInformationId(),
-                                                instructionId,
-                                                systemUserId
-                                        );
-                                    }
-                                }
-
-                                msg.setProcessed(true);
-                                break;
-                            case "INVOICE-EMAIL":
-//                                paymentRequestService.sendInvoiceFile(msg.getPayload());
-                                msg.setProcessed(true);
-                                break;
-                            case "XERO-INVOICE":
-                                xeroInvoicePushService.pushInvoice(resolveInvoiceId(msg));
-                                msg.setProcessed(true);
-                                break;
-                            default:
-                                // code block
-                        }
-
-                    } catch (Exception e) {
-                        if ("XERO-INVOICE".equals(msg.getType())) {
-                            xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
-                        }
-                        msg.setRetryCount(msg.getRetryCount() + 1);
-                        if (msg.getRetryCount() > 3) {
-                            msg.setProcessed(true); // Optionally move to DeadLetterQueue
-                        } else {
-                            msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
-                        }
-                    }
-                    messageQueueRepository.save(msg);
-                }
-
+                processCurrentTenant();
             } catch (Exception e) {
                 System.err.println("Error processing tenant " + tenant + ": " + e.getMessage());
             } finally {
                 TenantContext.clear();
             }
         }
+    }
+
+    public int processCurrentTenant() {
+        ObjectMapper mapper = new ObjectMapper();
+        int processedCount = 0;
+        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
+                .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
+
+        for (MessageQueueEntity msg : messageQueueEntities) {
+            try {
+                System.out.println("Tenant: " + TenantContext.getCurrentTenant() + " Payload: " + msg.getPayload());
+                switch (msg.getType()) {
+                    case "FNB-EFT-PAYMENT":
+                        String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
+                        BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
+                        String systemUserId = userService.getUserByName("BGUSER").getId();
+
+                        if (msg.getReferenceId() != null && !msg.getReferenceId().isBlank()) {
+                            paymentRequestService.markSentToBank(msg.getReferenceId(), instructionId, systemUserId);
+                        } else {
+                            for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
+                                paymentRequestService.markSentToBank(
+                                        paymentInformation.getPaymentInformationId(),
+                                        instructionId,
+                                        systemUserId
+                                );
+                            }
+                        }
+
+                        msg.setProcessed(true);
+                        break;
+                    case "INVOICE-EMAIL":
+                        msg.setProcessed(true);
+                        break;
+                    case "XERO-INVOICE":
+                        xeroInvoicePushService.pushInvoice(resolveInvoiceId(msg));
+                        msg.setProcessed(true);
+                        break;
+                    default:
+                        System.out.println("No processor registered for message type: " + msg.getType());
+                        break;
+                }
+
+            } catch (Exception e) {
+                if ("XERO-INVOICE".equals(msg.getType())) {
+                    xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                }
+                msg.setRetryCount(msg.getRetryCount() + 1);
+                if (msg.getRetryCount() > 3) {
+                    msg.setProcessed(true);
+                } else {
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                }
+            }
+            messageQueueRepository.save(msg);
+            processedCount++;
+        }
+        return processedCount;
     }
 
     private String resolveInvoiceId(MessageQueueEntity msg) {
