@@ -39,6 +39,7 @@ public class FuneralManagementService {
     private final ObjectMapper objectMapper;
     private final ClaimFormGenerationService claimFormGenerationService;
     private final ApprovalService approvalService;
+    private final NumberAllocationService numberAllocationService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -216,6 +217,7 @@ public class FuneralManagementService {
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
 
         FuneralServiceEntity entity = new FuneralServiceEntity();
+        entity.setServiceRequestNo(generateFuneralServiceRequestNo());
         entity.setMortuaryInventoryId(request.getMortuaryInventoryId());
         entity.setDeceasedName(request.getDeceasedName());
         entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
@@ -224,6 +226,8 @@ public class FuneralManagementService {
         entity.setFamilyRepId(request.getFamilyRepId());
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
+        entity.setDeathCertificateNo(request.getDeathCertificateNo());
+        entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
         entity.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus("ARRANGEMENT_CREATED");
@@ -257,7 +261,7 @@ public class FuneralManagementService {
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
-            String claimNo = generateClaimNo();
+            String claimNo = generateMembershipClaimNo();
             String membershipId = COVER_SOURCE_LOCAL.equals(cover.getCoverSource())
                     ? cover.getSourceMembershipId()
                     : createExternalMembershipPlaceholderIfRequired(cover);
@@ -277,8 +281,8 @@ public class FuneralManagementService {
                     defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
                     service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate(),
                     LocalDate.now(),
-                    request.getCauseOfDeath(),
-                    request.getDeathCertificateNo(),
+                    defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
+                    defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
                     service.getFamilyRepId(),
                     claimAmount,
                     request.getNotes());
@@ -751,8 +755,9 @@ public class FuneralManagementService {
         if (!isApprovedStatus(status)) {
             return 0L;
         }
-        Long approvedAmount = asLong(row.get("approved_amount_cents"));
-        return approvedAmount == null ? asLong(row.get("claim_amount_cents")) : approvedAmount;
+        Object approvedValue = row.get("approved_amount_cents");
+        Long approvedAmount = approvedValue == null ? null : asLong(approvedValue);
+        return approvedAmount == null || approvedAmount <= 0 ? asLong(row.get("claim_amount_cents")) : approvedAmount;
     }
 
     private String resolveInvoicePartnerForClaim(FuneralClaimDto claim) {
@@ -841,6 +846,7 @@ public class FuneralManagementService {
     private FuneralServiceRequestResponseDto toServiceResponse(FuneralServiceEntity entity) {
         return FuneralServiceRequestResponseDto.builder()
                 .id(entity.getId())
+                .serviceRequestNo(entity.getServiceRequestNo())
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())
@@ -849,6 +855,8 @@ public class FuneralManagementService {
                 .familyRepId(entity.getFamilyRepId())
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
+                .deathCertificateNo(entity.getDeathCertificateNo())
+                .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
@@ -884,8 +892,28 @@ public class FuneralManagementService {
         return "MORT-" + time.toLocalDate().toString().replace("-", "") + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String generateClaimNo() {
-        return "CLM-FUN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+    private String generateMembershipClaimNo() {
+        try {
+            return numberAllocationService.allocateNumber("MEMBERSHIP_CLAIM");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("CLAIM");
+            } catch (Exception ignoredAgain) {
+                return "CLM-FUN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
+    }
+
+    private String generateFuneralServiceRequestNo() {
+        try {
+            return numberAllocationService.allocateNumber("FUNERAL_SERVICE_REQUEST");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("SERVICE-REQUEST");
+            } catch (Exception ignoredAgain) {
+                return "FSR-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
     }
 
     private String generateInvoiceNo() {

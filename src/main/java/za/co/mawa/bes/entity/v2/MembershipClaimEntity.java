@@ -57,6 +57,9 @@ public class MembershipClaimEntity {
     @Column(name = "claim_amount_cents", nullable = false)
     private Long claimAmountCents = 0L;
 
+    @Column(name = "approved_amount_cents")
+    private Long approvedAmountCents;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private MembershipClaimStatus status = MembershipClaimStatus.DRAFT;

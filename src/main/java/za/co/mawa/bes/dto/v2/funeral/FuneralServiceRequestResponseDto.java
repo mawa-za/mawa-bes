@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 public class FuneralServiceRequestResponseDto {
     private String id;
+    private String serviceRequestNo;
     private String mortuaryInventoryId;
     private String deceasedName;
     private String deceasedIdentityNumber;
@@ -18,6 +19,8 @@ public class FuneralServiceRequestResponseDto {
     private String familyRepId;
     private LocalDate funeralDate;
     private String funeralArea;
+    private String deathCertificateNo;
+    private String causeOfDeath;
     private Long totalAmountCents;
     private String status;
     private LocalDateTime createdAt;
