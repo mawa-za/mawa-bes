@@ -17,4 +17,12 @@ public class FuneralInvoicePreviewRequestDto {
     private String familyRepId;
     private List<String> memberships;
     private List<FuneralExtraDto> extras;
+    private String claimType;
+
+    public String getEffectiveClaimType(int selectedCoverCount) {
+        String value = claimType == null ? "" : claimType.trim().toUpperCase();
+        if ("COMBINATION".equals(value)) return "COMBINATION";
+        if ("FUNERAL".equals(value)) return "FUNERAL";
+        return selectedCoverCount > 1 ? "COMBINATION" : "FUNERAL";
+    }
 }
