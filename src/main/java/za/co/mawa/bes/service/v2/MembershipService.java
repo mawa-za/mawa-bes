@@ -115,7 +115,7 @@ public class MembershipService {
                     existingMembership.setJoinDate(membership.getJoinDate());
                     return membershipRepository.save(existingMembership);
                 });
-        membershipHandlerRegistry.handleUpdate(membership.getId());
+        membershipHandlerRegistry.handleUpdate(id);
         return membershipRepository.findById(id);
     }
 
