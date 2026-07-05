@@ -41,14 +41,11 @@ public class RefreshTokenController {
         }
     }
     private String extractRefreshToken(HttpServletRequest request) {
-        final String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
         final String refreshHeader = request.getHeader("Refresh-Token");
         if (refreshHeader != null && !refreshHeader.isBlank()) {
-            return refreshHeader;
+            return refreshHeader.trim();
         }
+
         try {
             String body = request.getReader().lines().reduce("", (a, b) -> a + b);
             if (body != null && !body.isBlank()) {
@@ -56,12 +53,18 @@ public class RefreshTokenController {
                 for (String key : new String[]{"refreshToken", "refresh_token", "refresh"}) {
                     JsonNode value = json.get(key);
                     if (value != null && !value.asText().isBlank()) {
-                        return value.asText();
+                        return value.asText().trim();
                     }
                 }
             }
         } catch (Exception ignored) {
         }
+
+        final String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7).trim();
+        }
+
         return null;
     }
 
