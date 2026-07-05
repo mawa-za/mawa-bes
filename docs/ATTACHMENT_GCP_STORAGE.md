@@ -48,3 +48,22 @@ The endpoint returns:
 ```json
 { "migrated": 12 }
 ```
+
+
+## Object path format
+
+New attachments are stored using this tenant-scoped object path format:
+
+```text
+{prefix}/{tenant-host-normalised}/{module-or-type}/{record-id}/{uuid}-{safe-document-name}.{extension}
+```
+
+Examples:
+
+```text
+attachments/dev-app-mawa-co-za/deposits/DEP-000001/5f1d...-proof-of-payment.pdf
+attachments/dev-app-mawa-co-za/partners/PAR-000001/8a4c...-id-copy.pdf
+attachments/dev-app-mawa-co-za/invoices/INV-000001/0b62...-invoice.pdf
+```
+
+The UUID prefix makes every upload unique. Uploads use a Google Cloud Storage `doesNotExist` precondition so an existing object is never overwritten. Re-uploading a replacement creates a new object path and the database points to the new path.

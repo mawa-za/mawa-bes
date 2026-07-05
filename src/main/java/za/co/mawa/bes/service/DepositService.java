@@ -132,8 +132,9 @@ public class DepositService implements DepositDao {
                     AttachmentEntity attachment = attachmentService.saveBytes(
                             Base64.getDecoder().decode(depositAttachmentCreateDto.getFile()),
                             depositAttachmentCreateDto.getExtension(),
-                            depositAttachmentCreateDto.getDocumentType(),
-                            transaction.getId()
+                            "deposits",
+                            transaction.getId(),
+                            depositAttachmentCreateDto.getDocumentType()
                     );
 
                     TransactionLinkDto linkAttachmentDto = new TransactionLinkDto();
