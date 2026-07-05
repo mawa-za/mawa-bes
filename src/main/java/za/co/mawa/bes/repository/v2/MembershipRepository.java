@@ -12,5 +12,6 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
 {
 
     Optional<MembershipEntity> findByOldId(String oldId);
+    Optional<MembershipEntity> findByMembershipNo(String membershipNo);
     Page<MembershipEntity> findByMemberId(String memberId, Pageable pageable);
 }
