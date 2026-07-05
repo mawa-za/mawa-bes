@@ -129,15 +129,12 @@ public class DepositService implements DepositDao {
                 transactionService.addLink(linkDto);
 
                 try {
-                    AttachmentEntity attachmentEntity = new AttachmentEntity();
-                    attachmentEntity.setFile(Base64.getDecoder().decode(depositAttachmentCreateDto.getFile()));
-                    attachmentEntity.setUploadBy(UserContext.getCurrentUser());
-                    attachmentEntity.setUploadDate(new Date());
-                    attachmentEntity.setUploadTime(new Date());
-                    attachmentEntity.setDocumentType(depositAttachmentCreateDto.getDocumentType());
-                    attachmentEntity.setObjectId(transaction.getId());
-                    attachmentEntity.setExtension(depositAttachmentCreateDto.getExtension());
-                    AttachmentEntity attachment = attachmentRepository.save(attachmentEntity);
+                    AttachmentEntity attachment = attachmentService.saveBytes(
+                            Base64.getDecoder().decode(depositAttachmentCreateDto.getFile()),
+                            depositAttachmentCreateDto.getExtension(),
+                            depositAttachmentCreateDto.getDocumentType(),
+                            transaction.getId()
+                    );
 
                     TransactionLinkDto linkAttachmentDto = new TransactionLinkDto();
                     linkAttachmentDto.setTransaction1(transaction.getId());

@@ -22,4 +22,9 @@ public class AttachmentResponseDto {
     private String downloadBy;
     private Date downloadDate;
     private String extension;
+    private String filePath;
+    private String storageBucket;
+    private String storageProvider;
+    private String contentType;
+    private Long fileSize;
 }
