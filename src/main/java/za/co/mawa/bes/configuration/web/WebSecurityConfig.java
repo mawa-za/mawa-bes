@@ -41,7 +41,6 @@ public class WebSecurityConfig {
             "/reset-password",
             "/v2/reset-password",
             "/refresh-token",
-            "/v2/refresh-token",
             "/xero/callback"
             // other public endpoints of your API may be appended to this array
     };
