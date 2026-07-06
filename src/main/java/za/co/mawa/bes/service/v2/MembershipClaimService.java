@@ -17,6 +17,7 @@ import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -28,6 +29,8 @@ import java.util.stream.Collectors;
 public class MembershipClaimService {
     @Autowired
     NumberRangeService numberRangeService;
+    @Autowired
+    ClaimFormGenerationService claimFormGenerationService;
     private final MembershipClaimRepository claimRepository;
     private final MembershipClaimLinkRepository claimLinkRepository;
     private final MembershipRepository membershipRepository;
@@ -85,6 +88,9 @@ public class MembershipClaimService {
 
         MembershipClaimEntity saved = claimRepository.save(entity);
 
+        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED) {
+            claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        }
 
         if (saved.getClaimType() == MembershipClaimType.COMBINATION
                 && request.getLinkedClaimIds() != null
@@ -226,6 +232,7 @@ public class MembershipClaimService {
         entity.setUpdatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
+        claimFormGenerationService.generateForSubmittedClaim(saved.getId());
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
     }
