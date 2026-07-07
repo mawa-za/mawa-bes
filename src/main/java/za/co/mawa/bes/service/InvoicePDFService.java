@@ -13,76 +13,58 @@ import com.itextpdf.layout.properties.UnitValue;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
+import za.co.mawa.bes.entity.v2.company.CompanyLogoEntity;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Optional;
 
 @Service
 public class InvoicePDFService {
 
+    private final CompanyInfoService companyInfoService;
+    private final CompanyLogoService companyLogoService;
+
+    public InvoicePDFService(CompanyInfoService companyInfoService, CompanyLogoService companyLogoService) {
+        this.companyInfoService = companyInfoService;
+        this.companyLogoService = companyLogoService;
+    }
+
     public ByteArrayOutputStream generateInvoicePdf(InvoiceEntity invoice) {
-        // Create a PDF in memory
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PdfWriter pdfWriter = new PdfWriter(out);
 
         try (Document document = new Document(new com.itextpdf.kernel.pdf.PdfDocument(pdfWriter))) {
-            // Load custom fonts (optional)
             PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
             PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
 
-            // --- HEADER (Company Logo and Info) ---
-            ImageData logoData = ImageDataFactory.create(getClass().getResource("images/logo.png"));
-//            ImageData logoData = ImageDataFactory.create("https://upload.wikimedia.org/wikipedia/commons/3/3f/Logo_Test.png");  // Replace with the actual path to your logo
-            Image logo = new Image(logoData).scaleToFit(150, 40); // Resize the logo for better fit
-            document.add(new Paragraph().add(logo).setTextAlignment(TextAlignment.LEFT));
+            addHeader(document, boldFont, regularFont);
 
-            document.add(new Paragraph("Your Company Name")
-                    .setFont(boldFont)
-                    .setFontSize(14)
-                    .setTextAlignment(TextAlignment.LEFT));
-            document.add(new Paragraph("123 Business Street, City, Country")
-                    .setFont(regularFont)
-                    .setFontSize(10));
-            document.add(new Paragraph("Phone: +123-456-7890 | Email: contact@yourcompany.com")
-                    .setFont(regularFont)
-                    .setFontSize(10));
-
-            // Add spacing
-            document.add(new Paragraph("\n"));
-
-            // --- TITLE: Invoice ---
             document.add(new Paragraph("Invoice")
                     .setFont(boldFont)
                     .setFontSize(18)
                     .setTextAlignment(TextAlignment.CENTER)
                     .setMarginBottom(20));
 
-            // --- INVOICE DETAILS TABLE ---
             Table detailsTable = new Table(UnitValue.createPercentArray(new float[]{25, 75}));
             detailsTable.setWidth(UnitValue.createPercentValue(100));
-            detailsTable.addCell(createCell("Invoice ID:", boldFont));
-            detailsTable.addCell(createCell(invoice.getId(), regularFont));
+            detailsTable.addCell(createCell("Invoice No:", boldFont));
+            detailsTable.addCell(createCell(safe(invoice.getInvoiceNo()), regularFont));
             detailsTable.addCell(createCell("Invoice Date:", boldFont));
-            detailsTable.addCell(createCell(invoice.getInvoiceDate().toString(), regularFont));
+            detailsTable.addCell(createCell(invoice.getInvoiceDate() == null ? "" : invoice.getInvoiceDate().toString(), regularFont));
             detailsTable.addCell(createCell("Due Date:", boldFont));
-            detailsTable.addCell(createCell(invoice.getDueDate().toString(), regularFont));
+            detailsTable.addCell(createCell(invoice.getDueDate() == null ? "" : invoice.getDueDate().toString(), regularFont));
             detailsTable.addCell(createCell("Status:", boldFont));
-            detailsTable.addCell(createCell(invoice.getStatus(), regularFont));
+            detailsTable.addCell(createCell(safe(invoice.getStatus()), regularFont));
             document.add(detailsTable);
 
-            // Add spacing
             document.add(new Paragraph("\n"));
-
-            // --- LINE ITEMS TABLE ---
             document.add(new Paragraph("Line Items")
                     .setFont(boldFont)
                     .setFontSize(14)
                     .setMarginBottom(10));
 
-            // Line Items Table Structure
             Table itemTable = new Table(UnitValue.createPercentArray(new float[]{3, 7, 2, 3, 3, 3}));
             itemTable.setWidth(UnitValue.createPercentValue(100));
-
-            // Header
             itemTable.addHeaderCell(createCell("Product ID", boldFont));
             itemTable.addHeaderCell(createCell("Description", boldFont));
             itemTable.addHeaderCell(createCell("Qty", boldFont));
@@ -90,48 +72,77 @@ public class InvoicePDFService {
             itemTable.addHeaderCell(createCell("Subtotal", boldFont));
             itemTable.addHeaderCell(createCell("Tax", boldFont));
 
-            // Line-items rows
             for (InvoiceLineEntity line : invoice.getLines()) {
-                itemTable.addCell(createCell(line.getProductId(), regularFont));
-                itemTable.addCell(createCell(line.getDescription(), regularFont));
+                itemTable.addCell(createCell(safe(line.getProductId()), regularFont));
+                itemTable.addCell(createCell(safe(line.getDescription()), regularFont));
                 itemTable.addCell(createCell(String.valueOf(line.getQuantity()), regularFont));
-                itemTable.addCell(createCell(String.format("%.2f", line.getUnitPriceCents() / 100.0), regularFont));
-                itemTable.addCell(createCell(String.format("%.2f", line.getSubtotalCents() / 100.0), regularFont));
-                itemTable.addCell(createCell(String.format("%.2f", line.getTaxCents() / 100.0), regularFont));
+                itemTable.addCell(createCell(formatCents(line.getUnitPriceCents()), regularFont));
+                itemTable.addCell(createCell(formatCents(line.getSubtotalCents()), regularFont));
+                itemTable.addCell(createCell(formatCents(line.getTaxCents()), regularFont));
             }
 
             document.add(itemTable);
-
-            // --- TOTAL AMOUNT ---
             document.add(new Paragraph("\n"));
-            document.add(new Paragraph("Total: $" + String.format("%.2f", invoice.getTotalCents() / 100.0))
+            document.add(new Paragraph("Total: R " + formatCents(invoice.getTotalCents()))
                     .setFont(boldFont)
                     .setFontSize(12)
                     .setTextAlignment(TextAlignment.RIGHT));
 
-            // --- FOOTER NOTE ---
-            document.add(new Paragraph("\nThank you for your business!")
+            document.add(new Paragraph("\nThank you for your business.")
                     .setFont(boldFont)
                     .setFontSize(12)
                     .setTextAlignment(TextAlignment.CENTER));
 
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error while creating PDF: " + e.getMessage());
+            throw new RuntimeException("Error while creating PDF: " + e.getMessage(), e);
         }
 
         return out;
     }
 
-    /**
-     * Helper method to create formatted table cells.
-     *
-     * @param content The text content of the cell.
-     * @param font    The font to use for the text.
-     * @return A formatted `Cell` object.
-     */
+    private void addHeader(Document document, PdfFont boldFont, PdfFont regularFont) {
+        Table header = new Table(UnitValue.createPercentArray(new float[]{30, 70}));
+        header.setWidth(UnitValue.createPercentValue(100));
+        Cell logoCell = new Cell().setBorder(null).setPadding(0);
+        Optional<CompanyLogoEntity> logoEntity = companyLogoService.getActiveLogo();
+        if (logoEntity.isPresent()) {
+            ImageData logoData = ImageDataFactory.create(logoEntity.get().getContent());
+            Image logo = new Image(logoData).scaleToFit(CompanyLogoService.PDF_WIDTH_PT, CompanyLogoService.PDF_HEIGHT_PT);
+            logoCell.add(logo);
+        } else {
+            logoCell.add(new Paragraph("COMPANY\nLOGO")
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setFont(boldFont)
+                    .setFontSize(9)
+                    .setBorder(new com.itextpdf.layout.borders.SolidBorder(1))
+                    .setWidth(CompanyLogoService.PDF_WIDTH_PT)
+                    .setHeight(CompanyLogoService.PDF_HEIGHT_PT));
+        }
+        header.addCell(logoCell);
+
+        String companyName = blankDefault(companyInfoService.getCompanyName(), "Company Name");
+        String address = blankDefault(companyInfoService.getCompanyAddress(), "");
+        String tel = blankDefault(companyInfoService.getCompanyTelephoneNumber(), "");
+        String vat = blankDefault(companyInfoService.getVATNumber(), "");
+        Cell infoCell = new Cell().setBorder(null).setPadding(0);
+        infoCell.add(new Paragraph(companyName).setFont(boldFont).setFontSize(14).setTextAlignment(TextAlignment.RIGHT));
+        if (!address.isBlank()) infoCell.add(new Paragraph(address).setFont(regularFont).setFontSize(10).setTextAlignment(TextAlignment.RIGHT));
+        if (!tel.isBlank()) infoCell.add(new Paragraph("Tel: " + tel).setFont(regularFont).setFontSize(10).setTextAlignment(TextAlignment.RIGHT));
+        if (!vat.isBlank()) infoCell.add(new Paragraph("VAT No: " + vat).setFont(regularFont).setFontSize(10).setTextAlignment(TextAlignment.RIGHT));
+        header.addCell(infoCell);
+        document.add(header);
+        document.add(new Paragraph("\n"));
+    }
+
+    private String formatCents(Long cents) {
+        return String.format("%.2f", (cents == null ? 0L : cents) / 100.0);
+    }
+
+    private String safe(String value) { return value == null ? "" : value; }
+    private String blankDefault(String value, String fallback) { return value == null || value.isBlank() ? fallback : value; }
+
     private Cell createCell(String content, PdfFont font) {
-        return new Cell().add(new Paragraph(content).setFont(font).setFontSize(10))
+        return new Cell().add(new Paragraph(content == null ? "" : content).setFont(font).setFontSize(10))
                 .setPadding(5)
                 .setTextAlignment(TextAlignment.LEFT);
     }

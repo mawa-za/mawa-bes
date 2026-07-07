@@ -10,13 +10,18 @@ import com.itextpdf.layout.element.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.InvoiceOutboundDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
+import za.co.mawa.bes.entity.v2.AppointmentEntity;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.InvoiceLineRepository;
 import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.repository.v2.AppointmentRepository;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.TransactionType;
 import za.co.mawa.bes.xero.XeroInvoiceQueueService;
@@ -26,6 +31,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,6 +53,15 @@ public class InvoiceService {
 
     @Autowired
     XeroInvoiceQueueService xeroInvoiceQueueService;
+
+    @Autowired
+    AppointmentRepository appointmentRepository;
+
+    @Autowired
+    ProductService productService;
+
+    @Autowired
+    PartnerService partnerService;
 
     public InvoiceEntity createInvoice(InvoiceEntity invoice) {
 //        invoice.setId(UUID.randomUUID().toString());
@@ -110,12 +125,93 @@ public class InvoiceService {
     }
 
 
+    public InvoiceEntity createInvoiceForAppointment(String appointmentId, String currentUser) {
+        AppointmentEntity appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Appointment not found with ID: " + appointmentId));
+
+        List<InvoiceEntity> existing = invoiceRepository.findBySourceTypeAndSourceId("APPOINTMENT", appointmentId);
+        if (!existing.isEmpty()) {
+            return existing.get(0);
+        }
+
+        String description = "Appointment booking " + (appointment.getAppointmentNo() == null ? appointment.getId() : appointment.getAppointmentNo());
+        Long unitPriceCents = 0L;
+        if (appointment.getServiceProductId() != null && !appointment.getServiceProductId().isBlank()) {
+            try {
+                ProductDto product = productService.getOptionalById(appointment.getServiceProductId());
+                if (product != null) {
+                    String code = product.getCode() == null ? "" : product.getCode();
+                    String productDescription = product.getDescription() == null ? "" : product.getDescription();
+                    description = (code + " - " + productDescription).trim();
+                    unitPriceCents = firstPriceInCents(product);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        InvoiceLineEntity line = InvoiceLineEntity.builder()
+                .productId(appointment.getServiceProductId())
+                .description(description)
+                .quantity(1.0)
+                .unitPriceCents(unitPriceCents)
+                .discountCents(0L)
+                .taxCents(0L)
+                .subtotalCents(unitPriceCents)
+                .totalCents(unitPriceCents)
+                .build();
+
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .externalRef(appointment.getAppointmentNo())
+                .sourceType("APPOINTMENT")
+                .sourceId(appointment.getId())
+                .partnerId(appointment.getCustomerPartnerId())
+                .invoiceDate(LocalDate.now())
+                .dueDate(LocalDate.now())
+                .status("DRAFT")
+                .subtotalCents(unitPriceCents)
+                .taxCents(0L)
+                .discountCents(0L)
+                .totalCents(unitPriceCents)
+                .paidCents(0L)
+                .balanceCents(unitPriceCents)
+                .currency("ZAR")
+                .notes("Created from appointment " + (appointment.getAppointmentNo() == null ? appointment.getId() : appointment.getAppointmentNo()))
+                .createdBy(currentUser)
+                .lines(new java.util.ArrayList<>(List.of(line)))
+                .payments(new java.util.ArrayList<>())
+                .build();
+        return createInvoice(invoice);
+    }
+
+    private String fullName(PartnerDto partner) {
+        return java.util.stream.Stream.of(partner.getName2(), partner.getName3(), partner.getName1(), partner.getName4())
+                .filter(v -> v != null && !v.isBlank())
+                .reduce((a, b) -> a + " " + b)
+                .orElse(partner.getNumber() == null ? partner.getId() : partner.getNumber());
+    }
+
+    private Long firstPriceInCents(ProductDto product) {
+        if (product.getPricings() == null || product.getPricings().isEmpty()) return 0L;
+        for (ProductPricingDto pricing : product.getPricings()) {
+            BigDecimal value = pricing.getValue();
+            if (value != null) return value.multiply(BigDecimal.valueOf(100)).longValue();
+        }
+        return 0L;
+    }
+
+
     public InvoiceOutboundDto mapToDto(InvoiceEntity invoice) {
         // Map the main InvoiceEntity to DTO
         InvoiceOutboundDto dto = new InvoiceOutboundDto();
         dto.setId(invoice.getId());
         dto.setInvoiceNo(invoice.getInvoiceNo());
         dto.setPartnerId(invoice.getPartnerId());
+        dto.setSourceType(invoice.getSourceType());
+        dto.setSourceId(invoice.getSourceId());
+        try {
+            PartnerDto partner = partnerService.get(invoice.getPartnerId());
+            dto.setPartnerName(partner == null ? null : fullName(partner));
+        } catch (Exception ignored) {}
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setDueDate(invoice.getDueDate());
         dto.setStatus(invoice.getStatus());
