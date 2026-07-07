@@ -17,8 +17,8 @@ import java.util.Optional;
 @Service
 public class CompanyLogoService {
     public static final String ACTIVE_LOGO_ID = "ACTIVE";
-    public static final int REQUIRED_WIDTH_PX = 600;
-    public static final int REQUIRED_HEIGHT_PX = 180;
+    public static final int MAX_WIDTH_PX = 600;
+    public static final int MAX_HEIGHT_PX = 180;
     public static final float PDF_WIDTH_PT = 160f;
     public static final float PDF_HEIGHT_PT = 48f;
     private static final long MAX_SIZE_BYTES = 300 * 1024;
@@ -39,8 +39,8 @@ public class CompanyLogoService {
         if (bytes.length > MAX_SIZE_BYTES) throw new IllegalArgumentException("Company logo must not exceed 300KB");
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
         if (image == null) throw new IllegalArgumentException("Company logo file is not a valid image");
-        if (image.getWidth() != REQUIRED_WIDTH_PX || image.getHeight() != REQUIRED_HEIGHT_PX) {
-            throw new IllegalArgumentException("Company logo must be exactly " + REQUIRED_WIDTH_PX + "x" + REQUIRED_HEIGHT_PX + " pixels");
+        if (image.getWidth() > MAX_WIDTH_PX || image.getHeight() > MAX_HEIGHT_PX) {
+            throw new IllegalArgumentException("Company logo must not be larger than " + MAX_WIDTH_PX + "x" + MAX_HEIGHT_PX + " pixels");
         }
         CompanyLogoEntity logo = CompanyLogoEntity.builder()
                 .id(ACTIVE_LOGO_ID)
@@ -62,8 +62,11 @@ public class CompanyLogoService {
 
     public Map<String, Object> metadata() {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("requiredWidthPx", REQUIRED_WIDTH_PX);
-        result.put("requiredHeightPx", REQUIRED_HEIGHT_PX);
+        result.put("maxWidthPx", MAX_WIDTH_PX);
+        result.put("maxHeightPx", MAX_HEIGHT_PX);
+        // Kept for older clients; these now represent the maximum accepted dimensions, not an exact requirement.
+        result.put("requiredWidthPx", MAX_WIDTH_PX);
+        result.put("requiredHeightPx", MAX_HEIGHT_PX);
         result.put("pdfWidthPt", PDF_WIDTH_PT);
         result.put("pdfHeightPt", PDF_HEIGHT_PT);
         result.put("maxSizeBytes", MAX_SIZE_BYTES);
