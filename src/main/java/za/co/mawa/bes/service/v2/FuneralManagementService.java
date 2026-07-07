@@ -212,11 +212,13 @@ public class FuneralManagementService {
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
         validateRequired(request.getDeceasedName(), "deceasedName");
-        validateRequired(request.getPackageId(), "packageId");
         validateRequired(request.getFamilyRepId(), "familyRepId");
 
-        FuneralPackageEntity packageEntity = funeralPackageRepository.findById(request.getPackageId())
-                .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
+        FuneralPackageEntity packageEntity = null;
+        if (request.getPackageId() != null && !request.getPackageId().isBlank()) {
+            packageEntity = funeralPackageRepository.findById(request.getPackageId())
+                    .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
+        }
 
         FuneralServiceEntity entity = new FuneralServiceEntity();
         entity.setServiceRequestNo(generateFuneralServiceRequestNo());
@@ -231,9 +233,31 @@ public class FuneralManagementService {
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
-        entity.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
-        entity.setStatus("ARRANGEMENT_CREATED");
+        entity.setTotalAmountCents((packageEntity == null ? 0L : defaultLong(packageEntity.getBasePriceCents())) + calculateExtrasTotal(request.getExtras()));
+        entity.setStatus(packageEntity == null ? "COVER_IDENTIFIED" : "ARRANGEMENT_CREATED");
         return toServiceResponse(funeralServiceRepository.save(entity));
+    }
+
+    @Transactional
+    public FuneralServiceRequestResponseDto updateServiceRequestPackage(String funeralServiceId, FuneralServiceRequestDto request) {
+        validateRequired(funeralServiceId, "funeralServiceId");
+        validateRequired(request.getPackageId(), "packageId");
+
+        FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        FuneralPackageEntity packageEntity = funeralPackageRepository.findById(request.getPackageId())
+                .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
+
+        service.setPackageId(request.getPackageId());
+        service.setExtrasJson(toJson(request.getExtras()));
+        service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
+        if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
+        if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) service.setFuneralArea(request.getFuneralArea());
+        if (request.getDeathCertificateNo() != null && !request.getDeathCertificateNo().isBlank()) service.setDeathCertificateNo(request.getDeathCertificateNo());
+        if (request.getCauseOfDeath() != null && !request.getCauseOfDeath().isBlank()) service.setCauseOfDeath(request.getCauseOfDeath());
+        if (!"INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
+            service.setStatus("ARRANGEMENT_CREATED");
+        }
+        return toServiceResponse(funeralServiceRepository.save(service));
     }
 
     @Transactional
@@ -253,13 +277,17 @@ public class FuneralManagementService {
         }
 
         String claimType = request.getEffectiveClaimType(selectedMemberships.size());
-        long remaining = defaultLong(service.getTotalAmountCents());
+        long arrangementTotal = defaultLong(service.getTotalAmountCents());
+        long remaining = arrangementTotal > 0
+                ? arrangementTotal
+                : coverMap.values().stream().mapToLong(cover -> defaultLong(cover.amountForClaimType(claimType))).sum();
         List<FuneralClaimDto> response = new ArrayList<>();
 
         for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
             if (cover == null || remaining <= 0) continue;
-            long claimAmount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
+            long coverAmount = defaultLong(cover.amountForClaimType(claimType));
+            long claimAmount = arrangementTotal > 0 ? Math.min(coverAmount, remaining) : coverAmount;
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
