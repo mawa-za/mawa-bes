@@ -14,8 +14,10 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
-import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -381,13 +383,10 @@ public class PaymentRequestService {
 
     private String generateRequestNo() {
         try {
-            return numberRangeService.generateNumber("PAYMENT-REQUEST");
-        } catch (Exception ignored) {
-            try {
-                return numberRangeService.generateNumber("PAYMENT_REQUEST");
-            } catch (Exception ignoredAgain) {
-                return "PAY-" + System.currentTimeMillis();
-            }
+            return numberRangeService.generateNumber(TransactionType.PAYMENT_REQUEST);
+        } catch (NumberRangeObjectNotFound e) {
+            throw new IllegalStateException("Payment Request number range is not configured for object: "
+                    + TransactionType.PAYMENT_REQUEST, e);
         }
     }
 

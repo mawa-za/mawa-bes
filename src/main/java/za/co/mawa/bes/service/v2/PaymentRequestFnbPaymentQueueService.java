@@ -23,7 +23,8 @@ import za.co.mawa.bes.service.SettingService;
 public class PaymentRequestFnbPaymentQueueService {
 
     private static final String FNB_MESSAGE_TYPE = "FNB-EFT-PAYMENT";
-    private static final String INTEGRATION_GROUP = "INTEGRATION";
+    private static final String LEGACY_INTEGRATION_GROUP = "INTEGRATION";
+    private static final String FNB_API_GROUP = "FNB-API";
     private static final String FNB_API_ATTRIBUTE = "FNB-API";
 
     private final PaymentRequestRepository paymentRequestRepository;
@@ -94,18 +95,20 @@ public class PaymentRequestFnbPaymentQueueService {
     }
 
     private boolean isFnbEnabled() {
-        String value = settingService.getSetting("ENABLED", FNB_API_ATTRIBUTE);
-        if (isTruthy(value)) return true;
-
-        value = settingService.getSetting("FNB-INTEGRATION-ENABLED", FNB_API_ATTRIBUTE);
-        if (isTruthy(value)) return true;
-
-        value = settingService.getSetting(INTEGRATION_GROUP, FNB_API_ATTRIBUTE);
-        return isTruthy(value);
+        return isTruthy(settingService.getSetting("ENABLED", FNB_API_GROUP))
+                || isTruthy(settingService.getSetting("FNB-INTEGRATION-ENABLED", FNB_API_GROUP))
+                || isTruthy(settingService.getSetting(FNB_API_ATTRIBUTE, LEGACY_INTEGRATION_GROUP));
     }
 
     private boolean isTruthy(String value) {
-        return "1".equals(value) || "true".equalsIgnoreCase(value) || "Y".equalsIgnoreCase(value) || "YES".equalsIgnoreCase(value);
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.trim();
+        return "1".equals(normalized)
+                || "true".equalsIgnoreCase(normalized)
+                || "Y".equalsIgnoreCase(normalized)
+                || "yes".equalsIgnoreCase(normalized);
     }
 
     private void saveHistory(
