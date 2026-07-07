@@ -94,8 +94,18 @@ public class PaymentRequestFnbPaymentQueueService {
     }
 
     private boolean isFnbEnabled() {
-        String value = settingService.getSetting(INTEGRATION_GROUP, FNB_API_ATTRIBUTE);
-        return "1".equals(value) || "true".equalsIgnoreCase(value) || "Y".equalsIgnoreCase(value);
+        String value = settingService.getSetting("ENABLED", FNB_API_ATTRIBUTE);
+        if (isTruthy(value)) return true;
+
+        value = settingService.getSetting("FNB-INTEGRATION-ENABLED", FNB_API_ATTRIBUTE);
+        if (isTruthy(value)) return true;
+
+        value = settingService.getSetting(INTEGRATION_GROUP, FNB_API_ATTRIBUTE);
+        return isTruthy(value);
+    }
+
+    private boolean isTruthy(String value) {
+        return "1".equals(value) || "true".equalsIgnoreCase(value) || "Y".equalsIgnoreCase(value) || "YES".equalsIgnoreCase(value);
     }
 
     private void saveHistory(
