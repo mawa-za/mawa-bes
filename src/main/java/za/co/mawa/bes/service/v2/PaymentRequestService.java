@@ -14,7 +14,10 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
+import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +31,7 @@ public class PaymentRequestService {
     private final PaymentRequestRepository paymentRequestRepository;
     private final PaymentRequestStatusHistoryRepository statusHistoryRepository;
     private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
+    private final NumberRangeService numberRangeService;
 
     @Autowired
     SettingService settingService;
@@ -35,11 +39,13 @@ public class PaymentRequestService {
     public PaymentRequestService(
             PaymentRequestRepository paymentRequestRepository,
             PaymentRequestStatusHistoryRepository statusHistoryRepository,
-            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
+            NumberRangeService numberRangeService
     ) {
         this.paymentRequestRepository = paymentRequestRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.fnbPaymentQueueService = fnbPaymentQueueService;
+        this.numberRangeService = numberRangeService;
     }
 
     @Transactional
@@ -376,7 +382,12 @@ public class PaymentRequestService {
     }
 
     private String generateRequestNo() {
-        return "PAY-" + System.currentTimeMillis();
+        try {
+            return numberRangeService.generateNumber(TransactionType.PAYMENT_REQUEST);
+        } catch (NumberRangeObjectNotFound e) {
+            throw new IllegalStateException("Payment Request number range is not configured for object: "
+                    + TransactionType.PAYMENT_REQUEST, e);
+        }
     }
 
     private String defaultCurrency(String currency) {
