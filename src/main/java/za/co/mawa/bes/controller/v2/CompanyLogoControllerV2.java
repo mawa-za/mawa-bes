@@ -42,10 +42,11 @@ public class CompanyLogoControllerV2 {
 
     @GetMapping("/content")
     public ResponseEntity<ByteArrayResource> content() {
-        CompanyLogoEntity logo = companyLogoService.getActiveLogo().orElseThrow(() -> new IllegalArgumentException("Company logo not loaded"));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + logo.getFileName())
-                .contentType(MediaType.parseMediaType(logo.getContentType()))
-                .body(new ByteArrayResource(logo.getContent()));
+        return companyLogoService.getActiveLogo()
+                .map(logo -> ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + logo.getFileName())
+                        .contentType(MediaType.parseMediaType(logo.getContentType()))
+                        .body(new ByteArrayResource(logo.getContent())))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }
