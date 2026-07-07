@@ -10,5 +10,4 @@ import java.util.List;
 public class GenerateFuneralInvoicesResponseDto {
     private String funeralServiceId;
     private List<String> invoiceIds;
-    private List<InvoiceSummaryDto> invoices;
 }
