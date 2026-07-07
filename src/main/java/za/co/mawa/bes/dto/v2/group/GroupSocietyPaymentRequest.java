@@ -1,10 +1,7 @@
 package za.co.mawa.bes.dto.v2.group;
 
-import lombok.Setter;
-
 import java.time.LocalDate;
 
-@Setter
 public class GroupSocietyPaymentRequest {
 
     private Long amountCents;
@@ -42,4 +39,33 @@ public class GroupSocietyPaymentRequest {
     public String getNotes() {
         return notes;
     }
+
+    public void setAmountCents(Long amountCents) {
+        this.amountCents = amountCents;
+    }
+
+    public void setPaymentDate(LocalDate paymentDate) {
+        this.paymentDate = paymentDate;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public void setPeriod(String period) {
+        this.period = period;
+    }
+
+    public void setReferenceId(String referenceId) {
+        this.referenceId = referenceId;
+    }
+
+    public void setReferenceNo(String referenceNo) {
+        this.referenceNo = referenceNo;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
 }

@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
+import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.enums.ApprovalType;
 
 import java.time.LocalDate;
@@ -40,6 +41,7 @@ public class FuneralManagementService {
     private final ClaimFormGenerationService claimFormGenerationService;
     private final ApprovalService approvalService;
     private final NumberAllocationService numberAllocationService;
+    private final NumberRangeService numberRangeService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -917,7 +919,15 @@ public class FuneralManagementService {
     }
 
     private String generateInvoiceNo() {
-        return "INV-FUN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        try {
+            return numberRangeService.generateNumber("INVOICE");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("INVOICE");
+            } catch (Exception ignoredAgain) {
+                return "INV-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
     }
 
     private String resolveMembershipNo(String membershipId) {

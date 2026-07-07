@@ -87,12 +87,16 @@ public class RoleService implements RoleDao {
             List<RoleWorkcenterDto> workcenterDtoList = new ArrayList<>();
             List<RoleWorkcenterEntity> roleWorkcenterEntities = roleWorkcenterRepository.findRoleWorkcenters(role);
             for (RoleWorkcenterEntity roleWorkcenterEntity : roleWorkcenterEntities) {
-                RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
                 String workcenter = roleWorkcenterEntity.getRoleWorkcenterPKEntity().getWorkcenter();
-                WorkcenterDto workcenterDto = workcenterService.getById(workcenter);
-                roleWorkcenterDto.setPosition(roleWorkcenterEntity.getPosition());
-                roleWorkcenterDto.setWorkcenter(workcenterDto);
-                workcenterDtoList.add(roleWorkcenterDto);
+                try {
+                    RoleWorkcenterDto roleWorkcenterDto = new RoleWorkcenterDto();
+                    WorkcenterDto workcenterDto = workcenterService.getById(workcenter);
+                    roleWorkcenterDto.setPosition(roleWorkcenterEntity.getPosition());
+                    roleWorkcenterDto.setWorkcenter(workcenterDto);
+                    workcenterDtoList.add(roleWorkcenterDto);
+                } catch (RoleDoesNotExist ignored) {
+                    // Keep the home screen usable when a role still contains an old or disabled workcenter code.
+                }
             }
             return workcenterDtoList;
         }
