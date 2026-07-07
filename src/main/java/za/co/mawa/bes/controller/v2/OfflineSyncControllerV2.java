@@ -4,12 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentSyncOfflineRequest;
-import za.co.mawa.bes.dto.v2.GroupSocietyPaymentSyncOfflineRequest;
 import za.co.mawa.bes.dto.v2.PaymentSyncOfflineResponseDto;
 import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
 import za.co.mawa.bes.service.v2.MembershipPremiumSyncOfflineService;
-import za.co.mawa.bes.service.v2.GroupSocietyPaymentSyncOfflineService;
 import za.co.mawa.bes.service.v2.CashupService;
 
 @CrossOrigin
@@ -20,8 +18,6 @@ public class OfflineSyncControllerV2 {
 
     private final MembershipPremiumSyncOfflineService membershipPremiumSyncOfflineService;
 
-    private final GroupSocietyPaymentSyncOfflineService groupSocietyPaymentSyncOfflineService;
-
     private final CashupService cashupService;
 
     @PostMapping("/payment-batches/membership-premiums")
@@ -29,13 +25,6 @@ public class OfflineSyncControllerV2 {
             @RequestBody MembershipPremiumPaymentSyncOfflineRequest request
     ) {
         return membershipPremiumSyncOfflineService.sync(request);
-    }
-
-    @PostMapping("/payment-batches/group-society")
-    public PaymentSyncOfflineResponseDto syncGroupSocietyPayment(
-            @RequestBody GroupSocietyPaymentSyncOfflineRequest request
-    ) {
-        return groupSocietyPaymentSyncOfflineService.sync(request);
     }
 
 

@@ -1,10 +1,7 @@
 package za.co.mawa.bes.dto.v2.group;
 
-import lombok.Setter;
-
 import java.time.LocalDate;
 
-@Setter
 public class GroupSocietyPaymentRequest {
 
     private Long amountCents;

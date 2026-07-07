@@ -42,7 +42,7 @@ public class BookingService implements BookingDao {
             if(transactionDto.getId() != null){
                 String bookTime = createDto.getBookTime() == null ? "": createDto.getBookTime();
                 String bookDate = createDto.getBookDate() == null ?"":createDto.getBookDate();
-                if(bookTime != "" && bookDate != ""){
+                if(!bookTime.isEmpty() && !bookDate.isEmpty()){
                     //SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
                    // Date dateBook = dateFormat.parse(bookDate);
                    // SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
@@ -64,21 +64,21 @@ public class BookingService implements BookingDao {
                 dates.setValue(new Date());
                 transactionService.addDate(dates);
 
-                if(createDto.getCustomerId() != null){
+                if(createDto.getCustomerId() != null && !createDto.getCustomerId().trim().isEmpty()){
                     TransactionPartnerDto customer = new TransactionPartnerDto();
                     customer.setTransaction(transactionDto.getId());
                     customer.setPartner(createDto.getCustomerId());
                     customer.setFunction(PartnerFunction.CUSTOMER);
                     transactionService.addPartner(customer);
                 }
-                if(createDto.getEmployeeId() != null){
+                if(createDto.getEmployeeId() != null && !createDto.getEmployeeId().trim().isEmpty()){
                     TransactionPartnerDto employee = new TransactionPartnerDto();
                     employee.setFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
                     employee.setPartner(createDto.getEmployeeId());
                     employee.setTransaction(transactionDto.getId());
                     transactionService.addPartner(employee);
                 }
-                if(createDto.getProductId() != null){
+                if(createDto.getProductId() != null && !createDto.getProductId().trim().isEmpty()){
                     ProductDto productDto = productService.get(createDto.getProductId());
                     TransactionItemDto transactionItemDto = new TransactionItemDto();
                     transactionItemDto.setProduct(productDto.getId());
@@ -169,19 +169,19 @@ public class BookingService implements BookingDao {
             TransactionQueryDto query = new TransactionQueryDto();
             ArrayList<BookingDto> bookings = new ArrayList<>();
             query.setType(TransactionType.APPOINTMENT);
-            if(queryDto.getBookDate() != null){
+            if(queryDto.getBookDate() != null && !queryDto.getBookDate().trim().isEmpty()){
                 query.setValue(Conversion.stringToDate(queryDto.getBookDate()));
                 query.setDateType(DateType.BOOKING_DATE);
             }
-            if(queryDto.getCustomerId() != null){
+            if(queryDto.getCustomerId() != null && !queryDto.getCustomerId().trim().isEmpty()){
                 query.setPartnerNo(queryDto.getCustomerId());
                 query.setPartnerFunction(PartnerFunction.CUSTOMER);
             }
-            if(queryDto.getEmployeeId() != null){
+            if(queryDto.getEmployeeId() != null && !queryDto.getEmployeeId().trim().isEmpty()){
                 query.setPartnerNo(queryDto.getEmployeeId());
                 query.setPartnerFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
             }
-            if(queryDto.getStatus() != null){
+            if(queryDto.getStatus() != null && !queryDto.getStatus().trim().isEmpty()){
                query.setStatus(queryDto.getStatus());
             }
             for(String id:transactionService.search(query)){
@@ -197,14 +197,14 @@ public class BookingService implements BookingDao {
     @Override
     public boolean editBooking(BookingEditDto editDto,String id) throws Exception {
         try{
-            if(editDto.getEmployeeId() != null){
+            if(editDto.getEmployeeId() != null && !editDto.getEmployeeId().trim().isEmpty()){
                 TransactionPartnerEdit partnerEdit = new TransactionPartnerEdit();
                 partnerEdit.setPartnerFunction(PartnerFunction.EMPLOYEE_RESPONSIBLE);
                 partnerEdit.setTransaction(id);
                 partnerEdit.setParnter(editDto.getEmployeeId());
                 transactionService.partnerEdit(partnerEdit);
             }
-            if(editDto.getBookDate() != null && editDto.getBookTime() != null){
+            if(editDto.getBookDate() != null && !editDto.getBookDate().trim().isEmpty() && editDto.getBookTime() != null && !editDto.getBookTime().trim().isEmpty()){
                 String bookTimeDate = editDto.getBookDate()+ " " + editDto.getBookTime();
                 TransactionDateEdit bookEdit = new TransactionDateEdit();
                 bookEdit.setType(DateType.BOOKING_DATE);
@@ -212,7 +212,7 @@ public class BookingService implements BookingDao {
                 bookEdit.setValue(Conversion.dateTimeToString2(bookTimeDate));
                 transactionService.dateEdit(bookEdit);
             }
-            if(editDto.getStatus() != null){
+            if(editDto.getStatus() != null && !editDto.getStatus().trim().isEmpty()){
                 TransactionEditDto edit = new TransactionEditDto();
                 edit.setId(id);
                 edit.setStatus(editDto.getStatus());
