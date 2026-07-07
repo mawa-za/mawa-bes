@@ -24,8 +24,7 @@ public class FuneralPackageEntity {
     @Column(name = "base_price_cents", nullable = false)
     private Long basePriceCents = 0L;
 
-    @Lob
-    @Column(name = "inclusions_json")
+    @Column(name = "inclusions_json", columnDefinition = "json")
     private String inclusionsJson;
 
     @Column(name = "active", nullable = false)

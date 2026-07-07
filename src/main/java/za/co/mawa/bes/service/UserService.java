@@ -50,13 +50,13 @@ public class UserService implements UserDao {
     PartnerService partnerService;
     @Autowired
     SettingService settingService;
-    private String secret;
+    private String encryptionSecret;
     public static final String SYSTEM_USER = "system";
     public static final String DEFAULT_SYSTEM_PASSWORD = "system";
 
-    @Value("${jwt.secret}")
-    public void setSecret(String secret) {
-        this.secret = secret;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    public void setEncryptionSecret(String encryptionSecret) {
+        this.encryptionSecret = encryptionSecret;
     }
 
     @Override
@@ -101,7 +101,7 @@ public class UserService implements UserDao {
         if (userCreateDto.getPassword() == null) {
             userCreateDto.setPassword(keyGenerator.generatePassword());
         }
-        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), secret).getBytes());
+        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), encryptionSecret).getBytes());
         UserDto userDto = entityToDto(userRepository.save(userEntity));
         EmailDto emailDto = new EmailDto();
         emailDto.setTo(userEntity.getEmail());
@@ -149,7 +149,7 @@ public class UserService implements UserDao {
     public UserDto updatePassword(UserUpdateDto userUpdateDto) {
         try {
             UserEntity userEntity = userRepository.getById(userUpdateDto.getId());
-            userEntity.setPassword(encryptionService.encrypt(userUpdateDto.getPassword(), secret).getBytes());
+            userEntity.setPassword(encryptionService.encrypt(userUpdateDto.getPassword(), encryptionSecret).getBytes());
             return entityToDto(userRepository.save(userEntity));
         } catch (Exception ex) {
             return null;
@@ -319,7 +319,7 @@ public class UserService implements UserDao {
             String password = keyGenerator.generatePassword();
             UserEntity userEntity = userRepository.getById(id);
 //            PartnerDto partnerDto = partnerService.get(userEntity.getPartner());
-            userEntity.setPassword(encryptionService.encrypt(password, secret).getBytes());
+            userEntity.setPassword(encryptionService.encrypt(password, encryptionSecret).getBytes());
             userRepository.save(userEntity);
 
             EmailDto emailDto = new EmailDto();
@@ -378,7 +378,7 @@ public class UserService implements UserDao {
             }
             if (edit.getPassword() != null && edit.getPassword() != "") {
                 user.setPasswordStatus(PasswordStatus.PRODUCTIVE);
-                user.setPassword(encryptionService.encrypt(edit.getPassword(), secret).getBytes());
+                user.setPassword(encryptionService.encrypt(edit.getPassword(), encryptionSecret).getBytes());
             }
             userRepository.save(user);
             return true;
@@ -394,7 +394,7 @@ public class UserService implements UserDao {
     }
 
     private boolean validatePassword(String enteredPassword, String storedPassword) {
-        return encryptionService.encrypt(enteredPassword, secret).equals(storedPassword);
+        return encryptionService.encrypt(enteredPassword, encryptionSecret).equals(storedPassword);
     }
 
     private UserDto entityToDto(UserEntity userEntity) {

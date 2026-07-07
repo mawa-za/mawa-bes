@@ -16,6 +16,12 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
 
     List<CashupEntity> findByDeviceIdOrderByCreatedAtDesc(String deviceId);
 
+    Optional<CashupEntity> findFirstByDeviceIdAndUserIdAndStatusOrderByCreatedAtDesc(
+            String deviceId,
+            String userId,
+            String status
+    );
+
     List<CashupEntity> findByUserIdAndCashupDateBetweenOrderByCashupDateDesc(
             String userId,
             LocalDate fromDate,

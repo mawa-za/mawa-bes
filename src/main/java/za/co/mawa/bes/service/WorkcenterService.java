@@ -26,6 +26,7 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("supplier","Suppliers","search"));
         workcenterDtoList.add(new WorkcenterDto("member","Members","search"));
         workcenterDtoList.add(new WorkcenterDto("funeral-service-request","Funeral Service Requests","search"));
+        workcenterDtoList.add(new WorkcenterDto("funeral-package-setup","Funeral Package Setup",""));
         workcenterDtoList.add(new WorkcenterDto("pickup-request","Pickup Requests","search"));
         workcenterDtoList.add(new WorkcenterDto("mortuary-inventory","Mortuary Inventory","search"));
         workcenterDtoList.add(new WorkcenterDto("corpse-check-in","Corpse Check In","search"));

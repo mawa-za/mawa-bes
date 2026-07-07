@@ -24,7 +24,9 @@ public class TenantController {
     @Autowired
     EncryptionService encryptionService;
     @Value("${jwt.secret}")
-    private String secret;
+    private String jwtSecret;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    private String encryptionSecret;
     Gson gson = new Gson();
 
 
@@ -32,8 +34,9 @@ public class TenantController {
     public ResponseEntity<?> postTenant(@RequestHeader HttpHeaders headers, @RequestBody TenantDto tenantDto) throws Exception {
         try {
             tenantDto = tenantService.create(tenantDto);
-            String password = encryptionService.encrypt(tenantDto.getDatabase_password(), secret);
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "jwt.secret", secret));
+            String password = encryptionService.encrypt(tenantDto.getDatabase_password(), encryptionSecret);
+            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "jwt.secret", jwtSecret));
+            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "mawa.encryption.secret", encryptionSecret));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.password", password));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.url", tenantDto.getDatabase_url()));

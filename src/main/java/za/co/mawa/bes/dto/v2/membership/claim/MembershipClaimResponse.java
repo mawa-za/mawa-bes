@@ -31,6 +31,7 @@ public class MembershipClaimResponse {
     private String claimantPartnerId;
 
     private Long claimAmountCents;
+    private Long approvedAmountCents;
     private Long combinedClaimAmountCents;
 
     private MembershipClaimStatus status;
@@ -60,6 +61,16 @@ public class MembershipClaimResponse {
     private String accountNumber;
     private String branchCode;
     private BankAccountType accountType;
+
+
+    public Long getApprovedAmountCents() {
+        return approvedAmountCents;
+    }
+
+    public MembershipClaimResponse setApprovedAmountCents(Long approvedAmountCents) {
+        this.approvedAmountCents = approvedAmountCents;
+        return this;
+    }
 
     public String getApprovalRequestId() {
         return approvalRequestId;

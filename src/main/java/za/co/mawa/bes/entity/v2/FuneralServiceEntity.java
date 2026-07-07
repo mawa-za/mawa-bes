@@ -22,6 +22,9 @@ public class FuneralServiceEntity {
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
+    @Column(name = "service_request_no", unique = true)
+    private String serviceRequestNo;
+
     @Column(name = "mortuary_inventory_id")
     private String mortuaryInventoryId;
 
@@ -46,11 +49,16 @@ public class FuneralServiceEntity {
     @Column(name = "funeral_area")
     private String funeralArea;
 
+    @Column(name = "death_certificate_no", length = 100)
+    private String deathCertificateNo;
+
+    @Column(name = "cause_of_death", length = 255)
+    private String causeOfDeath;
+
     @Column(name = "total_amount_cents", nullable = false)
     private Long totalAmountCents = 0L;
 
-    @Lob
-    @Column(name = "extras_json")
+    @Column(name = "extras_json", columnDefinition = "json")
     private String extrasJson;
 
     @Column(name = "status", nullable = false)

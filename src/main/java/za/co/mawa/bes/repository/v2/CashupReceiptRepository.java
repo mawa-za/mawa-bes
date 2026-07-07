@@ -8,4 +8,6 @@ import java.util.List;
 public interface CashupReceiptRepository extends JpaRepository<CashupReceiptEntity, String> {
 
     List<CashupReceiptEntity> findByCashupId(String cashupId);
+
+    void deleteByCashupId(String cashupId);
 }

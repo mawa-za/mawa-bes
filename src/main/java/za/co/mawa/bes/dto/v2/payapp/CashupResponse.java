@@ -11,4 +11,5 @@ public class CashupResponse {
     private String cashupId;
     private Long cashupNo;
     private String message;
+    private String approvalRequestId;
 }

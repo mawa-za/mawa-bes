@@ -35,7 +35,7 @@ public class AttachmentControllerV2 {
         }
     }
 
-    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.MULTIPART_MIXED_VALUE)
+    @RequestMapping(value = "{id}", method = RequestMethod.GET,produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<?> getAttachment(@PathVariable String id) {
         try {
             String file = attachmentService.get(id);
@@ -61,6 +61,16 @@ public class AttachmentControllerV2 {
             return ResponseEntity.ok(gson.toJson(attachmentService.getAll(objectId)));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+        }
+    }
+
+    @RequestMapping(value = "migrate-to-gcp", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> migrateToGcp() {
+        try {
+            int migrated = attachmentService.migrateLegacyDatabaseFilesToGcp();
+            return ResponseEntity.ok(java.util.Map.of("migrated", migrated));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 

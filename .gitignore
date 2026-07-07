@@ -32,3 +32,23 @@ build/
 ### VS Code ###
 .vscode/
 !/Dockerfile
+
+### Runtime logs / crash dumps ###
+*.log
+hs_err_pid*.log
+replay_pid*.log
+compile_errors.txt
+build_output.txt
+errors.txt
+
+### Secrets / keys ###
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.key
+*.crt
+.env
+.env.*
+application-*-local.properties

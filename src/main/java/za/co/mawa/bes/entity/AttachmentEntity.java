@@ -43,9 +43,28 @@ public class AttachmentEntity implements Serializable {
     @Column(name = "download_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date downloadDate;
+    /**
+     * Legacy column. New uploads are stored in Google Cloud Storage and this column is kept null.
+     * Existing records can be migrated with POST /v2/attachment/migrate-to-gcp.
+     */
     @Lob
     @Column(name = "file")
     private byte[] file;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "storage_bucket")
+    private String storageBucket;
+
+    @Column(name = "storage_provider")
+    private String storageProvider;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "file_size")
+    private Long fileSize;
 
     @Column(name = "extension")
     private String extension;

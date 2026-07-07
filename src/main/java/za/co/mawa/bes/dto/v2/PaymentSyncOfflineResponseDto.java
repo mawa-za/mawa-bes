@@ -19,6 +19,10 @@ public class PaymentSyncOfflineResponseDto {
 
     private String membershipId;
 
+    private String groupSocietyId;
+
+    private String partnerId;
+
     private String paidUpToPeriod;
 
     private List<ReceiptResponseDto> receipts;

@@ -3,6 +3,7 @@ package za.co.mawa.bes.service.v2;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.v2.membership.claim.*;
 import za.co.mawa.bes.dto.v2.payment.PaymentRequestResponse;
@@ -16,6 +17,7 @@ import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -27,21 +29,29 @@ import java.util.stream.Collectors;
 public class MembershipClaimService {
     @Autowired
     NumberRangeService numberRangeService;
+    @Autowired
+    ClaimFormGenerationService claimFormGenerationService;
     private final MembershipClaimRepository claimRepository;
     private final MembershipClaimLinkRepository claimLinkRepository;
     private final MembershipRepository membershipRepository;
     private final MembershipDependentRepository membershipDependentRepository;
+    private final NumberAllocationService numberAllocationService;
+    private final JdbcTemplate jdbcTemplate;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
             MembershipClaimLinkRepository claimLinkRepository,
             MembershipRepository membershipRepository,
-            MembershipDependentRepository membershipDependentRepository
+            MembershipDependentRepository membershipDependentRepository,
+            NumberAllocationService numberAllocationService,
+            JdbcTemplate jdbcTemplate
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
         this.membershipRepository = membershipRepository;
         this.membershipDependentRepository = membershipDependentRepository;
+        this.numberAllocationService = numberAllocationService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -59,11 +69,7 @@ public class MembershipClaimService {
         );
 
         MembershipClaimEntity entity = new MembershipClaimEntity();
-        try {
-            entity.setClaimNo(numberRangeService.generateNumber("CLAIM"));
-        } catch (NumberRangeObjectNotFound e) {
-            throw new RuntimeException(e);
-        }
+        entity.setClaimNo(generateMembershipClaimNo());
         entity.setMembershipId(request.getMembershipId());
         entity.setClaimType(request.getClaimType());
         entity.setDeceasedType(request.getDeceasedType());
@@ -81,6 +87,10 @@ public class MembershipClaimService {
         entity.setCreatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
+
+        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED) {
+            claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        }
 
         if (saved.getClaimType() == MembershipClaimType.COMBINATION
                 && request.getLinkedClaimIds() != null
@@ -201,7 +211,9 @@ public class MembershipClaimService {
         entity.setNotes(request.getNotes());
         entity.setUpdatedBy(userId);
 
-        return toResponse(claimRepository.save(entity));
+        MembershipClaimEntity saved = claimRepository.save(entity);
+        refreshLinkedFuneralServiceStatus(saved.getId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -219,7 +231,25 @@ public class MembershipClaimService {
         entity.setStatus(MembershipClaimStatus.SUBMITTED);
         entity.setUpdatedBy(userId);
 
-        return toResponse(claimRepository.save(entity));
+        MembershipClaimEntity saved = claimRepository.save(entity);
+        claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        refreshLinkedFuneralServiceStatus(saved.getId());
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public MembershipClaimResponse markApprovedFromWorkflow(String id, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(id);
+        entity.setStatus(MembershipClaimStatus.APPROVED);
+        if (entity.getApprovedAmountCents() == null || entity.getApprovedAmountCents() <= 0) {
+            entity.setApprovedAmountCents(entity.getClaimAmountCents() == null ? 0L : entity.getClaimAmountCents());
+        }
+        entity.setApprovedBy(userId);
+        entity.setApprovedAt(java.time.LocalDateTime.now());
+        entity.setUpdatedBy(userId);
+        MembershipClaimEntity saved = claimRepository.save(entity);
+        refreshLinkedFuneralServiceStatus(saved.getId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -372,6 +402,53 @@ public class MembershipClaimService {
         claimLinkRepository.save(link);
     }
 
+
+    private String generateMembershipClaimNo() {
+        try {
+            return numberAllocationService.allocateNumber("MEMBERSHIP_CLAIM");
+        } catch (Exception ignored) {
+            try {
+                return numberAllocationService.allocateNumber("CLAIM");
+            } catch (Exception ignoredAgain) {
+                try {
+                    return numberRangeService.generateNumber("CLAIM");
+                } catch (NumberRangeObjectNotFound e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private Long resolveApprovedAmount(MembershipClaimEntity entity) {
+        if (entity.getStatus() == MembershipClaimStatus.APPROVED
+                || entity.getStatus() == MembershipClaimStatus.PAID) {
+            return entity.getApprovedAmountCents() == null ? entity.getClaimAmountCents() : entity.getApprovedAmountCents();
+        }
+        return entity.getApprovedAmountCents() == null ? 0L : entity.getApprovedAmountCents();
+    }
+
+    private void refreshLinkedFuneralServiceStatus(String membershipClaimId) {
+        try {
+            jdbcTemplate.update("""
+                    UPDATE funeral_service fs
+                       SET fs.status = CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                                 FROM funeral_service_claim fsc
+                                 JOIN membership_claim mc ON mc.id = fsc.membership_claim_id
+                                WHERE fsc.funeral_service_id = fs.id
+                                  AND mc.status IN ('DRAFT', 'SUBMITTED')
+                           ) THEN 'CLAIMS_INITIATED'
+                           ELSE 'CLAIMS_RESOLVED'
+                       END,
+                       fs.updated_at = CURRENT_TIMESTAMP
+                     WHERE fs.id IN (SELECT funeral_service_id FROM funeral_service_claim WHERE membership_claim_id = ?)
+                    """, membershipClaimId);
+        } catch (Exception ignored) {
+            // Funeral linkage is optional for normal membership claims.
+        }
+    }
+
     private void validateCreateRequest(MembershipClaimCreateRequest request) {
         if (!StringUtils.hasText(request.getMembershipId())) {
             throw new IllegalArgumentException("Membership ID is required.");
@@ -512,6 +589,7 @@ public class MembershipClaimService {
                 .setDeathCertificateNo(entity.getDeathCertificateNo())
                 .setClaimantPartnerId(entity.getClaimantPartnerId())
                 .setClaimAmountCents(entity.getClaimAmountCents())
+                .setApprovedAmountCents(resolveApprovedAmount(entity))
                 .setCombinedClaimAmountCents(entity.getClaimAmountCents() + linkedTotal)
                 .setStatus(entity.getStatus())
                 .setRejectionReason(entity.getRejectionReason())

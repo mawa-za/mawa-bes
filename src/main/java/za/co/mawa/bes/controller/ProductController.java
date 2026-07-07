@@ -40,14 +40,15 @@ public class ProductController {
         try {
             return ResponseEntity.ok(gson.toJson(productService.create(productCreateDto)));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
                                          @RequestParam(required = false) String category,
-                                         @RequestParam(required = false) String type) {
+                                         @RequestParam(required = false) String type,
+                                         @RequestParam(required = false) String query) {
         try {
             ProductQueryDto productQueryDto = new ProductQueryDto();
             if (code != null && code != "") {
@@ -58,6 +59,9 @@ public class ProductController {
             }
             if (type != null && type != "") {
                 productQueryDto.setType(type);
+            }
+            if (query != null && query != "") {
+                productQueryDto.setDescription(query);
             }
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {

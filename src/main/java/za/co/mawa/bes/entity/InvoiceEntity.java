@@ -67,6 +67,24 @@ public class InvoiceEntity {
     @Column(name = "notes")
     private String notes;
 
+    @Column(name = "xero_invoice_id")
+    private String xeroInvoiceId;
+
+    @Column(name = "xero_invoice_no")
+    private String xeroInvoiceNo;
+
+    @Column(name = "integration_status")
+    private String integrationStatus;
+
+    @Column(name = "integration_error", columnDefinition = "TEXT")
+    private String integrationError;
+
+    @Column(name = "integration_last_attempt_at")
+    private LocalDateTime integrationLastAttemptAt;
+
+    @Column(name = "integration_posted_at")
+    private LocalDateTime integrationPostedAt;
+
 //    @Column(name = "created_at", updatable = false)
 //    private LocalDateTime createdAt;
 

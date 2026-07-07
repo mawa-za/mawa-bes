@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dto.v2.funeral;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,12 +11,18 @@ import java.util.List;
 @Setter
 public class FuneralServiceRequestDto {
     private String mortuaryInventoryId;
+    private String serviceRequestNo;
     private String deceasedName;
     private String deceasedIdentityNumber;
     private String deceasedPartnerId;
     private String packageId;
+    @JsonAlias({"familyRepPartnerId", "familyRepresentativePartnerId"})
     private String familyRepId;
     private LocalDate funeralDate;
+    @JsonAlias({"funeralLocation", "serviceLocation"})
     private String funeralArea;
+    @JsonAlias({"certificateNumber", "deathCertificateNumber", "deathCertificateNo"})
+    private String deathCertificateNo;
+    private String causeOfDeath;
     private List<FuneralExtraDto> extras;
 }
