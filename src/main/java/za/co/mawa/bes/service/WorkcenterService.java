@@ -20,6 +20,13 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("dashboard","Dashboard",""));
 //        workcenterDtoList.add(new WorkcenterDto("home","Home",""));
 //        workcenterDtoList.add(new WorkcenterDto("prospect","Prospects","search"));
+        workcenterDtoList.add(new WorkcenterDto("membership-management","Membership Management",""));
+        workcenterDtoList.add(new WorkcenterDto("funeral-management","Funeral Management",""));
+        workcenterDtoList.add(new WorkcenterDto("finance-management","Finance Management",""));
+        workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management",""));
+        workcenterDtoList.add(new WorkcenterDto("scheduling","Calendar & Appointments",""));
+        workcenterDtoList.add(new WorkcenterDto("partner-management","Partner Management",""));
+        workcenterDtoList.add(new WorkcenterDto("administration","Administration",""));
         workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
         workcenterDtoList.add(new WorkcenterDto("client","Clients","search"));
         workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
@@ -44,7 +51,6 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("membership-plan","Membership Plans","search"));
         workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
         workcenterDtoList.add(new WorkcenterDto("product","Products","search"));
-        workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management","search"));
         workcenterDtoList.add(new WorkcenterDto("goods-receipt","Goods Receipt","search"));
         workcenterDtoList.add(new WorkcenterDto("putaway","Putaway","search"));
         workcenterDtoList.add(new WorkcenterDto("stock-on-hand","Stock on Hand","search"));
