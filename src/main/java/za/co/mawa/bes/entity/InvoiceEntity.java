@@ -31,6 +31,12 @@ public class InvoiceEntity {
     @Column(name = "external_ref")
     private String externalRef;
 
+    @Column(name = "source_type", length = 50)
+    private String sourceType;
+
+    @Column(name = "source_id", length = 36)
+    private String sourceId;
+
     @Column(name = "partner_id", nullable = false)
     private String partnerId;
 
