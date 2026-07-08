@@ -69,6 +69,68 @@ public class StockOperationsControllerV2 {
         return ResponseEntity.ok(stockOperationsService.getMovements(productId, null, null, null, null, null));
     }
 
+    @PostMapping("/quotations")
+    public ResponseEntity<Map<String, Object>> createQuotation(@RequestBody StockDtos.QuotationRequest request,
+                                                               @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.createQuotation(request, userId));
+    }
+
+    @GetMapping("/quotations")
+    public ResponseEntity<List<Map<String, Object>>> quotations(@RequestParam(required = false) String status,
+                                                                 @RequestParam(required = false) String customerPartnerId) {
+        return ResponseEntity.ok(stockOperationsService.getQuotations(status, customerPartnerId));
+    }
+
+    @GetMapping("/quotations/{id}")
+    public ResponseEntity<Map<String, Object>> quotation(@PathVariable String id) {
+        return ResponseEntity.ok(stockOperationsService.getQuotation(id));
+    }
+
+    @PostMapping("/quotations/{id}/status")
+    public ResponseEntity<Map<String, Object>> updateQuotationStatus(@PathVariable String id,
+                                                                      @RequestBody StockDtos.StatusUpdateRequest request,
+                                                                      @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.updateQuotationStatus(id, request, userId));
+    }
+
+    @PostMapping("/quotations/{id}/convert-to-sales-order")
+    public ResponseEntity<Map<String, Object>> convertQuotationToSalesOrder(@PathVariable String id,
+                                                                             @RequestBody(required = false) StockDtos.ConvertQuotationRequest request,
+                                                                             @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.convertQuotationToSalesOrder(id, request, userId));
+    }
+
+    @PostMapping("/purchase-orders")
+    public ResponseEntity<Map<String, Object>> createPurchaseOrder(@RequestBody StockDtos.PurchaseOrderRequest request,
+                                                                    @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.createPurchaseOrder(request, userId));
+    }
+
+    @GetMapping("/purchase-orders")
+    public ResponseEntity<List<Map<String, Object>>> purchaseOrders(@RequestParam(required = false) String status,
+                                                                     @RequestParam(required = false) String supplierPartnerId) {
+        return ResponseEntity.ok(stockOperationsService.getPurchaseOrders(status, supplierPartnerId));
+    }
+
+    @GetMapping("/purchase-orders/{id}")
+    public ResponseEntity<Map<String, Object>> purchaseOrder(@PathVariable String id) {
+        return ResponseEntity.ok(stockOperationsService.getPurchaseOrder(id));
+    }
+
+    @PostMapping("/purchase-orders/{id}/status")
+    public ResponseEntity<Map<String, Object>> updatePurchaseOrderStatus(@PathVariable String id,
+                                                                          @RequestBody StockDtos.StatusUpdateRequest request,
+                                                                          @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.updatePurchaseOrderStatus(id, request, userId));
+    }
+
+    @PostMapping("/purchase-orders/{id}/goods-receipt")
+    public ResponseEntity<Map<String, Object>> receivePurchaseOrder(@PathVariable String id,
+                                                                     @RequestBody(required = false) StockDtos.GoodsReceiptRequest request,
+                                                                     @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.createGoodsReceiptForPurchaseOrder(id, request, userId));
+    }
+
     @PostMapping("/goods-receipts")
     public ResponseEntity<Map<String, Object>> createGoodsReceipt(@RequestBody StockDtos.GoodsReceiptRequest request,
                                                                    @RequestHeader(value = "X-User-Id", required = false) String userId) {
@@ -115,6 +177,19 @@ public class StockOperationsControllerV2 {
     @GetMapping("/sales-orders/{id}")
     public ResponseEntity<Map<String, Object>> salesOrder(@PathVariable String id) {
         return ResponseEntity.ok(stockOperationsService.getSalesOrder(id));
+    }
+
+    @PostMapping("/sales-orders/{id}/reserve")
+    public ResponseEntity<Map<String, Object>> reserveSalesOrder(@PathVariable String id,
+                                                                  @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.reserveSalesOrder(id, userId));
+    }
+
+    @PostMapping("/sales-orders/{id}/issue")
+    public ResponseEntity<Map<String, Object>> issueSalesOrder(@PathVariable String id,
+                                                                @RequestBody(required = false) StockDtos.SalesOrderIssueRequest request,
+                                                                @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.issueSalesOrder(id, request, userId));
     }
 
     @PostMapping("/sales-orders/{id}/status")
