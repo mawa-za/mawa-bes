@@ -156,6 +156,16 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+
+    @PutMapping(value = "/service-request/{id}/package", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateServiceRequestPackage(@PathVariable String id, @RequestBody FuneralServiceRequestDto request) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updateServiceRequestPackage(id, request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PostMapping(value = "/service-request/{id}/initiate-claims", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> initiateClaims(@PathVariable String id, @RequestBody InitiateFuneralClaimsDto request) {
         try {
