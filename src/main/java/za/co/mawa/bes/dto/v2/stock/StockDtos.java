@@ -80,6 +80,7 @@ public class StockDtos {
         private String batchNo;
         private LocalDate expiryDate;
         private BigDecimal unitCost;
+        private BigDecimal taxRate;
     }
 
     @Data
