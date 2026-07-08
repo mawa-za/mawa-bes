@@ -117,16 +117,16 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getQuotations(String status, String customerPartnerId) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM quotation WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT q.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id LEFT JOIN (SELECT quotation_id, COUNT(*) AS line_count FROM quotation_line GROUP BY quotation_id) l ON l.quotation_id = q.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
-        if (hasText(status)) { sql.append(" AND status = ?"); args.add(status.trim().toUpperCase()); }
-        if (hasText(customerPartnerId)) { sql.append(" AND customer_partner_id = ?"); args.add(customerPartnerId); }
-        sql.append(" ORDER BY created_at DESC LIMIT 300");
+        if (hasText(status)) { sql.append(" AND q.status = ?"); args.add(status.trim().toUpperCase()); }
+        if (hasText(customerPartnerId)) { sql.append(" AND q.customer_partner_id = ?"); args.add(customerPartnerId); }
+        sql.append(" ORDER BY q.created_at DESC LIMIT 300");
         return jdbcTemplate.queryForList(sql.toString(), args.toArray());
     }
 
     public Map<String, Object> getQuotation(String id) {
-        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT * FROM quotation WHERE id = ?", id);
+        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT q.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id WHERE q.id = ?", id);
         quotation.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM quotation_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.quotation_id = ? ORDER BY l.line_no", id));
         return quotation;
     }
@@ -198,16 +198,16 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getPurchaseOrders(String status, String supplierPartnerId) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM purchase_order WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT po.*, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id LEFT JOIN (SELECT purchase_order_id, COUNT(*) AS line_count FROM purchase_order_line GROUP BY purchase_order_id) l ON l.purchase_order_id = po.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
-        if (hasText(status)) { sql.append(" AND status = ?"); args.add(status.trim().toUpperCase()); }
-        if (hasText(supplierPartnerId)) { sql.append(" AND supplier_partner_id = ?"); args.add(supplierPartnerId); }
-        sql.append(" ORDER BY created_at DESC LIMIT 300");
+        if (hasText(status)) { sql.append(" AND po.status = ?"); args.add(status.trim().toUpperCase()); }
+        if (hasText(supplierPartnerId)) { sql.append(" AND po.supplier_partner_id = ?"); args.add(supplierPartnerId); }
+        sql.append(" ORDER BY po.created_at DESC LIMIT 300");
         return jdbcTemplate.queryForList(sql.toString(), args.toArray());
     }
 
     public Map<String, Object> getPurchaseOrder(String id) {
-        Map<String, Object> po = jdbcTemplate.queryForMap("SELECT * FROM purchase_order WHERE id = ?", id);
+        Map<String, Object> po = jdbcTemplate.queryForMap("SELECT po.*, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id WHERE po.id = ?", id);
         po.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM purchase_order_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.purchase_order_id = ? ORDER BY l.line_no", id));
         return po;
     }
@@ -242,6 +242,7 @@ public class StockOperationsService {
                     grLine.setQuantity(openQty);
                     grLine.setUom(defaultText(text(poLine.get("uom")), "EA"));
                     grLine.setUnitCost(decimal(poLine.get("unit_cost")));
+                    grLine.setTaxRate(decimal(poLine.get("tax_rate")));
                     request.getLines().add(grLine);
                 }
             }
@@ -261,9 +262,10 @@ public class StockOperationsService {
         String warehouseId = required(request.getWarehouseId(), "warehouseId");
         String locationId = required(request.getStorageLocationId(), "storageLocationId");
         LocalDate receiptDate = request.getReceiptDate() == null ? LocalDate.now() : request.getReceiptDate();
+        AmountTotals totals = goodsReceiptTotals(request.getLines());
 
-        jdbcTemplate.update("INSERT INTO goods_receipt (id, receipt_no, purchase_order_id, purchase_order_no, supplier_partner_id, supplier_reference, warehouse_id, storage_location_id, receipt_date, status, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                receiptId, receiptNo, request.getPurchaseOrderId(), request.getPurchaseOrderNo(), request.getSupplierPartnerId(), request.getSupplierReference(), warehouseId, locationId, Date.valueOf(receiptDate), "RECEIVED", request.getNotes(), nowTs(), userId, nowTs(), userId);
+        jdbcTemplate.update("INSERT INTO goods_receipt (id, receipt_no, purchase_order_id, purchase_order_no, supplier_partner_id, supplier_reference, warehouse_id, storage_location_id, receipt_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                receiptId, receiptNo, request.getPurchaseOrderId(), request.getPurchaseOrderNo(), request.getSupplierPartnerId(), request.getSupplierReference(), warehouseId, locationId, Date.valueOf(receiptDate), "RECEIVED", "ZAR", totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
 
         int lineNo = 10;
         for (StockDtos.GoodsReceiptLineRequest line : request.getLines()) {
@@ -271,8 +273,12 @@ public class StockOperationsService {
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
             String lineId = uuid();
             BigDecimal unitCost = money(line.getUnitCost());
-            jdbcTemplate.update("INSERT INTO goods_receipt_line (id, goods_receipt_id, line_no, purchase_order_line_id, product_id, quantity, open_putaway_qty, uom, batch_no, expiry_date, unit_cost, received_value, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    lineId, receiptId, lineNo, line.getPurchaseOrderLineId(), productId, qty, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), line.getExpiryDate() == null ? null : Date.valueOf(line.getExpiryDate()), unitCost, unitCost.multiply(qty).setScale(2, RoundingMode.HALF_UP), nowTs(), userId);
+            BigDecimal taxRate = percent(line.getTaxRate());
+            BigDecimal lineSubtotal = unitCost.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            BigDecimal lineTotal = lineSubtotal.add(lineTax).setScale(2, RoundingMode.HALF_UP);
+            jdbcTemplate.update("INSERT INTO goods_receipt_line (id, goods_receipt_id, line_no, purchase_order_line_id, product_id, quantity, open_putaway_qty, uom, batch_no, expiry_date, unit_cost, tax_rate, line_subtotal, line_tax, line_total, received_value, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    lineId, receiptId, lineNo, line.getPurchaseOrderLineId(), productId, qty, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), line.getExpiryDate() == null ? null : Date.valueOf(line.getExpiryDate()), unitCost, taxRate, lineSubtotal, lineTax, lineTotal, lineTotal, nowTs(), userId);
             applyBalance(productId, warehouseId, locationId, qty, BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
             createMovement("GOODS_RECEIPT", receiptId, receiptNo, productId, warehouseId, null, locationId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId, "Goods receipt " + receiptNo);
             if (hasText(line.getPurchaseOrderLineId())) {
@@ -287,12 +293,12 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getGoodsReceipts(String status) {
-        if (hasText(status)) return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id WHERE gr.status = ? ORDER BY gr.created_at DESC", status.trim().toUpperCase());
-        return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id ORDER BY gr.created_at DESC LIMIT 300");
+        if (hasText(status)) return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id WHERE gr.status = ? ORDER BY gr.created_at DESC", status.trim().toUpperCase());
+        return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id ORDER BY gr.created_at DESC LIMIT 300");
     }
 
     public Map<String, Object> getGoodsReceipt(String id) {
-        Map<String, Object> receipt = jdbcTemplate.queryForMap("SELECT gr.*, po.purchase_order_no FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id WHERE gr.id = ?", id);
+        Map<String, Object> receipt = jdbcTemplate.queryForMap("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id WHERE gr.id = ?", id);
         receipt.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM goods_receipt_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.goods_receipt_id = ? ORDER BY l.line_no", id));
         return receipt;
     }
@@ -371,12 +377,12 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getSalesOrders(String status) {
-        if (hasText(status)) return jdbcTemplate.queryForList("SELECT * FROM sales_order WHERE status = ? ORDER BY created_at DESC", status.trim().toUpperCase());
-        return jdbcTemplate.queryForList("SELECT * FROM sales_order ORDER BY created_at DESC LIMIT 300");
+        if (hasText(status)) return jdbcTemplate.queryForList("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id WHERE so.status = ? ORDER BY so.created_at DESC", status.trim().toUpperCase());
+        return jdbcTemplate.queryForList("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id ORDER BY so.created_at DESC LIMIT 300");
     }
 
     public Map<String, Object> getSalesOrder(String id) {
-        Map<String, Object> order = jdbcTemplate.queryForMap("SELECT * FROM sales_order WHERE id = ?", id);
+        Map<String, Object> order = jdbcTemplate.queryForMap("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id WHERE so.id = ?", id);
         order.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM sales_order_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.sales_order_id = ? ORDER BY l.line_no", id));
         return order;
     }
@@ -585,6 +591,21 @@ public class StockOperationsService {
         for (StockDtos.SalesOrderLineRequest line : lines) {
             BigDecimal qty = positive(line.getQuantity(), "quantity");
             BigDecimal unit = money(line.getUnitPrice());
+            BigDecimal taxRate = percent(line.getTaxRate());
+            BigDecimal subtotal = unit.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal tax = subtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            totals.subtotal = totals.subtotal.add(subtotal);
+            totals.tax = totals.tax.add(tax);
+            totals.total = totals.total.add(subtotal).add(tax);
+        }
+        return totals;
+    }
+
+    private AmountTotals goodsReceiptTotals(List<StockDtos.GoodsReceiptLineRequest> lines) {
+        AmountTotals totals = new AmountTotals();
+        for (StockDtos.GoodsReceiptLineRequest line : lines) {
+            BigDecimal qty = positive(line.getQuantity(), "quantity");
+            BigDecimal unit = money(line.getUnitCost());
             BigDecimal taxRate = percent(line.getTaxRate());
             BigDecimal subtotal = unit.multiply(qty).setScale(2, RoundingMode.HALF_UP);
             BigDecimal tax = subtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
