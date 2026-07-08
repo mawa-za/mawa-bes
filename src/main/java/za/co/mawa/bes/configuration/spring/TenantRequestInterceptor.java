@@ -44,6 +44,9 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
+        if (requestURI.startsWith("/internal/admin/") || "/v2/admin-handoff/exchange".equals(requestURI)) {
+            return true;
+        }
         if (isGet.test(method) && requestURI.contains("/xero/callback")) {
             String tenant = firstNonBlank(
                     request.getParameter("state"),
