@@ -29,6 +29,8 @@ EXPOSE 8080
 # Copy JAR from build stage
 ARG JAR_FILE=/home/app/target/mawa-bes.jar
 COPY --from=build ${JAR_FILE} app.jar
+COPY scripts/run-flyway-migration-job.sh /run-flyway-migration-job.sh
+RUN chmod +x /run-flyway-migration-job.sh
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "/app.jar"]
