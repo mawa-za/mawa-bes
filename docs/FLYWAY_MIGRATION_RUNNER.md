@@ -59,4 +59,4 @@ Use `MAWA_FLYWAY_REPAIR_FAILED=true` only deliberately after checking `flyway_sc
 
 ## Cloud Run Job web context note
 
-For Cloud Run Jobs, keep `--spring.main.web-application-type=none` or `SPRING_MAIN_WEB_APPLICATION_TYPE=none`. The job does not need Tomcat because it should run migrations and exit. Web MVC and servlet security configuration are conditionally loaded only for API service mode, so they do not block the non-web migration context.
+For Cloud Run Jobs, run the normal Spring web context but set `MAWA_SCHEDULER_ENABLED=false`. This keeps security/controllers available while preventing scheduled background workers from querying tenant tables before Flyway has upgraded them. The job exits after Flyway because `MAWA_FLYWAY_JOB_EXIT_ON_COMPLETE=true`.

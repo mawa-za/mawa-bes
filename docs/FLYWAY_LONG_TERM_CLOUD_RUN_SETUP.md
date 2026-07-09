@@ -27,7 +27,7 @@ Use this command/args on the Cloud Run Job:
 
 ```text
 command: java
-args: -jar,/app.jar,--spring.main.web-application-type=none,--mawa.flyway.startup.enabled=false,--mawa.flyway.startup.mode=disabled,--mawa.flyway.job.enabled=true,--mawa.flyway.job.exit-on-complete=true,--mawa.flyway.continue-on-error=false
+args: -jar,/app.jar,--mawa.flyway.startup.enabled=false,--mawa.flyway.startup.mode=disabled,--mawa.flyway.job.enabled=true,--mawa.flyway.job.exit-on-complete=true,--mawa.flyway.continue-on-error=false
 ```
 
 Recommended environment variables for the job:
@@ -112,7 +112,8 @@ Do not leave this as the permanent Cloud Run service configuration.
 The migration job is intended to run with:
 
 ```text
-SPRING_MAIN_WEB_APPLICATION_TYPE=none
+MAWA_SCHEDULER_ENABLED=false
+SPRING_TASK_SCHEDULING_ENABLED=false
 ```
 
 This prevents the job from exposing API endpoints while it performs database migration work. Servlet-only configuration such as Web MVC, request interceptors, JWT filters, and servlet security must therefore only load when the application is running as a servlet web application. The backend marks those components with `@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)` so the migration job can start a non-web Spring context, connect to the database, run Flyway, and exit cleanly.

@@ -7,9 +7,10 @@ set -euo pipefail
 JAR_PATH="${JAR_PATH:-/app.jar}"
 
 exec java -jar "${JAR_PATH}" \
-  --spring.main.web-application-type=none \
   --mawa.flyway.startup.enabled=false \
   --mawa.flyway.startup.mode=disabled \
   --mawa.flyway.job.enabled=true \
   --mawa.flyway.job.exit-on-complete=true \
-  --mawa.flyway.continue-on-error=false
+  --mawa.flyway.continue-on-error=false \
+  --mawa.scheduler.enabled=false \
+  --spring.task.scheduling.enabled=false

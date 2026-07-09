@@ -28,6 +28,8 @@ ENV_PAIRS=(
   "MAWA_FLYWAY_JOB_ENABLED=true"
   "MAWA_FLYWAY_JOB_EXIT_ON_COMPLETE=true"
   "MAWA_FLYWAY_CONTINUE_ON_ERROR=false"
+  "MAWA_SCHEDULER_ENABLED=false"
+  "SPRING_TASK_SCHEDULING_ENABLED=false"
   "MAWA_FLYWAY_REPAIR_FAILED=${MAWA_FLYWAY_REPAIR_FAILED:-false}"
   "MAWA_FLYWAY_BASELINE_ON_MIGRATE=${MAWA_FLYWAY_BASELINE_ON_MIGRATE:-true}"
   "MAWA_FLYWAY_DEFAULT_SCHEMA_ENABLED=${MAWA_FLYWAY_DEFAULT_SCHEMA_ENABLED:-true}"
@@ -55,7 +57,7 @@ ARGS=(
   --region "${REGION}"
   --image "${IMAGE}"
   --command java
-  --args=-jar,/app.jar,--spring.main.web-application-type=none,--mawa.flyway.startup.enabled=false,--mawa.flyway.startup.mode=disabled,--mawa.flyway.job.enabled=true,--mawa.flyway.job.exit-on-complete=true,--mawa.flyway.continue-on-error=false
+  --args=-jar,/app.jar,--mawa.flyway.startup.enabled=false,--mawa.flyway.startup.mode=disabled,--mawa.flyway.job.enabled=true,--mawa.flyway.job.exit-on-complete=true,--mawa.flyway.continue-on-error=false,--mawa.scheduler.enabled=false,--spring.task.scheduling.enabled=false
   --set-env-vars "${ENV_VARS}"
   --tasks 1
   --parallelism 1
