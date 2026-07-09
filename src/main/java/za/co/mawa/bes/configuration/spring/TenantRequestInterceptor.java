@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.spring;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ import java.util.function.Predicate;
 import org.springframework.util.StringUtils;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class TenantRequestInterceptor implements HandlerInterceptor {
     @Autowired
     TenantAdminService tenantAdminService;
