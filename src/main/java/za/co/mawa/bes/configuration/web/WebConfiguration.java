@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.web;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +10,7 @@ import za.co.mawa.bes.configuration.spring.ApiEndpointLoggingInterceptor;
 import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
 
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableWebMvc
 public class WebConfiguration  implements WebMvcConfigurer    {
     private static final String EMAIL_TEMPLATE_ENCODING = "UTF-8";

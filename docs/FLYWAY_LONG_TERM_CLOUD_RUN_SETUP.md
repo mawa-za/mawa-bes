@@ -106,3 +106,15 @@ MAWA_FLYWAY_CONTINUE_ON_ERROR=true
 ```
 
 Do not leave this as the permanent Cloud Run service configuration.
+
+## Non-web migration job startup
+
+The migration job is intended to run with:
+
+```text
+SPRING_MAIN_WEB_APPLICATION_TYPE=none
+```
+
+This prevents the job from exposing API endpoints while it performs database migration work. Servlet-only configuration such as Web MVC, request interceptors, JWT filters, and servlet security must therefore only load when the application is running as a servlet web application. The backend marks those components with `@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)` so the migration job can start a non-web Spring context, connect to the database, run Flyway, and exit cleanly.
+
+If a migration job fails with `No ServletContext set`, deploy a backend image that contains this conditional web-configuration fix, then execute the job again.
