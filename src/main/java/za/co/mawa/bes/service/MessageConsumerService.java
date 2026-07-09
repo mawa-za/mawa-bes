@@ -44,9 +44,10 @@ public class MessageConsumerService {
     private static final String ENABLED = "ENABLED";
     private static final String INTERVAL_SECONDS = "INTERVAL-SECONDS";
     private static final String BATCH_SIZE = "BATCH-SIZE";
+    private static final String RETRY_DELAY_SECONDS = "RETRY-DELAY-SECONDS";
     private final Map<String, LocalDateTime> lastRunByTenant = new ConcurrentHashMap<>();
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
     public void processAllTenants() {
         for (TenantDto tenant : tenantAdminService.getAll()) {
             try {
@@ -84,6 +85,16 @@ public class MessageConsumerService {
         try {
             int parsed = Integer.parseInt(value);
             return Math.max(1, Math.min(parsed, 100));
+        } catch (Exception ignored) {
+            return 10;
+        }
+    }
+
+    public int getRetryDelaySeconds() {
+        String value = settingService.getSetting(RETRY_DELAY_SECONDS, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(5, Math.min(parsed, 3600));
         } catch (Exception ignored) {
             return 10;
         }
@@ -156,7 +167,7 @@ public class MessageConsumerService {
                 if (msg.getRetryCount() > 3) {
                     msg.setProcessed(true);
                 } else {
-                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
                 }
             }
             messageQueueRepository.save(msg);
@@ -181,7 +192,7 @@ public class MessageConsumerService {
             if (msg.getRetryCount() > 3) {
                 msg.setProcessed(true); // Optionally move to DeadLetterQueue
             } else {
-                msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
             }
         }
         messageQueueRepository.save(msg);
