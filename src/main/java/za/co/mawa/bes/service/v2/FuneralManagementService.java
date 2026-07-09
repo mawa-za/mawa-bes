@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.enums.ApprovalType;
 
 import java.time.LocalDate;
@@ -28,6 +29,8 @@ public class FuneralManagementService {
 
     private static final String COVER_SOURCE_LOCAL = "LOCAL_TENANT";
     private static final String COVER_SOURCE_EXTERNAL = "EXTERNAL_TENANT";
+    private static final String FUNERAL_SERVICE_SETTING = "FUNERAL-SERVICE";
+    private static final String MAX_SELECTED_COVERS_ATTRIBUTE = "MAX-SELECTED-COVERS";
 
     private final FuneralPickupRequestRepository pickupRequestRepository;
     private final FuneralMortuaryInventoryRepository mortuaryInventoryRepository;
@@ -42,6 +45,7 @@ public class FuneralManagementService {
     private final ApprovalService approvalService;
     private final NumberAllocationService numberAllocationService;
     private final NumberRangeService numberRangeService;
+    private final SettingService settingService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -204,6 +208,21 @@ public class FuneralManagementService {
                 .collect(Collectors.toList());
     }
 
+    public FuneralServiceConfigurationDto getServiceConfiguration() {
+        int maxSelectableCovers = getMaxSelectableCovers();
+        return FuneralServiceConfigurationDto.builder()
+                .maxSelectableCovers(maxSelectableCovers)
+                .coverSelectionLimitEnabled(maxSelectableCovers > 0)
+                .build();
+    }
+
+    @Transactional
+    public FuneralServiceConfigurationDto updateServiceConfiguration(FuneralServiceConfigurationDto request) {
+        int maxSelectableCovers = normalizeMaxSelectableCovers(request == null ? null : request.getMaxSelectableCovers());
+        settingService.upsertSetting(MAX_SELECTED_COVERS_ATTRIBUTE, FUNERAL_SERVICE_SETTING, String.valueOf(maxSelectableCovers));
+        return getServiceConfiguration();
+    }
+
     public FuneralServiceRequestResponseDto getServiceRequest(String id) {
         return toServiceResponse(getFuneralServiceOrThrow(id));
     }
@@ -267,6 +286,7 @@ public class FuneralManagementService {
         if (selectedMemberships == null || selectedMemberships.isEmpty()) {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
+        validateSelectedCoverLimit(selectedMemberships);
         if (service.getDeceasedPartnerId() == null || service.getDeceasedPartnerId().isBlank()) {
             throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership_claim can be created");
         }
@@ -425,9 +445,11 @@ public class FuneralManagementService {
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
 
         if (request.getMemberships() != null && !request.getMemberships().isEmpty()) {
-            String claimType = request.getEffectiveClaimType(request.getMemberships().size());
-            Map<String, FuneralMembershipCoverDto> covers = resolveSelectedCovers(null, request.getMemberships());
-            for (String selectionId : request.getMemberships()) {
+            List<String> selectedMemberships = request.getMemberships();
+            validateSelectedCoverLimit(selectedMemberships);
+            String claimType = request.getEffectiveClaimType(selectedMemberships.size());
+            Map<String, FuneralMembershipCoverDto> covers = resolveSelectedCovers(null, selectedMemberships);
+            for (String selectionId : selectedMemberships) {
                 FuneralMembershipCoverDto cover = covers.get(selectionId);
                 if (cover == null || remaining <= 0) continue;
                 long amount = Math.min(defaultLong(cover.amountForClaimType(claimType)), remaining);
@@ -968,6 +990,43 @@ public class FuneralManagementService {
 
     private boolean isApprovedStatus(String status) {
         return List.of("APPROVED", "PARTIALLY_APPROVED", "PAID").contains(defaultString(status, ""));
+    }
+
+    private void validateSelectedCoverLimit(List<String> selectedMemberships) {
+        int maxSelectableCovers = getMaxSelectableCovers();
+        if (maxSelectableCovers <= 0 || selectedMemberships == null) {
+            return;
+        }
+        int selectedCount = (int) selectedMemberships.stream()
+                .filter(value -> value != null && !value.trim().isEmpty())
+                .distinct()
+                .count();
+        if (selectedCount > maxSelectableCovers) {
+            throw new IllegalArgumentException("A maximum of " + maxSelectableCovers + " cover(s) can be selected for a funeral service. You selected " + selectedCount + ".");
+        }
+    }
+
+    private int getMaxSelectableCovers() {
+        String value = settingService.getSetting(MAX_SELECTED_COVERS_ATTRIBUTE, FUNERAL_SERVICE_SETTING);
+        return normalizeMaxSelectableCovers(parseInteger(value, 0));
+    }
+
+    private int normalizeMaxSelectableCovers(Integer value) {
+        if (value == null || value <= 0) {
+            return 0;
+        }
+        return Math.min(value, 99);
+    }
+
+    private int parseInteger(String value, int fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     private void validateRequired(String value, String fieldName) {
