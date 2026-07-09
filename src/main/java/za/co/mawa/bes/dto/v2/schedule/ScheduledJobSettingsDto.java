@@ -1,4 +1,4 @@
-package za.co.mawa.bes.dto.v2.message;
+package za.co.mawa.bes.dto.v2.schedule;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,11 +11,12 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageQueueScheduleSettingsDto {
+public class ScheduledJobSettingsDto {
+    private String jobCode;
+    private String name;
+    private String description;
     private boolean enabled;
-    private int intervalSeconds;
-    private int batchSize;
-    private int retryDelaySeconds;
+    private int intervalMinutes;
     private String lastRunAt;
     private String nextRunAt;
 }

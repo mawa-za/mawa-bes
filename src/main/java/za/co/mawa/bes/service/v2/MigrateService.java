@@ -22,6 +22,7 @@ import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.PremiumService;
 import za.co.mawa.bes.service.ProductService;
+import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.TransactionType;
@@ -40,6 +41,11 @@ import java.util.Set;
 @Service
 public class MigrateService {
     private static final Set<String> DEPENDENT_PARTNER_FUNCTIONS = Set.of("DEPENDENT", "DEPENDANT");
+    public static final String LEGACY_MEMBERSHIP_MIGRATION_JOB = "LEGACY_MEMBERSHIP_MIGRATION";
+    private static final String LEGACY_MIGRATION_GROUP = "LEGACY-MIGRATION";
+    private static final String ENABLED = "ENABLED";
+    private static final String INTERVAL_MINUTES = "INTERVAL-MINUTES";
+    private static final String LAST_RUN_AT = "LAST-RUN-AT";
 
     @Autowired
     TransactionService transactionService;
@@ -60,6 +66,8 @@ public class MigrateService {
     TenantAdminService tenantAdminService;
     @Autowired
     ProductService productService;
+    @Autowired
+    SettingService settingService;
     @Autowired
     MembershipPlanRepository membershipPlanRepository;
     @Autowired
@@ -108,9 +116,70 @@ public class MigrateService {
         }
     }
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Africa/Johannesburg")
+    @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
     public void migrateMembershipsScheduled() {
+        if (!isScheduledMigrationEnabled() || !isScheduledMigrationDue()) {
+            return;
+        }
+        markScheduledMigrationRun();
         migrateMemberships();
+    }
+
+    public boolean isScheduledMigrationEnabled() {
+        String enabled = settingService.getSetting(ENABLED, LEGACY_MIGRATION_GROUP);
+        return "true".equalsIgnoreCase(enabled) || "1".equals(enabled) || "Y".equalsIgnoreCase(enabled);
+    }
+
+    public int getScheduledMigrationIntervalMinutes() {
+        String value = settingService.getSetting(INTERVAL_MINUTES, LEGACY_MIGRATION_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(5, Math.min(parsed, 10080));
+        } catch (Exception ignored) {
+            return 1440;
+        }
+    }
+
+    public LocalDateTime getScheduledMigrationLastRunAt() {
+        String value = settingService.getSetting(LAST_RUN_AT, LEGACY_MIGRATION_GROUP);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    public LocalDateTime getScheduledMigrationNextRunAt() {
+        if (!isScheduledMigrationEnabled()) {
+            return null;
+        }
+        LocalDateTime lastRunAt = getScheduledMigrationLastRunAt();
+        if (lastRunAt == null) {
+            return LocalDateTime.now();
+        }
+        return lastRunAt.plusMinutes(getScheduledMigrationIntervalMinutes());
+    }
+
+    public void updateScheduledMigrationSettings(boolean enabled, int intervalMinutes) {
+        settingService.upsertSetting(ENABLED, LEGACY_MIGRATION_GROUP, String.valueOf(enabled));
+        settingService.upsertSetting(INTERVAL_MINUTES, LEGACY_MIGRATION_GROUP, String.valueOf(Math.max(5, Math.min(intervalMinutes <= 0 ? 1440 : intervalMinutes, 10080))));
+    }
+
+    public MembershipMigrationResult runScheduledMigrationNow() {
+        markScheduledMigrationRun();
+        return migrateMemberships();
+    }
+
+    private boolean isScheduledMigrationDue() {
+        LocalDateTime nextRunAt = getScheduledMigrationNextRunAt();
+        return nextRunAt != null && !nextRunAt.isAfter(LocalDateTime.now());
+    }
+
+    private void markScheduledMigrationRun() {
+        settingService.upsertSetting(LAST_RUN_AT, LEGACY_MIGRATION_GROUP, LocalDateTime.now().toString());
     }
 
     public MembershipMigrationResult migrateMemberships() {
