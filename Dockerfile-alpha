@@ -8,15 +8,6 @@ WORKDIR /home/app
 COPY src /home/app/src
 COPY pom.xml /home/app/
 
-# Clone Flyway scripts. Override with --build-arg FLYWAY_BRANCH=<branch> if needed.
-ARG FLYWAY_BRANCH=alpha
-RUN mkdir -p /home/app/src/main/resources/db/migration \
-    && git clone --branch ${FLYWAY_BRANCH} --single-branch --depth 1 https://github.com/mawa-za/mawa-flyway-scripts.git /tmp/flyway-scripts \
-    && cp -r /tmp/flyway-scripts/* /home/app/src/main/resources/db/migration/ \
-    && rm -rf /tmp/flyway-scripts
-
-RUN ls -R /home/app/src/main/resources/db/migration
-
 # Build the application
 RUN mvn clean package -DskipTests -Palpha
 
@@ -29,8 +20,5 @@ EXPOSE 8080
 # Copy JAR from build stage
 ARG JAR_FILE=/home/app/target/mawa-bes.jar
 COPY --from=build ${JAR_FILE} app.jar
-COPY scripts/run-flyway-migration-job.sh /run-flyway-migration-job.sh
-RUN chmod +x /run-flyway-migration-job.sh
-
 # Run the application
 ENTRYPOINT ["java", "-jar", "/app.jar"]
