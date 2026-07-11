@@ -44,11 +44,6 @@ public class TenantController {
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.dialect", "org.hibernate.dialect.MySQLDialect"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.default_schema", "mawa"));
 
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.url", tenantDto.getDatabase_url()));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.user", tenantDto.getDatabase_username()));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.password", password));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.flyway.baseline-on-migrate", "true"));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.flyway.enabled", "false"));
 
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.datasource.url", tenantDto.getDatabase_url()));
