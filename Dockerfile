@@ -13,6 +13,8 @@ RUN mvn clean package -DskipTests -Pprod
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-jammy
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV MAWA_ENVIRONMENT=dev
 
 # Expose application port
 EXPOSE 8080
