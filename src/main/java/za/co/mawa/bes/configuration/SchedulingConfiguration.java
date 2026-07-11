@@ -7,9 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * Enables MAWA scheduled/background jobs only for normal API runtime.
  *
- * Dedicated migration jobs must run with mawa.scheduler.enabled=false so
- * message queue and legacy membership schedulers do not execute while Flyway is
- * still bringing tenant schemas up to date.
+ * Maintenance jobs can disable scheduling with mawa.scheduler.enabled=false.
  */
 @Configuration
 @EnableScheduling
