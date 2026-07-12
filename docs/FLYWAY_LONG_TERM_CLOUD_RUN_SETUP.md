@@ -1,14 +1,14 @@
 # Long-term Cloud Run migration setup
 
-Use the standalone `mawa-flyway-runner` image for migrations.
+Use the standalone `mawa-flyway-runner` image for all database migrations.
 
 Deployment order:
 
 ```text
-1. Build/push mawa-flyway-runner.
-2. Execute Cloud Run Job: mawa-bes-dev-migration.
-3. If the job exits 0, deploy/promote mawa-bes.
-4. Keep mawa-bes Flyway startup disabled.
+1. Build and push mawa-flyway-runner.
+2. Execute the environment-specific Cloud Run migration job.
+3. Require a successful job exit.
+4. Deploy or promote mawa-bes.
 ```
 
-`mawa-bes` should remain focused on serving API traffic only.
+`mawa-bes` remains focused on API traffic and contains no embedded Flyway execution. Flyway environment variables and database migration job arguments belong to `mawa-flyway-runner`, not the API service.

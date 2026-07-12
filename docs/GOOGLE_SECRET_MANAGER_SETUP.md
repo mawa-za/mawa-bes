@@ -11,7 +11,7 @@ Set these on the Cloud Run service:
 ```bash
 GCP_SECRET_ENABLED=true
 GCP_PROJECT_ID=mawa-162022
-GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret,mawa.encryption.secret=mawa-dev-encryption-secret,hibernate.connection.url=mawa-dev-db-url,hibernate.connection.username=mawa-dev-db-username,hibernate.connection.password=mawa-dev-db-password,spring.datasource.url=mawa-dev-db-url,spring.datasource.username=mawa-dev-db-username,spring.datasource.password=mawa-dev-db-password,flyway.url=mawa-dev-db-url,flyway.user=mawa-dev-db-username,flyway.password=mawa-dev-db-password,spring.mail.password=mawa-mail-password,mawa.admin.api.password=mawa-admin-api-password
+GCP_SECRET_MAPPINGS=jwt.secret=mawa-dev-jwt-secret,mawa.encryption.secret=mawa-dev-encryption-secret,hibernate.connection.url=mawa-dev-db-url,hibernate.connection.username=mawa-dev-db-username,hibernate.connection.password=mawa-dev-db-password,spring.datasource.url=mawa-dev-db-url,spring.datasource.username=mawa-dev-db-username,spring.datasource.password=mawa-dev-db-password,spring.mail.password=mawa-mail-password,mawa.admin.api.password=mawa-admin-api-password
 ```
 
 Mapping format:
@@ -115,7 +115,7 @@ Local run through Secret Manager:
 gcloud auth application-default login
 export GCP_SECRET_ENABLED=true
 export GCP_PROJECT_ID=mawa-162022
-export GCP_SECRET_MAPPINGS='jwt.secret=mawa-dev-jwt-secret,mawa.encryption.secret=mawa-dev-encryption-secret,hibernate.connection.password=mawa-dev-db-password,spring.datasource.password=mawa-dev-db-password,flyway.password=mawa-dev-db-password'
+export GCP_SECRET_MAPPINGS='jwt.secret=mawa-dev-jwt-secret,mawa.encryption.secret=mawa-dev-encryption-secret,hibernate.connection.password=mawa-dev-db-password,spring.datasource.password=mawa-dev-db-password'
 ./mvnw spring-boot:run -Pdev
 ```
 
