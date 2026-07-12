@@ -9,7 +9,7 @@ COPY src /home/app/src
 COPY pom.xml /home/app/
 
 # Build the application
-RUN mvn clean package -DskipTests -Pdev
+RUN mvn clean package -DskipTests -Pprod
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-jammy

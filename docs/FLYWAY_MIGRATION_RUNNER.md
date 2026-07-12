@@ -1,17 +1,15 @@
 # Flyway migrations
 
-`mawa-bes` is the API service and does not execute database migrations.
+`mawa-bes` is the API service and should not run tenant Flyway migrations during startup.
 
-Migrations are owned by the dedicated `mawa-flyway-runner` project. Deploy that project as the Cloud Run Job or Cloud Build migration gate before deploying or promoting `mawa-bes`.
+Migrations are now owned by the dedicated `mawa-flyway-runner` project. Deploy that project as the Cloud Run Job / Cloud Build migration gate.
 
-The API project intentionally contains no Flyway runtime dependencies, migration controller, startup migration component, or migration job runner. Do not add `MAWA_FLYWAY_*` settings to the normal API service.
-
-Deployment order:
+Keep API service settings as:
 
 ```text
-1. Build and deploy mawa-flyway-runner for the target environment.
-2. Execute the migration Cloud Run Job and require exit code 0.
-3. Deploy or promote mawa-bes only after migrations succeed.
+MAWA_FLYWAY_STARTUP_ENABLED=false
+MAWA_FLYWAY_STARTUP_MODE=disabled
+MAWA_FLYWAY_JOB_ENABLED=false
 ```
 
-For emergency migrations, execute the standalone runner with controlled environment settings. Do not reintroduce database migration execution into the API process.
+For emergency-only API-side migration, reintroduce a controlled migration runner deliberately. Do not enable Flyway startup on the normal API service.
