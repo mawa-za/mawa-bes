@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
@@ -104,6 +105,17 @@ public class MembershipControllerV2 {
     @GetMapping(value = "/all")
     public ResponseEntity<Page<MembershipEntity>> getMemberships(Pageable pageable) {
         return ResponseEntity.ok(membershipRepository.findAll(pageable));
+    }
+
+    /**
+     * Bounded master-data feed used by MAWA Pay. A page contains the membership
+     * and the minimal partner fields required for offline receipt lookup.
+     */
+    @GetMapping(value = "/master-data")
+    public ResponseEntity<List<MembershipMasterDataDto>> getMasterData(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "250") int size) {
+        return ResponseEntity.ok(membershipService.getMasterData(page, size));
     }
 
     @GetMapping("/{id}")
