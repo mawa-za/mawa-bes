@@ -11,7 +11,9 @@ import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
+import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.v2.*;
+import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 import za.co.mawa.bes.service.NumberRangeService;
@@ -37,6 +39,7 @@ public class FuneralManagementService {
     private final FuneralPackageRepository funeralPackageRepository;
     private final FuneralServiceRepository funeralServiceRepository;
     private final FuneralServiceInvoiceRepository funeralServiceInvoiceRepository;
+    private final InvoiceRepository invoiceRepository;
     private final FuneralServiceClaimRepository funeralServiceClaimRepository;
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -206,6 +209,38 @@ public class FuneralManagementService {
                 .stream()
                 .map(this::toServiceResponse)
                 .collect(Collectors.toList());
+    }
+
+    public List<FuneralPaymentSummaryDto> getFuneralPayments() {
+        return funeralServiceInvoiceRepository.findAll().stream()
+                .sorted(Comparator.comparing(
+                        FuneralServiceInvoiceEntity::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
+                .map(link -> {
+                    InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId()).orElse(null);
+                    FuneralServiceEntity service = funeralServiceRepository
+                            .findById(link.getFuneralServiceId())
+                            .orElse(null);
+
+                    return FuneralPaymentSummaryDto.builder()
+                            .funeralServiceInvoiceId(link.getId())
+                            .funeralServiceId(link.getFuneralServiceId())
+                            .serviceRequestNo(service == null ? null : service.getServiceRequestNo())
+                            .deceasedName(service == null ? null : service.getDeceasedName())
+                            .invoiceId(link.getInvoiceId())
+                            .invoiceNo(invoice == null ? null : invoice.getInvoiceNo())
+                            .entityType(link.getEntityType())
+                            .partnerId(link.getPartnerId())
+                            .allocatedAmountCents(defaultLong(link.getAmountCents()))
+                            .invoiceTotalCents(invoice == null ? 0L : defaultLong(invoice.getTotalCents()))
+                            .paidCents(invoice == null ? 0L : defaultLong(invoice.getPaidCents()))
+                            .balanceCents(invoice == null ? 0L : defaultLong(invoice.getBalanceCents()))
+                            .status(invoice == null ? "UNKNOWN" : invoice.getStatus())
+                            .invoiceDate(invoice == null ? null : invoice.getInvoiceDate())
+                            .build();
+                })
+                .toList();
     }
 
     public FuneralServiceConfigurationDto getServiceConfiguration() {

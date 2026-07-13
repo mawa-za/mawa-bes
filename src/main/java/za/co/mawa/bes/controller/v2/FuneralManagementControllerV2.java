@@ -139,6 +139,16 @@ public class FuneralManagementControllerV2 {
     }
 
 
+    @GetMapping("/payments")
+    public ResponseEntity<?> getFuneralPayments() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getFuneralPayments());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+
     @GetMapping("/configuration")
     public ResponseEntity<?> getConfiguration() {
         try {

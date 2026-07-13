@@ -3,7 +3,7 @@ package za.co.mawa.bes.controller.v2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-        import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
+import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyClaimDebitRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyContactRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyMemberRequest;
@@ -35,6 +35,13 @@ public class GroupSocietyControllerV2 {
             @RequestParam(required = false) String societyType
     ) {
         return ResponseEntity.ok(groupSocietyService.getAll(status, societyType));
+    }
+
+    @GetMapping("/master-data")
+    public ResponseEntity<?> getMasterData(
+            @RequestParam(required = false, defaultValue = "ACTIVE") String status
+    ) {
+        return ResponseEntity.ok(groupSocietyService.getMasterData(status));
     }
 
     @GetMapping("/{id}")
