@@ -39,7 +39,14 @@ public class PayAppMasterDataControllerV2 {
                    p.status partner_status, p.birth_date, p.gender,
                    (SELECT pi.type FROM partner_identity pi WHERE pi.partner = p.id ORDER BY pi.type LIMIT 1) identity_type,
                    (SELECT pi.value FROM partner_identity pi WHERE pi.partner = p.id ORDER BY pi.type LIMIT 1) identity_number,
-                   m.plan_id, m.status membership_status, m.paid_up_to_period,
+                   m.plan_id, m.status membership_status,
+                   COALESCE(
+                       NULLIF(m.paid_up_to_period, ''),
+                       (SELECT MAX(mp.period_yyyymm)
+                          FROM membership_premium mp
+                         WHERE mp.membership_id = m.id
+                           AND mp.status = 'PAID')
+                   ) paid_up_to_period,
                    m.join_date, COALESCE(m.updated_at, m.created_at) updated_at
               FROM membership m
               JOIN partner p ON p.id = m.member_id

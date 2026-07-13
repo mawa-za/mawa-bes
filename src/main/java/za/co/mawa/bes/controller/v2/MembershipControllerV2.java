@@ -104,7 +104,7 @@ public class MembershipControllerV2 {
 
     @GetMapping(value = "/all")
     public ResponseEntity<Page<MembershipEntity>> getMemberships(Pageable pageable) {
-        return ResponseEntity.ok(membershipRepository.findAll(pageable));
+        return ResponseEntity.ok(membershipService.getAllMemberships(pageable));
     }
 
     /**
