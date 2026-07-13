@@ -15,6 +15,7 @@ public class MessageQueueScheduleSettingsDto {
     private boolean enabled;
     private int intervalSeconds;
     private int batchSize;
+    private int retryDelaySeconds;
     private String lastRunAt;
     private String nextRunAt;
 }

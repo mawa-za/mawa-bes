@@ -39,14 +39,14 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("corpse-check-in","Corpse Check In","search"));
         workcenterDtoList.add(new WorkcenterDto("corpse-check-out","Corpse Check Out","search"));
         workcenterDtoList.add(new WorkcenterDto("invoice","Invoices","search"));
-//        workcenterDtoList.add(new WorkcenterDto("purchase-order","Purchase Orders","search"));
+        workcenterDtoList.add(new WorkcenterDto("purchase-order","Purchase Orders","search"));
 //        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
 //        workcenterDtoList.add(new WorkcenterDto("service-order","Service Orders","search"));
 //        workcenterDtoList.add(new WorkcenterDto("leave-request","Leave Requests","search"));
 //        workcenterDtoList.add(new WorkcenterDto("leave-dashboard","Leave",""));
 //        workcenterDtoList.add(new WorkcenterDto("leave-approval","Leave Approvals","search"));
 //        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
-//        workcenterDtoList.add(new WorkcenterDto("quotation","Quotations","search"));
+        workcenterDtoList.add(new WorkcenterDto("quotation","Quotations","search"));
         workcenterDtoList.add(new WorkcenterDto("membership-claim","Membership Claims","search"));
         workcenterDtoList.add(new WorkcenterDto("membership-plan","Membership Plans","search"));
         workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
@@ -54,6 +54,9 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("goods-receipt","Goods Receipt","search"));
         workcenterDtoList.add(new WorkcenterDto("putaway","Putaway","search"));
         workcenterDtoList.add(new WorkcenterDto("stock-on-hand","Stock on Hand","search"));
+        workcenterDtoList.add(new WorkcenterDto("stock-movement","Stock Movements","search"));
+        workcenterDtoList.add(new WorkcenterDto("inventory-audit","Inventory Audit","search"));
+        workcenterDtoList.add(new WorkcenterDto("inventory-setup","Inventory Setup",""));
         workcenterDtoList.add(new WorkcenterDto("sales-order","Sales Orders","search"));
 //        workcenterDtoList.add(new WorkcenterDto("complaint","Complaints","search"));
 //        workcenterDtoList.add(new WorkcenterDto("identify-customer","Identify Customer",""));

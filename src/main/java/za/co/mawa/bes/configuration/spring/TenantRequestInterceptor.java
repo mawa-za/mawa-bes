@@ -2,116 +2,138 @@ package za.co.mawa.bes.configuration.spring;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.AsyncHandlerInterceptor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.ModelAndView;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.security.domain.SecurityDomain;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.exception.TenantNotFound;
 import za.co.mawa.bes.exception.TenantNotProvided;
-import za.co.mawa.bes.service.RemoteTenantService;
 import za.co.mawa.bes.service.TenantAdminService;
-import za.co.mawa.bes.service.TenantService;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Predicate;
-import org.springframework.util.StringUtils;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class TenantRequestInterceptor implements HandlerInterceptor {
-    @Autowired
-    TenantAdminService tenantAdminService;
-    private SecurityDomain securityDomain;
 
-    public TenantRequestInterceptor(SecurityDomain securityDomain) {
+    private final TenantAdminService tenantAdminService;
+    private final SecurityDomain securityDomain;
+
+    public TenantRequestInterceptor(SecurityDomain securityDomain, TenantAdminService tenantAdminService) {
         this.securityDomain = securityDomain;
+        this.tenantAdminService = tenantAdminService;
     }
 
     Predicate<String> isPost = it -> it.equals("POST");
     Predicate<String> isGet = it -> it.equals("GET");
-    Predicate<String> isAuthenticatePath = it -> it.equals("/authenticate");
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws TenantNotFound, TenantNotProvided {
+    public boolean preHandle(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Object handler
+    ) throws TenantNotFound, TenantNotProvided {
 
         final String method = request.getMethod();
         final String requestURI = request.getRequestURI();
+
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
         if (requestURI.startsWith("/internal/admin/") || "/v2/admin-handoff/exchange".equals(requestURI)) {
             return true;
         }
+
         if (isGet.test(method) && requestURI.contains("/xero/callback")) {
-            String tenant = firstNonBlank(
+            String tenantReference = firstNonBlank(
                     request.getParameter("state"),
+                    request.getHeader("X-TenantID"),
                     request.getHeader("X-Tenant-Id"),
-                    request.getHeader("X-TenantID")
+                    request.getHeader("Origin"),
+                    request.getHeader("Referer")
             );
-            if (!StringUtils.hasText(tenant)) {
-                throw new TenantNotProvided();
-            }
-            String resolvedTenant = resolveTenantIdOrHost(tenant);
-            TenantContext.setCurrentTenant(resolvedTenant);
-            TenantContext.setCurrentTenantURL(tenant);
+            setResolvedTenantContext(tenantReference);
             return true;
         }
-        if (isPost.test(method) && (requestURI.contains("/authenticate") || requestURI.contains("/forgot-password") || requestURI.contains("/reset-password"))) {
-            String tenant = "";
-            String tenantHeader = firstNonBlank(
+
+        if (isPost.test(method)
+                && (requestURI.contains("/authenticate")
+                || requestURI.contains("/forgot-password")
+                || requestURI.contains("/reset-password"))) {
+            String tenantReference = firstNonBlank(
                     request.getHeader("X-TenantID"),
-                    request.getHeader("X-Tenant-Id")
+                    request.getHeader("X-Tenant-Id"),
+                    request.getHeader("Origin"),
+                    request.getHeader("Referer")
             );
-            if (tenantHeader != null) {
-                tenant = tenantHeader.split(":")[0];
-            } else {
-                tenant = TenantContext.LOCALHOST_HOST;
+
+            // Local native clients may omit browser Origin/Referer headers.
+            if (!StringUtils.hasText(tenantReference)
+                    && ("localhost".equalsIgnoreCase(request.getServerName())
+                    || "127.0.0.1".equals(request.getServerName()))) {
+                tenantReference = TenantContext.LOCALHOST_HOST;
             }
-            String host = tenant;
-            List<TenantDto> tenants = tenantAdminService.getAll().stream()
-                    .filter(a -> Objects.equals(a.getHost(), host))
-                    .toList();
-            if (!tenants.isEmpty()) {
-                TenantDto tenantDto = tenants.iterator().next();
-                TenantContext.setCurrentTenant(tenantDto.getId());
-                TenantContext.setCurrentTenantURL(host);
-                return true;
-            } else {
-                throw new TenantNotFound("Tenant not found");
-            }
-        } else {
-            try {
-                return Optional.ofNullable(request)
-                        .map(req -> securityDomain.getTenantIdFromJwt(req))
-                        .map(tenant -> setTenantContext(tenant))
-                        .orElse(false);
-            } catch (Exception exception) {
-                throw new TenantNotProvided();
-            }
+
+            setResolvedTenantContext(tenantReference);
+            return true;
         }
 
+        try {
+            return Optional.ofNullable(request)
+                    .map(securityDomain::getTenantIdFromJwt)
+                    .map(this::setTenantContext)
+                    .orElse(false);
+        } catch (Exception exception) {
+            throw new TenantNotProvided();
+        }
+    }
+
+    private void setResolvedTenantContext(String tenantReference) throws TenantNotFound, TenantNotProvided {
+        if (!StringUtils.hasText(tenantReference)) {
+            throw new TenantNotProvided();
+        }
+
+        TenantDto tenant = resolveTenant(tenantReference);
+        String canonicalHost = firstNonBlank(
+                TenantHostNormalizer.normalize(tenant.getHost()),
+                TenantHostNormalizer.normalize(tenantReference)
+        );
+
+        TenantContext.setCurrentTenant(tenant.getId());
+        TenantContext.setCurrentTenantURL(canonicalHost);
+    }
+
+    private TenantDto resolveTenant(String tenantReference) throws TenantNotFound {
+        String rawReference = tenantReference.trim();
+        String normalizedHost = TenantHostNormalizer.normalize(rawReference);
+        List<TenantDto> tenants = tenantAdminService.getAll();
+
+        return tenants.stream()
+                .filter(tenant -> Objects.equals(tenant.getId(), rawReference)
+                        || hostsMatch(tenant.getHost(), normalizedHost))
+                .findFirst()
+                .orElseThrow(() -> new TenantNotFound(
+                        "Tenant not found for host: "
+                                + (StringUtils.hasText(normalizedHost) ? normalizedHost : rawReference)
+                ));
+    }
+
+    private boolean hostsMatch(String configuredHost, String normalizedRequestHost) {
+        if (!StringUtils.hasText(normalizedRequestHost)) {
+            return false;
+        }
+        String normalizedConfiguredHost = TenantHostNormalizer.normalize(configuredHost);
+        return normalizedRequestHost.equals(normalizedConfiguredHost);
     }
 
     private boolean setTenantContext(String tenant) {
         TenantContext.setCurrentTenant(tenant);
         return true;
-    }
-
-    private String resolveTenantIdOrHost(String tenantOrHost) throws TenantNotFound {
-        if (!StringUtils.hasText(tenantOrHost)) {
-            throw new TenantNotFound("Tenant not found");
-        }
-        String value = tenantOrHost.trim();
-        return tenantAdminService.getAll().stream()
-                .filter(tenant -> Objects.equals(tenant.getId(), value) || Objects.equals(tenant.getHost(), value))
-                .findFirst()
-                .map(TenantDto::getId)
-                .orElse(value);
     }
 
     private String firstNonBlank(String... values) {
@@ -125,6 +147,7 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         }
         return null;
     }
+
     @Override
     public void afterCompletion(
             HttpServletRequest request,
@@ -133,6 +156,5 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
             Exception ex
     ) {
         TenantContext.clear();
-        TenantContext.clearURL();
     }
 }

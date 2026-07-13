@@ -486,7 +486,7 @@ public class ProductService implements ProductDao {
             jdbcTemplate.update("INSERT INTO product_audit_history (id, product_id, action, old_value, new_value, created_at, created_by) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP,?)",
                     UUID.randomUUID().toString().replace("-", ""), productId, action, oldValue, newValue, userId);
         } catch (Exception ignored) {
-            // Product audit table may not exist until the stock Flyway migration has run.
+            // Product audit table may not exist until the database migration has run.
         }
     }
 
