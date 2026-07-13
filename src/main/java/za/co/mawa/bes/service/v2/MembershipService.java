@@ -3,18 +3,21 @@ package za.co.mawa.bes.service.v2;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.PremiumEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
+import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
+import za.co.mawa.bes.repository.v2.MembershipMasterDataProjection;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.utils.TransactionType;
@@ -100,6 +103,42 @@ public class MembershipService {
             throw new RuntimeException(e);
         }
 
+    }
+
+    public List<MembershipMasterDataDto> getMasterData(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(50, Math.min(size, 500));
+
+        return membershipRepository.findMasterData(PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(this::toMasterDataDto)
+                .toList();
+    }
+
+    private MembershipMasterDataDto toMasterDataDto(MembershipMasterDataProjection row) {
+        return MembershipMasterDataDto.builder()
+                .membershipId(row.getMembershipId())
+                .membershipNo(row.getMembershipNo())
+                .partnerId(row.getPartnerId())
+                .planId(row.getPlanId())
+                .premiumCents(row.getPremiumCents())
+                .startDate(row.getStartDate())
+                .joinDate(row.getJoinDate())
+                .membershipStatus(row.getMembershipStatus())
+                .paidUpToPeriod(row.getPaidUpToPeriod())
+                .createdAt(row.getCreatedAt())
+                .updatedAt(row.getUpdatedAt())
+                .partnerNo(row.getPartnerNo())
+                .partnerType(row.getPartnerType())
+                .name1(row.getName1())
+                .name2(row.getName2())
+                .name3(row.getName3())
+                .identityType(row.getIdentityType())
+                .identityNumber(row.getIdentityNumber())
+                .birthDate(row.getBirthDate())
+                .gender(row.getGender())
+                .partnerStatus(row.getPartnerStatus())
+                .build();
     }
 
     public Optional<MembershipEntity> updateMembership(String id, MembershipEntity membership) {
