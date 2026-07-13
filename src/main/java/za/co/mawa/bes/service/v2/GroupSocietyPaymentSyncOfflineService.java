@@ -97,8 +97,8 @@ public class GroupSocietyPaymentSyncOfflineService {
                     receipt.getId(),
                     ReceiptAllocationType.GROUP_SOCIETY_BALANCE,
                     accountTxn.getId(),
-                    society.getGroupNo() + "-" + offlineReceipt.getPeriodYYYYMM(),
-                    offlineReceipt.getPeriodYYYYMM(),
+                    society.getGroupNo(),
+                    null,
                     null,
                     offlineReceipt.getAmountCents(),
                     request.getCreatedBy()
@@ -120,7 +120,7 @@ public class GroupSocietyPaymentSyncOfflineService {
                 .paymentBatchNo(batch.getPaymentBatchNo())
                 .groupSocietyId(request.getGroupSocietyId())
                 .partnerId(society.getPartnerId())
-                .paidUpToPeriod(getLastPeriod(syncedReceipts))
+                .paidUpToPeriod(null)
                 .receipts(syncedReceipts)
                 .warnings(warnings)
                 .build();
@@ -188,7 +188,7 @@ public class GroupSocietyPaymentSyncOfflineService {
         paymentRequest.setAmountCents(offlineReceipt.getAmountCents());
         paymentRequest.setPaymentDate(toDateOnly(request.getPaymentDate()));
         paymentRequest.setPaymentMethod(request.getPaymentMethod());
-        paymentRequest.setPeriod(offlineReceipt.getPeriodYYYYMM());
+        paymentRequest.setPeriod(null);
         paymentRequest.setReferenceId(receipt.getId());
         paymentRequest.setReferenceNo(receipt.getReceiptNo());
         paymentRequest.setNotes("Offline MawaPay group society receipt " + receipt.getReceiptNo());
@@ -198,21 +198,6 @@ public class GroupSocietyPaymentSyncOfflineService {
 
     private LocalDate toDateOnly(LocalDateTime value) {
         return value == null ? LocalDate.now() : value.toLocalDate();
-    }
-
-    private String getLastPeriod(List<ReceiptResponseDto> receipts) {
-        if (receipts == null || receipts.isEmpty()) {
-            return null;
-        }
-
-        ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
-
-        var allocations = lastReceipt.getAllocations();
-        if (allocations == null || allocations.isEmpty()) {
-            return null;
-        }
-
-        return allocations.get(0).getPeriodYYYYMM();
     }
 
     private void validate(GroupSocietyPaymentSyncOfflineRequest request) {
