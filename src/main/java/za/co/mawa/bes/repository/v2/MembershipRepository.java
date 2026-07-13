@@ -34,7 +34,13 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
                 m.start_date AS startDate,
                 m.join_date AS joinDate,
                 m.status AS membershipStatus,
-                m.paid_up_to_period AS paidUpToPeriod,
+                COALESCE(
+                    NULLIF(m.paid_up_to_period, ''),
+                    (SELECT MAX(mp.period_yyyymm)
+                       FROM membership_premium mp
+                      WHERE mp.membership_id = m.id
+                        AND mp.status = 'PAID')
+                ) AS paidUpToPeriod,
                 m.created_at AS createdAt,
                 m.updated_at AS updatedAt,
                 p.number AS partnerNo,
