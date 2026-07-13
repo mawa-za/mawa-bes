@@ -3,10 +3,14 @@ package za.co.mawa.bes.controller.v2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.payapp.CashupDepositRequest;
+import za.co.mawa.bes.dto.v2.payapp.CashupListItemResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupDepositResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
@@ -63,6 +67,19 @@ CashupService cashupService;
         return cashupService.getActiveCashup(deviceId, userId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+
+    @GetMapping("/page")
+    public ResponseEntity<Slice<CashupListItemResponse>> getPage(
+            @RequestParam(required = false, defaultValue = "ALL") String status,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "50") int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        return ResponseEntity.ok(cashupService.getPage(status, pageable));
     }
 
     @GetMapping("/all")

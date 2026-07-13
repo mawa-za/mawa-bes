@@ -1,6 +1,8 @@
 package za.co.mawa.bes.repository.v2;
 
 
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 
@@ -21,6 +23,10 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
             String userId,
             String status
     );
+
+    Slice<CashupEntity> findAllByOrderByCashupDateDescCreatedAtDesc(Pageable pageable);
+
+    Slice<CashupEntity> findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(String status, Pageable pageable);
 
     List<CashupEntity> findByUserIdAndCashupDateBetweenOrderByCashupDateDesc(
             String userId,
