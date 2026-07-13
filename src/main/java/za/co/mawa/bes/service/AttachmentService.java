@@ -1,8 +1,11 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.AttachmentDao;
@@ -34,6 +37,9 @@ public class AttachmentService implements AttachmentDao {
 
     @Autowired
     AttachmentStorageService attachmentStorageService;
+
+    @Autowired
+    PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional
@@ -140,33 +146,69 @@ public class AttachmentService implements AttachmentDao {
         attachmentRepository.deleteById(id);
     }
 
-    @Transactional
-    public int migrateLegacyDatabaseFilesToGcp() {
+    public synchronized int migrateLegacyDatabaseFilesToGcp() {
         if (!attachmentStorageService.isGcpConfigured()) {
             throw new IllegalStateException("Attachment GCP storage is not configured. Set MAWA_ATTACHMENT_BUCKET.");
         }
+
+        final int batchSize = 100;
         int migrated = 0;
-        for (AttachmentEntity attachmentEntity : attachmentRepository.findAll()) {
-            if (StringUtils.hasText(attachmentEntity.getFilePath()) || attachmentEntity.getFile() == null || attachmentEntity.getFile().length == 0) {
-                continue;
-            }
-            AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(
-                    attachmentEntity.getFile(),
-                    attachmentEntity.getExtension(),
-                    attachmentEntity.getDocumentType(),
-                    attachmentEntity.getObjectId(),
-                    attachmentEntity.getDocumentType()
+        String cursor = "";
+        while (true) {
+            List<String> ids = attachmentRepository.findLegacyAttachmentIdsAfter(
+                    cursor,
+                    PageRequest.of(0, batchSize)
             );
-            attachmentEntity.setStorageProvider(stored.storageProvider());
-            attachmentEntity.setStorageBucket(stored.bucket());
-            attachmentEntity.setFilePath(stored.path());
-            attachmentEntity.setContentType(stored.contentType());
-            attachmentEntity.setFileSize(stored.fileSize());
-            attachmentEntity.setFile(null);
-            attachmentRepository.save(attachmentEntity);
-            migrated++;
+            if (ids.isEmpty()) {
+                break;
+            }
+
+            for (String id : ids) {
+                cursor = id;
+                try {
+                    Integer result = new TransactionTemplate(transactionManager)
+                            .execute(status -> migrateOneLegacyAttachment(id));
+                    if (result != null && result > 0) {
+                        migrated += result;
+                    }
+                } catch (Exception ex) {
+                    // Continue beyond a corrupt/unreadable attachment so one bad
+                    // row cannot prevent later attachments from being migrated.
+                    System.err.println("Attachment GCS migration failed for id=" + id + ": " + ex.getMessage());
+                }
+            }
         }
         return migrated;
+    }
+
+    public long countLegacyDatabaseFiles() {
+        return attachmentRepository.countLegacyDatabaseFiles();
+    }
+
+    private int migrateOneLegacyAttachment(String id) {
+        AttachmentEntity attachmentEntity = attachmentRepository.findById(id).orElse(null);
+        if (attachmentEntity == null
+                || StringUtils.hasText(attachmentEntity.getFilePath())
+                || attachmentEntity.getFile() == null
+                || attachmentEntity.getFile().length == 0) {
+            return 0;
+        }
+
+        AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(
+                attachmentEntity.getFile(),
+                attachmentEntity.getExtension(),
+                attachmentEntity.getDocumentType(),
+                attachmentEntity.getObjectId(),
+                attachmentEntity.getDocumentType()
+        );
+        attachmentEntity.setStorageProvider(stored.storageProvider());
+        attachmentEntity.setStorageBucket(stored.bucket());
+        attachmentEntity.setFilePath(stored.path());
+        attachmentEntity.setContentType(stored.contentType());
+        attachmentEntity.setFileSize(stored.fileSize());
+        attachmentEntity.setFile(null);
+        attachmentRepository.saveAndFlush(attachmentEntity);
+        return 1;
     }
 
     private AttachmentDto toDto(AttachmentEntity attachmentEntity, boolean depositDocumentType) {
