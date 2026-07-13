@@ -5,12 +5,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
-        import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
-        import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDateTime;
@@ -45,6 +45,7 @@ public class MembershipPremiumSyncOfflineService {
                     .paymentBatchId(batch.getId())
                     .paymentBatchNo(batch.getPaymentBatchNo())
                     .membershipId(batch.getMembershipId())
+                    .paidUpToPeriod(membershipService.recalculatePaidUpToPeriod(batch.getMembershipId()))
                     .receipts(List.of())
                     .warnings(List.of("Payment batch already synced"))
                     .build();
@@ -59,6 +60,7 @@ public class MembershipPremiumSyncOfflineService {
                     .paymentBatchId(batch.getId())
                     .paymentBatchNo(batch.getPaymentBatchNo())
                     .membershipId(batch.getMembershipId())
+                    .paidUpToPeriod(membershipService.recalculatePaidUpToPeriod(batch.getMembershipId()))
                     .receipts(List.of())
                     .warnings(List.of("Payment batch number already exists"))
                     .build();
@@ -116,6 +118,7 @@ public class MembershipPremiumSyncOfflineService {
             syncedReceipts.add(receiptMapper.toDto(receipt, List.of(allocation)));
         }
 
+        String paidUpToPeriod = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
         String syncStatus = warnings.isEmpty() ? "SYNCED" : "SYNCED_WITH_WARNINGS";
 
         if (!warnings.isEmpty()) {
@@ -128,7 +131,7 @@ public class MembershipPremiumSyncOfflineService {
                 .paymentBatchId(batch.getId())
                 .paymentBatchNo(batch.getPaymentBatchNo())
                 .membershipId(batch.getMembershipId())
-                .paidUpToPeriod(getLastPeriod(syncedReceipts))
+                .paidUpToPeriod(paidUpToPeriod)
                 .receipts(syncedReceipts)
                 .warnings(warnings)
                 .build();
@@ -181,21 +184,6 @@ public class MembershipPremiumSyncOfflineService {
         receipt.setCreatedBy(request.getCreatedBy());
 
         return receiptService.saveReceipt(receipt);
-    }
-
-    private String getLastPeriod(List<ReceiptResponseDto> receipts) {
-        if (receipts == null || receipts.isEmpty()) {
-            return null;
-        }
-
-        ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
-
-        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
-        if (allocations == null || allocations.isEmpty()) {
-            return null;
-        }
-
-        return allocations.get(0).getPeriodYYYYMM();
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

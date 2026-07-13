@@ -62,7 +62,9 @@ public class MembershipService {
     }
 
     public Page<MembershipEntity> getAllMemberships(Pageable pageable) {
-        return membershipRepository.findAll(pageable);
+        Page<MembershipEntity> memberships = membershipRepository.findAll(pageable);
+        repairMissingPaidUpToPeriods(memberships.getContent());
+        return memberships;
     }
 
     public Page<MembershipEntity> getMembershipsByMemberId(List<String> memberIds, Pageable pageable) {
@@ -84,11 +86,39 @@ public class MembershipService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        return membershipRepository.findAll(spec, pageable);
+        Page<MembershipEntity> memberships = membershipRepository.findAll(spec, pageable);
+        repairMissingPaidUpToPeriods(memberships.getContent());
+        return memberships;
     }
 
     public Optional<MembershipEntity> getMembershipById(String id) {
-        return membershipRepository.findById(id);
+        Optional<MembershipEntity> membership = membershipRepository.findById(id);
+        membership.ifPresent(this::repairMissingPaidUpToPeriod);
+        return membership;
+    }
+
+    private void repairMissingPaidUpToPeriods(List<MembershipEntity> memberships) {
+        if (memberships == null || memberships.isEmpty()) return;
+        for (MembershipEntity membership : memberships) {
+            repairMissingPaidUpToPeriod(membership);
+        }
+    }
+
+    private void repairMissingPaidUpToPeriod(MembershipEntity membership) {
+        if (membership == null || membership.getId() == null) return;
+        if (membership.getPaidUpToPeriod() != null && !membership.getPaidUpToPeriod().isBlank()) return;
+
+        List<MembershipPremiumEntity> paidPremiums =
+                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
+                        membership.getId(),
+                        PremiumStatus.PAID
+                );
+        String calculated = calculateContinuousPaidUpToPeriod(paidPremiums);
+        if (calculated == null || calculated.isBlank()) return;
+
+        membership.setPaidUpToPeriod(calculated);
+        membership.setUpdatedAt(LocalDateTime.now());
+        membershipRepository.save(membership);
     }
 
     public MembershipEntity createMembership(MembershipEntity membership) {
