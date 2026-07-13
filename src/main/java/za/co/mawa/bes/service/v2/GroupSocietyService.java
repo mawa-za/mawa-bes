@@ -6,12 +6,15 @@ import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyClaimDebitRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyContactRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyMemberRequest;
+import za.co.mawa.bes.dto.v2.group.GroupSocietyMasterDataDto;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyPaymentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyRequest;
 import za.co.mawa.bes.entity.v2.GroupSocietyAccountTxnEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyContactEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyMemberEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyAccountTxnRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyContactRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyMemberRepository;
@@ -27,6 +30,7 @@ public class GroupSocietyService {
     private final GroupSocietyContactRepository contactRepository;
     private final GroupSocietyMemberRepository memberRepository;
     private final GroupSocietyAccountTxnRepository accountTxnRepository;
+    private final PartnerRepository partnerRepository;
 
     /*
      * Inject your existing PartnerRepository here if available.
@@ -48,12 +52,47 @@ public class GroupSocietyService {
             GroupSocietyRepository groupSocietyRepository,
             GroupSocietyContactRepository contactRepository,
             GroupSocietyMemberRepository memberRepository,
-            GroupSocietyAccountTxnRepository accountTxnRepository
+            GroupSocietyAccountTxnRepository accountTxnRepository,
+            PartnerRepository partnerRepository
     ) {
         this.groupSocietyRepository = groupSocietyRepository;
         this.contactRepository = contactRepository;
         this.memberRepository = memberRepository;
         this.accountTxnRepository = accountTxnRepository;
+        this.partnerRepository = partnerRepository;
+    }
+
+    public List<GroupSocietyMasterDataDto> getMasterData(String status) {
+        List<GroupSocietyEntity> societies = status == null || status.isBlank()
+                ? groupSocietyRepository.findAll()
+                : groupSocietyRepository.findByStatus(status);
+
+        return societies.stream().map(society -> {
+            PartnerEntity partner = partnerRepository.findById(society.getPartnerId()).orElse(null);
+            String name = society.getGroupNo();
+            String partnerNo = null;
+            if (partner != null) {
+                partnerNo = partner.getNo();
+                String combined = ((partner.getName1() == null ? "" : partner.getName1()) + " "
+                        + (partner.getName2() == null ? "" : partner.getName2())).trim();
+                if (!combined.isBlank()) {
+                    name = combined;
+                }
+            }
+
+            return GroupSocietyMasterDataDto.builder()
+                    .id(society.getId())
+                    .partnerId(society.getPartnerId())
+                    .partnerNo(partnerNo)
+                    .groupNo(society.getGroupNo())
+                    .name(name)
+                    .societyType(society.getSocietyType())
+                    .status(society.getStatus())
+                    .availableBalanceCents(society.getAvailableBalanceCents())
+                    .totalPaidCents(society.getTotalPaidCents())
+                    .lastPaymentDate(society.getLastPaymentDate())
+                    .build();
+        }).toList();
     }
 
     public List<GroupSocietyEntity> getAll(String status, String societyType) {
