@@ -1,6 +1,8 @@
 package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.payapp.*;
@@ -156,6 +158,33 @@ public class CashupService {
                 .stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+
+    @Transactional(readOnly = true)
+    public Slice<CashupListItemResponse> getPage(String status, Pageable pageable) {
+        final String normalizedStatus = clean(status);
+        Slice<CashupEntity> page = normalizedStatus == null || "ALL".equalsIgnoreCase(normalizedStatus)
+                ? cashupRepository.findAllByOrderByCashupDateDescCreatedAtDesc(pageable)
+                : cashupRepository.findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(normalizedStatus, pageable);
+        return page.map(this::toListItem);
+    }
+
+    private CashupListItemResponse toListItem(CashupEntity cashup) {
+        return CashupListItemResponse.builder()
+                .id(cashup.getId())
+                .cashupNo(cashup.getCashupNo())
+                .deviceId(cashup.getDeviceId())
+                .userId(cashup.getUserId())
+                .cashupDate(cashup.getCashupDate())
+                .totalCents(defaultLong(cashup.getTotalCents()))
+                .receiptCount(defaultInt(cashup.getReceiptCount()))
+                .status(cashup.getStatus())
+                .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
+                .depositCount(defaultInt(cashup.getDepositCount()))
+                .createdAt(cashup.getCreatedAt())
+                .updatedAt(cashup.getUpdatedAt())
+                .build();
     }
 
     @Transactional(readOnly = true)

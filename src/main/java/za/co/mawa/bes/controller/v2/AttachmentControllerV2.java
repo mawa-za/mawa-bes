@@ -68,7 +68,12 @@ public class AttachmentControllerV2 {
     public ResponseEntity<?> migrateToGcp() {
         try {
             int migrated = attachmentService.migrateLegacyDatabaseFilesToGcp();
-            return ResponseEntity.ok(java.util.Map.of("migrated", migrated));
+            long remaining = attachmentService.countLegacyDatabaseFiles();
+            return ResponseEntity.ok(java.util.Map.of(
+                    "migrated", migrated,
+                    "remaining", remaining,
+                    "completed", remaining == 0
+            ));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
