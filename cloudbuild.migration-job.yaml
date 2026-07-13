@@ -1,0 +1,71 @@
+# Optional Cloud Build pipeline for the long-term Flyway setup.
+# It builds/pushes the mawa-bes image, deploys a Cloud Run migration job,
+# executes the migration job synchronously, then leaves the API image ready for deployment.
+#
+# The API Cloud Run service should have:
+#   MAWA_FLYWAY_STARTUP_ENABLED=false
+#   MAWA_FLYWAY_STARTUP_MODE=disabled
+#
+# Configure substitutions in the trigger or on the command line:
+#   _PROJECT_ID=mawa-162022
+#   _REGION=us-central1
+#   _JOB_NAME=mawa-bes-dev-migrations
+#   _PROFILE=dev
+#   _IMAGE=us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        '${_IMAGE}',
+        '--build-arg',
+        'GITHUB_TOKEN=$$github-token',
+        '.'
+      ]
+    secretEnv: ['github-token']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud run jobs deploy "${_JOB_NAME}" \
+          --project "${_PROJECT_ID}" \
+          --region "${_REGION}" \
+          --image "${_IMAGE}" \
+          --command java \
+          --args=-jar,/app.jar,--mawa.flyway.startup.enabled=false,--mawa.flyway.startup.mode=disabled,--mawa.flyway.job.enabled=true,--mawa.flyway.job.exit-on-complete=true,--mawa.flyway.continue-on-error=false,--mawa.scheduler.enabled=false,--spring.task.scheduling.enabled=false \
+          --set-env-vars SPRING_PROFILES_ACTIVE=${_PROFILE},MAWA_FLYWAY_STARTUP_ENABLED=false,MAWA_FLYWAY_STARTUP_MODE=disabled,MAWA_FLYWAY_JOB_ENABLED=true,MAWA_FLYWAY_JOB_EXIT_ON_COMPLETE=true,MAWA_FLYWAY_CONTINUE_ON_ERROR=false,MAWA_SCHEDULER_ENABLED=false,SPRING_TASK_SCHEDULING_ENABLED=false,MAWA_FLYWAY_REPAIR_FAILED=false,MAWA_FLYWAY_BASELINE_ON_MIGRATE=true,MAWA_FLYWAY_DEFAULT_SCHEMA_ENABLED=true,MAWA_FLYWAY_TENANT_SCHEMAS_ENABLED=true,MAWA_FLYWAY_MAX_TENANT_ERRORS=1 \
+          --tasks 1 \
+          --parallelism 1 \
+          --max-retries 0 \
+          --task-timeout 3600s
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    args:
+      [
+        'run', 'jobs', 'execute', '${_JOB_NAME}',
+        '--project', '${_PROJECT_ID}',
+        '--region', '${_REGION}',
+        '--wait'
+      ]
+
+substitutions:
+  _PROJECT_ID: 'mawa-162022'
+  _REGION: 'us-central1'
+  _JOB_NAME: 'mawa-bes-dev-migrations'
+  _PROFILE: 'dev'
+  _IMAGE: 'us-central1-docker.pkg.dev/mawa-162022/mawa-repo/mawa-bes:$BRANCH_NAME'
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/mawa-162022/secrets/github-token/versions/latest
+      env: github-token
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.web;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,7 @@ import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 import java.util.List;
 
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableGlobalMethodSecurity(
         // securedEnabled = true,
         // jsr250Enabled = true,
@@ -41,6 +43,9 @@ public class WebSecurityConfig {
             "/reset-password",
             "/v2/reset-password",
             "/refresh-token",
+            "/v2/company-logo/content",
+            "/v2/admin-handoff/exchange",
+            "/internal/admin/**",
             "/xero/callback"
             // other public endpoints of your API may be appended to this array
     };

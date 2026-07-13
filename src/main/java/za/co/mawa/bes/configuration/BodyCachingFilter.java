@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +14,7 @@ import za.co.mawa.bes.configuration.web.WebSecurityConfig;
 import java.io.IOException;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class BodyCachingFilter extends OncePerRequestFilter {
 
     @Override

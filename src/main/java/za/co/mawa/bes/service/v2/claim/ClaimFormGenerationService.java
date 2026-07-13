@@ -7,6 +7,7 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.entity.AttachmentEntity;
@@ -18,6 +19,7 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.AttachmentService;
+import za.co.mawa.bes.service.CompanyLogoService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
@@ -35,6 +37,7 @@ public class ClaimFormGenerationService {
     private final PartnerRepository partnerRepository;
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
+    private final CompanyLogoService companyLogoService;
 
     @Transactional
     public AttachmentEntity generateForSubmittedClaim(String claimId) {
@@ -67,6 +70,7 @@ public class ClaimFormGenerationService {
 
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
                 float y = 780;
+                y = drawLogoOrPlaceholder(document, content, y);
                 write(content, "MAWA MEMBERSHIP CLAIM FORM", 50, y, 18, true);
                 y -= 30;
                 write(content, "Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), 50, y, 9, false);
@@ -117,6 +121,21 @@ public class ClaimFormGenerationService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate claim form", e);
         }
+    }
+
+    private float drawLogoOrPlaceholder(PDDocument document, PDPageContentStream content, float y) throws Exception {
+        float width = CompanyLogoService.PDF_WIDTH_PT;
+        float height = CompanyLogoService.PDF_HEIGHT_PT;
+        if (companyLogoService.getActiveLogo().isPresent()) {
+            byte[] logoBytes = companyLogoService.getActiveLogo().get().getContent();
+            PDImageXObject image = PDImageXObject.createFromByteArray(document, logoBytes, "company-logo");
+            content.drawImage(image, 50, y - height + 8, width, height);
+        } else {
+            content.addRect(50, y - height + 8, width, height);
+            content.stroke();
+            write(content, "COMPANY LOGO", 78, y - 18, 9, true);
+        }
+        return y - height - 8;
     }
 
     private float section(PDPageContentStream content, String title, float y) throws Exception {

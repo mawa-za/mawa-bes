@@ -7,6 +7,9 @@ public class InvoiceOutboundDto {
     private String id;
     private String invoiceNo;
     private String partnerId;
+    private String partnerName;
+    private String sourceType;
+    private String sourceId;
     private LocalDate invoiceDate;
     private LocalDate dueDate;
     private String status;
@@ -121,6 +124,30 @@ public class InvoiceOutboundDto {
 
     public void setPartnerId(String partnerId) {
         this.partnerId = partnerId;
+    }
+
+    public String getPartnerName() {
+        return partnerName;
+    }
+
+    public void setPartnerName(String partnerName) {
+        this.partnerName = partnerName;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public String getSourceId() {
+        return sourceId;
+    }
+
+    public void setSourceId(String sourceId) {
+        this.sourceId = sourceId;
     }
 
     public LocalDate getInvoiceDate() {

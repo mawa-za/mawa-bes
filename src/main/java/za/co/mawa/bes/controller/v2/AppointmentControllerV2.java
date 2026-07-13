@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentRequest;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentStatusUpdateRequest;
 import za.co.mawa.bes.service.v2.AppointmentService;
+import za.co.mawa.bes.service.InvoiceService;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -18,9 +19,11 @@ import java.util.Map;
 public class AppointmentControllerV2 {
 
     private final AppointmentService appointmentService;
+    private final InvoiceService invoiceService;
 
-    public AppointmentControllerV2(AppointmentService appointmentService) {
+    public AppointmentControllerV2(AppointmentService appointmentService, InvoiceService invoiceService) {
         this.appointmentService = appointmentService;
+        this.invoiceService = invoiceService;
     }
 
     @PostMapping
@@ -104,6 +107,18 @@ public class AppointmentControllerV2 {
     ) {
         try {
             return ResponseEntity.ok(appointmentService.cancel(id, reason, currentUser));
+        } catch (Exception e) {
+            return badRequest(e);
+        }
+    }
+
+    @PostMapping("/{id}/invoice")
+    public ResponseEntity<?> invoiceAppointment(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(invoiceService.mapToDto(invoiceService.createInvoiceForAppointment(id, currentUser)));
         } catch (Exception e) {
             return badRequest(e);
         }

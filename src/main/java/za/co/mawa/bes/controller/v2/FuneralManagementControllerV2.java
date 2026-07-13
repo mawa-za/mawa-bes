@@ -138,6 +138,25 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+
+    @GetMapping("/configuration")
+    public ResponseEntity<?> getConfiguration() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getServiceConfiguration());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @PutMapping(value = "/configuration", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateConfiguration(@RequestBody FuneralServiceConfigurationDto request) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updateServiceConfiguration(request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @GetMapping("/service-request/{id}")
     public ResponseEntity<?> getServiceRequest(@PathVariable String id) {
         try {
@@ -151,6 +170,16 @@ public class FuneralManagementControllerV2 {
     public ResponseEntity<?> createServiceRequest(@RequestBody FuneralServiceRequestDto request) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.createServiceRequest(request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+
+    @PutMapping(value = "/service-request/{id}/package", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateServiceRequestPackage(@PathVariable String id, @RequestBody FuneralServiceRequestDto request) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updateServiceRequestPackage(id, request));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }

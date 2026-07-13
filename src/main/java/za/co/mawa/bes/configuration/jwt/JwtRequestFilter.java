@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.jwt;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,6 +23,7 @@ import za.co.mawa.bes.service.UserService;
 import java.io.IOException;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtRequestFilter.class);
@@ -45,6 +47,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || "/reset-password".equals(path)
                 || "/v2/reset-password".equals(path)
                 || "/refresh-token".equals(path)
+                || "/v2/company-logo/content".equals(path)
+                || "/v2/admin-handoff/exchange".equals(path)
+                || path.startsWith("/internal/admin/")
                 || "/xero/callback".equals(path);
     }
 

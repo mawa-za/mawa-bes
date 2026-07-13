@@ -73,6 +73,7 @@ public class MessageQueueAdminService {
                 .enabled(messageConsumerService.isSchedulerEnabled())
                 .intervalSeconds(messageConsumerService.getSchedulerIntervalSeconds())
                 .batchSize(messageConsumerService.getBatchSize())
+                .retryDelaySeconds(messageConsumerService.getRetryDelaySeconds())
                 .lastRunAt(messageConsumerService.getLastRunAt() == null ? null : messageConsumerService.getLastRunAt().toString())
                 .nextRunAt(messageConsumerService.getNextRunAt() == null ? null : messageConsumerService.getNextRunAt().toString())
                 .build();
@@ -81,9 +82,11 @@ public class MessageQueueAdminService {
     public MessageQueueScheduleSettingsDto updateScheduleSettings(MessageQueueScheduleSettingsDto request) {
         int interval = request.getIntervalSeconds() <= 0 ? 60 : Math.max(30, request.getIntervalSeconds());
         int batch = request.getBatchSize() <= 0 ? 10 : Math.max(1, Math.min(request.getBatchSize(), 100));
+        int retryDelay = request.getRetryDelaySeconds() <= 0 ? 10 : Math.max(5, Math.min(request.getRetryDelaySeconds(), 3600));
         settingService.upsertSetting("ENABLED", QUEUE_GROUP, String.valueOf(request.isEnabled()));
         settingService.upsertSetting("INTERVAL-SECONDS", QUEUE_GROUP, String.valueOf(interval));
         settingService.upsertSetting("BATCH-SIZE", QUEUE_GROUP, String.valueOf(batch));
+        settingService.upsertSetting("RETRY-DELAY-SECONDS", QUEUE_GROUP, String.valueOf(retryDelay));
         return getScheduleSettings();
     }
 

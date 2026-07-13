@@ -5,6 +5,7 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
 import za.co.mawa.bes.dto.WorkcenterDto;
@@ -46,6 +47,8 @@ public class ProductService implements ProductDao {
     NumberRangeService numberRangeService;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Override
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
@@ -66,6 +69,7 @@ public class ProductService implements ProductDao {
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure() == null ? "EA" : productCreateDto.getBaseUnitOfMeasure().trim().toUpperCase());
             ProductDto productDto = get(productRepository.save(productEntity).getId());
+            writeProductAudit(productDto.getId(), "CREATE", null, productDto.getCode() + " - " + productDto.getDescription(), null);
             if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
                 productPricingCreateDto.setProduct(productDto.getId());
@@ -214,6 +218,7 @@ public class ProductService implements ProductDao {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().trim().toUpperCase());
             }
             productRepository.save(productEntity);
+            writeProductAudit(productEntity.getId(), "UPDATE", null, productEntity.getCode() + " - " + productEntity.getDescription(), null);
             if (productEditDto.getPrice() != null) {
                 ProductPricingCreateDto pricingCreateDto = new ProductPricingCreateDto();
                 pricingCreateDto.setProduct(productEditDto.getId());
@@ -236,6 +241,7 @@ public class ProductService implements ProductDao {
             for (ProductPricingEntity price : productPricingRepository.findByProduct(id)) {
                 deletePricing(price.getProductPricingPKEntity());
             }
+            writeProductAudit(id, "DELETE", id, null, null);
             productRepository.deleteById(id);
         } catch (Exception exception) {
             throw new ProductDeleteFailure();
@@ -472,6 +478,16 @@ public class ProductService implements ProductDao {
             throw new RuntimeException(e);
         }
 
+    }
+
+
+    private void writeProductAudit(String productId, String action, String oldValue, String newValue, String userId) {
+        try {
+            jdbcTemplate.update("INSERT INTO product_audit_history (id, product_id, action, old_value, new_value, created_at, created_by) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP,?)",
+                    UUID.randomUUID().toString().replace("-", ""), productId, action, oldValue, newValue, userId);
+        } catch (Exception ignored) {
+            // Product audit table may not exist until the database migration has run.
+        }
     }
 
     private Specification<ProductEntity> findByCriteria(ProductQueryDto productQuery) {

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.jwt;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -11,6 +12,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint, Serializable {
 
     private static final long serialVersionUID = -7858869558953243875L;
