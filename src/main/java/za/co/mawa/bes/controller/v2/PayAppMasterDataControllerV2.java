@@ -5,6 +5,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMemberSyncDto;
 import za.co.mawa.bes.dto.v2.payapp.PayAppPageResponse;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
+import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -17,9 +20,27 @@ import java.util.List;
 public class PayAppMasterDataControllerV2 {
     private static final int MAX_PAGE_SIZE = 2000;
     private final JdbcTemplate jdbcTemplate;
+    private final PayAppMasterDataService masterDataService;
 
-    public PayAppMasterDataControllerV2(JdbcTemplate jdbcTemplate) {
+    public PayAppMasterDataControllerV2(JdbcTemplate jdbcTemplate,
+                                        PayAppMasterDataService masterDataService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.masterDataService = masterDataService;
+    }
+
+    @GetMapping("/master-data/snapshot")
+    public ResponseEntity<PayAppMasterDataSnapshotResponse> snapshot(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(masterDataService.snapshot(cursor, size));
+    }
+
+    @GetMapping("/master-data/changes")
+    public ResponseEntity<PayAppMasterDataChangesResponse> changes(
+            @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(masterDataService.changes(after, cursor, size));
     }
 
     @GetMapping("/members")

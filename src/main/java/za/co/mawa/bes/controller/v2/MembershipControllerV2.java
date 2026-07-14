@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
@@ -17,6 +19,7 @@ import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MigrateService;
+import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
 import java.util.List;
 
@@ -31,15 +34,18 @@ public class MembershipControllerV2 {
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
+    private final PayAppMasterDataService payAppMasterDataService;
 
     public MembershipControllerV2(
             MembershipPlanService membershipPlanService,
             @Qualifier("MembershipServiceV2")
             MembershipService membershipService,
-            MembershipDependentService membershipDependentService) {
+            MembershipDependentService membershipDependentService,
+            PayAppMasterDataService payAppMasterDataService) {
         this.membershipPlanService = membershipPlanService;
         this.membershipService = membershipService;
         this.membershipDependentService = membershipDependentService;
+        this.payAppMasterDataService = payAppMasterDataService;
     }
 
     // ------------------------------------------
@@ -121,6 +127,22 @@ public class MembershipControllerV2 {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "250") int size) {
         return ResponseEntity.ok(membershipService.getMasterData(page, size));
+    }
+
+
+    @GetMapping(value = "/master-data/snapshot")
+    public ResponseEntity<PayAppMasterDataSnapshotResponse> getMasterDataSnapshot(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(payAppMasterDataService.snapshot(cursor, size));
+    }
+
+    @GetMapping(value = "/master-data/changes")
+    public ResponseEntity<PayAppMasterDataChangesResponse> getMasterDataChanges(
+            @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(payAppMasterDataService.changes(after, cursor, size));
     }
 
     @GetMapping("/{id}")
