@@ -44,7 +44,7 @@ public class PayAppMasterDataControllerV2 {
                        NULLIF(m.paid_up_to_period, ''),
                        (SELECT MAX(mp.period_yyyymm)
                           FROM membership_premium mp
-                         WHERE mp.membership_id = m.id
+                         WHERE (mp.membership_id = m.id OR mp.membership_id = m.old_id)
                            AND mp.status = 'PAID')
                    ) paid_up_to_period,
                    m.join_date, COALESCE(m.updated_at, m.created_at) updated_at
