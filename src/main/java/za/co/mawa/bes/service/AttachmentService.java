@@ -1,6 +1,8 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -25,6 +27,8 @@ import java.util.List;
 
 @Service
 public class AttachmentService implements AttachmentDao {
+
+    private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
 
     @Autowired
     UserService userService;
@@ -146,14 +150,22 @@ public class AttachmentService implements AttachmentDao {
         attachmentRepository.deleteById(id);
     }
 
-    public synchronized int migrateLegacyDatabaseFilesToGcp() {
+    public int migrateLegacyDatabaseFilesToGcp() {
+        return migrateLegacyDatabaseFilesToGcpWithResult().migrated();
+    }
+
+    public synchronized MigrationResult migrateLegacyDatabaseFilesToGcpWithResult() {
         if (!attachmentStorageService.isGcpConfigured()) {
             throw new IllegalStateException("Attachment GCP storage is not configured. Set MAWA_ATTACHMENT_BUCKET.");
         }
 
         final int batchSize = 100;
+        int attempted = 0;
         int migrated = 0;
+        int failed = 0;
         String cursor = "";
+        List<String> failureMessages = new ArrayList<>();
+
         while (true) {
             List<String> ids = attachmentRepository.findLegacyAttachmentIdsAfter(
                     cursor,
@@ -165,6 +177,7 @@ public class AttachmentService implements AttachmentDao {
 
             for (String id : ids) {
                 cursor = id;
+                attempted++;
                 try {
                     Integer result = new TransactionTemplate(transactionManager)
                             .execute(status -> migrateOneLegacyAttachment(id));
@@ -172,17 +185,55 @@ public class AttachmentService implements AttachmentDao {
                         migrated += result;
                     }
                 } catch (Exception ex) {
+                    failed++;
+                    String failure = "id=" + id + ": " + rootMessage(ex);
+                    if (failureMessages.size() < 10) {
+                        failureMessages.add(failure);
+                    }
                     // Continue beyond a corrupt/unreadable attachment so one bad
                     // row cannot prevent later attachments from being migrated.
-                    System.err.println("Attachment GCS migration failed for id=" + id + ": " + ex.getMessage());
+                    log.error("Attachment GCS migration failed for {}", failure, ex);
                 }
             }
         }
-        return migrated;
+
+        long remaining = countLegacyDatabaseFiles();
+        log.info(
+                "Attachment GCS migration completed: attempted={}, migrated={}, failed={}, remaining={}",
+                attempted,
+                migrated,
+                failed,
+                remaining
+        );
+        return new MigrationResult(attempted, migrated, failed, remaining, failureMessages);
     }
 
     public long countLegacyDatabaseFiles() {
         return attachmentRepository.countLegacyDatabaseFiles();
+    }
+
+    private String rootMessage(Throwable error) {
+        Throwable current = error;
+        String message = null;
+        while (current != null) {
+            if (StringUtils.hasText(current.getMessage())) {
+                message = current.getMessage();
+            }
+            current = current.getCause();
+        }
+        return StringUtils.hasText(message) ? message : error.getClass().getSimpleName();
+    }
+
+    public record MigrationResult(
+            int attempted,
+            int migrated,
+            int failed,
+            long remaining,
+            List<String> failures
+    ) {
+        public boolean completed() {
+            return remaining == 0;
+        }
     }
 
     private int migrateOneLegacyAttachment(String id) {
