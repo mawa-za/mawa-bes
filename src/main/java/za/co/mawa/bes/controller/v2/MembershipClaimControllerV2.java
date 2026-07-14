@@ -1,10 +1,14 @@
 package za.co.mawa.bes.controller.v2;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimCreateRequest;
+import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimListItemResponse;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimResponse;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimUpdateRequest;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimsAttachRequest;
@@ -39,6 +43,18 @@ public class MembershipClaimControllerV2 {
     @GetMapping
     public ResponseEntity<List<MembershipClaimResponse>> getAll() {
         return ResponseEntity.ok(membershipClaimService.getAll());
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Slice<MembershipClaimListItemResponse>> getPage(
+            @RequestParam(required = false) MembershipClaimStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        return ResponseEntity.ok(membershipClaimService.getPage(status, pageable));
     }
 
     @GetMapping("/{id}")

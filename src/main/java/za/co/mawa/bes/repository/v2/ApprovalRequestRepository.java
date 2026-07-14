@@ -20,4 +20,12 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     List<ApprovalRequestEntity> findByApprovalTypeOrderByCreatedAtDesc(ApprovalType approvalType);
 
     List<ApprovalRequestEntity> findByRequesterIdOrderByCreatedAtDesc(String requesterId);
+
+    List<ApprovalRequestEntity> findByStatusAndApprovalTypeOrderByCreatedAtDesc(
+            ApprovalStatus status,
+            ApprovalType approvalType
+    );
+
+    List<ApprovalRequestEntity> findAllByOrderByCreatedAtDesc();
 }
+

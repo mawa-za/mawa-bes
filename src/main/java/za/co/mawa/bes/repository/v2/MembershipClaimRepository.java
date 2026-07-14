@@ -1,5 +1,7 @@
 package za.co.mawa.bes.repository.v2;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
@@ -19,4 +21,12 @@ public interface MembershipClaimRepository extends JpaRepository<MembershipClaim
     List<MembershipClaimEntity> findByClaimTypeOrderByCreatedAtDesc(MembershipClaimType claimType);
 
     List<MembershipClaimEntity> findByDeceasedPartnerIdOrderByCreatedAtDesc(String deceasedPartnerId);
+
+    Slice<MembershipClaimEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Slice<MembershipClaimEntity> findByStatusOrderByCreatedAtDesc(
+            MembershipClaimStatus status,
+            Pageable pageable
+    );
 }
+

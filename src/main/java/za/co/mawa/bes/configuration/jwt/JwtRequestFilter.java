@@ -47,6 +47,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || "/reset-password".equals(path)
                 || "/v2/reset-password".equals(path)
                 || "/refresh-token".equals(path)
+                || "/v2/refresh-token".equals(path)
                 || "/v2/company-logo/content".equals(path)
                 || "/v2/admin-handoff/exchange".equals(path)
                 || path.startsWith("/internal/admin/")
