@@ -16,7 +16,7 @@ Public handoff exchange endpoint used by `mawa_erp` after admin redirect:
 POST /v2/admin-handoff/exchange
 ```
 
-The handoff token is short-lived, single-use, tenant scoped, and exchanged for normal ERP JWT/refresh tokens.
+The handoff token is short-lived, signed by mawa-bes, tenant scoped, safe across Cloud Run instances, and exchanged for normal ERP JWT/refresh tokens.
 
 Required Cloud Run variable on both `mawa-admin-bes` and `mawa-bes`:
 
