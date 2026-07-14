@@ -67,15 +67,20 @@ public class AttachmentControllerV2 {
     @RequestMapping(value = "migrate-to-gcp", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> migrateToGcp() {
         try {
-            int migrated = attachmentService.migrateLegacyDatabaseFilesToGcp();
-            long remaining = attachmentService.countLegacyDatabaseFiles();
+            AttachmentService.MigrationResult result = attachmentService.migrateLegacyDatabaseFilesToGcpWithResult();
             return ResponseEntity.ok(java.util.Map.of(
-                    "migrated", migrated,
-                    "remaining", remaining,
-                    "completed", remaining == 0
+                    "attempted", result.attempted(),
+                    "migrated", result.migrated(),
+                    "failed", result.failed(),
+                    "remaining", result.remaining(),
+                    "completed", result.completed(),
+                    "failures", result.failures()
             ));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(
+                    "message", exception.getMessage() == null ? "Attachment migration failed" : exception.getMessage(),
+                    "completed", false
+            ));
         }
     }
 
