@@ -95,16 +95,21 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping
-    public ResponseEntity<Page<MembershipEntity>> listMemberships(Pageable pageable,
-                                                                  @RequestParam(required = false) List<String> memberId
-                                                                  ) {
-        Page<MembershipEntity> page = membershipService.getMembershipsByMemberId(memberId, pageable);
+    public ResponseEntity<Page<MembershipEntity>> listMemberships(
+            Pageable pageable,
+            @RequestParam(required = false) List<String> memberId,
+            @RequestParam(required = false) String status
+    ) {
+        Page<MembershipEntity> page = membershipService.getMembershipsByMemberId(memberId, status, pageable);
         return ResponseEntity.ok(page);
     }
 
     @GetMapping(value = "/all")
-    public ResponseEntity<Page<MembershipEntity>> getMemberships(Pageable pageable) {
-        return ResponseEntity.ok(membershipService.getAllMemberships(pageable));
+    public ResponseEntity<Page<MembershipEntity>> getMemberships(
+            Pageable pageable,
+            @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(membershipService.getAllMemberships(status, pageable));
     }
 
     /**

@@ -8,8 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.service.v2.SupplierApprovalService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +36,14 @@ public class PartnerControllerV2 {
     PartnerAddressService partnerAddressService;
     @Autowired
     AddressService addressService;
+    @Autowired
+    SupplierApprovalService supplierApprovalService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<PartnerViewEntity>> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
         try {
+            query = query == null ? "" : query.trim();
+            role = role == null ? "" : role.trim();
             List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
             if (!query.isEmpty()) {
                 partnerViewEntities = partnerServiceV2.searchByString('%' + query + '%');
@@ -64,6 +70,9 @@ public class PartnerControllerV2 {
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PartnerOutboundDto> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
         try {
+            if ("SUPPLIER".equalsIgnoreCase(partnerInboundDto.getPartnerRole())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
             PartnerViewEntity partnerViewEntity = partnerServiceV2.create(partnerInboundDto);
             PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
             partnerOutboundDto.setPartnerId(partnerViewEntity.getPartnerId());
@@ -77,6 +86,32 @@ public class PartnerControllerV2 {
         } catch (Exception exception) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PostMapping(value = "/supplier/submit-for-approval", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApprovalRequestResponse> submitSupplierForApproval(
+            @RequestBody PartnerInboundDto partnerInboundDto,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        return ResponseEntity.ok(
+                supplierApprovalService.submitSupplierOnboarding(partnerInboundDto, userId)
+        );
+    }
+
+    @GetMapping(value = "/{id}/bank-accounts", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PartnerBankAccountGetDto> getSupplierBankAccounts(@PathVariable String id) {
+        return ResponseEntity.ok(partnerBankAccountService.getBankAccounts(id));
+    }
+
+    @PostMapping(value = "/{id}/bank-accounts/submit-for-approval", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApprovalRequestResponse> submitSupplierBankingForApproval(
+            @PathVariable String id,
+            @RequestBody PartnerBankAccountDto bankAccount,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        return ResponseEntity.ok(
+                supplierApprovalService.submitBankingDetails(id, bankAccount, userId)
+        );
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
