@@ -9,14 +9,13 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestCancelDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestEditDto;
 import za.co.mawa.bes.dto.leave.request.LeaveRequestInboundDto;
-import za.co.mawa.bes.dto.leave.request.LeaveRequestQueryDto;
-import za.co.mawa.bes.dto.transaction.TransactionEditDto;
-import za.co.mawa.bes.dto.transaction.edit.TransactionPartnerEdit;
 import za.co.mawa.bes.service.LeaveRequestService;
 import za.co.mawa.bes.service.TransactionService;
-import za.co.mawa.bes.utils.Status;
 
 
+@RestController
+@CrossOrigin
+@RequestMapping(value = "leave-request")
 public class LeaveRequestController {
     Gson gson = new Gson();
     @Autowired
@@ -45,8 +44,14 @@ public class LeaveRequestController {
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> search(@RequestParam(required = false) String status) {
         try {
-            LeaveRequestQueryDto leaveRequestQueryDto = new LeaveRequestQueryDto();
-            return ResponseEntity.ok(gson.toJson(leaveRequestService.search()));
+            var requests = leaveRequestService.search();
+            if (status != null && !status.isBlank()) {
+                requests = requests.stream()
+                        .filter(request -> request.getStatus() != null
+                                && status.equalsIgnoreCase(request.getStatus().getCode()))
+                        .toList();
+            }
+            return ResponseEntity.ok(gson.toJson(requests));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
         }
