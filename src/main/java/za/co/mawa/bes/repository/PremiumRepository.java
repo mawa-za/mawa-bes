@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import za.co.mawa.bes.entity.PremiumEntity;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -19,4 +20,7 @@ public interface PremiumRepository extends JpaRepository<PremiumEntity, String> 
 
     @Query("SELECT p FROM PremiumEntity p WHERE p.membershipId = :id ORDER BY p.receiptNumber")
     List<PremiumEntity> findByMembership(String id) ;
+
+    @Query("SELECT p FROM PremiumEntity p WHERE p.membershipId IN :ids ORDER BY p.receiptNumber")
+    List<PremiumEntity> findByMembershipIds(Collection<String> ids);
 }
