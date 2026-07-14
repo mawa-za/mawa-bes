@@ -82,18 +82,6 @@ public class ApprovalControllerV2 {
             @RequestParam(required = false) ApprovalType approvalType,
             @RequestParam(required = false) String requesterId
     ) {
-        if (status != null) {
-            return approvalService.getByStatus(status);
-        }
-
-        if (approvalType != null) {
-            return approvalService.getByType(approvalType);
-        }
-
-        if (requesterId != null) {
-            return approvalService.getByRequester(requesterId);
-        }
-
-        return approvalService.getByStatus(ApprovalStatus.IN_PROGRESS);
+        return approvalService.search(status, approvalType, requesterId);
     }
 }

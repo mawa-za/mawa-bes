@@ -61,13 +61,15 @@ public class MembershipService {
         this.membershipRepository = membershipRepository;
     }
 
-    public Page<MembershipEntity> getAllMemberships(Pageable pageable) {
-        Page<MembershipEntity> memberships = membershipRepository.findAll(pageable);
-        repairMissingPaidUpToPeriods(memberships.getContent());
-        return memberships;
+    public Page<MembershipEntity> getAllMemberships(String status, Pageable pageable) {
+        return getMembershipsByMemberId(null, status, pageable);
     }
 
-    public Page<MembershipEntity> getMembershipsByMemberId(List<String> memberIds, Pageable pageable) {
+    public Page<MembershipEntity> getMembershipsByMemberId(
+            List<String> memberIds,
+            String status,
+            Pageable pageable
+    ) {
         Specification<MembershipEntity> spec = (root, queryObj, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -81,6 +83,12 @@ public class MembershipService {
             // Add memberId filters (if provided)
             if (memberIds != null && !memberIds.isEmpty()) {
                 predicates.add(root.get("memberId").in(memberIds));
+            }
+            if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+                predicates.add(criteriaBuilder.equal(
+                        criteriaBuilder.upper(root.get("status")),
+                        status.trim().toUpperCase()
+                ));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
