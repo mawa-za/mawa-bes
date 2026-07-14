@@ -38,7 +38,7 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
                     NULLIF(m.paid_up_to_period, ''),
                     (SELECT MAX(mp.period_yyyymm)
                        FROM membership_premium mp
-                      WHERE mp.membership_id = m.id
+                      WHERE (mp.membership_id = m.id OR mp.membership_id = m.old_id)
                         AND mp.status = 'PAID')
                 ) AS paidUpToPeriod,
                 m.created_at AS createdAt,

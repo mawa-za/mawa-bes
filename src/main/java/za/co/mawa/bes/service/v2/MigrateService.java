@@ -281,6 +281,12 @@ public class MigrateService {
         }
 
         MembershipEntity savedMembership = membershipRepository.save(membership);
+        try {
+            premiumService.recalculatePaidUpToPeriod(savedMembership.getId());
+        } catch (Exception e) {
+            tenantResult.addWarning("Unable to recalculate paid-up period for "
+                    + savedMembership.getMembershipNo() + ": " + e.getMessage());
+        }
         if (created) {
             tenantResult.setMembershipsCreated(tenantResult.getMembershipsCreated() + 1);
         } else {
