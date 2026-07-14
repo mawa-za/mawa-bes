@@ -45,11 +45,13 @@ public class PartnerControllerV2 {
             query = query == null ? "" : query.trim();
             role = role == null ? "" : role.trim();
             List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
-            if (!query.isEmpty()) {
+            if (!query.isEmpty() && !role.isEmpty()) {
+                partnerViewEntities = partnerServiceV2.searchByStringAndRole('%' + query + '%', role);
+            } else if (!query.isEmpty()) {
                 partnerViewEntities = partnerServiceV2.searchByString('%' + query + '%');
             } else if (!role.isEmpty()) {
                 partnerViewEntities = partnerServiceV2.getByRole(role);
-            } else if (role.isEmpty() && query.isEmpty()) {
+            } else {
                 partnerViewEntities = partnerServiceV2.getAll();
             }
             List<PartnerViewEntity> uniquePartners = new ArrayList<>(
