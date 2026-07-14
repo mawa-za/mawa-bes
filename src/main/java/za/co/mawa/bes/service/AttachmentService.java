@@ -155,57 +155,121 @@ public class AttachmentService implements AttachmentDao {
     }
 
     public synchronized MigrationResult migrateLegacyDatabaseFilesToGcpWithResult() {
-        if (!attachmentStorageService.isGcpConfigured()) {
-            throw new IllegalStateException("Attachment GCP storage is not configured. Set MAWA_ATTACHMENT_BUCKET.");
-        }
-
-        final int batchSize = 100;
+        String cursor = "";
         int attempted = 0;
         int migrated = 0;
         int failed = 0;
-        String cursor = "";
-        List<String> failureMessages = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
+        MigrationResult batch;
 
-        while (true) {
-            List<String> ids = attachmentRepository.findLegacyAttachmentIdsAfter(
-                    cursor,
-                    PageRequest.of(0, batchSize)
-            );
-            if (ids.isEmpty()) {
-                break;
-            }
-
-            for (String id : ids) {
-                cursor = id;
-                attempted++;
-                try {
-                    Integer result = new TransactionTemplate(transactionManager)
-                            .execute(status -> migrateOneLegacyAttachment(id));
-                    if (result != null && result > 0) {
-                        migrated += result;
-                    }
-                } catch (Exception ex) {
-                    failed++;
-                    String failure = "id=" + id + ": " + rootMessage(ex);
-                    if (failureMessages.size() < 10) {
-                        failureMessages.add(failure);
-                    }
-                    // Continue beyond a corrupt/unreadable attachment so one bad
-                    // row cannot prevent later attachments from being migrated.
-                    log.error("Attachment GCS migration failed for {}", failure, ex);
+        do {
+            batch = migrateLegacyDatabaseFilesToGcpBatch(cursor, 100);
+            attempted += batch.attempted();
+            migrated += batch.migrated();
+            failed += batch.failed();
+            for (String failure : batch.failures()) {
+                if (failures.size() < 10) {
+                    failures.add(failure);
                 }
             }
-        }
+            cursor = batch.nextCursor();
+        } while (!batch.scanComplete());
 
-        long remaining = countLegacyDatabaseFiles();
-        log.info(
-                "Attachment GCS migration completed: attempted={}, migrated={}, failed={}, remaining={}",
+        return new MigrationResult(
                 attempted,
                 migrated,
                 failed,
-                remaining
+                batch.remaining(),
+                failures,
+                cursor,
+                true
         );
-        return new MigrationResult(attempted, migrated, failed, remaining, failureMessages);
+    }
+
+    /**
+     * Migrates a bounded page of legacy attachment rows. The cursor always
+     * advances, including past rows that fail, so a corrupt attachment cannot
+     * starve every later attachment. Callers can continue with nextCursor until
+     * scanComplete is true.
+     */
+    public synchronized MigrationResult migrateLegacyDatabaseFilesToGcpBatch(
+            String afterId,
+            int requestedLimit
+    ) {
+        if (!attachmentStorageService.isGcpConfigured()) {
+            throw new IllegalStateException(
+                    "Attachment GCP storage is not configured. Set MAWA_ATTACHMENT_BUCKET."
+            );
+        }
+
+        int limit = Math.max(1, Math.min(requestedLimit, 50));
+        String cursor = StringUtils.hasText(afterId) ? afterId.trim() : "";
+        List<String> ids = attachmentRepository.findLegacyAttachmentIdsAfter(
+                cursor,
+                PageRequest.of(0, limit)
+        );
+
+        if (ids.isEmpty()) {
+            long remaining = countLegacyDatabaseFiles();
+            return new MigrationResult(
+                    0,
+                    0,
+                    0,
+                    remaining,
+                    List.of(),
+                    cursor,
+                    true
+            );
+        }
+
+        int attempted = 0;
+        int migrated = 0;
+        int failed = 0;
+        List<String> failureMessages = new ArrayList<>();
+
+        for (String id : ids) {
+            cursor = id;
+            attempted++;
+            try {
+                Integer result = new TransactionTemplate(transactionManager)
+                        .execute(status -> migrateOneLegacyAttachment(id));
+                if (result != null && result > 0) {
+                    migrated += result;
+                }
+            } catch (Exception ex) {
+                failed++;
+                String failure = "id=" + id + ": " + rootMessage(ex);
+                if (failureMessages.size() < 10) {
+                    failureMessages.add(failure);
+                }
+                log.error("Attachment GCS migration failed for {}", failure, ex);
+            }
+        }
+
+        boolean scanComplete = attachmentRepository.findLegacyAttachmentIdsAfter(
+                cursor,
+                PageRequest.of(0, 1)
+        ).isEmpty();
+        long remaining = countLegacyDatabaseFiles();
+
+        log.info(
+                "Attachment GCS migration batch completed: attempted={}, migrated={}, failed={}, remaining={}, nextCursor={}, scanComplete={}",
+                attempted,
+                migrated,
+                failed,
+                remaining,
+                cursor,
+                scanComplete
+        );
+        return new MigrationResult(
+                attempted,
+                migrated,
+                failed,
+                remaining,
+                failureMessages,
+                cursor,
+                scanComplete
+        );
     }
 
     public long countLegacyDatabaseFiles() {
@@ -229,7 +293,9 @@ public class AttachmentService implements AttachmentDao {
             int migrated,
             int failed,
             long remaining,
-            List<String> failures
+            List<String> failures,
+            String nextCursor,
+            boolean scanComplete
     ) {
         public boolean completed() {
             return remaining == 0;
@@ -237,21 +303,25 @@ public class AttachmentService implements AttachmentDao {
     }
 
     private int migrateOneLegacyAttachment(String id) {
-        AttachmentEntity attachmentEntity = attachmentRepository.findById(id).orElse(null);
+        AttachmentEntity attachmentEntity = attachmentRepository.findByIdForMigration(id).orElse(null);
         if (attachmentEntity == null
                 || StringUtils.hasText(attachmentEntity.getFilePath())
-                || attachmentEntity.getFile() == null
-                || attachmentEntity.getFile().length == 0) {
+                || attachmentEntity.getFile() == null) {
             return 0;
         }
+        if (attachmentEntity.getFile().length == 0) {
+            throw new IllegalStateException("Legacy attachment file is empty");
+        }
 
-        AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(
-                attachmentEntity.getFile(),
-                attachmentEntity.getExtension(),
-                attachmentEntity.getDocumentType(),
-                attachmentEntity.getObjectId(),
-                attachmentEntity.getDocumentType()
-        );
+        AttachmentStorageService.StoredAttachment stored =
+                attachmentStorageService.storeLegacyAttachment(
+                        attachmentEntity.getFile(),
+                        attachmentEntity.getExtension(),
+                        attachmentEntity.getDocumentType(),
+                        attachmentEntity.getObjectId(),
+                        attachmentEntity.getDocumentType(),
+                        attachmentEntity.getId()
+                );
         attachmentEntity.setStorageProvider(stored.storageProvider());
         attachmentEntity.setStorageBucket(stored.bucket());
         attachmentEntity.setFilePath(stored.path());
