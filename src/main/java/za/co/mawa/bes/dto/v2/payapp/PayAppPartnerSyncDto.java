@@ -6,17 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PayAppMemberSyncDto {
-    private String membershipId;
-    private String membershipNo;
+public class PayAppPartnerSyncDto {
     private String partnerId;
     private String partnerNo;
+    private String partnerType;
     private String firstName;
     private String lastName;
     private String middleName;
@@ -25,10 +23,6 @@ public class PayAppMemberSyncDto {
     private String partnerStatus;
     private LocalDate birthDate;
     private String gender;
-    private String planId;
-    private String membershipStatus;
-    private String paidUpToPeriod;
-    private LocalDate startDate;
-    private LocalDate joinDate;
-    private LocalDateTime updatedAt;
+    private String email;
+    private String mobileNumber;
 }
