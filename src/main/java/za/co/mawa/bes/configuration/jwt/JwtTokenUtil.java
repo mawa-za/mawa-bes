@@ -28,6 +28,7 @@ public class JwtTokenUtil implements Serializable {
     private static final String CLAIM_TOKEN_TYPE = "token_type";
     private static final String ACCESS_TOKEN = "access";
     private static final String REFRESH_TOKEN = "refresh";
+    private static final String ADMIN_HANDOFF_TOKEN = "admin_handoff";
 
     private long jwtExpirationInMs;
     private long refreshExpirationDateInMs;
@@ -138,6 +139,34 @@ public class JwtTokenUtil implements Serializable {
         claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
         claims.put(CLAIM_TOKEN_TYPE, REFRESH_TOKEN);
         return doGenerateToken(claims, username, tenantId, refreshExpirationDateInMs);
+    }
+
+    public String generateAdminHandoffToken(
+            String tenantId,
+            String tenantHost,
+            String tenantUrl,
+            String adminUsername,
+            String redirectPath,
+            long expiryInMs
+    ) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
+        claims.put(CLAIM_TOKEN_TYPE, ADMIN_HANDOFF_TOKEN);
+        claims.put("tenant_host", tenantHost == null ? "" : tenantHost);
+        claims.put("tenant_url", tenantUrl == null ? "" : tenantUrl);
+        claims.put("admin_username", adminUsername == null ? "" : adminUsername);
+        claims.put("redirect_path", redirectPath == null ? "/home" : redirectPath);
+        claims.put("handoff_id", java.util.UUID.randomUUID().toString());
+        return doGenerateToken(claims, "admin-handoff", tenantId, expiryInMs);
+    }
+
+    public Claims getAdminHandoffClaims(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        String tokenType = claims.get(CLAIM_TOKEN_TYPE, String.class);
+        if (!ADMIN_HANDOFF_TOKEN.equals(tokenType)) {
+            throw new IllegalArgumentException("Token is not an admin handoff token");
+        }
+        return claims;
     }
 
     private String doGenerateToken(

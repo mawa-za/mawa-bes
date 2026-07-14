@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service;
 
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -11,16 +12,12 @@ import za.co.mawa.bes.dto.admin.AdminHandoffRequestDto;
 import za.co.mawa.bes.dto.admin.AdminHandoffResponseDto;
 import za.co.mawa.bes.dto.user.UserDto;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class AdminHandoffService {
-
-    private final ConcurrentHashMap<String, HandoffEntry> handoffTokens = new ConcurrentHashMap<>();
 
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
@@ -44,7 +41,7 @@ public class AdminHandoffService {
         if (!StringUtils.hasText(internalServiceToken)) {
             throw new IllegalStateException("mawa.internal.service-token is not configured");
         }
-        if (!internalServiceToken.equals(token)) {
+        if (!constantTimeEquals(internalServiceToken, token)) {
             throw new SecurityException("Invalid internal service token");
         }
     }
@@ -54,19 +51,16 @@ public class AdminHandoffService {
             throw new IllegalArgumentException("Tenant is required");
         }
 
-        cleanupExpiredTokens();
-
+        String redirectPath = normalizeRedirectPath(request.getRedirectPath());
         long expiresAt = System.currentTimeMillis() + handoffTtlMs;
-        String token = UUID.randomUUID().toString().replace("-", "");
-        String redirectPath = StringUtils.hasText(request.getRedirectPath()) ? request.getRedirectPath() : "/home";
-        handoffTokens.put(token, new HandoffEntry(
-                request.getTenant(),
+        String token = jwtTokenUtil.generateAdminHandoffToken(
+                request.getTenant().trim(),
                 request.getTenantHost(),
                 request.getTenantUrl(),
                 request.getAdminUsername(),
                 redirectPath,
-                expiresAt
-        ));
+                handoffTtlMs
+        );
 
         AdminHandoffResponseDto response = new AdminHandoffResponseDto();
         response.setTenant(request.getTenant());
@@ -74,7 +68,7 @@ public class AdminHandoffService {
         response.setTenantUrl(request.getTenantUrl());
         response.setHandoffToken(token);
         response.setExpiresAt(expiresAt);
-        response.setTargetUrl(buildTargetUrl(request, token, redirectPath));
+        response.setTargetUrl(buildTargetUrl(request.getTenantUrl(), request.getTenantHost(), token, redirectPath));
         return response;
     }
 
@@ -83,27 +77,37 @@ public class AdminHandoffService {
             throw new IllegalArgumentException("Handoff token is required");
         }
 
-        HandoffEntry entry = handoffTokens.remove(token);
-        if (entry == null) {
-            throw new SecurityException("Handoff token is invalid or already used");
+        final Claims claims;
+        try {
+            claims = jwtTokenUtil.getAdminHandoffClaims(token.trim());
+        } catch (Exception ex) {
+            throw new SecurityException("Handoff token is invalid or expired", ex);
         }
-        if (entry.expiresAt < System.currentTimeMillis()) {
-            throw new SecurityException("Handoff token has expired");
+
+        String tenant = claims.get("tenant-id", String.class);
+        if (!StringUtils.hasText(tenant)) {
+            tenant = claims.getAudience();
         }
+        if (!StringUtils.hasText(tenant)) {
+            throw new SecurityException("Handoff token does not contain a tenant");
+        }
+
+        String tenantHost = claims.get("tenant_host", String.class);
+        String tenantUrl = claims.get("tenant_url", String.class);
 
         try {
-            TenantContext.setCurrentTenant(entry.tenant);
-            TenantContext.setCurrentTenantURL(resolveBaseUrl(entry));
+            TenantContext.setCurrentTenant(tenant);
+            TenantContext.setCurrentTenantURL(resolveBaseUrl(tenantUrl, tenantHost));
 
-            String username = StringUtils.hasText(handoffUsername) ? handoffUsername : UserService.SYSTEM_USER;
+            String username = StringUtils.hasText(handoffUsername) ? handoffUsername.trim() : UserService.SYSTEM_USER;
             UserDto userDto = userService.getUserByName(username);
             if (userDto == null || !StringUtils.hasText(userDto.getId())) {
-                throw new IllegalStateException("Admin handoff user does not exist for tenant " + entry.tenant);
+                throw new IllegalStateException("Admin handoff user '" + username + "' does not exist for tenant " + tenant);
             }
 
             AuthenticationResponseDto response = new AuthenticationResponseDto();
-            response.setAccessToken(jwtTokenUtil.generateToken(username, entry.tenant));
-            response.setRefreshToken(jwtTokenUtil.generateRefreshToken(username, entry.tenant));
+            response.setAccessToken(jwtTokenUtil.generateToken(username, tenant));
+            response.setRefreshToken(jwtTokenUtil.generateRefreshToken(username, tenant));
             response.setUsername(username);
             response.setUserId(userDto.getId());
             if (userDto.getPartner() != null) {
@@ -117,66 +121,62 @@ public class AdminHandoffService {
         }
     }
 
-    private String buildTargetUrl(AdminHandoffRequestDto request, String token, String redirectPath) {
-        String baseUrl = resolveBaseUrl(request.getTenantUrl(), request.getTenantHost());
+    private String buildTargetUrl(String tenantUrl, String tenantHost, String token, String redirectPath) {
+        String baseUrl = resolveBaseUrl(tenantUrl, tenantHost);
         String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
         String encodedRedirect = URLEncoder.encode(redirectPath, StandardCharsets.UTF_8);
-        return trimTrailingSlash(baseUrl) + "/admin-handoff?token=" + encodedToken + "&redirect=" + encodedRedirect;
-    }
-
-    private String resolveBaseUrl(HandoffEntry entry) {
-        return resolveBaseUrl(entry.tenantUrl, entry.tenantHost);
+        // MAWA ERP currently uses Flutter's hash URL strategy.
+        return trimTrailingSlash(baseUrl) + "/#/admin-handoff?token=" + encodedToken + "&redirect=" + encodedRedirect;
     }
 
     private String resolveBaseUrl(String tenantUrl, String tenantHost) {
         if (StringUtils.hasText(tenantUrl)) {
-            return normalizeUrl(tenantUrl);
+            return normalizeAppOrigin(tenantUrl);
         }
         if (StringUtils.hasText(tenantHost)) {
-            return normalizeUrl(tenantHost);
+            return normalizeAppOrigin(tenantHost);
         }
         if (StringUtils.hasText(defaultErpAppUrl)) {
-            return normalizeUrl(defaultErpAppUrl);
+            return normalizeAppOrigin(defaultErpAppUrl);
         }
         throw new IllegalStateException("Tenant URL/host or mawa.erp.app.url is required for admin handoff");
     }
 
-    private String normalizeUrl(String value) {
+    private String normalizeAppOrigin(String value) {
         String trimmed = value.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            return trimmed;
+        String withScheme = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+                ? trimmed
+                : "https://" + trimmed;
+        URI uri = URI.create(withScheme);
+        if (!StringUtils.hasText(uri.getScheme()) || !StringUtils.hasText(uri.getHost())) {
+            throw new IllegalArgumentException("Invalid tenant ERP app URL: " + value);
         }
-        return "https://" + trimmed;
+        int port = uri.getPort();
+        return uri.getScheme() + "://" + uri.getHost() + (port >= 0 ? ":" + port : "");
+    }
+
+    private String normalizeRedirectPath(String value) {
+        String path = StringUtils.hasText(value) ? value.trim() : "/home";
+        if (!path.startsWith("/") || path.startsWith("//") || path.contains("://")) {
+            return "/home";
+        }
+        return path;
     }
 
     private String trimTrailingSlash(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
+    private boolean constantTimeEquals(String expected, String supplied) {
+        if (supplied == null) {
+            return false;
+        }
+        byte[] left = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] right = supplied.getBytes(StandardCharsets.UTF_8);
+        return java.security.MessageDigest.isEqual(left, right);
+    }
+
     private String safe(String value) {
         return value == null ? "" : value;
-    }
-
-    private void cleanupExpiredTokens() {
-        long now = Instant.now().toEpochMilli();
-        handoffTokens.entrySet().removeIf(entry -> entry.getValue().expiresAt < now);
-    }
-
-    private static class HandoffEntry {
-        private final String tenant;
-        private final String tenantHost;
-        private final String tenantUrl;
-        private final String adminUsername;
-        private final String redirectPath;
-        private final long expiresAt;
-
-        private HandoffEntry(String tenant, String tenantHost, String tenantUrl, String adminUsername, String redirectPath, long expiresAt) {
-            this.tenant = tenant;
-            this.tenantHost = tenantHost;
-            this.tenantUrl = tenantUrl;
-            this.adminUsername = adminUsername;
-            this.redirectPath = redirectPath;
-            this.expiresAt = expiresAt;
-        }
     }
 }
