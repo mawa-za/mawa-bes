@@ -3,6 +3,7 @@ package za.co.mawa.bes.configuration.jwt;
 import io.jsonwebtoken.JwtException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 
 @Service
@@ -26,18 +27,30 @@ public class JwtRefreshService {
 
         String username = jwtTokenUtil.getUsernameFromToken(refreshToken);
         String tenantId = jwtTokenUtil.getTenantIdFromToken(refreshToken);
-
-        UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
-
-        if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)) {
-            throw new JwtException("Invalid refresh token");
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new JwtException("Refresh token does not contain a tenant");
         }
 
-        String newAccessToken = jwtTokenUtil.generateToken(username, tenantId);
+        String previousTenant = TenantContext.getCurrentTenant();
+        try {
+            // Refresh is a public endpoint, so JwtRequestFilter intentionally does not
+            // establish tenant context. Set it before loading the tenant-scoped user.
+            TenantContext.setCurrentTenant(tenantId);
+            UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
 
-        // optional rotation
-        String newRefreshToken = jwtTokenUtil.generateRefreshToken(username, tenantId);
+            if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)) {
+                throw new JwtException("Invalid refresh token");
+            }
 
-        return new JwtResponse(newAccessToken, newRefreshToken);
+            String newAccessToken = jwtTokenUtil.generateToken(username, tenantId);
+            String newRefreshToken = jwtTokenUtil.generateRefreshToken(username, tenantId);
+            return new JwtResponse(newAccessToken, newRefreshToken);
+        } finally {
+            if (previousTenant == null || previousTenant.isBlank()) {
+                TenantContext.clear();
+            } else {
+                TenantContext.setCurrentTenant(previousTenant);
+            }
+        }
     }
 }

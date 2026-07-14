@@ -2,6 +2,8 @@ package za.co.mawa.bes.service.v2;
 
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.StringUtils;
@@ -134,10 +136,20 @@ public class MembershipClaimService {
     }
 
     public List<MembershipClaimResponse> getAll() {
-        return claimRepository.findAll()
+        return claimRepository.findAllByOrderByCreatedAtDesc(Pageable.unpaged())
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public Slice<MembershipClaimListItemResponse> getPage(
+            MembershipClaimStatus status,
+            Pageable pageable
+    ) {
+        Slice<MembershipClaimEntity> claims = status == null
+                ? claimRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : claimRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+        return claims.map(this::toListItemResponse);
     }
 
     public MembershipClaimResponse getById(String id) {
@@ -551,6 +563,27 @@ public class MembershipClaimService {
     private MembershipClaimEntity getClaimEntity(String id) {
         return claimRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Claim not found: " + id));
+    }
+
+    private MembershipClaimListItemResponse toListItemResponse(MembershipClaimEntity entity) {
+        return MembershipClaimListItemResponse.builder()
+                .id(entity.getId())
+                .claimNo(entity.getClaimNo())
+                .membershipId(entity.getMembershipId())
+                .claimType(entity.getClaimType())
+                .deceasedType(entity.getDeceasedType())
+                .deceasedPartnerId(entity.getDeceasedPartnerId())
+                .dateOfDeath(entity.getDateOfDeath())
+                .claimDate(entity.getClaimDate())
+                .claimantPartnerId(entity.getClaimantPartnerId())
+                .claimAmountCents(entity.getClaimAmountCents())
+                .status(entity.getStatus())
+                .notes(entity.getNotes())
+                .createdAt(entity.getCreatedAt())
+                .createdBy(entity.getCreatedBy())
+                .updatedAt(entity.getUpdatedAt())
+                .updatedBy(entity.getUpdatedBy())
+                .build();
     }
 
     private MembershipClaimResponse toResponse(MembershipClaimEntity entity) {

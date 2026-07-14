@@ -240,6 +240,21 @@ public class ApprovalService {
         return approvalRequestRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId);
     }
 
+    public List<ApprovalRequestEntity> search(
+            ApprovalStatus status,
+            ApprovalType approvalType,
+            String requesterId
+    ) {
+        if (status != null && approvalType != null) {
+            return approvalRequestRepository
+                    .findByStatusAndApprovalTypeOrderByCreatedAtDesc(status, approvalType);
+        }
+        if (status != null) return getByStatus(status);
+        if (approvalType != null) return getByType(approvalType);
+        if (requesterId != null && !requesterId.isBlank()) return getByRequester(requesterId);
+        return approvalRequestRepository.findAllByOrderByCreatedAtDesc();
+    }
+
     private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, String actionBy) {
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdOrderByStepNoAsc(
