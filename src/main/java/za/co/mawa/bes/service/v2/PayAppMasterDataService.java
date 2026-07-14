@@ -112,6 +112,9 @@ public class PayAppMasterDataService {
         long current = currentWatermark();
         ChangeCursor decoded = decodeChangeCursor(cursor);
         long after = Math.max(0, requestedAfter);
+        if (decoded != null && decoded.afterWatermark() != after) {
+            throw new IllegalArgumentException("Change cursor does not match the requested watermark");
+        }
         long scanAfter = decoded == null ? after : decoded.lastScannedWatermark();
         long until = decoded == null ? current : decoded.untilWatermark();
         long totalPartners = decoded == null ? countSyncPartners() : decoded.totalPartners();
@@ -215,7 +218,7 @@ public class PayAppMasterDataService {
                 .forEach(deletedFieldOptions::add);
 
         String nextCursor = hasMore
-                ? encodeChangeCursor(lastScanned, until, totalPartners, totalMemberships)
+                ? encodeChangeCursor(after, lastScanned, until, totalPartners, totalMemberships)
                 : null;
         return PayAppMasterDataChangesResponse.builder()
                 .partnerUpserts(partnerUpserts)
@@ -291,12 +294,14 @@ public class PayAppMasterDataService {
 
     private List<PayAppPlanSyncDto> queryAllPlans() {
         return jdbcTemplate.query("""
-                SELECT id, name, premium_cents, active
+                SELECT id, plan_code, name, description, premium_cents, active
                   FROM membership_plan
                  ORDER BY id
                 """, (rs, rowNum) -> PayAppPlanSyncDto.builder()
                 .id(rs.getString("id"))
+                .planCode(rs.getString("plan_code"))
                 .name(rs.getString("name"))
+                .description(rs.getString("description"))
                 .premiumCents(rs.getLong("premium_cents"))
                 .active(rs.getBoolean("active"))
                 .build());
@@ -304,11 +309,13 @@ public class PayAppMasterDataService {
 
     private List<PayAppPlanSyncDto> queryPlansByIds(Set<String> ids) {
         if (ids.isEmpty()) return List.of();
-        String sql = "SELECT id, name, premium_cents, active FROM membership_plan WHERE id IN ("
+        String sql = "SELECT id, plan_code, name, description, premium_cents, active FROM membership_plan WHERE id IN ("
                 + placeholders(ids.size()) + ") ORDER BY id";
         return jdbcTemplate.query(sql, (rs, rowNum) -> PayAppPlanSyncDto.builder()
                 .id(rs.getString("id"))
+                .planCode(rs.getString("plan_code"))
                 .name(rs.getString("name"))
+                .description(rs.getString("description"))
                 .premiumCents(rs.getLong("premium_cents"))
                 .active(rs.getBoolean("active"))
                 .build(), ids.toArray());
@@ -421,7 +428,8 @@ public class PayAppMasterDataService {
                 .lastName(rs.getString("name2"))
                 .middleName(rs.getString("name3"))
                 .identityType(rs.getString("identity_type"))
-                .identityNumber(rs.getString("identity_number"))
+                .identityNumber(normalizeIdentityNumber(
+                        rs.getString("identity_type"), rs.getString("identity_number")))
                 .partnerStatus(rs.getString("partner_status"))
                 .birthDate(birthDate == null ? null : birthDate.toLocalDate())
                 .gender(rs.getString("gender"))
@@ -445,6 +453,15 @@ public class PayAppMasterDataService {
                 .joinDate(joinDate == null ? null : joinDate.toLocalDate())
                 .updatedAt(updatedAt == null ? LocalDateTime.now() : updatedAt.toLocalDateTime())
                 .build();
+    }
+
+    private String normalizeIdentityNumber(String type, String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        if ("PASSPORT".equalsIgnoreCase(type)) {
+            return normalized.toUpperCase(java.util.Locale.ROOT);
+        }
+        return normalized;
     }
 
     private int safeSize(int requested) {
@@ -530,20 +547,20 @@ public class PayAppMasterDataService {
                 Long.parseLong(parts[4]), Long.parseLong(parts[5]));
     }
 
-    private String encodeChangeCursor(long lastScanned, long until,
+    private String encodeChangeCursor(long after, long lastScanned, long until,
                                       long totalPartners, long totalMemberships) {
-        return encode("C|" + lastScanned + "|" + until
+        return encode("C|" + after + "|" + lastScanned + "|" + until
                 + "|" + totalPartners + "|" + totalMemberships);
     }
 
     private ChangeCursor decodeChangeCursor(String cursor) {
         if (cursor == null || cursor.isBlank()) return null;
         String[] parts = decode(cursor).split("\\|", -1);
-        if (parts.length != 5 || !"C".equals(parts[0])) {
+        if (parts.length != 6 || !"C".equals(parts[0])) {
             throw new IllegalArgumentException("Invalid change cursor");
         }
         return new ChangeCursor(Long.parseLong(parts[1]), Long.parseLong(parts[2]),
-                Long.parseLong(parts[3]), Long.parseLong(parts[4]));
+                Long.parseLong(parts[3]), Long.parseLong(parts[4]), Long.parseLong(parts[5]));
     }
 
     private String encode(String raw) {
@@ -557,7 +574,7 @@ public class PayAppMasterDataService {
 
     private record SnapshotCursor(String phase, String lastId, long watermark,
                                   long totalPartners, long totalMemberships) {}
-    private record ChangeCursor(long lastScannedWatermark, long untilWatermark,
+    private record ChangeCursor(long afterWatermark, long lastScannedWatermark, long untilWatermark,
                                 long totalPartners, long totalMemberships) {}
     private record ChangeEvent(long watermark, String entityType, String entityId,
                                String entitySubId, String operation) {}

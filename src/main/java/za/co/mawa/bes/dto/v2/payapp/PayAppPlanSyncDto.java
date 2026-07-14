@@ -11,7 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PayAppPlanSyncDto {
     private String id;
+    private String planCode;
     private String name;
+    private String description;
     private Long premiumCents;
     private Boolean active;
 }

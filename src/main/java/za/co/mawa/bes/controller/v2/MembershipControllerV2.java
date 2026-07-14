@@ -130,6 +130,10 @@ public class MembershipControllerV2 {
     }
 
 
+    /**
+     * Stable keyset-paged initial snapshot for MAWA Pay. The returned watermark
+     * becomes the starting point for later incremental requests.
+     */
     @GetMapping(value = "/master-data/snapshot")
     public ResponseEntity<PayAppMasterDataSnapshotResponse> getMasterDataSnapshot(
             @RequestParam(required = false) String cursor,
@@ -137,6 +141,9 @@ public class MembershipControllerV2 {
         return ResponseEntity.ok(payAppMasterDataService.snapshot(cursor, size));
     }
 
+    /**
+     * Watermark-based incremental feed containing upserts and tombstones.
+     */
     @GetMapping(value = "/master-data/changes")
     public ResponseEntity<PayAppMasterDataChangesResponse> getMasterDataChanges(
             @RequestParam(defaultValue = "0") long after,
