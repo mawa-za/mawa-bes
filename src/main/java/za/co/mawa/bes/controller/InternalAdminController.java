@@ -79,11 +79,23 @@ public class InternalAdminController {
     }
 
     @RequestMapping(value = "/internal/admin/tenant/{tenant}/attachments/migrate-to-gcp", method = RequestMethod.POST)
-    public ResponseEntity<?> migrateTenantAttachments(@RequestHeader HttpHeaders headers, @PathVariable String tenant) {
+    public ResponseEntity<?> migrateTenantAttachments(
+            @RequestHeader HttpHeaders headers,
+            @PathVariable String tenant,
+            @RequestParam(required = false, defaultValue = "") String afterId,
+            @RequestParam(required = false, defaultValue = "25") int limit
+    ) {
         try {
             validateInternalToken(headers);
+
+            // InternalTenantContextFilter establishes this before Hibernate can
+            // bind an EntityManager. Keep this assignment as a defensive
+            // fallback for non-servlet tests and direct method invocation.
             TenantContext.setCurrentTenant(tenant);
-            AttachmentService.MigrationResult result = attachmentService.migrateLegacyDatabaseFilesToGcpWithResult();
+
+            AttachmentService.MigrationResult result =
+                    attachmentService.migrateLegacyDatabaseFilesToGcpBatch(afterId, limit);
+
             java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("tenant", tenant);
             payload.put("attempted", result.attempted());
@@ -91,22 +103,23 @@ public class InternalAdminController {
             payload.put("failed", result.failed());
             payload.put("remaining", result.remaining());
             payload.put("completed", result.completed());
+            payload.put("scanComplete", result.scanComplete());
+            payload.put("nextCursor", result.nextCursor());
             payload.put("failures", result.failures());
-
-            if (result.failed() > 0 && result.migrated() == 0) {
-                payload.put("message", "No attachments were migrated. Review the GCS/IAM error details in failures.");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(payload));
-            }
             payload.put("message", result.completed()
                     ? "Attachment migration completed"
-                    : "Attachment migration completed with remaining legacy records");
+                    : result.scanComplete()
+                        ? "Attachment scan completed with legacy records that could not be migrated"
+                        : "Attachment migration batch completed");
             return ResponseEntity.ok(gson.toJson(payload));
         } catch (SecurityException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        } finally {
-            TenantContext.clear();
+            java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("tenant", tenant);
+            payload.put("message", ex.getMessage());
+            payload.put("errorType", ex.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(payload));
         }
     }
 
