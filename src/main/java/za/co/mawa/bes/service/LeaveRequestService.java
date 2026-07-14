@@ -1,17 +1,14 @@
 package za.co.mawa.bes.service;
 
-import org.hibernate.grammars.hql.HqlParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
-import za.co.mawa.bes.dto.claim.ClaimOutboundDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.leave.request.*;
 import za.co.mawa.bes.dto.transaction.*;
-import za.co.mawa.bes.dto.transaction.date.TransactionDateEditDto;
 import za.co.mawa.bes.dto.transaction.edit.TransactionDateEdit;
 import za.co.mawa.bes.dto.transaction.partner.TransactionPartnerDto;
 import za.co.mawa.bes.dto.transaction.text.TransactionTextDto;
-import za.co.mawa.bes.dto.voucher.VoucherOutboundDto;
 import za.co.mawa.bes.entity.transaction.TransactionEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.TransactionRepository;
@@ -19,7 +16,6 @@ import za.co.mawa.bes.utils.*;
 
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -41,8 +37,9 @@ public class LeaveRequestService {
         try{
             transactionCreateDto.setCreatedBy(UserContext.getCurrentUser());
             transactionCreateDto.setEmployeeResponsible(leaveRequestInboundDto.getEmployee());
-            transactionCreateDto.setStatus(Status.AWAITING_APPROVAL);
+            transactionCreateDto.setStatus(Status.PENDING);
             transactionCreateDto.setType(TransactionType.LEAVE_REQUEST);
+            transactionCreateDto.setSubType(leaveRequestInboundDto.getType());
             System.out.println(transactionCreateDto.getType());
             TransactionDto transactionDto = transactionService.create(transactionCreateDto);
             TransactionDateDto creationDate = new TransactionDateDto();
@@ -90,32 +87,41 @@ public class LeaveRequestService {
         LeaveRequestOutboundDto leaveRequestOutboundDto = new LeaveRequestOutboundDto();
         try{
             TransactionDto transactionDto = transactionService.get(id);
-            leaveRequestOutboundDto.setType(fieldOptionService.getFieldOption(Field.LEAVE_REQUEST, transactionDto.getType()));
-            leaveRequestOutboundDto.setStatus(fieldOptionService.getFieldOption(Field.TRANSACTION_STATUS, transactionDto.getStatus()));
+            String leaveType = transactionDto.getSubType();
+            leaveRequestOutboundDto.setType(resolveFieldOption(
+                    Field.LEAVE_TYPE, leaveType, leaveType == null || leaveType.isBlank() ? "LEAVE" : leaveType));
+            leaveRequestOutboundDto.setStatus(resolveFieldOption(
+                    Field.TRANSACTION_STATUS, transactionDto.getStatus(), transactionDto.getStatus()));
             leaveRequestOutboundDto.setId(transactionDto.getId());
             for(TransactionPartnerDto transactionPartnerDto : transactionService.getPartners(id)){
                 if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.APPROVER)) {
                     try {
                         leaveRequestOutboundDto.setApprover(partnerService.get(transactionPartnerDto.getPartner()));
-                    } catch (Exception e) {
-                        throw new DoesNotExist(e.getMessage());
+                    } catch (Exception ignored) {
+                        // Keep legacy leave requests readable if the partner was removed.
                     }
                 }
                 if (transactionPartnerDto.getFunction().equalsIgnoreCase(PartnerFunction.EMPLOYEE)) {
                     try {
                         leaveRequestOutboundDto.setEmployee(partnerService.get(transactionPartnerDto.getPartner()));
-                    } catch (Exception e) {
-                        throw new DoesNotExist(e.getMessage());
+                    } catch (Exception ignored) {
+                        // Keep legacy leave requests readable if the partner was removed.
                     }
                 }
             }
             for (TransactionDateDto transactionDateDto : transactionService.getDates(id)) {
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
                     leaveRequestOutboundDto.setStartDate(transactionDateDto.getValue());
                 }
-                if (transactionDateDto.getType().equalsIgnoreCase(DateType.START_DATE)) {
+                if (transactionDateDto.getType().equalsIgnoreCase(DateType.END_DATE)) {
                     leaveRequestOutboundDto.setEndDate(transactionDateDto.getValue());
                 }
+            }
+            if (leaveRequestOutboundDto.getStartDate() != null && leaveRequestOutboundDto.getEndDate() != null) {
+                long inclusiveDays = ChronoUnit.DAYS.between(
+                        leaveRequestOutboundDto.getStartDate().toInstant(),
+                        leaveRequestOutboundDto.getEndDate().toInstant()) + 1;
+                leaveRequestOutboundDto.setDays((int) Math.max(inclusiveDays, 0));
             }
         }
         catch(Exception e){
@@ -133,8 +139,8 @@ public class LeaveRequestService {
             for(String id: transactionService.search(transactionQueryDto)){
                 try {
                     leaveRequestOutboundDtoList.add(get(id));
-                } catch (Exception e) {
-                    throw new DoesNotExist(e.getMessage());
+                } catch (Exception ignored) {
+                    // Keep the leave request visible even if an old partner reference is no longer available.
                 }
             }
         }
@@ -239,4 +245,22 @@ public class LeaveRequestService {
         }
         return search();
     }
+    private FieldOptionDto resolveFieldOption(String field, String code, String fallbackDescription) {
+        if (code != null && !code.isBlank()) {
+            try {
+                FieldOptionDto option = fieldOptionService.getFieldOption(field, code);
+                if (option != null) return option;
+            } catch (Exception ignored) {
+                // Fall through to a lightweight option so API serialization remains stable.
+            }
+        }
+        FieldOptionDto fallback = new FieldOptionDto();
+        fallback.setField(field);
+        fallback.setCode(code == null || code.isBlank() ? fallbackDescription : code);
+        fallback.setDescription(fallbackDescription == null || fallbackDescription.isBlank()
+                ? fallback.getCode()
+                : fallbackDescription);
+        return fallback;
+    }
+
 }
