@@ -285,6 +285,10 @@ public class PartnerServiceV2 {
         return partnerViewEntities;
     }
 
+    public List<PartnerViewEntity> searchByStringAndRole(String query, String role) {
+        return partnerViewRepository.findByStringAndRole(query, role);
+    }
+
     public List<PartnerViewEntity> getAll() {
         List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findAll();
         return partnerViewEntities;

@@ -20,6 +20,7 @@ import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipMasterDataProjection;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDate;
@@ -57,6 +58,8 @@ public class MembershipService {
     MembershipPlanService membershipPlanService;
     @Autowired
     MembershipUpdateHandlerRegistry membershipHandlerRegistry;
+    @Autowired
+    PartnerService partnerService;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -131,6 +134,7 @@ public class MembershipService {
         membershipRepository.save(membership);
     }
 
+    @Transactional
     public MembershipEntity createMembership(MembershipEntity membership) {
         try {
             String id = numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP);
@@ -138,7 +142,9 @@ public class MembershipService {
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
             membership.setMembershipNo(id);
             membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId()).get().getPremiumCents());
-            return membershipRepository.save(membership);
+            MembershipEntity savedMembership = membershipRepository.save(membership);
+            partnerService.addRole(savedMembership.getMemberId(), "MEMBER");
+            return savedMembership;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -181,6 +187,7 @@ public class MembershipService {
                 .build();
     }
 
+    @Transactional
     public Optional<MembershipEntity> updateMembership(String id, MembershipEntity membership) {
         membershipRepository.findById(id)
                 .map(existingMembership -> {
@@ -192,7 +199,9 @@ public class MembershipService {
                     existingMembership.setStatus(membership.getStatus());
                     // Paid Up To is derived exclusively from PAID premium rows.
                     existingMembership.setJoinDate(membership.getJoinDate());
-                    return membershipRepository.save(existingMembership);
+                    MembershipEntity savedMembership = membershipRepository.save(existingMembership);
+                    partnerService.addRole(savedMembership.getMemberId(), "MEMBER");
+                    return savedMembership;
                 });
         recalculatePaidUpToPeriod(id);
         membershipHandlerRegistry.handleUpdate(id);
