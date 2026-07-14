@@ -570,6 +570,10 @@ public class MembershipClaimService {
                 .id(entity.getId())
                 .claimNo(entity.getClaimNo())
                 .membershipId(entity.getMembershipId())
+                .membershipNo(membershipNumber(entity.getMembershipId()))
+                .memberName(memberName(entity.getMembershipId()))
+                .deceasedName(partnerName(entity.getDeceasedPartnerId()))
+                .claimantName(partnerName(entity.getClaimantPartnerId()))
                 .claimType(entity.getClaimType())
                 .deceasedType(entity.getDeceasedType())
                 .deceasedPartnerId(entity.getDeceasedPartnerId())
@@ -613,6 +617,10 @@ public class MembershipClaimService {
                 .setId(entity.getId())
                 .setClaimNo(entity.getClaimNo())
                 .setMembershipId(entity.getMembershipId())
+                .setMembershipNo(membershipNumber(entity.getMembershipId()))
+                .setMemberName(memberName(entity.getMembershipId()))
+                .setDeceasedName(partnerName(entity.getDeceasedPartnerId()))
+                .setClaimantName(partnerName(entity.getClaimantPartnerId()))
                 .setClaimType(entity.getClaimType())
                 .setDeceasedType(entity.getDeceasedType())
                 .setDeceasedPartnerId(entity.getDeceasedPartnerId())
@@ -642,4 +650,42 @@ public class MembershipClaimService {
                 .setAccountType(entity.getAccountType());
 
     }
+    private String membershipNumber(String membershipId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT membership_no FROM membership WHERE id = ?",
+                    String.class,
+                    membershipId
+            );
+        } catch (Exception ignored) {
+            return membershipId;
+        }
+    }
+
+    private String memberName(String membershipId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) " +
+                            "FROM membership m JOIN partner p ON p.id = m.member_id WHERE m.id = ?",
+                    String.class,
+                    membershipId
+            );
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String partnerName(String partnerId) {
+        if (!StringUtils.hasText(partnerId)) return "";
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT TRIM(CONCAT(COALESCE(name2,''),' ',COALESCE(name3,''),' ',COALESCE(name1,''))) FROM partner WHERE id = ?",
+                    String.class,
+                    partnerId
+            );
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
 }

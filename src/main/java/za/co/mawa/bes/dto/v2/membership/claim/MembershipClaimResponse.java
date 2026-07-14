@@ -16,6 +16,10 @@ public class MembershipClaimResponse {
     private String id;
     private String claimNo;
     private String membershipId;
+    private String membershipNo;
+    private String memberName;
+    private String deceasedName;
+    private String claimantName;
 
     private MembershipClaimType claimType;
     private MembershipClaimDeceasedType deceasedType;
@@ -185,6 +189,15 @@ public class MembershipClaimResponse {
         this.membershipId = membershipId;
         return this;
     }
+
+    public String getMembershipNo() { return membershipNo; }
+    public MembershipClaimResponse setMembershipNo(String membershipNo) { this.membershipNo = membershipNo; return this; }
+    public String getMemberName() { return memberName; }
+    public MembershipClaimResponse setMemberName(String memberName) { this.memberName = memberName; return this; }
+    public String getDeceasedName() { return deceasedName; }
+    public MembershipClaimResponse setDeceasedName(String deceasedName) { this.deceasedName = deceasedName; return this; }
+    public String getClaimantName() { return claimantName; }
+    public MembershipClaimResponse setClaimantName(String claimantName) { this.claimantName = claimantName; return this; }
 
     public MembershipClaimType getClaimType() {
         return claimType;

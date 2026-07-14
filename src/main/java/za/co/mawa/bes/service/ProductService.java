@@ -128,6 +128,7 @@ public class ProductService implements ProductDao {
             productDto.setPricings(getPricings(id));
             productDto.setAttributes(getAttributes(id));
             productDto.setCategories(getCategories(id));
+            productDto.setBarcodes(getBarcodes(id));
             return productDto;
         } catch (EntityNotFoundException exception) {
             throw new ProductNotFoundException();
@@ -173,9 +174,24 @@ public class ProductService implements ProductDao {
             productDto.setPricings(getPricings(productEntity.getId()));
             productDto.setAttributes(getAttributes(productEntity.getId()));
             productDto.setCategories(getCategories(productEntity.getId()));
+            productDto.setBarcodes(getBarcodes(productEntity.getId()));
             return productDto;
         } catch (EntityNotFoundException exception) {
             return null;
+        }
+    }
+
+
+    public List<String> getBarcodes(String productId) {
+        try {
+            return jdbcTemplate.queryForList(
+                    "SELECT barcode FROM product_barcode WHERE product_id = ? ORDER BY is_primary DESC, created_at ASC",
+                    String.class,
+                    productId
+            );
+        } catch (Exception ignored) {
+            // Keeps product reads backwards compatible while a tenant is still awaiting migration.
+            return new ArrayList<>();
         }
     }
 
@@ -242,6 +258,7 @@ public class ProductService implements ProductDao {
                 deletePricing(price.getProductPricingPKEntity());
             }
             writeProductAudit(id, "DELETE", id, null, null);
+            jdbcTemplate.update("DELETE FROM product_barcode WHERE product_id = ?", id);
             productRepository.deleteById(id);
         } catch (Exception exception) {
             throw new ProductDeleteFailure();
