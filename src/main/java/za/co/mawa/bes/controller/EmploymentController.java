@@ -51,31 +51,31 @@ public class EmploymentController {
                                           @RequestParam(required = false) String employeeNumber){
         try{
             EmploymentSearchDto search = new EmploymentSearchDto();
-            if(startDate != null && startDate != ""){
+            if(startDate != null && !startDate.isBlank()){
                 search.setStartDate(Conversion.stringToDate(startDate));
             }
-            if(endDate != null && endDate != ""){
+            if(endDate != null && !endDate.isBlank()){
                 search.setEndDate(Conversion.stringToDate(endDate));
             }
-            if(branch != null & branch != ""){
+            if(branch != null && !branch.isBlank()){
                 search.setBranch(branch);
             }
-            if(department != null && department != ""){
+            if(department != null && !department.isBlank()){
               search.setDepartment(department);
             }
-            if(position != null && position != ""){
+            if(position != null && !position.isBlank()){
                 search.setPosition(position);
             }
-            if(type != null && type != ""){
+            if(type != null && !type.isBlank()){
                 search.setType(type);
             }
-            if(status != null && status != ""){
+            if(status != null && !status.isBlank()){
                 search.setStatus(status);
             }
-            if(partnerId != null && partnerId != ""){
+            if(partnerId != null && !partnerId.isBlank()){
                 search.setPartnerId(partnerId);
             }
-            if(employeeNumber != null && employeeNumber != ""){
+            if(employeeNumber != null && !employeeNumber.isBlank()){
                 search.setEmployeeNumber(employeeNumber);
             }
             return ResponseEntity.ok(gson.toJson(employmentService.getAll(search)));

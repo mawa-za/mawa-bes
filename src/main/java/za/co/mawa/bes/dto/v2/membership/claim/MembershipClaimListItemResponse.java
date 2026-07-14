@@ -19,6 +19,10 @@ public class MembershipClaimListItemResponse {
     private String id;
     private String claimNo;
     private String membershipId;
+    private String membershipNo;
+    private String memberName;
+    private String deceasedName;
+    private String claimantName;
     private MembershipClaimType claimType;
     private MembershipClaimDeceasedType deceasedType;
     private String deceasedPartnerId;

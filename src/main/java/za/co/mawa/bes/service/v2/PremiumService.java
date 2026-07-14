@@ -339,7 +339,7 @@ public class PremiumService {
                         PremiumStatus.PAID
                 );
 
-        String paidUpToPeriod = calculateContinuousPaidUpToPeriod(paidPremiums);
+        String paidUpToPeriod = calculateHighestPaidUpToPeriod(paidPremiums);
 
         membership.setPaidUpToPeriod(paidUpToPeriod);
         membership.setUpdatedAt(LocalDateTime.now());
@@ -349,33 +349,16 @@ public class PremiumService {
         return paidUpToPeriod;
     }
 
-    private String calculateContinuousPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
+    private String calculateHighestPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
         if (paidPremiums == null || paidPremiums.isEmpty()) {
             return null;
         }
 
-        String paidUpToPeriod = null;
-
-        for (MembershipPremiumEntity premium : paidPremiums) {
-            String currentPeriod = premium.getPeriodYYYYMM();
-
-            if (!PeriodUtil.isValidPeriod(currentPeriod)) {
-                continue;
-            }
-
-            if (paidUpToPeriod == null) {
-                paidUpToPeriod = currentPeriod;
-                continue;
-            }
-
-            if (PeriodUtil.isNextPeriod(paidUpToPeriod, currentPeriod)) {
-                paidUpToPeriod = currentPeriod;
-            } else {
-                break;
-            }
-        }
-
-        return paidUpToPeriod;
+        return paidPremiums.stream()
+                .map(MembershipPremiumEntity::getPeriodYYYYMM)
+                .filter(PeriodUtil::isValidPeriod)
+                .max(String::compareTo)
+                .orElse(null);
     }
 
     public String getPaidUpToPeriod(String id) {
