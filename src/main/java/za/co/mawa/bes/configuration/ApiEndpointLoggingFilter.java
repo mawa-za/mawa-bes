@@ -34,7 +34,9 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/actuator")
                 || path.startsWith("/print-job")
-                || path.startsWith("/v2/authenticate");
+                || path.startsWith("/v2/authenticate")
+                // Do not buffer large MAWA Pay snapshot/change response bodies.
+                || path.startsWith("/v2/membership/master-data");
     }
 
     @Override
