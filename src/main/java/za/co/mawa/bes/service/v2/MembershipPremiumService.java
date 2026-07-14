@@ -15,6 +15,7 @@ import java.util.List;
 public class MembershipPremiumService {
 
     private final MembershipPremiumRepository membershipPremiumRepository;
+    private final MembershipService membershipService;
 
     public List<MembershipPremiumEntity> getPremiumsForMembership(String membershipId) {
         return membershipPremiumRepository.findByMembershipIdOrderByPeriodYYYYMMAsc(membershipId);
@@ -50,7 +51,9 @@ public class MembershipPremiumService {
                     premium.setDueDate(LocalDate.now());
                     premium.setCreatedAt(LocalDateTime.now());
                     premium.setCreatedBy(createdBy);
-                    return membershipPremiumRepository.save(premium);
+                    MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
+                    membershipService.recalculatePaidUpToPeriod(membershipId);
+                    return saved;
                 });
     }
 
@@ -78,7 +81,9 @@ public class MembershipPremiumService {
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(updatedBy);
 
-        return membershipPremiumRepository.save(premium);
+        MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
+        membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
+        return saved;
     }
 
     public MembershipPremiumEntity reversePayment(
@@ -106,7 +111,9 @@ public class MembershipPremiumService {
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(updatedBy);
 
-        return membershipPremiumRepository.save(premium);
+        MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
+        membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
+        return saved;
     }
 
     private long safe(Long value) {

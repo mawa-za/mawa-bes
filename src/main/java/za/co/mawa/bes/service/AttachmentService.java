@@ -163,7 +163,7 @@ public class AttachmentService implements AttachmentDao {
         MigrationResult batch;
 
         do {
-            batch = migrateLegacyDatabaseFilesToGcpBatch(cursor, 100);
+            batch = migrateLegacyDatabaseFilesToGcpBatch(cursor, 5);
             attempted += batch.attempted();
             migrated += batch.migrated();
             failed += batch.failed();
@@ -202,7 +202,7 @@ public class AttachmentService implements AttachmentDao {
             );
         }
 
-        int limit = Math.max(1, Math.min(requestedLimit, 50));
+        int limit = Math.max(1, Math.min(requestedLimit, 10));
         String cursor = StringUtils.hasText(afterId) ? afterId.trim() : "";
         List<String> ids = attachmentRepository.findLegacyAttachmentIdsAfter(
                 cursor,
