@@ -5,6 +5,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobTargetOption;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,80 @@ public class AttachmentStorageService {
         return new StoredAttachment(provider, bucketName, path, contentType, (long) bytes.length);
     }
 
+    /**
+     * Stores a migrated legacy attachment at a deterministic object path. If a
+     * previous attempt uploaded the object but failed before the database row
+     * was committed, the existing object is safely reused on retry.
+     */
+    public StoredAttachment storeLegacyAttachment(
+            byte[] bytes,
+            String extension,
+            String objectType,
+            String objectId,
+            String documentType,
+            String attachmentId
+    ) {
+        if (!"GCP".equals(provider)) {
+            throw new IllegalStateException(
+                    "Unsupported attachment storage provider: " + provider
+                            + ". Configure MAWA_ATTACHMENT_STORAGE_PROVIDER=GCP."
+            );
+        }
+        if (!StringUtils.hasText(bucketName)) {
+            throw new IllegalStateException(
+                    "Attachment storage bucket is not configured. Set MAWA_ATTACHMENT_BUCKET or mawa.attachments.storage.bucket."
+            );
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("Attachment file is empty");
+        }
+        if (!StringUtils.hasText(attachmentId)) {
+            throw new IllegalArgumentException("Attachment id is required for legacy migration");
+        }
+
+        String normalisedExtension = normaliseExtension(extension);
+        String path = buildLegacyObjectPath(
+                objectType,
+                objectId,
+                documentType,
+                normalisedExtension,
+                attachmentId
+        );
+        String contentType = contentTypeFor(normalisedExtension);
+        BlobId blobId = BlobId.of(bucketName, path);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                .setContentType(contentType)
+                .build();
+
+        try {
+            storage.create(blobInfo, bytes, BlobTargetOption.doesNotExist());
+        } catch (StorageException ex) {
+            if (ex.getCode() != 412 && ex.getCode() != 409) {
+                throw ex;
+            }
+            Blob existing = storage.get(blobId);
+            if (existing == null || !existing.exists()) {
+                throw ex;
+            }
+            Long existingSize = existing.getSize();
+            if (existingSize != null && existingSize != bytes.length) {
+                throw new IllegalStateException(
+                        "Existing GCS object has an unexpected size for attachment "
+                                + attachmentId + ": expected " + bytes.length
+                                + " but found " + existingSize
+                );
+            }
+        }
+
+        return new StoredAttachment(
+                provider,
+                bucketName,
+                path,
+                contentType,
+                (long) bytes.length
+        );
+    }
+
     public byte[] read(String bucket, String path) {
         String resolvedBucket = StringUtils.hasText(bucket) ? bucket : bucketName;
         if (!StringUtils.hasText(resolvedBucket) || !StringUtils.hasText(path)) {
@@ -88,6 +163,25 @@ public class AttachmentStorageService {
 
     public String defaultBucket() {
         return bucketName;
+    }
+
+    private String buildLegacyObjectPath(
+            String objectType,
+            String objectId,
+            String documentType,
+            String extension,
+            String attachmentId
+    ) {
+        String tenant = StringUtils.hasText(TenantContext.getCurrentTenantURL())
+                ? TenantContext.getCurrentTenantURL()
+                : TenantContext.getCurrentTenant();
+        String safeTenant = sanitisePathPart(StringUtils.hasText(tenant) ? tenant : "unknown-tenant");
+        String safeModule = sanitisePathPart(resolveModuleOrType(objectType, documentType));
+        String safeObjectId = sanitisePathPart(StringUtils.hasText(objectId) ? objectId : "unlinked");
+        String safeAttachmentId = sanitisePathPart(attachmentId);
+        String fileName = "legacy-" + safeAttachmentId
+                + (StringUtils.hasText(extension) ? "." + extension : "");
+        return prefix + "/" + safeTenant + "/" + safeModule + "/" + safeObjectId + "/" + fileName;
     }
 
     private String buildObjectPath(String objectType, String objectId, String documentType, String extension, String originalFileName) {
