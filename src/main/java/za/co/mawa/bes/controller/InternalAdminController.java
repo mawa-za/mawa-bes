@@ -12,7 +12,9 @@ import za.co.mawa.bes.dto.admin.AdminHandoffExchangeRequestDto;
 import za.co.mawa.bes.dto.admin.AdminHandoffRequestDto;
 import za.co.mawa.bes.dto.admin.InternalAdminResponseDto;
 import za.co.mawa.bes.dto.TenantPropertyDto;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.AdminHandoffService;
+import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TenantService;
 
@@ -32,6 +34,9 @@ public class InternalAdminController {
 
     @Autowired
     private TenantService tenantService;
+
+    @Autowired
+    private AttachmentService attachmentService;
 
     private final Gson gson = new Gson();
 
@@ -70,6 +75,38 @@ public class InternalAdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/attachments/migrate-to-gcp", method = RequestMethod.POST)
+    public ResponseEntity<?> migrateTenantAttachments(@RequestHeader HttpHeaders headers, @PathVariable String tenant) {
+        try {
+            validateInternalToken(headers);
+            TenantContext.setCurrentTenant(tenant);
+            AttachmentService.MigrationResult result = attachmentService.migrateLegacyDatabaseFilesToGcpWithResult();
+            java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("tenant", tenant);
+            payload.put("attempted", result.attempted());
+            payload.put("migrated", result.migrated());
+            payload.put("failed", result.failed());
+            payload.put("remaining", result.remaining());
+            payload.put("completed", result.completed());
+            payload.put("failures", result.failures());
+
+            if (result.failed() > 0 && result.migrated() == 0) {
+                payload.put("message", "No attachments were migrated. Review the GCS/IAM error details in failures.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(payload));
+            }
+            payload.put("message", result.completed()
+                    ? "Attachment migration completed"
+                    : "Attachment migration completed with remaining legacy records");
+            return ResponseEntity.ok(gson.toJson(payload));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } finally {
+            TenantContext.clear();
         }
     }
 
