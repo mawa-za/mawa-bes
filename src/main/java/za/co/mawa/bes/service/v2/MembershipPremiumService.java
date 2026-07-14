@@ -18,12 +18,14 @@ public class MembershipPremiumService {
     private final MembershipService membershipService;
 
     public List<MembershipPremiumEntity> getPremiumsForMembership(String membershipId) {
-        return membershipPremiumRepository.findByMembershipIdOrderByPeriodYYYYMMAsc(membershipId);
+        return membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(
+                membershipService.membershipIdentifiers(membershipId)
+        );
     }
 
     public List<MembershipPremiumEntity> getUnpaidPremiums(String membershipId) {
-        return membershipPremiumRepository.findByMembershipIdAndStatusInOrderByPeriodYYYYMMAsc(
-                membershipId,
+        return membershipPremiumRepository.findByMembershipIdInAndStatusInOrderByPeriodYYYYMMAsc(
+                membershipService.membershipIdentifiers(membershipId),
                 List.of(PremiumStatus.UNPAID, PremiumStatus.PARTIALLY_PAID)
         );
     }
@@ -38,11 +40,21 @@ public class MembershipPremiumService {
             throw new RuntimeException("Invalid periodYYYYMM: " + periodYYYYMM);
         }
 
-        return membershipPremiumRepository
-                .findByMembershipIdAndPeriodYYYYMM(membershipId, periodYYYYMM)
+        var membership = membershipService.resolveMembership(membershipId);
+        List<String> membershipIds = membershipService.membershipIdentifiers(membershipId);
+        List<MembershipPremiumEntity> existingPremiums =
+                membershipPremiumRepository.findByMembershipIdInAndPeriodYYYYMMOrderByMembershipIdAsc(
+                        membershipIds,
+                        periodYYYYMM
+                );
+
+        return existingPremiums.stream()
+                .filter(premium -> membership.getId().equals(premium.getMembershipId()))
+                .findFirst()
+                .or(() -> existingPremiums.stream().findFirst())
                 .orElseGet(() -> {
                     MembershipPremiumEntity premium = new MembershipPremiumEntity();
-                    premium.setMembershipId(membershipId);
+                    premium.setMembershipId(membership.getId());
                     premium.setPeriodYYYYMM(periodYYYYMM);
                     premium.setAmountCents(amountCents);
                     premium.setPaidAmountCents(0L);
@@ -52,7 +64,7 @@ public class MembershipPremiumService {
                     premium.setCreatedAt(LocalDateTime.now());
                     premium.setCreatedBy(createdBy);
                     MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
-                    membershipService.recalculatePaidUpToPeriod(membershipId);
+                    membershipService.recalculatePaidUpToPeriod(membership.getId());
                     return saved;
                 });
     }

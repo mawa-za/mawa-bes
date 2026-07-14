@@ -28,8 +28,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import jakarta.persistence.criteria.Predicate;
 
@@ -117,8 +119,8 @@ public class MembershipService {
         if (membership.getPaidUpToPeriod() != null && !membership.getPaidUpToPeriod().isBlank()) return;
 
         List<MembershipPremiumEntity> paidPremiums =
-                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
-                        membership.getId(),
+                membershipPremiumRepository.findByMembershipIdInAndStatusOrderByPeriodYYYYMMAsc(
+                        membershipIdentifiers(membership),
                         PremiumStatus.PAID
                 );
         String calculated = calculateHighestPaidUpToPeriod(paidPremiums);
@@ -206,12 +208,11 @@ public class MembershipService {
     }
     @Transactional
     public String recalculatePaidUpToPeriod(String membershipId) {
-        MembershipEntity membership = membershipRepository.findById(membershipId)
-                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+        MembershipEntity membership = resolveMembership(membershipId);
 
         List<MembershipPremiumEntity> paidPremiums =
-                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
-                        membershipId,
+                membershipPremiumRepository.findByMembershipIdInAndStatusOrderByPeriodYYYYMMAsc(
+                        membershipIdentifiers(membership),
                         PremiumStatus.PAID
                 );
 
@@ -223,6 +224,31 @@ public class MembershipService {
         membershipRepository.save(membership);
 
         return paidUpToPeriod;
+    }
+
+    public MembershipEntity resolveMembership(String membershipId) {
+        if (membershipId == null || membershipId.isBlank()) {
+            throw new RuntimeException("Membership id is required");
+        }
+
+        return membershipRepository.findById(membershipId)
+                .or(() -> membershipRepository.findByOldId(membershipId))
+                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+    }
+
+    public List<String> membershipIdentifiers(String membershipId) {
+        return membershipIdentifiers(resolveMembership(membershipId));
+    }
+
+    private List<String> membershipIdentifiers(MembershipEntity membership) {
+        Set<String> identifiers = new LinkedHashSet<>();
+        if (membership.getId() != null && !membership.getId().isBlank()) {
+            identifiers.add(membership.getId());
+        }
+        if (membership.getOldId() != null && !membership.getOldId().isBlank()) {
+            identifiers.add(membership.getOldId());
+        }
+        return List.copyOf(identifiers);
     }
 
     private String calculateHighestPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
