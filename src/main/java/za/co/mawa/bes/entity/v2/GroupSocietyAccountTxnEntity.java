@@ -53,6 +53,9 @@ public class GroupSocietyAccountTxnEntity {
     @Column(name = "reference_no")
     private String referenceNo;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Column(name = "payment_method")
     private String paymentMethod;
 

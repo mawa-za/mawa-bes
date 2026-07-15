@@ -47,6 +47,9 @@ public class GroupSocietyEntity {
     @Column(name = "last_claim_date")
     private LocalDate lastClaimDate;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;
 

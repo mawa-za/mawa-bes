@@ -31,6 +31,9 @@ public class CashupReceiptEntity {
     @Column(name = "receipt_no")
     private Long receiptNo;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Column(name = "amount_cents", nullable = false)
     private Long amountCents = 0L;
 

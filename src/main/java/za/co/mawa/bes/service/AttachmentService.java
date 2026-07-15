@@ -43,6 +43,9 @@ public class AttachmentService implements AttachmentDao {
     AttachmentStorageService attachmentStorageService;
 
     @Autowired
+    LegacyAttachmentObjectIdResolver legacyAttachmentObjectIdResolver;
+
+    @Autowired
     PlatformTransactionManager transactionManager;
 
     @Override
@@ -115,7 +118,13 @@ public class AttachmentService implements AttachmentDao {
     }
 
     public AttachmentOutboundDto getDocumentByType(AttachmentInboundDto attachmentInboundDto) throws DoesNotExist {
-        AttachmentEntity attachmentEntity = attachmentRepository.findByObjectDocumentType(attachmentInboundDto.getObjectId(), attachmentInboundDto.getDocumentType());
+        AttachmentEntity attachmentEntity = null;
+        for (String candidateObjectId : legacyAttachmentObjectIdResolver.resolveObjectIds(attachmentInboundDto.getObjectId())) {
+            attachmentEntity = attachmentRepository.findByObjectDocumentType(candidateObjectId, attachmentInboundDto.getDocumentType());
+            if (attachmentEntity != null) {
+                break;
+            }
+        }
         if (attachmentEntity == null) {
             throw new DoesNotExist();
         }
@@ -133,7 +142,10 @@ public class AttachmentService implements AttachmentDao {
     @Override
     public List<AttachmentDto> getAll(String objectId) {
         List<AttachmentDto> attachmentDtoList = new ArrayList<>();
-        List<AttachmentEntity> attachmentEntityList = attachmentRepository.findByObjectId(objectId);
+        List<String> objectIds = legacyAttachmentObjectIdResolver.resolveObjectIds(objectId);
+        List<AttachmentEntity> attachmentEntityList = objectIds.isEmpty()
+                ? List.of()
+                : attachmentRepository.findByObjectIdIn(objectIds);
         for (AttachmentEntity attachmentEntity : attachmentEntityList) {
             attachmentDtoList.add(toDto(attachmentEntity, false));
         }
