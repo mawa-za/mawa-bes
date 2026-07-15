@@ -23,9 +23,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class XeroAuthService {
+    private static final ConcurrentMap<String, Object> REFRESH_LOCKS = new ConcurrentHashMap<>();
     @Autowired
     SettingService settingService;
     @Autowired
@@ -60,8 +63,8 @@ public class XeroAuthService {
             String redirectUrl = requiredXeroProperty(jsonObject, XeroUtils.XERO_REDIRECT_URL);
 
             String requestBody = "grant_type=authorization_code" +
-                    "&code=" + authorizationCode +
-                    "&redirect_uri=" + redirectUrl;
+                    "&code=" + formEncode(authorizationCode) +
+                    "&redirect_uri=" + formEncode(redirectUrl);
 
             String response = sendTokenRequest(requestBody, clientId, clientSecret);
 
@@ -110,24 +113,79 @@ public class XeroAuthService {
         if (!isBlank(tenant)) {
             TenantContext.setCurrentTenant(tenant);
         }
-        JSONObject jsonObject = tenantProperties(tenant);
-        String refreshToken = requiredXeroProperty(jsonObject, XeroUtils.XERO_REFRESH_TOKEN);
-        String clientId = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
-        String clientSecret = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_SECRET);
+        String lockKey = isBlank(tenant) ? "__default__" : tenant.trim().toLowerCase();
+        Object lock = REFRESH_LOCKS.computeIfAbsent(lockKey, key -> new Object());
 
-        String requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
+        synchronized (lock) {
+            JSONObject jsonObject = tenantProperties(tenant);
+            String currentAccessToken = getXeroProperty(jsonObject, XeroUtils.XERO_ACCESS_TOKEN);
+            String currentExpiresAt = getXeroProperty(jsonObject, XeroUtils.XERO_EXPIRE_AT);
+            if (!isBlank(currentAccessToken) && !isExpiredOrNearExpiry(currentExpiresAt)) {
+                return currentAccessToken;
+            }
+
+            String refreshToken = requiredXeroProperty(jsonObject, XeroUtils.XERO_REFRESH_TOKEN);
+            String clientId = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_ID);
+            String clientSecret = requiredXeroProperty(jsonObject, XeroUtils.XERO_CLIENT_SECRET);
+
+            try {
+                return exchangeAndPersistRefreshToken(tenant, refreshToken, clientId, clientSecret);
+            } catch (IOException firstFailure) {
+                if (!containsInvalidGrant(firstFailure)) {
+                    throw firstFailure;
+                }
+
+                // Another request or Cloud Run instance may have rotated the one-time Xero
+                // refresh token while this request was in flight. Re-read the latest values
+                // and reuse the new access token, or retry once with the newly stored token.
+                JSONObject latestProperties = tenantProperties(tenant);
+                String latestAccessToken = getXeroProperty(latestProperties, XeroUtils.XERO_ACCESS_TOKEN);
+                String latestExpiresAt = getXeroProperty(latestProperties, XeroUtils.XERO_EXPIRE_AT);
+                if (!isBlank(latestAccessToken) && !isExpiredOrNearExpiry(latestExpiresAt)) {
+                    return latestAccessToken;
+                }
+
+                String latestRefreshToken = requiredXeroProperty(latestProperties, XeroUtils.XERO_REFRESH_TOKEN);
+                if (!refreshToken.equals(latestRefreshToken)) {
+                    return exchangeAndPersistRefreshToken(tenant, latestRefreshToken, clientId, clientSecret);
+                }
+                throw firstFailure;
+            }
+        }
+    }
+
+    private String exchangeAndPersistRefreshToken(String tenant,
+                                                  String refreshToken,
+                                                  String clientId,
+                                                  String clientSecret) throws IOException {
+        String requestBody = "grant_type=refresh_token&refresh_token=" + formEncode(refreshToken);
         String response = sendTokenRequest(requestBody, clientId, clientSecret);
 
-        refreshToken = extractRefreshToken(response);
-        createProperty(tenant, XeroUtils.XERO_REFRESH_TOKEN, refreshToken);
+        String rotatedRefreshToken = extractRefreshToken(response);
+        createProperty(tenant, XeroUtils.XERO_REFRESH_TOKEN, rotatedRefreshToken);
 
         String accessToken = extractAccessToken(response);
         createProperty(tenant, XeroUtils.XERO_ACCESS_TOKEN, accessToken);
 
         String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
         createProperty(tenant, XeroUtils.XERO_EXPIRE_AT, expiresAt);
-
         return accessToken;
+    }
+
+    private boolean containsInvalidGrant(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase().contains("invalid_grant")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private String formEncode(String value) {
+        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     /**

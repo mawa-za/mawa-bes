@@ -1,5 +1,7 @@
 package za.co.mawa.bes.service.v2.integration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,10 +17,12 @@ import za.co.mawa.bes.xero.XeroAuthService;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 
 @Service
 public class XeroActivationService {
 
+    private static final Logger log = LoggerFactory.getLogger(XeroActivationService.class);
     private static final String XERO_GROUP = "XERO";
 
     private final GcpTenantSecretService gcpTenantSecretService;
@@ -109,11 +113,19 @@ public class XeroActivationService {
             return xeroAuthService.getConnectionsForCurrentTenant();
         } catch (Exception e) {
             if (isInvalidGrant(e)) {
-                settingService.upsertSetting("INTEGRATION-STATUS", XERO_GROUP, "REAUTHORISATION_REQUIRED");
-                settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
-                throw new IllegalStateException("Xero authorisation has expired or the stored refresh token is invalid. Click Activate / Reconnect Xero again to authorise the organisation.", e);
+                markReauthorisationRequired();
+                log.warn("Xero authorisation requires reconnection for tenant {}: {}",
+                        TenantContext.getCurrentTenant(), rootMessage(e));
+                return Collections.emptyList();
             }
-            throw new IllegalStateException("Unable to retrieve Xero organisations. Complete Xero authorisation first.", e);
+            if (isMissingConfiguration(e)) {
+                settingService.upsertSetting("INTEGRATION-STATUS", XERO_GROUP, "NOT_AUTHORISED");
+                settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
+                log.info("Xero is not yet authorised for tenant {}: {}",
+                        TenantContext.getCurrentTenant(), rootMessage(e));
+                return Collections.emptyList();
+            }
+            throw new IllegalStateException("Unable to retrieve Xero organisations. Please retry or reconnect Xero.", e);
         }
     }
 
@@ -157,6 +169,33 @@ public class XeroActivationService {
             current = current.getCause();
         }
         return false;
+    }
+
+    private boolean isMissingConfiguration(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains("Missing required Xero configuration")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void markReauthorisationRequired() {
+        settingService.upsertSetting("INTEGRATION-STATUS", XERO_GROUP, "REAUTHORISATION_REQUIRED");
+        settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
+    }
+
+    private String rootMessage(Throwable error) {
+        Throwable current = error;
+        Throwable last = error;
+        while (current != null) {
+            last = current;
+            current = current.getCause();
+        }
+        return last == null || last.getMessage() == null ? "Unknown Xero error" : last.getMessage();
     }
 
     private String buildAuthenticationUrl(String clientId, String redirectUrl, String tenant) {

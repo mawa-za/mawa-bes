@@ -39,6 +39,7 @@ public class PaymentRequestMapper {
                 .approvalRequestId(entity.getApprovalRequestId())
                 .paidDate(entity.getPaidDate())
                 .paidReference(entity.getPaidReference())
+                .fnbInstructionId(entity.getFnbInstructionId())
                 .paidBy(entity.getPaidBy())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
