@@ -24,6 +24,8 @@ public class ApiEndpointLogQueryService {
 
         dto.setId(entity.getId());
         dto.setRequestId(entity.getRequestId());
+        dto.setDirection(entity.getDirection());
+        dto.setIntegrationName(entity.getIntegrationName());
 
         dto.setUserId(entity.getUserId());
         dto.setUsername(entity.getUsername());
@@ -36,6 +38,8 @@ public class ApiEndpointLogQueryService {
 
         dto.setRequestIp(entity.getRequestIp());
         dto.setUserAgent(entity.getUserAgent());
+        dto.setRequestBody(entity.getRequestBody());
+        dto.setResponseBody(entity.getResponseBody());
 
         dto.setDurationMs(entity.getDurationMs());
 

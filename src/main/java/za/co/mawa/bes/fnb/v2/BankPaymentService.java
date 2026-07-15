@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.fnb.FnbApiCallLogger;
 import za.co.mawa.bes.fnb.dto.*;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TransactionService;
@@ -39,6 +40,7 @@ public class BankPaymentService {
     private final TransactionService transactionService;
     private final ObjectMapper objectMapper;
     private final GcpTenantSecretService gcpTenantSecretService;
+    private final FnbApiCallLogger fnbApiCallLogger;
 
     private static final String FNB_API_SETTING_GROUP = "FNB-API";
     private static final String TENANT_SETTING_GROUP = "TENANT";
@@ -63,9 +65,16 @@ public class BankPaymentService {
 
     public String getToken() {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /oauth2/token/v2";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
-            URL url = new URL(getBaseURL() + "/oauth2/token/v2");
+            endpoint = getBaseURL() + "/oauth2/token/v2";
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
@@ -91,8 +100,8 @@ public class BankPaymentService {
                 os.flush();
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 OAuthTokenResponse tokenResponse =
@@ -110,8 +119,19 @@ public class BankPaymentService {
             );
 
         } catch (Exception e) {
+            failure = e;
             throw new RuntimeException("Failed to retrieve FNB access token", e);
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    fnbApiCallLogger.tokenRequestSummary(),
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -120,9 +140,16 @@ public class BankPaymentService {
 
     public String sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/initiate/v1";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
-            URL url = new URL(getBaseURL() + "/paymentExecution/initiate/v1");
+            endpoint = getBaseURL() + "/paymentExecution/initiate/v1";
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
@@ -137,8 +164,8 @@ public class BankPaymentService {
                 os.flush();
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 BankPaymentResponse bankPaymentResponse =
@@ -152,10 +179,25 @@ public class BankPaymentService {
             );
 
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("FNB payment request timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to send FNB payment request: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    payload,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -164,13 +206,20 @@ public class BankPaymentService {
 
     public BankPaymentResponse getPaymentReport(String instructionId) throws IOException {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/retrieveReport/v1/" + instructionId;
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
             if (isBlank(instructionId)) {
                 throw new IOException("Instruction ID is required to retrieve FNB payment report");
             }
 
-            URL url = new URL(getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId);
+            endpoint = getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId;
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("GET");
@@ -178,8 +227,8 @@ public class BankPaymentService {
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 return objectMapper.readValue(responseBody, BankPaymentResponse.class);
@@ -190,10 +239,25 @@ public class BankPaymentService {
             );
 
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("FNB report retrieval timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to retrieve FNB payment report: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "GET",
+                    endpoint,
+                    null,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -528,6 +592,10 @@ public class BankPaymentService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     private String readResponseBody(HttpURLConnection connection) throws IOException {
