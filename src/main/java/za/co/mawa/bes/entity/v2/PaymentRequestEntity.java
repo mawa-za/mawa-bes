@@ -103,6 +103,9 @@ public class PaymentRequestEntity {
     @Column(name = "paid_by")
     private String paidBy;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

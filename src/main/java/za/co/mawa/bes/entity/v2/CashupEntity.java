@@ -52,6 +52,9 @@ public class CashupEntity {
     @Column(name = "approval_request_id", length = 255)
     private String approvalRequestId;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

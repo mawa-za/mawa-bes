@@ -17,6 +17,10 @@ public class InvoiceOutboundDto {
     private Integer taxCents;
     private Integer discountCents;
     private Integer totalCents;
+    private Integer paidCents;
+    private Integer balanceCents;
+    private String externalRef;
+    private String notes;
     private String currency;
     private String xeroInvoiceId;
     private String xeroInvoiceNo;
@@ -204,6 +208,38 @@ public class InvoiceOutboundDto {
 
     public void setTotalCents(Integer totalCents) {
         this.totalCents = totalCents;
+    }
+
+    public Integer getPaidCents() {
+        return paidCents;
+    }
+
+    public void setPaidCents(Integer paidCents) {
+        this.paidCents = paidCents;
+    }
+
+    public Integer getBalanceCents() {
+        return balanceCents;
+    }
+
+    public void setBalanceCents(Integer balanceCents) {
+        this.balanceCents = balanceCents;
+    }
+
+    public String getExternalRef() {
+        return externalRef;
+    }
+
+    public void setExternalRef(String externalRef) {
+        this.externalRef = externalRef;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public String getCurrency() {
