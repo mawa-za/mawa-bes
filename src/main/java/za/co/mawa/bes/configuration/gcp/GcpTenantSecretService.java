@@ -172,6 +172,17 @@ public class GcpTenantSecretService {
         }
     }
 
+    public boolean hasAccessibleSecretVersion(String secretReference) {
+        if (!StringUtils.hasText(secretReference)) {
+            return false;
+        }
+        try {
+            return accessSecret(secretReference) != null;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
     private void ensureSecretExists(SecretManagerServiceClient client, SecretReference reference) {
         try {
             client.getSecret(GetSecretRequest.newBuilder().setName(reference.toSecretName()).build());

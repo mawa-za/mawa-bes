@@ -5,13 +5,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
-import za.co.mawa.bes.dto.TenantDto;
+import za.co.mawa.bes.configuration.gcp.TenantSecretNameService;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationRequestDto;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationResponseDto;
 import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
 import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.SettingService;
-import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.xero.XeroAuthService;
 
 import java.net.URLEncoder;
@@ -23,19 +22,19 @@ public class XeroActivationService {
     private static final String XERO_GROUP = "XERO";
 
     private final GcpTenantSecretService gcpTenantSecretService;
+    private final TenantSecretNameService tenantSecretNameService;
     private final SettingService settingService;
-    private final TenantAdminService tenantAdminService;
     private final Environment environment;
     private final XeroAuthService xeroAuthService;
 
     public XeroActivationService(GcpTenantSecretService gcpTenantSecretService,
+                                 TenantSecretNameService tenantSecretNameService,
                                  SettingService settingService,
-                                 TenantAdminService tenantAdminService,
                                  Environment environment,
                                  XeroAuthService xeroAuthService) {
         this.gcpTenantSecretService = gcpTenantSecretService;
+        this.tenantSecretNameService = tenantSecretNameService;
         this.settingService = settingService;
-        this.tenantAdminService = tenantAdminService;
         this.environment = environment;
         this.xeroAuthService = xeroAuthService;
     }
@@ -52,16 +51,12 @@ public class XeroActivationService {
             throw new IllegalArgumentException("Xero Client Secret is required");
         }
 
-        String env = environmentName();
-        String tenantHost = resolveTenantHost(tenant);
-        String tenantKey = normaliseTenantForSecretName(tenantHost);
-        String prefix = "mawa-" + env + "-" + tenantKey + "-xero-";
-
-        String clientIdSecret = prefix + "client-id";
-        String clientSecretSecret = prefix + "secret-key";
-        String refreshTokenSecret = prefix + "refresh-token";
-        String tenantIdSecret = prefix + "tenant-id";
-        String accessTokenSecret = prefix + "access-token";
+        String tenantHost = tenantSecretNameService.resolveCurrentTenantHost();
+        String clientIdSecret = tenantSecretNameService.currentTenantSecretName("xero", "client-id");
+        String clientSecretSecret = tenantSecretNameService.currentTenantSecretName("xero", "secret-key");
+        String refreshTokenSecret = tenantSecretNameService.currentTenantSecretName("xero", "refresh-token");
+        String tenantIdSecret = tenantSecretNameService.currentTenantSecretName("xero", "tenant-id");
+        String accessTokenSecret = tenantSecretNameService.currentTenantSecretName("xero", "access-token");
 
         gcpTenantSecretService.createOrAddSecretVersion(clientIdSecret, request.getClientId().trim());
         gcpTenantSecretService.createOrAddSecretVersion(clientSecretSecret, request.getClientSecret().trim());
@@ -89,9 +84,23 @@ public class XeroActivationService {
                 .clientSecretSecret(clientSecretSecret)
                 .refreshTokenSecret(refreshTokenSecret)
                 .tenantIdSecret(tenantIdSecret)
+                .accessTokenSecret(accessTokenSecret)
                 .redirectUrl(redirectUrl)
                 .organisationSelectionRequired(false)
                 .message("Xero secrets were saved to Google Secret Manager. Open authenticationUrl to authorise the Xero organisation.")
+                .build();
+    }
+
+    public XeroActivationResponseDto secretNames() {
+        return XeroActivationResponseDto.builder()
+                .invoiceIntegrationEnabled(Boolean.parseBoolean(settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP)))
+                .organisationSelectionRequired(false)
+                .clientIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "client-id"))
+                .clientSecretSecret(tenantSecretNameService.currentTenantSecretName("xero", "secret-key"))
+                .refreshTokenSecret(tenantSecretNameService.currentTenantSecretName("xero", "refresh-token"))
+                .tenantIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "tenant-id"))
+                .accessTokenSecret(tenantSecretNameService.currentTenantSecretName("xero", "access-token"))
+                .redirectUrl(settingService.getSetting("REDIRECT-URL", XERO_GROUP))
                 .build();
     }
 
@@ -168,42 +177,6 @@ public class XeroActivationService {
         baseUrl = baseUrl.replaceAll("/+$", "");
         return baseUrl.endsWith("/xero/callback") ? baseUrl : baseUrl + "/xero/callback";
     }
-
-
-    private String resolveTenantHost(String tenantId) {
-        String currentTenantUrl = TenantContext.getCurrentTenantURL();
-        if (StringUtils.hasText(currentTenantUrl)) {
-            return currentTenantUrl.trim();
-        }
-        if (StringUtils.hasText(tenantId)) {
-            try {
-                return tenantAdminService.getAll().stream()
-                        .filter(tenant -> tenantId.equals(tenant.getId()))
-                        .map(TenantDto::getHost)
-                        .filter(StringUtils::hasText)
-                        .findFirst()
-                        .orElse(tenantId);
-            } catch (Exception ignored) {
-                return tenantId;
-            }
-        }
-        return "tenant";
-    }
-
-    private String environmentName() {
-        String[] activeProfiles = environment.getActiveProfiles();
-        String env = activeProfiles != null && activeProfiles.length > 0 ? activeProfiles[0] : null;
-        env = firstNonBlank(env, environment.getProperty("spring.profiles.active"), environment.getProperty("MAWA_ENV"), "dev");
-        env = env.split(",")[0].trim().toLowerCase();
-        return normaliseTenantForSecretName(env);
-    }
-
-    private String normaliseTenantForSecretName(String value) {
-        String normalised = value == null ? "tenant" : value.toLowerCase().replaceAll("[^a-z0-9]+", "-");
-        normalised = normalised.replaceAll("^-+", "").replaceAll("-+$", "");
-        return StringUtils.hasText(normalised) ? normalised : "tenant";
-    }
-
     private String firstNonBlank(String... values) {
         if (values == null) {
             return null;
