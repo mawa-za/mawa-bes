@@ -44,6 +44,7 @@ public class PaymentRequestResponseDto {
     private String approvalRequestId;
     private LocalDate paidDate;
     private String paidReference;
+    private String fnbInstructionId;
     private String paidBy;
     private LocalDateTime createdAt;
     private String createdBy;

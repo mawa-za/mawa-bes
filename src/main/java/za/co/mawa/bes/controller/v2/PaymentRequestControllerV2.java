@@ -132,13 +132,14 @@ public class PaymentRequestControllerV2 {
     @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BankPaymentResponse> getBankReport(@PathVariable String id) {
         try {
-           PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
-            if (paymentRequestResponse.getExternalReference() != null) {
-                BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paymentRequestResponse.getPaidReference());
-                return ResponseEntity.ok(bankPaymentResponse);
-            }else{
-                return ResponseEntity.ok().build();
+            PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
+            String instructionId = paymentRequestResponse.getFnbInstructionId();
+            if (instructionId == null || instructionId.isBlank()) {
+                return ResponseEntity.noContent().build();
             }
+
+            BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(instructionId);
+            return ResponseEntity.ok(bankPaymentResponse);
         } catch (Exception exception) {
             return ResponseEntity.badRequest().build();
         }

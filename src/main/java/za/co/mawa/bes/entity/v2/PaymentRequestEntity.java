@@ -100,6 +100,9 @@ public class PaymentRequestEntity {
     @Column(name = "paid_reference")
     private String paidReference;
 
+    @Column(name = "fnb_instruction_id", length = 255)
+    private String fnbInstructionId;
+
     @Column(name = "paid_by")
     private String paidBy;
 
