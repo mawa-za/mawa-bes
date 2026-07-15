@@ -187,6 +187,25 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+
+    @GetMapping("/trusted-tenants")
+    public ResponseEntity<?> getTrustedTenants() {
+        try { return ResponseEntity.ok(funeralManagementService.getTrustedTenantRelationships()); }
+        catch (Exception e) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage()); }
+    }
+
+    @PostMapping(value = "/trusted-tenants", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> requestTrustedTenant(@RequestBody TenantTrustRelationshipDto request) {
+        try { return ResponseEntity.ok(funeralManagementService.requestTrustedTenantRelationship(request)); }
+        catch (Exception e) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage()); }
+    }
+
+    @PutMapping("/trusted-tenants/{id}/status/{status}")
+    public ResponseEntity<?> updateTrustedTenantStatus(@PathVariable String id, @PathVariable String status) {
+        try { return ResponseEntity.ok(funeralManagementService.updateTrustedTenantRelationshipStatus(id, status)); }
+        catch (Exception e) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage()); }
+    }
+
     @PutMapping(value = "/configuration", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateConfiguration(@RequestBody FuneralServiceConfigurationDto request) {
         try {

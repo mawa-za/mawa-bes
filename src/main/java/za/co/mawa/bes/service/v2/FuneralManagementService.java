@@ -251,6 +251,7 @@ public class FuneralManagementService {
             if (!schemaExists(externalTenantId)) {
                 throw new IllegalArgumentException("External tenant schema is not available: " + externalTenantId);
             }
+            requireApprovedTrust(externalTenantId, "allow_membership_lookup");
             Integer localPartnerCount = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM partner WHERE id = ?", Integer.class, externalPartnerId);
             if (localPartnerCount == null || localPartnerCount == 0) {
@@ -792,6 +793,7 @@ public class FuneralManagementService {
             FuneralTenantIntegrationConfigDto config
     ) {
         String tenantId = requireConfiguredExternalTenant(config);
+        requireApprovedTrust(tenantId, "allow_membership_lookup");
         String tenantName = defaultString(config.getExternalTenantName(), tenantId);
         String localPartnerId = config.getExternalTenantPartnerId();
         String partnerIdentity = qualifiedTable(tenantId, "partner_identity");
@@ -1456,6 +1458,129 @@ public class FuneralManagementService {
         }
     }
 
+    public List<TenantTrustRelationshipDto> getTrustedTenantRelationships() {
+        String currentTenant = TenantContext.getCurrentTenant();
+        String table = qualifiedTable(currentTenant, "tenant_trust_relationship");
+        return jdbcTemplate.query("SELECT * FROM " + table + " WHERE requester_tenant_id = ? OR provider_tenant_id = ? ORDER BY requested_at DESC",
+                (rs, rowNum) -> TenantTrustRelationshipDto.builder()
+                        .id(rs.getString("id"))
+                        .requesterTenantId(rs.getString("requester_tenant_id"))
+                        .requesterTenantName(rs.getString("requester_tenant_name"))
+                        .providerTenantId(rs.getString("provider_tenant_id"))
+                        .providerTenantName(rs.getString("provider_tenant_name"))
+                        .integrationType(rs.getString("integration_type"))
+                        .status(rs.getString("status"))
+                        .membershipLookupAllowed(rs.getBoolean("allow_membership_lookup"))
+                        .claimCreationAllowed(rs.getBoolean("allow_claim_creation"))
+                        .claimStatusReadAllowed(rs.getBoolean("allow_claim_status_read"))
+                        .settlementAllowed(rs.getBoolean("allow_settlement"))
+                        .requestedAt(rs.getTimestamp("requested_at") == null ? null : rs.getTimestamp("requested_at").toLocalDateTime())
+                        .approvedAt(rs.getTimestamp("approved_at") == null ? null : rs.getTimestamp("approved_at").toLocalDateTime())
+                        .revokedAt(rs.getTimestamp("revoked_at") == null ? null : rs.getTimestamp("revoked_at").toLocalDateTime())
+                        .build(), currentTenant, currentTenant);
+    }
+
+    public TenantTrustRelationshipDto requestTrustedTenantRelationship(TenantTrustRelationshipDto request) {
+        String requester = TenantContext.getCurrentTenant();
+        String provider = trimToNull(request.getProviderTenantId());
+        validateRequired(provider, "providerTenantId");
+        if (requester.equals(provider)) throw new IllegalArgumentException("Provider tenant must differ from requester tenant");
+        if (!schemaExists(provider)) throw new IllegalArgumentException("Provider tenant schema is unavailable: " + provider);
+        String requesterName = tenantName(requester);
+        String providerName = tenantName(provider);
+        LocalDateTime now = LocalDateTime.now();
+        List<String> existing = jdbcTemplate.query("SELECT id FROM " + qualifiedTable(requester, "tenant_trust_relationship") +
+                        " WHERE requester_tenant_id = ? AND provider_tenant_id = ? AND integration_type = 'FUNERAL_MEMBERSHIP_CLAIMS'",
+                (rs, n) -> rs.getString(1), requester, provider);
+        String id = existing.isEmpty() ? UUID.randomUUID().toString().replace("-", "") : existing.get(0);
+        if (existing.isEmpty()) {
+            insertTrustRow(requester, id, requester, requesterName, provider, providerName, "PENDING", request, now);
+            insertTrustRow(provider, id, requester, requesterName, provider, providerName, "PENDING", request, now);
+        } else {
+            resetTrustRequest(requester, id, request, now);
+            resetTrustRequest(provider, id, request, now);
+        }
+        return findTrustById(requester, id);
+    }
+
+    public TenantTrustRelationshipDto updateTrustedTenantRelationshipStatus(String id, String status) {
+        String current = TenantContext.getCurrentTenant();
+        TenantTrustRelationshipDto trust = findTrustById(current, id);
+        String normalized = defaultString(status, "").trim().toUpperCase(Locale.ROOT);
+        if (!List.of("APPROVED", "REJECTED", "SUSPENDED", "REVOKED").contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported trust status: " + status);
+        }
+        if (("APPROVED".equals(normalized) || "REJECTED".equals(normalized) || "SUSPENDED".equals(normalized))
+                && !current.equals(trust.getProviderTenantId())) {
+            throw new IllegalArgumentException("Only the provider tenant may " + normalized.toLowerCase(Locale.ROOT) + " this relationship");
+        }
+        if ("REVOKED".equals(normalized) && !current.equals(trust.getRequesterTenantId()) && !current.equals(trust.getProviderTenantId())) {
+            throw new IllegalArgumentException("Only a party to the relationship may revoke it");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        updateTrustStatus(trust.getRequesterTenantId(), id, normalized, now);
+        updateTrustStatus(trust.getProviderTenantId(), id, normalized, now);
+        return findTrustById(current, id);
+    }
+
+    private void insertTrustRow(String schema, String id, String requester, String requesterName, String provider,
+                                String providerName, String status, TenantTrustRelationshipDto request, LocalDateTime now) {
+        jdbcTemplate.update("INSERT INTO " + qualifiedTable(schema, "tenant_trust_relationship") +
+                        " (id, requester_tenant_id, requester_tenant_name, provider_tenant_id, provider_tenant_name, integration_type, status, allow_membership_lookup, allow_claim_creation, allow_claim_status_read, allow_settlement, requested_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                id, requester, requesterName, provider, providerName, "FUNERAL_MEMBERSHIP_CLAIMS", status,
+                defaultBoolean(request.getMembershipLookupAllowed(), true), defaultBoolean(request.getClaimCreationAllowed(), true),
+                defaultBoolean(request.getClaimStatusReadAllowed(), true), defaultBoolean(request.getSettlementAllowed(), false),
+                now, now, now);
+    }
+
+    private void resetTrustRequest(String schema, String id, TenantTrustRelationshipDto request, LocalDateTime now) {
+        jdbcTemplate.update("UPDATE " + qualifiedTable(schema, "tenant_trust_relationship") +
+                        " SET status = 'PENDING', allow_membership_lookup = ?, allow_claim_creation = ?, allow_claim_status_read = ?, allow_settlement = ?, requested_at = ?, approved_at = NULL, revoked_at = NULL, updated_at = ? WHERE id = ?",
+                defaultBoolean(request.getMembershipLookupAllowed(), true), defaultBoolean(request.getClaimCreationAllowed(), true),
+                defaultBoolean(request.getClaimStatusReadAllowed(), true), defaultBoolean(request.getSettlementAllowed(), false),
+                now, now, id);
+    }
+
+    private void updateTrustStatus(String schema, String id, String status, LocalDateTime now) {
+        String approved = "APPROVED".equals(status) ? ", approved_at = ?" : "";
+        String revoked = "REVOKED".equals(status) ? ", revoked_at = ?" : "";
+        List<Object> args = new ArrayList<>(); args.add(status); args.add(now);
+        if ("APPROVED".equals(status)) args.add(now);
+        if ("REVOKED".equals(status)) args.add(now);
+        args.add(id);
+        jdbcTemplate.update("UPDATE " + qualifiedTable(schema, "tenant_trust_relationship") + " SET status = ?, updated_at = ?" + approved + revoked + " WHERE id = ?", args.toArray());
+    }
+
+    private TenantTrustRelationshipDto findTrustById(String schema, String id) {
+        return jdbcTemplate.queryForObject("SELECT * FROM " + qualifiedTable(schema, "tenant_trust_relationship") + " WHERE id = ?",
+                (rs, n) -> TenantTrustRelationshipDto.builder().id(rs.getString("id"))
+                        .requesterTenantId(rs.getString("requester_tenant_id")).requesterTenantName(rs.getString("requester_tenant_name"))
+                        .providerTenantId(rs.getString("provider_tenant_id")).providerTenantName(rs.getString("provider_tenant_name"))
+                        .integrationType(rs.getString("integration_type")).status(rs.getString("status"))
+                        .membershipLookupAllowed(rs.getBoolean("allow_membership_lookup")).claimCreationAllowed(rs.getBoolean("allow_claim_creation"))
+                        .claimStatusReadAllowed(rs.getBoolean("allow_claim_status_read")).settlementAllowed(rs.getBoolean("allow_settlement"))
+                        .requestedAt(rs.getTimestamp("requested_at") == null ? null : rs.getTimestamp("requested_at").toLocalDateTime())
+                        .approvedAt(rs.getTimestamp("approved_at") == null ? null : rs.getTimestamp("approved_at").toLocalDateTime())
+                        .revokedAt(rs.getTimestamp("revoked_at") == null ? null : rs.getTimestamp("revoked_at").toLocalDateTime()).build(), id);
+    }
+
+    private String tenantName(String tenantId) {
+        return tenantAdminService.getAll().stream().filter(t -> tenantId.equals(t.getId())).map(t -> defaultString(t.getName(), tenantId)).findFirst().orElse(tenantId);
+    }
+
+    private void requireApprovedTrust(String providerTenantId, String permissionColumn) {
+        String requester = TenantContext.getCurrentTenant();
+        if (!List.of("allow_membership_lookup", "allow_claim_creation", "allow_claim_status_read", "allow_settlement").contains(permissionColumn)) {
+            throw new IllegalArgumentException("Invalid trust permission");
+        }
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + qualifiedTable(requester, "tenant_trust_relationship") +
+                        " WHERE requester_tenant_id = ? AND provider_tenant_id = ? AND integration_type = 'FUNERAL_MEMBERSHIP_CLAIMS' AND status = 'APPROVED' AND " + permissionColumn + " = 1",
+                Integer.class, requester, providerTenantId);
+        if (count == null || count == 0) {
+            throw new IllegalArgumentException("No approved trusted-tenant relationship permits this operation");
+        }
+    }
+
     private FuneralTenantIntegrationConfigDto toTenantIntegrationConfigDto(FuneralTenantIntegrationConfigEntity entity) {
         return FuneralTenantIntegrationConfigDto.builder()
                 .membershipSourceMode(normalizeSourceMode(entity.getMembershipSourceMode()))
@@ -1508,6 +1633,7 @@ public class FuneralManagementService {
         if (!Boolean.TRUE.equals(config.getClaimCreationEnabled())) {
             throw new IllegalArgumentException("External claim creation is disabled");
         }
+        requireApprovedTrust(tenantId, "allow_claim_creation");
     }
 
     private void ensureExternalStatusSyncAllowed(String tenantId) {
@@ -1519,6 +1645,7 @@ public class FuneralManagementService {
         if (!Boolean.TRUE.equals(config.getClaimStatusSyncEnabled())) {
             throw new IllegalArgumentException("External claim status synchronisation is disabled");
         }
+        requireApprovedTrust(tenantId, "allow_claim_status_read");
     }
 
     private boolean isExternalClaimStorage(FuneralServiceClaimEntity link) {
