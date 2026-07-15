@@ -94,6 +94,9 @@ public class MembershipClaimEntity {
     @Column(name = "payment_request_id", length = 255)
     private String paymentRequestId;
 
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "payout_method", length = 20)
     private PaymentMethod payoutMethod;
