@@ -158,6 +158,35 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @GetMapping("/tenant-integration")
+    public ResponseEntity<?> getTenantIntegrationConfiguration() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getTenantIntegrationConfiguration());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @PutMapping(value = "/tenant-integration", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateTenantIntegrationConfiguration(
+            @RequestBody FuneralTenantIntegrationConfigDto request
+    ) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updateTenantIntegrationConfiguration(request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping("/tenant-integration/available-tenants")
+    public ResponseEntity<?> getAvailableTenantOptions() {
+        try {
+            return ResponseEntity.ok(funeralManagementService.getAvailableTenantOptions());
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PutMapping(value = "/configuration", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateConfiguration(@RequestBody FuneralServiceConfigurationDto request) {
         try {

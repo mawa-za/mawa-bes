@@ -9,7 +9,7 @@ public class FuneralMembershipCoverDto {
     /**
      * Stable selection id used by funeral screens.
      * LOCAL_TENANT values are formatted as LOCAL:{membershipId}:{deceasedPartnerId}:{deceasedType}.
-     * EXTERNAL_TENANT values are formatted as EXTERNAL:{externalCoverId}.
+     * Live EXTERNAL_TENANT values are formatted as EXTERNAL:{tenantId}:{membershipId}:{deceasedPartnerId}:{deceasedType}. Legacy external-cover snapshots remain supported as EXTERNAL:{externalCoverId}.
      */
     private String membershipId;
     private String membershipNumber;
