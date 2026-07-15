@@ -191,7 +191,9 @@ public class ApprovalService {
         approvalRequest.setFinalActionAt(new Date());
         approvalRequest.setUpdatedBy(request.getActionBy());
 
-        return toResponse(approvalRequestRepository.save(approvalRequest));
+        ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
+        completionHandlerRegistry.handleRejected(saved, request.getActionBy());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -217,7 +219,9 @@ public class ApprovalService {
         approvalRequest.setFinalActionAt(new Date());
         approvalRequest.setUpdatedBy(request.getActionBy());
 
-        return toResponse(approvalRequestRepository.save(approvalRequest));
+        ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
+        completionHandlerRegistry.handleCancelled(saved, request.getActionBy());
+        return toResponse(saved);
     }
 
     public ApprovalRequestResponse getById(String id) {
