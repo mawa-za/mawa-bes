@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service.v2;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -1164,32 +1165,104 @@ public class FuneralManagementService {
     private String createInvoice(FuneralServiceEntity service, FuneralInvoiceSplitDto split) {
         String invoiceId = UUID.randomUUID().toString();
         String invoiceNo = generateInvoiceNo();
+        long invoiceAmount = defaultLong(split.getAmountCents());
+        boolean coveredByApprovedClaim = "BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType());
+        long paidAmount = coveredByApprovedClaim ? invoiceAmount : 0L;
+        long balanceAmount = Math.max(0L, invoiceAmount - paidAmount);
+        String status = balanceAmount == 0L ? "PAID" : "ISSUED";
+        LocalDate invoiceDate = LocalDate.now();
+        LocalDate dueDate = service.getFuneralDate() == null ? invoiceDate : service.getFuneralDate();
+        String externalReference = truncate(defaultString(service.getDeceasedName(), service.getServiceRequestNo()), 100);
+        String notes = "Funeral service " + defaultString(service.getServiceRequestNo(), service.getId())
+                + " for " + defaultString(service.getDeceasedName(), "deceased")
+                + ". " + defaultString(split.getDescription(), "");
+
         jdbcTemplate.update("""
                 INSERT INTO invoice
-                (id, invoice_no, external_ref, partner_id, invoice_date, due_date, status, subtotal_cents, tax_cents,
-                 discount_cents, total_cents, paid_cents, balance_cents, currency, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'ISSUED', ?, 0, 0, ?, 0, ?, 'ZAR', ?, CURRENT_TIMESTAMP)
+                (id, invoice_no, external_ref, source_type, source_id, partner_id, invoice_date, due_date, status,
+                 subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents, balance_cents, currency, notes, created_at)
+                VALUES (?, ?, ?, 'FUNERAL_SERVICE', ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'ZAR', ?, CURRENT_TIMESTAMP)
                 """,
                 invoiceId,
                 invoiceNo,
-                "FUNERAL:" + service.getId(),
+                externalReference,
+                service.getId(),
                 split.getPartnerId(),
-                LocalDate.now(),
-                service.getFuneralDate(),
-                split.getAmountCents(),
-                split.getAmountCents(),
-                split.getAmountCents(),
-                split.getDescription());
+                invoiceDate,
+                dueDate,
+                status,
+                invoiceAmount,
+                invoiceAmount,
+                paidAmount,
+                balanceAmount,
+                notes);
 
+        FuneralPackageEntity funeralPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
+        String packageName = funeralPackage == null ? "FUNERAL SERVICE" : defaultString(funeralPackage.getName(), "FUNERAL SERVICE");
+        String primaryDescription = packageName.toUpperCase(Locale.ROOT).contains("FUNERAL SERVICE")
+                ? packageName.toUpperCase(Locale.ROOT)
+                : packageName.toUpperCase(Locale.ROOT) + " FUNERAL SERVICE";
+        insertInvoiceLine(invoiceId, primaryDescription, 1.0, invoiceAmount);
+
+        if (funeralPackage != null) {
+            for (String inclusion : parsePackageInclusions(funeralPackage.getInclusionsJson())) {
+                insertInvoiceLine(invoiceId, inclusion.toUpperCase(Locale.ROOT), 1.0, 0L);
+            }
+        }
+        for (FuneralExtraDto extra : parseFuneralExtras(service.getExtrasJson())) {
+            if (extra != null && StringUtils.hasText(extra.getDescription())) {
+                insertInvoiceLine(invoiceId, extra.getDescription().trim().toUpperCase(Locale.ROOT), 1.0, 0L);
+            }
+        }
+
+        if (coveredByApprovedClaim && paidAmount > 0L) {
+            String paymentReference = truncate(defaultString(split.getMembershipClaimId(), split.getDescription()), 100);
+            jdbcTemplate.update("""
+                    INSERT INTO invoice_payment
+                    (id, invoice_id, payment_date, amount_cents, payment_method, reference_no, created_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, ?, 'FUNERAL_COVER', ?, CURRENT_TIMESTAMP)
+                    """, UUID.randomUUID().toString(), invoiceId, paidAmount, paymentReference);
+        }
+        return invoiceId;
+    }
+
+    private void insertInvoiceLine(String invoiceId, String description, double quantity, long amountCents) {
         jdbcTemplate.update("""
                 INSERT INTO invoice_line
                 (id, invoice_id, description, quantity, unit_price_cents, discount_cents, tax_cents, subtotal_cents, total_cents, created_at)
-                VALUES (?, ?, ?, 1.000, ?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
                 """,
-                UUID.randomUUID().toString(), invoiceId,
-                "Funeral service - " + service.getDeceasedName() + " - " + split.getEntityType(),
-                split.getAmountCents(), split.getAmountCents(), split.getAmountCents());
-        return invoiceId;
+                UUID.randomUUID().toString(), invoiceId, truncate(defaultString(description, "Funeral service"), 255),
+                quantity, amountCents, amountCents, amountCents);
+    }
+
+    private List<String> parsePackageInclusions(String inclusionsJson) {
+        if (!StringUtils.hasText(inclusionsJson)) return List.of();
+        try {
+            List<String> inclusions = objectMapper.readValue(inclusionsJson, new TypeReference<List<String>>() {});
+            return inclusions == null ? List.of() : inclusions.stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .distinct()
+                    .toList();
+        } catch (JsonProcessingException ignored) {
+            return List.of();
+        }
+    }
+
+    private List<FuneralExtraDto> parseFuneralExtras(String extrasJson) {
+        if (!StringUtils.hasText(extrasJson)) return List.of();
+        try {
+            List<FuneralExtraDto> extras = objectMapper.readValue(extrasJson, new TypeReference<List<FuneralExtraDto>>() {});
+            return extras == null ? List.of() : extras;
+        } catch (JsonProcessingException ignored) {
+            return List.of();
+        }
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, maxLength);
     }
 
     private FuneralClaimDto readClaimDto(String membershipClaimId) {

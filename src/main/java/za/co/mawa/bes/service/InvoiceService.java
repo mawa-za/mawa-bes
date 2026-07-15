@@ -219,6 +219,10 @@ public class InvoiceService {
         dto.setTaxCents(Conversion.safeLongToInteger(invoice.getTaxCents()));
         dto.setDiscountCents(Conversion.safeLongToInteger(invoice.getDiscountCents()));
         dto.setTotalCents(Conversion.safeLongToInteger(invoice.getTotalCents()));
+        dto.setPaidCents(Conversion.safeLongToInteger(invoice.getPaidCents()));
+        dto.setBalanceCents(Conversion.safeLongToInteger(invoice.getBalanceCents()));
+        dto.setExternalRef(invoice.getExternalRef());
+        dto.setNotes(invoice.getNotes());
         dto.setCurrency(invoice.getCurrency());
         dto.setXeroInvoiceId(invoice.getXeroInvoiceId());
         dto.setXeroInvoiceNo(invoice.getXeroInvoiceNo());
