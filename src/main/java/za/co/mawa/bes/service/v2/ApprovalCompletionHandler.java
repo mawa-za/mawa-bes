@@ -8,4 +8,12 @@ public interface ApprovalCompletionHandler {
     ApprovalType supports();
 
     void onApproved(ApprovalRequestEntity approvalRequest, String actionBy);
+
+    default void onRejected(ApprovalRequestEntity approvalRequest, String actionBy) {
+        // Optional domain-specific rejection handling.
+    }
+
+    default void onCancelled(ApprovalRequestEntity approvalRequest, String actionBy) {
+        // Optional domain-specific cancellation handling.
+    }
 }
