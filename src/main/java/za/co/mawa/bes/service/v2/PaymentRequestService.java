@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.BankAccountCreateDto;
 import za.co.mawa.bes.dto.BankAccountDto;
@@ -296,12 +297,53 @@ public class PaymentRequestService {
                 "Payment request queued for FNB EFT payment", updatedBy);
     }
 
+    public String getFnbInstructionId(String paymentRequestIdOrRequestNo) {
+        return findByIdOrRequestNo(paymentRequestIdOrRequestNo).getFnbInstructionId();
+    }
+
+    /**
+     * Persists the FNB instruction identifier in an independent transaction immediately
+     * after FNB accepts the initiation request. This makes queue retries idempotent: if
+     * a later local update fails, the next attempt reuses the stored instruction ID and
+     * does not initiate a second payment at FNB.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordFnbInstruction(String paymentRequestIdOrRequestNo, String instructionId, String updatedBy) {
+        if (instructionId == null || instructionId.isBlank()) {
+            throw new IllegalArgumentException("FNB instruction ID is required");
+        }
+
+        PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+        String existingInstructionId = entity.getFnbInstructionId();
+        if (existingInstructionId != null && !existingInstructionId.isBlank()) {
+            if (!existingInstructionId.equals(instructionId)) {
+                throw new IllegalStateException(
+                        "Payment request already has a different FNB instruction ID: " + entity.getRequestNo()
+                );
+            }
+            return;
+        }
+
+        entity.setFnbInstructionId(instructionId);
+        // Keep the existing field populated for backward compatibility with older clients.
+        if (entity.getPaidReference() == null || entity.getPaidReference().isBlank()) {
+            entity.setPaidReference(instructionId);
+        }
+        entity.setUpdatedBy(systemActor(updatedBy));
+        paymentRequestRepository.saveAndFlush(entity);
+    }
+
     @Transactional
     public void markSentToBank(String paymentRequestIdOrRequestNo, String instructionId, String updatedBy) {
         PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+        String effectiveInstructionId = firstNonBlank(instructionId, entity.getFnbInstructionId());
+
+        if (effectiveInstructionId == null || effectiveInstructionId.isBlank()) {
+            throw new IllegalArgumentException("FNB instruction ID is required");
+        }
 
         if (entity.getStatus() == PaymentRequestStatus.PROCESSED &&
-                instructionId != null && instructionId.equals(entity.getPaidReference())) {
+                effectiveInstructionId.equals(entity.getFnbInstructionId())) {
             return;
         }
 
@@ -313,12 +355,17 @@ public class PaymentRequestService {
 
         PaymentRequestStatus oldStatus = entity.getStatus();
         entity.setStatus(PaymentRequestStatus.PROCESSED);
-        entity.setPaidReference(instructionId);
-        entity.setUpdatedBy(updatedBy);
+        entity.setFnbInstructionId(effectiveInstructionId);
+        if (entity.getPaidReference() == null || entity.getPaidReference().isBlank()) {
+            entity.setPaidReference(effectiveInstructionId);
+        }
+        entity.setUpdatedBy(systemActor(updatedBy));
 
         paymentRequestRepository.save(entity);
-        saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PROCESSED,
-                "Payment request sent to FNB. Instruction ID: " + instructionId, updatedBy);
+        if (oldStatus != PaymentRequestStatus.PROCESSED) {
+            saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PROCESSED,
+                    "Payment request sent to FNB. Instruction ID: " + effectiveInstructionId, systemActor(updatedBy));
+        }
     }
 
     private PaymentRequestEntity findByIdOrRequestNo(String paymentRequestIdOrRequestNo) {
@@ -329,6 +376,17 @@ public class PaymentRequestService {
 
         return paymentRequestRepository.findByRequestNo(paymentRequestIdOrRequestNo)
                 .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestIdOrRequestNo));
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+        return fallback;
+    }
+
+    private String systemActor(String updatedBy) {
+        return updatedBy == null || updatedBy.isBlank() ? "SYSTEM" : updatedBy;
     }
 
     private void validateCreateRequest(PaymentRequestCreateRequest request) {
@@ -430,6 +488,7 @@ public class PaymentRequestService {
                 .setApprovalRequestId(entity.getApprovalRequestId())
                 .setPaidDate(entity.getPaidDate())
                 .setPaidReference(entity.getPaidReference())
+                .setFnbInstructionId(entity.getFnbInstructionId())
                 .setPaidBy(entity.getPaidBy())
                 .setCreatedAt(entity.getCreatedAt())
                 .setCreatedBy(entity.getCreatedBy())

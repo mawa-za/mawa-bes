@@ -35,6 +35,7 @@ public class PaymentRequestResponse {
     private String approvalRequestId;
     private LocalDate paidDate;
     private String paidReference;
+    private String fnbInstructionId;
     private String paidBy;
     private LocalDateTime createdAt;
     private String createdBy;
@@ -89,6 +90,8 @@ public class PaymentRequestResponse {
     public PaymentRequestResponse setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; return this; }
     public String getPaidReference() { return paidReference; }
     public PaymentRequestResponse setPaidReference(String paidReference) { this.paidReference = paidReference; return this; }
+    public String getFnbInstructionId() { return fnbInstructionId; }
+    public PaymentRequestResponse setFnbInstructionId(String fnbInstructionId) { this.fnbInstructionId = fnbInstructionId; return this; }
     public String getPaidBy() { return paidBy; }
     public PaymentRequestResponse setPaidBy(String paidBy) { this.paidBy = paidBy; return this; }
     public LocalDateTime getCreatedAt() { return createdAt; }
