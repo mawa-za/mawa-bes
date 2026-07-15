@@ -7,6 +7,8 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
@@ -18,6 +20,7 @@ import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
 
 import java.time.LocalDate;
@@ -31,6 +34,10 @@ public class FuneralManagementService {
 
     private static final String COVER_SOURCE_LOCAL = "LOCAL_TENANT";
     private static final String COVER_SOURCE_EXTERNAL = "EXTERNAL_TENANT";
+    private static final String SOURCE_MODE_LOCAL_ONLY = "LOCAL_ONLY";
+    private static final String SOURCE_MODE_EXTERNAL_ONLY = "EXTERNAL_ONLY";
+    private static final String SOURCE_MODE_LOCAL_AND_EXTERNAL = "LOCAL_AND_EXTERNAL";
+    private static final String INTEGRATION_CONFIG_ID = "DEFAULT";
     private static final String FUNERAL_SERVICE_SETTING = "FUNERAL-SERVICE";
     private static final String MAX_SELECTED_COVERS_ATTRIBUTE = "MAX-SELECTED-COVERS";
 
@@ -42,6 +49,7 @@ public class FuneralManagementService {
     private final InvoiceRepository invoiceRepository;
     private final FuneralServiceClaimRepository funeralServiceClaimRepository;
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
+    private final FuneralTenantIntegrationConfigRepository tenantIntegrationConfigRepository;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final ClaimFormGenerationService claimFormGenerationService;
@@ -49,6 +57,7 @@ public class FuneralManagementService {
     private final NumberAllocationService numberAllocationService;
     private final NumberRangeService numberRangeService;
     private final SettingService settingService;
+    private final TenantAdminService tenantAdminService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -187,19 +196,112 @@ public class FuneralManagementService {
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + id));
     }
 
-    /**
-     * Combines same-tenant cover from existing membership tables with external Mawa tenant cover snapshots.
-     * Same-tenant cover uses membership, membership_dependent and membership_plan_claim_payout.
-     */
     public List<FuneralMembershipCoverDto> checkMembership(String identityNumber) {
         validateRequired(identityNumber, "identityNumber");
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
         List<FuneralMembershipCoverDto> result = new ArrayList<>();
-        result.addAll(findLocalMembershipCover(identityNumber));
-        result.addAll(externalMembershipCoverRepository.findByIdentityNumberAndStatus(identityNumber, "ACTIVE")
-                .stream()
-                .map(this::toExternalCoverDto)
-                .collect(Collectors.toList()));
+        if (includesLocalSource(config)) {
+            result.addAll(findLocalMembershipCover(identityNumber));
+        }
+        if (includesExternalSource(config)
+                && Boolean.TRUE.equals(config.getActive())
+                && Boolean.TRUE.equals(config.getMembershipLookupEnabled())) {
+            result.addAll(findExternalMembershipCover(identityNumber, config));
+        }
         return result;
+    }
+
+    public FuneralTenantIntegrationConfigDto getTenantIntegrationConfiguration() {
+        return tenantIntegrationConfigRepository.findById(INTEGRATION_CONFIG_ID)
+                .map(this::toTenantIntegrationConfigDto)
+                .orElseGet(() -> FuneralTenantIntegrationConfigDto.builder()
+                        .membershipSourceMode(SOURCE_MODE_LOCAL_ONLY)
+                        .membershipLookupEnabled(true)
+                        .claimCreationEnabled(true)
+                        .claimStatusSyncEnabled(true)
+                        .active(true)
+                        .build());
+    }
+
+    @Transactional
+    public FuneralTenantIntegrationConfigDto updateTenantIntegrationConfiguration(FuneralTenantIntegrationConfigDto request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Configuration is required");
+        }
+        String sourceMode = normalizeSourceMode(request.getMembershipSourceMode());
+        boolean externalRequired = SOURCE_MODE_EXTERNAL_ONLY.equals(sourceMode)
+                || SOURCE_MODE_LOCAL_AND_EXTERNAL.equals(sourceMode);
+
+        String externalTenantId = trimToNull(request.getExternalTenantId());
+        String externalTenantName = trimToNull(request.getExternalTenantName());
+        String externalPartnerId = trimToNull(request.getExternalTenantPartnerId());
+
+        if (externalRequired) {
+            validateRequired(externalTenantId, "externalTenantId");
+            validateRequired(externalPartnerId, "externalTenantPartnerId");
+            if (externalTenantId.equals(TenantContext.getCurrentTenant())) {
+                throw new IllegalArgumentException("External tenant must be different from the current tenant");
+            }
+            final String selectedExternalTenantId = externalTenantId;
+            FuneralTenantOptionDto selectedTenant = getAvailableTenantOptions().stream()
+                    .filter(option -> selectedExternalTenantId.equals(option.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "External tenant is not an active MAWA tenant: " + selectedExternalTenantId));
+            if (!schemaExists(externalTenantId)) {
+                throw new IllegalArgumentException("External tenant schema is not available: " + externalTenantId);
+            }
+            Integer localPartnerCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM partner WHERE id = ?", Integer.class, externalPartnerId);
+            if (localPartnerCount == null || localPartnerCount == 0) {
+                throw new IllegalArgumentException("The mapped local partner does not exist: " + externalPartnerId);
+            }
+            externalTenantName = defaultString(selectedTenant.getName(), externalTenantId);
+        } else {
+            externalTenantId = null;
+            externalTenantName = null;
+            externalPartnerId = null;
+        }
+
+        FuneralTenantIntegrationConfigEntity entity = tenantIntegrationConfigRepository
+                .findById(INTEGRATION_CONFIG_ID)
+                .orElseGet(() -> FuneralTenantIntegrationConfigEntity.builder().id(INTEGRATION_CONFIG_ID).build());
+        boolean membershipLookupEnabled = defaultBoolean(request.getMembershipLookupEnabled(), true);
+        boolean claimCreationEnabled = defaultBoolean(request.getClaimCreationEnabled(), true);
+        boolean claimStatusSyncEnabled = defaultBoolean(request.getClaimStatusSyncEnabled(), true);
+        if (externalRequired && claimCreationEnabled && !claimStatusSyncEnabled) {
+            throw new IllegalArgumentException(
+                    "Claim status synchronisation must be enabled when external claim creation is enabled");
+        }
+
+        entity.setMembershipSourceMode(sourceMode);
+        entity.setExternalTenantId(externalTenantId);
+        entity.setExternalTenantName(externalTenantName);
+        entity.setExternalTenantPartnerId(externalPartnerId);
+        entity.setMembershipLookupEnabled(membershipLookupEnabled);
+        entity.setClaimCreationEnabled(claimCreationEnabled);
+        entity.setClaimStatusSyncEnabled(claimStatusSyncEnabled);
+        entity.setActive(defaultBoolean(request.getActive(), true));
+        return toTenantIntegrationConfigDto(tenantIntegrationConfigRepository.save(entity));
+    }
+
+    public List<FuneralTenantOptionDto> getAvailableTenantOptions() {
+        String currentTenant = TenantContext.getCurrentTenant();
+        return tenantAdminService.getAll().stream()
+                .filter(tenant -> tenant != null && StringUtils.hasText(tenant.getId()))
+                .filter(tenant -> !tenant.getId().equals(currentTenant))
+                .filter(tenant -> !StringUtils.hasText(tenant.getStatus())
+                        || "ACTIVE".equalsIgnoreCase(tenant.getStatus()))
+                .map(tenant -> FuneralTenantOptionDto.builder()
+                        .id(tenant.getId())
+                        .name(tenant.getName())
+                        .host(tenant.getHost())
+                        .status(tenant.getStatus() == null ? null : tenant.getStatus().toString())
+                        .build())
+                .sorted(Comparator.comparing(
+                        (FuneralTenantOptionDto option) -> defaultString(option.getName(), option.getId()),
+                        String.CASE_INSENSITIVE_ORDER))
+                .collect(Collectors.toList());
     }
 
     public List<FuneralServiceRequestResponseDto> getServiceRequests(String query, String status) {
@@ -322,13 +424,15 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
         validateSelectedCoverLimit(selectedMemberships);
-        if (service.getDeceasedPartnerId() == null || service.getDeceasedPartnerId().isBlank()) {
-            throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership_claim can be created");
-        }
 
         Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, selectedMemberships);
         if (coverMap.isEmpty()) {
             throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
+        }
+        boolean hasLocalCover = coverMap.values().stream()
+                .anyMatch(cover -> COVER_SOURCE_LOCAL.equals(cover.getCoverSource()));
+        if (hasLocalCover && !StringUtils.hasText(service.getDeceasedPartnerId())) {
+            throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership claim can be created");
         }
 
         String claimType = request.getEffectiveClaimType(selectedMemberships.size());
@@ -346,18 +450,26 @@ public class FuneralManagementService {
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
-            String claimNo = generateMembershipClaimNo();
-            String membershipId = COVER_SOURCE_LOCAL.equals(cover.getCoverSource())
-                    ? cover.getSourceMembershipId()
-                    : createExternalMembershipPlaceholderIfRequired(cover);
+            boolean externalClaim = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource());
+            String claimTenantId = externalClaim ? cover.getSourceTenantId() : TenantContext.getCurrentTenant();
+            if (externalClaim) {
+                ensureExternalClaimCreationAllowed(claimTenantId);
+            }
+            String claimNo = externalClaim
+                    ? generateExternalMembershipClaimNo(claimTenantId)
+                    : generateMembershipClaimNo();
+            String membershipId = cover.getSourceMembershipId();
+            String claimTable = externalClaim
+                    ? qualifiedTable(claimTenantId, "membership_claim")
+                    : "membership_claim";
 
             jdbcTemplate.update("""
-                    INSERT INTO membership_claim
+                    INSERT INTO %s
                     (id, claim_no, membership_id, claim_type, deceased_type, deceased_partner_id, date_of_death,
                      claim_date, cause_of_death, death_certificate_no, claimant_partner_id, claim_amount_cents,
                      status, notes, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, CURRENT_TIMESTAMP)
-                    """,
+                    """.formatted(claimTable),
                     membershipClaimId,
                     claimNo,
                     membershipId,
@@ -368,13 +480,15 @@ public class FuneralManagementService {
                     LocalDate.now(),
                     defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
                     defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
-                    service.getFamilyRepId(),
+                    externalClaim ? null : service.getFamilyRepId(),
                     claimAmount,
-                    request.getNotes());
+                    buildClaimNotes(service, request.getNotes(), externalClaim));
 
             FuneralServiceClaimEntity link = new FuneralServiceClaimEntity();
             link.setFuneralServiceId(service.getId());
             link.setMembershipClaimId(membershipClaimId);
+            link.setClaimStorageScope(externalClaim ? "EXTERNAL" : "LOCAL");
+            link.setClaimOwnerTenantId(externalClaim ? claimTenantId : TenantContext.getCurrentTenant());
             link.setCoverSource(cover.getCoverSource());
             link.setSourceTenantId(cover.getSourceTenantId());
             link.setSourceTenantName(cover.getSourceTenantName());
@@ -395,6 +509,12 @@ public class FuneralManagementService {
 
     @Transactional
     public FuneralClaimDto submitClaimForApproval(String membershipClaimId, String userId) {
+        Optional<FuneralServiceClaimEntity> link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId);
+        if (link.isPresent() && isExternalClaimStorage(link.get())) {
+            throw new IllegalArgumentException(
+                    "External claims must be reviewed and submitted from the source membership tenant");
+        }
+
         Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
         String status = String.valueOf(claim.get("status"));
         if (!"DRAFT".equalsIgnoreCase(status)) {
@@ -419,10 +539,12 @@ public class FuneralManagementService {
     }
 
     public List<FuneralClaimDto> getClaims(String funeralServiceId) {
-        return funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)
+        List<FuneralClaimDto> claims = funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)
                 .stream()
                 .map(link -> readClaimDto(link.getMembershipClaimId()))
                 .collect(Collectors.toList());
+        refreshFuneralServiceStatus(funeralServiceId, claims);
+        return claims;
     }
 
     /**
@@ -436,8 +558,15 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Unsupported claim status: " + status);
         }
 
+        Optional<FuneralServiceClaimEntity> link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId);
+        if (link.isPresent() && isExternalClaimStorage(link.get())) {
+            throw new IllegalArgumentException(
+                    "External claims must be approved, rejected or cancelled in the source membership tenant");
+        }
+        String claimTable = "membership_claim";
+
         Long claimAmount = jdbcTemplate.queryForObject(
-                "SELECT claim_amount_cents FROM membership_claim WHERE id = ?",
+                "SELECT claim_amount_cents FROM " + claimTable + " WHERE id = ?",
                 Long.class,
                 membershipClaimId);
         long approvedAmount = "REJECTED".equals(status) || "CANCELLED".equals(status) ? 0L : defaultLong(request.getApprovedAmountCents());
@@ -452,14 +581,14 @@ public class FuneralManagementService {
         }
 
         jdbcTemplate.update("""
-                UPDATE membership_claim
+                UPDATE %s
                    SET status = ?,
                        approved_amount_cents = ?,
                        rejection_reason = ?,
                        approved_at = CASE WHEN ? IN ('APPROVED','PARTIALLY_APPROVED','PAID','REJECTED','CANCELLED') THEN CURRENT_TIMESTAMP ELSE approved_at END,
                        updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?
-                """, status, approvedAmount, request.getDecisionNotes(), status, membershipClaimId);
+                """.formatted(claimTable), status, approvedAmount, request.getDecisionNotes(), status, membershipClaimId);
 
         updateFuneralServiceClaimStatus(membershipClaimId);
         return readClaimDto(membershipClaimId);
@@ -658,21 +787,122 @@ public class FuneralManagementService {
         return covers;
     }
 
-    private FuneralMembershipCoverDto toExternalCoverDto(FuneralExternalMembershipCoverEntity cover) {
+    private List<FuneralMembershipCoverDto> findExternalMembershipCover(
+            String identityNumber,
+            FuneralTenantIntegrationConfigDto config
+    ) {
+        String tenantId = requireConfiguredExternalTenant(config);
+        String tenantName = defaultString(config.getExternalTenantName(), tenantId);
+        String localPartnerId = config.getExternalTenantPartnerId();
+        String partnerIdentity = qualifiedTable(tenantId, "partner_identity");
+        String partner = qualifiedTable(tenantId, "partner");
+        String membership = qualifiedTable(tenantId, "membership");
+        String membershipPlan = qualifiedTable(tenantId, "membership_plan");
+        String payout = qualifiedTable(tenantId, "membership_plan_claim_payout");
+        String dependent = qualifiedTable(tenantId, "membership_dependent");
+
+        String mainMemberSql = """
+                SELECT m.id AS membership_id,
+                       m.membership_no AS membership_no,
+                       p.id AS deceased_partner_id,
+                       'MAIN_MEMBER' AS deceased_type,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
+                       COALESCE(mp.name, 'Burial Society') AS burial_society_name
+                  FROM %s pi
+                  JOIN %s p ON p.id = pi.partner
+                  JOIN %s m ON m.member_id = p.id
+                  JOIN %s mp ON mp.id = m.plan_id
+             LEFT JOIN %s pay ON pay.plan_id = m.plan_id
+                       AND pay.active = 1
+                       AND pay.dependent_type IN ('MAIN_MEMBER', 'ANY')
+                 WHERE pi.value = ?
+                   AND m.status = 'ACTIVE'
+              GROUP BY m.id, m.membership_no, p.id, mp.name
+                """.formatted(partnerIdentity, partner, membership, membershipPlan, payout);
+
+        String dependentSql = """
+                SELECT m.id AS membership_id,
+                       m.membership_no AS membership_no,
+                       p.id AS deceased_partner_id,
+                       'DEPENDENT' AS deceased_type,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
+                       COALESCE(mp.name, 'Burial Society') AS burial_society_name
+                  FROM %s pi
+                  JOIN %s p ON p.id = pi.partner
+                  JOIN %s md ON md.dependent_partner_id = p.id AND md.active = 1
+                  JOIN %s m ON m.id = md.membership_id
+                  JOIN %s mp ON mp.id = m.plan_id
+             LEFT JOIN %s pay ON pay.plan_id = m.plan_id
+                       AND pay.active = 1
+                       AND pay.dependent_type IN (md.relationship, 'DEPENDENT', 'ANY')
+                 WHERE pi.value = ?
+                   AND m.status = 'ACTIVE'
+              GROUP BY m.id, m.membership_no, p.id, mp.name
+                """.formatted(partnerIdentity, partner, dependent, membership, membershipPlan, payout);
+
+        List<FuneralMembershipCoverDto> covers = new ArrayList<>();
+        covers.addAll(jdbcTemplate.query(mainMemberSql, (rs, rowNum) -> toLiveExternalCover(
+                tenantId,
+                tenantName,
+                localPartnerId,
+                rs.getString("membership_id"),
+                rs.getString("membership_no"),
+                rs.getString("deceased_partner_id"),
+                rs.getString("deceased_type"),
+                rs.getString("burial_society_name"),
+                rs.getLong("funeral_amount_cents"),
+                rs.getLong("combination_amount_cents"),
+                rs.getLong("cover_amount_cents")
+        ), identityNumber));
+        covers.addAll(jdbcTemplate.query(dependentSql, (rs, rowNum) -> toLiveExternalCover(
+                tenantId,
+                tenantName,
+                localPartnerId,
+                rs.getString("membership_id"),
+                rs.getString("membership_no"),
+                rs.getString("deceased_partner_id"),
+                rs.getString("deceased_type"),
+                rs.getString("burial_society_name"),
+                rs.getLong("funeral_amount_cents"),
+                rs.getLong("combination_amount_cents"),
+                rs.getLong("cover_amount_cents")
+        ), identityNumber));
+        return covers;
+    }
+
+    private FuneralMembershipCoverDto toLiveExternalCover(
+            String tenantId,
+            String tenantName,
+            String localPartnerId,
+            String membershipId,
+            String membershipNumber,
+            String deceasedPartnerId,
+            String deceasedType,
+            String burialSocietyName,
+            Long funeralAmount,
+            Long combinationAmount,
+            Long coverAmount
+    ) {
+        String selectionId = String.join(":", "EXTERNAL", tenantId, membershipId, deceasedPartnerId, deceasedType);
         return FuneralMembershipCoverDto.builder()
-                .membershipId("EXTERNAL:" + cover.getId())
-                .membershipNumber(cover.getSourceMembershipNo())
-                .burialSocietyName(cover.getBurialSocietyName())
-                .burialSocietyPartnerId(cover.getBurialSocietyPartnerId())
-                .coverAmountCents(cover.getCoverAmountCents())
-                .funeralAmountCents(cover.getCoverAmountCents())
-                .combinationAmountCents(cover.getCoverAmountCents())
+                .membershipId(selectionId)
+                .membershipNumber(membershipNumber)
+                .burialSocietyName(burialSocietyName)
+                .burialSocietyPartnerId(localPartnerId)
+                .coverAmountCents(coverAmount)
+                .funeralAmountCents(funeralAmount)
+                .combinationAmountCents(combinationAmount)
                 .coverSource(COVER_SOURCE_EXTERNAL)
-                .sourceTenantId(cover.getSourceTenantId())
-                .sourceTenantName(cover.getSourceTenantName())
-                .sourceMembershipId(cover.getSourceMembershipId())
-                .sourceReference(cover.getSourceReference())
-                .deceasedType("MAIN_MEMBER")
+                .sourceTenantId(tenantId)
+                .sourceTenantName(tenantName)
+                .sourceMembershipId(membershipId)
+                .sourceReference(selectionId)
+                .deceasedPartnerId(deceasedPartnerId)
+                .deceasedType(deceasedType)
                 .build();
     }
 
@@ -684,7 +914,13 @@ public class FuneralManagementService {
         for (String selectionId : selectionIds) {
             if (selectionId == null) continue;
             if (selectionId.startsWith("EXTERNAL:")) {
-                externalIds.add(selectionId.substring("EXTERNAL:".length()));
+                String[] parts = selectionId.split(":", 6);
+                if (parts.length >= 5) {
+                    map.put(selectionId, resolveLiveExternalCoverSelection(selectionId));
+                } else {
+                    // Backwards compatibility for legacy external-cover snapshots.
+                    externalIds.add(selectionId.substring("EXTERNAL:".length()));
+                }
             } else if (selectionId.startsWith("LOCAL:")) {
                 FuneralMembershipCoverDto dto = resolveLocalCoverSelection(selectionId, service);
                 map.put(selectionId, dto);
@@ -692,9 +928,148 @@ public class FuneralManagementService {
         }
         if (!externalIds.isEmpty()) {
             externalMembershipCoverRepository.findByIdInAndStatus(externalIds, "ACTIVE")
-                    .forEach(cover -> map.put("EXTERNAL:" + cover.getId(), toExternalCoverDto(cover)));
+                    .forEach(cover -> map.put(
+                            "EXTERNAL:" + cover.getId(),
+                            resolveLegacyExternalCoverSelection(cover)));
         }
         return map;
+    }
+
+    private FuneralMembershipCoverDto resolveLegacyExternalCoverSelection(
+            FuneralExternalMembershipCoverEntity snapshot
+    ) {
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+        String configuredTenant = requireConfiguredExternalTenant(config);
+        if (!configuredTenant.equals(snapshot.getSourceTenantId())) {
+            throw new IllegalArgumentException(
+                    "Legacy external cover belongs to a tenant that is no longer configured");
+        }
+        FuneralMembershipCoverDto liveCover = findExternalMembershipCover(
+                snapshot.getIdentityNumber(), config).stream()
+                .filter(cover -> Objects.equals(
+                        snapshot.getSourceMembershipId(), cover.getSourceMembershipId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Legacy external cover is no longer active. Re-run membership lookup."));
+        return FuneralMembershipCoverDto.builder()
+                .membershipId("EXTERNAL:" + snapshot.getId())
+                .membershipNumber(liveCover.getMembershipNumber())
+                .burialSocietyName(liveCover.getBurialSocietyName())
+                .burialSocietyPartnerId(liveCover.getBurialSocietyPartnerId())
+                .coverAmountCents(liveCover.getCoverAmountCents())
+                .funeralAmountCents(liveCover.getFuneralAmountCents())
+                .combinationAmountCents(liveCover.getCombinationAmountCents())
+                .coverSource(COVER_SOURCE_EXTERNAL)
+                .sourceTenantId(liveCover.getSourceTenantId())
+                .sourceTenantName(liveCover.getSourceTenantName())
+                .sourceMembershipId(liveCover.getSourceMembershipId())
+                .sourceReference(liveCover.getSourceReference())
+                .deceasedPartnerId(liveCover.getDeceasedPartnerId())
+                .deceasedType(liveCover.getDeceasedType())
+                .build();
+    }
+
+    private FuneralMembershipCoverDto resolveLiveExternalCoverSelection(String selectionId) {
+        String[] parts = selectionId.split(":", 6);
+        if (parts.length < 5) {
+            throw new IllegalArgumentException("Invalid external membership selection id: " + selectionId);
+        }
+        String tenantId = parts[1];
+        String membershipId = parts[2];
+        String deceasedPartnerId = parts[3];
+        String deceasedType = parts[4];
+
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+        String configuredTenant = requireConfiguredExternalTenant(config);
+        if (!configuredTenant.equals(tenantId)) {
+            throw new IllegalArgumentException("The selected membership belongs to an unconfigured external tenant");
+        }
+
+        String membershipTable = qualifiedTable(tenantId, "membership");
+        String planTable = qualifiedTable(tenantId, "membership_plan");
+        Map<String, Object> membership = jdbcTemplate.queryForMap("""
+                SELECT m.id, m.membership_no, m.plan_id, m.member_id, mp.name AS plan_name
+                  FROM %s m
+                  JOIN %s mp ON mp.id = m.plan_id
+                 WHERE m.id = ? AND m.status = 'ACTIVE'
+                """.formatted(membershipTable, planTable), membershipId);
+        String dependentType = validateSelectedDeceasedAgainstMembership(
+                tenantId,
+                membershipId,
+                String.valueOf(membership.get("member_id")),
+                deceasedPartnerId,
+                deceasedType);
+        Long funeralPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "FUNERAL", dependentType);
+        Long combinationPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "COMBINATION", dependentType);
+
+        return FuneralMembershipCoverDto.builder()
+                .membershipId(selectionId)
+                .sourceMembershipId(membershipId)
+                .membershipNumber(String.valueOf(membership.get("membership_no")))
+                .deceasedPartnerId(deceasedPartnerId)
+                .deceasedType(deceasedType)
+                .coverAmountCents(funeralPayout)
+                .funeralAmountCents(funeralPayout)
+                .combinationAmountCents(combinationPayout)
+                .burialSocietyName(String.valueOf(membership.get("plan_name")))
+                .burialSocietyPartnerId(config.getExternalTenantPartnerId())
+                .coverSource(COVER_SOURCE_EXTERNAL)
+                .sourceTenantId(tenantId)
+                .sourceTenantName(defaultString(config.getExternalTenantName(), tenantId))
+                .sourceReference(selectionId)
+                .build();
+    }
+
+    private Long findExternalMembershipPlanPayout(
+            String tenantId,
+            Object planId,
+            String claimType,
+            String dependentType
+    ) {
+        if (planId == null) return 0L;
+        String payoutTable = qualifiedTable(tenantId, "membership_plan_claim_payout");
+        return jdbcTemplate.query("""
+                SELECT COALESCE(MAX(payout_amount_cents), 0)
+                  FROM %s
+                 WHERE plan_id = ? AND claim_type = ? AND active = 1
+                   AND dependent_type IN (?, ?, 'ANY')
+                """.formatted(payoutTable), rs -> rs.next() ? rs.getLong(1) : 0L,
+                planId, claimType, dependentType, genericDependentType(dependentType));
+    }
+
+    private String genericDependentType(String dependentType) {
+        return "MAIN_MEMBER".equalsIgnoreCase(dependentType) ? "MAIN_MEMBER" : "DEPENDENT";
+    }
+
+    private String validateSelectedDeceasedAgainstMembership(
+            String tenantId,
+            String membershipId,
+            String memberPartnerId,
+            String deceasedPartnerId,
+            String deceasedType
+    ) {
+        if ("MAIN_MEMBER".equalsIgnoreCase(deceasedType)) {
+            if (!Objects.equals(memberPartnerId, deceasedPartnerId)) {
+                throw new IllegalArgumentException("Selected deceased is not the main member of the membership");
+            }
+            return "MAIN_MEMBER";
+        }
+        String dependentTable = tenantId == null
+                ? "membership_dependent"
+                : qualifiedTable(tenantId, "membership_dependent");
+        try {
+            String relationship = jdbcTemplate.queryForObject(
+                    "SELECT relationship FROM " + dependentTable
+                            + " WHERE membership_id = ? AND dependent_partner_id = ? AND active = 1",
+                    String.class,
+                    membershipId,
+                    deceasedPartnerId);
+            return StringUtils.hasText(relationship)
+                    ? relationship.trim().toUpperCase(Locale.ROOT)
+                    : "DEPENDENT";
+        } catch (EmptyResultDataAccessException exception) {
+            throw new IllegalArgumentException("Selected deceased is not an active dependent on the membership");
+        }
     }
 
     private FuneralMembershipCoverDto resolveLocalCoverSelection(String selectionId, FuneralServiceEntity service) {
@@ -706,12 +1081,17 @@ public class FuneralManagementService {
         String deceasedPartnerId = parts[2];
         String deceasedType = parts[3];
         Map<String, Object> membership = jdbcTemplate.queryForMap("""
-                SELECT m.id, m.membership_no, m.plan_id, mp.name AS plan_name
+                SELECT m.id, m.membership_no, m.plan_id, m.member_id, mp.name AS plan_name
                   FROM membership m
                   JOIN membership_plan mp ON mp.id = m.plan_id
                  WHERE m.id = ? AND m.status = 'ACTIVE'
                 """, membershipId);
-        String dependentType = "MAIN_MEMBER".equals(deceasedType) ? "MAIN_MEMBER" : "DEPENDENT";
+        String dependentType = validateSelectedDeceasedAgainstMembership(
+                null,
+                membershipId,
+                String.valueOf(membership.get("member_id")),
+                deceasedPartnerId,
+                deceasedType);
         Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
         Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
         return FuneralMembershipCoverDto.builder()
@@ -734,9 +1114,9 @@ public class FuneralManagementService {
                 SELECT COALESCE(MAX(payout_amount_cents), 0)
                   FROM membership_plan_claim_payout
                  WHERE plan_id = ? AND claim_type = ? AND active = 1
-                   AND dependent_type IN (?, 'ANY')
+                   AND dependent_type IN (?, ?, 'ANY')
                 """, rs -> rs.next() ? rs.getLong(1) : 0L,
-                planId, claimType, dependentType);
+                planId, claimType, dependentType, genericDependentType(dependentType));
     }
 
     private List<FuneralInvoiceSplitDto> buildSplitsFromApprovedClaims(FuneralServiceEntity service) {
@@ -811,15 +1191,28 @@ public class FuneralManagementService {
     }
 
     private FuneralClaimDto readClaimDto(String membershipClaimId) {
-        Map<String, Object> row = jdbcTemplate.queryForMap("SELECT * FROM membership_claim WHERE id = ?", membershipClaimId);
         Optional<FuneralServiceClaimEntity> linkOpt = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId);
         FuneralServiceClaimEntity link = linkOpt.orElse(null);
+        boolean externalClaim = link != null && isExternalClaimStorage(link);
+        String claimTenantId = externalClaim ? requireExternalClaimTenant(link) : null;
+        if (externalClaim) {
+            ensureExternalStatusSyncAllowed(claimTenantId);
+        }
+        String claimTable = externalClaim
+                ? qualifiedTable(claimTenantId, "membership_claim")
+                : "membership_claim";
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT * FROM " + claimTable + " WHERE id = ?",
+                membershipClaimId);
+        String membershipId = String.valueOf(row.get("membership_id"));
         return FuneralClaimDto.builder()
                 .funeralServiceClaimId(link == null ? null : link.getId())
                 .membershipClaimId(String.valueOf(row.get("id")))
                 .claimNo(String.valueOf(row.get("claim_no")))
-                .membershipId(String.valueOf(row.get("membership_id")))
-                .membershipNumber(resolveMembershipNo(String.valueOf(row.get("membership_id"))))
+                .membershipId(membershipId)
+                .membershipNumber(externalClaim
+                        ? resolveExternalMembershipNo(claimTenantId, membershipId)
+                        : resolveMembershipNo(membershipId))
                 .claimType(String.valueOf(row.get("claim_type")))
                 .deceasedType(String.valueOf(row.get("deceased_type")))
                 .deceasedPartnerId(String.valueOf(row.get("deceased_partner_id")))
@@ -829,6 +1222,9 @@ public class FuneralManagementService {
                 .approvedAmountCents(resolveApprovedAmount(row))
                 .status(String.valueOf(row.get("status")))
                 .coverSource(link == null ? COVER_SOURCE_LOCAL : link.getCoverSource())
+                .claimStorageScope(link == null
+                        ? "LOCAL"
+                        : defaultString(link.getClaimStorageScope(), "LOCAL"))
                 .sourceTenantId(link == null ? null : link.getSourceTenantId())
                 .sourceTenantName(link == null ? null : link.getSourceTenantName())
                 .sourceMembershipId(link == null ? null : link.getSourceMembershipId())
@@ -855,40 +1251,6 @@ public class FuneralManagementService {
         // Fallback: invoice the membership owner for same-tenant records until group society partner mapping is added.
         return jdbcTemplate.queryForObject("SELECT member_id FROM membership WHERE id = ?", String.class, claim.getMembershipId());
     }
-
-    private String createExternalMembershipPlaceholderIfRequired(FuneralMembershipCoverDto cover) {
-        // membership_claim has a required FK to membership. For external cover, create or reuse a local placeholder
-        // membership row against the local partner representing the external society/family payer.
-        if (cover.getBurialSocietyPartnerId() == null || cover.getBurialSocietyPartnerId().isBlank()) {
-            throw new IllegalArgumentException("External cover requires burialSocietyPartnerId so the local tenant has a partner to invoice and link");
-        }
-        String membershipNo = "EXT-" + cover.getSourceTenantId() + "-" + cover.getSourceMembershipId();
-        try {
-            return jdbcTemplate.queryForObject("SELECT id FROM membership WHERE membership_no = ?", String.class, membershipNo);
-        } catch (EmptyResultDataAccessException ignored) {
-            String planId = ensureExternalFuneralPlan();
-            String membershipId = UUID.randomUUID().toString();
-            jdbcTemplate.update("""
-                    INSERT INTO membership (id, member_id, membership_no, plan_id, start_date, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP)
-                    """, membershipId, cover.getBurialSocietyPartnerId(), membershipNo, planId, LocalDate.now());
-            return membershipId;
-        }
-    }
-
-    private String ensureExternalFuneralPlan() {
-        try {
-            return jdbcTemplate.queryForObject("SELECT id FROM membership_plan WHERE plan_code = 'EXT-FUNERAL-COVER'", String.class);
-        } catch (EmptyResultDataAccessException ignored) {
-            String planId = UUID.randomUUID().toString();
-            jdbcTemplate.update("""
-                    INSERT INTO membership_plan (id, plan_code, name, description, premium_cents, currency, active, created_at)
-                    VALUES (?, 'EXT-FUNERAL-COVER', 'External Funeral Cover', 'Placeholder plan for claims from external Mawa tenants', 0, 'ZAR', 1, CURRENT_TIMESTAMP)
-                    """, planId);
-            return planId;
-        }
-    }
-
 
     private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {
         if (request == null) return;
@@ -922,12 +1284,30 @@ public class FuneralManagementService {
 
     private void updateFuneralServiceClaimStatus(String membershipClaimId) {
         funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId).ifPresent(link -> {
-            FuneralServiceEntity service = getFuneralServiceOrThrow(link.getFuneralServiceId());
-            List<FuneralClaimDto> claims = getClaims(service.getId());
-            boolean anyPending = claims.stream().anyMatch(c -> List.of("DRAFT", "SUBMITTED").contains(defaultString(c.getStatus(), "")));
-            service.setStatus(anyPending ? "CLAIMS_INITIATED" : "CLAIMS_RESOLVED");
-            funeralServiceRepository.save(service);
+            List<FuneralClaimDto> claims = funeralServiceClaimRepository.findByFuneralServiceId(link.getFuneralServiceId())
+                    .stream()
+                    .map(claimLink -> readClaimDto(claimLink.getMembershipClaimId()))
+                    .collect(Collectors.toList());
+            refreshFuneralServiceStatus(link.getFuneralServiceId(), claims);
         });
+    }
+
+    private void refreshFuneralServiceStatus(String funeralServiceId, List<FuneralClaimDto> claims) {
+        if (claims == null || claims.isEmpty()) {
+            return;
+        }
+        FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        if ("INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
+            return;
+        }
+        boolean anyPending = claims.stream()
+                .anyMatch(claim -> List.of("DRAFT", "SUBMITTED")
+                        .contains(defaultString(claim.getStatus(), "").toUpperCase(Locale.ROOT)));
+        String targetStatus = anyPending ? "CLAIMS_INITIATED" : "CLAIMS_RESOLVED";
+        if (!targetStatus.equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
+            service.setStatus(targetStatus);
+            funeralServiceRepository.save(service);
+        }
     }
 
     private FuneralServiceRequestResponseDto toServiceResponse(FuneralServiceEntity entity) {
@@ -991,6 +1371,35 @@ public class FuneralManagementService {
         }
     }
 
+    private String generateExternalMembershipClaimNo(String tenantId) {
+        String sequenceTable = qualifiedTable(tenantId, "number_sequence");
+        try {
+            Long nextNo = jdbcTemplate.queryForObject(
+                    "SELECT next_no FROM " + sequenceTable + " WHERE seq_type = 'MEMBERSHIP_CLAIM' FOR UPDATE",
+                    Long.class);
+            if (nextNo == null) {
+                throw new IllegalStateException("MEMBERSHIP_CLAIM sequence is not configured");
+            }
+            jdbcTemplate.update(
+                    "UPDATE " + sequenceTable + " SET next_no = ? WHERE seq_type = 'MEMBERSHIP_CLAIM'",
+                    nextNo + 1);
+            return nextNo.toString();
+        } catch (Exception primaryFailure) {
+            try {
+                Long nextNo = jdbcTemplate.queryForObject(
+                        "SELECT next_no FROM " + sequenceTable + " WHERE seq_type = 'CLAIM' FOR UPDATE",
+                        Long.class);
+                if (nextNo == null) throw new IllegalStateException("CLAIM sequence is not configured");
+                jdbcTemplate.update(
+                        "UPDATE " + sequenceTable + " SET next_no = ? WHERE seq_type = 'CLAIM'",
+                        nextNo + 1);
+                return nextNo.toString();
+            } catch (Exception ignored) {
+                return "CLM-EXT-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            }
+        }
+    }
+
     private String generateFuneralServiceRequestNo() {
         try {
             return numberAllocationService.allocateNumber("FUNERAL_SERVICE_REQUEST");
@@ -1015,12 +1424,148 @@ public class FuneralManagementService {
         }
     }
 
+    private String buildClaimNotes(FuneralServiceEntity service, String notes, boolean externalClaim) {
+        if (!externalClaim) {
+            return notes;
+        }
+        String integrationReference = "Funeral arrangement "
+                + defaultString(service.getServiceRequestNo(), service.getId())
+                + " initiated by tenant "
+                + defaultString(TenantContext.getCurrentTenant(), "UNKNOWN");
+        return StringUtils.hasText(notes)
+                ? integrationReference + ". " + notes.trim()
+                : integrationReference;
+    }
+
     private String resolveMembershipNo(String membershipId) {
         try {
             return jdbcTemplate.queryForObject("SELECT membership_no FROM membership WHERE id = ?", String.class, membershipId);
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private String resolveExternalMembershipNo(String tenantId, String membershipId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT membership_no FROM " + qualifiedTable(tenantId, "membership") + " WHERE id = ?",
+                    String.class,
+                    membershipId);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private FuneralTenantIntegrationConfigDto toTenantIntegrationConfigDto(FuneralTenantIntegrationConfigEntity entity) {
+        return FuneralTenantIntegrationConfigDto.builder()
+                .membershipSourceMode(normalizeSourceMode(entity.getMembershipSourceMode()))
+                .externalTenantId(entity.getExternalTenantId())
+                .externalTenantName(entity.getExternalTenantName())
+                .externalTenantPartnerId(entity.getExternalTenantPartnerId())
+                .membershipLookupEnabled(defaultBoolean(entity.getMembershipLookupEnabled(), true))
+                .claimCreationEnabled(defaultBoolean(entity.getClaimCreationEnabled(), true))
+                .claimStatusSyncEnabled(defaultBoolean(entity.getClaimStatusSyncEnabled(), true))
+                .active(defaultBoolean(entity.getActive(), true))
+                .build();
+    }
+
+    private String normalizeSourceMode(String mode) {
+        String normalized = defaultString(mode, SOURCE_MODE_LOCAL_ONLY).trim().toUpperCase(Locale.ROOT);
+        if (!List.of(SOURCE_MODE_LOCAL_ONLY, SOURCE_MODE_EXTERNAL_ONLY, SOURCE_MODE_LOCAL_AND_EXTERNAL).contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported membershipSourceMode: " + mode);
+        }
+        return normalized;
+    }
+
+    private boolean includesLocalSource(FuneralTenantIntegrationConfigDto config) {
+        String mode = normalizeSourceMode(config == null ? null : config.getMembershipSourceMode());
+        return SOURCE_MODE_LOCAL_ONLY.equals(mode) || SOURCE_MODE_LOCAL_AND_EXTERNAL.equals(mode);
+    }
+
+    private boolean includesExternalSource(FuneralTenantIntegrationConfigDto config) {
+        String mode = normalizeSourceMode(config == null ? null : config.getMembershipSourceMode());
+        return SOURCE_MODE_EXTERNAL_ONLY.equals(mode) || SOURCE_MODE_LOCAL_AND_EXTERNAL.equals(mode);
+    }
+
+    private String requireConfiguredExternalTenant(FuneralTenantIntegrationConfigDto config) {
+        if (config == null || !includesExternalSource(config) || !Boolean.TRUE.equals(config.getActive())) {
+            throw new IllegalArgumentException("External membership integration is not active");
+        }
+        String tenantId = trimToNull(config.getExternalTenantId());
+        validateRequired(tenantId, "externalTenantId");
+        if (!schemaExists(tenantId)) {
+            throw new IllegalArgumentException("External tenant schema is not available: " + tenantId);
+        }
+        return tenantId;
+    }
+
+    private void ensureExternalClaimCreationAllowed(String tenantId) {
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+        String configuredTenant = requireConfiguredExternalTenant(config);
+        if (!configuredTenant.equals(tenantId)) {
+            throw new IllegalArgumentException("Claim tenant is not configured for this funeral tenant");
+        }
+        if (!Boolean.TRUE.equals(config.getClaimCreationEnabled())) {
+            throw new IllegalArgumentException("External claim creation is disabled");
+        }
+    }
+
+    private void ensureExternalStatusSyncAllowed(String tenantId) {
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+        String configuredTenant = requireConfiguredExternalTenant(config);
+        if (!configuredTenant.equals(tenantId)) {
+            throw new IllegalArgumentException("Claim tenant is not configured for this funeral tenant");
+        }
+        if (!Boolean.TRUE.equals(config.getClaimStatusSyncEnabled())) {
+            throw new IllegalArgumentException("External claim status synchronisation is disabled");
+        }
+    }
+
+    private boolean isExternalClaimStorage(FuneralServiceClaimEntity link) {
+        return link != null && "EXTERNAL".equalsIgnoreCase(link.getClaimStorageScope());
+    }
+
+    private String requireExternalClaimTenant(FuneralServiceClaimEntity link) {
+        if (link == null) {
+            throw new IllegalArgumentException("External claim link is missing");
+        }
+        String tenantId = trimToNull(link.getClaimOwnerTenantId());
+        if (tenantId == null) {
+            tenantId = trimToNull(link.getSourceTenantId());
+        }
+        if (tenantId == null) {
+            throw new IllegalArgumentException("External claim tenant is missing from the funeral claim link");
+        }
+        return tenantId;
+    }
+
+    private boolean schemaExists(String tenantId) {
+        if (!StringUtils.hasText(tenantId) || !tenantId.matches("[A-Za-z0-9_-]{1,128}")) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?",
+                Integer.class,
+                tenantId);
+        return count != null && count > 0;
+    }
+
+    private String qualifiedTable(String tenantId, String tableName) {
+        if (!StringUtils.hasText(tenantId) || !tenantId.matches("[A-Za-z0-9_-]{1,128}")) {
+            throw new IllegalArgumentException("Invalid tenant identifier");
+        }
+        if (!StringUtils.hasText(tableName) || !tableName.matches("[A-Za-z0-9_]{1,128}")) {
+            throw new IllegalArgumentException("Invalid table name");
+        }
+        return "`" + tenantId + "`.`" + tableName + "`";
+    }
+
+    private Boolean defaultBoolean(Boolean value, boolean fallback) {
+        return value == null ? fallback : value;
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private boolean isApprovedStatus(String status) {

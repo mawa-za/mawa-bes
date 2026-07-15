@@ -23,6 +23,7 @@ public class FuneralClaimDto {
     private Long approvedAmountCents;
     private String status;
     private String coverSource;
+    private String claimStorageScope;
     private String sourceTenantId;
     private String sourceTenantName;
     private String sourceMembershipId;
