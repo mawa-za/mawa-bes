@@ -45,6 +45,8 @@ public class BankPaymentService {
     GcpTenantSecretService gcpTenantSecretService;
     @Autowired
     PartnerIdentityService partnerIdentityService;
+    @Autowired
+    FnbApiCallLogger fnbApiCallLogger;
 
     @Autowired
     BankAccountService bankAccountService;
@@ -56,56 +58,78 @@ public class BankPaymentService {
     }
 
     public String getToken() {
+        HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /oauth2/token/v2";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
+
         try {
+            endpoint = getBaseURL() + "/oauth2/token/v2";
+            URL url = new URL(endpoint);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-            URL url = new URL(getBaseURL() + "/oauth2/token/v2");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-            // If client credentials are required in Basic Auth header
             String clientId = gcpTenantSecretService.resolveSetting("CLIENT-ID", "FNB-API");
             String clientSecret = gcpTenantSecretService.resolveSetting("CLIENT-SECRET", "FNB-API");
-            String basicAuth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
-            conn.setRequestProperty("Authorization", "Basic " + basicAuth);
+            String basicAuth = Base64.getEncoder().encodeToString(
+                    (clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8)
+            );
+            connection.setRequestProperty("Authorization", "Basic " + basicAuth);
 
-            // Body: grant_type, scope, etc.
             String data = "grant_type=client_credentials&scope=i_can";
-
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(data.getBytes());
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(data.getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
 
-            // Read response
-            int status = conn.getResponseCode();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300 ? conn.getInputStream() : conn.getErrorStream()));
-
-            String line;
-            StringBuilder response = new StringBuilder();
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
+            if (responseCode < 200 || responseCode >= 300) {
+                throw new IOException(
+                        "FNB token request failed with code " + responseCode + ". Response: " + responseBody
+                );
             }
-            reader.close();
 
             ObjectMapper mapper = new ObjectMapper();
-            OAuthTokenResponse tokenResponse = mapper.readValue(response.toString(), OAuthTokenResponse.class);
-
+            OAuthTokenResponse tokenResponse = mapper.readValue(responseBody, OAuthTokenResponse.class);
             return tokenResponse.getAccessToken();
-
         } catch (Exception e) {
+            failure = e;
             return "";
+        } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    fnbApiCallLogger.tokenRequestSummary(),
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
-
     public String sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
-        BufferedReader reader = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/initiate/v1";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
+
         try {
-            URL url = new URL(getBaseURL() + "/paymentExecution/initiate/v1");
+            endpoint = getBaseURL() + "/paymentExecution/initiate/v1";
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
@@ -114,90 +138,105 @@ public class BankPaymentService {
             connection.setRequestProperty("Accept", "application/json");
             connection.setDoOutput(true);
 
-            // Send request body
             try (OutputStream os = connection.getOutputStream()) {
                 byte[] input = payload.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
                 os.flush();
             }
 
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 300) {
-                InputStream stream;
-                stream = connection.getInputStream();
-                reader = new BufferedReader(new InputStreamReader(stream));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
+            if (responseCode >= 200 && responseCode < 300) {
                 ObjectMapper mapper = new ObjectMapper();
-                BankPaymentResponse bankPaymentResponse = mapper.readValue(response.toString(), BankPaymentResponse.class);
+                BankPaymentResponse bankPaymentResponse = mapper.readValue(
+                        responseBody,
+                        BankPaymentResponse.class
+                );
                 return bankPaymentResponse.getInstructionId();
-
-            } else {
-                String errorResponse = readErrorStream(connection);
-                throw new IOException(String.format("Request failed with code: %d. Response: %s",
-                        responseCode, errorResponse));
             }
 
+            throw new IOException(String.format(
+                    "Request failed with code: %d. Response: %s",
+                    responseCode,
+                    responseBody
+            ));
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("Request timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to send payment request: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    payload,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
         }
     }
 
-
     public BankPaymentResponse getPaymentReport(String instructionId) throws IOException {
         HttpURLConnection connection = null;
-        BufferedReader reader = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/retrieveReport/v1/" + instructionId;
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
+
         try {
-            URL url = new URL(getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId);
+            endpoint = getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId;
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("GET");
             connection.setRequestProperty("Authorization", "Bearer " + getToken());
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
-            connection.setDoOutput(true);
 
-            // Send request body
-//            try (OutputStream os = connection.getOutputStream()) {
-//                byte[] input = payload.getBytes(StandardCharsets.UTF_8);
-//                os.write(input, 0, input.length);
-//                os.flush();
-//            }
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 300) {
-                InputStream stream;
-                stream = connection.getInputStream();
-                reader = new BufferedReader(new InputStreamReader(stream));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
+            if (responseCode >= 200 && responseCode < 300) {
                 ObjectMapper mapper = new ObjectMapper();
-                BankPaymentResponse bankPaymentResponse = mapper.readValue(response.toString(), BankPaymentResponse.class);
-                return bankPaymentResponse;
-
-            } else {
-                String errorResponse = readErrorStream(connection);
-                throw new IOException(String.format("Request failed with code: %d. Response: %s",
-                        responseCode, errorResponse));
+                return mapper.readValue(responseBody, BankPaymentResponse.class);
             }
 
+            throw new IOException(String.format(
+                    "Request failed with code: %d. Response: %s",
+                    responseCode,
+                    responseBody
+            ));
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("Request timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to retrieve report: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "GET",
+                    endpoint,
+                    null,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -347,13 +386,27 @@ public class BankPaymentService {
         return paymentInformation;
     }
 
-    private static String readErrorStream(HttpURLConnection connection) throws IOException {
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private String readResponseBody(HttpURLConnection connection) throws IOException {
+        InputStream stream = connection.getResponseCode() >= 200
+                && connection.getResponseCode() < 300
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+
+        if (stream == null) {
+            return "";
+        }
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(stream, StandardCharsets.UTF_8)
+        )) {
             StringBuilder response = new StringBuilder();
-            String responseLine;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
             }
             return response.toString();
         }
