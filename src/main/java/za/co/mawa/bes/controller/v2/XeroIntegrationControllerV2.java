@@ -25,6 +25,11 @@ public class XeroIntegrationControllerV2 {
         return ResponseEntity.ok(xeroActivationService.activate(request));
     }
 
+    @GetMapping("/secret-names")
+    public ResponseEntity<?> secretNames() {
+        return ResponseEntity.ok(xeroActivationService.secretNames());
+    }
+
     @PostMapping("/deactivate")
     public ResponseEntity<?> deactivate() {
         return ResponseEntity.ok(xeroActivationService.deactivate());
