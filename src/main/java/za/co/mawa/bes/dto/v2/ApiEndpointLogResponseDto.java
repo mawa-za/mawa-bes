@@ -16,6 +16,8 @@ public class ApiEndpointLogResponseDto {
 
     private String id;
     private String requestId;
+    private String direction;
+    private String integrationName;
     private String userId;
     private String username;
     private String method;
