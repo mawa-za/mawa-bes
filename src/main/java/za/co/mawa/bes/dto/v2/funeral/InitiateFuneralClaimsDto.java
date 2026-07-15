@@ -12,7 +12,7 @@ public class InitiateFuneralClaimsDto {
     /**
      * Stable selection ids returned by GET /v2/funeral/check-membership/{identityNumber}.
      * LOCAL_TENANT values are formatted as LOCAL:{membershipId}:{deceasedPartnerId}:{deceasedType}.
-     * EXTERNAL_TENANT values are formatted as EXTERNAL:{externalCoverId}.
+     * Live EXTERNAL_TENANT values are formatted as EXTERNAL:{tenantId}:{membershipId}:{deceasedPartnerId}:{deceasedType}. Legacy external-cover snapshots remain supported as EXTERNAL:{externalCoverId}.
      */
     private List<String> memberships;
 

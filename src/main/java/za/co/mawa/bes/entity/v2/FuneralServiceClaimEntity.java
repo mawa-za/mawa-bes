@@ -27,6 +27,13 @@ public class FuneralServiceClaimEntity {
     @Column(name = "membership_claim_id", nullable = false)
     private String membershipClaimId;
 
+    /** LOCAL for claims stored in this tenant; EXTERNAL for claims stored in claimOwnerTenantId. */
+    @Column(name = "claim_storage_scope", nullable = false)
+    private String claimStorageScope = "LOCAL";
+
+    @Column(name = "claim_owner_tenant_id")
+    private String claimOwnerTenantId;
+
     @Column(name = "cover_source", nullable = false)
     private String coverSource = "LOCAL_TENANT";
 
@@ -50,6 +57,9 @@ public class FuneralServiceClaimEntity {
 
     @PrePersist
     public void prePersist() {
+        if (claimStorageScope == null || claimStorageScope.isBlank()) {
+            claimStorageScope = "LOCAL";
+        }
         createdAt = LocalDateTime.now();
     }
 }
