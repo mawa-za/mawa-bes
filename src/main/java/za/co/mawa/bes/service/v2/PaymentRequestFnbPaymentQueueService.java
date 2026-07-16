@@ -32,6 +32,7 @@ public class PaymentRequestFnbPaymentQueueService {
     private final MessageProducerService messageProducerService;
     private final SettingService settingService;
     private final Gson gson;
+    private final PaymentDisbursementAttemptService attemptService;
 
     @Autowired
     @Qualifier("bankPaymentServiceV2")
@@ -41,7 +42,9 @@ public class PaymentRequestFnbPaymentQueueService {
     public void queueAfterApproval(String paymentRequestId, String referenceNo, String actionBy) {
         PaymentRequestEntity paymentRequest = findById(paymentRequestId);
 
-        if (paymentRequest.getStatus() == PaymentRequestStatus.QUEUED_FOR_PAYMENT) {
+        if (paymentRequest.getStatus() == PaymentRequestStatus.QUEUED_FOR_PAYMENT
+                || paymentRequest.getStatus() == PaymentRequestStatus.PROCESSED
+                || paymentRequest.getStatus() == PaymentRequestStatus.PAID) {
             return;
         }
 
@@ -66,7 +69,18 @@ public class PaymentRequestFnbPaymentQueueService {
         message.setPayload(gson.toJson(bankPaymentRequest));
 
         messageProducerService.sendMessageIfNotExists(message);
+        attemptService.ensureQueued(paymentRequest.getId());
         markQueuedForPayment(paymentRequest, actionBy);
+    }
+
+    @Transactional
+    public void queuePaymentReport(String paymentRequestId, String instructionId) {
+        MessageQueueInboundDto message = new MessageQueueInboundDto();
+        message.setType("FNB-EFT-PAYMENT-REPORT");
+        message.setReferenceId(paymentRequestId);
+        message.setReferenceNo(instructionId);
+        message.setPayload("{\"instructionId\":\"" + instructionId.replace("\"", "") + "\"}");
+        messageProducerService.sendMessageIfNotExists(message);
     }
 
     private void markQueuedForPayment(PaymentRequestEntity paymentRequest, String updatedBy) {

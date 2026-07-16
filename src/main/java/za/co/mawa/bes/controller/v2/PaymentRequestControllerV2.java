@@ -29,13 +29,16 @@ public class PaymentRequestControllerV2 {
 
     private final PaymentRequestService paymentRequestService;
     private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
+    private final za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService;
 
     public PaymentRequestControllerV2(
             @Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService,
-            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
+            za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService
     ) {
         this.paymentRequestService = paymentRequestService;
         this.fnbPaymentQueueService = fnbPaymentQueueService;
+        this.paymentAttemptService = paymentAttemptService;
     }
 
     @PostMapping
@@ -122,6 +125,12 @@ public class PaymentRequestControllerV2 {
     ) {
         fnbPaymentQueueService.queueAfterApproval(id, null, currentUser);
         return ResponseEntity.ok(paymentRequestService.getById(id));
+    }
+
+    @GetMapping("/{id}/attempts")
+    public ResponseEntity<List<PaymentDisbursementAttemptResponse>> getAttempts(@PathVariable String id) {
+        paymentRequestService.getById(id);
+        return ResponseEntity.ok(paymentAttemptService.getAttempts(id));
     }
 
     @GetMapping("/{id}/history")

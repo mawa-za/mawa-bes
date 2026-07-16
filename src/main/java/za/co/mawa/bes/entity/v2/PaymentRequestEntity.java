@@ -94,6 +94,21 @@ public class PaymentRequestEntity {
     @Column(name = "approval_request_id")
     private String approvalRequestId;
 
+    @Column(name = "approval_source", length = 50)
+    private String approvalSource;
+
+    @Column(name = "approval_reference", length = 255)
+    private String approvalReference;
+
+    @Column(name = "approval_inherited", nullable = false)
+    private boolean approvalInherited;
+
+    @Column(name = "payment_purpose", length = 100)
+    private String paymentPurpose;
+
+    @Column(name = "idempotency_key", length = 500, unique = true)
+    private String idempotencyKey;
+
     @Column(name = "paid_date")
     private LocalDate paidDate;
 
