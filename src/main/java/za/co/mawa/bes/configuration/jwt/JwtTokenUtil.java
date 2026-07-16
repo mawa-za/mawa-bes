@@ -92,6 +92,31 @@ public class JwtTokenUtil implements Serializable {
         return REFRESH_TOKEN.equals(getTokenType(token));
     }
 
+    public boolean isIssuedAfterPasswordChange(String token, Date passwordChangedAt) {
+        if (passwordChangedAt == null) {
+            return true;
+        }
+        Long issuedAtMs = getClaimFromToken(token, claims -> {
+            Object value = claims.get("issued_at_ms");
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+            if (value != null) {
+                try {
+                    return Long.parseLong(String.valueOf(value));
+                } catch (NumberFormatException ignored) {
+                    // Fall back to the standard JWT issued-at value below.
+                }
+            }
+            return null;
+        });
+        if (issuedAtMs != null) {
+            return issuedAtMs >= passwordChangedAt.getTime();
+        }
+        Date issuedAt = getIssuedAtDateFromToken(token);
+        return issuedAt != null && !issuedAt.before(passwordChangedAt);
+    }
+
     public <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = getAllClaimsFromToken(token);
         return claimsResolver.apply(claims);
@@ -210,9 +235,11 @@ public class JwtTokenUtil implements Serializable {
             long expiryInMs
     ) {
         long now = System.currentTimeMillis();
+        Map<String, Object> effectiveClaims = new HashMap<>(claims);
+        effectiveClaims.put("issued_at_ms", now);
 
         return Jwts.builder()
-                .setClaims(claims)
+                .setClaims(effectiveClaims)
                 .setAudience(tenantId)
                 .setSubject(subject)
                 .setIssuedAt(new Date(now))

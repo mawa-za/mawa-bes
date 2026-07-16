@@ -34,6 +34,9 @@ public class UserEntity implements Serializable {
     private byte[] password;
     @Column(name = "password_status", length = 20)
     private String passwordStatus;
+    @Column(name = "password_changed_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date passwordChangedAt;
     @Column(name = "status", length = 20)
     private String status;
     @Column(name = "status_reason", length = 45)
