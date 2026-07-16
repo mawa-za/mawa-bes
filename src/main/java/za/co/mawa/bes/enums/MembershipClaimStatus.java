@@ -9,6 +9,9 @@ public enum MembershipClaimStatus {
     APPROVED,
     REJECTED,
 
-    // Updated by payment module
+    // Updated by payment/disbursement module
+    PAYMENT_PENDING,
+    PAYMENT_PROCESSING,
+    PAYMENT_FAILED,
     PAID
 }

@@ -14,6 +14,12 @@ import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.FnbInitiationRecoveryService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
+import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
+import za.co.mawa.bes.fnb.dto.OriginalPaymentInformation;
+import za.co.mawa.bes.fnb.dto.StatusReasonInformation;
+import za.co.mawa.bes.fnb.dto.TransactionInfoAndStatus;
+import za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService;
+import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
 
@@ -43,6 +49,10 @@ public class MessageConsumerService {
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
     @Autowired
     XeroInvoicePushService xeroInvoicePushService;
+    @Autowired
+    PaymentDisbursementAttemptService paymentAttemptService;
+    @Autowired
+    PaymentRequestFnbPaymentQueueService paymentQueueService;
     @Autowired
     SettingService settingService;
     Gson gson = new Gson();
@@ -187,9 +197,14 @@ public class MessageConsumerService {
                                     instructionId,
                                     systemUserId
                             );
+                            paymentAttemptService.markSubmitted(paymentRequestReference, instructionId);
+                            paymentQueueService.queuePaymentReport(paymentRequestReference, instructionId);
                         }
 
                         msg.setProcessed(true);
+                        break;
+                    case "FNB-EFT-PAYMENT-REPORT":
+                        processFnbPaymentReport(msg, systemUserIdForReport());
                         break;
                     case "INVOICE-EMAIL":
                         msg.setProcessed(true);
@@ -215,7 +230,12 @@ public class MessageConsumerService {
                     xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
                 }
                 msg.setRetryCount(msg.getRetryCount() + 1);
-                if (msg.getRetryCount() > 3) {
+                if ("FNB-EFT-PAYMENT-REPORT".equals(msg.getType())) {
+                    // Bank report availability is eventually consistent. Keep polling instead
+                    // of abandoning a valid disbursement after three temporary failures.
+                    msg.setProcessed(false);
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                } else if (msg.getRetryCount() > 3) {
                     msg.setProcessed(true);
                 } else {
                     msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
@@ -225,6 +245,119 @@ public class MessageConsumerService {
             processedCount++;
         }
         return processedCount;
+    }
+
+    private void processFnbPaymentReport(MessageQueueEntity msg, String systemUserId) throws Exception {
+        String paymentRequestId = msg.getReferenceId();
+        String instructionId = paymentRequestService.getFnbInstructionId(paymentRequestId);
+        if (instructionId == null || instructionId.isBlank()) {
+            instructionId = msg.getReferenceNo();
+        }
+        if (instructionId == null || instructionId.isBlank()) {
+            throw new IllegalStateException("FNB payment report message has no instruction ID");
+        }
+
+        BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
+        String providerStatus = resolveProviderStatus(report);
+        String reason = resolveProviderReason(report);
+
+        if (isSuccessfulBankStatus(providerStatus)) {
+            paymentRequestService.markBankPaymentPaid(paymentRequestId, providerStatus, systemUserId);
+            paymentAttemptService.markSucceeded(paymentRequestId, providerStatus);
+            msg.setProcessed(true);
+            return;
+        }
+
+        if (isFailedBankStatus(providerStatus)) {
+            paymentRequestService.markBankPaymentFailed(paymentRequestId, providerStatus, reason, systemUserId);
+            paymentAttemptService.markFailed(paymentRequestId, providerStatus, providerStatus, reason);
+            msg.setProcessed(true);
+            return;
+        }
+
+        paymentRequestService.markBankPaymentPending(paymentRequestId, providerStatus, systemUserId);
+        paymentAttemptService.markPending(paymentRequestId, providerStatus);
+        msg.setRetryCount(msg.getRetryCount() + 1);
+        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+        msg.setProcessed(false);
+    }
+
+    private int getPaymentReportIntervalSeconds() {
+        String value = settingService.getSetting("PAYMENT-REPORT-INTERVAL-SECONDS", "FNB-API");
+        try {
+            return Math.max(30, Math.min(Integer.parseInt(value), 3600));
+        } catch (Exception ignored) {
+            return 60;
+        }
+    }
+
+    private String systemUserIdForReport() {
+        return resolveSystemUserId();
+    }
+
+    private String resolveProviderStatus(BankPaymentResponse report) {
+        if (report == null) return "PENDING";
+        if (report.getOriginalPaymentInformation() != null) {
+            for (OriginalPaymentInformation payment : report.getOriginalPaymentInformation()) {
+                if (payment.getTransactionInfoAndStatus() != null) {
+                    for (TransactionInfoAndStatus transaction : payment.getTransactionInfoAndStatus()) {
+                        if (transaction.getTransactionStatus() != null && !transaction.getTransactionStatus().isBlank()) {
+                            return transaction.getTransactionStatus();
+                        }
+                    }
+                }
+                if (payment.getPaymentInformationStatus() != null && !payment.getPaymentInformationStatus().isBlank()) {
+                    return payment.getPaymentInformationStatus();
+                }
+            }
+        }
+        return report.getGroupStatus() == null || report.getGroupStatus().isBlank() ? "PENDING" : report.getGroupStatus();
+    }
+
+    private String resolveProviderReason(BankPaymentResponse report) {
+        if (report == null) return "No payment report returned by FNB";
+        String reason = reasonFrom(report.getStatusReasonInformation());
+        if (reason != null) return reason;
+        if (report.getOriginalPaymentInformation() != null) {
+            for (OriginalPaymentInformation payment : report.getOriginalPaymentInformation()) {
+                reason = reasonFrom(payment.getStatusReasonInformation());
+                if (reason != null) return reason;
+                if (payment.getTransactionInfoAndStatus() != null) {
+                    for (TransactionInfoAndStatus transaction : payment.getTransactionInfoAndStatus()) {
+                        reason = reasonFrom(transaction.getStatusReasonInformation());
+                        if (reason != null) return reason;
+                    }
+                }
+            }
+        }
+        return "FNB returned status " + resolveProviderStatus(report);
+    }
+
+    private String reasonFrom(List<StatusReasonInformation> reasons) {
+        if (reasons == null) return null;
+        for (StatusReasonInformation reason : reasons) {
+            if (reason == null) continue;
+            String value = firstNonBlank(reason.getAdditionalInformation(), reason.getReason());
+            if (value != null && !value.isBlank()) return value;
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) return primary;
+        return fallback;
+    }
+
+    private boolean isSuccessfulBankStatus(String status) {
+        if (status == null) return false;
+        return Set.of("ACSC", "ACCC", "COMPLETED", "COMPLETE", "SUCCESS", "SUCCEEDED", "PAID")
+                .contains(status.trim().toUpperCase());
+    }
+
+    private boolean isFailedBankStatus(String status) {
+        if (status == null) return false;
+        return Set.of("RJCT", "REJECTED", "FAILED", "FAILURE", "CANCELLED", "CANCELED", "CANC")
+                .contains(status.trim().toUpperCase());
     }
 
     private List<String> resolvePaymentRequestReferences(

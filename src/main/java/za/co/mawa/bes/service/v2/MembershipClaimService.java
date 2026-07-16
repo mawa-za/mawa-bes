@@ -83,6 +83,16 @@ public class MembershipClaimService {
         entity.setClaimantPartnerId(request.getClaimantPartnerId());
         entity.setClaimAmountCents(request.getClaimAmountCents() != null ? request.getClaimAmountCents() : 0L);
         entity.setNotes(request.getNotes());
+        if (request.getClaimType() == MembershipClaimType.CASH) {
+            entity.setPayoutMethod(za.co.mawa.bes.enums.PaymentMethod.valueOf(request.getPayoutMethod().trim().toUpperCase()));
+            entity.setBankName(request.getBankName());
+            entity.setAccountHolderName(request.getAccountHolderName());
+            entity.setAccountNumber(request.getAccountNumber());
+            entity.setBranchCode(request.getBranchCode());
+            if (StringUtils.hasText(request.getAccountType())) {
+                entity.setAccountType(za.co.mawa.bes.enums.BankAccountType.valueOf(request.getAccountType().trim().toUpperCase()));
+            }
+        }
         entity.setStatus(Boolean.TRUE.equals(request.getSubmit())
                 ? MembershipClaimStatus.SUBMITTED
                 : MembershipClaimStatus.DRAFT);
@@ -252,7 +262,14 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse markApprovedFromWorkflow(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
-        entity.setStatus(MembershipClaimStatus.APPROVED);
+        if (entity.getStatus() == MembershipClaimStatus.PAID
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PROCESSING
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PENDING) {
+            return toResponse(entity);
+        }
+        entity.setStatus(entity.getClaimType() == MembershipClaimType.CASH
+                ? MembershipClaimStatus.PAYMENT_PENDING
+                : MembershipClaimStatus.APPROVED);
         if (entity.getApprovedAmountCents() == null || entity.getApprovedAmountCents() <= 0) {
             entity.setApprovedAmountCents(entity.getClaimAmountCents() == null ? 0L : entity.getClaimAmountCents());
         }
@@ -281,10 +298,48 @@ public class MembershipClaimService {
     }
 
     @Transactional
+    public void markPaymentProcessing(String claimId, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(claimId);
+        if (entity.getStatus() == MembershipClaimStatus.PAID) return;
+        entity.setStatus(MembershipClaimStatus.PAYMENT_PROCESSING);
+        entity.setUpdatedBy(userId);
+        claimRepository.save(entity);
+        refreshLinkedFuneralServiceStatus(entity.getId());
+    }
+
+    @Transactional
+    public void markPaymentPaid(String claimId, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(claimId);
+        entity.setStatus(MembershipClaimStatus.PAID);
+        entity.setUpdatedBy(userId);
+        claimRepository.save(entity);
+        refreshLinkedFuneralServiceStatus(entity.getId());
+    }
+
+    @Transactional
+    public void markPaymentFailed(String claimId, String reason, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(claimId);
+        if (entity.getStatus() == MembershipClaimStatus.PAID) return;
+        entity.setStatus(MembershipClaimStatus.PAYMENT_FAILED);
+        entity.setNotes(appendNote(entity.getNotes(), "Payment failed: " + (reason == null ? "Unknown bank response" : reason)));
+        entity.setUpdatedBy(userId);
+        claimRepository.save(entity);
+        refreshLinkedFuneralServiceStatus(entity.getId());
+    }
+
+    private String appendNote(String existing, String note) {
+        if (!StringUtils.hasText(existing)) return note;
+        if (existing.contains(note)) return existing;
+        return existing + "\n" + note;
+    }
+
+    @Transactional
     public MembershipClaimResponse cancel(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
 
         if (entity.getStatus() == MembershipClaimStatus.APPROVED
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PENDING
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PROCESSING
                 || entity.getStatus() == MembershipClaimStatus.PAID) {
             throw new IllegalArgumentException("Approved or paid claims cannot be cancelled from claim module.");
         }
@@ -433,6 +488,8 @@ public class MembershipClaimService {
 
     private Long resolveApprovedAmount(MembershipClaimEntity entity) {
         if (entity.getStatus() == MembershipClaimStatus.APPROVED
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PENDING
+                || entity.getStatus() == MembershipClaimStatus.PAYMENT_PROCESSING
                 || entity.getStatus() == MembershipClaimStatus.PAID) {
             return entity.getApprovedAmountCents() == null ? entity.getClaimAmountCents() : entity.getApprovedAmountCents();
         }
@@ -641,6 +698,10 @@ public class MembershipClaimService {
                 .setCreatedBy(entity.getCreatedBy())
                 .setUpdatedAt(entity.getUpdatedAt())
                 .setUpdatedBy(entity.getUpdatedBy())
+                .setApprovalRequestId(entity.getApprovalRequestId())
+                .setApprovedBy(entity.getApprovedBy())
+                .setApprovedAt(entity.getApprovedAt())
+                .setPaymentRequestId(entity.getPaymentRequestId())
                 .setLinkedClaims(linkedClaims)
                 .setPayoutMethod(entity.getPayoutMethod())
                 .setBankName(entity.getBankName())
