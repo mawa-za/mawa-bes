@@ -67,6 +67,15 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        if (requestURI.startsWith("/v2/pos-print-agents/")) {
+            String tenantReference = firstNonBlank(
+                    request.getHeader("X-TenantID"),
+                    request.getHeader("X-Tenant-Id")
+            );
+            setResolvedTenantContext(tenantReference);
+            return true;
+        }
+
         if (isPost.test(method)
                 && (requestURI.contains("/authenticate")
                 || requestURI.contains("/forgot-password")

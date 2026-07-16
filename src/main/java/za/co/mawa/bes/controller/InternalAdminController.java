@@ -18,6 +18,9 @@ import za.co.mawa.bes.service.AdminHandoffService;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TenantService;
+import za.co.mawa.bes.service.v2.PosPrintingService;
+import za.co.mawa.bes.dto.v2.PosPrintingDtos.EnrollmentCreateRequest;
+import za.co.mawa.bes.dto.v2.PosPrintingDtos.TerminalEnabledRequest;
 
 import java.util.Iterator;
 
@@ -38,6 +41,9 @@ public class InternalAdminController {
 
     @Autowired
     private AttachmentService attachmentService;
+
+    @Autowired
+    private PosPrintingService posPrintingService;
 
     private final Gson gson = new Gson();
 
@@ -122,6 +128,62 @@ public class InternalAdminController {
             payload.put("errorType", ex.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(gson.toJson(payload));
         }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/pos-printing/summary", method = RequestMethod.POST)
+    public ResponseEntity<?> getPosPrintingSummary(@RequestHeader HttpHeaders headers, @PathVariable String tenant) {
+        try {
+            validateInternalToken(headers);
+            TenantContext.setCurrentTenant(tenant);
+            java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("agents", posPrintingService.listAgents());
+            response.put("terminals", posPrintingService.listTerminals());
+            response.put("jobs", posPrintingService.listJobs());
+            return ResponseEntity.ok(response);
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/pos-printing/enrollments", method = RequestMethod.POST)
+    public ResponseEntity<?> createPosPrintingEnrollment(@RequestHeader HttpHeaders headers, @PathVariable String tenant, @RequestBody EnrollmentCreateRequest request) {
+        try { validateInternalToken(headers); TenantContext.setCurrentTenant(tenant); return ResponseEntity.ok(posPrintingService.createEnrollment(request)); }
+        catch (SecurityException ex) { return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage()); }
+        catch (Exception ex) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/pos-printing/agents/{agentId}/revoke", method = RequestMethod.POST)
+    public ResponseEntity<?> revokePosPrintAgent(@RequestHeader HttpHeaders headers, @PathVariable String tenant, @PathVariable String agentId) {
+        try { validateInternalToken(headers); TenantContext.setCurrentTenant(tenant); posPrintingService.revokeAgent(agentId); return ResponseEntity.ok("{\"success\":true}"); }
+        catch (SecurityException ex) { return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage()); }
+        catch (Exception ex) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/pos-printing/terminals/{terminalId}/enabled", method = RequestMethod.POST)
+    public ResponseEntity<?> setPosTerminalEnabled(
+            @RequestHeader HttpHeaders headers,
+            @PathVariable String tenant,
+            @PathVariable String terminalId,
+            @RequestBody TerminalEnabledRequest request
+    ) {
+        try {
+            validateInternalToken(headers);
+            TenantContext.setCurrentTenant(tenant);
+            return ResponseEntity.ok(posPrintingService.setTerminalEnabled(terminalId, request));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/pos-printing/jobs/{jobId}/retry", method = RequestMethod.POST)
+    public ResponseEntity<?> retryPosPrintJob(@RequestHeader HttpHeaders headers, @PathVariable String tenant, @PathVariable String jobId) {
+        try { validateInternalToken(headers); TenantContext.setCurrentTenant(tenant); return ResponseEntity.ok(posPrintingService.retry(jobId)); }
+        catch (SecurityException ex) { return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage()); }
+        catch (Exception ex) { return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); }
     }
 
     @RequestMapping(value = "/v2/admin-handoff/exchange", method = RequestMethod.POST)

@@ -71,17 +71,17 @@ public class ReceiptService {
         return receiptAllocationRepository.save(allocation);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ReceiptPrintDto getPrintData(String receiptId) {
+        return previewPrintData(receiptId);
+    }
+
+    @Transactional(readOnly = true)
+    public ReceiptPrintDto previewPrintData(String receiptId) {
         ReceiptEntity receipt = getReceiptEntity(receiptId);
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository.findByReceiptId(receiptId);
 
         ReceiptAllocationEntity firstAllocation = allocations.isEmpty() ? null : allocations.get(0);
-
-        receipt.setPrinted(true);
-        receipt.setPrintCount(receipt.getPrintCount() == null ? 1 : receipt.getPrintCount() + 1);
-        receipt.setUpdatedAt(LocalDateTime.now());
-        receiptRepository.save(receipt);
 
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
@@ -102,6 +102,15 @@ public class ReceiptService {
                 .build();
     }
 
+
+    @Transactional
+    public void recordSpooledPrint(String receiptId) {
+        ReceiptEntity receipt = getReceiptEntity(receiptId);
+        receipt.setPrinted(true);
+        receipt.setPrintCount(receipt.getPrintCount() == null ? 1 : receipt.getPrintCount() + 1);
+        receipt.setUpdatedAt(LocalDateTime.now());
+        receiptRepository.save(receipt);
+    }
     @Transactional
     public ReceiptResponseDto reverseReceipt(String receiptId, String reason, String reversedBy) {
         ReceiptEntity receipt = getReceiptEntity(receiptId);

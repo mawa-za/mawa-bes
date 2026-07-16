@@ -46,12 +46,14 @@ public class WebSecurityConfig {
             "/v2/refresh-token",
             "/v2/company-logo/content",
             "/v2/admin-handoff/exchange",
+            "/v2/pos-print-agents/**",
             "/internal/admin/**",
             "/xero/callback"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] LOG_EXCLUSION = {
             "/print-job",
+            "/v2/pos-print-agents/**",
             "/authenticate"
             // other public endpoints of your API may be appended to this array
     };
