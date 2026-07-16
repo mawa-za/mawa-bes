@@ -24,5 +24,19 @@ public class UserDto implements Serializable {
     private Date validFrom;
     private Date validTo;
     private String statusReason;
+    private String accountType;
+    private Boolean testUser;
+    private Boolean protectedUser;
+    private Boolean systemManaged;
+    private String accessScope;
+    private String environmentScope;
+    private Boolean externalTransactionsBlocked;
+    private Date expiresAt;
+    private String protectedReason;
+    private Date protectedAt;
+    private String protectedBy;
+    private Date disabledAt;
+    private String disabledBy;
+    private Boolean mfaRequired;
 
 }

@@ -16,5 +16,8 @@ public class RoleOutboundDto {
     private String description;
     private Date validFrom;
     private Date validTo;
+    private Boolean systemRole;
+    private Boolean protectedRole;
+    private Boolean accessAllWorkcentres;
 
 }

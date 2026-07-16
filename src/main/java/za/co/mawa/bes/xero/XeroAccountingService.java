@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.invoice.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.service.TenantAdminService;
+import za.co.mawa.bes.service.UserAccessService;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,6 +34,8 @@ import java.util.UUID;
 
 @Service
 public class XeroAccountingService {
+    @Autowired
+    private UserAccessService userAccessService;
 
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
@@ -48,6 +51,7 @@ public class XeroAccountingService {
 
 
     public InvoiceOutboundDto createInvoice(String partnerId , String reference , String itemCode){
+        userAccessService.assertExternalTransactionAllowed("XERO-INVOICE");
         try {
             //get accessToken and XeroTenantId
             //use the partner id to get the contact id from partner

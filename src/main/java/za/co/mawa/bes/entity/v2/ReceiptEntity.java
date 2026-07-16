@@ -75,11 +75,13 @@ public class ReceiptEntity {
     @Column(name = "external_receipt_no", length = 100)
     private String externalReceiptNo;
 
+    @Builder.Default
     @Column(name = "printed", nullable = false)
-    private Boolean printed = true;
+    private Boolean printed = false;
 
+    @Builder.Default
     @Column(name = "print_count", nullable = false)
-    private Integer printCount = 1;
+    private Integer printCount = 0;
 
     @Column(name = "legacy_premium_payment_id", length = 50)
     private String legacyPremiumPaymentId;
