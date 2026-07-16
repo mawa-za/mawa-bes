@@ -8,11 +8,15 @@ import za.co.mawa.bes.dto.BankAccountCreateDto;
 import za.co.mawa.bes.dto.BankAccountDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.v2.payment.*;
+import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimResponse;
+import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
 import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.enums.PaymentRequestSourceType;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
+import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
@@ -33,6 +37,7 @@ public class PaymentRequestService {
     private final PaymentRequestStatusHistoryRepository statusHistoryRepository;
     private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
     private final NumberRangeService numberRangeService;
+    private final MembershipClaimService membershipClaimService;
 
     @Autowired
     SettingService settingService;
@@ -41,12 +46,14 @@ public class PaymentRequestService {
             PaymentRequestRepository paymentRequestRepository,
             PaymentRequestStatusHistoryRepository statusHistoryRepository,
             PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
-            NumberRangeService numberRangeService
+            NumberRangeService numberRangeService,
+            MembershipClaimService membershipClaimService
     ) {
         this.paymentRequestRepository = paymentRequestRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.fnbPaymentQueueService = fnbPaymentQueueService;
         this.numberRangeService = numberRangeService;
+        this.membershipClaimService = membershipClaimService;
     }
 
     @Transactional
@@ -87,6 +94,109 @@ public class PaymentRequestService {
 
         PaymentRequestEntity saved = paymentRequestRepository.save(entity);
         saveHistory(saved.getId(), null, PaymentRequestStatus.DRAFT, "Payment request created", currentUser);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public PaymentRequestResponse createOrReuseApprovedClaimPayout(
+            MembershipClaimResponse claim,
+            ApprovalRequestEntity approvalRequest,
+            String actionBy
+    ) {
+        if (claim == null || claim.getId() == null) {
+            throw new IllegalArgumentException("Approved claim is required");
+        }
+        long payoutAmountCents = claim.getApprovedAmountCents() != null && claim.getApprovedAmountCents() > 0
+                ? claim.getApprovedAmountCents()
+                : (claim.getClaimAmountCents() == null ? 0L : claim.getClaimAmountCents());
+        if (payoutAmountCents <= 0) {
+            throw new IllegalArgumentException("Approved CASH claim amount must be greater than zero");
+        }
+        if (claim.getPayoutMethod() == null) {
+            throw new IllegalArgumentException("Payout method is required before approving a CASH claim");
+        }
+
+        String idempotencyKey = claimPayoutIdempotencyKey(claim.getId());
+        PaymentRequestEntity entity = paymentRequestRepository.findByIdempotencyKey(idempotencyKey)
+                .orElseGet(() -> paymentRequestRepository
+                        .findFirstBySourceTypeAndSourceIdAndRequestTypeOrderByCreatedAtAsc(
+                                PaymentRequestSourceType.MEMBERSHIP_CLAIM,
+                                claim.getId(),
+                                PaymentRequestType.CLAIM_PAYOUT
+                        )
+                        .orElse(null));
+
+        boolean created = entity == null;
+        if (created) {
+            entity = new PaymentRequestEntity();
+            entity.setRequestNo(generateRequestNo());
+            entity.setRequestType(PaymentRequestType.CLAIM_PAYOUT);
+            entity.setSourceType(PaymentRequestSourceType.MEMBERSHIP_CLAIM);
+            entity.setSourceId(claim.getId());
+            entity.setPayeePartnerId(claim.getClaimantPartnerId());
+            entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
+            entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
+            entity.setCurrency("ZAR");
+            entity.setPaymentMethod(claim.getPayoutMethod());
+            entity.setBankName(claim.getBankName());
+            entity.setAccountHolder(claim.getAccountHolderName());
+            entity.setAccountNumber(claim.getAccountNumber());
+            entity.setBranchCode(claim.getBranchCode());
+            entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+            entity.setExternalReference("CLAIM-" + claim.getClaimNo());
+            entity.setPaymentReason("CASH-CLAIM-PAYOUT");
+            entity.setPaymentPurpose("CASH_CLAIM_DISBURSEMENT");
+            entity.setRequestedPaymentDate(LocalDate.now());
+            entity.setCreatedBy(systemActor(actionBy));
+        }
+
+        // Immutable snapshot used by the bank. For an existing DRAFT request created by the
+        // previous implementation, fill missing values before inheriting claim approval.
+        if (entity.getStatus() == null || entity.getStatus() == PaymentRequestStatus.DRAFT
+                || entity.getStatus() == PaymentRequestStatus.PENDING_APPROVAL) {
+            entity.setPayeePartnerId(claim.getClaimantPartnerId());
+            entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
+            entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
+            entity.setPaymentMethod(claim.getPayoutMethod());
+            entity.setBankName(claim.getBankName());
+            entity.setAccountHolder(claim.getAccountHolderName());
+            entity.setAccountNumber(claim.getAccountNumber());
+            entity.setBranchCode(claim.getBranchCode());
+            entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+        }
+
+        entity.setIdempotencyKey(idempotencyKey);
+        entity.setApprovalRequestId(approvalRequest == null ? claim.getApprovalRequestId() : approvalRequest.getId());
+        entity.setApprovalSource("CLAIM_APPROVAL");
+        entity.setApprovalReference(approvalRequest == null ? claim.getApprovalRequestId() : approvalRequest.getId());
+        entity.setApprovalInherited(true);
+        entity.setPaymentPurpose("CASH_CLAIM_DISBURSEMENT");
+        entity.setUpdatedBy(systemActor(actionBy));
+
+        validateEntity(entity);
+
+        PaymentRequestStatus oldStatus = entity.getStatus();
+        if (oldStatus == null || oldStatus == PaymentRequestStatus.DRAFT
+                || oldStatus == PaymentRequestStatus.PENDING_APPROVAL
+                || oldStatus == PaymentRequestStatus.REJECTED) {
+            entity.setStatus(PaymentRequestStatus.APPROVED);
+            entity.setApprovedBy(systemActor(actionBy));
+            entity.setApprovedAt(new Date());
+        }
+
+        PaymentRequestEntity saved = paymentRequestRepository.save(entity);
+        if (created) {
+            saveHistory(saved.getId(), null, PaymentRequestStatus.APPROVED,
+                    "Payment request created and authorised by approved CASH claim", systemActor(actionBy));
+        } else if (oldStatus != saved.getStatus()) {
+            saveHistory(saved.getId(), oldStatus, saved.getStatus(),
+                    "Payment approval inherited from approved CASH claim", systemActor(actionBy));
+        }
+
+        if (saved.getStatus() == PaymentRequestStatus.APPROVED) {
+            fnbPaymentQueueService.queueAfterApproval(saved.getId(), saved.getRequestNo(), systemActor(actionBy));
+            saved = paymentRequestRepository.findById(saved.getId()).orElse(saved);
+        }
         return toResponse(saved);
     }
 
@@ -230,6 +340,9 @@ public class PaymentRequestService {
         saveHistory(saved.getId(), oldStatus, PaymentRequestStatus.PAID,
                 request.getComment() == null || request.getComment().isBlank() ? "Payment request marked as paid" : request.getComment(),
                 currentUser);
+        if (saved.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && saved.getSourceId() != null) {
+            membershipClaimService.markPaymentPaid(saved.getSourceId(), systemActor(currentUser));
+        }
         return toResponse(saved);
     }
 
@@ -366,6 +479,62 @@ public class PaymentRequestService {
             saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PROCESSED,
                     "Payment request sent to FNB. Instruction ID: " + effectiveInstructionId, systemActor(updatedBy));
         }
+        updateLinkedClaimProcessing(entity, systemActor(updatedBy));
+    }
+
+    @Transactional
+    public void markBankPaymentPending(String paymentRequestIdOrRequestNo, String providerStatus, String updatedBy) {
+        PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+        if (entity.getStatus() == PaymentRequestStatus.PAID || entity.getStatus() == PaymentRequestStatus.FAILED) return;
+        if (entity.getStatus() != PaymentRequestStatus.PROCESSED) {
+            PaymentRequestStatus oldStatus = entity.getStatus();
+            entity.setStatus(PaymentRequestStatus.PROCESSED);
+            entity.setUpdatedBy(systemActor(updatedBy));
+            paymentRequestRepository.save(entity);
+            saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PROCESSED,
+                    "FNB payment is processing: " + providerStatus, systemActor(updatedBy));
+        }
+        updateLinkedClaimProcessing(entity, systemActor(updatedBy));
+    }
+
+    @Transactional
+    public void markBankPaymentPaid(String paymentRequestIdOrRequestNo, String providerStatus, String updatedBy) {
+        PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+        if (entity.getStatus() == PaymentRequestStatus.PAID) return;
+        PaymentRequestStatus oldStatus = entity.getStatus();
+        entity.setStatus(PaymentRequestStatus.PAID);
+        entity.setPaidDate(LocalDate.now());
+        entity.setPaidBy(systemActor(updatedBy));
+        entity.setUpdatedBy(systemActor(updatedBy));
+        paymentRequestRepository.save(entity);
+        saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.PAID,
+                "FNB confirmed payment: " + providerStatus, systemActor(updatedBy));
+        if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
+            membershipClaimService.markPaymentPaid(entity.getSourceId(), systemActor(updatedBy));
+        }
+    }
+
+    @Transactional
+    public void markBankPaymentFailed(String paymentRequestIdOrRequestNo, String providerStatus, String reason, String updatedBy) {
+        PaymentRequestEntity entity = findByIdOrRequestNo(paymentRequestIdOrRequestNo);
+        if (entity.getStatus() == PaymentRequestStatus.PAID) return;
+        PaymentRequestStatus oldStatus = entity.getStatus();
+        entity.setStatus(PaymentRequestStatus.FAILED);
+        entity.setUpdatedBy(systemActor(updatedBy));
+        paymentRequestRepository.save(entity);
+        if (oldStatus != PaymentRequestStatus.FAILED) {
+            saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.FAILED,
+                    "FNB payment failed [" + providerStatus + "]: " + reason, systemActor(updatedBy));
+        }
+        if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
+            membershipClaimService.markPaymentFailed(entity.getSourceId(), reason, systemActor(updatedBy));
+        }
+    }
+
+    private void updateLinkedClaimProcessing(PaymentRequestEntity entity, String updatedBy) {
+        if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
+            membershipClaimService.markPaymentProcessing(entity.getSourceId(), updatedBy);
+        }
     }
 
     private PaymentRequestEntity findByIdOrRequestNo(String paymentRequestIdOrRequestNo) {
@@ -383,6 +552,10 @@ public class PaymentRequestService {
             return primary;
         }
         return fallback;
+    }
+
+    private String claimPayoutIdempotencyKey(String claimId) {
+        return "MEMBERSHIP_CLAIM:" + claimId + ":CASH_CLAIM_DISBURSEMENT";
     }
 
     private String systemActor(String updatedBy) {
@@ -486,6 +659,11 @@ public class PaymentRequestService {
                 .setRequestedPaymentDate(entity.getRequestedPaymentDate())
                 .setStatus(entity.getStatus())
                 .setApprovalRequestId(entity.getApprovalRequestId())
+                .setApprovalSource(entity.getApprovalSource())
+                .setApprovalReference(entity.getApprovalReference())
+                .setApprovalInherited(entity.isApprovalInherited())
+                .setPaymentPurpose(entity.getPaymentPurpose())
+                .setIdempotencyKey(entity.getIdempotencyKey())
                 .setPaidDate(entity.getPaidDate())
                 .setPaidReference(entity.getPaidReference())
                 .setFnbInstructionId(entity.getFnbInstructionId())
