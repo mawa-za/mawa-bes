@@ -21,6 +21,13 @@ public interface PaymentRequestRepository extends JpaRepository<PaymentRequestEn
             PaymentRequestType requestType
     );
 
+    Optional<PaymentRequestEntity> findFirstBySourceTypeAndSourceIdAndRequestTypeAndExternalReferenceOrderByCreatedAtAsc(
+            PaymentRequestSourceType sourceType,
+            String sourceId,
+            PaymentRequestType requestType,
+            String externalReference
+    );
+
     List<PaymentRequestEntity> findByStatusOrderByCreatedAtDesc(PaymentRequestStatus status);
 
     List<PaymentRequestEntity> findByRequestTypeOrderByCreatedAtDesc(PaymentRequestType requestType);

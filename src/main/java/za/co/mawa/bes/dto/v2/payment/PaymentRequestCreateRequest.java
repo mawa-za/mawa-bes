@@ -25,6 +25,7 @@ public class PaymentRequestCreateRequest {
     private String invoiceNo;
     private String externalReference;
     private String paymentReason;
+    private String idempotencyKey;
     private String notes;
     private LocalDate requestedPaymentDate;
 
@@ -60,6 +61,8 @@ public class PaymentRequestCreateRequest {
     public void setExternalReference(String externalReference) { this.externalReference = externalReference; }
     public String getPaymentReason() { return paymentReason; }
     public void setPaymentReason(String paymentReason) { this.paymentReason = paymentReason; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
     public LocalDate getRequestedPaymentDate() { return requestedPaymentDate; }

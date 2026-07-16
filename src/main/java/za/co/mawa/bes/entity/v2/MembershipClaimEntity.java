@@ -94,6 +94,18 @@ public class MembershipClaimEntity {
     @Column(name = "payment_request_id", length = 255)
     private String paymentRequestId;
 
+    @Column(name = "tombstone_order_id", length = 255)
+    private String tombstoneOrderId;
+
+    @Column(name = "settlement_method", length = 50)
+    private String settlementMethod;
+
+    @Column(name = "settlement_reference", length = 255)
+    private String settlementReference;
+
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
     @Column(name = "legacy_transaction_id", length = 255)
     private String legacyTransactionId;
 
