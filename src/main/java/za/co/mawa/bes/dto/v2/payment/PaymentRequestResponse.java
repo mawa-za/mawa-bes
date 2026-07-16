@@ -33,6 +33,11 @@ public class PaymentRequestResponse {
     private LocalDate requestedPaymentDate;
     private PaymentRequestStatus status;
     private String approvalRequestId;
+    private String approvalSource;
+    private String approvalReference;
+    private boolean approvalInherited;
+    private String paymentPurpose;
+    private String idempotencyKey;
     private LocalDate paidDate;
     private String paidReference;
     private String fnbInstructionId;
@@ -86,6 +91,16 @@ public class PaymentRequestResponse {
     public PaymentRequestResponse setStatus(PaymentRequestStatus status) { this.status = status; return this; }
     public String getApprovalRequestId() { return approvalRequestId; }
     public PaymentRequestResponse setApprovalRequestId(String approvalRequestId) { this.approvalRequestId = approvalRequestId; return this; }
+    public String getApprovalSource() { return approvalSource; }
+    public PaymentRequestResponse setApprovalSource(String approvalSource) { this.approvalSource = approvalSource; return this; }
+    public String getApprovalReference() { return approvalReference; }
+    public PaymentRequestResponse setApprovalReference(String approvalReference) { this.approvalReference = approvalReference; return this; }
+    public boolean isApprovalInherited() { return approvalInherited; }
+    public PaymentRequestResponse setApprovalInherited(boolean approvalInherited) { this.approvalInherited = approvalInherited; return this; }
+    public String getPaymentPurpose() { return paymentPurpose; }
+    public PaymentRequestResponse setPaymentPurpose(String paymentPurpose) { this.paymentPurpose = paymentPurpose; return this; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public PaymentRequestResponse setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; return this; }
     public LocalDate getPaidDate() { return paidDate; }
     public PaymentRequestResponse setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; return this; }
     public String getPaidReference() { return paidReference; }
