@@ -12,5 +12,17 @@ public class AdminHandoffRequestDto {
     private String tenantHost;
     private String tenantUrl;
     private String adminUsername;
+    private String platformUserId;
+    private String displayName;
+    private String email;
+    private String accountType;
+    private String platformScope;
+    private Boolean testUser;
+    private Boolean protectedUser;
+    private Boolean externalTransactionsBlocked;
+    private java.util.Date expiresAt;
+    private java.util.List<String> roleIds;
+    private String accessReason;
+    private String ticketReference;
     private String redirectPath;
 }

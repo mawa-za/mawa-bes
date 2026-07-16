@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.json.JSONObject;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -124,9 +125,9 @@ public class InternalAdminController {
     }
 
     @RequestMapping(value = "/v2/admin-handoff/exchange", method = RequestMethod.POST)
-    public ResponseEntity<?> exchangeHandoff(@RequestBody AdminHandoffExchangeRequestDto requestDto) {
+    public ResponseEntity<?> exchangeHandoff(@RequestBody AdminHandoffExchangeRequestDto requestDto, HttpServletRequest servletRequest) {
         try {
-            AuthenticationResponseDto responseDto = adminHandoffService.exchange(requestDto == null ? null : requestDto.getToken());
+            AuthenticationResponseDto responseDto = adminHandoffService.exchange(requestDto == null ? null : requestDto.getToken(), servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
             return ResponseEntity.ok(gson.toJson(responseDto));
         } catch (SecurityException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.web.servlet.config.annotation.*;
 import za.co.mawa.bes.configuration.spring.ApiEndpointLoggingInterceptor;
 import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
+import za.co.mawa.bes.configuration.security.TestUserTransactionGuardInterceptor;
 
 @Configuration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -20,11 +21,14 @@ public class WebConfiguration  implements WebMvcConfigurer    {
     private TenantRequestInterceptor tenantInterceptor;
     @Autowired
     private ApiEndpointLoggingInterceptor apiEndpointLoggingInterceptor;
+    @Autowired
+    private TestUserTransactionGuardInterceptor testUserTransactionGuardInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
         registry.addInterceptor(apiEndpointLoggingInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.LOG_EXCLUSION);
+        registry.addInterceptor(testUserTransactionGuardInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
     }
 
     @Override
