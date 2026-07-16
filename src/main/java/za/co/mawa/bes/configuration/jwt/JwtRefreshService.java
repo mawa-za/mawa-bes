@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
+import za.co.mawa.bes.service.UserService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,13 +16,16 @@ public class JwtRefreshService {
 
     private final JwtTokenUtil jwtTokenUtil;
     private final JwtUserDetailsService jwtUserDetailsService;
+    private final UserService userService;
 
     public JwtRefreshService(
             JwtTokenUtil jwtTokenUtil,
-            JwtUserDetailsService jwtUserDetailsService
+            JwtUserDetailsService jwtUserDetailsService,
+            UserService userService
     ) {
         this.jwtTokenUtil = jwtTokenUtil;
         this.jwtUserDetailsService = jwtUserDetailsService;
+        this.userService = userService;
     }
 
     public JwtResponse refresh(String refreshToken) {
@@ -42,7 +46,13 @@ public class JwtRefreshService {
             TenantContext.setCurrentTenant(tenantId);
             UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
 
-            if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)) {
+            za.co.mawa.bes.entity.UserEntity authenticatedUser =
+                    userService.getUserEntityByName(username);
+            if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)
+                    || !jwtTokenUtil.isIssuedAfterPasswordChange(
+                            refreshToken,
+                            authenticatedUser == null ? null : authenticatedUser.getPasswordChangedAt()
+                    )) {
                 throw new JwtException("Invalid refresh token");
             }
 

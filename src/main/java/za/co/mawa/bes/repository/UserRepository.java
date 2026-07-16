@@ -4,6 +4,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import za.co.mawa.bes.entity.UserEntity;
 
@@ -16,6 +17,8 @@ public interface UserRepository extends JpaRepository<UserEntity,String>{
     UserEntity getByName(String username);
     @Query(value = "SELECT * FROM user u WHERE u.email = :email LIMIT 1", nativeQuery = true)
     UserEntity getByEmail(String email);
+    @Query(value = "SELECT * FROM user u WHERE LOWER(u.email) = LOWER(:email) LIMIT 1", nativeQuery = true)
+    UserEntity getByEmailIgnoreCase(@Param("email") String email);
     @Query(value = "SELECT * FROM user u WHERE u.cellphone = :cellphone LIMIT 1", nativeQuery = true)
     UserEntity getByCellphone(String cellphone); 
     @Query(value = "SELECT * FROM user u WHERE u.partner = :partnerId LIMIT 1", nativeQuery = true)

@@ -98,8 +98,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
+                    za.co.mawa.bes.entity.UserEntity authenticatedUser =
+                            userService.getUserEntityByName(username);
 
-                    if (jwtTokenUtil.validateAccessToken(jwtToken, userDetails)) {
+                    if (jwtTokenUtil.validateAccessToken(jwtToken, userDetails)
+                            && jwtTokenUtil.isIssuedAfterPasswordChange(
+                                    jwtToken,
+                                    authenticatedUser == null ? null : authenticatedUser.getPasswordChangedAt()
+                            )) {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
                                         userDetails,

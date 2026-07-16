@@ -70,8 +70,13 @@ public class UserAccessService {
             }
             return;
         }
-        String username=currentUsername();
-        if(StringUtils.hasText(username)) validateUser(userRepository.getByName(username));
+        if (!hasInteractiveSession()) {
+            return;
+        }
+        String username = currentUsername();
+        if (StringUtils.hasText(username)) {
+            validateUser(userRepository.getByName(username));
+        }
     }
 
     public void validateUser(UserEntity user) {
