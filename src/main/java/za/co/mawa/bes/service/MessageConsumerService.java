@@ -66,7 +66,16 @@ public class MessageConsumerService {
 
     @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
     public void processAllTenants() {
-        for (TenantDto tenant : tenantAdminService.getAll()) {
+        final List<TenantDto> tenants;
+        try {
+            tenants = tenantAdminService.getAll();
+        } catch (RuntimeException ex) {
+            // A temporary admin-service outage must not escape the scheduled
+            // method and generate an unbounded TaskUtils stack trace every run.
+            log.error("Message queue dispatch skipped because tenant discovery is unavailable: {}", ex.getMessage());
+            return;
+        }
+        for (TenantDto tenant : tenants) {
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
                 if (!isSchedulerEnabled() || !isDueToRun()) {
