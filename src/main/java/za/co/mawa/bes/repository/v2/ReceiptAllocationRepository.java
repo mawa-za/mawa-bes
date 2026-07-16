@@ -22,4 +22,10 @@ public interface ReceiptAllocationRepository extends JpaRepository<ReceiptAlloca
             ReceiptAllocationType allocationType,
             String referenceId
     );
+
+    boolean existsByReceiptIdAndAllocationTypeAndReferenceId(
+            String receiptId,
+            ReceiptAllocationType allocationType,
+            String referenceId
+    );
 }
