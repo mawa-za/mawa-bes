@@ -68,6 +68,14 @@ public class PaymentRequestService {
         }
         validateCreateRequest(request);
 
+        String idempotencyKey = request.getIdempotencyKey() == null ? null : request.getIdempotencyKey().trim();
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            Optional<PaymentRequestEntity> existing = paymentRequestRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                return toResponse(existing.get());
+            }
+        }
+
         PaymentRequestEntity entity = new PaymentRequestEntity();
         entity.setRequestNo(generateRequestNo());
         entity.setRequestType(request.getRequestType());
@@ -86,6 +94,7 @@ public class PaymentRequestService {
         entity.setInvoiceNo(request.getInvoiceNo());
         entity.setExternalReference(request.getExternalReference());
         entity.setPaymentReason(request.getPaymentReason());
+        entity.setIdempotencyKey(idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey);
         entity.setNotes(request.getNotes());
         entity.setRequestedPaymentDate(request.getRequestedPaymentDate());
         entity.setStatus(PaymentRequestStatus.DRAFT);

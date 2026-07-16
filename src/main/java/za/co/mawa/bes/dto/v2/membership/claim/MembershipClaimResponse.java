@@ -56,6 +56,10 @@ public class MembershipClaimResponse {
     private String approvedBy;
     private LocalDateTime approvedAt;
     private String paymentRequestId;
+    private String tombstoneOrderId;
+    private String settlementMethod;
+    private String settlementReference;
+    private LocalDateTime settledAt;
 
     private List<LinkedMembershipClaimResponse> linkedClaims = new ArrayList<>();
 
@@ -105,6 +109,14 @@ public class MembershipClaimResponse {
         this.paymentRequestId = paymentRequestId;
         return this;
     }
+    public String getTombstoneOrderId() { return tombstoneOrderId; }
+    public MembershipClaimResponse setTombstoneOrderId(String tombstoneOrderId) { this.tombstoneOrderId = tombstoneOrderId; return this; }
+    public String getSettlementMethod() { return settlementMethod; }
+    public MembershipClaimResponse setSettlementMethod(String settlementMethod) { this.settlementMethod = settlementMethod; return this; }
+    public String getSettlementReference() { return settlementReference; }
+    public MembershipClaimResponse setSettlementReference(String settlementReference) { this.settlementReference = settlementReference; return this; }
+    public LocalDateTime getSettledAt() { return settledAt; }
+    public MembershipClaimResponse setSettledAt(LocalDateTime settledAt) { this.settledAt = settledAt; return this; }
     // Getters and setters for bank details
 
     public String getBankName() {
