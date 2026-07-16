@@ -123,7 +123,12 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public String generateToken(String username, String tenantId) {
+        return generateToken(username, tenantId, null);
+    }
+
+    public String generateToken(String username, String tenantId, Map<String, Object> additionalClaims) {
         Map<String, Object> claims = new HashMap<>();
+        if (additionalClaims != null) claims.putAll(additionalClaims);
         claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
         claims.put(CLAIM_TOKEN_TYPE, ACCESS_TOKEN);
         return doGenerateToken(claims, username, tenantId, jwtExpirationInMs);
@@ -135,7 +140,12 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public String generateRefreshToken(String username, String tenantId) {
+        return generateRefreshToken(username, tenantId, null);
+    }
+
+    public String generateRefreshToken(String username, String tenantId, Map<String, Object> additionalClaims) {
         Map<String, Object> claims = new HashMap<>();
+        if (additionalClaims != null) claims.putAll(additionalClaims);
         claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
         claims.put(CLAIM_TOKEN_TYPE, REFRESH_TOKEN);
         return doGenerateToken(claims, username, tenantId, refreshExpirationDateInMs);
@@ -146,6 +156,18 @@ public class JwtTokenUtil implements Serializable {
             String tenantHost,
             String tenantUrl,
             String adminUsername,
+            String platformUserId,
+            String displayName,
+            String email,
+            String accountType,
+            String platformScope,
+            Boolean testUser,
+            Boolean protectedUser,
+            Boolean externalTransactionsBlocked,
+            Date accessExpiresAt,
+            java.util.List<String> roleIds,
+            String accessReason,
+            String ticketReference,
             String redirectPath,
             long expiryInMs
     ) {
@@ -155,6 +177,18 @@ public class JwtTokenUtil implements Serializable {
         claims.put("tenant_host", tenantHost == null ? "" : tenantHost);
         claims.put("tenant_url", tenantUrl == null ? "" : tenantUrl);
         claims.put("admin_username", adminUsername == null ? "" : adminUsername);
+        claims.put("platform_user_id", platformUserId == null ? "" : platformUserId);
+        claims.put("platform_display_name", displayName == null ? adminUsername : displayName);
+        claims.put("platform_email", email == null ? "" : email);
+        claims.put("account_type", accountType == null ? "STANDARD" : accountType);
+        claims.put("access_scope", platformScope == null ? "STANDARD" : platformScope);
+        claims.put("is_test_user", Boolean.TRUE.equals(testUser));
+        claims.put("is_protected_user", Boolean.TRUE.equals(protectedUser));
+        claims.put("external_transactions_blocked", Boolean.TRUE.equals(externalTransactionsBlocked));
+        claims.put("access_expires_at", accessExpiresAt == null ? null : accessExpiresAt.getTime());
+        claims.put("platform_roles", roleIds == null ? java.util.List.of() : roleIds);
+        claims.put("access_reason", accessReason == null ? "" : accessReason);
+        claims.put("ticket_reference", ticketReference == null ? "" : ticketReference);
         claims.put("redirect_path", redirectPath == null ? "/home" : redirectPath);
         claims.put("handoff_id", java.util.UUID.randomUUID().toString());
         return doGenerateToken(claims, "admin-handoff", tenantId, expiryInMs);

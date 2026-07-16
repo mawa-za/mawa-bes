@@ -15,4 +15,10 @@ public interface UserRoleRepository extends JpaRepository<UserRoleEntity, UserRo
     List<UserRoleEntity> findUserRoles(@Param("user") String user);
     @Query("SELECT u FROM UserRoleEntity u WHERE u.userRolePKEntity.role = :role")
     List<UserRoleEntity> findRoles(@Param("role") String role);
+
+    @Query(value = "SELECT COUNT(*) FROM user_role ur JOIN `user` u ON u.id = ur.user WHERE ur.role = :role AND u.status = 'ACTIVE' AND (u.expires_at IS NULL OR u.expires_at > NOW())", nativeQuery = true)
+    long countActiveUsersByRole(@Param("role") String role);
+
+    @Query(value = "SELECT COUNT(DISTINCT ur.user) FROM user_role ur JOIN `role` r ON r.id = ur.role JOIN `user` u ON u.id = ur.user WHERE r.access_all_workcentres = b'1' AND u.status = 'ACTIVE' AND (u.expires_at IS NULL OR u.expires_at > NOW()) AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE) AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)", nativeQuery = true)
+    long countActiveAccessAllUsers();
 }

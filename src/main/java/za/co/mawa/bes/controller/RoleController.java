@@ -33,14 +33,19 @@ public class RoleController {
             RoleDto roleDto = new RoleDto();
             roleDto.setId(roleCreateDto.getId());
             roleDto.setDescription(roleCreateDto.getDescription());
+            roleDto.setSystemRole(Boolean.TRUE.equals(roleCreateDto.getSystemRole()));
+            roleDto.setProtectedRole(Boolean.TRUE.equals(roleCreateDto.getProtectedRole()));
+            roleDto.setAccessAllWorkcentres(Boolean.TRUE.equals(roleCreateDto.getAccessAllWorkcentres()));
             roleDto.setValidFrom(new Date());
             roleDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             roleService.create(roleDto);
-            RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
-            workcenter.setWorkcenter("dashboard");
-            workcenter.setRole(roleDto.getId());
-            workcenter.setPosition(1);
-            roleService.addWorkcenter(workcenter);
+            if (!Boolean.TRUE.equals(roleDto.getAccessAllWorkcentres())) {
+                RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
+                workcenter.setWorkcenter("dashboard");
+                workcenter.setRole(roleDto.getId());
+                workcenter.setPosition(1);
+                roleService.addWorkcenter(workcenter);
+            }
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
