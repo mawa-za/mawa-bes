@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.ErrorResponse;
 import za.co.mawa.bes.dto.PrintJobRequest;
+import za.co.mawa.bes.dto.v2.PosPrintingDtos.QueueReceiptRequest;
+import za.co.mawa.bes.service.v2.PosPrintingService;
 import za.co.mawa.bes.dto.premium.PremiumCreateDto;
 import za.co.mawa.bes.dto.premium.PremiumDto;
 import za.co.mawa.bes.dto.premium.PremiumInboundDto;
@@ -32,6 +34,8 @@ public class PremiumControllerV2 {
     CashupService cashupService;
     @Autowired
     DepositService depositService;
+    @Autowired
+    PosPrintingService posPrintingService;
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPremium(@RequestBody PremiumCreateDto premiumCreateDto)  throws RuntimeException{
@@ -73,22 +77,22 @@ public class PremiumControllerV2 {
     }
 
     @RequestMapping(value = "{id}/print", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> print(HttpServletRequest request, @PathVariable String id) {
+    public ResponseEntity<?> print(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Mawa-Terminal-Id") String terminalId,
+            @RequestHeader(value = "X-Mawa-Printer-Id", required = false) String printerId
+    ) {
         try {
-            String ipAddress = request.getHeader("X-Forwarded-For");
-            if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-                ipAddress = request.getRemoteAddr();
-            }
-            PremiumDto premiumDto = premiumService.get(id);
-            PrintJobRequest printJobRequest = new PrintJobRequest();
-            printJobRequest.setPrinterId(ipAddress);
-            printJobRequest.setObjectId(id);
-            premiumService.print(printJobRequest);
-            return ResponseEntity.ok(gson.toJson(premiumDto));
+            QueueReceiptRequest destination = new QueueReceiptRequest();
+            destination.setTerminalId(terminalId);
+            destination.setPrinterId(printerId);
+            destination.setRequestId(java.util.UUID.randomUUID().toString());
+            return ResponseEntity.ok(gson.toJson(posPrintingService.queueContent(
+                    "LEGACY_PREMIUM", id, null, premiumService.generateReceipt(id), destination
+            )));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
-
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)

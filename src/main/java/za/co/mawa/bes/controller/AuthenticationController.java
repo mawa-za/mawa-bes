@@ -72,7 +72,15 @@ public class AuthenticationController {
         authenticationResponseDto.setRefreshToken(refreshToken);
         authenticationResponseDto.setUsername(authenticationDto.getUsername());
         authenticationResponseDto.setUserId(userDto.getId());
-        authenticationResponseDto.setDisplayName(userDto.getPartner().getName2() +" "+ userDto.getPartner().getName1());
+        authenticationResponseDto.setDisplayName(userDto.getPartner() == null ? userDto.getUsername() : (userDto.getPartner().getName2() + " " + userDto.getPartner().getName1()).trim());
+        authenticationResponseDto.setAccountType(userDto.getAccountType());
+        authenticationResponseDto.setTestUser(userDto.getTestUser());
+        authenticationResponseDto.setProtectedUser(userDto.getProtectedUser());
+        authenticationResponseDto.setAccessScope(userDto.getAccessScope());
+        authenticationResponseDto.setPlatformSession(false);
+        authenticationResponseDto.setTenantId(za.co.mawa.bes.configuration.context.TenantContext.getCurrentTenant());
+        authenticationResponseDto.setExternalTransactionsBlocked(userDto.getExternalTransactionsBlocked());
+        authenticationResponseDto.setExpiresAt(userDto.getExpiresAt());
         return ResponseEntity.ok(gson.toJson(authenticationResponseDto));
     }
 

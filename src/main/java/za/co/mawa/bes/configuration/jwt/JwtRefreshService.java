@@ -1,10 +1,14 @@
 package za.co.mawa.bes.configuration.jwt;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class JwtRefreshService {
@@ -42,8 +46,22 @@ public class JwtRefreshService {
                 throw new JwtException("Invalid refresh token");
             }
 
-            String newAccessToken = jwtTokenUtil.generateToken(username, tenantId);
-            String newRefreshToken = jwtTokenUtil.generateRefreshToken(username, tenantId);
+            Claims existingClaims = jwtTokenUtil.getClaimFromToken(refreshToken, claims -> claims);
+            Map<String, Object> sessionClaims = new HashMap<>(existingClaims);
+            sessionClaims.remove(Claims.SUBJECT);
+            sessionClaims.remove(Claims.AUDIENCE);
+            sessionClaims.remove(Claims.ISSUED_AT);
+            sessionClaims.remove(Claims.EXPIRATION);
+            sessionClaims.remove(Claims.NOT_BEFORE);
+            sessionClaims.remove(Claims.ID);
+            sessionClaims.remove("token_type");
+            sessionClaims.remove("tenant-id");
+
+            // Preserve platform/test access policy claims when rotating tokens.
+            // Without this, a platform or QA session could silently become an
+            // unrestricted SYSTEM session after the first token refresh.
+            String newAccessToken = jwtTokenUtil.generateToken(username, tenantId, sessionClaims);
+            String newRefreshToken = jwtTokenUtil.generateRefreshToken(username, tenantId, sessionClaims);
             return new JwtResponse(newAccessToken, newRefreshToken);
         } finally {
             if (previousTenant == null || previousTenant.isBlank()) {

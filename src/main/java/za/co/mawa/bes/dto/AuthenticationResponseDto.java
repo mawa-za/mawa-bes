@@ -17,5 +17,19 @@ public class AuthenticationResponseDto implements Serializable {
     private String displayName;
     private String accessToken;
     private String refreshToken;
+    private String accountType;
+    private Boolean testUser;
+    private Boolean protectedUser;
+    private String accessScope;
+    private Boolean platformSession;
+    private String platformUserId;
+    private String tenantId;
+    private String roleId;
+    private String roleDescription;
+    private Boolean externalTransactionsBlocked;
+    private java.util.Date expiresAt;
+    private String handoffId;
+    private String accessReason;
+    private String ticketReference;
 }
 

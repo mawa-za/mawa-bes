@@ -35,17 +35,46 @@ public class RoleControllerV2 {
             RoleDto roleDto = new RoleDto();
             roleDto.setId(roleCreateDto.getId());
             roleDto.setDescription(roleCreateDto.getDescription());
+            roleDto.setSystemRole(Boolean.TRUE.equals(roleCreateDto.getSystemRole()));
+            roleDto.setProtectedRole(Boolean.TRUE.equals(roleCreateDto.getProtectedRole()));
+            roleDto.setAccessAllWorkcentres(Boolean.TRUE.equals(roleCreateDto.getAccessAllWorkcentres()));
             roleDto.setValidFrom(new Date());
             roleDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             roleService.create(roleDto);
-            RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
-            workcenter.setWorkcenter("dashboard");
-            workcenter.setRole(roleDto.getId());
-            workcenter.setPosition(1);
-            roleService.addWorkcenter(workcenter);
-            return ResponseEntity.ok().build();
+            if (!Boolean.TRUE.equals(roleDto.getAccessAllWorkcentres())) {
+                RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
+                workcenter.setWorkcenter("dashboard");
+                workcenter.setRole(roleDto.getId());
+                workcenter.setPosition(1);
+                roleService.addWorkcenter(workcenter);
+            }
+            return ResponseEntity.ok(roleService.get(roleDto.getId()));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_ROLE_CHANGE_DENIED", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_ROLE", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/role/{role}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateRole(@PathVariable String role, @RequestBody RoleCreateDto request) {
+        try {
+            RoleDto dto = new RoleDto();
+            dto.setId(role);
+            dto.setDescription(request.getDescription());
+            dto.setSystemRole(request.getSystemRole());
+            dto.setProtectedRole(request.getProtectedRole());
+            dto.setAccessAllWorkcentres(request.getAccessAllWorkcentres());
+            roleService.create(dto);
+            return ResponseEntity.ok(roleService.get(role));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_ROLE_CHANGE_DENIED", "message", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_ROLE", "message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
 
@@ -75,8 +104,10 @@ public class RoleControllerV2 {
                 roleService.addWorkcenter(workcenter);
             }
             return ResponseEntity.ok().build();
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "ACCESS_ALL_ROLE", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -99,8 +130,10 @@ public class RoleControllerV2 {
         try {
             boolean deleted = roleService.deleteRole(role);
             return ResponseEntity.ok().body(deleted);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_ROLE", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 }

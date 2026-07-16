@@ -21,6 +21,8 @@ public class JwtUserDetailsService implements UserDetailsService {
     private String encryptionSecret;
     @Autowired
     UserService userService;
+    @Autowired
+    UserAccessService userAccessService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -31,6 +33,8 @@ public class JwtUserDetailsService implements UserDetailsService {
         try {
             UserDto userDto = userService.getUserByName(username);
             if (userDto != null) {
+                za.co.mawa.bes.entity.UserEntity policyUser = userService.getUserEntityByName(username);
+                userAccessService.validateUser(policyUser);
                 if (Status.LOCKED.equals(userDto.getStatus())) {
                     accountNonLocked = false;
                 }

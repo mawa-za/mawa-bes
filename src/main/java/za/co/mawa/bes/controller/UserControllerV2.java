@@ -85,15 +85,18 @@ public class UserControllerV2 {
     @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addRole(@PathVariable String id, @RequestBody List<String> roleList) throws Exception {
         try {
-            for (String role : roleList) {
-                UserRoleDto userRoleDto = new UserRoleDto();
-                userRoleDto.setUser(id);
-                userRoleDto.setRole(role);
-                userService.addRole(userRoleDto);
-            }
+            userService.replaceRoles(id, roleList);
             return ResponseEntity.ok().build();
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(
+                    "code", "PROTECTED_ROLE_ASSIGNMENT_DENIED", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                    "code", exception.getMessage() != null && exception.getMessage().startsWith("LAST_")
+                            ? "LAST_TENANT_SUPER_ADMIN" : "PROTECTED_USER",
+                    "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -101,8 +104,12 @@ public class UserControllerV2 {
     public ResponseEntity<?> lockUser(@PathVariable String id, @RequestParam("reason") String reason) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.lockuser(id, reason)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_USER_UPDATE_DENIED", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "LAST_TENANT_SUPER_ADMIN", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -110,8 +117,10 @@ public class UserControllerV2 {
     public ResponseEntity<?> unlockUser(@PathVariable String id) {
         try {
             return ResponseEntity.ok(gson.toJson(userService.unlockuser(id)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_USER_UPDATE_DENIED", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -122,8 +131,12 @@ public class UserControllerV2 {
             pkEntity.setRole(userRole);
             pkEntity.setUser(id);
             return ResponseEntity.ok().body(gson.toJson(userService.deleteRole(pkEntity)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_ROLE_ASSIGNMENT_DENIED", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_USER", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -131,8 +144,10 @@ public class UserControllerV2 {
     public ResponseEntity<?> deleteUser(@PathVariable String id) throws Exception {
         try {
             return ResponseEntity.ok().body(gson.toJson(userService.deleteUser(id)));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_USER", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -140,8 +155,10 @@ public class UserControllerV2 {
     public ResponseEntity<?> restUser(@PathVariable String id) throws Exception {
         try {
             return ResponseEntity.ok().body(gson.toJson(userService.resetUser(id)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_USER_UPDATE_DENIED", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 
@@ -149,8 +166,12 @@ public class UserControllerV2 {
     public ResponseEntity<?> editUser(@PathVariable String id, @RequestBody UserEditDto editDto) throws Exception {
         try {
             return ResponseEntity.ok().body(gson.toJson(userService.editUser(id, editDto)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_USER_UPDATE_DENIED", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("code", "PROTECTED_USER", "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
 

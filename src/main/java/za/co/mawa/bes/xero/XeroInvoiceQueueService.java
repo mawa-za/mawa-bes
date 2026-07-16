@@ -6,6 +6,7 @@ import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.service.UserAccessService;
 
 import java.time.LocalDateTime;
 
@@ -23,6 +24,9 @@ public class XeroInvoiceQueueService {
     @Autowired
     private XeroIntegrationSettingsService xeroIntegrationSettingsService;
 
+    @Autowired
+    private UserAccessService userAccessService;
+
     public void queueInvoiceIfEnabled(InvoiceEntity invoice) {
         if (invoice == null || isBlank(invoice.getId())) {
             return;
@@ -30,6 +34,14 @@ public class XeroInvoiceQueueService {
         if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
             invoice.setIntegrationStatus("NOT_ENABLED");
             invoiceRepository.save(invoice);
+            return;
+        }
+        if (userAccessService.externalTransactionsBlockedForInteractiveSession()) {
+            invoice.setIntegrationStatus("BLOCKED_TEST_USER");
+            invoice.setIntegrationError("Xero submission blocked by testing-user access policy");
+            invoiceRepository.save(invoice);
+            userAccessService.audit("EXTERNAL_TRANSACTION_BLOCKED", "INVOICE", invoice.getId(),
+                    "Test-user access policy", "XERO-INVOICE");
             return;
         }
         queueInvoice(invoice);
