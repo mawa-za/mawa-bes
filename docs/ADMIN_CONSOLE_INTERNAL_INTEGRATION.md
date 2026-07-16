@@ -4,6 +4,18 @@
 
 Internal endpoints:
 
+`mawa-admin-bes` also exposes the reverse service-to-service contract used by `mawa-bes`:
+
+```text
+GET  /internal/erp/tenants
+GET  /internal/erp/tenants/{tenant}
+GET  /internal/erp/tenants/{tenant}/properties
+POST /internal/erp/tenants/{tenant}/properties
+```
+
+These calls use the same `X-Mawa-Internal-Token` header and remove the former dependency on the mutable Admin Console `admin` password.
+
+
 ```text
 POST /internal/admin/handoff
 POST /internal/admin/tenant/{tenant}/refresh-config  # pulls tenant properties from mawa-admin-bes into local mawa-bes tenant_property
