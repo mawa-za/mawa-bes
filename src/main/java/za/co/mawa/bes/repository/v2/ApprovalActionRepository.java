@@ -17,9 +17,8 @@ public interface ApprovalActionRepository extends JpaRepository<ApprovalActionEn
     );
 
     boolean existsByApprovalRequestIdAndStepNoAndActionByAndAction(
-            String approvalRequestId,
-            Integer stepNo,
-            String actionBy,
-            ApprovalActionType action
-    );
+            String approvalRequestId, Integer stepNo, String actionBy, ApprovalActionType action);
+
+    boolean existsByApprovalRequestIdAndStepNoAndActionByAndActionIn(
+            String approvalRequestId, Integer stepNo, String actionBy, List<ApprovalActionType> actions);
 }

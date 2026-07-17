@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.BankAccountCreateDto;
@@ -38,6 +39,9 @@ public class PaymentRequestService {
     private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
     private final NumberRangeService numberRangeService;
     private final MembershipClaimService membershipClaimService;
+    private final PaymentAccountConfigurationService paymentAccountConfigurationService;
+    private final JdbcTemplate jdbcTemplate;
+    private final za.co.mawa.bes.repository.AttachmentRepository attachmentRepository;
 
     @Autowired
     SettingService settingService;
@@ -47,25 +51,24 @@ public class PaymentRequestService {
             PaymentRequestStatusHistoryRepository statusHistoryRepository,
             PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
             NumberRangeService numberRangeService,
-            MembershipClaimService membershipClaimService
+            MembershipClaimService membershipClaimService,
+            PaymentAccountConfigurationService paymentAccountConfigurationService,
+            JdbcTemplate jdbcTemplate,
+            za.co.mawa.bes.repository.AttachmentRepository attachmentRepository
     ) {
         this.paymentRequestRepository = paymentRequestRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.fnbPaymentQueueService = fnbPaymentQueueService;
         this.numberRangeService = numberRangeService;
         this.membershipClaimService = membershipClaimService;
+        this.paymentAccountConfigurationService = paymentAccountConfigurationService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.attachmentRepository = attachmentRepository;
     }
 
     @Transactional
     public PaymentRequestResponse create(PaymentRequestCreateRequest request, String currentUser) {
-        if (request.getPaymentMethod() == PaymentMethod.CASH) {
-            BankAccountCreateDto bankAccountCreateDto = getCashBankAccount();
-            request.setBankName(bankAccountCreateDto.getBankName());
-            request.setAccountHolder(bankAccountCreateDto.getAccountHolder());
-            request.setBranchCode(bankAccountCreateDto.getBranchCode());
-            request.setAccountNumber(bankAccountCreateDto.getAccountNumber());
-            request.setAccountType(bankAccountCreateDto.getAccountType());
-        }
+        applyTypeRules(request);
         validateCreateRequest(request);
 
         String idempotencyKey = request.getIdempotencyKey() == null ? null : request.getIdempotencyKey().trim();
@@ -328,6 +331,14 @@ public class PaymentRequestService {
 
     @Transactional
     public PaymentRequestResponse markPaid(String id, MarkPaymentRequestPaidRequest request, String currentUser) {
+        PaymentRequestEntity proofEntity = findById(id);
+        if (proofEntity.getPaymentMethod() == PaymentMethod.MANUAL) {
+            if (request.getProofAttachmentId() == null || request.getProofAttachmentId().isBlank()) throw new IllegalArgumentException("Proof of payment attachment is required for manual payments");
+            za.co.mawa.bes.entity.AttachmentEntity proof = attachmentRepository.findById(request.getProofAttachmentId()).orElseThrow(() -> new IllegalArgumentException("Proof attachment not found"));
+            if (!id.equals(proof.getObjectId())) throw new IllegalArgumentException("Proof attachment must belong to this payment request");
+            proofEntity.setManualProofAttachmentId(proof.getId());
+            paymentRequestRepository.save(proofEntity);
+        }
         PaymentRequestEntity entity = findById(id);
 
         if (entity.getStatus() != PaymentRequestStatus.APPROVED) {
@@ -632,6 +643,43 @@ public class PaymentRequestService {
 
     private String defaultCurrency(String currency) {
         return currency == null || currency.isBlank() ? "ZAR" : currency;
+    }
+
+    private void applyTypeRules(PaymentRequestCreateRequest request) {
+        if (request.getRequestType() == null) throw new IllegalArgumentException("Payment request type must be selected first");
+        if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+            if (request.getPayeePartnerId() == null || request.getPayeePartnerId().isBlank()) throw new IllegalArgumentException("Supplier is required");
+            List<java.util.Map<String,Object>> rows = jdbcTemplate.queryForList("""
+                SELECT p.id partner_id, CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,'')) payee_name,
+                       b.bank_name,b.account_holder,b.account_number,b.branch_code,b.account_type
+                  FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
+                  JOIN partner_bank_account b ON b.partner=p.id
+                 WHERE p.id=? ORDER BY b.id LIMIT 1
+                """, request.getPayeePartnerId());
+            if (rows.isEmpty()) throw new IllegalArgumentException("Selected recipient is not a supplier or has no banking details");
+            applyCreditor(request, rows.get(0));
+        } else if (request.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
+            var creditor = paymentAccountConfigurationService.activeCreditor("PETTY_CASH_CREDITOR");
+            if (creditor.isPresent()) applyCreditor(request, creditor.get()); else request.setPaymentMethod(PaymentMethod.MANUAL);
+        }
+        var debtor = paymentAccountConfigurationService.activeDebtor(request.getRequestType().name());
+        if (debtor.isEmpty()) { request.setPaymentMethod(PaymentMethod.MANUAL); return; }
+        String integration = java.util.Objects.toString(debtor.get().get("bank_integration"), "");
+        boolean fnb = "FNB".equalsIgnoreCase(integration) && isFnbEnabled();
+        request.setPaymentMethod(fnb ? PaymentMethod.EFT : PaymentMethod.MANUAL);
+    }
+
+    private void applyCreditor(PaymentRequestCreateRequest request, java.util.Map<String,Object> account) {
+        request.setBankName(java.util.Objects.toString(account.get("bank_name"), null));
+        request.setAccountHolder(java.util.Objects.toString(account.get("account_holder"), request.getPayeeName()));
+        request.setAccountNumber(java.util.Objects.toString(account.get("account_number"), null));
+        request.setBranchCode(java.util.Objects.toString(account.get("branch_code"), null));
+        request.setAccountType(java.util.Objects.toString(account.get("account_type"), null));
+    }
+
+    private boolean isFnbEnabled() {
+        String value = settingService.getSetting("ENABLED", "FNB-API");
+        return value != null && java.util.Set.of("1","true","Y","yes").contains(value.trim());
     }
 
     private BankAccountCreateDto getCashBankAccount() {

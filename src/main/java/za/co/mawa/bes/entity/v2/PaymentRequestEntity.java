@@ -115,6 +115,18 @@ public class PaymentRequestEntity {
     @Column(name = "paid_reference")
     private String paidReference;
 
+    @Column(name = "debtor_account_id")
+    private String debtorAccountId;
+
+    @Column(name = "creditor_account_id")
+    private String creditorAccountId;
+
+    @Column(name = "bank_integration")
+    private String bankIntegration;
+
+    @Column(name = "manual_proof_attachment_id")
+    private String manualProofAttachmentId;
+
     @Column(name = "fnb_instruction_id", length = 255)
     private String fnbInstructionId;
 

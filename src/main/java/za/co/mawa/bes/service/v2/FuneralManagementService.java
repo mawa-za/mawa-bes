@@ -45,6 +45,8 @@ public class FuneralManagementService {
     private final FuneralPickupRequestRepository pickupRequestRepository;
     private final FuneralMortuaryInventoryRepository mortuaryInventoryRepository;
     private final FuneralPackageRepository funeralPackageRepository;
+    private final FuneralPackageItemRepository funeralPackageItemRepository;
+    private final za.co.mawa.bes.repository.ProductRepository productRepository;
     private final FuneralServiceRepository funeralServiceRepository;
     private final FuneralServiceInvoiceRepository funeralServiceInvoiceRepository;
     private final InvoiceRepository invoiceRepository;
@@ -131,13 +133,13 @@ public class FuneralManagementService {
 
     public List<FuneralPackageEntity> getPackages(boolean activeOnly) {
         if (activeOnly) {
-            return funeralPackageRepository.findByActiveTrue();
+            return attachPackageItems(funeralPackageRepository.findByActiveTrue());
         }
-        return funeralPackageRepository.findAll();
+        return attachPackageItems(funeralPackageRepository.findAll());
     }
 
     public FuneralPackageEntity getPackage(String id) {
-        return getFuneralPackageOrThrow(id);
+        return attachPackageItems(getFuneralPackageOrThrow(id));
     }
 
     @Transactional
@@ -145,10 +147,11 @@ public class FuneralManagementService {
         validateRequired(request.getName(), "name");
         FuneralPackageEntity entity = new FuneralPackageEntity();
         entity.setName(request.getName().trim());
-        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
-        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
+        entity.setInclusionsJson("[]");
         entity.setActive(request.getActive() == null || request.getActive());
-        return funeralPackageRepository.save(entity);
+        entity = funeralPackageRepository.save(entity);
+        replacePackageItems(entity, request.getProducts());
+        return attachPackageItems(entity);
     }
 
     @Transactional
@@ -157,12 +160,50 @@ public class FuneralManagementService {
         validateRequired(request.getName(), "name");
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setName(request.getName().trim());
-        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
-        entity.setInclusionsJson(resolveInclusionsJson(request.getInclusionsJson(), request.getInclusions()));
+        entity.setInclusionsJson("[]");
         if (request.getActive() != null) {
             entity.setActive(request.getActive());
         }
-        return funeralPackageRepository.save(entity);
+        entity = funeralPackageRepository.save(entity);
+        replacePackageItems(entity, request.getProducts());
+        return attachPackageItems(entity);
+    }
+
+    private List<FuneralPackageEntity> attachPackageItems(List<FuneralPackageEntity> packages) {
+        packages.forEach(this::attachPackageItems);
+        return packages;
+    }
+
+    private FuneralPackageEntity attachPackageItems(FuneralPackageEntity entity) {
+        entity.setProducts(funeralPackageItemRepository.findByFuneralPackageIdOrderByProductDescriptionAsc(entity.getId()));
+        return entity;
+    }
+
+    private void replacePackageItems(FuneralPackageEntity funeralPackage, List<FuneralPackageItemRequestDto> products) {
+        if (products == null || products.isEmpty()) {
+            throw new IllegalArgumentException("A funeral package must contain at least one product");
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        funeralPackageItemRepository.deleteByFuneralPackageId(funeralPackage.getId());
+        long total = 0L;
+        for (FuneralPackageItemRequestDto item : products) {
+            if (item.getProductId() == null || item.getProductId().isBlank()) throw new IllegalArgumentException("productId is required");
+            if (!seen.add(item.getProductId())) throw new IllegalArgumentException("A product may only appear once in a funeral package");
+            int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
+            if (quantity <= 0) throw new IllegalArgumentException("Product quantity must be greater than zero");
+            long unitPrice = item.getUnitPriceCents() == null ? 0L : item.getUnitPriceCents();
+            if (unitPrice < 0) throw new IllegalArgumentException("Product unit price cannot be negative");
+            za.co.mawa.bes.entity.ProductEntity product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProductId()));
+            long lineTotal = Math.multiplyExact(unitPrice, quantity);
+            total = Math.addExact(total, lineTotal);
+            funeralPackageItemRepository.save(FuneralPackageItemEntity.builder()
+                    .funeralPackageId(funeralPackage.getId()).productId(product.getId())
+                    .productCode(product.getCode()).productDescription(product.getDescription())
+                    .quantity(quantity).unitPriceCents(unitPrice).lineTotalCents(lineTotal).build());
+        }
+        funeralPackage.setBasePriceCents(total);
+        funeralPackageRepository.save(funeralPackage);
     }
 
     @Transactional

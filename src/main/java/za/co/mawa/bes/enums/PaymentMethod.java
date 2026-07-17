@@ -4,5 +4,6 @@ public enum PaymentMethod {
     CASH,
     EFT,
     CARD,
-    INTERNAL_TRANSFER
+    INTERNAL_TRANSFER,
+    MANUAL
 }
