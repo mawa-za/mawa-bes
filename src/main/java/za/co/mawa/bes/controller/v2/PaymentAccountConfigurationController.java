@@ -4,7 +4,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.service.v2.PaymentAccountConfigurationService;
 import java.util.*;
-@RestController @RequestMapping("/v2/payment-account-configurations") @RequiredArgsConstructor
+@RestController
+@RequestMapping({"/v2/payment-account-configurations", "/v2/payment-account-configuration"})
+@RequiredArgsConstructor
 public class PaymentAccountConfigurationController {
  private final PaymentAccountConfigurationService service;
  @GetMapping public List<Map<String,Object>> list(){return service.list();}
