@@ -59,6 +59,9 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
         validateCreateRequest(request);
+        if (request.getClaimType() != MembershipClaimType.CASH) {
+            throw new IllegalArgumentException("Only CASH claims may be created directly from a membership. Funeral and combination claims must originate from a funeral service request.");
+        }
 
         MembershipEntity membership = membershipRepository.findById(request.getMembershipId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + request.getMembershipId()));

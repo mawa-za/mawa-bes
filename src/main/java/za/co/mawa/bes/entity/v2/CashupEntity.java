@@ -55,6 +55,9 @@ public class CashupEntity {
     @Column(name = "legacy_transaction_id", length = 255)
     private String legacyTransactionId;
 
+    @Column(name = "source", nullable = false, length = 30)
+    private String source = "MAWAPAY";
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

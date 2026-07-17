@@ -19,4 +19,5 @@ public class FuneralPackageUpdateRequestDto {
     private String inclusionsJson;
     private List<String> inclusions;
     private Boolean active;
+    private List<FuneralPackageItemRequestDto> products;
 }

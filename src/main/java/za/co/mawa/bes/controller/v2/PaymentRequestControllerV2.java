@@ -49,6 +49,11 @@ public class PaymentRequestControllerV2 {
         return ResponseEntity.ok(paymentRequestService.create(request, currentUser));
     }
 
+    @GetMapping("/recipient-options")
+    public ResponseEntity<List<java.util.Map<String,Object>>> recipientOptions(@RequestParam PaymentRequestType type,@RequestParam(required=false) String query) {
+        return ResponseEntity.ok(paymentRequestService.recipientOptions(type, query));
+    }
+
     @GetMapping
     public ResponseEntity<List<PaymentRequestResponse>> getAll() {
         return ResponseEntity.ok(paymentRequestService.getAll());

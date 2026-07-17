@@ -702,7 +702,10 @@ public class PosPrintingService {
         receipt.append(center("Tel: " + nullSafe(companyInfoService.getCompanyTelephoneNumber()), width)).append('\n');
         receipt.append("-".repeat(width)).append('\n');
         line(receipt, "Receipt No", data.getReceiptNo(), width);
-        line(receipt, "Membership", data.getMembershipId(), width);
+        line(receipt, "Member", data.getMemberName(), width);
+        line(receipt, "Membership No", data.getMembershipNo(), width);
+        line(receipt, "ID Number", data.getIdentityNumber(), width);
+        line(receipt, "Plan", data.getPlanName(), width);
         line(receipt, "Period", data.getPremiumPeriodYYYYMM(), width);
         line(receipt, "Payment Method", data.getPaymentMethod(), width);
         line(receipt, "Amount", money(data.getAmountCents()), width);

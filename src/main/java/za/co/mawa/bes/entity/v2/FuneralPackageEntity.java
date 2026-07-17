@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.util.List;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -29,4 +31,7 @@ public class FuneralPackageEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    @Transient
+    private List<FuneralPackageItemEntity> products;
 }

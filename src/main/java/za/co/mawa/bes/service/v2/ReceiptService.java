@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.ReceiptPrintDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
@@ -22,6 +23,7 @@ public class ReceiptService {
     private final ReceiptRepository receiptRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
     private final ReceiptMapper receiptMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     public ReceiptEntity saveReceipt(ReceiptEntity receipt) {
         return receiptRepository.save(receipt);
@@ -83,11 +85,25 @@ public class ReceiptService {
 
         ReceiptAllocationEntity firstAllocation = allocations.isEmpty() ? null : allocations.get(0);
 
+        java.util.Map<String,Object> member = new java.util.HashMap<>();
+        if (receipt.getMembershipId() != null) {
+            var rows=jdbcTemplate.queryForList("""
+                SELECT m.membership_no,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) member_name,
+                       (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id ORDER BY pi.id LIMIT 1) identity_number,
+                       mp.name plan_name
+                  FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
+                """,receipt.getMembershipId());
+            if(!rows.isEmpty()) member=rows.get(0);
+        }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
                 .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
                 .membershipId(receipt.getMembershipId())
+                .memberName(java.util.Objects.toString(member.get("member_name"),""))
+                .membershipNo(java.util.Objects.toString(member.get("membership_no"),receipt.getMembershipId()))
+                .identityNumber(java.util.Objects.toString(member.get("identity_number"),""))
+                .planName(java.util.Objects.toString(member.get("plan_name"),""))
                 .premiumPeriodYYYYMM(firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM())
                 .amountCents(firstAllocation == null ? receipt.getTotalAmountCents() : firstAllocation.getAmountCents())
                 .paymentMethod(receipt.getPaymentMethod())

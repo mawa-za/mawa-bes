@@ -25,4 +25,6 @@ public interface ReceiptRepository extends JpaRepository<ReceiptEntity, String> 
     );
 
     boolean existsByReceiptNo(String receiptNo);
+
+    boolean existsByManualReceiptBookNoAndManualReceiptNo(String manualReceiptBookNo, String manualReceiptNo);
 }
