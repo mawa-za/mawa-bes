@@ -248,22 +248,22 @@ public class PaymentRequestService {
         String q = query == null ? "" : query.trim();
         if (type == PaymentRequestType.SUPPLIER_INVOICE) {
             return jdbcTemplate.queryForList("""
-                SELECT DISTINCT p.id, TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name
+                SELECT DISTINCT p.id, TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name
                   FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
-                 WHERE ?='' OR LOWER(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) LIKE LOWER(CONCAT('%',?,'%'))
+                 WHERE ?='' OR LOWER(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,'')))) LIKE LOWER(CONCAT('%',?,'%'))
                  ORDER BY name LIMIT 50
                 """,q,q);
         }
         if (type == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
             return jdbcTemplate.queryForList("""
-                SELECT p.id,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name
+                SELECT p.id,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name
                   FROM partner p JOIN partner_role pr ON pr.partner=p.id
                  WHERE pr.role IN ('TENANT_OWNER','OWNER') ORDER BY name LIMIT 1
                 """);
         }
         return jdbcTemplate.queryForList("""
-            SELECT p.id,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name FROM partner p
-             WHERE ?='' OR LOWER(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) LIKE LOWER(CONCAT('%',?,'%'))
+            SELECT p.id,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name FROM partner p
+             WHERE ?='' OR LOWER(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,'')))) LIKE LOWER(CONCAT('%',?,'%'))
              ORDER BY name LIMIT 50
             """,q,q);
     }
@@ -733,7 +733,7 @@ public class PaymentRequestService {
         if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
             if (request.getPayeePartnerId() == null || request.getPayeePartnerId().isBlank()) throw new IllegalArgumentException("Supplier is required");
             List<java.util.Map<String,Object>> rows = jdbcTemplate.queryForList("""
-                SELECT p.id partner_id, CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,'')) payee_name,
+                SELECT p.id partner_id, TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) payee_name,
                        b.bank_name,b.account_holder,b.account_number,b.branch_code,b.account_type
                   FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
                   JOIN partner_bank_account b ON b.partner=p.id

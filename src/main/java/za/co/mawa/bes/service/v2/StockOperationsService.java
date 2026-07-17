@@ -117,7 +117,7 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getQuotations(String status, String customerPartnerId) {
-        StringBuilder sql = new StringBuilder("SELECT q.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id LEFT JOIN (SELECT quotation_id, COUNT(*) AS line_count FROM quotation_line GROUP BY quotation_id) l ON l.quotation_id = q.id WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id LEFT JOIN (SELECT quotation_id, COUNT(*) AS line_count FROM quotation_line GROUP BY quotation_id) l ON l.quotation_id = q.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
         if (hasText(status)) { sql.append(" AND q.status = ?"); args.add(status.trim().toUpperCase()); }
         if (hasText(customerPartnerId)) { sql.append(" AND q.customer_partner_id = ?"); args.add(customerPartnerId); }
@@ -126,7 +126,7 @@ public class StockOperationsService {
     }
 
     public Map<String, Object> getQuotation(String id) {
-        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT q.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id WHERE q.id = ?", id);
+        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id WHERE q.id = ?", id);
         quotation.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM quotation_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.quotation_id = ? ORDER BY l.line_no", id));
         return quotation;
     }
@@ -198,7 +198,7 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getPurchaseOrders(String status, String supplierPartnerId) {
-        StringBuilder sql = new StringBuilder("SELECT po.*, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id LEFT JOIN (SELECT purchase_order_id, COUNT(*) AS line_count FROM purchase_order_line GROUP BY purchase_order_id) l ON l.purchase_order_id = po.id WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT po.*, p.number AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id LEFT JOIN (SELECT purchase_order_id, COUNT(*) AS line_count FROM purchase_order_line GROUP BY purchase_order_id) l ON l.purchase_order_id = po.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
         if (hasText(status)) { sql.append(" AND po.status = ?"); args.add(status.trim().toUpperCase()); }
         if (hasText(supplierPartnerId)) { sql.append(" AND po.supplier_partner_id = ?"); args.add(supplierPartnerId); }
@@ -207,7 +207,7 @@ public class StockOperationsService {
     }
 
     public Map<String, Object> getPurchaseOrder(String id) {
-        Map<String, Object> po = jdbcTemplate.queryForMap("SELECT po.*, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id WHERE po.id = ?", id);
+        Map<String, Object> po = jdbcTemplate.queryForMap("SELECT po.*, p.number AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM purchase_order po LEFT JOIN partner p ON p.id = po.supplier_partner_id WHERE po.id = ?", id);
         po.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM purchase_order_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.purchase_order_id = ? ORDER BY l.line_no", id));
         return po;
     }
@@ -293,12 +293,12 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getGoodsReceipts(String status) {
-        if (hasText(status)) return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id WHERE gr.status = ? ORDER BY gr.created_at DESC", status.trim().toUpperCase());
-        return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id ORDER BY gr.created_at DESC LIMIT 300");
+        if (hasText(status)) return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.number AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id WHERE gr.status = ? ORDER BY gr.created_at DESC", status.trim().toUpperCase());
+        return jdbcTemplate.queryForList("SELECT gr.*, po.purchase_order_no, p.number AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name, COALESCE(l.line_count,0) AS line_count FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id LEFT JOIN (SELECT goods_receipt_id, COUNT(*) AS line_count FROM goods_receipt_line GROUP BY goods_receipt_id) l ON l.goods_receipt_id = gr.id ORDER BY gr.created_at DESC LIMIT 300");
     }
 
     public Map<String, Object> getGoodsReceipt(String id) {
-        Map<String, Object> receipt = jdbcTemplate.queryForMap("SELECT gr.*, po.purchase_order_no, p.no AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id WHERE gr.id = ?", id);
+        Map<String, Object> receipt = jdbcTemplate.queryForMap("SELECT gr.*, po.purchase_order_no, p.number AS supplier_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS supplier_name FROM goods_receipt gr LEFT JOIN purchase_order po ON po.id = gr.purchase_order_id LEFT JOIN partner p ON p.id = gr.supplier_partner_id WHERE gr.id = ?", id);
         receipt.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM goods_receipt_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.goods_receipt_id = ? ORDER BY l.line_no", id));
         return receipt;
     }
@@ -377,12 +377,12 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getSalesOrders(String status) {
-        if (hasText(status)) return jdbcTemplate.queryForList("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id WHERE so.status = ? ORDER BY so.created_at DESC", status.trim().toUpperCase());
-        return jdbcTemplate.queryForList("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id ORDER BY so.created_at DESC LIMIT 300");
+        if (hasText(status)) return jdbcTemplate.queryForList("SELECT so.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id WHERE so.status = ? ORDER BY so.created_at DESC", status.trim().toUpperCase());
+        return jdbcTemplate.queryForList("SELECT so.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id LEFT JOIN (SELECT sales_order_id, COUNT(*) AS line_count FROM sales_order_line GROUP BY sales_order_id) l ON l.sales_order_id = so.id ORDER BY so.created_at DESC LIMIT 300");
     }
 
     public Map<String, Object> getSalesOrder(String id) {
-        Map<String, Object> order = jdbcTemplate.queryForMap("SELECT so.*, p.no AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id WHERE so.id = ?", id);
+        Map<String, Object> order = jdbcTemplate.queryForMap("SELECT so.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM sales_order so LEFT JOIN partner p ON p.id = so.customer_partner_id WHERE so.id = ?", id);
         order.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM sales_order_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.sales_order_id = ? ORDER BY l.line_no", id));
         return order;
     }
