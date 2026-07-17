@@ -52,6 +52,13 @@ public class FuneralServiceClaimEntity {
     @Column(name = "burial_society_partner_id")
     private String burialSocietyPartnerId;
 
+
+    @Column(name = "provider_tenant_id") private String providerTenantId;
+    @Column(name = "provider_partner_id") private String providerPartnerId;
+    @Column(name = "service_invoice_id") private String serviceInvoiceId;
+    @Column(name = "service_payment_request_id") private String servicePaymentRequestId;
+    @Column(name = "grocery_claim_id") private String groceryClaimId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

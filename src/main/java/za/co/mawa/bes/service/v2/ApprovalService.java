@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.entity.v2.*;
@@ -28,6 +29,7 @@ public class ApprovalService {
     private final ApprovalActionRepository approvalActionRepository;
     private final ApprovalCompletionHandlerRegistry completionHandlerRegistry;
     private final ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
+    private final JdbcTemplate jdbcTemplate;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -127,18 +129,14 @@ public class ApprovalService {
                         approvalRequest.getCurrentStepNo()
                 ).orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
-        validateApprover(currentStep, request.getActionBy());
+        validateApprover(currentStep, request.getActionBy(), approvalRequest);
 
-        boolean alreadyApproved = approvalActionRepository
-                .existsByApprovalRequestIdAndStepNoAndActionByAndAction(
-                        approvalRequestId,
-                        approvalRequest.getCurrentStepNo(),
-                        request.getActionBy(),
-                        ApprovalActionType.APPROVED
-                );
-
-        if (alreadyApproved) {
-            throw new RuntimeException("User has already approved this step");
+        boolean alreadyActioned = approvalActionRepository
+                .existsByApprovalRequestIdAndStepNoAndActionByAndActionIn(
+                        approvalRequestId, approvalRequest.getCurrentStepNo(), request.getActionBy(),
+                        List.of(ApprovalActionType.APPROVED, ApprovalActionType.REJECTED));
+        if (alreadyActioned) {
+            throw new RuntimeException("User has already actioned this approval step");
         }
 
         recordAction(
@@ -176,7 +174,7 @@ public class ApprovalService {
                 )
                 .orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
-        validateApprover(currentStep, request.getActionBy());
+        validateApprover(currentStep, request.getActionBy(), approvalRequest);
 
         recordAction(
                 approvalRequestId,
@@ -303,7 +301,7 @@ public class ApprovalService {
      * - if approverType = GROUP, user must belong to group
      * - if approverType = MANAGER, user must be manager of requester
      */
-    private void validateApprover(ApprovalWorkflowStepEntity step, String actionBy) {
+    private void validateApprover(ApprovalWorkflowStepEntity step, String actionBy, ApprovalRequestEntity request) {
         if (step == null) {
             throw new RuntimeException("Approval step is required");
         }
@@ -319,7 +317,7 @@ public class ApprovalService {
         boolean allowed = step.getApprovers()
                 .stream()
                 .filter(approver -> approver.getActive() == null || approver.getActive())
-                .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy));
+                .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy, request));
 
         if (!allowed) {
             throw new RuntimeException("User is not allowed to approve this step");
@@ -328,7 +326,8 @@ public class ApprovalService {
 
     private boolean isUserAllowedForApproverRule(
             ApprovalWorkflowStepApproverEntity approver,
-            String actionBy
+            String actionBy,
+            ApprovalRequestEntity request
     ) {
         if (approver.getApproverType() == null) {
             return false;
@@ -340,8 +339,7 @@ public class ApprovalService {
 
         switch (approver.getApproverType()) {
             case USER:
-//                return approver.getApproverValue().equals(actionBy);
-                return true;
+                return matchesUser(actionBy, approver.getApproverValue());
             case ROLE:
                 return userHasRole(actionBy, approver.getApproverValue());
 
@@ -349,35 +347,66 @@ public class ApprovalService {
                 return userBelongsToGroup(actionBy, approver.getApproverValue());
 
             case MANAGER:
-                return isManager(actionBy);
+                return isManagerOfRequester(actionBy, request == null ? null : request.getRequesterId());
 
             default:
                 return false;
         }
     }
 
-    private boolean userHasRole(String userId, String roleCode) {
-        // TODO: Connect to your existing user/role table or security service.
-        // Example:
-        // return userRoleRepository.existsByUserIdAndRoleCode(userId, roleCode);
+    private boolean matchesUser(String actionBy, String configuredUser) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM `user`
+                 WHERE status = 'ACTIVE'
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                   AND (id = ? OR username = ? OR email = ?)
+                """, Integer.class, configuredUser, configuredUser, configuredUser);
+        if (count == null || count == 0) return false;
+        return actionBy.equals(configuredUser) || Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) > 0 FROM `user`
+                 WHERE (id = ? OR username = ? OR email = ?)
+                   AND (id = ? OR username = ? OR email = ?)
+                """, Boolean.class, actionBy, actionBy, actionBy, configuredUser, configuredUser, configuredUser));
+    }
 
-        return true;
+    private boolean userHasRole(String userId, String roleCode) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                  FROM user_role ur
+                  JOIN `user` u ON u.id = ur.user
+                  JOIN role r ON r.id = ur.role
+                 WHERE (u.id = ? OR u.username = ? OR u.email = ?)
+                   AND (r.id = ? OR UPPER(r.description) = UPPER(?))
+                   AND u.status = 'ACTIVE'
+                   AND (u.expires_at IS NULL OR u.expires_at > NOW())
+                   AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
+                   AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
+                """, Integer.class, userId, userId, userId, roleCode, roleCode);
+        return count != null && count > 0;
     }
 
     private boolean userBelongsToGroup(String userId, String groupCode) {
-        // TODO: Connect to your existing group/team table if you have one.
-        // Example:
-        // return userGroupRepository.existsByUserIdAndGroupCode(userId, groupCode);
-
-        return true;
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM approval_group_member gm
+                  JOIN `user` u ON u.id = gm.user_id
+                 WHERE gm.group_code = ? AND gm.active = 1
+                   AND (u.id = ? OR u.username = ? OR u.email = ?)
+                   AND u.status = 'ACTIVE'
+                   AND (u.expires_at IS NULL OR u.expires_at > NOW())
+                """, Integer.class, groupCode, userId, userId, userId);
+        return count != null && count > 0;
     }
 
-    private boolean isManager(String userId) {
-        // TODO: Connect to your employee/manager structure.
-        // Example:
-        // return employeeRepository.existsByUserIdAndIsManagerTrue(userId);
-
-        return true;
+    private boolean isManagerOfRequester(String managerUser, String requesterUser) {
+        if (requesterUser == null || requesterUser.isBlank()) return false;
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM approval_manager_assignment ma
+                 WHERE ma.active = 1
+                   AND ma.manager_user_id IN (SELECT id FROM `user` WHERE id = ? OR username = ? OR email = ?)
+                   AND ma.requester_user_id IN (SELECT id FROM `user` WHERE id = ? OR username = ? OR email = ?)
+                """, Integer.class, managerUser, managerUser, managerUser,
+                requesterUser, requesterUser, requesterUser);
+        return count != null && count > 0;
     }
 
     private void recordAction(

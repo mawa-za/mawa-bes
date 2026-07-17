@@ -1,0 +1,24 @@
+package za.co.mawa.bes.service.v2;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.*;
+@Service @RequiredArgsConstructor
+public class ThirdPartyFuneralUnderwritingService {
+ private final JdbcTemplate jdbc;
+ public List<Map<String,Object>> underwriters(){return jdbc.queryForList("SELECT * FROM third_party_funeral_underwriter ORDER BY name");}
+ @Transactional public Map<String,Object> saveUnderwriter(Map<String,Object>b){String id=id(b);jdbc.update("""
+ INSERT INTO third_party_funeral_underwriter(id,partner_id,code,name,status,integration_mode,settlement_terms_days,notes)
+ VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE partner_id=VALUES(partner_id),code=VALUES(code),name=VALUES(name),status=VALUES(status),integration_mode=VALUES(integration_mode),settlement_terms_days=VALUES(settlement_terms_days),notes=VALUES(notes)
+ """,id,req(b,"partnerId"),req(b,"code"),req(b,"name"),val(b,"status","ACTIVE"),val(b,"integrationMode","MANUAL"),num(b,"settlementTermsDays",0),b.get("notes"));return jdbc.queryForMap("SELECT * FROM third_party_funeral_underwriter WHERE id=?",id);}
+ public List<Map<String,Object>> covers(String status){return status==null||status.isBlank()?jdbc.queryForList("SELECT c.*,u.name underwriter_name FROM third_party_funeral_cover c JOIN third_party_funeral_underwriter u ON u.id=c.underwriter_id ORDER BY c.created_at DESC"):jdbc.queryForList("SELECT c.*,u.name underwriter_name FROM third_party_funeral_cover c JOIN third_party_funeral_underwriter u ON u.id=c.underwriter_id WHERE c.status=? ORDER BY c.created_at DESC",status);}
+ @Transactional public Map<String,Object> saveCover(Map<String,Object>b){String id=id(b);jdbc.update("""
+ INSERT INTO third_party_funeral_cover(id,underwriter_id,external_policy_no,membership_id,holder_name,holder_identity,deceased_name,deceased_identity,cover_amount_cents,effective_from,effective_to,status,underwriting_notes)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE underwriter_id=VALUES(underwriter_id),external_policy_no=VALUES(external_policy_no),membership_id=VALUES(membership_id),holder_name=VALUES(holder_name),holder_identity=VALUES(holder_identity),deceased_name=VALUES(deceased_name),deceased_identity=VALUES(deceased_identity),cover_amount_cents=VALUES(cover_amount_cents),effective_from=VALUES(effective_from),effective_to=VALUES(effective_to),status=VALUES(status),underwriting_notes=VALUES(underwriting_notes)
+ """,id,req(b,"underwriterId"),req(b,"externalPolicyNo"),b.get("membershipId"),req(b,"holderName"),req(b,"holderIdentity"),b.get("deceasedName"),b.get("deceasedIdentity"),num(b,"coverAmountCents",0),req(b,"effectiveFrom"),b.get("effectiveTo"),val(b,"status","PENDING_UNDERWRITING"),b.get("underwritingNotes"));replaceBeneficiaries(id,b.get("beneficiaries"));return getCover(id);}
+ @Transactional public Map<String,Object> decide(String id,Map<String,Object>b){String status=req(b,"status");if(!Set.of("APPROVED","DECLINED","SUSPENDED","ACTIVE").contains(status))throw new IllegalArgumentException("Invalid underwriting status");jdbc.update("UPDATE third_party_funeral_cover SET status=?,underwriting_notes=? WHERE id=?",status,b.get("notes"),id);return getCover(id);}
+ public Map<String,Object> getCover(String id){Map<String,Object> r=new LinkedHashMap<>(jdbc.queryForMap("SELECT c.*,u.name underwriter_name FROM third_party_funeral_cover c JOIN third_party_funeral_underwriter u ON u.id=c.underwriter_id WHERE c.id=?",id));r.put("beneficiaries",jdbc.queryForList("SELECT * FROM third_party_funeral_cover_beneficiary WHERE cover_id=? ORDER BY full_name",id));return r;}
+ @SuppressWarnings("unchecked") private void replaceBeneficiaries(String cover,Object raw){jdbc.update("DELETE FROM third_party_funeral_cover_beneficiary WHERE cover_id=?",cover);if(!(raw instanceof List<?> l))return;for(Object o:l){if(!(o instanceof Map<?,?> x))continue;Map<String,Object> m=(Map<String,Object>)x;jdbc.update("INSERT INTO third_party_funeral_cover_beneficiary(id,cover_id,full_name,identity_number,relationship,cover_amount_cents) VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),cover,req(m,"fullName"),req(m,"identityNumber"),m.get("relationship"),num(m,"coverAmountCents",0));}}
+ private static String id(Map<String,Object>b){String x=Objects.toString(b.get("id"),"");return x.isBlank()?UUID.randomUUID().toString():x;} private static String req(Map<String,Object>b,String k){String x=Objects.toString(b.get(k),"").trim();if(x.isBlank())throw new IllegalArgumentException(k+" is required");return x;} private static String val(Map<String,Object>b,String k,String d){String x=Objects.toString(b.get(k),"").trim();return x.isBlank()?d:x;} private static long num(Map<String,Object>b,String k,long d){Object x=b.get(k);return x==null?d:Long.parseLong(x.toString());}
+}
