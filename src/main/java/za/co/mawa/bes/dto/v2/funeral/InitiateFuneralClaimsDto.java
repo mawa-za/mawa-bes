@@ -37,7 +37,12 @@ public class InitiateFuneralClaimsDto {
         addAllNonBlank(merged, memberships);
         addAllNonBlank(merged, membershipIds);
         addAllNonBlank(merged, sourceReferences);
-        return new ArrayList<>(merged);
+
+        Set<String> stableSelections = new LinkedHashSet<>();
+        merged.stream()
+                .filter(this::isStableSelectionId)
+                .forEach(stableSelections::add);
+        return new ArrayList<>(stableSelections.isEmpty() ? merged : stableSelections);
     }
 
     public List<String> getMembershipIds() {
@@ -69,6 +74,10 @@ public class InitiateFuneralClaimsDto {
 
     public String getNotes() { return notes; }
     public String getGroceryCoverSelectionId() { return groceryCoverSelectionId; }
+
+    private boolean isStableSelectionId(String value) {
+        return value.startsWith("LOCAL:") || value.startsWith("EXTERNAL:");
+    }
 
     private void addAllNonBlank(Set<String> target, List<String> values) {
         if (values == null) return;
