@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
+import za.co.mawa.bes.dto.v2.ManualPremiumReceiptCaptureRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
@@ -16,9 +17,21 @@ import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
+import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.repository.v2.CashupRepository;
+import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
+import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
+import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
+import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
+import za.co.mawa.bes.entity.v2.ManualReceiptCutoverConfigurationEntity;
+import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
+import za.co.mawa.bes.repository.v2.ManualPremiumReceiptRepository;
+import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.service.NotificationService;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +44,13 @@ public class MembershipPremiumPaymentService {
     private final ReceiptMapper receiptMapper;
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
+    private final ReceiptRepository receiptRepository;
+    private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
+    private final AttachmentRepository attachmentRepository;
+    private final CashupRepository cashupRepository;
+    private final CashupReceiptRepository cashupReceiptRepository;
+    private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
+    private final ManualReceiptCutoverConfigurationService cutoverConfigurationService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
     @Autowired
     NumberAllocationService numberAllocationService;
@@ -39,24 +59,7 @@ public class MembershipPremiumPaymentService {
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
 
-        PaymentBatchEntity batch = new PaymentBatchEntity();
-        batch.setPaymentBatchNo(numberAllocationService.allocateNumber("PAYMENT_BATCH"));
-        batch.setSourceType(ReceiptSourceType.MEMBERSHIP_PREMIUM);
-        batch.setMembershipId(request.getMembershipId());
-        batch.setPaymentMethod(request.getPaymentMethod());
-        batch.setTotalAmountCents(request.getAmountCents());
-        batch.setPaymentDate(request.getPaymentDate() == null ? LocalDateTime.now() : request.getPaymentDate());
-        batch.setLocation(request.getLocation());
-        batch.setEmployeeResponsible(request.getEmployeeResponsible());
-        batch.setDeviceId(request.getDeviceId());
-        batch.setTerminalId(request.getTerminalId());
-        batch.setStatus(PaymentBatchStatus.POSTED);
-        batch.setSyncStatus(SyncStatus.SYNCED);
-        batch.setNotes(request.getNotes());
-        batch.setCreatedBy(request.getCreatedBy());
-        batch.setCreatedAt(LocalDateTime.now());
-
-        batch = paymentBatchRepository.save(batch);
+        PaymentBatchEntity batch = createBatch(request);
 
         List<ReceiptResponseDto> receipts = allocateAmountToPremiums(
                 batch,
@@ -82,6 +85,146 @@ public class MembershipPremiumPaymentService {
                 .receipts(receipts)
                 .build();
     }
+
+    @Transactional
+    public PaymentBatchResponseDto captureManualReceipt(ManualPremiumReceiptCaptureRequest request) {
+        validateManual(request);
+        ManualReceiptCutoverConfigurationEntity config = cutoverConfigurationService.getRequired();
+        String mode = request.getCaptureMode().trim().toUpperCase();
+        LocalDate today = LocalDate.now();
+
+        if ("LEGACY_CATCH_UP".equals(mode)) {
+            if (!Boolean.TRUE.equals(config.getLegacyCaptureEnabled())) {
+                throw new IllegalStateException("Legacy receipt capture is disabled");
+            }
+            if (!request.getOriginalReceiptDate().isBefore(config.getMawaPayGoLiveDate())) {
+                throw new IllegalArgumentException("Legacy catch-up receipts must be dated before the MAWAPay go-live date");
+            }
+            if (config.getLegacyCaptureCloseDate() != null && today.isAfter(config.getLegacyCaptureCloseDate())) {
+                throw new IllegalStateException("The legacy receipt capture window is closed");
+            }
+        } else if ("MANUAL_EMERGENCY".equals(mode)) {
+            if (request.getOriginalReceiptDate().isBefore(config.getMawaPayGoLiveDate())) {
+                throw new IllegalArgumentException("Receipts before go-live must be captured as LEGACY_CATCH_UP");
+            }
+            if (Boolean.TRUE.equals(config.getEmergencyReceiptRequiresProof()) && isBlank(request.getProofAttachmentId())) {
+                throw new IllegalArgumentException("proofAttachmentId is required for an emergency manual receipt");
+            }
+            if (!isBlank(request.getProofAttachmentId()) && !attachmentRepository.existsById(request.getProofAttachmentId())) {
+                throw new IllegalArgumentException("The proof attachment does not exist");
+            }
+            if (isBlank(request.getLateCaptureReason())) {
+                throw new IllegalArgumentException("lateCaptureReason is required for an emergency manual receipt");
+            }
+        } else {
+            throw new IllegalArgumentException("captureMode must be LEGACY_CATCH_UP or MANUAL_EMERGENCY");
+        }
+
+        if (manualPremiumReceiptRepository.existsByReceiptBookNoAndManualReceiptNo(request.getReceiptBookNo().trim(), request.getManualReceiptNo().trim())) {
+            throw new IllegalStateException("This receipt book and receipt number have already been captured");
+        }
+
+        MembershipPremiumPaymentCreateRequest payment = new MembershipPremiumPaymentCreateRequest();
+        payment.setMembershipId(request.getMembershipId());
+        payment.setAmountCents(request.getAmountCents());
+        payment.setPaymentMethod(request.getPaymentMethod());
+        payment.setPaymentDate(request.getOriginalReceiptDate().atStartOfDay());
+        payment.setLocation(request.getLocation());
+        payment.setEmployeeResponsible(request.getOriginalCollector());
+        payment.setDeviceId("LEGACY_CATCH_UP".equals(mode) ? "ERP-LEGACY-IMPORT" : "ERP-MANUAL-EMERGENCY");
+        payment.setTerminalId(request.getWorkcentreId());
+        payment.setCreatedBy(request.getCreatedBy());
+        payment.setNotes(request.getNotes());
+
+        validate(payment);
+        PaymentBatchEntity batch = createBatch(payment);
+        List<ReceiptResponseDto> receipts = allocateManualAmountToPremiums(batch, request, mode);
+        saveManualReceiptRegister(batch, request, mode);
+        String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
+
+        if ("MANUAL_EMERGENCY".equals(mode)) {
+            addToEmergencyCashup(batch, receipts, request);
+        }
+
+        return PaymentBatchResponseDto.builder()
+                .id(batch.getId()).paymentBatchNo(batch.getPaymentBatchNo()).sourceType(batch.getSourceType())
+                .membershipId(batch.getMembershipId()).paymentMethod(batch.getPaymentMethod())
+                .totalAmountCents(batch.getTotalAmountCents()).paymentDate(batch.getPaymentDate())
+                .status(batch.getStatus()).syncStatus(batch.getSyncStatus()).paidUpToPeriod(paidUpTo).receipts(receipts).build();
+    }
+
+    private PaymentBatchEntity createBatch(MembershipPremiumPaymentCreateRequest request) {
+        PaymentBatchEntity batch = new PaymentBatchEntity();
+        batch.setPaymentBatchNo(numberAllocationService.allocateNumber("PAYMENT_BATCH"));
+        batch.setSourceType(ReceiptSourceType.MEMBERSHIP_PREMIUM); batch.setMembershipId(request.getMembershipId());
+        batch.setPaymentMethod(request.getPaymentMethod()); batch.setTotalAmountCents(request.getAmountCents());
+        batch.setPaymentDate(request.getPaymentDate() == null ? LocalDateTime.now() : request.getPaymentDate());
+        batch.setLocation(request.getLocation()); batch.setEmployeeResponsible(request.getEmployeeResponsible());
+        batch.setDeviceId(request.getDeviceId()); batch.setTerminalId(request.getTerminalId());
+        batch.setStatus(PaymentBatchStatus.POSTED); batch.setSyncStatus(SyncStatus.SYNCED);
+        batch.setNotes(request.getNotes()); batch.setCreatedBy(request.getCreatedBy()); batch.setCreatedAt(LocalDateTime.now());
+        return paymentBatchRepository.save(batch);
+    }
+
+    private void saveManualReceiptRegister(PaymentBatchEntity batch, ManualPremiumReceiptCaptureRequest request, String mode) {
+        ManualPremiumReceiptEntity register = new ManualPremiumReceiptEntity();
+        register.setPaymentBatchId(batch.getId()); register.setMembershipId(request.getMembershipId()); register.setCaptureMode(mode);
+        register.setReceiptBookNo(request.getReceiptBookNo().trim()); register.setManualReceiptNo(request.getManualReceiptNo().trim());
+        register.setOriginalReceiptDate(request.getOriginalReceiptDate()); register.setAmountCents(request.getAmountCents());
+        register.setPaymentMethod(request.getPaymentMethod()); register.setOriginalCollector(request.getOriginalCollector());
+        register.setLocation(request.getLocation()); register.setWorkcentreId(request.getWorkcentreId());
+        register.setLateCaptureReason(request.getLateCaptureReason()); register.setProofAttachmentId(request.getProofAttachmentId());
+        register.setCapturedAt(LocalDateTime.now()); register.setCapturedBy(request.getCreatedBy()); register.setNotes(request.getNotes());
+        manualPremiumReceiptRepository.save(register);
+    }
+
+    private List<ReceiptResponseDto> allocateManualAmountToPremiums(PaymentBatchEntity batch, ManualPremiumReceiptCaptureRequest request, String mode) {
+        List<ReceiptResponseDto> responses = allocateAmountToPremiums(batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), null);
+        for (ReceiptResponseDto response : responses) {
+            ReceiptEntity receipt = receiptRepository.findById(response.getId()).orElseThrow();
+            receipt.setCaptureSource(mode); receipt.setManualReceiptBookNo(request.getReceiptBookNo().trim());
+            receipt.setManualReceiptNo(request.getManualReceiptNo().trim()); receipt.setOriginalReceiptDate(request.getOriginalReceiptDate());
+            receipt.setOriginalCollector(request.getOriginalCollector()); receipt.setWorkcentreId(request.getWorkcentreId());
+            receipt.setLateCaptureReason(request.getLateCaptureReason()); receipt.setProofAttachmentId(request.getProofAttachmentId());
+            receipt.setCapturedBy(request.getCreatedBy()); receipt.setPrinted(false); receipt.setPrintCount(0);
+            receiptRepository.save(receipt);
+        }
+        return responses.stream().map(r -> receiptService.getReceipt(r.getId())).toList();
+    }
+
+    private void addToEmergencyCashup(PaymentBatchEntity batch, List<ReceiptResponseDto> receipts, ManualPremiumReceiptCaptureRequest request) {
+        String device = "ERP-MANUAL-EMERGENCY-" + (isBlank(request.getLocation()) ? "DEFAULT" : request.getLocation());
+        CashupEntity cashup = cashupRepository.findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(device, request.getCreatedBy(), "OPEN", "MANUAL_EMERGENCY")
+                .orElseGet(() -> {
+                    CashupEntity c = new CashupEntity(); c.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
+                    c.setDeviceId(device); c.setUserId(request.getCreatedBy()); c.setCashupDate(LocalDate.now()); c.setStatus("OPEN");
+                    c.setSource("MANUAL_EMERGENCY"); c.setCreatedBy(request.getCreatedBy()); c.setTotalCents(0L); c.setReceiptCount(0);
+                    return cashupRepository.save(c);
+                });
+        CashupReceiptEntity cr = new CashupReceiptEntity(); cr.setCashup(cashup);
+        cr.setReceiptId(receipts.isEmpty() ? null : receipts.get(0).getId()); cr.setAmountCents(request.getAmountCents());
+        cr.setPaymentMethod(request.getPaymentMethod()); cr.setLegacyTransactionId(batch.getId()); cashupReceiptRepository.save(cr);
+        cashup.setTotalCents((cashup.getTotalCents() == null ? 0L : cashup.getTotalCents()) + request.getAmountCents());
+        cashup.setReceiptCount((cashup.getReceiptCount() == null ? 0 : cashup.getReceiptCount()) + 1); cashup.setUpdatedBy(request.getCreatedBy());
+        cashupRepository.save(cashup);
+        CashupPaymentSummaryEntity summary = cashupPaymentSummaryRepository.findByCashupId(cashup.getId()).stream()
+                .filter(x -> request.getPaymentMethod().equalsIgnoreCase(x.getPaymentMethod())).findFirst().orElseGet(CashupPaymentSummaryEntity::new);
+        summary.setCashup(cashup); summary.setPaymentMethod(request.getPaymentMethod());
+        summary.setAmountCents((summary.getAmountCents() == null ? 0L : summary.getAmountCents()) + request.getAmountCents());
+        summary.setPaymentCount((summary.getPaymentCount() == null ? 0 : summary.getPaymentCount()) + 1); cashupPaymentSummaryRepository.save(summary);
+    }
+
+    private void validateManual(ManualPremiumReceiptCaptureRequest request) {
+        if (request == null || isBlank(request.getMembershipId())) throw new IllegalArgumentException("membershipId is required");
+        if (request.getAmountCents() == null || request.getAmountCents() <= 0) throw new IllegalArgumentException("amountCents must be greater than zero");
+        if (isBlank(request.getPaymentMethod())) throw new IllegalArgumentException("paymentMethod is required");
+        if (request.getOriginalReceiptDate() == null) throw new IllegalArgumentException("originalReceiptDate is required");
+        if (request.getOriginalReceiptDate().isAfter(LocalDate.now())) throw new IllegalArgumentException("originalReceiptDate cannot be in the future");
+        if (isBlank(request.getReceiptBookNo()) || isBlank(request.getManualReceiptNo())) throw new IllegalArgumentException("receiptBookNo and manualReceiptNo are required");
+        if (isBlank(request.getCaptureMode()) || isBlank(request.getCreatedBy())) throw new IllegalArgumentException("captureMode and createdBy are required");
+    }
+
+    private boolean isBlank(String value) { return value == null || value.isBlank(); }
 
     public List<ReceiptResponseDto> allocateAmountToPremiums(
             PaymentBatchEntity batch,
