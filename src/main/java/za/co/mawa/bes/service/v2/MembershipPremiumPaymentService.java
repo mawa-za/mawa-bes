@@ -276,7 +276,7 @@ public class MembershipPremiumPaymentService {
             remaining -= amountForPremium;
         }
 
-        String nextPeriod = getNextFuturePeriod(receiptResponses);
+        String nextPeriod = getNextFuturePeriod(membershipId, receiptResponses);
 
         while (remaining > 0) {
             long amountForPremium = Math.min(remaining, monthlyPremiumCents);
@@ -347,20 +347,38 @@ public class MembershipPremiumPaymentService {
         return receiptService.saveReceipt(receipt);
     }
 
-    private String getNextFuturePeriod(List<ReceiptResponseDto> receipts) {
-        if (receipts.isEmpty()) {
+    private String getNextFuturePeriod(String membershipId, List<ReceiptResponseDto> receipts) {
+        String latestPeriod = null;
+
+        if (receipts != null && !receipts.isEmpty()) {
+            ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
+            java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
+            if (allocations != null && !allocations.isEmpty()) {
+                latestPeriod = allocations.get(0).getPeriodYYYYMM();
+            }
+        }
+
+        for (MembershipPremiumEntity premium : membershipPremiumService.getPremiumsForMembership(membershipId)) {
+            String period = premium.getPeriodYYYYMM();
+            if (PeriodUtil.isValidPeriod(period) && (latestPeriod == null || period.compareTo(latestPeriod) > 0)) {
+                latestPeriod = period;
+            }
+        }
+
+        String paidUpToPeriod = membershipService.resolveMembership(membershipId).getPaidUpToPeriod();
+        if (PeriodUtil.isValidPeriod(paidUpToPeriod)
+                && (latestPeriod == null || paidUpToPeriod.compareTo(latestPeriod) > 0)) {
+            latestPeriod = paidUpToPeriod;
+        }
+
+        if (latestPeriod == null) {
             return PeriodUtil.currentPeriod();
         }
 
-        ReceiptResponseDto lastReceipt = receipts.get(receipts.size() - 1);
-
-        java.util.List<ReceiptAllocationResponseDto> allocations = lastReceipt.getAllocations();
-        if (allocations == null || allocations.isEmpty()) {
-            return PeriodUtil.currentPeriod();
-        }
-
-        String lastPeriod = allocations.get(0).getPeriodYYYYMM();
-        return PeriodUtil.nextPeriod(lastPeriod);
+        String nextExistingPeriod = PeriodUtil.nextPeriod(latestPeriod);
+        return nextExistingPeriod.compareTo(PeriodUtil.currentPeriod()) < 0
+                ? PeriodUtil.currentPeriod()
+                : nextExistingPeriod;
     }
 
     private String getLastPeriod(List<ReceiptResponseDto> receipts) {
