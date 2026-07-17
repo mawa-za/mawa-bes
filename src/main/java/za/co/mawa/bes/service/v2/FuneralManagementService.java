@@ -13,6 +13,7 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
+import za.co.mawa.bes.dto.v2.FuneralPackageItemRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.v2.*;
