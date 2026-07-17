@@ -21,7 +21,11 @@ public class ManualReceiptCutoverConfigurationService {
     }
 
     @Transactional(readOnly = true)
-    public ManualReceiptCutoverConfigurationDto get() { return toDto(getRequired()); }
+    public ManualReceiptCutoverConfigurationDto get() {
+        return repository.findById(SINGLETON_ID)
+            .map(this::toDto)
+            .orElseGet(ManualReceiptCutoverConfigurationDto::new);
+    }
 
     @Transactional
     public ManualReceiptCutoverConfigurationDto save(ManualReceiptCutoverConfigurationDto dto) {
