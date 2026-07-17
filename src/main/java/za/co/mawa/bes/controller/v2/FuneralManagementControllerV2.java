@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import za.co.mawa.bes.service.v2.FuneralManagementService;
 
 @RestController
 @CrossOrigin
+@Slf4j
 @RequiredArgsConstructor
 @RequestMapping(value = "/v2/funeral", produces = MediaType.APPLICATION_JSON_VALUE)
 public class FuneralManagementControllerV2 {
@@ -248,6 +250,11 @@ public class FuneralManagementControllerV2 {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.initiateClaims(id, request));
         } catch (Exception exception) {
+            log.warn("Unable to initiate claims for funeral service {} with memberships {}: {}",
+                    id,
+                    request == null ? null : request.getMemberships(),
+                    exception.getMessage(),
+                    exception);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }

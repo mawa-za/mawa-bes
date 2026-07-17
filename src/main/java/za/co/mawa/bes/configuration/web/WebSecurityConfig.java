@@ -47,6 +47,7 @@ public class WebSecurityConfig {
             "/v2/company-logo/content",
             "/v2/admin-handoff/exchange",
             "/v2/pos-print-agents/**",
+            "/error",
             "/internal/admin/**",
             "/xero/callback"
             // other public endpoints of your API may be appended to this array
