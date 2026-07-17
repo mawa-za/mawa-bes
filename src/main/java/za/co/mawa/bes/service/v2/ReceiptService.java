@@ -88,8 +88,8 @@ public class ReceiptService {
         java.util.Map<String,Object> member = new java.util.HashMap<>();
         if (receipt.getMembershipId() != null) {
             var rows=jdbcTemplate.queryForList("""
-                SELECT m.membership_no,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) member_name,
-                       (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id ORDER BY pi.id LIMIT 1) identity_number,
+                SELECT m.membership_no,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
+                       (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END, pi.type, pi.value LIMIT 1) identity_number,
                        mp.name plan_name
                   FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
                 """,receipt.getMembershipId());
