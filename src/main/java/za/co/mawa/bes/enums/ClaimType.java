@@ -4,5 +4,6 @@ public enum ClaimType {
     CASH,
     TOMBSTONE,
     FUNERAL,
-    COMBINATION
+    COMBINATION,
+    GROCERY
 }
