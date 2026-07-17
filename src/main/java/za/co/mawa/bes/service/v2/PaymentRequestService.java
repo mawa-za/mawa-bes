@@ -89,6 +89,7 @@ public class PaymentRequestService {
         entity.setAmount(request.getAmount());
         entity.setCurrency(defaultCurrency(request.getCurrency()));
         entity.setPaymentMethod(request.getPaymentMethod());
+        applyConfiguredRouting(entity);
         entity.setBankName(request.getBankName());
         entity.setAccountHolder(request.getAccountHolder());
         entity.setAccountNumber(request.getAccountNumber());
@@ -149,12 +150,26 @@ public class PaymentRequestService {
             entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
             entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
             entity.setCurrency("ZAR");
-            entity.setPaymentMethod(claim.getPayoutMethod());
-            entity.setBankName(claim.getBankName());
-            entity.setAccountHolder(claim.getAccountHolderName());
-            entity.setAccountNumber(claim.getAccountNumber());
-            entity.setBranchCode(claim.getBranchCode());
-            entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+            if (claim.getPayoutMethod() == PaymentMethod.CASH) {
+                var cashAccount = paymentAccountConfigurationService.activeCreditor("CASH_CLAIM_CREDITOR");
+                if (cashAccount.isPresent()) {
+                    entity.setPaymentMethod(PaymentMethod.EFT);
+                    entity.setBankName(java.util.Objects.toString(cashAccount.get().get("bank_name"), null));
+                    entity.setAccountHolder(java.util.Objects.toString(cashAccount.get().get("account_holder"), null));
+                    entity.setAccountNumber(java.util.Objects.toString(cashAccount.get().get("account_number"), null));
+                    entity.setBranchCode(java.util.Objects.toString(cashAccount.get().get("branch_code"), null));
+                    entity.setAccountType(java.util.Objects.toString(cashAccount.get().get("account_type"), null));
+                } else {
+                    entity.setPaymentMethod(PaymentMethod.MANUAL);
+                }
+            } else {
+                entity.setPaymentMethod(claim.getPayoutMethod());
+                entity.setBankName(claim.getBankName());
+                entity.setAccountHolder(claim.getAccountHolderName());
+                entity.setAccountNumber(claim.getAccountNumber());
+                entity.setBranchCode(claim.getBranchCode());
+                entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+            }
             entity.setExternalReference("CLAIM-" + claim.getClaimNo());
             entity.setPaymentReason("CASH-CLAIM-PAYOUT");
             entity.setPaymentPurpose("CASH_CLAIM_DISBURSEMENT");
@@ -169,14 +184,29 @@ public class PaymentRequestService {
             entity.setPayeePartnerId(claim.getClaimantPartnerId());
             entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
             entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
-            entity.setPaymentMethod(claim.getPayoutMethod());
-            entity.setBankName(claim.getBankName());
-            entity.setAccountHolder(claim.getAccountHolderName());
-            entity.setAccountNumber(claim.getAccountNumber());
-            entity.setBranchCode(claim.getBranchCode());
-            entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+            if (claim.getPayoutMethod() == PaymentMethod.CASH) {
+                var cashAccount = paymentAccountConfigurationService.activeCreditor("CASH_CLAIM_CREDITOR");
+                if (cashAccount.isPresent()) {
+                    entity.setPaymentMethod(PaymentMethod.EFT);
+                    entity.setBankName(java.util.Objects.toString(cashAccount.get().get("bank_name"), null));
+                    entity.setAccountHolder(java.util.Objects.toString(cashAccount.get().get("account_holder"), null));
+                    entity.setAccountNumber(java.util.Objects.toString(cashAccount.get().get("account_number"), null));
+                    entity.setBranchCode(java.util.Objects.toString(cashAccount.get().get("branch_code"), null));
+                    entity.setAccountType(java.util.Objects.toString(cashAccount.get().get("account_type"), null));
+                } else {
+                    entity.setPaymentMethod(PaymentMethod.MANUAL);
+                }
+            } else {
+                entity.setPaymentMethod(claim.getPayoutMethod());
+                entity.setBankName(claim.getBankName());
+                entity.setAccountHolder(claim.getAccountHolderName());
+                entity.setAccountNumber(claim.getAccountNumber());
+                entity.setBranchCode(claim.getBranchCode());
+                entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+            }
         }
 
+        applyConfiguredRouting(entity);
         entity.setIdempotencyKey(idempotencyKey);
         entity.setApprovalRequestId(approvalRequest == null ? claim.getApprovalRequestId() : approvalRequest.getId());
         entity.setApprovalSource("CLAIM_APPROVAL");
@@ -210,6 +240,32 @@ public class PaymentRequestService {
             saved = paymentRequestRepository.findById(saved.getId()).orElse(saved);
         }
         return toResponse(saved);
+    }
+
+
+    public java.util.List<java.util.Map<String,Object>> recipientOptions(PaymentRequestType type, String query) {
+        if (type == null) throw new IllegalArgumentException("Payment request type is required");
+        String q = query == null ? "" : query.trim();
+        if (type == PaymentRequestType.SUPPLIER_INVOICE) {
+            return jdbcTemplate.queryForList("""
+                SELECT DISTINCT p.id, TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name
+                  FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
+                 WHERE ?='' OR LOWER(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) LIKE LOWER(CONCAT('%',?,'%'))
+                 ORDER BY name LIMIT 50
+                """,q,q);
+        }
+        if (type == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
+            return jdbcTemplate.queryForList("""
+                SELECT p.id,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name
+                  FROM partner p JOIN partner_role pr ON pr.partner=p.id
+                 WHERE pr.role IN ('TENANT_OWNER','OWNER') ORDER BY name LIMIT 1
+                """);
+        }
+        return jdbcTemplate.queryForList("""
+            SELECT p.id,TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) name FROM partner p
+             WHERE ?='' OR LOWER(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))) LIKE LOWER(CONCAT('%',?,'%'))
+             ORDER BY name LIMIT 50
+            """,q,q);
     }
 
     public List<PaymentRequestResponse> getAll() {
@@ -333,11 +389,16 @@ public class PaymentRequestService {
     public PaymentRequestResponse markPaid(String id, MarkPaymentRequestPaidRequest request, String currentUser) {
         PaymentRequestEntity proofEntity = findById(id);
         if (proofEntity.getPaymentMethod() == PaymentMethod.MANUAL) {
-            if (request.getProofAttachmentId() == null || request.getProofAttachmentId().isBlank()) throw new IllegalArgumentException("Proof of payment attachment is required for manual payments");
-            za.co.mawa.bes.entity.AttachmentEntity proof = attachmentRepository.findById(request.getProofAttachmentId()).orElseThrow(() -> new IllegalArgumentException("Proof attachment not found"));
+            za.co.mawa.bes.entity.AttachmentEntity proof;
+            if (request.getProofAttachmentId() == null || request.getProofAttachmentId().isBlank()) {
+                var proofs = attachmentRepository.findByObjectId(id);
+                if (proofs.isEmpty()) throw new IllegalArgumentException("Attach proof of payment before finalising a manual payment");
+                proof = proofs.get(0);
+            } else {
+                proof = attachmentRepository.findById(request.getProofAttachmentId()).orElseThrow(() -> new IllegalArgumentException("Proof attachment not found"));
+            }
             if (!id.equals(proof.getObjectId())) throw new IllegalArgumentException("Proof attachment must belong to this payment request");
-            proofEntity.setManualProofAttachmentId(proof.getId());
-            paymentRequestRepository.save(proofEntity);
+            proofEntity.setManualProofAttachmentId(proof.getId()); paymentRequestRepository.save(proofEntity);
         }
         PaymentRequestEntity entity = findById(id);
 
@@ -643,6 +704,28 @@ public class PaymentRequestService {
 
     private String defaultCurrency(String currency) {
         return currency == null || currency.isBlank() ? "ZAR" : currency;
+    }
+
+
+    private void applyConfiguredRouting(PaymentRequestEntity entity) {
+        if (entity.getRequestType() == null) return;
+        var debtor = paymentAccountConfigurationService.activeDebtor(entity.getRequestType().name());
+        if (debtor.isPresent()) {
+            entity.setDebtorAccountId(java.util.Objects.toString(debtor.get().get("id"), null));
+            entity.setBankIntegration(java.util.Objects.toString(debtor.get().get("bank_integration"), null));
+        } else {
+            entity.setDebtorAccountId(null);
+            entity.setBankIntegration(null);
+            entity.setPaymentMethod(PaymentMethod.MANUAL);
+        }
+        String creditorRole = entity.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT
+                ? "PETTY_CASH_CREDITOR"
+                : (entity.getRequestType() == PaymentRequestType.CLAIM_PAYOUT && "CASH_CLAIM_DISBURSEMENT".equals(entity.getPaymentPurpose())
+                   ? "CASH_CLAIM_CREDITOR" : null);
+        if (creditorRole != null) {
+            paymentAccountConfigurationService.activeCreditor(creditorRole).ifPresent(a ->
+                    entity.setCreditorAccountId(java.util.Objects.toString(a.get("id"), null)));
+        }
     }
 
     private void applyTypeRules(PaymentRequestCreateRequest request) {

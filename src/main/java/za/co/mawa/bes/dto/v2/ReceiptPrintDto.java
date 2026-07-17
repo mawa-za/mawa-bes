@@ -18,6 +18,10 @@ public class ReceiptPrintDto {
     private String sourceType;
 
     private String membershipId;
+    private String memberName;
+    private String membershipNo;
+    private String identityNumber;
+    private String planName;
 
     private String premiumPeriodYYYYMM;
 

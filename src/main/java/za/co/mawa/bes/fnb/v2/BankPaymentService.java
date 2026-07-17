@@ -3,6 +3,7 @@ package za.co.mawa.bes.fnb.v2;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
 import za.co.mawa.bes.dto.OAuthTokenResponse;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
@@ -41,6 +42,7 @@ public class BankPaymentService {
     private final ObjectMapper objectMapper;
     private final GcpTenantSecretService gcpTenantSecretService;
     private final FnbApiCallLogger fnbApiCallLogger;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String FNB_API_SETTING_GROUP = "FNB-API";
     private static final String TENANT_SETTING_GROUP = "TENANT";
@@ -308,9 +310,9 @@ public class BankPaymentService {
         paymentInformation.setPaymentTypeInformationServiceLevelCode(SERVICE_LEVEL_CODE);
         paymentInformation.setRequestedExecutionDate(Conversion.dateToString(resolveExecutionDate(paymentRequest)));
 
-        paymentInformation.setDebtor(buildDebtor());
-        paymentInformation.setDebtorAccount(buildDebtorAccount());
-        paymentInformation.setDebtorAgent(buildDebtorAgent());
+        paymentInformation.setDebtor(buildDebtor(paymentRequest));
+        paymentInformation.setDebtorAccount(buildDebtorAccount(paymentRequest));
+        paymentInformation.setDebtorAgent(buildDebtorAgent(paymentRequest));
 
         CreditTransferTransactionInformation transactionInformation =
                 buildCreditTransferTransactionInformation(paymentRequest);
@@ -363,25 +365,38 @@ public class BankPaymentService {
         return transactionInformation;
     }
 
-    private Debtor buildDebtor() {
+    private java.util.Map<String,Object> debtorAccount(PaymentRequestEntity paymentRequest) {
+        if (isBlank(paymentRequest.getDebtorAccountId())) {
+            throw new RuntimeException("Configured debtor account is missing for payment request: " + paymentRequest.getRequestNo());
+        }
+        var rows = jdbcTemplate.queryForList("SELECT * FROM payment_bank_account WHERE id=? AND account_role='DEBTOR' AND active=1", paymentRequest.getDebtorAccountId());
+        if (rows.isEmpty()) throw new RuntimeException("Configured debtor account is inactive or missing: " + paymentRequest.getDebtorAccountId());
+        var row = rows.get(0);
+        if (!"FNB".equalsIgnoreCase(java.util.Objects.toString(row.get("bank_integration"), "")))
+            throw new RuntimeException("Only FNB debtor accounts can currently be automated");
+        return row;
+    }
+
+    private Debtor buildDebtor(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         Debtor debtor = new Debtor();
-        debtor.setName(requiredSetting("ACCOUNT-HOLDER", EFT_BANK_ACCOUNT_SETTING_GROUP));
-        debtor.setBicOrBEI(requiredSetting("BRANCH-CODE", EFT_BANK_ACCOUNT_SETTING_GROUP));
+        debtor.setName(java.util.Objects.toString(account.get("account_holder"), null));
+        debtor.setBicOrBEI(java.util.Objects.toString(account.get("branch_code"), null));
         return debtor;
     }
 
-    private DebtorAccount buildDebtorAccount() {
+    private DebtorAccount buildDebtorAccount(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         DebtorAccount debtorAccount = new DebtorAccount();
-        debtorAccount.setAccountNumber(requiredSetting("ACCOUNT-NUMBER", EFT_BANK_ACCOUNT_SETTING_GROUP));
-        debtorAccount.setAccountType(
-                toFnbAccountType(requiredSetting("ACCOUNT-TYPE", EFT_BANK_ACCOUNT_SETTING_GROUP))
-        );
+        debtorAccount.setAccountNumber(java.util.Objects.toString(account.get("account_number"), null));
+        debtorAccount.setAccountType(toFnbAccountType(java.util.Objects.toString(account.get("account_type"), null)));
         return debtorAccount;
     }
 
-    private DebtorAgent buildDebtorAgent() {
+    private DebtorAgent buildDebtorAgent(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         DebtorAgent debtorAgent = new DebtorAgent();
-        debtorAgent.setBranchId(requiredSetting("BRANCH-CODE", EFT_BANK_ACCOUNT_SETTING_GROUP));
+        debtorAgent.setBranchId(java.util.Objects.toString(account.get("branch_code"), null));
         return debtorAgent;
     }
 

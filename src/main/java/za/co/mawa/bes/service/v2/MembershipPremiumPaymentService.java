@@ -62,13 +62,8 @@ public class MembershipPremiumPaymentService {
         PaymentBatchEntity batch = createBatch(request);
 
         List<ReceiptResponseDto> receipts = allocateAmountToPremiums(
-                batch,
-                request.getMembershipId(),
-                request.getAmountCents(),
-                request.getCreatedBy(),
-                null
-        );
-
+                batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), null);
+        addToOnlineCashup(batch, receipts, request);
         String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
 
         return PaymentBatchResponseDto.builder()
@@ -190,6 +185,17 @@ public class MembershipPremiumPaymentService {
             receiptRepository.save(receipt);
         }
         return responses.stream().map(r -> receiptService.getReceipt(r.getId())).toList();
+    }
+
+
+    private void addToOnlineCashup(PaymentBatchEntity batch, List<ReceiptResponseDto> receipts, MembershipPremiumPaymentCreateRequest request) {
+        String user = isBlank(request.getCreatedBy()) ? "SYSTEM" : request.getCreatedBy();
+        String device = isBlank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId();
+        CashupEntity cashup = cashupRepository.findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(device,user,"OPEN","ERP_ONLINE")
+                .orElseGet(() -> { CashupEntity c=new CashupEntity();c.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));c.setDeviceId(device);c.setUserId(user);c.setCashupDate(LocalDate.now());c.setStatus("OPEN");c.setSource("ERP_ONLINE");c.setCreatedBy(user);return cashupRepository.save(c);});
+        CashupReceiptEntity cr=new CashupReceiptEntity();cr.setCashup(cashup);cr.setReceiptId(receipts.isEmpty()?null:receipts.get(0).getId());cr.setAmountCents(request.getAmountCents());cr.setPaymentMethod(request.getPaymentMethod());cr.setLegacyTransactionId(batch.getId());cashupReceiptRepository.save(cr);
+        cashup.setTotalCents((cashup.getTotalCents()==null?0L:cashup.getTotalCents())+request.getAmountCents());cashup.setReceiptCount((cashup.getReceiptCount()==null?0:cashup.getReceiptCount())+1);cashup.setUpdatedBy(user);cashupRepository.save(cashup);
+        CashupPaymentSummaryEntity summary=cashupPaymentSummaryRepository.findByCashupId(cashup.getId()).stream().filter(x->request.getPaymentMethod().equalsIgnoreCase(x.getPaymentMethod())).findFirst().orElseGet(CashupPaymentSummaryEntity::new);summary.setCashup(cashup);summary.setPaymentMethod(request.getPaymentMethod());summary.setAmountCents((summary.getAmountCents()==null?0L:summary.getAmountCents())+request.getAmountCents());summary.setPaymentCount((summary.getPaymentCount()==null?0:summary.getPaymentCount())+1);cashupPaymentSummaryRepository.save(summary);
     }
 
     private void addToEmergencyCashup(PaymentBatchEntity batch, List<ReceiptResponseDto> receipts, ManualPremiumReceiptCaptureRequest request) {

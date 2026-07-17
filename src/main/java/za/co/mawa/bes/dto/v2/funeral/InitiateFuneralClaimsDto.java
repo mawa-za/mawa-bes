@@ -30,6 +30,7 @@ public class InitiateFuneralClaimsDto {
     private String causeOfDeath;
     private String deathCertificateNo;
     private String notes;
+    private String groceryCoverSelectionId;
 
     public List<String> getMemberships() {
         Set<String> merged = new LinkedHashSet<>();
@@ -66,9 +67,8 @@ public class InitiateFuneralClaimsDto {
         return deathCertificateNo;
     }
 
-    public String getNotes() {
-        return notes;
-    }
+    public String getNotes() { return notes; }
+    public String getGroceryCoverSelectionId() { return groceryCoverSelectionId; }
 
     private void addAllNonBlank(Set<String> target, List<String> values) {
         if (values == null) return;
