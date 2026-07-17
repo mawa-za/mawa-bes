@@ -65,6 +65,10 @@ public class TenantAdminService implements TenantDao {
     private int connectTimeoutMs;
     @Value("${mawa.admin.api.read-timeout-ms:15000}")
     private int readTimeoutMs;
+    @Value("${mawa.admin.api.retry-attempts:3}")
+    private int retryAttempts;
+    @Value("${mawa.admin.api.retry-backoff-ms:250}")
+    private long retryBackoffMs;
     @Value("${mawa.admin.api.tenant-cache-ttl-ms:60000}")
     private long tenantCacheTtlMs;
 
@@ -222,6 +226,25 @@ public class TenantAdminService implements TenantDao {
     }
 
     private String execute(String method, String path, Object body, boolean internal, String bearerToken) {
+        int attempts = Math.max(1, retryAttempts);
+        AdminApiException lastFailure = null;
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                return executeOnce(method, path, body, internal, bearerToken);
+            } catch (AdminApiException ex) {
+                lastFailure = ex;
+                if (attempt >= attempts || !isRetryable(ex)) throw ex;
+                log.warn("Transient admin API failure on {} {} (attempt {}/{}): {}",
+                        method, path, attempt, attempts, ex.getMessage());
+                sleepBeforeRetry(attempt);
+            }
+        }
+        throw lastFailure == null
+                ? new AdminApiException("Unable to call admin API " + method + " " + path)
+                : lastFailure;
+    }
+
+    private String executeOnce(String method, String path, Object body, boolean internal, String bearerToken) {
         HttpURLConnection connection = null;
         try {
             URI base = URI.create(adminApiUrl.endsWith("/")
@@ -233,6 +256,8 @@ public class TenantAdminService implements TenantDao {
             connection.setRequestMethod(method);
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Connection", "close");
+            connection.setUseCaches(false);
             if (internal) {
                 connection.setRequestProperty(INTERNAL_TOKEN_HEADER, internalServiceToken);
             } else if (StringUtils.hasText(bearerToken)) {
@@ -241,6 +266,7 @@ public class TenantAdminService implements TenantDao {
             if (body != null) {
                 connection.setDoOutput(true);
                 byte[] payload = objectMapper.writeValueAsBytes(body);
+                connection.setFixedLengthStreamingMode(payload.length);
                 try (OutputStream output = connection.getOutputStream()) {
                     output.write(payload);
                 }
@@ -260,6 +286,34 @@ public class TenantAdminService implements TenantDao {
             throw new AdminApiException("Unable to call admin API " + method + " " + path + ": " + ex.getMessage(), ex);
         } finally {
             if (connection != null) connection.disconnect();
+        }
+    }
+
+    private boolean isRetryable(AdminApiException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof IOException) return true;
+            cause = cause.getCause();
+        }
+        String message = exception.getMessage() == null ? "" : exception.getMessage().toLowerCase();
+        return message.contains("broken pipe")
+                || message.contains("connection reset")
+                || message.contains("timed out")
+                || message.contains("unexpected end of file")
+                || message.contains("http 429")
+                || message.contains("http 502")
+                || message.contains("http 503")
+                || message.contains("http 504");
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long delay = Math.max(0L, retryBackoffMs) * Math.max(1, attempt);
+        if (delay <= 0L) return;
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AdminApiException("Interrupted while retrying the admin API", interrupted);
         }
     }
 
