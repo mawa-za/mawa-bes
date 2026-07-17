@@ -24,6 +24,10 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
             String status
     );
 
+    Optional<CashupEntity> findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
+            String deviceId, String userId, String status, String source
+    );
+
     Slice<CashupEntity> findAllByOrderByCashupDateDescCreatedAtDesc(Pageable pageable);
 
     Slice<CashupEntity> findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(String status, Pageable pageable);

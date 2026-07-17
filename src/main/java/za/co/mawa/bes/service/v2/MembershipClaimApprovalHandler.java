@@ -17,6 +17,8 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
     PaymentRequestService paymentRequestService;
     @Autowired
     MembershipClaimService membershipClaimService;
+    @Autowired
+    FuneralClaimSettlementService funeralClaimSettlementService;
 
     @Override
     public ApprovalType supports() {
@@ -33,6 +35,10 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
     public void onApproved(ApprovalRequestEntity approvalRequest, String actionBy) {
         MembershipClaimResponse claim = membershipClaimService
                 .markApprovedFromWorkflow(approvalRequest.getReferenceId(), actionBy);
+
+        if (claim != null && (claim.getClaimType() == MembershipClaimType.FUNERAL || claim.getClaimType() == MembershipClaimType.COMBINATION)) {
+            funeralClaimSettlementService.settleApprovedClaim(claim.getId(), actionBy);
+        }
 
         if (claim != null && claim.getClaimType() == MembershipClaimType.CASH) {
             PaymentRequestResponse paymentRequest = paymentRequestService

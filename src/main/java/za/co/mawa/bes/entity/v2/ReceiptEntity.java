@@ -86,6 +86,33 @@ public class ReceiptEntity {
     @Column(name = "legacy_premium_payment_id", length = 50)
     private String legacyPremiumPaymentId;
 
+    @Column(name = "capture_source", nullable = false, length = 30)
+    private String captureSource = "SYSTEM";
+
+    @Column(name = "manual_receipt_book_no", length = 100)
+    private String manualReceiptBookNo;
+
+    @Column(name = "manual_receipt_no", length = 100)
+    private String manualReceiptNo;
+
+    @Column(name = "original_receipt_date")
+    private java.time.LocalDate originalReceiptDate;
+
+    @Column(name = "original_collector", length = 255)
+    private String originalCollector;
+
+    @Column(name = "workcentre_id", length = 255)
+    private String workcentreId;
+
+    @Column(name = "late_capture_reason", columnDefinition = "TEXT")
+    private String lateCaptureReason;
+
+    @Column(name = "proof_attachment_id", length = 255)
+    private String proofAttachmentId;
+
+    @Column(name = "captured_by", length = 255)
+    private String capturedBy;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
