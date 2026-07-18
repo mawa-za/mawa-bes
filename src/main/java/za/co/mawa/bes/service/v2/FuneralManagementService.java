@@ -1423,10 +1423,30 @@ public class FuneralManagementService {
         funeralServiceClaimRepository.save(groceryLink);
     }
 
-    private long findGroceryBenefitAmount(String tenantId,String membershipId,String deceasedType){
-        String membership=tenantId==null?"membership":qualifiedTable(tenantId,"membership"); String payout=tenantId==null?"membership_plan_claim_payout":qualifiedTable(tenantId,"membership_plan_claim_payout");
-        List<Long> values=jdbcTemplate.query("SELECT p.payout_amount_cents FROM "+membership+" m JOIN "+payout+" p ON p.membership_plan_id=m.plan_id WHERE m.id=? AND p.claim_type='GROCERY' AND p.deceased_type=? AND p.active=1 LIMIT 1",(rs,i)->rs.getLong(1),membershipId,defaultString(deceasedType,"MAIN_MEMBER"));
-        return values.isEmpty()?0L:values.get(0);
+    private long findGroceryBenefitAmount(String tenantId, String membershipId, String deceasedType) {
+        String membershipTable = tenantId == null
+                ? "membership"
+                : qualifiedTable(tenantId, "membership");
+        String payoutTable = tenantId == null
+                ? "membership_plan_claim_payout"
+                : qualifiedTable(tenantId, "membership_plan_claim_payout");
+        String normalizedDependentType = defaultString(deceasedType, "MAIN_MEMBER").toUpperCase(Locale.ROOT);
+        String genericType = genericDependentType(normalizedDependentType);
+
+        List<Long> values = jdbcTemplate.query("""
+                SELECT COALESCE(MAX(p.payout_amount_cents), 0)
+                  FROM %s m
+                  JOIN %s p ON p.plan_id = m.plan_id
+                 WHERE m.id = ?
+                   AND p.claim_type = 'GROCERY'
+                   AND p.active = 1
+                   AND p.dependent_type IN (?, ?, 'ANY')
+                """.formatted(membershipTable, payoutTable),
+                (rs, rowNum) -> rs.getLong(1),
+                membershipId,
+                normalizedDependentType,
+                genericType);
+        return values.isEmpty() ? 0L : values.get(0);
     }
 
     private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {
