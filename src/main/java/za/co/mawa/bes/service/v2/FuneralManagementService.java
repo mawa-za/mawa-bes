@@ -1189,11 +1189,10 @@ public class FuneralManagementService {
 
     private List<FuneralInvoiceSplitDto> buildSplitsFromApprovedClaims(FuneralServiceEntity service) {
         List<FuneralClaimDto> claims = getClaims(service.getId());
-        boolean hasPending = claims.stream().anyMatch(c -> List.of("DRAFT", "SUBMITTED").contains(defaultString(c.getStatus(), "")));
-        if (hasPending) {
-            throw new IllegalArgumentException("All funeral claims must be approved, partially approved, rejected, cancelled or paid before invoices are generated");
-        }
-
+        // Only approved cover may be invoiced to a burial society. Unresolved claims
+        // remain excluded from cover splits and the outstanding funeral balance is
+        // invoiced to the family representative. This matches the wizard's explicit
+        // "Proceed to Generate" option for pending claims.
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
         for (FuneralClaimDto claim : claims) {
