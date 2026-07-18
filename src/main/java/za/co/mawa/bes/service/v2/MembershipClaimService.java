@@ -60,7 +60,7 @@ public class MembershipClaimService {
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
         validateCreateRequest(request);
         if (request.getClaimType() != MembershipClaimType.CASH) {
-            throw new IllegalArgumentException("Only CASH claims may be created directly from a membership. FUNERAL, COMBINATION and GROCERY claims must originate from a funeral arrangement.");
+            throw new IllegalArgumentException("Only CASH claims may be created directly from a membership. Funeral and combination claims must originate from a funeral service request.");
         }
 
         MembershipEntity membership = membershipRepository.findById(request.getMembershipId())

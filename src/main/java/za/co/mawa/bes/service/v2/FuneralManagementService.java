@@ -548,28 +548,15 @@ public class FuneralManagementService {
             remaining -= claimAmount;
         }
 
-        List<String> groceryEligibleSelections = selectedMemberships.stream()
-                .filter(selectionId -> {
-                    FuneralMembershipCoverDto cover = coverMap.get(selectionId);
-                    return cover != null && cover.hasGroceryBenefit();
-                })
-                .toList();
-
         String grocerySelection = trimToNull(request.getGroceryCoverSelectionId());
-        if (grocerySelection != null && !selectedMemberships.contains(grocerySelection)) {
-            throw new IllegalArgumentException("The grocery benefit cover must be one of the selected funeral covers");
+        if (grocerySelection == null) {
+            grocerySelection = selectedMemberships.get(0);
         }
-        if (grocerySelection == null && !groceryEligibleSelections.isEmpty()) {
-            // Backwards compatible for clients that pre-date explicit grocery-cover selection.
-            grocerySelection = groceryEligibleSelections.get(0);
+        FuneralMembershipCoverDto groceryCover = coverMap.get(grocerySelection);
+        if (groceryCover == null) {
+            throw new IllegalArgumentException("Select which funeral cover must fund the grocery claim");
         }
-        if (grocerySelection != null) {
-            FuneralMembershipCoverDto groceryCover = coverMap.get(grocerySelection);
-            if (groceryCover == null || !groceryCover.hasGroceryBenefit()) {
-                throw new IllegalArgumentException("The selected cover does not have an active GROCERY benefit on its membership plan");
-            }
-            createGroceryClaimForFuneral(service, groceryCover, request);
-        }
+        createGroceryClaimForFuneral(service, groceryCover, request);
 
         service.setStatus("CLAIMS_INITIATED");
         funeralServiceRepository.save(service);
@@ -799,7 +786,6 @@ public class FuneralManagementService {
                        'MAIN_MEMBER' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
@@ -822,7 +808,6 @@ public class FuneralManagementService {
                        'DEPENDENT' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
@@ -849,7 +834,6 @@ public class FuneralManagementService {
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
                 .funeralAmountCents(rs.getLong("funeral_amount_cents"))
                 .combinationAmountCents(rs.getLong("combination_amount_cents"))
-                .groceryAmountCents(rs.getLong("grocery_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -863,7 +847,6 @@ public class FuneralManagementService {
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
                 .funeralAmountCents(rs.getLong("funeral_amount_cents"))
                 .combinationAmountCents(rs.getLong("combination_amount_cents"))
-                .groceryAmountCents(rs.getLong("grocery_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -893,7 +876,6 @@ public class FuneralManagementService {
                        'MAIN_MEMBER' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name
                   FROM %s pi
@@ -915,7 +897,6 @@ public class FuneralManagementService {
                        'DEPENDENT' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name
                   FROM %s pi
@@ -943,7 +924,6 @@ public class FuneralManagementService {
                 rs.getString("burial_society_name"),
                 rs.getLong("funeral_amount_cents"),
                 rs.getLong("combination_amount_cents"),
-                rs.getLong("grocery_amount_cents"),
                 rs.getLong("cover_amount_cents")
         ), identityNumber));
         covers.addAll(jdbcTemplate.query(dependentSql, (rs, rowNum) -> toLiveExternalCover(
@@ -957,7 +937,6 @@ public class FuneralManagementService {
                 rs.getString("burial_society_name"),
                 rs.getLong("funeral_amount_cents"),
                 rs.getLong("combination_amount_cents"),
-                rs.getLong("grocery_amount_cents"),
                 rs.getLong("cover_amount_cents")
         ), identityNumber));
         return covers;
@@ -974,7 +953,6 @@ public class FuneralManagementService {
             String burialSocietyName,
             Long funeralAmount,
             Long combinationAmount,
-            Long groceryAmount,
             Long coverAmount
     ) {
         String selectionId = String.join(":", "EXTERNAL", tenantId, membershipId, deceasedPartnerId, deceasedType);
@@ -986,7 +964,6 @@ public class FuneralManagementService {
                 .coverAmountCents(coverAmount)
                 .funeralAmountCents(funeralAmount)
                 .combinationAmountCents(combinationAmount)
-                .groceryAmountCents(groceryAmount)
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(tenantId)
                 .sourceTenantName(tenantName)
@@ -1050,7 +1027,6 @@ public class FuneralManagementService {
                 .coverAmountCents(liveCover.getCoverAmountCents())
                 .funeralAmountCents(liveCover.getFuneralAmountCents())
                 .combinationAmountCents(liveCover.getCombinationAmountCents())
-                .groceryAmountCents(liveCover.getGroceryAmountCents())
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(liveCover.getSourceTenantId())
                 .sourceTenantName(liveCover.getSourceTenantName())
@@ -1093,7 +1069,6 @@ public class FuneralManagementService {
                 deceasedType);
         Long funeralPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "FUNERAL", dependentType);
         Long combinationPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "COMBINATION", dependentType);
-        Long groceryPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "GROCERY", dependentType);
 
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
@@ -1104,7 +1079,6 @@ public class FuneralManagementService {
                 .coverAmountCents(funeralPayout)
                 .funeralAmountCents(funeralPayout)
                 .combinationAmountCents(combinationPayout)
-                .groceryAmountCents(groceryPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .burialSocietyPartnerId(config.getExternalTenantPartnerId())
                 .coverSource(COVER_SOURCE_EXTERNAL)
@@ -1188,7 +1162,6 @@ public class FuneralManagementService {
                 deceasedType);
         Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
         Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
-        Long groceryPayout = findMembershipPlanPayout(membership.get("plan_id"), "GROCERY", dependentType);
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
                 .sourceMembershipId(membershipId)
@@ -1198,7 +1171,6 @@ public class FuneralManagementService {
                 .coverAmountCents(funeralPayout)
                 .funeralAmountCents(funeralPayout)
                 .combinationAmountCents(combinationPayout)
-                .groceryAmountCents(groceryPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
                 .build();
@@ -1435,17 +1407,8 @@ public class FuneralManagementService {
         String tenantId = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource()) ? cover.getSourceTenantId() : null;
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
         String table = tenantId == null ? "membership_claim" : qualifiedTable(tenantId, "membership_claim");
-        long groceryAmount = defaultLong(cover.getGroceryAmountCents());
-        if (groceryAmount <= 0) return;
-
-        Long existingCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM " + table + " WHERE funeral_service_id = ? AND membership_id = ? AND claim_type = 'GROCERY'",
-                Long.class,
-                service.getId(),
-                cover.getSourceMembershipId());
-        if (existingCount != null && existingCount > 0) return;
-
         String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
+        long groceryAmount=findGroceryBenefitAmount(tenantId, cover.getSourceMembershipId(), cover.getDeceasedType());
         jdbcTemplate.update("""
             INSERT INTO %s(id,claim_no,membership_id,claim_type,deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
             VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
@@ -1458,6 +1421,12 @@ public class FuneralManagementService {
         groceryLink.setCoverSource(cover.getCoverSource()); groceryLink.setSourceTenantId(cover.getSourceTenantId()); groceryLink.setSourceTenantName(cover.getSourceTenantName());
         groceryLink.setSourceMembershipId(cover.getSourceMembershipId()); groceryLink.setSourceReference(cover.getSourceReference()); groceryLink.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
         funeralServiceClaimRepository.save(groceryLink);
+    }
+
+    private long findGroceryBenefitAmount(String tenantId,String membershipId,String deceasedType){
+        String membership=tenantId==null?"membership":qualifiedTable(tenantId,"membership"); String payout=tenantId==null?"membership_plan_claim_payout":qualifiedTable(tenantId,"membership_plan_claim_payout");
+        List<Long> values=jdbcTemplate.query("SELECT p.payout_amount_cents FROM "+membership+" m JOIN "+payout+" p ON p.membership_plan_id=m.plan_id WHERE m.id=? AND p.claim_type='GROCERY' AND p.deceased_type=? AND p.active=1 LIMIT 1",(rs,i)->rs.getLong(1),membershipId,defaultString(deceasedType,"MAIN_MEMBER"));
+        return values.isEmpty()?0L:values.get(0);
     }
 
     private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {
