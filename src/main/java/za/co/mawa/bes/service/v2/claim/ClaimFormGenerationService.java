@@ -44,10 +44,6 @@ public class ClaimFormGenerationService {
         MembershipClaimEntity claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new IllegalArgumentException("Claim not found: " + claimId));
 
-        if (claim.getStatus() == null || !"SUBMITTED".equalsIgnoreCase(claim.getStatus().name())) {
-            return null;
-        }
-
         AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
         if (existing != null) {
             return existing;
@@ -55,6 +51,32 @@ public class ClaimFormGenerationService {
 
         byte[] pdf = generatePdf(claim);
         return attachmentService.saveBytes(pdf, "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+    }
+
+    @Transactional
+    public AttachmentEntity generateForFuneralClaim(String claimId, String claimNo, String claimType, String deceasedName, String claimantName, Long amountCents) {
+        AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
+        if (existing != null) return existing;
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(PDRectangle.A4);
+            document.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                float y = 780;
+                y = drawLogoOrPlaceholder(document, content, y);
+                write(content, "MAWA MEMBERSHIP CLAIM FORM", 50, y, 18, true); y -= 35;
+                y = row(content, "Claim Number", claimNo, y);
+                y = row(content, "Claim Type", claimType, y);
+                y = row(content, "Deceased", deceasedName, y);
+                y = row(content, "Claimant", claimantName, y);
+                y = row(content, "Claim Amount", formatCents(amountCents), y); y -= 35;
+                write(content, "Claimant Signature: ______________________________", 50, y, 11, false);
+                y -= 28; write(content, "Date: __________________", 50, y, 11, false);
+            }
+            document.save(out);
+            return attachmentService.saveBytes(out.toByteArray(), "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate funeral claim form", e);
+        }
     }
 
     public byte[] generatePdf(String claimId) {

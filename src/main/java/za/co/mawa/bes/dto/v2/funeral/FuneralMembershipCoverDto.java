@@ -27,6 +27,9 @@ public class FuneralMembershipCoverDto {
     /** Amount payable when more than one cover is selected and claims are handled as COMBINATION. */
     private Long combinationAmountCents;
 
+    /** Optional grocery benefit configured against the membership plan. */
+    private Long groceryAmountCents;
+
     private String coverSource;
     private String sourceTenantId;
     private String sourceTenantName;
@@ -34,6 +37,10 @@ public class FuneralMembershipCoverDto {
     private String sourceReference;
     private String deceasedPartnerId;
     private String deceasedType;
+
+    public boolean hasGroceryBenefit() {
+        return groceryAmountCents != null && groceryAmountCents > 0L;
+    }
 
     public Long amountForClaimType(String claimType) {
         if ("COMBINATION".equalsIgnoreCase(claimType)) {
