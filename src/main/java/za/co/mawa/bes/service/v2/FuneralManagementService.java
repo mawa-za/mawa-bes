@@ -472,11 +472,6 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
         validateSelectedCoverLimit(selectedMemberships);
-        List<AttachmentEntity> funeralDocuments = attachmentRepository.findByObjectId(service.getId());
-        if (funeralDocuments.isEmpty()) {
-            throw new IllegalArgumentException("Attach the signed claim documentation before continuing the funeral arrangement");
-        }
-
         Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, selectedMemberships);
         if (coverMap.isEmpty()) {
             throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
@@ -550,7 +545,7 @@ public class FuneralManagementService {
             link.setSourceReference(cover.getSourceReference());
             link.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
             funeralServiceClaimRepository.save(link);
-            prepareAndSubmitFuneralClaim(service, link, claimTable, membershipClaimId, claimNo, claimType, claimAmount, funeralDocuments);
+            prepareFuneralClaimForm(service, membershipClaimId, claimNo, claimType, claimAmount);
 
             response.add(readClaimDto(membershipClaimId));
             remaining -= claimAmount;
@@ -582,6 +577,9 @@ public class FuneralManagementService {
 
         Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
         String status = String.valueOf(claim.get("status"));
+        if (attachmentRepository.findByObjectId(membershipClaimId).isEmpty()) {
+            throw new IllegalArgumentException("Attach the signed claim form and supporting claim documentation before submitting for approval");
+        }
         if (!"DRAFT".equalsIgnoreCase(status)) {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
         }
@@ -1428,35 +1426,14 @@ public class FuneralManagementService {
         groceryLink.setCoverSource(cover.getCoverSource()); groceryLink.setSourceTenantId(cover.getSourceTenantId()); groceryLink.setSourceTenantName(cover.getSourceTenantName());
         groceryLink.setSourceMembershipId(cover.getSourceMembershipId()); groceryLink.setSourceReference(cover.getSourceReference()); groceryLink.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
         funeralServiceClaimRepository.save(groceryLink);
-        List<AttachmentEntity> funeralDocuments = attachmentRepository.findByObjectId(service.getId());
-        prepareAndSubmitFuneralClaim(service, groceryLink, table, groceryId, groceryNo, "GROCERY", groceryAmount, funeralDocuments);
+        prepareFuneralClaimForm(service, groceryId, groceryNo, "GROCERY", groceryAmount);
     }
 
-    private void prepareAndSubmitFuneralClaim(FuneralServiceEntity service, FuneralServiceClaimEntity link, String claimTable,
-                                              String claimId, String claimNo, String claimType, long amountCents,
-                                              List<AttachmentEntity> funeralDocuments) {
+    private void prepareFuneralClaimForm(FuneralServiceEntity service, String claimId, String claimNo,
+                                         String claimType, long amountCents) {
         String claimantName = resolvePartnerName(service.getFamilyRepId());
-        claimFormGenerationService.generateForFuneralClaim(claimId, claimNo, claimType, service.getDeceasedName(), claimantName, amountCents);
-        for (AttachmentEntity source : funeralDocuments) {
-            AttachmentEntity copy = AttachmentEntity.builder()
-                    .objectId(claimId).documentType(source.getDocumentType()).uploadBy(source.getUploadBy())
-                    .uploadDate(source.getUploadDate()).uploadTime(source.getUploadTime()).file(source.getFile())
-                    .filePath(source.getFilePath()).storageBucket(source.getStorageBucket()).storageProvider(source.getStorageProvider())
-                    .contentType(source.getContentType()).fileSize(source.getFileSize()).extension(source.getExtension()).build();
-            attachmentRepository.save(copy);
-        }
-        jdbcTemplate.update("UPDATE " + claimTable + " SET status='SUBMITTED', updated_at=CURRENT_TIMESTAMP WHERE id=?", claimId);
-        if (!isExternalClaimStorage(link)) {
-            ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
-            approval.setApprovalType(ApprovalType.CLAIM);
-            approval.setReferenceId(claimId);
-            approval.setReferenceNo(claimNo);
-            approval.setTitle("Membership claim " + claimNo);
-            approval.setDescription("Funeral arrangement claim submitted after documentation upload");
-            approval.setRequesterId(service.getFamilyRepId());
-            approval.setPayloadJson("{\"claimId\":\"" + claimId + "\",\"funeralServiceId\":\"" + service.getId() + "\"}");
-            approvalService.submitForApproval(approval);
-        }
+        claimFormGenerationService.generateForFuneralClaim(
+                claimId, claimNo, claimType, service.getDeceasedName(), claimantName, amountCents);
     }
 
     private String resolvePartnerName(String partnerId) {
