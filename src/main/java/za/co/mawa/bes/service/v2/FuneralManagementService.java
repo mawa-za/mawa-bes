@@ -16,6 +16,8 @@ import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageItemRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.entity.AttachmentEntity;
+import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.v2.*;
@@ -51,6 +53,7 @@ public class FuneralManagementService {
     private final FuneralServiceRepository funeralServiceRepository;
     private final FuneralServiceInvoiceRepository funeralServiceInvoiceRepository;
     private final InvoiceRepository invoiceRepository;
+    private final AttachmentRepository attachmentRepository;
     private final FuneralServiceClaimRepository funeralServiceClaimRepository;
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final FuneralTenantIntegrationConfigRepository tenantIntegrationConfigRepository;
@@ -469,6 +472,10 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("At least one membership selection is required");
         }
         validateSelectedCoverLimit(selectedMemberships);
+        List<AttachmentEntity> funeralDocuments = attachmentRepository.findByObjectId(service.getId());
+        if (funeralDocuments.isEmpty()) {
+            throw new IllegalArgumentException("Attach the signed claim documentation before continuing the funeral arrangement");
+        }
 
         Map<String, FuneralMembershipCoverDto> coverMap = resolveSelectedCovers(service, selectedMemberships);
         if (coverMap.isEmpty()) {
@@ -525,7 +532,7 @@ public class FuneralManagementService {
                     LocalDate.now(),
                     defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
                     defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
-                    externalClaim ? null : service.getFamilyRepId(),
+                    service.getFamilyRepId(),
                     claimAmount,
                     service.getId(),
                     TenantContext.getCurrentTenant(),
@@ -543,33 +550,21 @@ public class FuneralManagementService {
             link.setSourceReference(cover.getSourceReference());
             link.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
             funeralServiceClaimRepository.save(link);
+            prepareAndSubmitFuneralClaim(service, link, claimTable, membershipClaimId, claimNo, claimType, claimAmount, funeralDocuments);
 
             response.add(readClaimDto(membershipClaimId));
             remaining -= claimAmount;
         }
 
-        List<String> groceryEligibleSelections = selectedMemberships.stream()
-                .filter(selectionId -> {
-                    FuneralMembershipCoverDto cover = coverMap.get(selectionId);
-                    return cover != null && cover.hasGroceryBenefit();
-                })
-                .toList();
-
         String grocerySelection = trimToNull(request.getGroceryCoverSelectionId());
-        if (grocerySelection != null && !selectedMemberships.contains(grocerySelection)) {
-            throw new IllegalArgumentException("The grocery benefit cover must be one of the selected funeral covers");
+        if (grocerySelection == null) {
+            grocerySelection = selectedMemberships.get(0);
         }
-        if (grocerySelection == null && !groceryEligibleSelections.isEmpty()) {
-            // Backwards compatible for clients that pre-date explicit grocery-cover selection.
-            grocerySelection = groceryEligibleSelections.get(0);
+        FuneralMembershipCoverDto groceryCover = coverMap.get(grocerySelection);
+        if (groceryCover == null) {
+            throw new IllegalArgumentException("Select which funeral cover must fund the grocery claim");
         }
-        if (grocerySelection != null) {
-            FuneralMembershipCoverDto groceryCover = coverMap.get(grocerySelection);
-            if (groceryCover == null || !groceryCover.hasGroceryBenefit()) {
-                throw new IllegalArgumentException("The selected cover does not have an active GROCERY benefit on its membership plan");
-            }
-            createGroceryClaimForFuneral(service, groceryCover, request);
-        }
+        createGroceryClaimForFuneral(service, groceryCover, request);
 
         service.setStatus("CLAIMS_INITIATED");
         funeralServiceRepository.save(service);
@@ -799,7 +794,6 @@ public class FuneralManagementService {
                        'MAIN_MEMBER' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
@@ -822,7 +816,6 @@ public class FuneralManagementService {
                        'DEPENDENT' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name,
                        NULL AS burial_society_partner_id
@@ -849,7 +842,6 @@ public class FuneralManagementService {
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
                 .funeralAmountCents(rs.getLong("funeral_amount_cents"))
                 .combinationAmountCents(rs.getLong("combination_amount_cents"))
-                .groceryAmountCents(rs.getLong("grocery_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -863,7 +855,6 @@ public class FuneralManagementService {
                 .coverAmountCents(rs.getLong("cover_amount_cents"))
                 .funeralAmountCents(rs.getLong("funeral_amount_cents"))
                 .combinationAmountCents(rs.getLong("combination_amount_cents"))
-                .groceryAmountCents(rs.getLong("grocery_amount_cents"))
                 .burialSocietyName(rs.getString("burial_society_name"))
                 .burialSocietyPartnerId(rs.getString("burial_society_partner_id"))
                 .coverSource(COVER_SOURCE_LOCAL)
@@ -893,7 +884,6 @@ public class FuneralManagementService {
                        'MAIN_MEMBER' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name
                   FROM %s pi
@@ -915,7 +905,6 @@ public class FuneralManagementService {
                        'DEPENDENT' AS deceased_type,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION' THEN pay.payout_amount_cents END), 0) AS combination_amount_cents,
-                       COALESCE(MAX(CASE WHEN pay.claim_type = 'GROCERY' THEN pay.payout_amount_cents END), 0) AS grocery_amount_cents,
                        COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL' THEN pay.payout_amount_cents END), 0) AS cover_amount_cents,
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name
                   FROM %s pi
@@ -943,7 +932,6 @@ public class FuneralManagementService {
                 rs.getString("burial_society_name"),
                 rs.getLong("funeral_amount_cents"),
                 rs.getLong("combination_amount_cents"),
-                rs.getLong("grocery_amount_cents"),
                 rs.getLong("cover_amount_cents")
         ), identityNumber));
         covers.addAll(jdbcTemplate.query(dependentSql, (rs, rowNum) -> toLiveExternalCover(
@@ -957,7 +945,6 @@ public class FuneralManagementService {
                 rs.getString("burial_society_name"),
                 rs.getLong("funeral_amount_cents"),
                 rs.getLong("combination_amount_cents"),
-                rs.getLong("grocery_amount_cents"),
                 rs.getLong("cover_amount_cents")
         ), identityNumber));
         return covers;
@@ -974,7 +961,6 @@ public class FuneralManagementService {
             String burialSocietyName,
             Long funeralAmount,
             Long combinationAmount,
-            Long groceryAmount,
             Long coverAmount
     ) {
         String selectionId = String.join(":", "EXTERNAL", tenantId, membershipId, deceasedPartnerId, deceasedType);
@@ -986,7 +972,6 @@ public class FuneralManagementService {
                 .coverAmountCents(coverAmount)
                 .funeralAmountCents(funeralAmount)
                 .combinationAmountCents(combinationAmount)
-                .groceryAmountCents(groceryAmount)
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(tenantId)
                 .sourceTenantName(tenantName)
@@ -1050,7 +1035,6 @@ public class FuneralManagementService {
                 .coverAmountCents(liveCover.getCoverAmountCents())
                 .funeralAmountCents(liveCover.getFuneralAmountCents())
                 .combinationAmountCents(liveCover.getCombinationAmountCents())
-                .groceryAmountCents(liveCover.getGroceryAmountCents())
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(liveCover.getSourceTenantId())
                 .sourceTenantName(liveCover.getSourceTenantName())
@@ -1093,7 +1077,6 @@ public class FuneralManagementService {
                 deceasedType);
         Long funeralPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "FUNERAL", dependentType);
         Long combinationPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "COMBINATION", dependentType);
-        Long groceryPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "GROCERY", dependentType);
 
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
@@ -1104,7 +1087,6 @@ public class FuneralManagementService {
                 .coverAmountCents(funeralPayout)
                 .funeralAmountCents(funeralPayout)
                 .combinationAmountCents(combinationPayout)
-                .groceryAmountCents(groceryPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .burialSocietyPartnerId(config.getExternalTenantPartnerId())
                 .coverSource(COVER_SOURCE_EXTERNAL)
@@ -1188,7 +1170,6 @@ public class FuneralManagementService {
                 deceasedType);
         Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
         Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
-        Long groceryPayout = findMembershipPlanPayout(membership.get("plan_id"), "GROCERY", dependentType);
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
                 .sourceMembershipId(membershipId)
@@ -1198,7 +1179,6 @@ public class FuneralManagementService {
                 .coverAmountCents(funeralPayout)
                 .funeralAmountCents(funeralPayout)
                 .combinationAmountCents(combinationPayout)
-                .groceryAmountCents(groceryPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
                 .build();
@@ -1217,11 +1197,10 @@ public class FuneralManagementService {
 
     private List<FuneralInvoiceSplitDto> buildSplitsFromApprovedClaims(FuneralServiceEntity service) {
         List<FuneralClaimDto> claims = getClaims(service.getId());
-        boolean hasPending = claims.stream().anyMatch(c -> List.of("DRAFT", "SUBMITTED").contains(defaultString(c.getStatus(), "")));
-        if (hasPending) {
-            throw new IllegalArgumentException("All funeral claims must be approved, partially approved, rejected, cancelled or paid before invoices are generated");
-        }
-
+        // Only approved cover may be invoiced to a burial society. Unresolved claims
+        // remain excluded from cover splits and the outstanding funeral balance is
+        // invoiced to the family representative. This matches the wizard's explicit
+        // "Proceed to Generate" option for pending claims.
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
         for (FuneralClaimDto claim : claims) {
@@ -1435,29 +1414,82 @@ public class FuneralManagementService {
         String tenantId = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource()) ? cover.getSourceTenantId() : null;
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
         String table = tenantId == null ? "membership_claim" : qualifiedTable(tenantId, "membership_claim");
-        long groceryAmount = defaultLong(cover.getGroceryAmountCents());
-        if (groceryAmount <= 0) return;
-
-        Long existingCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM " + table + " WHERE funeral_service_id = ? AND membership_id = ? AND claim_type = 'GROCERY'",
-                Long.class,
-                service.getId(),
-                cover.getSourceMembershipId());
-        if (existingCount != null && existingCount > 0) return;
-
         String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
+        long groceryAmount=findGroceryBenefitAmount(tenantId, cover.getSourceMembershipId(), cover.getDeceasedType());
         jdbcTemplate.update("""
-            INSERT INTO %s(id,claim_no,membership_id,claim_type,deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
-            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
+            INSERT INTO %s(id,claim_no,membership_id,claim_type,deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,claimant_partner_id,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
+            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
             """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),
             defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),service.getFuneralDate()==null?LocalDate.now():service.getFuneralDate(),LocalDate.now(),
-            defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
+            defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),service.getFamilyRepId(),groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
         FuneralServiceClaimEntity groceryLink=new FuneralServiceClaimEntity(); groceryLink.setFuneralServiceId(service.getId()); groceryLink.setMembershipClaimId(groceryId);
         groceryLink.setClaimStorageScope(tenantId==null?"LOCAL":"EXTERNAL"); groceryLink.setClaimOwnerTenantId(tenantId==null?TenantContext.getCurrentTenant():tenantId);
         groceryLink.setCoverSource(cover.getCoverSource()); groceryLink.setSourceTenantId(cover.getSourceTenantId()); groceryLink.setSourceTenantName(cover.getSourceTenantName());
         groceryLink.setSourceMembershipId(cover.getSourceMembershipId()); groceryLink.setSourceReference(cover.getSourceReference()); groceryLink.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
         funeralServiceClaimRepository.save(groceryLink);
+        List<AttachmentEntity> funeralDocuments = attachmentRepository.findByObjectId(service.getId());
+        prepareAndSubmitFuneralClaim(service, groceryLink, table, groceryId, groceryNo, "GROCERY", groceryAmount, funeralDocuments);
+    }
+
+    private void prepareAndSubmitFuneralClaim(FuneralServiceEntity service, FuneralServiceClaimEntity link, String claimTable,
+                                              String claimId, String claimNo, String claimType, long amountCents,
+                                              List<AttachmentEntity> funeralDocuments) {
+        String claimantName = resolvePartnerName(service.getFamilyRepId());
+        claimFormGenerationService.generateForFuneralClaim(claimId, claimNo, claimType, service.getDeceasedName(), claimantName, amountCents);
+        for (AttachmentEntity source : funeralDocuments) {
+            AttachmentEntity copy = AttachmentEntity.builder()
+                    .objectId(claimId).documentType(source.getDocumentType()).uploadBy(source.getUploadBy())
+                    .uploadDate(source.getUploadDate()).uploadTime(source.getUploadTime()).file(source.getFile())
+                    .filePath(source.getFilePath()).storageBucket(source.getStorageBucket()).storageProvider(source.getStorageProvider())
+                    .contentType(source.getContentType()).fileSize(source.getFileSize()).extension(source.getExtension()).build();
+            attachmentRepository.save(copy);
+        }
+        jdbcTemplate.update("UPDATE " + claimTable + " SET status='SUBMITTED', updated_at=CURRENT_TIMESTAMP WHERE id=?", claimId);
+        if (!isExternalClaimStorage(link)) {
+            ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
+            approval.setApprovalType(ApprovalType.CLAIM);
+            approval.setReferenceId(claimId);
+            approval.setReferenceNo(claimNo);
+            approval.setTitle("Membership claim " + claimNo);
+            approval.setDescription("Funeral arrangement claim submitted after documentation upload");
+            approval.setRequesterId(service.getFamilyRepId());
+            approval.setPayloadJson("{\"claimId\":\"" + claimId + "\",\"funeralServiceId\":\"" + service.getId() + "\"}");
+            approvalService.submitForApproval(approval);
+        }
+    }
+
+    private String resolvePartnerName(String partnerId) {
+        if (!StringUtils.hasText(partnerId)) return "";
+        List<String> names = jdbcTemplate.query("SELECT TRIM(CONCAT_WS(' ', NULLIF(name2,''), NULLIF(name3,''), NULLIF(name1,''))) FROM partner WHERE id=?",
+                (rs, rowNum) -> rs.getString(1), partnerId);
+        return names.isEmpty() ? partnerId : names.get(0);
+    }
+
+    private long findGroceryBenefitAmount(String tenantId, String membershipId, String deceasedType) {
+        String membershipTable = tenantId == null
+                ? "membership"
+                : qualifiedTable(tenantId, "membership");
+        String payoutTable = tenantId == null
+                ? "membership_plan_claim_payout"
+                : qualifiedTable(tenantId, "membership_plan_claim_payout");
+        String normalizedDependentType = defaultString(deceasedType, "MAIN_MEMBER").toUpperCase(Locale.ROOT);
+        String genericType = genericDependentType(normalizedDependentType);
+
+        List<Long> values = jdbcTemplate.query("""
+                SELECT COALESCE(MAX(p.payout_amount_cents), 0)
+                  FROM %s m
+                  JOIN %s p ON p.plan_id = m.plan_id
+                 WHERE m.id = ?
+                   AND p.claim_type = 'GROCERY'
+                   AND p.active = 1
+                   AND p.dependent_type IN (?, ?, 'ANY')
+                """.formatted(membershipTable, payoutTable),
+                (rs, rowNum) -> rs.getLong(1),
+                membershipId,
+                normalizedDependentType,
+                genericType);
+        return values.isEmpty() ? 0L : values.get(0);
     }
 
     private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {

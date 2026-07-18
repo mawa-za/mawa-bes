@@ -303,6 +303,10 @@ public class FuneralManagementControllerV2 {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.generateInvoices(request));
         } catch (Exception exception) {
+            log.warn("Unable to generate invoices for funeral service {}: {}",
+                    request == null ? null : request.getFuneralServiceId(),
+                    exception.getMessage(),
+                    exception);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
