@@ -47,6 +47,9 @@ public class CashupDepositEntity {
     @Column(name = "legacy_transaction_id", length = 255)
     private String legacyTransactionId;
 
+    @Column(name = "proof_attachment_id", length = 255)
+    private String proofAttachmentId;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

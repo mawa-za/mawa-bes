@@ -58,6 +58,15 @@ public class CashupEntity {
     @Column(name = "source", nullable = false, length = 30)
     private String source = "MAWAPAY";
 
+    @Column(name = "receipt_book_no", length = 100)
+    private String receiptBookNo;
+
+    @Column(name = "receipt_from_no", length = 100)
+    private String receiptFromNo;
+
+    @Column(name = "receipt_to_no", length = 100)
+    private String receiptToNo;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

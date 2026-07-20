@@ -9,16 +9,26 @@ import za.co.mawa.bes.dto.v2.payapp.*;
 import com.google.gson.Gson;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
+import za.co.mawa.bes.entity.AttachmentEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.CashupDepositEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
+import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
+import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
 import za.co.mawa.bes.repository.v2.CashupRepository;
+import za.co.mawa.bes.repository.v2.ManualPremiumReceiptRepository;
+import za.co.mawa.bes.service.AttachmentService;
 
+import java.math.BigInteger;
 import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -27,6 +37,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service(value = "CashupServiceV2")
 @RequiredArgsConstructor
@@ -38,11 +51,17 @@ public class CashupService {
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
+    private static final String SOURCE_MANUAL_RECEIPT_BOOK = "MANUAL_RECEIPT_BOOK";
 
     private final CashupRepository cashupRepository;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final CashupReceiptRepository cashupReceiptRepository;
     private final CashupDepositRepository cashupDepositRepository;
+    private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
+    private final UserRepository userRepository;
+    private final PartnerRepository partnerRepository;
+    private final AttachmentService attachmentService;
+    private final NumberAllocationService numberAllocationService;
     private final ApprovalService approvalService;
     private final Gson gson;
 
@@ -120,10 +139,15 @@ public class CashupService {
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
                 .userId(cashup.getUserId())
+                .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
                 .totalCents(cashup.getTotalCents())
                 .receiptCount(cashup.getReceiptCount())
                 .status(cashup.getStatus())
+                .source(cashup.getSource())
+                .receiptBookNo(cashup.getReceiptBookNo())
+                .receiptFromNo(cashup.getReceiptFromNo())
+                .receiptToNo(cashup.getReceiptToNo())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .approvalRequestId(cashup.getApprovalRequestId())
@@ -167,19 +191,25 @@ public class CashupService {
         Slice<CashupEntity> page = normalizedStatus == null || "ALL".equalsIgnoreCase(normalizedStatus)
                 ? cashupRepository.findAllByOrderByCashupDateDescCreatedAtDesc(pageable)
                 : cashupRepository.findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(normalizedStatus, pageable);
-        return page.map(this::toListItem);
+        Map<String, String> cashierNames = resolveCashierNames(page.getContent());
+        return page.map(cashup -> toListItem(cashup, cashierNames.get(cashup.getUserId())));
     }
 
-    private CashupListItemResponse toListItem(CashupEntity cashup) {
+    private CashupListItemResponse toListItem(CashupEntity cashup, String cashierName) {
         return CashupListItemResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
                 .userId(cashup.getUserId())
+                .cashierName(cashierName)
                 .cashupDate(cashup.getCashupDate())
                 .totalCents(defaultLong(cashup.getTotalCents()))
                 .receiptCount(defaultInt(cashup.getReceiptCount()))
                 .status(cashup.getStatus())
+                .source(cashup.getSource())
+                .receiptBookNo(cashup.getReceiptBookNo())
+                .receiptFromNo(cashup.getReceiptFromNo())
+                .receiptToNo(cashup.getReceiptToNo())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .createdAt(cashup.getCreatedAt())
@@ -194,6 +224,91 @@ public class CashupService {
                 .stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+    @Transactional
+    public CashupSummaryResponse createManualCashup(ManualCashupCreateRequest request) {
+        validateManualCashupRequest(request);
+
+        String receiptBookNo = request.getReceiptBookNo().trim();
+        BigInteger fromNo = parseManualReceiptNumber(request.getReceiptFromNo(), "receiptFromNo");
+        BigInteger toNo = parseManualReceiptNumber(request.getReceiptToNo(), "receiptToNo");
+        if (fromNo.compareTo(toNo) > 0) {
+            throw new IllegalArgumentException("receiptFromNo cannot be greater than receiptToNo");
+        }
+
+        List<ManualPremiumReceiptEntity> selectedReceipts = manualPremiumReceiptRepository
+                .findByReceiptBookNoForUpdate(receiptBookNo)
+                .stream()
+                .filter(receipt -> {
+                    BigInteger number = parseManualReceiptNumber(receipt.getManualReceiptNo(), "manualReceiptNo");
+                    return number.compareTo(fromNo) >= 0 && number.compareTo(toNo) <= 0;
+                })
+                .sorted((left, right) -> parseManualReceiptNumber(left.getManualReceiptNo(), "manualReceiptNo")
+                        .compareTo(parseManualReceiptNumber(right.getManualReceiptNo(), "manualReceiptNo")))
+                .toList();
+
+        if (selectedReceipts.isEmpty()) {
+            throw new IllegalArgumentException("No captured manual receipts were found in the supplied receipt-book range");
+        }
+
+        List<String> alreadyCashupped = selectedReceipts.stream()
+                .filter(receipt -> clean(receipt.getCashupId()) != null)
+                .map(ManualPremiumReceiptEntity::getManualReceiptNo)
+                .toList();
+        if (!alreadyCashupped.isEmpty()) {
+            throw new IllegalStateException("The following manual receipts already belong to a cashup: "
+                    + String.join(", ", alreadyCashupped));
+        }
+
+        long totalCents = selectedReceipts.stream()
+                .mapToLong(receipt -> defaultLong(receipt.getAmountCents()))
+                .sum();
+
+        CashupEntity cashup = new CashupEntity();
+        cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
+        cashup.setDeviceId("ERP-MANUAL-" + receiptBookNo);
+        cashup.setUserId(request.getUserId().trim());
+        cashup.setCashupDate(clean(request.getCashupDate()) == null
+                ? LocalDate.now()
+                : parseDate(request.getCashupDate()));
+        cashup.setTotalCents(totalCents);
+        cashup.setReceiptCount(selectedReceipts.size());
+        cashup.setStatus(STATUS_AWAITING_DEPOSITS);
+        cashup.setSource(SOURCE_MANUAL_RECEIPT_BOOK);
+        cashup.setReceiptBookNo(receiptBookNo);
+        cashup.setReceiptFromNo(request.getReceiptFromNo().trim());
+        cashup.setReceiptToNo(request.getReceiptToNo().trim());
+        cashup.setNotes(clean(request.getNotes()));
+        cashup.setCreatedBy(request.getUserId().trim());
+        cashup.setUpdatedBy(request.getUserId().trim());
+        cashup.setSyncedAt(LocalDateTime.now());
+        cashup = cashupRepository.save(cashup);
+
+        List<CashupReceiptEntity> cashupReceipts = new ArrayList<>();
+        Map<String, Long> amountByMethod = new HashMap<>();
+        Map<String, Integer> countByMethod = new HashMap<>();
+        for (ManualPremiumReceiptEntity manualReceipt : selectedReceipts) {
+            CashupReceiptEntity cashupReceipt = new CashupReceiptEntity();
+            cashupReceipt.setCashup(cashup);
+            cashupReceipt.setReceiptId(manualReceipt.getId());
+            cashupReceipt.setReceiptNo(toLongReceiptNumber(manualReceipt.getManualReceiptNo()));
+            cashupReceipt.setLegacyTransactionId(manualReceipt.getPaymentBatchId());
+            cashupReceipt.setAmountCents(defaultLong(manualReceipt.getAmountCents()));
+            cashupReceipt.setPaymentMethod(normalizePaymentMethod(manualReceipt.getPaymentMethod()));
+            cashupReceipts.add(cashupReceipt);
+
+            String method = normalizePaymentMethod(manualReceipt.getPaymentMethod());
+            if (method == null) method = "UNKNOWN";
+            amountByMethod.merge(method, defaultLong(manualReceipt.getAmountCents()), Long::sum);
+            countByMethod.merge(method, 1, Integer::sum);
+            manualReceipt.setCashupId(cashup.getId());
+        }
+
+        cashupReceiptRepository.saveAll(cashupReceipts);
+        replacePaymentSummaries(cashup, amountByMethod, countByMethod);
+        manualPremiumReceiptRepository.saveAll(selectedReceipts);
+        return getCashup(cashup.getId());
     }
 
     @Transactional
@@ -219,8 +334,22 @@ public class CashupService {
         deposit.setUpdatedBy(clean(request.getCreatedBy()));
 
         deposit = cashupDepositRepository.save(deposit);
-        recalculateDeposits(cashup);
 
+        AttachmentCreateDto attachmentRequest = new AttachmentCreateDto();
+        attachmentRequest.setObjectType("CASHUP_DEPOSIT");
+        attachmentRequest.setObjectId(deposit.getId());
+        attachmentRequest.setDocumentType(request.getAttachmentDocumentType().trim());
+        attachmentRequest.setExtension(request.getAttachmentExtension().trim());
+        attachmentRequest.setFile(request.getAttachmentFile());
+        try {
+            AttachmentEntity proof = attachmentService.saveAndReturn(attachmentRequest);
+            deposit.setProofAttachmentId(proof.getId());
+            deposit = cashupDepositRepository.save(deposit);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to store the required deposit attachment: " + ex.getMessage(), ex);
+        }
+
+        recalculateDeposits(cashup);
         return toDepositResponse(deposit);
     }
 
@@ -248,6 +377,13 @@ public class CashupService {
             throw new IllegalStateException("Deposits cannot be deleted after cashup submission");
         }
 
+        if (clean(deposit.getProofAttachmentId()) != null) {
+            try {
+                attachmentService.delete(deposit.getProofAttachmentId());
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to delete the deposit proof attachment", ex);
+            }
+        }
         cashupDepositRepository.delete(deposit);
         recalculateDeposits(cashup);
     }
@@ -475,10 +611,15 @@ public class CashupService {
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
                 .userId(cashup.getUserId())
+                .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
                 .totalCents(cashup.getTotalCents())
                 .receiptCount(cashup.getReceiptCount())
                 .status(cashup.getStatus())
+                .source(cashup.getSource())
+                .receiptBookNo(cashup.getReceiptBookNo())
+                .receiptFromNo(cashup.getReceiptFromNo())
+                .receiptToNo(cashup.getReceiptToNo())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .approvalRequestId(cashup.getApprovalRequestId())
@@ -515,6 +656,15 @@ public class CashupService {
         if (request.getDepositDate() == null || request.getDepositDate().isBlank()) {
             throw new IllegalArgumentException("depositDate is required");
         }
+        if (clean(request.getAttachmentFile()) == null) {
+            throw new IllegalArgumentException("A proof-of-deposit attachment is required");
+        }
+        if (clean(request.getAttachmentExtension()) == null) {
+            throw new IllegalArgumentException("attachmentExtension is required");
+        }
+        if (clean(request.getAttachmentDocumentType()) == null) {
+            throw new IllegalArgumentException("attachmentDocumentType is required");
+        }
     }
 
     private void recalculateDeposits(CashupEntity cashup) {
@@ -536,7 +686,81 @@ public class CashupService {
                 .referenceNo(entity.getReferenceNo())
                 .notes(entity.getNotes())
                 .createdBy(entity.getCreatedBy())
+                .proofAttachmentId(entity.getProofAttachmentId())
                 .build();
+    }
+
+    private void validateManualCashupRequest(ManualCashupCreateRequest request) {
+        if (request == null) throw new IllegalArgumentException("Manual cashup request is required");
+        if (clean(request.getReceiptBookNo()) == null) throw new IllegalArgumentException("receiptBookNo is required");
+        if (clean(request.getReceiptFromNo()) == null) throw new IllegalArgumentException("receiptFromNo is required");
+        if (clean(request.getReceiptToNo()) == null) throw new IllegalArgumentException("receiptToNo is required");
+        if (clean(request.getUserId()) == null) throw new IllegalArgumentException("userId is required");
+    }
+
+    private BigInteger parseManualReceiptNumber(String value, String fieldName) {
+        String cleaned = clean(value);
+        if (cleaned == null || !cleaned.matches("\\d+")) {
+            throw new IllegalArgumentException(fieldName + " must contain digits only");
+        }
+        return new BigInteger(cleaned);
+    }
+
+    private Long toLongReceiptNumber(String value) {
+        try {
+            return parseManualReceiptNumber(value, "manualReceiptNo").longValueExact();
+        } catch (ArithmeticException ex) {
+            return null;
+        }
+    }
+
+    private Map<String, String> resolveCashierNames(List<CashupEntity> cashups) {
+        Set<String> userIds = cashups.stream()
+                .map(CashupEntity::getUserId)
+                .filter(id -> clean(id) != null)
+                .collect(Collectors.toSet());
+        if (userIds.isEmpty()) return Map.of();
+
+        Map<String, UserEntity> users = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(UserEntity::getId, Function.identity()));
+        Set<String> partnerIds = users.values().stream()
+                .map(UserEntity::getPartner)
+                .filter(id -> clean(id) != null)
+                .collect(Collectors.toSet());
+        Map<String, PartnerEntity> partners = partnerRepository.findAllById(partnerIds).stream()
+                .collect(Collectors.toMap(PartnerEntity::getId, Function.identity()));
+
+        Map<String, String> names = new HashMap<>();
+        for (String userId : userIds) {
+            names.put(userId, displayName(users.get(userId), partners));
+        }
+        return names;
+    }
+
+    private String resolveCashierName(String userId) {
+        String cleanedUserId = clean(userId);
+        if (cleanedUserId == null) return "Unknown cashier";
+        UserEntity user = userRepository.findById(cleanedUserId).orElse(null);
+        if (user == null) return "Unknown cashier";
+        Map<String, PartnerEntity> partners = new HashMap<>();
+        if (clean(user.getPartner()) != null) {
+            partnerRepository.findById(user.getPartner()).ifPresent(partner -> partners.put(partner.getId(), partner));
+        }
+        return displayName(user, partners);
+    }
+
+    private String displayName(UserEntity user, Map<String, PartnerEntity> partners) {
+        if (user == null) return "Unknown cashier";
+        PartnerEntity partner = clean(user.getPartner()) == null ? null : partners.get(user.getPartner());
+        if (partner != null) {
+            List<String> parts = new ArrayList<>();
+            if (clean(partner.getName2()) != null) parts.add(partner.getName2().trim());
+            if (clean(partner.getName3()) != null) parts.add(partner.getName3().trim());
+            if (clean(partner.getName1()) != null) parts.add(partner.getName1().trim());
+            if (!parts.isEmpty()) return String.join(" ", parts);
+        }
+        if (clean(user.getUsername()) != null) return user.getUsername().trim();
+        return "Unknown cashier";
     }
 
     private String clean(String value) {
