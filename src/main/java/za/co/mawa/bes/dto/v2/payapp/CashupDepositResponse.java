@@ -17,4 +17,5 @@ public class CashupDepositResponse {
     private String referenceNo;
     private String notes;
     private String createdBy;
+    private String proofAttachmentId;
 }
