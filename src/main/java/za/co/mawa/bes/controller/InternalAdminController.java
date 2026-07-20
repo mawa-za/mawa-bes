@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.TenantPropertyDto;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.AdminHandoffService;
 import za.co.mawa.bes.service.AttachmentService;
+import za.co.mawa.bes.service.InternalScheduledJobService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TenantService;
 import za.co.mawa.bes.service.v2.PosPrintingService;
@@ -41,6 +42,9 @@ public class InternalAdminController {
 
     @Autowired
     private AttachmentService attachmentService;
+
+    @Autowired
+    private InternalScheduledJobService internalScheduledJobService;
 
     @Autowired
     private PosPrintingService posPrintingService;
@@ -82,6 +86,31 @@ public class InternalAdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @RequestMapping(value = "/internal/admin/tenant/{tenant}/scheduled-jobs/{jobCode}/run", method = RequestMethod.POST)
+    public ResponseEntity<?> runScheduledJob(
+            @RequestHeader HttpHeaders headers,
+            @PathVariable String tenant,
+            @PathVariable String jobCode
+    ) {
+        try {
+            validateInternalToken(headers);
+            TenantContext.setCurrentTenant(tenant);
+            return ResponseEntity.ok(internalScheduledJobService.run(jobCode));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (Exception ex) {
+            java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("tenant", tenant);
+            payload.put("jobCode", jobCode);
+            payload.put("success", false);
+            payload.put("message", ex.getMessage());
+            payload.put("errorType", ex.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(payload);
         }
     }
 
