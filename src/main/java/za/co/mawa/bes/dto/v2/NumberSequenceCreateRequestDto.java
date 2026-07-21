@@ -10,7 +10,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NumberSequenceCreateRequestDto {
-
     private String seqType;
+    private String description;
+    private Long startNo;
     private Long nextNo;
+    private Long endNo;
+    private Integer defaultAllocationSize;
+    private Long warningThreshold;
+    private Boolean active;
 }
