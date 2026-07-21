@@ -15,22 +15,34 @@ public class ApiEndpointLogAsyncWriter {
 
     private final ApiEndpointLogRepository repository;
 
-    @Async
+    @Async("apiLogTaskExecutor")
     public void save(ApiEndpointLogEntity endpointLog, String tenant) {
         try {
-            if (tenant != null && !tenant.isBlank()) {
-                TenantContext.setCurrentTenant(tenant);
+            if (tenant == null || tenant.isBlank() || endpointLog == null) {
+                return;
             }
+            TenantContext.setCurrentTenant(tenant);
             repository.save(endpointLog);
         } catch (Exception e) {
-            log.error(
-                    "Failed to persist API activity log for tenant {} and request {}",
+            log.warn(
+                    "API activity log was not persisted for tenant {} and request {}: {}",
                     tenant,
                     endpointLog == null ? null : endpointLog.getRequestId(),
-                    e
+                    rootMessage(e)
             );
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private String rootMessage(Throwable error) {
+        Throwable current = error;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        String message = current.getMessage();
+        return message == null || message.isBlank()
+                ? current.getClass().getSimpleName()
+                : message;
     }
 }

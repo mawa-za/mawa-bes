@@ -60,6 +60,8 @@ public class MembershipService {
     MembershipUpdateHandlerRegistry membershipHandlerRegistry;
     @Autowired
     PartnerService partnerService;
+    @Autowired
+    MembershipChangeService membershipChangeService;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -99,12 +101,14 @@ public class MembershipService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
+        membershipChangeService.applyDuePlanChanges(LocalDate.now(), "SYSTEM");
         Page<MembershipEntity> memberships = membershipRepository.findAll(spec, pageable);
         repairMissingPaidUpToPeriods(memberships.getContent());
         return memberships;
     }
 
     public Optional<MembershipEntity> getMembershipById(String id) {
+        membershipChangeService.synchronizeEffectiveChanges(id, LocalDate.now(), "SYSTEM");
         Optional<MembershipEntity> membership = membershipRepository.findById(id);
         membership.ifPresent(this::repairMissingPaidUpToPeriod);
         return membership;
@@ -143,6 +147,7 @@ public class MembershipService {
             membership.setMembershipNo(id);
             membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId()).get().getPremiumCents());
             MembershipEntity savedMembership = membershipRepository.save(membership);
+            membershipChangeService.ensureBaselineHistory(savedMembership, UserContext.getCurrentUserId());
             partnerService.addRole(savedMembership.getMemberId(), "MEMBER");
             return savedMembership;
         } catch (Exception e) {
@@ -191,9 +196,13 @@ public class MembershipService {
     public Optional<MembershipEntity> updateMembership(String id, MembershipEntity membership) {
         membershipRepository.findById(id)
                 .map(existingMembership -> {
-                    existingMembership.setMemberId(membership.getMemberId());
+                    if (membership.getMemberId() != null && !membership.getMemberId().equals(existingMembership.getMemberId())) {
+                        throw new IllegalArgumentException("Membership holder changes require an approved transfer request");
+                    }
+                    if (membership.getPlanId() != null && !membership.getPlanId().equals(existingMembership.getPlanId())) {
+                        throw new IllegalArgumentException("Membership plan changes require an approved plan-change request");
+                    }
                     existingMembership.setMembershipNo(membership.getMembershipNo());
-                    existingMembership.setPlanId(membership.getPlanId());
                     existingMembership.setStartDate(membership.getStartDate());
                     existingMembership.setEndDate(membership.getEndDate());
                     existingMembership.setStatus(membership.getStatus());
@@ -240,9 +249,11 @@ public class MembershipService {
             throw new RuntimeException("Membership id is required");
         }
 
-        return membershipRepository.findById(membershipId)
+        MembershipEntity resolved = membershipRepository.findById(membershipId)
                 .or(() -> membershipRepository.findByOldId(membershipId))
                 .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+        membershipChangeService.synchronizeEffectiveChanges(resolved.getId(), LocalDate.now(), "SYSTEM");
+        return membershipRepository.findById(resolved.getId()).orElse(resolved);
     }
 
     public List<String> membershipIdentifiers(String membershipId) {

@@ -1,7 +1,9 @@
 package za.co.mawa.bes.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import za.co.mawa.bes.entity.PartnerViewEntity;
 
@@ -21,10 +23,10 @@ public interface PartnerViewRepository extends JpaRepository<PartnerViewEntity, 
             "p.name1 like :query OR " +
             "p.name2 like :query OR " +
             "p.name3 like :query ORDER BY p.partnerNo")
-    List<PartnerViewEntity> findByString(String query);
+    List<PartnerViewEntity> findByString(@Param("query") String query, Pageable pageable);
 
     @Query("SELECT p FROM PartnerViewEntity p WHERE p.partnerRole like :role ORDER BY p.partnerNo")
-    List<PartnerViewEntity> findByRole(String role);
+    List<PartnerViewEntity> findByRole(@Param("role") String role);
 
     @Query("SELECT p FROM PartnerViewEntity p WHERE p.partnerRole = :role AND (" +
             "p.identityNumber like :query OR " +
@@ -32,6 +34,10 @@ public interface PartnerViewRepository extends JpaRepository<PartnerViewEntity, 
             "p.name1 like :query OR " +
             "p.name2 like :query OR " +
             "p.name3 like :query) ORDER BY p.partnerNo")
-    List<PartnerViewEntity> findByStringAndRole(String query, String role);
+    List<PartnerViewEntity> findByStringAndRole(
+            @Param("query") String query,
+            @Param("role") String role,
+            Pageable pageable
+    );
 
 }

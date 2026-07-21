@@ -18,10 +18,17 @@ public class MembershipClaimResponse {
     private String membershipId;
     private String membershipNo;
     private String memberName;
+    private String memberNumber;
+    private String memberIdentityNumber;
     private String deceasedName;
+    private String deceasedNumber;
+    private String deceasedIdentityNumber;
     private String claimantName;
 
     private MembershipClaimType claimType;
+    private String coveragePlanId;
+    private String coveragePlanName;
+    private LocalDate coverageEventDate;
     private MembershipClaimDeceasedType deceasedType;
 
     private String deceasedPartnerId;
@@ -70,6 +77,13 @@ public class MembershipClaimResponse {
     private String branchCode;
     private BankAccountType accountType;
 
+
+    public String getCoveragePlanId() { return coveragePlanId; }
+    public MembershipClaimResponse setCoveragePlanId(String coveragePlanId) { this.coveragePlanId = coveragePlanId; return this; }
+    public String getCoveragePlanName() { return coveragePlanName; }
+    public MembershipClaimResponse setCoveragePlanName(String coveragePlanName) { this.coveragePlanName = coveragePlanName; return this; }
+    public LocalDate getCoverageEventDate() { return coverageEventDate; }
+    public MembershipClaimResponse setCoverageEventDate(LocalDate coverageEventDate) { this.coverageEventDate = coverageEventDate; return this; }
 
     public Long getApprovedAmountCents() {
         return approvedAmountCents;
@@ -206,8 +220,16 @@ public class MembershipClaimResponse {
     public MembershipClaimResponse setMembershipNo(String membershipNo) { this.membershipNo = membershipNo; return this; }
     public String getMemberName() { return memberName; }
     public MembershipClaimResponse setMemberName(String memberName) { this.memberName = memberName; return this; }
+    public String getMemberNumber() { return memberNumber; }
+    public MembershipClaimResponse setMemberNumber(String memberNumber) { this.memberNumber = memberNumber; return this; }
+    public String getMemberIdentityNumber() { return memberIdentityNumber; }
+    public MembershipClaimResponse setMemberIdentityNumber(String memberIdentityNumber) { this.memberIdentityNumber = memberIdentityNumber; return this; }
     public String getDeceasedName() { return deceasedName; }
     public MembershipClaimResponse setDeceasedName(String deceasedName) { this.deceasedName = deceasedName; return this; }
+    public String getDeceasedNumber() { return deceasedNumber; }
+    public MembershipClaimResponse setDeceasedNumber(String deceasedNumber) { this.deceasedNumber = deceasedNumber; return this; }
+    public String getDeceasedIdentityNumber() { return deceasedIdentityNumber; }
+    public MembershipClaimResponse setDeceasedIdentityNumber(String deceasedIdentityNumber) { this.deceasedIdentityNumber = deceasedIdentityNumber; return this; }
     public String getClaimantName() { return claimantName; }
     public MembershipClaimResponse setClaimantName(String claimantName) { this.claimantName = claimantName; return this; }
 

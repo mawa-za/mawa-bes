@@ -13,6 +13,7 @@ public class ManualPremiumReceiptEntity {
     @Id @GeneratedValue(generator = "system-uuid") @GenericGenerator(name = "system-uuid", strategy = "uuid")
     @Column(length = 255) private String id;
     @Column(name = "payment_batch_id", nullable = false, length = 255) private String paymentBatchId;
+    @Column(name = "cashup_id", length = 255) private String cashupId;
     @Column(name = "membership_id", nullable = false, length = 255) private String membershipId;
     @Column(name = "capture_mode", nullable = false, length = 30) private String captureMode;
     @Column(name = "receipt_book_no", nullable = false, length = 100) private String receiptBookNo;

@@ -484,46 +484,62 @@ public class FuneralManagementService {
 
         String claimType = request.getEffectiveClaimType(selectedMemberships.size());
         long arrangementTotal = defaultLong(service.getTotalAmountCents());
-        long remaining = arrangementTotal > 0
-                ? arrangementTotal
-                : coverMap.values().stream().mapToLong(cover -> defaultLong(cover.amountForClaimType(claimType))).sum();
+        // Without an arrangement total each selected cover contributes its full
+        // effective-dated benefit. Do not cap historical cover with the amount
+        // shown by an earlier current-plan lookup.
+        long remaining = arrangementTotal > 0 ? arrangementTotal : Long.MAX_VALUE;
         List<FuneralClaimDto> response = new ArrayList<>();
 
         for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
             if (cover == null || remaining <= 0) continue;
-            long coverAmount = defaultLong(cover.amountForClaimType(claimType));
+            boolean externalClaim = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource());
+            String claimTenantId = externalClaim ? cover.getSourceTenantId() : TenantContext.getCurrentTenant();
+            LocalDate coverageEventDate = service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate();
+            String membershipId = cover.getSourceMembershipId();
+            String coveragePlanId = resolveEffectiveCoveragePlanId(
+                    externalClaim ? claimTenantId : null,
+                    membershipId,
+                    coverageEventDate);
+            String coverageDependentType = resolveCoverageDependentType(
+                    externalClaim ? claimTenantId : null,
+                    membershipId,
+                    defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
+                    defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
+            long coverAmount = defaultLong(externalClaim
+                    ? findExternalMembershipPlanPayout(claimTenantId, coveragePlanId, claimType, coverageDependentType)
+                    : findMembershipPlanPayout(coveragePlanId, claimType, coverageDependentType));
             long claimAmount = arrangementTotal > 0 ? Math.min(coverAmount, remaining) : coverAmount;
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
-            boolean externalClaim = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource());
-            String claimTenantId = externalClaim ? cover.getSourceTenantId() : TenantContext.getCurrentTenant();
             if (externalClaim) {
                 ensureExternalClaimCreationAllowed(claimTenantId);
             }
             String claimNo = externalClaim
                     ? generateExternalMembershipClaimNo(claimTenantId)
                     : generateMembershipClaimNo();
-            String membershipId = cover.getSourceMembershipId();
             String claimTable = externalClaim
                     ? qualifiedTable(claimTenantId, "membership_claim")
                     : "membership_claim";
 
             jdbcTemplate.update("""
                     INSERT INTO %s
-                    (id, claim_no, membership_id, claim_type, deceased_type, deceased_partner_id, date_of_death,
-                     claim_date, cause_of_death, death_certificate_no, claimant_partner_id, claim_amount_cents,
-                     funeral_service_id, funeral_provider_tenant_id, status, notes, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, CURRENT_TIMESTAMP)
+                    (id, claim_no, membership_id, claim_type, coverage_plan_id, coverage_event_date,
+                     deceased_type, deceased_partner_id, date_of_death, claim_date, cause_of_death,
+                     death_certificate_no, claimant_partner_id, claim_amount_cents, funeral_service_id,
+                     funeral_provider_tenant_id, status, notes, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, CURRENT_TIMESTAMP)
                     """.formatted(claimTable),
                     membershipClaimId,
                     claimNo,
                     membershipId,
                     claimType,
+                    coveragePlanId,
+                    coverageEventDate,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
                     defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
-                    service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate(),
+                    coverageEventDate,
                     LocalDate.now(),
                     defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
                     defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
@@ -1413,12 +1429,23 @@ public class FuneralManagementService {
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
         String table = tenantId == null ? "membership_claim" : qualifiedTable(tenantId, "membership_claim");
         String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
-        long groceryAmount=findGroceryBenefitAmount(tenantId, cover.getSourceMembershipId(), cover.getDeceasedType());
+        LocalDate coverageEventDate = service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate();
+        String coveragePlanId = resolveEffectiveCoveragePlanId(tenantId, cover.getSourceMembershipId(), coverageEventDate);
+        String coverageDependentType = resolveCoverageDependentType(
+                tenantId,
+                cover.getSourceMembershipId(),
+                defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
+                defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
+        long groceryAmount = defaultLong(tenantId == null
+                ? findMembershipPlanPayout(coveragePlanId, "GROCERY", coverageDependentType)
+                : findExternalMembershipPlanPayout(tenantId, coveragePlanId, "GROCERY", coverageDependentType));
         jdbcTemplate.update("""
-            INSERT INTO %s(id,claim_no,membership_id,claim_type,deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,claimant_partner_id,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
-            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
-            """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),
-            defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),service.getFuneralDate()==null?LocalDate.now():service.getFuneralDate(),LocalDate.now(),
+            INSERT INTO %s(id,claim_no,membership_id,claim_type,coverage_plan_id,coverage_event_date,
+            deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,
+            claimant_partner_id,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
+            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
+            """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),coveragePlanId,coverageEventDate,
+            defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),service.getFamilyRepId(),groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
         FuneralServiceClaimEntity groceryLink=new FuneralServiceClaimEntity(); groceryLink.setFuneralServiceId(service.getId()); groceryLink.setMembershipClaimId(groceryId);
@@ -1443,30 +1470,59 @@ public class FuneralManagementService {
         return names.isEmpty() ? partnerId : names.get(0);
     }
 
-    private long findGroceryBenefitAmount(String tenantId, String membershipId, String deceasedType) {
+    private String resolveEffectiveCoveragePlanId(String tenantId, String membershipId, LocalDate eventDate) {
+        String historyTable = tenantId == null
+                ? "membership_plan_history"
+                : qualifiedTable(tenantId, "membership_plan_history");
+        String changeTable = tenantId == null
+                ? "membership_change_request"
+                : qualifiedTable(tenantId, "membership_change_request");
         String membershipTable = tenantId == null
                 ? "membership"
                 : qualifiedTable(tenantId, "membership");
-        String payoutTable = tenantId == null
-                ? "membership_plan_claim_payout"
-                : qualifiedTable(tenantId, "membership_plan_claim_payout");
-        String normalizedDependentType = defaultString(deceasedType, "MAIN_MEMBER").toUpperCase(Locale.ROOT);
-        String genericType = genericDependentType(normalizedDependentType);
+        LocalDate date = eventDate == null ? LocalDate.now() : eventDate;
+        List<String> plans = jdbcTemplate.query("""
+                SELECT candidate.plan_id
+                  FROM (
+                        SELECT h.plan_id, h.effective_from AS effective_date
+                          FROM %s h
+                         WHERE h.membership_id = ?
+                           AND h.effective_from <= ?
+                           AND (h.effective_to IS NULL OR h.effective_to >= ?)
+                        UNION ALL
+                        SELECT r.new_plan_id AS plan_id, r.effective_date
+                          FROM %s r
+                         WHERE r.membership_id = ?
+                           AND r.status IN ('APPROVED_SCHEDULED', 'APPLIED')
+                           AND r.effective_date <= ?
+                       ) candidate
+                 ORDER BY candidate.effective_date DESC
+                 LIMIT 1
+                """.formatted(historyTable, changeTable),
+                (rs, rowNum) -> rs.getString(1),
+                membershipId, date, date, membershipId, date);
+        if (!plans.isEmpty() && StringUtils.hasText(plans.get(0))) return plans.get(0);
+        return jdbcTemplate.queryForObject(
+                "SELECT plan_id FROM " + membershipTable + " WHERE id = ?",
+                String.class,
+                membershipId);
+    }
 
-        List<Long> values = jdbcTemplate.query("""
-                SELECT COALESCE(MAX(p.payout_amount_cents), 0)
-                  FROM %s m
-                  JOIN %s p ON p.plan_id = m.plan_id
-                 WHERE m.id = ?
-                   AND p.claim_type = 'GROCERY'
-                   AND p.active = 1
-                   AND p.dependent_type IN (?, ?, 'ANY')
-                """.formatted(membershipTable, payoutTable),
-                (rs, rowNum) -> rs.getLong(1),
+    private String resolveCoverageDependentType(String tenantId, String membershipId,
+                                                String deceasedPartnerId, String deceasedType) {
+        String membershipTable = tenantId == null
+                ? "membership"
+                : qualifiedTable(tenantId, "membership");
+        String memberPartnerId = jdbcTemplate.queryForObject(
+                "SELECT member_id FROM " + membershipTable + " WHERE id = ?",
+                String.class,
+                membershipId);
+        return validateSelectedDeceasedAgainstMembership(
+                tenantId,
                 membershipId,
-                normalizedDependentType,
-                genericType);
-        return values.isEmpty() ? 0L : values.get(0);
+                memberPartnerId,
+                deceasedPartnerId,
+                deceasedType);
     }
 
     private void populateServiceRequestDefaults(FuneralServiceRequestDto request) {

@@ -4,6 +4,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 
@@ -15,6 +18,11 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
 
     Optional<MembershipEntity> findByOldId(String oldId);
     Optional<MembershipEntity> findByMembershipNo(String membershipNo);
+    boolean existsByMemberId(String memberId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from MembershipEntity m where m.id = :id")
+    Optional<MembershipEntity> findByIdForUpdate(@Param("id") String id);
     Page<MembershipEntity> findByMemberId(String memberId, Pageable pageable);
 
     /**
