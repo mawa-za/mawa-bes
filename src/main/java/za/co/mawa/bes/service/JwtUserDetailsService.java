@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -58,8 +59,15 @@ public class JwtUserDetailsService implements UserDetailsService {
                 );
             }
             throw new UsernameNotFoundException("User not found with username: " + username);
+        } catch (UsernameNotFoundException | DisabledException exception) {
+            throw exception;
+        } catch (SecurityException exception) {
+            throw new DisabledException(exception.getMessage(), exception);
         } catch (Exception exception) {
-            throw new RuntimeException(exception);
+            throw new UsernameNotFoundException(
+                    "Unable to load user with username: " + username,
+                    exception
+            );
         }
     }
 }
