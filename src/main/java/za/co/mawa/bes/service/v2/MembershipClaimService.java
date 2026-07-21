@@ -13,13 +13,16 @@ import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.enums.MembershipClaimDeceasedType;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
+import za.co.mawa.bes.enums.MembershipDependentStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimLinkRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
@@ -39,6 +42,7 @@ public class MembershipClaimService {
     private final MembershipRepository membershipRepository;
     private final MembershipPlanRepository membershipPlanRepository;
     private final MembershipDependentRepository membershipDependentRepository;
+    private final PartnerRepository partnerRepository;
     private final NumberAllocationService numberAllocationService;
     private final JdbcTemplate jdbcTemplate;
     private final MembershipChangeService membershipChangeService;
@@ -50,6 +54,7 @@ public class MembershipClaimService {
             MembershipRepository membershipRepository,
             MembershipPlanRepository membershipPlanRepository,
             MembershipDependentRepository membershipDependentRepository,
+            PartnerRepository partnerRepository,
             NumberAllocationService numberAllocationService,
             JdbcTemplate jdbcTemplate,
             MembershipChangeService membershipChangeService,
@@ -60,6 +65,7 @@ public class MembershipClaimService {
         this.membershipRepository = membershipRepository;
         this.membershipPlanRepository = membershipPlanRepository;
         this.membershipDependentRepository = membershipDependentRepository;
+        this.partnerRepository = partnerRepository;
         this.numberAllocationService = numberAllocationService;
         this.jdbcTemplate = jdbcTemplate;
         this.membershipChangeService = membershipChangeService;
@@ -136,6 +142,7 @@ public class MembershipClaimService {
         entity.setCreatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
+        markDeceasedOnMembership(saved, userId);
 
         if (saved.getStatus() == MembershipClaimStatus.SUBMITTED) {
             claimFormGenerationService.generateForSubmittedClaim(saved.getId());
@@ -302,6 +309,7 @@ public class MembershipClaimService {
         entity.setUpdatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
+        markDeceasedOnMembership(saved, userId);
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
     }
@@ -393,6 +401,34 @@ public class MembershipClaimService {
         entity.setUpdatedBy(userId);
         claimRepository.save(entity);
         refreshLinkedFuneralServiceStatus(entity.getId());
+    }
+
+    private void markDeceasedOnMembership(MembershipClaimEntity claim, String userId) {
+        if (claim.getDeceasedType() != MembershipClaimDeceasedType.DEPENDENT
+                || !StringUtils.hasText(claim.getDeceasedPartnerId())) {
+            return;
+        }
+
+        membershipDependentRepository
+                .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
+                        claim.getMembershipId(), claim.getDeceasedPartnerId())
+                .ifPresent(dependent -> {
+                    dependent.setActive(false);
+                    dependent.setStatus(MembershipDependentStatus.DECEASED);
+                    dependent.setDeceasedDate(claim.getDateOfDeath());
+                    dependent.setEffectiveTo(claim.getDateOfDeath());
+                    dependent.setStatusReason("Deceased claim " + claim.getClaimNo());
+                    dependent.setUpdatedBy(userId);
+                    membershipDependentRepository.save(dependent);
+                });
+
+        partnerRepository.findById(claim.getDeceasedPartnerId()).ifPresent(partner -> {
+            if (!Status.DECEASED.equalsIgnoreCase(partner.getStatus())) {
+                partner.setStatus(Status.DECEASED);
+                partner.setStatusReason("CLAIM");
+                partnerRepository.save(partner);
+            }
+        });
     }
 
     private String appendNote(String existing, String note) {

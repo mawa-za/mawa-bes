@@ -41,6 +41,21 @@ public class MembershipChangeRequestEntity {
     @Column(name = "new_plan_id", length = 255)
     private String newPlanId;
 
+    @Column(name = "old_dependent_id", length = 255)
+    private String oldDependentId;
+
+    @Column(name = "old_dependent_partner_id", length = 255)
+    private String oldDependentPartnerId;
+
+    @Column(name = "new_dependent_partner_id", length = 255)
+    private String newDependentPartnerId;
+
+    @Column(name = "old_dependent_type", length = 50)
+    private String oldDependentType;
+
+    @Column(name = "new_dependent_type", length = 50)
+    private String newDependentType;
+
     @Column(name = "waiting_period_months")
     private Integer waitingPeriodMonths;
 
