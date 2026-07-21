@@ -13,6 +13,7 @@ import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.utils.Status;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class MembershipChangeService {
     private final PartnerRepository partnerRepository;
     private final MembershipDependentRepository membershipDependentRepository;
     private final MembershipPlanPremiumRuleService membershipPlanPremiumRuleService;
+    private final MembershipUpdateHandlerRegistry membershipUpdateHandlerRegistry;
     private final PartnerService partnerService;
     private final ObjectProvider<ApprovalService> approvalServiceProvider;
     private final Gson gson;
@@ -142,6 +144,159 @@ public class MembershipChangeService {
         return toResponse(changeRequestRepository.save(change));
     }
 
+
+    @Transactional
+    public MembershipChangeResponse requestDependentAdd(
+            String membershipId,
+            MembershipDependentAddRequest request,
+            String actor
+    ) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        requireNoOpenDependentChange(membershipId);
+        String partnerId = clean(request == null ? null : request.getDependentPartnerId());
+        if (partnerId == null) throw new IllegalArgumentException("Dependent is required");
+        DependentType dependentType = request == null ? null : request.getDependentType();
+        if (dependentType == null || dependentType == DependentType.ANY || dependentType == DependentType.MAIN_MEMBER) {
+            throw new IllegalArgumentException("A valid dependent relationship is required");
+        }
+        validateDependentPartner(membership, partnerId, null);
+        if (membershipDependentRepository.existsVisibleByMembershipIdAndPartnerId(
+                membershipId, partnerId,
+                Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
+            throw new IllegalArgumentException("The selected person is already linked to this membership");
+        }
+
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
+                .membershipId(membershipId)
+                .changeType(MembershipChangeType.ADD_DEPENDENT)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(membership.getMemberId())
+                .newMemberId(membership.getMemberId())
+                .oldPlanId(membership.getPlanId())
+                .newPlanId(membership.getPlanId())
+                .newDependentPartnerId(partnerId)
+                .newDependentType(dependentType.name())
+                .waitingPeriodMonths(0)
+                .effectiveDate(LocalDate.now())
+                .reason(requireReason(request == null ? null : request.getReason()))
+                .requestedAt(LocalDateTime.now())
+                .requestedBy(actionBy)
+                .updatedAt(LocalDateTime.now())
+                .updatedBy(actionBy)
+                .build();
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED", null,
+                Map.of("dependentPartnerId", partnerId, "dependentType", dependentType.name()),
+                change.getReason(), actionBy);
+        return submitOrApplyDependentChange(change, membership, actionBy);
+    }
+
+    @Transactional
+    public MembershipChangeResponse requestDependentRemove(
+            String membershipId,
+            String dependentId,
+            MembershipDependentRemoveRequest request,
+            String actor
+    ) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        requireNoOpenDependentChange(membershipId);
+        MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
+        if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
+            throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
+        }
+
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
+                .membershipId(membershipId)
+                .changeType(MembershipChangeType.REMOVE_DEPENDENT)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(membership.getMemberId())
+                .newMemberId(membership.getMemberId())
+                .oldPlanId(membership.getPlanId())
+                .newPlanId(membership.getPlanId())
+                .oldDependentId(existing.getId())
+                .oldDependentPartnerId(existing.getDependentPartnerId())
+                .oldDependentType(existing.getDependentType() == null ? null : existing.getDependentType().name())
+                .waitingPeriodMonths(0)
+                .effectiveDate(LocalDate.now())
+                .reason(requireReason(request == null ? null : request.getReason()))
+                .requestedAt(LocalDateTime.now())
+                .requestedBy(actionBy)
+                .updatedAt(LocalDateTime.now())
+                .updatedBy(actionBy)
+                .build();
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED",
+                Map.of("dependentId", existing.getId(),
+                        "dependentPartnerId", existing.getDependentPartnerId(),
+                        "dependentType", existing.getDependentType().name()),
+                null, change.getReason(), actionBy);
+        return submitOrApplyDependentChange(change, membership, actionBy);
+    }
+
+    @Transactional
+    public MembershipChangeResponse requestDependentReplace(
+            String membershipId,
+            String dependentId,
+            MembershipDependentReplaceRequest request,
+            String actor
+    ) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        requireNoOpenDependentChange(membershipId);
+        MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
+        if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
+            throw new IllegalArgumentException("A deceased dependent cannot be replaced");
+        }
+
+        String partnerId = clean(request == null ? null : request.getDependentPartnerId());
+        if (partnerId == null) throw new IllegalArgumentException("Replacement dependent is required");
+        DependentType dependentType = request == null ? null : request.getDependentType();
+        if (dependentType == null || dependentType == DependentType.ANY || dependentType == DependentType.MAIN_MEMBER) {
+            throw new IllegalArgumentException("A valid replacement relationship is required");
+        }
+        if (partnerId.equals(existing.getDependentPartnerId())) {
+            throw new IllegalArgumentException("Replacement dependent must be a different person");
+        }
+        validateDependentPartner(membership, partnerId, existing.getDependentPartnerId());
+        if (membershipDependentRepository.existsVisibleByMembershipIdAndPartnerId(
+                        membershipId, partnerId,
+                        Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
+            throw new IllegalArgumentException("The replacement person is already linked to this membership");
+        }
+
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
+                .membershipId(membershipId)
+                .changeType(MembershipChangeType.REPLACE_DEPENDENT)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(membership.getMemberId())
+                .newMemberId(membership.getMemberId())
+                .oldPlanId(membership.getPlanId())
+                .newPlanId(membership.getPlanId())
+                .oldDependentId(existing.getId())
+                .oldDependentPartnerId(existing.getDependentPartnerId())
+                .newDependentPartnerId(partnerId)
+                .oldDependentType(existing.getDependentType() == null ? null : existing.getDependentType().name())
+                .newDependentType(dependentType.name())
+                .waitingPeriodMonths(0)
+                .effectiveDate(LocalDate.now())
+                .reason(requireReason(request == null ? null : request.getReason()))
+                .requestedAt(LocalDateTime.now())
+                .requestedBy(actionBy)
+                .updatedAt(LocalDateTime.now())
+                .updatedBy(actionBy)
+                .build();
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED",
+                Map.of("dependentId", existing.getId(),
+                        "dependentPartnerId", existing.getDependentPartnerId(),
+                        "dependentType", existing.getDependentType().name()),
+                Map.of("dependentPartnerId", partnerId, "dependentType", dependentType.name()),
+                change.getReason(), actionBy);
+        return submitOrApplyDependentChange(change, membership, actionBy);
+    }
+
     @Transactional(readOnly = true)
     public List<MembershipChangeResponse> listChanges(String membershipId) {
         return changeRequestRepository.findByMembershipIdOrderByRequestedAtDesc(membershipId).stream().map(this::toResponse).toList();
@@ -170,6 +325,12 @@ public class MembershipChangeService {
                     "Membership transfer approved",
                     actor);
             applyTransfer(change, actor);
+        } else if (isDependentChange(change.getChangeType())) {
+            change.setEffectiveDate(LocalDate.now());
+            changeRequestRepository.save(change);
+            audit(change, "APPROVED", dependentOldValue(change), dependentNewValue(change),
+                    "Membership dependent change approved", actor);
+            applyDependentChange(change, actor);
         } else {
             int waitingMonths = change.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : change.getWaitingPeriodMonths();
             change.setEffectiveDate(LocalDate.now().plusMonths(waitingMonths));
@@ -229,6 +390,181 @@ public class MembershipChangeService {
         planHistoryRepository.save(MembershipPlanHistoryEntity.builder()
                 .membershipId(membership.getId()).planId(membership.getPlanId()).effectiveFrom(from)
                 .createdAt(LocalDateTime.now()).createdBy(actor(actor)).build());
+    }
+
+
+    private MembershipChangeResponse submitOrApplyDependentChange(
+            MembershipChangeRequestEntity change,
+            MembershipEntity membership,
+            String actor
+    ) {
+        if (requiresDependentApproval(membership)) {
+            ApprovalRequestResponse approval = submit(
+                    change, membership, ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE, actor);
+            change.setApprovalRequestId(approval.getId());
+            change.setUpdatedAt(LocalDateTime.now());
+            change.setUpdatedBy(actor);
+            return toResponse(changeRequestRepository.save(change));
+        }
+        applyDependentChange(change, actor);
+        return toResponse(changeRequestRepository.findById(change.getId()).orElseThrow());
+    }
+
+    private boolean requiresDependentApproval(MembershipEntity membership) {
+        LocalDate createdDate = membership.getCreatedAt() == null
+                ? membership.getStartDate() == null
+                    ? membership.getJoinDate() == null ? LocalDate.now() : membership.getJoinDate()
+                    : membership.getStartDate()
+                : membership.getCreatedAt().toLocalDate();
+        return !LocalDate.now().isBefore(createdDate.plusMonths(1));
+    }
+
+    private void validateDependentPartner(
+            MembershipEntity membership,
+            String partnerId,
+            String currentPartnerId
+    ) {
+        if (partnerId.equals(membership.getMemberId())) {
+            throw new IllegalArgumentException("The membership holder cannot also be added as a dependent");
+        }
+        var partner = partnerRepository.findById(partnerId)
+                .orElseThrow(() -> new IllegalArgumentException("Dependent partner was not found: " + partnerId));
+        if (Status.DECEASED.equalsIgnoreCase(partner.getStatus())
+                && !partnerId.equals(currentPartnerId)) {
+            throw new IllegalArgumentException("A deceased partner cannot be added as a new dependent");
+        }
+    }
+
+    private MembershipDependentEntity getVisibleDependent(String membershipId, String dependentId) {
+        MembershipDependentEntity dependent = membershipDependentRepository
+                .findByIdAndMembershipId(dependentId, membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Dependent was not found on this membership"));
+        if (!Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED)
+                .contains(dependent.getStatus())) {
+            throw new IllegalArgumentException("The dependent is no longer active on this membership");
+        }
+        return dependent;
+    }
+
+    private void applyDependentChange(MembershipChangeRequestEntity change, String actor) {
+        if (change.getStatus() == MembershipChangeStatus.APPLIED) return;
+        LocalDate effectiveDate = change.getEffectiveDate() == null ? LocalDate.now() : change.getEffectiveDate();
+        MembershipDependentEntity affected;
+
+        switch (change.getChangeType()) {
+            case ADD_DEPENDENT -> affected = activateDependent(
+                    change.getMembershipId(),
+                    change.getNewDependentPartnerId(),
+                    DependentType.valueOf(change.getNewDependentType()),
+                    change,
+                    effectiveDate,
+                    actor
+            );
+            case REMOVE_DEPENDENT -> {
+                affected = getVisibleDependent(change.getMembershipId(), change.getOldDependentId());
+                affected.setActive(false);
+                affected.setStatus(MembershipDependentStatus.REMOVED);
+                affected.setEffectiveTo(effectiveDate);
+                affected.setStatusReason(change.getReason());
+                affected.setSourceChangeRequestId(change.getId());
+                affected.setUpdatedBy(actor);
+                membershipDependentRepository.save(affected);
+            }
+            case REPLACE_DEPENDENT -> {
+                MembershipDependentEntity previous = getVisibleDependent(
+                        change.getMembershipId(), change.getOldDependentId());
+                MembershipDependentEntity replacement = activateDependent(
+                        change.getMembershipId(),
+                        change.getNewDependentPartnerId(),
+                        DependentType.valueOf(change.getNewDependentType()),
+                        change,
+                        effectiveDate,
+                        actor
+                );
+                previous.setActive(false);
+                previous.setStatus(MembershipDependentStatus.REPLACED);
+                previous.setEffectiveTo(effectiveDate);
+                previous.setStatusReason(change.getReason());
+                previous.setSourceChangeRequestId(change.getId());
+                previous.setReplacedByDependentId(replacement.getId());
+                previous.setUpdatedBy(actor);
+                membershipDependentRepository.save(previous);
+                affected = replacement;
+            }
+            default -> throw new IllegalStateException("Unsupported dependent change type: " + change.getChangeType());
+        }
+
+        change.setStatus(MembershipChangeStatus.APPLIED);
+        change.setAppliedAt(LocalDateTime.now());
+        change.setAppliedBy(actor);
+        change.setUpdatedAt(LocalDateTime.now());
+        change.setUpdatedBy(actor);
+        changeRequestRepository.save(change);
+        membershipUpdateHandlerRegistry.handleUpdate(change.getMembershipId());
+        audit(change, "APPLIED", dependentOldValue(change), dependentNewValue(change),
+                "Membership dependent change applied", actor);
+    }
+
+    private MembershipDependentEntity activateDependent(
+            String membershipId,
+            String partnerId,
+            DependentType dependentType,
+            MembershipChangeRequestEntity change,
+            LocalDate effectiveDate,
+            String actor
+    ) {
+        MembershipDependentEntity dependent = membershipDependentRepository
+                .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(membershipId, partnerId)
+                .orElseGet(MembershipDependentEntity::new);
+        if (dependent.getId() != null
+                && Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED)
+                .contains(dependent.getStatus())) {
+            if (change.getChangeType() == MembershipChangeType.REPLACE_DEPENDENT
+                    && dependent.getId().equals(change.getOldDependentId())) {
+                dependent.setDependentType(dependentType);
+                dependent.setUpdatedBy(actor);
+                dependent.setSourceChangeRequestId(change.getId());
+                return membershipDependentRepository.save(dependent);
+            }
+            throw new IllegalArgumentException("The dependent is already active on this membership");
+        }
+        dependent.setMembershipId(membershipId);
+        dependent.setDependentPartnerId(partnerId);
+        dependent.setDependentType(dependentType);
+        dependent.setActive(true);
+        dependent.setStatus(MembershipDependentStatus.ACTIVE);
+        dependent.setEffectiveFrom(effectiveDate);
+        dependent.setEffectiveTo(null);
+        dependent.setDeceasedDate(null);
+        dependent.setStatusReason(null);
+        dependent.setSourceChangeRequestId(change.getId());
+        dependent.setReplacedByDependentId(null);
+        if (dependent.getCreatedBy() == null) dependent.setCreatedBy(actor);
+        dependent.setUpdatedBy(actor);
+        return membershipDependentRepository.save(dependent);
+    }
+
+    private boolean isDependentChange(MembershipChangeType type) {
+        return type == MembershipChangeType.ADD_DEPENDENT
+                || type == MembershipChangeType.REMOVE_DEPENDENT
+                || type == MembershipChangeType.REPLACE_DEPENDENT;
+    }
+
+    private Object dependentOldValue(MembershipChangeRequestEntity change) {
+        if (clean(change.getOldDependentPartnerId()) == null) return null;
+        return Map.of(
+                "dependentId", change.getOldDependentId() == null ? "" : change.getOldDependentId(),
+                "dependentPartnerId", change.getOldDependentPartnerId(),
+                "dependentType", change.getOldDependentType() == null ? "" : change.getOldDependentType()
+        );
+    }
+
+    private Object dependentNewValue(MembershipChangeRequestEntity change) {
+        if (clean(change.getNewDependentPartnerId()) == null) return null;
+        return Map.of(
+                "dependentPartnerId", change.getNewDependentPartnerId(),
+                "dependentType", change.getNewDependentType() == null ? "" : change.getNewDependentType()
+        );
     }
 
     private void applyTransfer(MembershipChangeRequestEntity change, String actor) {
@@ -298,9 +634,12 @@ public class MembershipChangeService {
         request.setApprovalType(approvalType);
         request.setReferenceId(change.getId());
         request.setReferenceNo(membership.getMembershipNo());
-        request.setTitle(approvalType == ApprovalType.MEMBERSHIP_TRANSFER
-                ? "Membership Transfer: " + membership.getMembershipNo()
-                : "Membership Plan Change: " + membership.getMembershipNo());
+        request.setTitle(switch (approvalType) {
+            case MEMBERSHIP_TRANSFER -> "Membership Transfer: " + membership.getMembershipNo();
+            case MEMBERSHIP_PLAN_CHANGE -> "Membership Plan Change: " + membership.getMembershipNo();
+            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership Dependent Change: " + membership.getMembershipNo();
+            default -> "Membership Change: " + membership.getMembershipNo();
+        });
         request.setDescription(change.getReason());
         request.setRequesterId(actor);
         request.setPayloadJson(gson.toJson(toResponse(change)));
@@ -311,6 +650,19 @@ public class MembershipChangeService {
         if (changeRequestRepository.existsByMembershipIdAndStatusIn(membershipId,
                 List.of(MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED))) {
             throw new IllegalStateException("This membership already has a pending or scheduled change");
+        }
+    }
+
+    private void requireNoOpenDependentChange(String membershipId) {
+        if (changeRequestRepository.existsByMembershipIdAndChangeTypeInAndStatusIn(
+                membershipId,
+                List.of(
+                        MembershipChangeType.ADD_DEPENDENT,
+                        MembershipChangeType.REMOVE_DEPENDENT,
+                        MembershipChangeType.REPLACE_DEPENDENT
+                ),
+                List.of(MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED))) {
+            throw new IllegalStateException("This membership already has a pending dependent change");
         }
     }
 
@@ -326,7 +678,8 @@ public class MembershipChangeService {
     private Long calculateTotalPremiumCents(String membershipId, MembershipPlanEntity plan, LocalDate effectiveDate) {
         long total = plan.getPremiumCents() == null ? 0L : plan.getPremiumCents();
         LocalDate ageDate = effectiveDate == null ? LocalDate.now() : effectiveDate;
-        for (MembershipDependentEntity dependent : membershipDependentRepository.findByMembershipId(membershipId)) {
+        for (MembershipDependentEntity dependent : membershipDependentRepository.findByMembershipIdAndStatus(
+                membershipId, MembershipDependentStatus.ACTIVE)) {
             var partner = partnerRepository.findById(dependent.getDependentPartnerId())
                     .orElseThrow(() -> new IllegalStateException(
                             "Dependent partner not found while applying plan change: " + dependent.getDependentPartnerId()));
@@ -368,6 +721,13 @@ public class MembershipChangeService {
                 .newMemberId(e.getNewMemberId()).newMemberName(partnerName(e.getNewMemberId()))
                 .oldPlanId(e.getOldPlanId()).oldPlanName(planName(e.getOldPlanId()))
                 .newPlanId(e.getNewPlanId()).newPlanName(planName(e.getNewPlanId()))
+                .oldDependentId(e.getOldDependentId())
+                .oldDependentPartnerId(e.getOldDependentPartnerId())
+                .oldDependentName(partnerName(e.getOldDependentPartnerId()))
+                .newDependentPartnerId(e.getNewDependentPartnerId())
+                .newDependentName(partnerName(e.getNewDependentPartnerId()))
+                .oldDependentType(e.getOldDependentType())
+                .newDependentType(e.getNewDependentType())
                 .waitingPeriodMonths(e.getWaitingPeriodMonths())
                 .effectiveDate(e.getEffectiveDate()).reason(e.getReason()).approvalRequestId(e.getApprovalRequestId())
                 .requestedAt(e.getRequestedAt()).requestedBy(e.getRequestedBy()).approvedAt(e.getApprovedAt()).approvedBy(e.getApprovedBy())

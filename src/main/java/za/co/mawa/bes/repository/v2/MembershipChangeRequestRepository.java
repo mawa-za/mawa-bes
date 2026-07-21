@@ -6,12 +6,18 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import za.co.mawa.bes.entity.v2.MembershipChangeRequestEntity;
 import za.co.mawa.bes.enums.MembershipChangeStatus;
+import za.co.mawa.bes.enums.MembershipChangeType;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 public interface MembershipChangeRequestRepository extends JpaRepository<MembershipChangeRequestEntity, String> {
     List<MembershipChangeRequestEntity> findByMembershipIdOrderByRequestedAtDesc(String membershipId);
     boolean existsByMembershipIdAndStatusIn(String membershipId, Collection<MembershipChangeStatus> statuses);
+    boolean existsByMembershipIdAndChangeTypeInAndStatusIn(
+            String membershipId,
+            Collection<MembershipChangeType> changeTypes,
+            Collection<MembershipChangeStatus> statuses
+    );
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
       select r from MembershipChangeRequestEntity r

@@ -4,8 +4,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
+import za.co.mawa.bes.enums.MembershipDependentStatus;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 
 @Service
@@ -21,11 +24,17 @@ public class MembershipDependentService {
     }
 
     public List<MembershipDependentEntity> getDependentsByMembershipId(String membershipId) {
-        return membershipDependentRepository.findByMembershipId(membershipId);
+        return membershipDependentRepository.findByMembershipIdAndStatusInOrderByEffectiveFromAsc(
+                membershipId,
+                Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED)
+        );
     }
 
     public MembershipDependentEntity addDependent(String membershipId, MembershipDependentEntity dependent) {
         dependent.setMembershipId(membershipId);
+        dependent.setActive(true);
+        dependent.setStatus(MembershipDependentStatus.ACTIVE);
+        dependent.setEffectiveFrom(dependent.getEffectiveFrom() == null ? LocalDate.now() : dependent.getEffectiveFrom());
         MembershipDependentEntity newDependent = membershipDependentRepository.save(dependent);
         membershipHandlerRegistry.handleUpdate(membershipId);
         return membershipDependentRepository.findById(newDependent.getId()).orElseThrow();
@@ -38,6 +47,12 @@ public class MembershipDependentService {
                     existingDependent.setDependentPartnerId(dependent.getDependentPartnerId());
                     existingDependent.setDependentType(dependent.getDependentType());
                     existingDependent.setActive(dependent.getActive());
+                    existingDependent.setStatus(Boolean.TRUE.equals(dependent.getActive())
+                            ? MembershipDependentStatus.ACTIVE
+                            : MembershipDependentStatus.REMOVED);
+                    existingDependent.setEffectiveTo(Boolean.TRUE.equals(dependent.getActive())
+                            ? null
+                            : LocalDate.now());
                     return membershipDependentRepository.save(existingDependent);
                 });
 
@@ -50,7 +65,14 @@ public class MembershipDependentService {
                 .filter(existingDependent -> existingDependent.getMembershipId().equals(membershipId));
 
         if (dependent.isPresent()) {
-            membershipDependentRepository.deleteById(dependentId);
+            MembershipDependentEntity existing = dependent.get();
+            if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
+                throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
+            }
+            existing.setActive(false);
+            existing.setStatus(MembershipDependentStatus.REMOVED);
+            existing.setEffectiveTo(LocalDate.now());
+            membershipDependentRepository.save(existing);
             membershipHandlerRegistry.handleUpdate(membershipId);
             return true;
         }

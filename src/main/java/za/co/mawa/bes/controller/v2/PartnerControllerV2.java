@@ -7,12 +7,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.service.v2.SupplierApprovalService;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -92,11 +95,13 @@ public class PartnerControllerV2 {
 
     @PostMapping(value = "/supplier/submit-for-approval", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApprovalRequestResponse> submitSupplierForApproval(
-            @RequestBody PartnerInboundDto partnerInboundDto,
-            @RequestHeader(value = "X-User-Id", required = false) String userId
+            @RequestBody SupplierOnboardingRequest onboardingRequest,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            Principal principal
     ) {
         return ResponseEntity.ok(
-                supplierApprovalService.submitSupplierOnboarding(partnerInboundDto, userId)
+                supplierApprovalService.submitSupplierOnboarding(
+                        onboardingRequest, resolveActor(userId, principal))
         );
     }
 
@@ -109,10 +114,12 @@ public class PartnerControllerV2 {
     public ResponseEntity<ApprovalRequestResponse> submitSupplierBankingForApproval(
             @PathVariable String id,
             @RequestBody PartnerBankAccountDto bankAccount,
-            @RequestHeader(value = "X-User-Id", required = false) String userId
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            Principal principal
     ) {
         return ResponseEntity.ok(
-                supplierApprovalService.submitBankingDetails(id, bankAccount, userId)
+                supplierApprovalService.submitBankingDetails(
+                        id, bankAccount, resolveActor(userId, principal))
         );
     }
 
@@ -139,6 +146,10 @@ public class PartnerControllerV2 {
     @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> assignPartnerRoleToPartner(@PathVariable String id, @RequestBody List<String> roleList) {
         try {
+            if (roleList != null && roleList.stream().anyMatch(role -> "SUPPLIER".equalsIgnoreCase(role))) {
+                throw new IllegalArgumentException(
+                        "Supplier role must be assigned through the supplier onboarding approval process");
+            }
             for (String role : roleList) {
                 RolePartnerDto partnerRole = new RolePartnerDto();
                 partnerRole.setPartner(id);
@@ -363,5 +374,19 @@ public class PartnerControllerV2 {
         }
     }
 
+
+    private String resolveActor(String headerUserId, Principal principal) {
+        if (headerUserId != null && !headerUserId.isBlank()) return headerUserId.trim();
+        if (UserContext.getCurrentUserId() != null && !UserContext.getCurrentUserId().isBlank()) {
+            return UserContext.getCurrentUserId();
+        }
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (UserContext.getCurrentUser() != null && !UserContext.getCurrentUser().isBlank()) {
+            return UserContext.getCurrentUser();
+        }
+        return "SYSTEM";
+    }
 
 }
