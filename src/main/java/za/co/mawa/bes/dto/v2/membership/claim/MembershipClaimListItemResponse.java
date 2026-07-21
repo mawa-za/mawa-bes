@@ -24,6 +24,8 @@ public class MembershipClaimListItemResponse {
     private String deceasedName;
     private String claimantName;
     private MembershipClaimType claimType;
+    private String coveragePlanId;
+    private LocalDate coverageEventDate;
     private MembershipClaimDeceasedType deceasedType;
     private String deceasedPartnerId;
     private LocalDate dateOfDeath;

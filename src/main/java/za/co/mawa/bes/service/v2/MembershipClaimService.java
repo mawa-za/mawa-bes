@@ -17,6 +17,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.v2.MembershipClaimLinkRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
+import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
@@ -36,24 +37,33 @@ public class MembershipClaimService {
     private final MembershipClaimRepository claimRepository;
     private final MembershipClaimLinkRepository claimLinkRepository;
     private final MembershipRepository membershipRepository;
+    private final MembershipPlanRepository membershipPlanRepository;
     private final MembershipDependentRepository membershipDependentRepository;
     private final NumberAllocationService numberAllocationService;
     private final JdbcTemplate jdbcTemplate;
+    private final MembershipChangeService membershipChangeService;
+    private final MembershipPlanClaimPayoutService membershipPlanClaimPayoutService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
             MembershipClaimLinkRepository claimLinkRepository,
             MembershipRepository membershipRepository,
+            MembershipPlanRepository membershipPlanRepository,
             MembershipDependentRepository membershipDependentRepository,
             NumberAllocationService numberAllocationService,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            MembershipChangeService membershipChangeService,
+            MembershipPlanClaimPayoutService membershipPlanClaimPayoutService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
         this.membershipRepository = membershipRepository;
+        this.membershipPlanRepository = membershipPlanRepository;
         this.membershipDependentRepository = membershipDependentRepository;
         this.numberAllocationService = numberAllocationService;
         this.jdbcTemplate = jdbcTemplate;
+        this.membershipChangeService = membershipChangeService;
+        this.membershipPlanClaimPayoutService = membershipPlanClaimPayoutService;
     }
 
     @Transactional
@@ -77,6 +87,12 @@ public class MembershipClaimService {
         entity.setClaimNo(generateMembershipClaimNo());
         entity.setMembershipId(request.getMembershipId());
         entity.setClaimType(request.getClaimType());
+        LocalDate coverageEventDate = request.getDateOfDeath() != null ? request.getDateOfDeath()
+                : request.getClaimDate() != null ? request.getClaimDate() : LocalDate.now();
+        String coveragePlanId = membershipChangeService.resolveCoveragePlanId(
+                request.getMembershipId(), coverageEventDate, userId);
+        entity.setCoveragePlanId(coveragePlanId);
+        entity.setCoverageEventDate(coverageEventDate);
         entity.setDeceasedType(request.getDeceasedType());
         entity.setDeceasedPartnerId(request.getDeceasedPartnerId());
         entity.setDateOfDeath(request.getDateOfDeath());
@@ -84,7 +100,25 @@ public class MembershipClaimService {
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setClaimantPartnerId(request.getClaimantPartnerId());
-        entity.setClaimAmountCents(request.getClaimAmountCents() != null ? request.getClaimAmountCents() : 0L);
+        Long requestedAmount = request.getClaimAmountCents() != null ? request.getClaimAmountCents() : 0L;
+        try {
+            za.co.mawa.bes.enums.DependentType payoutDependentType = za.co.mawa.bes.enums.DependentType.MAIN_MEMBER;
+            if (!membership.getMemberId().equals(request.getDeceasedPartnerId())) {
+                payoutDependentType = membershipDependentRepository.findByMembershipId(request.getMembershipId()).stream()
+                        .filter(item -> request.getDeceasedPartnerId().equals(item.getDependentPartnerId()))
+                        .map(MembershipDependentEntity::getDependentType)
+                        .findFirst().orElse(za.co.mawa.bes.enums.DependentType.ANY);
+            }
+            requestedAmount = membershipPlanClaimPayoutService.resolvePayoutAmountCents(
+                    coveragePlanId, request.getClaimType(), payoutDependentType);
+        } catch (RuntimeException ex) {
+            String message = ex.getMessage();
+            if (message == null || !message.startsWith("No payout rule configured")) {
+                throw ex;
+            }
+            // Preserve the explicit/manual claim amount only when this plan has no payout rule.
+        }
+        entity.setClaimAmountCents(requestedAmount);
         entity.setNotes(request.getNotes());
         if (request.getClaimType() == MembershipClaimType.CASH) {
             entity.setPayoutMethod(za.co.mawa.bes.enums.PaymentMethod.valueOf(request.getPayoutMethod().trim().toUpperCase()));
@@ -223,12 +257,43 @@ public class MembershipClaimService {
             entity.setClaimDate(request.getClaimDate());
         }
 
+        Long fallbackClaimAmountCents = entity.getClaimAmountCents();
         if (request.getClaimAmountCents() != null) {
             if (request.getClaimAmountCents() < 0) {
                 throw new IllegalArgumentException("Claim amount cannot be negative.");
             }
-            entity.setClaimAmountCents(request.getClaimAmountCents());
+            fallbackClaimAmountCents = request.getClaimAmountCents();
         }
+
+        MembershipEntity membership = membershipRepository.findById(entity.getMembershipId())
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + entity.getMembershipId()));
+        LocalDate coverageEventDate = entity.getDateOfDeath() != null
+                ? entity.getDateOfDeath()
+                : entity.getClaimDate() != null ? entity.getClaimDate() : LocalDate.now();
+        String coveragePlanId = membershipChangeService.resolveCoveragePlanId(
+                entity.getMembershipId(), coverageEventDate, userId);
+        entity.setCoveragePlanId(coveragePlanId);
+        entity.setCoverageEventDate(coverageEventDate);
+
+        Long recalculatedClaimAmountCents = fallbackClaimAmountCents != null ? fallbackClaimAmountCents : 0L;
+        try {
+            za.co.mawa.bes.enums.DependentType payoutDependentType = za.co.mawa.bes.enums.DependentType.MAIN_MEMBER;
+            if (!membership.getMemberId().equals(entity.getDeceasedPartnerId())) {
+                payoutDependentType = membershipDependentRepository.findByMembershipId(entity.getMembershipId()).stream()
+                        .filter(item -> entity.getDeceasedPartnerId().equals(item.getDependentPartnerId()))
+                        .map(MembershipDependentEntity::getDependentType)
+                        .findFirst().orElse(za.co.mawa.bes.enums.DependentType.ANY);
+            }
+            recalculatedClaimAmountCents = membershipPlanClaimPayoutService.resolvePayoutAmountCents(
+                    coveragePlanId, entity.getClaimType(), payoutDependentType);
+        } catch (RuntimeException ex) {
+            String message = ex.getMessage();
+            if (message == null || !message.startsWith("No payout rule configured")) {
+                throw ex;
+            }
+            // Preserve the explicit/manual claim amount only when this plan has no payout rule.
+        }
+        entity.setClaimAmountCents(recalculatedClaimAmountCents);
 
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
@@ -635,6 +700,8 @@ public class MembershipClaimService {
                 .deceasedName(partnerName(entity.getDeceasedPartnerId()))
                 .claimantName(partnerName(entity.getClaimantPartnerId()))
                 .claimType(entity.getClaimType())
+                .coveragePlanId(entity.getCoveragePlanId())
+                .coverageEventDate(entity.getCoverageEventDate())
                 .deceasedType(entity.getDeceasedType())
                 .deceasedPartnerId(entity.getDeceasedPartnerId())
                 .dateOfDeath(entity.getDateOfDeath())
@@ -682,6 +749,9 @@ public class MembershipClaimService {
                 .setDeceasedName(partnerName(entity.getDeceasedPartnerId()))
                 .setClaimantName(partnerName(entity.getClaimantPartnerId()))
                 .setClaimType(entity.getClaimType())
+                .setCoveragePlanId(entity.getCoveragePlanId())
+                .setCoveragePlanName(coveragePlanName(entity.getCoveragePlanId()))
+                .setCoverageEventDate(entity.getCoverageEventDate())
                 .setDeceasedType(entity.getDeceasedType())
                 .setDeceasedPartnerId(entity.getDeceasedPartnerId())
                 .setDateOfDeath(entity.getDateOfDeath())
@@ -718,6 +788,13 @@ public class MembershipClaimService {
                 .setAccountType(entity.getAccountType());
 
     }
+    private String coveragePlanName(String planId) {
+        if (planId == null || planId.isBlank()) return null;
+        return membershipPlanRepository.findById(planId)
+                .map(MembershipPlanEntity::getName)
+                .orElse(planId);
+    }
+
     private String membershipNumber(String membershipId) {
         try {
             return jdbcTemplate.queryForObject(

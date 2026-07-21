@@ -27,6 +27,13 @@ public class CashupSummaryResponse {
     private String receiptBookNo;
     private String receiptFromNo;
     private String receiptToNo;
+    private Long manualAmountCents;
+    private Long receiptTotalCents;
+    private Long varianceCents;
+    private String employeeResponsibleId;
+    private String employeeResponsibleName;
+    private String areaCode;
+    private String areaName;
 
     private Long depositTotalCents;
     private Integer depositCount;

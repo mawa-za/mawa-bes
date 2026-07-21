@@ -20,7 +20,9 @@ import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.UserRepository;
+import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
@@ -60,6 +62,8 @@ public class CashupService {
     private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
     private final UserRepository userRepository;
     private final PartnerRepository partnerRepository;
+    private final PartnerService partnerService;
+    private final FieldOptionRepository fieldOptionRepository;
     private final AttachmentService attachmentService;
     private final NumberAllocationService numberAllocationService;
     private final ApprovalService approvalService;
@@ -148,6 +152,13 @@ public class CashupService {
                 .receiptBookNo(cashup.getReceiptBookNo())
                 .receiptFromNo(cashup.getReceiptFromNo())
                 .receiptToNo(cashup.getReceiptToNo())
+                .manualAmountCents(cashup.getManualAmountCents())
+                .receiptTotalCents(cashup.getReceiptTotalCents())
+                .varianceCents(cashup.getVarianceCents())
+                .employeeResponsibleId(cashup.getEmployeeResponsibleId())
+                .employeeResponsibleName(cashup.getEmployeeResponsibleName())
+                .areaCode(cashup.getAreaCode())
+                .areaName(cashup.getAreaName())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .approvalRequestId(cashup.getApprovalRequestId())
@@ -210,6 +221,13 @@ public class CashupService {
                 .receiptBookNo(cashup.getReceiptBookNo())
                 .receiptFromNo(cashup.getReceiptFromNo())
                 .receiptToNo(cashup.getReceiptToNo())
+                .manualAmountCents(cashup.getManualAmountCents())
+                .receiptTotalCents(cashup.getReceiptTotalCents())
+                .varianceCents(cashup.getVarianceCents())
+                .employeeResponsibleId(cashup.getEmployeeResponsibleId())
+                .employeeResponsibleName(cashup.getEmployeeResponsibleName())
+                .areaCode(cashup.getAreaCode())
+                .areaName(cashup.getAreaName())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .createdAt(cashup.getCreatedAt())
@@ -261,9 +279,10 @@ public class CashupService {
                     + String.join(", ", alreadyCashupped));
         }
 
-        long totalCents = selectedReceipts.stream()
+        long receiptTotalCents = selectedReceipts.stream()
                 .mapToLong(receipt -> defaultLong(receipt.getAmountCents()))
                 .sum();
+        long totalCents = defaultLong(request.getAmountCents());
 
         CashupEntity cashup = new CashupEntity();
         cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
@@ -279,6 +298,29 @@ public class CashupService {
         cashup.setReceiptBookNo(receiptBookNo);
         cashup.setReceiptFromNo(request.getReceiptFromNo().trim());
         cashup.setReceiptToNo(request.getReceiptToNo().trim());
+        cashup.setManualAmountCents(totalCents);
+        cashup.setReceiptTotalCents(receiptTotalCents);
+        cashup.setVarianceCents(totalCents - receiptTotalCents);
+        PartnerEntity responsibleEmployee = partnerRepository.findById(request.getEmployeeResponsibleId().trim())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Employee responsible was not found: " + request.getEmployeeResponsibleId()));
+        if (!partnerService.getRoles(responsibleEmployee.getId()).contains("EMPLOYEE")) {
+            throw new IllegalArgumentException("The responsible partner is not an employee");
+        }
+        cashup.setEmployeeResponsibleId(responsibleEmployee.getId());
+        cashup.setEmployeeResponsibleName(partnerDisplayName(responsibleEmployee));
+        String requestedAreaCode = request.getAreaCode().trim();
+        String resolvedAreaName = fieldOptionRepository.findFieldOptions("SALES-AREA").stream()
+                .filter(option -> option.getFieldOptionPKEntity() != null
+                        && "SALES-AREA".equalsIgnoreCase(option.getFieldOptionPKEntity().getField())
+                        && requestedAreaCode.equalsIgnoreCase(option.getFieldOptionPKEntity().getCode()))
+                .map(option -> clean(option.getDescription()))
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Cashup area was not found in SALES-AREA configuration: " + requestedAreaCode));
+        cashup.setAreaCode(requestedAreaCode);
+        cashup.setAreaName(resolvedAreaName);
         cashup.setNotes(clean(request.getNotes()));
         cashup.setCreatedBy(request.getUserId().trim());
         cashup.setUpdatedBy(request.getUserId().trim());
@@ -620,6 +662,13 @@ public class CashupService {
                 .receiptBookNo(cashup.getReceiptBookNo())
                 .receiptFromNo(cashup.getReceiptFromNo())
                 .receiptToNo(cashup.getReceiptToNo())
+                .manualAmountCents(cashup.getManualAmountCents())
+                .receiptTotalCents(cashup.getReceiptTotalCents())
+                .varianceCents(cashup.getVarianceCents())
+                .employeeResponsibleId(cashup.getEmployeeResponsibleId())
+                .employeeResponsibleName(cashup.getEmployeeResponsibleName())
+                .areaCode(cashup.getAreaCode())
+                .areaName(cashup.getAreaName())
                 .depositTotalCents(defaultLong(cashup.getDepositTotalCents()))
                 .depositCount(defaultInt(cashup.getDepositCount()))
                 .approvalRequestId(cashup.getApprovalRequestId())
@@ -696,6 +745,9 @@ public class CashupService {
         if (clean(request.getReceiptFromNo()) == null) throw new IllegalArgumentException("receiptFromNo is required");
         if (clean(request.getReceiptToNo()) == null) throw new IllegalArgumentException("receiptToNo is required");
         if (clean(request.getUserId()) == null) throw new IllegalArgumentException("userId is required");
+        if (request.getAmountCents() == null || request.getAmountCents() <= 0) throw new IllegalArgumentException("amountCents must be greater than zero");
+        if (clean(request.getEmployeeResponsibleId()) == null) throw new IllegalArgumentException("employeeResponsibleId is required");
+        if (clean(request.getAreaCode()) == null) throw new IllegalArgumentException("areaCode is required");
     }
 
     private BigInteger parseManualReceiptNumber(String value, String fieldName) {
@@ -761,6 +813,15 @@ public class CashupService {
         }
         if (clean(user.getUsername()) != null) return user.getUsername().trim();
         return "Unknown cashier";
+    }
+
+    private String partnerDisplayName(PartnerEntity partner) {
+        if (partner == null) return null;
+        String name = java.util.stream.Stream.of(partner.getName1(), partner.getName2(), partner.getName3())
+                .map(this::clean)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.joining(" "));
+        return name.isBlank() ? (clean(partner.getNo()) == null ? partner.getId() : partner.getNo()) : name;
     }
 
     private String clean(String value) {

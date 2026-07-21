@@ -32,6 +32,12 @@ public class MembershipClaimEntity {
     @Column(name = "claim_type", nullable = false, length = 40)
     private MembershipClaimType claimType;
 
+    @Column(name = "coverage_plan_id", length = 255)
+    private String coveragePlanId;
+
+    @Column(name = "coverage_event_date")
+    private LocalDate coverageEventDate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "deceased_type", nullable = false, length = 30)
     private MembershipClaimDeceasedType deceasedType;
