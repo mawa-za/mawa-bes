@@ -8,6 +8,11 @@ public class ManualCashupCreateRequest {
     private String receiptFromNo;
     private String receiptToNo;
     private String userId;
+    private Long amountCents;
+    private String employeeResponsibleId;
+    private String employeeResponsibleName;
+    private String areaCode;
+    private String areaName;
     private String cashupDate;
     private String notes;
 }

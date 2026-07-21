@@ -22,6 +22,9 @@ public class MembershipClaimResponse {
     private String claimantName;
 
     private MembershipClaimType claimType;
+    private String coveragePlanId;
+    private String coveragePlanName;
+    private LocalDate coverageEventDate;
     private MembershipClaimDeceasedType deceasedType;
 
     private String deceasedPartnerId;
@@ -70,6 +73,13 @@ public class MembershipClaimResponse {
     private String branchCode;
     private BankAccountType accountType;
 
+
+    public String getCoveragePlanId() { return coveragePlanId; }
+    public MembershipClaimResponse setCoveragePlanId(String coveragePlanId) { this.coveragePlanId = coveragePlanId; return this; }
+    public String getCoveragePlanName() { return coveragePlanName; }
+    public MembershipClaimResponse setCoveragePlanName(String coveragePlanName) { this.coveragePlanName = coveragePlanName; return this; }
+    public LocalDate getCoverageEventDate() { return coverageEventDate; }
+    public MembershipClaimResponse setCoverageEventDate(LocalDate coverageEventDate) { this.coverageEventDate = coverageEventDate; return this; }
 
     public Long getApprovedAmountCents() {
         return approvedAmountCents;

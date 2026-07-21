@@ -31,19 +31,22 @@ public class InternalScheduledJobService {
     private final MembershipService membershipService;
     private final PaymentRequestService paymentRequestService;
     private final ClaimController claimController;
+    private final za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService;
 
     public InternalScheduledJobService(
             UserService userService,
             TransactionService transactionService,
             MembershipService membershipService,
             PaymentRequestService paymentRequestService,
-            ClaimController claimController
+            ClaimController claimController,
+            za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService
     ) {
         this.userService = userService;
         this.transactionService = transactionService;
         this.membershipService = membershipService;
         this.paymentRequestService = paymentRequestService;
         this.claimController = claimController;
+        this.membershipChangeService = membershipChangeService;
     }
 
     public Map<String, Object> run(String jobCode) {
@@ -110,12 +113,14 @@ public class InternalScheduledJobService {
     }
 
     private Map<String, Object> membershipStatusUpdate() {
+        int appliedPlanChanges = membershipChangeService.applyDuePlanChanges(java.time.LocalDate.now(), SYSTEM_USER);
         String message = membershipService.scheduledStatusChange();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("attempted", 1);
         result.put("completed", "Scheduling Error Occurred".equals(message) ? 0 : 1);
         result.put("failed", "Scheduling Error Occurred".equals(message) ? 1 : 0);
         result.put("message", message);
+        result.put("appliedMembershipPlanChanges", appliedPlanChanges);
         return result;
     }
 
