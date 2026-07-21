@@ -18,7 +18,11 @@ public class MembershipClaimResponse {
     private String membershipId;
     private String membershipNo;
     private String memberName;
+    private String memberNumber;
+    private String memberIdentityNumber;
     private String deceasedName;
+    private String deceasedNumber;
+    private String deceasedIdentityNumber;
     private String claimantName;
 
     private MembershipClaimType claimType;
@@ -216,8 +220,16 @@ public class MembershipClaimResponse {
     public MembershipClaimResponse setMembershipNo(String membershipNo) { this.membershipNo = membershipNo; return this; }
     public String getMemberName() { return memberName; }
     public MembershipClaimResponse setMemberName(String memberName) { this.memberName = memberName; return this; }
+    public String getMemberNumber() { return memberNumber; }
+    public MembershipClaimResponse setMemberNumber(String memberNumber) { this.memberNumber = memberNumber; return this; }
+    public String getMemberIdentityNumber() { return memberIdentityNumber; }
+    public MembershipClaimResponse setMemberIdentityNumber(String memberIdentityNumber) { this.memberIdentityNumber = memberIdentityNumber; return this; }
     public String getDeceasedName() { return deceasedName; }
     public MembershipClaimResponse setDeceasedName(String deceasedName) { this.deceasedName = deceasedName; return this; }
+    public String getDeceasedNumber() { return deceasedNumber; }
+    public MembershipClaimResponse setDeceasedNumber(String deceasedNumber) { this.deceasedNumber = deceasedNumber; return this; }
+    public String getDeceasedIdentityNumber() { return deceasedIdentityNumber; }
+    public MembershipClaimResponse setDeceasedIdentityNumber(String deceasedIdentityNumber) { this.deceasedIdentityNumber = deceasedIdentityNumber; return this; }
     public String getClaimantName() { return claimantName; }
     public MembershipClaimResponse setClaimantName(String claimantName) { this.claimantName = claimantName; return this; }
 
