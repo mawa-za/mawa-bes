@@ -11,4 +11,9 @@ public class CashupDepositRequest {
     private String referenceNo;
     private String notes;
     private String createdBy;
+
+    /** Base64 encoded proof of deposit. */
+    private String attachmentFile;
+    private String attachmentExtension;
+    private String attachmentDocumentType;
 }

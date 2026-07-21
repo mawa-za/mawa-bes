@@ -2,6 +2,7 @@ package za.co.mawa.bes.service;
 
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +25,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class PartnerServiceV2 {
+    private static final int PARTNER_SEARCH_RESULT_LIMIT = 50;
+
 
     @Autowired
     PartnerRoleRepository partnerRoleRepository;
@@ -276,8 +279,10 @@ public class PartnerServiceV2 {
     }
 
     public List<PartnerViewEntity> searchByString(String query) {
-        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(query);
-        return partnerViewEntities;
+        return partnerViewRepository.findByString(
+                query,
+                PageRequest.of(0, PARTNER_SEARCH_RESULT_LIMIT)
+        );
     }
 
     public List<PartnerViewEntity> getByRole(String role) {
@@ -286,7 +291,11 @@ public class PartnerServiceV2 {
     }
 
     public List<PartnerViewEntity> searchByStringAndRole(String query, String role) {
-        return partnerViewRepository.findByStringAndRole(query, role);
+        return partnerViewRepository.findByStringAndRole(
+                query,
+                role,
+                PageRequest.of(0, PARTNER_SEARCH_RESULT_LIMIT)
+        );
     }
 
     public List<PartnerViewEntity> getAll() {

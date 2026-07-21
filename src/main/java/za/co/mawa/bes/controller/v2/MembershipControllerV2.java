@@ -9,6 +9,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentReplaceRequest;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
@@ -16,12 +20,15 @@ import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.v2.MembershipDependentService;
+import za.co.mawa.bes.service.v2.MembershipChangeService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MigrateService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
+import java.security.Principal;
 import java.util.List;
+import za.co.mawa.bes.configuration.context.UserContext;
 
 @CrossOrigin
 @RestController
@@ -34,6 +41,7 @@ public class MembershipControllerV2 {
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
+    private final MembershipChangeService membershipChangeService;
     private final PayAppMasterDataService payAppMasterDataService;
 
     public MembershipControllerV2(
@@ -41,10 +49,12 @@ public class MembershipControllerV2 {
             @Qualifier("MembershipServiceV2")
             MembershipService membershipService,
             MembershipDependentService membershipDependentService,
+            MembershipChangeService membershipChangeService,
             PayAppMasterDataService payAppMasterDataService) {
         this.membershipPlanService = membershipPlanService;
         this.membershipService = membershipService;
         this.membershipDependentService = membershipDependentService;
+        this.membershipChangeService = membershipChangeService;
         this.payAppMasterDataService = payAppMasterDataService;
     }
 
@@ -192,31 +202,61 @@ public class MembershipControllerV2 {
     }
 
     @PostMapping("/{membershipId}/dependents")
-    public ResponseEntity<MembershipDependentEntity> addDependent(
+    public ResponseEntity<MembershipChangeResponse> addDependent(
             @PathVariable String membershipId,
-            @Valid @RequestBody MembershipDependentEntity dependent) {
-        MembershipDependentEntity createdDependent = membershipDependentService.addDependent(membershipId, dependent);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdDependent);
+            @Valid @RequestBody MembershipDependentAddRequest request,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(membershipChangeService.requestDependentAdd(
+                        membershipId, request, actor(principal)));
     }
 
     @PutMapping("/{membershipId}/dependents/{dependentId}")
-    public ResponseEntity<MembershipDependentEntity> updateDependent(
+    public ResponseEntity<MembershipChangeResponse> replaceDependent(
             @PathVariable String membershipId,
             @PathVariable String dependentId,
-            @Valid @RequestBody MembershipDependentEntity dependent) {
-        return membershipDependentService.updateDependent(membershipId, dependentId, dependent)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            @Valid @RequestBody MembershipDependentReplaceRequest request,
+            Principal principal) {
+        return ResponseEntity.ok(membershipChangeService.requestDependentReplace(
+                membershipId, dependentId, request, actor(principal)));
     }
 
-    @DeleteMapping("/{membershipId}/dependents/{dependentId}")
-    public ResponseEntity<Void> deleteDependent(
+    @PostMapping("/{membershipId}/dependents/{dependentId}/remove")
+    public ResponseEntity<MembershipChangeResponse> removeDependent(
             @PathVariable String membershipId,
-            @PathVariable String dependentId) {
-        if (membershipDependentService.deleteDependent(membershipId, dependentId)) {
-            return ResponseEntity.noContent().build();
+            @PathVariable String dependentId,
+            @RequestBody MembershipDependentRemoveRequest request,
+            Principal principal) {
+        return ResponseEntity.ok(membershipChangeService.requestDependentRemove(
+                membershipId, dependentId, request, actor(principal)));
+    }
+
+    /**
+     * Compatibility endpoint for older clients. Removal still follows the
+     * same one-month approval rule and is never a physical delete.
+     */
+    @DeleteMapping("/{membershipId}/dependents/{dependentId}")
+    public ResponseEntity<MembershipChangeResponse> deleteDependent(
+            @PathVariable String membershipId,
+            @PathVariable String dependentId,
+            Principal principal) {
+        MembershipDependentRemoveRequest request = new MembershipDependentRemoveRequest();
+        request.setReason("Dependent removed");
+        return ResponseEntity.ok(membershipChangeService.requestDependentRemove(
+                membershipId, dependentId, request, actor(principal)));
+    }
+
+    private String actor(Principal principal) {
+        if (UserContext.getCurrentUserId() != null && !UserContext.getCurrentUserId().isBlank()) {
+            return UserContext.getCurrentUserId();
         }
-        return ResponseEntity.notFound().build();
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (UserContext.getCurrentUser() != null && !UserContext.getCurrentUser().isBlank()) {
+            return UserContext.getCurrentUser();
+        }
+        return "SYSTEM";
     }
 
 }

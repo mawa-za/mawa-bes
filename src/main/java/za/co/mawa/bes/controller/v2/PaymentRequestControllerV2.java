@@ -46,7 +46,7 @@ public class PaymentRequestControllerV2 {
             @RequestBody PaymentRequestCreateRequest request,
             @RequestHeader(value = "X-User-Id", required = false) String currentUser
     ) {
-        return ResponseEntity.ok(paymentRequestService.create(request, currentUser));
+        return ResponseEntity.ok(paymentRequestService.createManual(request, currentUser));
     }
 
     @GetMapping("/recipient-options")

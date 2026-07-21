@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.payapp.CashupDepositRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupListItemResponse;
+import za.co.mawa.bes.dto.v2.payapp.ManualCashupCreateRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupDepositResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
@@ -38,6 +39,13 @@ CashupService cashupService;
     @PostMapping
     public ResponseEntity<CashupResponse> submitCashup(@RequestBody CashupRequest request) {
         return ResponseEntity.ok(cashupService.submitCashup(request));
+    }
+
+    @PostMapping("/manual")
+    public ResponseEntity<CashupSummaryResponse> createManualCashup(
+            @RequestBody ManualCashupCreateRequest request
+    ) {
+        return ResponseEntity.ok(cashupService.createManualCashup(request));
     }
 
     /**

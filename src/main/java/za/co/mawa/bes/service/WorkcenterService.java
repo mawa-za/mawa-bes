@@ -22,6 +22,17 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("prospect","Prospects","search"));
         workcenterDtoList.add(new WorkcenterDto("membership-management","Membership Management",""));
         workcenterDtoList.add(new WorkcenterDto("funeral-management","Funeral Management",""));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-management","Tombstone Management",""));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-orders","Tombstone Orders","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-laybys","Tombstone Laybys","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-site-assessments","Tombstone Site Assessments","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-design-approvals","Tombstone Design Approvals","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-production-jobs","Tombstone Production Jobs","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-planning","Tombstone Installation Planning","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-calendar","Tombstone Installation Calendar","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-teams","Tombstone Installation Teams","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-rework-jobs","Tombstone Rework Jobs","search"));
+        workcenterDtoList.add(new WorkcenterDto("tombstone-reports","Tombstone Reports","search"));
         workcenterDtoList.add(new WorkcenterDto("finance-management","Finance Management",""));
         workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management",""));
         workcenterDtoList.add(new WorkcenterDto("scheduling","Calendar & Appointments",""));

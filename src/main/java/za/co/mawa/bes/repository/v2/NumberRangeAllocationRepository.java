@@ -8,14 +8,19 @@ import java.util.Optional;
 
 public interface NumberRangeAllocationRepository extends JpaRepository<NumberRangeAllocationEntity, Long> {
 
-    List<NumberRangeAllocationEntity> findByDeviceIdAndSeqTypeOrderByIdDesc(
-            String deviceId,
-            String seqType
-    );
+    List<NumberRangeAllocationEntity> findByDeviceIdAndSeqTypeOrderByIdDesc(String deviceId, String seqType);
 
     Optional<NumberRangeAllocationEntity> findFirstByDeviceIdAndSeqTypeAndStatusOrderByIdDesc(
             String deviceId,
             String seqType,
             String status
     );
+
+    List<NumberRangeAllocationEntity> findTop200ByOrderByIdDesc();
+
+    List<NumberRangeAllocationEntity> findTop200BySeqTypeOrderByIdDesc(String seqType);
+
+    List<NumberRangeAllocationEntity> findTop200ByDeviceIdOrderByIdDesc(String deviceId);
+
+    List<NumberRangeAllocationEntity> findTop200BySeqTypeAndDeviceIdOrderByIdDesc(String seqType, String deviceId);
 }

@@ -45,7 +45,8 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
-        if (requestURI.startsWith("/internal/admin/")
+        if ("/error".equals(requestURI)
+                || requestURI.startsWith("/internal/admin/")
                 || "/v2/admin-handoff/exchange".equals(requestURI)
                 || "/refresh-token".equals(requestURI)
                 || "/v2/refresh-token".equals(requestURI)) {

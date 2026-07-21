@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.*;import java.time.format.DateTimeFormatter;import java.util.*;
 @Service @RequiredArgsConstructor
 public class PremiumGenerationService {
- private final JdbcTemplate jdbc; private final MembershipPremiumService premiums;
+ private final JdbcTemplate jdbc; private final MembershipPremiumService premiums; private final MembershipChangeService membershipChanges;
  public Map<String,Object> configuration(){return jdbc.queryForMap("SELECT * FROM premium_generation_configuration WHERE id='DEFAULT'");}
  @Transactional public Map<String,Object> saveConfiguration(Map<String,Object> r,String user){
   String mode=Objects.toString(r.getOrDefault("generationMode","FIRST_DAY_OF_MONTH")).toUpperCase();
@@ -22,6 +22,7 @@ public class PremiumGenerationService {
   else {generateMonthAfterLastPayment("SYSTEM");}
   jdbc.update("UPDATE premium_generation_configuration SET last_run_at=CURRENT_TIMESTAMP WHERE id='DEFAULT'");}
  @Transactional public Map<String,Object> generateMonthAfterLastPayment(String user){
+  membershipChanges.applyDuePlanChanges(LocalDate.now(), user);
   List<Map<String,Object>> memberships=jdbc.queryForList("SELECT id,premium_cents,start_date,end_date,paid_up_to_period FROM membership WHERE status='ACTIVE'");
   int created=0; LocalDate current=LocalDate.now().withDayOfMonth(1);
   for(var m:memberships){
@@ -39,6 +40,7 @@ public class PremiumGenerationService {
  }
 
  @Transactional public Map<String,Object> generate(LocalDate from,LocalDate to,String user){
+  membershipChanges.applyDuePlanChanges(LocalDate.now(), user);
   List<Map<String,Object>> memberships=jdbc.queryForList("SELECT id,premium_cents,start_date,end_date,paid_up_to_period FROM membership WHERE status='ACTIVE'"); int created=0;
   for(var m:memberships){ LocalDate p=from.withDayOfMonth(1); LocalDate end=to.withDayOfMonth(1); while(!p.isAfter(end)){
     LocalDate start=((java.sql.Date)m.get("start_date")).toLocalDate().withDayOfMonth(1); Object e=m.get("end_date"); LocalDate stop=e==null?null:((java.sql.Date)e).toLocalDate().withDayOfMonth(1);

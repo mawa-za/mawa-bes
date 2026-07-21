@@ -66,6 +66,22 @@ public class PaymentRequestService {
         this.attachmentRepository = attachmentRepository;
     }
 
+    private static final java.util.Set<PaymentRequestType> MANUALLY_CREATABLE_TYPES = java.util.Set.of(
+            PaymentRequestType.SUPPLIER_INVOICE,
+            PaymentRequestType.PETTY_CASH_REPLENISHMENT
+    );
+
+    @Transactional
+    public PaymentRequestResponse createManual(PaymentRequestCreateRequest request, String currentUser) {
+        if (request == null || !MANUALLY_CREATABLE_TYPES.contains(request.getRequestType())) {
+            throw new IllegalArgumentException(
+                    "Only Supplier Invoice and Petty Cash Replenishment payment requests may be created manually"
+            );
+        }
+        request.setSourceType(PaymentRequestSourceType.MANUAL);
+        return create(request, currentUser);
+    }
+
     @Transactional
     public PaymentRequestResponse create(PaymentRequestCreateRequest request, String currentUser) {
         applyTypeRules(request);
@@ -245,27 +261,80 @@ public class PaymentRequestService {
 
     public java.util.List<java.util.Map<String,Object>> recipientOptions(PaymentRequestType type, String query) {
         if (type == null) throw new IllegalArgumentException("Payment request type is required");
+        if (!MANUALLY_CREATABLE_TYPES.contains(type)) {
+            throw new IllegalArgumentException("Recipient selection is only available for manually creatable payment request types");
+        }
         String q = query == null ? "" : query.trim();
         if (type == PaymentRequestType.SUPPLIER_INVOICE) {
             return jdbcTemplate.queryForList("""
-                SELECT DISTINCT p.id, TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name
-                  FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
-                 WHERE ?='' OR LOWER(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,'')))) LIKE LOWER(CONCAT('%',?,'%'))
-                 ORDER BY name LIMIT 50
-                """,q,q);
-        }
-        if (type == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
-            return jdbcTemplate.queryForList("""
-                SELECT p.id,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name
-                  FROM partner p JOIN partner_role pr ON pr.partner=p.id
-                 WHERE pr.role IN ('TENANT_OWNER','OWNER') ORDER BY name LIMIT 1
-                """);
+                SELECT DISTINCT
+                       p.id,
+                       COALESCE(p.number, '') AS number,
+                       COALESCE(p.type, '') AS partnerType,
+                       TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) AS name,
+                       COALESCE((
+                           SELECT pi.value
+                             FROM partner_identity pi
+                            WHERE pi.partner = p.id
+                            ORDER BY CASE WHEN pi.type = 'SA-ID' THEN 0 WHEN pi.type = 'PASSPORT' THEN 1 ELSE 2 END,
+                                     pi.type,
+                                     pi.value
+                            LIMIT 1
+                       ), '') AS identityNumber,
+                       COALESCE((
+                           SELECT pi.type
+                             FROM partner_identity pi
+                            WHERE pi.partner = p.id
+                            ORDER BY CASE WHEN pi.type = 'SA-ID' THEN 0 WHEN pi.type = 'PASSPORT' THEN 1 ELSE 2 END,
+                                     pi.type,
+                                     pi.value
+                            LIMIT 1
+                       ), '') AS identityType
+                  FROM partner p
+                  JOIN partner_role pr ON pr.partner = p.id AND pr.role = 'SUPPLIER'
+                 WHERE ? = ''
+                    OR LOWER(COALESCE(p.number, '')) LIKE LOWER(CONCAT('%', ?, '%'))
+                    OR LOWER(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,'')))) LIKE LOWER(CONCAT('%', ?, '%'))
+                    OR EXISTS (
+                        SELECT 1
+                          FROM partner_identity pi
+                         WHERE pi.partner = p.id
+                           AND LOWER(COALESCE(pi.value, '')) LIKE LOWER(CONCAT('%', ?, '%'))
+                    )
+                 ORDER BY name
+                 LIMIT 50
+                """, q, q, q, q);
         }
         return jdbcTemplate.queryForList("""
-            SELECT p.id,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) name FROM partner p
-             WHERE ?='' OR LOWER(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,'')))) LIKE LOWER(CONCAT('%',?,'%'))
-             ORDER BY name LIMIT 50
-            """,q,q);
+            SELECT DISTINCT
+                   p.id,
+                   COALESCE(p.number, '') AS number,
+                   COALESCE(p.type, '') AS partnerType,
+                   TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) AS name,
+                   COALESCE((
+                       SELECT pi.value
+                         FROM partner_identity pi
+                        WHERE pi.partner = p.id
+                        ORDER BY CASE WHEN pi.type = 'SA-ID' THEN 0 WHEN pi.type = 'PASSPORT' THEN 1 ELSE 2 END,
+                                 pi.type,
+                                 pi.value
+                        LIMIT 1
+                   ), '') AS identityNumber,
+                   COALESCE((
+                       SELECT pi.type
+                         FROM partner_identity pi
+                        WHERE pi.partner = p.id
+                        ORDER BY CASE WHEN pi.type = 'SA-ID' THEN 0 WHEN pi.type = 'PASSPORT' THEN 1 ELSE 2 END,
+                                 pi.type,
+                                 pi.value
+                        LIMIT 1
+                   ), '') AS identityType
+              FROM partner p
+              JOIN partner_role pr ON pr.partner = p.id
+             WHERE pr.role IN ('TENANT_OWNER', 'OWNER')
+             ORDER BY name
+             LIMIT 1
+            """);
     }
 
     public List<PaymentRequestResponse> getAll() {

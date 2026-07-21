@@ -53,9 +53,13 @@ public class WebSecurityConfig {
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] LOG_EXCLUSION = {
+            "/error",
             "/print-job",
             "/v2/pos-print-agents/**",
-            "/authenticate"
+            "/authenticate",
+            "/v2/authenticate",
+            "/v2/membership/master-data/**",
+            "/v2/company-logo/content"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] SWAGGER_WHITELIST = {

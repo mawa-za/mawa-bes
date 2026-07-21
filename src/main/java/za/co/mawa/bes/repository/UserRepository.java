@@ -11,16 +11,21 @@ import za.co.mawa.bes.entity.UserEntity;
 import java.util.List;
 
 @Repository
-public interface UserRepository extends JpaRepository<UserEntity,String>{
+public interface UserRepository extends JpaRepository<UserEntity, String> {
     List<UserEntity> findAll(Specification<UserEntity> byCriteria, Sort sort);
-    @Query(value = "SELECT * FROM user u WHERE u.username = :username LIMIT 1", nativeQuery = true)
-    UserEntity getByName(String username);
-    @Query(value = "SELECT * FROM user u WHERE u.email = :email LIMIT 1", nativeQuery = true)
-    UserEntity getByEmail(String email);
-    @Query(value = "SELECT * FROM user u WHERE LOWER(u.email) = LOWER(:email) LIMIT 1", nativeQuery = true)
+
+    @Query("select u from UserEntity u where u.username = :username")
+    UserEntity getByName(@Param("username") String username);
+
+    @Query("select u from UserEntity u where u.email = :email")
+    UserEntity getByEmail(@Param("email") String email);
+
+    @Query("select u from UserEntity u where lower(u.email) = lower(:email)")
     UserEntity getByEmailIgnoreCase(@Param("email") String email);
-    @Query(value = "SELECT * FROM user u WHERE u.cellphone = :cellphone LIMIT 1", nativeQuery = true)
-    UserEntity getByCellphone(String cellphone); 
-    @Query(value = "SELECT * FROM user u WHERE u.partner = :partnerId LIMIT 1", nativeQuery = true)
-    UserEntity getByPartner(String partnerId);
+
+    @Query("select u from UserEntity u where u.cellphone = :cellphone")
+    UserEntity getByCellphone(@Param("cellphone") String cellphone);
+
+    @Query("select u from UserEntity u where u.partner = :partnerId")
+    UserEntity getByPartner(@Param("partnerId") String partnerId);
 }
