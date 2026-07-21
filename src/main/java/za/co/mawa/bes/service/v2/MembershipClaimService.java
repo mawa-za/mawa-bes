@@ -191,12 +191,12 @@ public class MembershipClaimService {
 
     public Slice<MembershipClaimListItemResponse> getPage(
             MembershipClaimStatus status,
+            String query,
             Pageable pageable
     ) {
-        Slice<MembershipClaimEntity> claims = status == null
-                ? claimRepository.findAllByOrderByCreatedAtDesc(pageable)
-                : claimRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
-        return claims.map(this::toListItemResponse);
+        String normalizedQuery = StringUtils.hasText(query) ? query.trim() : null;
+        return claimRepository.searchPage(status, normalizedQuery, pageable)
+                .map(this::toListItemResponse);
     }
 
     public MembershipClaimResponse getById(String id) {
@@ -691,14 +691,22 @@ public class MembershipClaimService {
     }
 
     private MembershipClaimListItemResponse toListItemResponse(MembershipClaimEntity entity) {
+        MembershipReference membership = membershipReference(entity.getMembershipId());
+        PartnerReference deceased = partnerReference(entity.getDeceasedPartnerId());
+        PartnerReference claimant = partnerReference(entity.getClaimantPartnerId());
+
         return MembershipClaimListItemResponse.builder()
                 .id(entity.getId())
                 .claimNo(entity.getClaimNo())
                 .membershipId(entity.getMembershipId())
-                .membershipNo(membershipNumber(entity.getMembershipId()))
-                .memberName(memberName(entity.getMembershipId()))
-                .deceasedName(partnerName(entity.getDeceasedPartnerId()))
-                .claimantName(partnerName(entity.getClaimantPartnerId()))
+                .membershipNo(membership.membershipNo())
+                .memberName(membership.member().name())
+                .memberNumber(membership.member().number())
+                .memberIdentityNumber(membership.member().identityNumber())
+                .deceasedName(deceased.name())
+                .deceasedNumber(deceased.number())
+                .deceasedIdentityNumber(deceased.identityNumber())
+                .claimantName(claimant.name())
                 .claimType(entity.getClaimType())
                 .coveragePlanId(entity.getCoveragePlanId())
                 .coverageEventDate(entity.getCoverageEventDate())
@@ -718,6 +726,10 @@ public class MembershipClaimService {
     }
 
     private MembershipClaimResponse toResponse(MembershipClaimEntity entity) {
+        MembershipReference membership = membershipReference(entity.getMembershipId());
+        PartnerReference deceased = partnerReference(entity.getDeceasedPartnerId());
+        PartnerReference claimant = partnerReference(entity.getClaimantPartnerId());
+
         List<MembershipClaimLinkEntity> links =
                 claimLinkRepository.findByParentClaimIdOrderByCreatedAtAsc(entity.getId());
 
@@ -744,10 +756,14 @@ public class MembershipClaimService {
                 .setId(entity.getId())
                 .setClaimNo(entity.getClaimNo())
                 .setMembershipId(entity.getMembershipId())
-                .setMembershipNo(membershipNumber(entity.getMembershipId()))
-                .setMemberName(memberName(entity.getMembershipId()))
-                .setDeceasedName(partnerName(entity.getDeceasedPartnerId()))
-                .setClaimantName(partnerName(entity.getClaimantPartnerId()))
+                .setMembershipNo(membership.membershipNo())
+                .setMemberName(membership.member().name())
+                .setMemberNumber(membership.member().number())
+                .setMemberIdentityNumber(membership.member().identityNumber())
+                .setDeceasedName(deceased.name())
+                .setDeceasedNumber(deceased.number())
+                .setDeceasedIdentityNumber(deceased.identityNumber())
+                .setClaimantName(claimant.name())
                 .setClaimType(entity.getClaimType())
                 .setCoveragePlanId(entity.getCoveragePlanId())
                 .setCoveragePlanName(coveragePlanName(entity.getCoveragePlanId()))
@@ -795,41 +811,68 @@ public class MembershipClaimService {
                 .orElse(planId);
     }
 
-    private String membershipNumber(String membershipId) {
+    private MembershipReference membershipReference(String membershipId) {
+        if (!StringUtils.hasText(membershipId)) {
+            return new MembershipReference("", PartnerReference.empty());
+        }
         try {
-            return jdbcTemplate.queryForObject(
-                    "SELECT membership_no FROM membership WHERE id = ?",
-                    String.class,
+            return jdbcTemplate.query(
+                    """
+                    SELECT m.membership_no,
+                           COALESCE(p.partner_no, '') AS partner_no,
+                           COALESCE(p.identity_number, '') AS identity_number,
+                           TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) AS partner_name
+                      FROM membership m
+                      LEFT JOIN partner_view p ON p.partner_id = m.member_id
+                     WHERE m.id = ?
+                    """,
+                    resultSet -> resultSet.next()
+                            ? new MembershipReference(
+                                    resultSet.getString("membership_no"),
+                                    new PartnerReference(
+                                            resultSet.getString("partner_no"),
+                                            resultSet.getString("identity_number"),
+                                            resultSet.getString("partner_name")
+                                    )
+                              )
+                            : new MembershipReference(membershipId, PartnerReference.empty()),
                     membershipId
             );
         } catch (Exception ignored) {
-            return membershipId;
+            return new MembershipReference(membershipId, PartnerReference.empty());
         }
     }
 
-    private String memberName(String membershipId) {
+    private PartnerReference partnerReference(String partnerId) {
+        if (!StringUtils.hasText(partnerId)) return PartnerReference.empty();
         try {
-            return jdbcTemplate.queryForObject(
-                    "SELECT TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) " +
-                            "FROM membership m JOIN partner p ON p.id = m.member_id WHERE m.id = ?",
-                    String.class,
-                    membershipId
-            );
-        } catch (Exception ignored) {
-            return "";
-        }
-    }
-
-    private String partnerName(String partnerId) {
-        if (!StringUtils.hasText(partnerId)) return "";
-        try {
-            return jdbcTemplate.queryForObject(
-                    "SELECT TRIM(CONCAT(COALESCE(name2,''),' ',COALESCE(name3,''),' ',COALESCE(name1,''))) FROM partner WHERE id = ?",
-                    String.class,
+            return jdbcTemplate.query(
+                    """
+                    SELECT COALESCE(partner_no, '') AS partner_no,
+                           COALESCE(identity_number, '') AS identity_number,
+                           TRIM(CONCAT_WS(' ', NULLIF(name2,''), NULLIF(name3,''), NULLIF(name1,''))) AS partner_name
+                      FROM partner_view
+                     WHERE partner_id = ?
+                    """,
+                    resultSet -> resultSet.next()
+                            ? new PartnerReference(
+                                    resultSet.getString("partner_no"),
+                                    resultSet.getString("identity_number"),
+                                    resultSet.getString("partner_name")
+                              )
+                            : PartnerReference.empty(),
                     partnerId
             );
         } catch (Exception ignored) {
-            return "";
+            return PartnerReference.empty();
+        }
+    }
+
+    private record MembershipReference(String membershipNo, PartnerReference member) { }
+
+    private record PartnerReference(String number, String identityNumber, String name) {
+        private static PartnerReference empty() {
+            return new PartnerReference("", "", "");
         }
     }
 
