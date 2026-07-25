@@ -32,6 +32,7 @@ public class InternalScheduledJobService {
     private final PaymentRequestService paymentRequestService;
     private final ClaimController claimController;
     private final za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService;
+    private final za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService;
 
     public InternalScheduledJobService(
             UserService userService,
@@ -39,7 +40,8 @@ public class InternalScheduledJobService {
             MembershipService membershipService,
             PaymentRequestService paymentRequestService,
             ClaimController claimController,
-            za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService
+            za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService,
+            za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService
     ) {
         this.userService = userService;
         this.transactionService = transactionService;
@@ -47,6 +49,7 @@ public class InternalScheduledJobService {
         this.paymentRequestService = paymentRequestService;
         this.claimController = claimController;
         this.membershipChangeService = membershipChangeService;
+        this.premiumGenerationService = premiumGenerationService;
     }
 
     public Map<String, Object> run(String jobCode) {
@@ -59,6 +62,9 @@ public class InternalScheduledJobService {
                 case "MEMBERSHIP_LAPSE" -> membershipLapse();
                 case "COMPLETE_PAYMENT_REQUESTS" -> completeApprovedPaymentRequests();
                 case "CLAIM_PROCESSING" -> processApprovedClaims(false);
+                case "PREMIUM_GENERATION" -> new LinkedHashMap<>(
+                        premiumGenerationService.runConfiguredAutomaticGeneration(SYSTEM_USER)
+                );
                 default -> throw new IllegalArgumentException("Unknown scheduled job: " + jobCode);
             };
             result.put("jobCode", normalizedJobCode);
