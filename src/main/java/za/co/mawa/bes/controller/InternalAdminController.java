@@ -2,6 +2,8 @@ package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +30,8 @@ import java.util.Iterator;
 @RestController
 @CrossOrigin
 public class InternalAdminController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(InternalAdminController.class);
 
     private static final String INTERNAL_TOKEN_HEADER = "X-Mawa-Internal-Token";
 
@@ -104,6 +108,7 @@ public class InternalAdminController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         } catch (Exception ex) {
+            LOGGER.error("Scheduled job {} failed for tenant {}", jobCode, tenant, ex);
             java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("tenant", tenant);
             payload.put("jobCode", jobCode);
