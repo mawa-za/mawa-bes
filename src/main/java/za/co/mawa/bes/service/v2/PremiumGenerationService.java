@@ -1,10 +1,14 @@
 package za.co.mawa.bes.service.v2;
 
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,11 +16,14 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class PremiumGenerationService {
@@ -29,31 +36,7 @@ public class PremiumGenerationService {
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyyMM");
     private static final Set<String> SUPPORTED_MODES = Set.of(DAY_OF_MONTH, MONTH_AFTER_LAST_PAYMENT);
 
-    private static final String PERIOD_AMOUNT_EXPRESSION = """
-            COALESCE(
-                historical_plan.premium_cents,
-                m.premium_cents,
-                current_plan.premium_cents
-            )
-            """;
-
-    private static final String PERIOD_JOIN_SQL = """
-            FROM membership m
-            LEFT JOIN membership_plan current_plan
-                   ON current_plan.id = m.plan_id
-            LEFT JOIN membership_plan_history history
-                   ON history.id = (
-                       SELECT h.id
-                         FROM membership_plan_history h
-                        WHERE h.membership_id = m.id
-                          AND h.effective_from <= ?
-                          AND (h.effective_to IS NULL OR h.effective_to >= ?)
-                        ORDER BY h.effective_from DESC
-                        LIMIT 1
-                   )
-            LEFT JOIN membership_plan historical_plan
-                   ON historical_plan.id = history.plan_id
-            """;
+    private static final int INSERT_BATCH_SIZE = 500;
 
     private final JdbcTemplate jdbc;
     private final MembershipChangeService membershipChanges;
@@ -219,67 +202,58 @@ public class PremiumGenerationService {
         LocalDate currentDate = today();
         membershipChanges.applyDuePlanChanges(currentDate, actor(user));
 
-        int created = jdbc.update("""
-                INSERT IGNORE INTO membership_premium (
-                    id,
-                    membership_id,
-                    period_yyyymm,
-                    amount_cents,
-                    paid_amount_cents,
-                    balance_cents,
-                    status,
-                    due_date,
-                    created_at,
-                    created_by
-                )
-                SELECT UUID(),
-                       candidate.id,
-                       DATE_FORMAT(candidate.target_month, '%Y%m'),
-                       candidate.amount_cents,
-                       0,
-                       candidate.amount_cents,
-                       'UNPAID',
-                       ?,
-                       CURRENT_TIMESTAMP,
-                       ?
-                  FROM (
-                       SELECT m.id,
-                              m.old_id,
-                              m.end_date,
-                              COALESCE(m.premium_cents, plan.premium_cents) AS amount_cents,
-                              CASE
-                                  WHEN m.paid_up_to_period REGEXP '^[0-9]{6}$'
-                                  THEN DATE_ADD(
-                                           STR_TO_DATE(CONCAT(m.paid_up_to_period, '01'), '%Y%m%d'),
-                                           INTERVAL 1 MONTH
-                                       )
-                                  ELSE STR_TO_DATE(
-                                           DATE_FORMAT(
-                                               COALESCE(m.start_date, m.join_date, CURRENT_DATE),
-                                               '%Y%m01'
-                                           ),
-                                           '%Y%m%d'
-                                       )
-                              END AS target_month
-                         FROM membership m
-                         LEFT JOIN membership_plan plan ON plan.id = m.plan_id
-                        WHERE UPPER(TRIM(COALESCE(m.status, ''))) = 'ACTIVE'
-                  ) candidate
-                 WHERE candidate.target_month <= ?
-                   AND (candidate.end_date IS NULL
-                        OR candidate.target_month <= LAST_DAY(candidate.end_date))
-                   AND candidate.amount_cents IS NOT NULL
-                   AND NOT EXISTS (
-                       SELECT 1
-                         FROM membership_premium existing
-                        WHERE existing.period_yyyymm = DATE_FORMAT(candidate.target_month, '%Y%m')
-                          AND (
-                              existing.membership_id = candidate.id
-                              OR (candidate.old_id IS NOT NULL
-                                  AND existing.membership_id = candidate.old_id)
-                          )
-                   )
-                """, Date.valueOf(currentDate), actor(user), Date.valueOf(currentDate.withDayOfMonth(1)));
+        Map<String, Long> planAmounts = loadPlanAmounts();
+        List<MembershipCandidate> memberships = loadActiveMembershipCandidates();
+        Map<String, MembershipCandidate> membershipById = new HashMap<>();
+        for (MembershipCandidate membership : memberships) {
+            membershipById.put(membership.id(), membership);
+        }
+        Map<YearMonth, List<PremiumInsertCandidate>> insertsByPeriod = new LinkedHashMap<>();
+        YearMonth currentPeriod = YearMonth.from(currentDate);
+
+        for (MembershipCandidate membership : memberships) {
+            YearMonth targetPeriod = nextPremiumPeriod(membership);
+            if (targetPeriod == null || targetPeriod.isAfter(currentPeriod)) {
+                continue;
+            }
+            if (membership.endDate() != null
+                    && targetPeriod.isAfter(YearMonth.from(membership.endDate()))) {
+                continue;
+            }
+
+            Long amount = membership.premiumCents() != null
+                    ? membership.premiumCents()
+                    : planAmounts.get(membership.planId());
+            if (amount == null) {
+                continue;
+            }
+
+            insertsByPeriod.computeIfAbsent(targetPeriod, ignored -> new ArrayList<>())
+                    .add(new PremiumInsertCandidate(
+                            membership.id(),
+                            targetPeriod.format(PERIOD_FORMAT),
+                            amount,
+                            currentDate,
+                            actor(user)
+                    ));
+        }
+
+        int created = 0;
+        for (Map.Entry<YearMonth, List<PremiumInsertCandidate>> entry : insertsByPeriod.entrySet()) {
+            String periodValue = entry.getKey().format(PERIOD_FORMAT);
+            Set<String> existingMembershipIds = loadExistingMembershipIds(periodValue);
+            List<PremiumInsertCandidate> missing = new ArrayList<>();
+
+            for (PremiumInsertCandidate candidate : entry.getValue()) {
+                MembershipCandidate membership = membershipById.get(candidate.membershipId());
+                if (membership == null || premiumExists(existingMembershipIds, membership)) {
+                    continue;
+                }
+                missing.add(candidate);
+                existingMembershipIds.add(candidate.membershipId());
+            }
+            created += insertPremiums(missing);
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("created", created);
@@ -299,6 +273,15 @@ public class PremiumGenerationService {
 
         Map<String, Object> config = configuration();
         int generationDay = parseGenerationDay(config.get("generationDayOfMonth"));
+        LocalDate rangeStart = fromPeriod.atDay(1);
+        LocalDate rangeEnd = toPeriod.atEndOfMonth();
+
+        // Load each domain table independently. Some restored tenant schemas use
+        // different collations for legacy IDs; Java-side ID matching avoids
+        // cross-collation joins and the previous correlated SQL timeouts.
+        List<MembershipCandidate> memberships = loadMembershipCandidates(rangeStart, rangeEnd);
+        Map<String, Long> planAmounts = loadPlanAmounts();
+        Map<String, List<PlanHistoryCandidate>> planHistory = loadPlanHistory(rangeStart, rangeEnd);
 
         int created = 0;
         int eligible = 0;
@@ -308,7 +291,14 @@ public class PremiumGenerationService {
         YearMonth period = fromPeriod;
         while (!period.isAfter(toPeriod)) {
             periods.add(period.format(PERIOD_FORMAT));
-            PeriodGenerationResult periodResult = generatePeriod(period, generationDay, actor(user));
+            PeriodGenerationResult periodResult = generatePeriod(
+                    period,
+                    generationDay,
+                    actor(user),
+                    memberships,
+                    planAmounts,
+                    planHistory
+            );
             created += periodResult.created();
             eligible += periodResult.eligible();
             missingAmount += periodResult.missingAmount();
@@ -327,37 +317,203 @@ public class PremiumGenerationService {
         );
     }
 
-    private PeriodGenerationResult generatePeriod(YearMonth period, int configuredDay, String user) {
+    private PeriodGenerationResult generatePeriod(
+            YearMonth period,
+            int configuredDay,
+            String user,
+            List<MembershipCandidate> memberships,
+            Map<String, Long> planAmounts,
+            Map<String, List<PlanHistoryCandidate>> planHistory
+    ) {
         LocalDate periodStart = period.atDay(1);
         LocalDate periodEnd = period.atEndOfMonth();
         LocalDate dueDate = period.atDay(effectiveGenerationDay(period, configuredDay));
         String periodValue = period.format(PERIOD_FORMAT);
+        Set<String> existingMembershipIds = loadExistingMembershipIds(periodValue);
 
-        String candidateStatsSql = """
-                SELECT COUNT(*) AS eligible,
-                       COALESCE(SUM(CASE WHEN candidate.amount_cents IS NULL THEN 1 ELSE 0 END), 0)
-                           AS missing_amount
-                  FROM (
-                       SELECT %s AS amount_cents
-                       %s
-                        WHERE UPPER(TRIM(COALESCE(m.status, ''))) = 'ACTIVE'
-                          AND COALESCE(m.start_date, m.join_date) <= ?
-                          AND (m.end_date IS NULL OR m.end_date >= ?)
-                  ) candidate
-                """.formatted(PERIOD_AMOUNT_EXPRESSION, PERIOD_JOIN_SQL);
+        int eligible = 0;
+        int missingAmount = 0;
+        List<PremiumInsertCandidate> inserts = new ArrayList<>();
 
-        Map<String, Object> candidateStats = jdbc.queryForMap(
-                candidateStatsSql,
-                Date.valueOf(periodEnd),
-                Date.valueOf(periodStart),
-                Date.valueOf(periodEnd),
-                Date.valueOf(periodStart)
-        );
+        for (MembershipCandidate membership : memberships) {
+            if (membership.startDate().isAfter(periodEnd)
+                    || (membership.endDate() != null && membership.endDate().isBefore(periodStart))) {
+                continue;
+            }
+            eligible++;
 
-        int eligible = number(candidateStats.get("eligible"));
-        int missingAmount = number(candidateStats.get("missing_amount"));
+            Long amount = resolvePeriodAmount(
+                    membership,
+                    planHistory.get(membership.id()),
+                    planAmounts,
+                    periodStart,
+                    periodEnd
+            );
+            if (amount == null) {
+                missingAmount++;
+                continue;
+            }
+            if (premiumExists(existingMembershipIds, membership)) {
+                continue;
+            }
 
-        String insertSql = """
+            inserts.add(new PremiumInsertCandidate(
+                    membership.id(),
+                    periodValue,
+                    amount,
+                    dueDate,
+                    user
+            ));
+            existingMembershipIds.add(membership.id());
+        }
+
+        int created = insertPremiums(inserts);
+        return new PeriodGenerationResult(created, eligible, missingAmount);
+    }
+
+    private List<MembershipCandidate> loadMembershipCandidates(LocalDate rangeStart, LocalDate rangeEnd) {
+        return jdbc.query("""
+                SELECT id,
+                       old_id,
+                       plan_id,
+                       premium_cents,
+                       COALESCE(start_date, join_date) AS effective_start_date,
+                       end_date,
+                       paid_up_to_period
+                  FROM membership
+                 WHERE UPPER(TRIM(COALESCE(status, ''))) = 'ACTIVE'
+                   AND COALESCE(start_date, join_date) <= ?
+                   AND (end_date IS NULL OR end_date >= ?)
+                """, (rs, rowNum) -> new MembershipCandidate(
+                cleanId(rs.getString("id")),
+                cleanId(rs.getString("old_id")),
+                cleanId(rs.getString("plan_id")),
+                nullableLong(rs.getObject("premium_cents")),
+                rs.getDate("effective_start_date").toLocalDate(),
+                rs.getDate("end_date") == null ? null : rs.getDate("end_date").toLocalDate(),
+                rs.getString("paid_up_to_period")
+        ), Date.valueOf(rangeEnd), Date.valueOf(rangeStart));
+    }
+
+    private List<MembershipCandidate> loadActiveMembershipCandidates() {
+        return jdbc.query("""
+                SELECT id,
+                       old_id,
+                       plan_id,
+                       premium_cents,
+                       COALESCE(start_date, join_date) AS effective_start_date,
+                       end_date,
+                       paid_up_to_period
+                  FROM membership
+                 WHERE UPPER(TRIM(COALESCE(status, ''))) = 'ACTIVE'
+                   AND COALESCE(start_date, join_date) IS NOT NULL
+                """, (rs, rowNum) -> new MembershipCandidate(
+                cleanId(rs.getString("id")),
+                cleanId(rs.getString("old_id")),
+                cleanId(rs.getString("plan_id")),
+                nullableLong(rs.getObject("premium_cents")),
+                rs.getDate("effective_start_date").toLocalDate(),
+                rs.getDate("end_date") == null ? null : rs.getDate("end_date").toLocalDate(),
+                rs.getString("paid_up_to_period")
+        ));
+    }
+
+    private Map<String, Long> loadPlanAmounts() {
+        Map<String, Long> result = new HashMap<>();
+        jdbc.query("""
+                SELECT id, premium_cents
+                  FROM membership_plan
+                 WHERE premium_cents IS NOT NULL
+                """, rs -> {
+            String id = cleanId(rs.getString("id"));
+            Long amount = nullableLong(rs.getObject("premium_cents"));
+            if (id != null && amount != null) {
+                result.put(id, amount);
+            }
+        });
+        return result;
+    }
+
+    private Map<String, List<PlanHistoryCandidate>> loadPlanHistory(
+            LocalDate rangeStart,
+            LocalDate rangeEnd
+    ) {
+        Map<String, List<PlanHistoryCandidate>> result = new HashMap<>();
+        jdbc.query("""
+                SELECT membership_id,
+                       plan_id,
+                       effective_from,
+                       effective_to
+                  FROM membership_plan_history
+                 WHERE effective_from <= ?
+                   AND (effective_to IS NULL OR effective_to >= ?)
+                 ORDER BY membership_id, effective_from DESC, id DESC
+                """, rs -> {
+            String membershipId = cleanId(rs.getString("membership_id"));
+            if (membershipId == null) {
+                return;
+            }
+            result.computeIfAbsent(membershipId, ignored -> new ArrayList<>())
+                    .add(new PlanHistoryCandidate(
+                            membershipId,
+                            cleanId(rs.getString("plan_id")),
+                            rs.getDate("effective_from").toLocalDate(),
+                            rs.getDate("effective_to") == null
+                                    ? null
+                                    : rs.getDate("effective_to").toLocalDate()
+                    ));
+        }, Date.valueOf(rangeEnd), Date.valueOf(rangeStart));
+        return result;
+    }
+
+    private Set<String> loadExistingMembershipIds(String periodValue) {
+        Set<String> result = new HashSet<>();
+        jdbc.query("""
+                SELECT membership_id
+                  FROM membership_premium
+                 WHERE period_yyyymm = ?
+                """, rs -> {
+            String membershipId = cleanId(rs.getString("membership_id"));
+            if (membershipId != null) {
+                result.add(membershipId);
+            }
+        }, periodValue);
+        return result;
+    }
+
+    private Long resolvePeriodAmount(
+            MembershipCandidate membership,
+            List<PlanHistoryCandidate> histories,
+            Map<String, Long> planAmounts,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    ) {
+        if (histories != null) {
+            for (PlanHistoryCandidate history : histories) {
+                boolean overlaps = !history.effectiveFrom().isAfter(periodEnd)
+                        && (history.effectiveTo() == null
+                        || !history.effectiveTo().isBefore(periodStart));
+                if (overlaps) {
+                    Long historicalAmount = planAmounts.get(history.planId());
+                    if (historicalAmount != null) {
+                        return historicalAmount;
+                    }
+                    break;
+                }
+            }
+        }
+        if (membership.premiumCents() != null) {
+            return membership.premiumCents();
+        }
+        return planAmounts.get(membership.planId());
+    }
+
+    private int insertPremiums(List<PremiumInsertCandidate> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return 0;
+        }
+
+        final String sql = """
                 INSERT IGNORE INTO membership_premium (
                     id,
                     membership_id,
@@ -369,51 +525,71 @@ public class PremiumGenerationService {
                     due_date,
                     created_at,
                     created_by
-                )
-                SELECT UUID(),
-                       m.id,
-                       ?,
-                       %s,
-                       0,
-                       %s,
-                       'UNPAID',
-                       ?,
-                       CURRENT_TIMESTAMP,
-                       ?
-                %s
-                 WHERE UPPER(TRIM(COALESCE(m.status, ''))) = 'ACTIVE'
-                   AND COALESCE(m.start_date, m.join_date) <= ?
-                   AND (m.end_date IS NULL OR m.end_date >= ?)
-                   AND %s IS NOT NULL
-                   AND NOT EXISTS (
-                       SELECT 1
-                         FROM membership_premium existing
-                        WHERE existing.period_yyyymm = ?
-                          AND (
-                              existing.membership_id = m.id
-                              OR (m.old_id IS NOT NULL AND existing.membership_id = m.old_id)
-                          )
-                   )
-                """.formatted(
-                PERIOD_AMOUNT_EXPRESSION,
-                PERIOD_AMOUNT_EXPRESSION,
-                PERIOD_JOIN_SQL,
-                PERIOD_AMOUNT_EXPRESSION
-        );
+                ) VALUES (?, ?, ?, ?, 0, ?, 'UNPAID', ?, CURRENT_TIMESTAMP, ?)
+                """;
 
-        int created = jdbc.update(
-                insertSql,
-                periodValue,
-                Date.valueOf(dueDate),
-                user,
-                Date.valueOf(periodEnd),
-                Date.valueOf(periodStart),
-                Date.valueOf(periodEnd),
-                Date.valueOf(periodStart),
-                periodValue
-        );
+        int created = 0;
+        for (int from = 0; from < candidates.size(); from += INSERT_BATCH_SIZE) {
+            List<PremiumInsertCandidate> batch = candidates.subList(
+                    from,
+                    Math.min(from + INSERT_BATCH_SIZE, candidates.size())
+            );
+            int[] counts = jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int index) throws SQLException {
+                    PremiumInsertCandidate candidate = batch.get(index);
+                    ps.setString(1, UUID.randomUUID().toString().replace("-", ""));
+                    ps.setString(2, candidate.membershipId());
+                    ps.setString(3, candidate.periodValue());
+                    ps.setLong(4, candidate.amountCents());
+                    ps.setLong(5, candidate.amountCents());
+                    ps.setDate(6, Date.valueOf(candidate.dueDate()));
+                    ps.setString(7, candidate.createdBy());
+                }
 
-        return new PeriodGenerationResult(created, eligible, missingAmount);
+                @Override
+                public int getBatchSize() {
+                    return batch.size();
+                }
+            });
+            for (int count : counts) {
+                if (count > 0 || count == Statement.SUCCESS_NO_INFO) {
+                    created++;
+                }
+            }
+        }
+        return created;
+    }
+
+    private boolean premiumExists(Set<String> existingMembershipIds, MembershipCandidate membership) {
+        return existingMembershipIds.contains(membership.id())
+                || (membership.oldId() != null && existingMembershipIds.contains(membership.oldId()));
+    }
+
+    private YearMonth nextPremiumPeriod(MembershipCandidate membership) {
+        String paidUpTo = membership.paidUpToPeriod();
+        if (paidUpTo != null && paidUpTo.matches("^[0-9]{6}$")) {
+            try {
+                int year = Integer.parseInt(paidUpTo.substring(0, 4));
+                int month = Integer.parseInt(paidUpTo.substring(4, 6));
+                return YearMonth.of(year, month).plusMonths(1);
+            } catch (RuntimeException ignored) {
+                // Fall back to membership start period below.
+            }
+        }
+        return membership.startDate() == null ? null : YearMonth.from(membership.startDate());
+    }
+
+    private Long nullableLong(Object value) {
+        return value instanceof Number number ? number.longValue() : null;
+    }
+
+    private String cleanId(String value) {
+        if (value == null) {
+            return null;
+        }
+        String cleaned = value.trim();
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     private Map<String, Object> skipped(String reason, Map<String, Object> config) {
@@ -532,6 +708,34 @@ public class PremiumGenerationService {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private record MembershipCandidate(
+            String id,
+            String oldId,
+            String planId,
+            Long premiumCents,
+            LocalDate startDate,
+            LocalDate endDate,
+            String paidUpToPeriod
+    ) {
+    }
+
+    private record PlanHistoryCandidate(
+            String membershipId,
+            String planId,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo
+    ) {
+    }
+
+    private record PremiumInsertCandidate(
+            String membershipId,
+            String periodValue,
+            long amountCents,
+            LocalDate dueDate,
+            String createdBy
+    ) {
     }
 
     private record PeriodGenerationResult(int created, int eligible, int missingAmount) {
