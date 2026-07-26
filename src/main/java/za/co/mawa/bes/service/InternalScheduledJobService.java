@@ -33,6 +33,7 @@ public class InternalScheduledJobService {
     private final ClaimController claimController;
     private final za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService;
     private final za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService;
+    private final za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService;
 
     public InternalScheduledJobService(
             UserService userService,
@@ -41,7 +42,8 @@ public class InternalScheduledJobService {
             PaymentRequestService paymentRequestService,
             ClaimController claimController,
             za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService,
-            za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService
+            za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService,
+            za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService
     ) {
         this.userService = userService;
         this.transactionService = transactionService;
@@ -50,6 +52,7 @@ public class InternalScheduledJobService {
         this.claimController = claimController;
         this.membershipChangeService = membershipChangeService;
         this.premiumGenerationService = premiumGenerationService;
+        this.membershipLapseService = membershipLapseService;
     }
 
     public Map<String, Object> run(String jobCode) {
@@ -131,17 +134,19 @@ public class InternalScheduledJobService {
     }
 
     private Map<String, Object> membershipLapse() {
-        TransactionViewDto query = new TransactionViewDto();
-        query.setType(TransactionType.MEMBERSHIP);
-        List<TransactionViewEntity> memberships = transactionService.searchV2(query);
-        try {
-            String message = membershipService.handleMembershipLapse(memberships);
-            Map<String, Object> result = result(memberships.size(), memberships.size(), List.of());
-            result.put("message", message);
-            return result;
-        } catch (Exception ex) {
-            throw new IllegalStateException("Membership lapse processing failed", ex);
-        }
+        za.co.mawa.bes.dto.v2.membership.lapse.MembershipLapseRunResultDto lapseResult =
+                membershipLapseService.runConfiguredAutomaticLapse(SYSTEM_USER);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("attempted", lapseResult.getEvaluatedMemberships());
+        result.put("completed", lapseResult.getLapsedMemberships());
+        result.put("failed", 0);
+        result.put("skipped", lapseResult.isSkipped());
+        result.put("reason", lapseResult.getReason());
+        result.put("threshold", lapseResult.getThreshold());
+        result.put("membershipsWithOverduePremiums", lapseResult.getMembershipsWithOverduePremiums());
+        result.put("lapsedMembershipIds", lapseResult.getLapsedMembershipIds());
+        result.put("runDate", lapseResult.getRunDate());
+        return result;
     }
 
     private Map<String, Object> completeApprovedPaymentRequests() {
