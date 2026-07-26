@@ -103,6 +103,38 @@ public class StorageConfigurationService {
         return jdbcTemplate.queryForMap("SELECT * FROM storage_bin_configuration WHERE id=?", id);
     }
 
+    public Map<String, Object> validateSelection(String warehouseId, String locationId, String binId) {
+        if (!StringUtils.hasText(warehouseId) || !StringUtils.hasText(locationId) || !StringUtils.hasText(binId)) {
+            throw new IllegalArgumentException("Warehouse, storage location and bin are required to complete pickup");
+        }
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT w.id AS warehouse_id,
+                       w.name AS warehouse_name,
+                       l.id AS location_id,
+                       l.name AS location_name,
+                       b.id AS bin_id,
+                       b.name AS bin_name
+                  FROM warehouse w
+                  JOIN storage_location l
+                    ON l.warehouse_id = w.id
+                   AND UPPER(COALESCE(l.status, 'ACTIVE')) = 'ACTIVE'
+                  JOIN storage_bin_configuration b
+                    ON b.location_id = l.id
+                   AND b.active = 1
+                 WHERE w.id = ?
+                   AND l.id = ?
+                   AND b.id = ?
+                   AND UPPER(COALESCE(w.status, 'ACTIVE')) = 'ACTIVE'
+                """, warehouseId, locationId, binId);
+
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Selected storage warehouse, location and bin are not an active valid hierarchy");
+        }
+        return rows.get(0);
+    }
+
     private Map<String, Object> warehouse(String id) {
         return jdbcTemplate.queryForMap("""
                 SELECT id, warehouse_code AS code, name, description,
