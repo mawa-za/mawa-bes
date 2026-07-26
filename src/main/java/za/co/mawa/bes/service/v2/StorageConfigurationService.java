@@ -1,6 +1,5 @@
 package za.co.mawa.bes.service.v2;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,19 +11,43 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class StorageConfigurationService {
     private final JdbcTemplate jdbcTemplate;
 
+    public StorageConfigurationService(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
     public List<Map<String, Object>> warehouses(boolean activeOnly) {
-        return jdbcTemplate.queryForList("SELECT * FROM storage_warehouse "
-                + (activeOnly ? "WHERE active=1 " : "") + "ORDER BY name");
+        return jdbcTemplate.queryForList("""
+                SELECT id,
+                       warehouse_code AS code,
+                       name,
+                       description,
+                       CASE WHEN UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' THEN 1 ELSE 0 END AS active,
+                       created_at,
+                       updated_at
+                  FROM warehouse
+                """ + (activeOnly ? " WHERE UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' " : " ")
+                + " ORDER BY name");
     }
 
     public List<Map<String, Object>> locations(String warehouseId, boolean activeOnly) {
         if (!StringUtils.hasText(warehouseId)) throw new IllegalArgumentException("warehouseId is required");
-        return jdbcTemplate.queryForList("SELECT * FROM storage_location WHERE warehouse_id=? "
-                + (activeOnly ? "AND active=1 " : "") + "ORDER BY name", warehouseId);
+        return jdbcTemplate.queryForList("""
+                SELECT id,
+                       warehouse_id,
+                       location_code AS code,
+                       name,
+                       location_type AS storage_type,
+                       description,
+                       CASE WHEN UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' THEN 1 ELSE 0 END AS active,
+                       created_at,
+                       updated_at
+                  FROM storage_location
+                 WHERE warehouse_id = ?
+                """ + (activeOnly ? " AND UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' " : " ")
+                + " ORDER BY name", warehouseId);
     }
 
     public List<Map<String, Object>> bins(String locationId, boolean activeOnly) {
@@ -36,12 +59,14 @@ public class StorageConfigurationService {
     @Transactional
     public Map<String, Object> saveWarehouse(Map<String, Object> body) {
         String id = id(body);
+        String status = bool(body.get("active"), true) ? "ACTIVE" : "INACTIVE";
         jdbcTemplate.update("""
-            INSERT INTO storage_warehouse(id,code,name,description,active)
-            VALUES(?,?,?,?,?)
-            ON DUPLICATE KEY UPDATE code=VALUES(code),name=VALUES(name),description=VALUES(description),active=VALUES(active)
-            """, id, required(body, "code"), required(body, "name"), blank(body.get("description")), bool(body.get("active"), true));
-        return jdbcTemplate.queryForMap("SELECT * FROM storage_warehouse WHERE id=?", id);
+            INSERT INTO warehouse(id,warehouse_code,name,description,status,created_at,updated_at)
+            VALUES(?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE warehouse_code=VALUES(warehouse_code),name=VALUES(name),
+                                    description=VALUES(description),status=VALUES(status),updated_at=CURRENT_TIMESTAMP
+            """, id, required(body, "code"), required(body, "name"), blank(body.get("description")), status);
+        return warehouse(id);
     }
 
     @Transactional
@@ -49,12 +74,18 @@ public class StorageConfigurationService {
         String id = id(body);
         String warehouseId = required(body, "warehouseId");
         requireWarehouse(warehouseId);
+        String status = bool(body.get("active"), true) ? "ACTIVE" : "INACTIVE";
+        String locationType = blank(body.get("storageType"));
+        if (!StringUtils.hasText(locationType)) locationType = "BIN";
         jdbcTemplate.update("""
-            INSERT INTO storage_location(id,warehouse_id,code,name,storage_type,description,active)
-            VALUES(?,?,?,?,?,?,?)
-            ON DUPLICATE KEY UPDATE warehouse_id=VALUES(warehouse_id),code=VALUES(code),name=VALUES(name),storage_type=VALUES(storage_type),description=VALUES(description),active=VALUES(active)
-            """, id, warehouseId, required(body, "code"), required(body, "name"), blank(body.get("storageType")), blank(body.get("description")), bool(body.get("active"), true));
-        return jdbcTemplate.queryForMap("SELECT * FROM storage_location WHERE id=?", id);
+            INSERT INTO storage_location(id,warehouse_id,location_code,name,location_type,description,status,created_at,updated_at)
+            VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE warehouse_id=VALUES(warehouse_id),location_code=VALUES(location_code),
+                                    name=VALUES(name),location_type=VALUES(location_type),description=VALUES(description),status=VALUES(status),
+                                    updated_at=CURRENT_TIMESTAMP
+            """, id, warehouseId, required(body, "code"), required(body, "name"), locationType,
+                blank(body.get("description")), status);
+        return location(id);
     }
 
     @Transactional
@@ -72,41 +103,56 @@ public class StorageConfigurationService {
         return jdbcTemplate.queryForMap("SELECT * FROM storage_bin_configuration WHERE id=?", id);
     }
 
-    public Map<String, Object> validateSelection(String warehouseId, String locationId, String binId) {
-        if (!StringUtils.hasText(warehouseId) || !StringUtils.hasText(locationId) || !StringUtils.hasText(binId)) {
-            throw new IllegalArgumentException("Warehouse, storage location and bin are required to complete pickup");
-        }
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-            SELECT w.id warehouse_id,w.name warehouse_name,l.id location_id,l.name location_name,
-                   b.id bin_id,b.name bin_name
-              FROM storage_warehouse w
-              JOIN storage_location l ON l.warehouse_id=w.id AND l.active=1
-              JOIN storage_bin_configuration b ON b.location_id=l.id AND b.active=1
-             WHERE w.id=? AND l.id=? AND b.id=? AND w.active=1
-            """, warehouseId, locationId, binId);
-        if (rows.isEmpty()) throw new IllegalArgumentException("Selected storage warehouse, location and bin are not an active valid hierarchy");
-        return rows.get(0);
+    private Map<String, Object> warehouse(String id) {
+        return jdbcTemplate.queryForMap("""
+                SELECT id, warehouse_code AS code, name, description,
+                       CASE WHEN UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' THEN 1 ELSE 0 END AS active,
+                       created_at, updated_at
+                  FROM warehouse WHERE id=?
+                """, id);
+    }
+
+    private Map<String, Object> location(String id) {
+        return jdbcTemplate.queryForMap("""
+                SELECT id, warehouse_id, location_code AS code, name, location_type AS storage_type,
+                       description,
+                       CASE WHEN UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' THEN 1 ELSE 0 END AS active,
+                       created_at, updated_at
+                  FROM storage_location WHERE id=?
+                """, id);
     }
 
     private void requireWarehouse(String id) {
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM storage_warehouse WHERE id=?", Integer.class, id);
-        if (count == null || count == 0) throw new IllegalArgumentException("Storage warehouse not found: " + id);
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM warehouse WHERE id=?", Integer.class, id);
+        if (count == null || count == 0) throw new IllegalArgumentException("Warehouse not found");
     }
 
     private void requireLocation(String id) {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM storage_location WHERE id=?", Integer.class, id);
-        if (count == null || count == 0) throw new IllegalArgumentException("Storage location not found: " + id);
+        if (count == null || count == 0) throw new IllegalArgumentException("Storage location not found");
     }
 
-    private static String id(Map<String, Object> body) {
-        String id = Objects.toString(body.get("id"), "").trim();
-        return id.isEmpty() ? UUID.randomUUID().toString() : id;
+    private String id(Map<String, Object> body) {
+        Object value = body.get("id");
+        return value == null || value.toString().isBlank() ? UUID.randomUUID().toString() : value.toString();
     }
-    private static String required(Map<String, Object> body, String key) {
-        String value = blank(body.get(key));
-        if (!StringUtils.hasText(value)) throw new IllegalArgumentException(key + " is required");
-        return value;
+
+    private String required(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (value == null && key.endsWith("Id")) {
+            String snake = key.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
+            value = body.get(snake);
+        }
+        if (value == null || value.toString().trim().isEmpty()) throw new IllegalArgumentException(key + " is required");
+        return value.toString().trim();
     }
-    private static String blank(Object value) { return value == null ? null : value.toString().trim(); }
-    private static boolean bool(Object value, boolean fallback) { return value == null ? fallback : Boolean.parseBoolean(value.toString()); }
+
+    private String blank(Object value) { return value == null || value.toString().isBlank() ? null : value.toString().trim(); }
+
+    private boolean bool(Object value, boolean fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        return Objects.equals("true", value.toString().toLowerCase()) || Objects.equals("1", value.toString());
+    }
 }
