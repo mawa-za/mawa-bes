@@ -31,6 +31,11 @@ public class ProductEntity implements Serializable {
     private String type;
     @Column(name = "uom")
     private String uom;
+    @Column(name = "category_id")
+    private String categoryId;
+    @Builder.Default
+    @Column(name = "available_for_sale", nullable = false)
+    private Boolean availableForSale = true;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)
     private Date validFrom;

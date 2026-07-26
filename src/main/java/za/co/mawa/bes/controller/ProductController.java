@@ -48,19 +48,23 @@ public class ProductController {
     public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
                                          @RequestParam(required = false) String category,
                                          @RequestParam(required = false) String type,
+                                         @RequestParam(required = false) Boolean availableForSale,
+                                         @RequestParam(required = false) Boolean stockControlled,
                                          @RequestParam(required = false) String query) {
         try {
             ProductQueryDto productQueryDto = new ProductQueryDto();
-            if (code != null && code != "") {
+            if (code != null && !code.isBlank()) {
                 productQueryDto.setCode(code);
             }
-            if (category != null && category != "") {
+            if (category != null && !category.isBlank()) {
                 productQueryDto.setCategory(category);
             }
-            if (type != null && type != "") {
+            if (type != null && !type.isBlank()) {
                 productQueryDto.setType(type);
             }
-            if (query != null && query != "") {
+            productQueryDto.setAvailableForSale(availableForSale);
+            productQueryDto.setStockControlled(stockControlled);
+            if (query != null && !query.isBlank()) {
                 productQueryDto.setDescription(query);
             }
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
@@ -90,6 +94,7 @@ public class ProductController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductEditDto productEditDto) {
         try {
+            productEditDto.setId(id);
             productService.edit(productEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
@@ -210,12 +215,13 @@ public class ProductController {
     @RequestMapping(value = "{id}/category", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addCategory(@PathVariable String id, @RequestBody List<String> categoryList) {
         try {
-            for (String category : categoryList) {
-                ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
-                productCategoryProcessDto.setProduct(id);
-                productCategoryProcessDto.setCategory(category);
-                productService.addCategory(productCategoryProcessDto);
+            if (categoryList == null || categoryList.size() != 1) {
+                throw new IllegalArgumentException("A product must have exactly one primary category.");
             }
+            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+            productCategoryProcessDto.setProduct(id);
+            productCategoryProcessDto.setCategory(categoryList.get(0));
+            productService.addCategory(productCategoryProcessDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
