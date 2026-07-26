@@ -58,6 +58,37 @@ public class PayrollPaymentBatchEntity {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "approval_request_id")
+    private String approvalRequestId;
+
+    @Column(name = "debtor_account_id", length = 36)
+    private String debtorAccountId;
+
+    @Column(name = "bank_message_status", length = 30)
+    private String bankMessageStatus = "NOT_QUEUED";
+
+    @Column(name = "fnb_instruction_id")
+    private String fnbInstructionId;
+
+    @Column(name = "bank_report_status", length = 60)
+    private String bankReportStatus;
+
+    @Column(name = "bank_report_reason", columnDefinition = "TEXT")
+    private String bankReportReason;
+
+    @Column(name = "bank_report_json", columnDefinition = "LONGTEXT")
+    private String bankReportJson;
+
+    @Column(name = "bank_queued_at")
+    private LocalDateTime bankQueuedAt;
+
+    @Column(name = "bank_submitted_at")
+    private LocalDateTime bankSubmittedAt;
+
+    @Column(name = "bank_report_retrieved_at")
+    private LocalDateTime bankReportRetrievedAt;
+
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -90,6 +121,9 @@ public class PayrollPaymentBatchEntity {
 
         if (eftFileGenerated == null) {
             eftFileGenerated = false;
+        }
+        if (bankMessageStatus == null) {
+            bankMessageStatus = "NOT_QUEUED";
         }
 
         createdAt = LocalDateTime.now();

@@ -49,6 +49,7 @@ public class MembershipClaimService {
     private final MembershipPlanClaimPayoutService membershipPlanClaimPayoutService;
     private final ClaimTypeConfigurationService claimTypeConfigurationService;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final UniversalBranchCodeService universalBranchCodeService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
@@ -62,7 +63,8 @@ public class MembershipClaimService {
             MembershipChangeService membershipChangeService,
             MembershipPlanClaimPayoutService membershipPlanClaimPayoutService,
             ClaimTypeConfigurationService claimTypeConfigurationService,
-            ReferenceDataValidationService referenceDataValidationService
+            ReferenceDataValidationService referenceDataValidationService,
+            UniversalBranchCodeService universalBranchCodeService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
@@ -76,6 +78,7 @@ public class MembershipClaimService {
         this.membershipPlanClaimPayoutService = membershipPlanClaimPayoutService;
         this.claimTypeConfigurationService = claimTypeConfigurationService;
         this.referenceDataValidationService = referenceDataValidationService;
+        this.universalBranchCodeService = universalBranchCodeService;
     }
 
     @Transactional
@@ -129,7 +132,7 @@ public class MembershipClaimService {
                         "BANK-NAME", request.getBankName(), "Bank name"));
                 entity.setAccountHolderName(request.getAccountHolderName().trim());
                 entity.setAccountNumber(request.getAccountNumber().trim());
-                entity.setBranchCode(request.getBranchCode().trim());
+                entity.setBranchCode(universalBranchCodeService.resolve(entity.getBankName()));
                 String accountType = referenceDataValidationService.requireOption(
                         "BANK-ACCOUNT-TYPE", request.getAccountType(), "Bank account type");
                 entity.setAccountType(za.co.mawa.bes.enums.BankAccountType.valueOf(accountType.toUpperCase()));
@@ -176,9 +179,7 @@ public class MembershipClaimService {
                 throw new IllegalArgumentException("Account number must contain 5 to 20 numeric digits");
             }
 
-            if (!StringUtils.hasText(request.getBranchCode()) || !request.getBranchCode().trim().matches("\\d{6}")) {
-                throw new IllegalArgumentException("Branch code must contain exactly 6 numeric digits");
-            }
+            universalBranchCodeService.resolve(request.getBankName());
 
             referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", request.getAccountType(), "Bank account type");
         }

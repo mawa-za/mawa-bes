@@ -44,6 +44,7 @@ public class MessageProducerService {
     private boolean isExternalInitiation(String messageType) {
         if (messageType == null) return false;
         return "FNB-EFT-PAYMENT".equalsIgnoreCase(messageType)
+                || "FNB-PAYROLL-PAYMENT".equalsIgnoreCase(messageType)
                 || "XERO-INVOICE".equalsIgnoreCase(messageType)
                 || "XERO-PAYMENT".equalsIgnoreCase(messageType)
                 || "EXTERNAL-REFUND".equalsIgnoreCase(messageType);
