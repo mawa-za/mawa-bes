@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.v2.stock.StockDtos;
+import za.co.mawa.bes.enums.ProductTypeCode;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.service.NumberRangeService;
 
@@ -103,6 +104,7 @@ public class StockOperationsService {
         int lineNo = 10;
         for (StockDtos.CommercialLineRequest line : request.getLines()) {
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
+            requireSaleable(productId);
             BigDecimal qty = positive(line.getQuantity(), "quantity");
             BigDecimal unitPrice = money(line.getUnitPrice());
             BigDecimal taxRate = percent(line.getTaxRate());
@@ -271,16 +273,22 @@ public class StockOperationsService {
         for (StockDtos.GoodsReceiptLineRequest line : request.getLines()) {
             BigDecimal qty = positive(line.getQuantity(), "quantity");
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
+            ProductProfile product = requireReceivable(productId);
             String lineId = uuid();
             BigDecimal unitCost = money(line.getUnitCost());
             BigDecimal taxRate = percent(line.getTaxRate());
             BigDecimal lineSubtotal = unitCost.multiply(qty).setScale(2, RoundingMode.HALF_UP);
             BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
             BigDecimal lineTotal = lineSubtotal.add(lineTax).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal openPutawayQty = product.type().isCanBePutAway() ? qty : BigDecimal.ZERO;
             jdbcTemplate.update("INSERT INTO goods_receipt_line (id, goods_receipt_id, line_no, purchase_order_line_id, product_id, quantity, open_putaway_qty, uom, batch_no, expiry_date, unit_cost, tax_rate, line_subtotal, line_tax, line_total, received_value, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    lineId, receiptId, lineNo, line.getPurchaseOrderLineId(), productId, qty, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), line.getExpiryDate() == null ? null : Date.valueOf(line.getExpiryDate()), unitCost, taxRate, lineSubtotal, lineTax, lineTotal, lineTotal, nowTs(), userId);
-            applyBalance(productId, warehouseId, locationId, qty, BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
-            createMovement("GOODS_RECEIPT", receiptId, receiptNo, productId, warehouseId, null, locationId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId, "Goods receipt " + receiptNo);
+                    lineId, receiptId, lineNo, line.getPurchaseOrderLineId(), productId, qty, openPutawayQty, defaultText(line.getUom(), "EA"), line.getBatchNo(), line.getExpiryDate() == null ? null : Date.valueOf(line.getExpiryDate()), unitCost, taxRate, lineSubtotal, lineTax, lineTotal, lineTotal, nowTs(), userId);
+            if (product.type().isStockControlled()) {
+                applyBalance(productId, warehouseId, locationId, qty, BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
+                createMovement("GOODS_RECEIPT", receiptId, receiptNo, productId, warehouseId, null, locationId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId, "Goods receipt " + receiptNo);
+            } else {
+                audit("PRODUCT", productId, "ASSET_RECEIPT", null, qty.toPlainString(), userId, "Register received asset through Asset Management");
+            }
             if (hasText(line.getPurchaseOrderLineId())) {
                 jdbcTemplate.update("UPDATE purchase_order_line SET received_qty = received_qty + ?, open_qty = GREATEST(open_qty - ?, 0), status = CASE WHEN GREATEST(open_qty - ?, 0) = 0 THEN 'RECEIVED' ELSE 'PARTIAL' END WHERE id = ?",
                         qty, qty, qty, line.getPurchaseOrderLineId());
@@ -319,6 +327,7 @@ public class StockOperationsService {
         for (StockDtos.PutawayLineRequest line : request.getLines()) {
             BigDecimal qty = positive(line.getQuantity(), "quantity");
             String productId = required(line.getProductId(), "productId");
+            requirePutawayEligible(productId);
             String lineId = uuid();
             jdbcTemplate.update("INSERT INTO putaway_line (id, putaway_id, line_no, goods_receipt_line_id, product_id, quantity, uom, batch_no, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)",
                     lineId, putawayId, lineNo, line.getGoodsReceiptLineId(), productId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), nowTs(), userId);
@@ -360,8 +369,9 @@ public class StockOperationsService {
         int lineNo = 10;
         for (StockDtos.SalesOrderLineRequest line : request.getLines()) {
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
+            ProductProfile product = requireSaleable(productId);
             BigDecimal qty = positive(line.getQuantity(), "quantity");
-            BigDecimal available = availableStock(productId, request.getWarehouseId());
+            BigDecimal available = product.type().isStockControlled() ? availableStock(productId, request.getWarehouseId()) : qty;
             BigDecimal allocated = available.min(qty);
             BigDecimal unitPrice = money(line.getUnitPrice());
             BigDecimal taxRate = percent(line.getTaxRate());
@@ -398,7 +408,10 @@ public class StockOperationsService {
             BigDecimal toReserve = quantity.subtract(reserved);
             if (toReserve.compareTo(BigDecimal.ZERO) <= 0) continue;
             String productId = text(line.get("product_id"));
-            BigDecimal actuallyReserved = reserveStock(productId, text(order.get("warehouse_id")), toReserve, userId);
+            ProductProfile product = productProfile(productId);
+            BigDecimal actuallyReserved = product.type().isStockControlled()
+                    ? reserveStock(productId, text(order.get("warehouse_id")), toReserve, userId)
+                    : toReserve;
             BigDecimal newReserved = reserved.add(actuallyReserved);
             String status = newReserved.compareTo(quantity) >= 0 ? "RESERVED" : (newReserved.compareTo(BigDecimal.ZERO) > 0 ? "PARTIAL" : "BACKORDER");
             jdbcTemplate.update("UPDATE sales_order_line SET reserved_qty = ?, allocated_qty = GREATEST(allocated_qty, ?), status = ? WHERE id = ?", newReserved, newReserved, status, line.get("id"));
@@ -414,7 +427,12 @@ public class StockOperationsService {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> lines = (List<Map<String, Object>>) order.get("lines");
         String warehouseId = request == null || !hasText(request.getWarehouseId()) ? text(order.get("warehouse_id")) : request.getWarehouseId();
-        if (!hasText(warehouseId)) throw new IllegalArgumentException("warehouseId is required to issue stock");
+        boolean hasStockControlledLine = lines.stream()
+                .map(line -> productProfile(text(line.get("product_id"))))
+                .anyMatch(product -> product.type().isStockControlled());
+        if (hasStockControlledLine && !hasText(warehouseId)) {
+            throw new IllegalArgumentException("warehouseId is required to issue stock-controlled products");
+        }
         String issueNo = nextNumber("STOCK_ISSUE", "ISS");
         for (Map<String, Object> line : lines) {
             BigDecimal quantity = decimal(line.get("quantity"));
@@ -422,9 +440,12 @@ public class StockOperationsService {
             BigDecimal toIssue = quantity.subtract(issued);
             if (toIssue.compareTo(BigDecimal.ZERO) <= 0) continue;
             String productId = text(line.get("product_id"));
-            issueStock(productId, warehouseId, request == null ? null : request.getStorageLocationId(), toIssue, userId);
+            ProductProfile product = productProfile(productId);
+            if (product.type().isStockControlled()) {
+                issueStock(productId, warehouseId, request == null ? null : request.getStorageLocationId(), toIssue, userId);
+                createMovement(product.type().isConsumedOnIssue() ? "CONSUMPTION_ISSUE" : "SALES_ISSUE", id, issueNo, productId, warehouseId, request == null ? null : request.getStorageLocationId(), null, toIssue, defaultText(text(line.get("uom")), "EA"), null, userId, request == null ? null : request.getNotes());
+            }
             jdbcTemplate.update("UPDATE sales_order_line SET issued_qty = issued_qty + ?, reserved_qty = GREATEST(reserved_qty - ?, 0), status = CASE WHEN issued_qty + ? >= quantity THEN 'ISSUED' ELSE 'PARTIAL' END WHERE id = ?", toIssue, toIssue, toIssue, line.get("id"));
-            createMovement("SALES_ISSUE", id, issueNo, productId, warehouseId, request == null ? null : request.getStorageLocationId(), null, toIssue, defaultText(text(line.get("uom")), "EA"), null, userId, request == null ? null : request.getNotes());
         }
         refreshSalesOrderStatus(id, userId);
         audit("SALES_ORDER", id, "ISSUE", null, issueNo, userId, request == null ? null : request.getNotes());
@@ -525,6 +546,45 @@ public class StockOperationsService {
         if (remaining.compareTo(BigDecimal.ZERO) > 0) throw new IllegalArgumentException("Insufficient stock to issue product " + productId);
     }
 
+    private ProductProfile requireSaleable(String productId) {
+        ProductProfile profile = productProfile(productId);
+        if (!profile.availableForSale()) {
+            throw new IllegalArgumentException("Product " + profile.code() + " is configured for internal use and cannot be added to a customer document");
+        }
+        return profile;
+    }
+
+    private ProductProfile requireReceivable(String productId) {
+        ProductProfile profile = productProfile(productId);
+        if (!profile.type().isCanBeReceived()) {
+            throw new IllegalArgumentException(profile.type().getDisplayName() + " products cannot be received through Goods Receipts");
+        }
+        return profile;
+    }
+
+    private ProductProfile requirePutawayEligible(String productId) {
+        ProductProfile profile = productProfile(productId);
+        if (!profile.type().isCanBePutAway()) {
+            throw new IllegalArgumentException(profile.type().getDisplayName() + " products cannot be put away into stock");
+        }
+        return profile;
+    }
+
+    private ProductProfile productProfile(String productId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT code, type, COALESCE(available_for_sale, 1) AS available_for_sale FROM product WHERE id = ?", productId);
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Product not found: " + productId);
+        }
+        Map<String, Object> row = rows.get(0);
+        ProductTypeCode type = ProductTypeCode.requireSelectable(text(row.get("type")));
+        Object saleValue = row.get("available_for_sale");
+        boolean availableForSale = saleValue instanceof Boolean value
+                ? value
+                : saleValue instanceof Number number && number.intValue() != 0;
+        return new ProductProfile(productId, text(row.get("code")), type, availableForSale);
+    }
+
     private String resolveProductId(String productId, String productCode) {
         if (hasText(productId)) return productId.trim();
         if (!hasText(productCode)) throw new IllegalArgumentException("productId or productCode is required");
@@ -614,6 +674,9 @@ public class StockOperationsService {
             totals.total = totals.total.add(subtotal).add(tax);
         }
         return totals;
+    }
+
+    private record ProductProfile(String id, String code, ProductTypeCode type, boolean availableForSale) {
     }
 
     private static class AmountTotals {

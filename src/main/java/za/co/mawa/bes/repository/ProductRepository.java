@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import za.co.mawa.bes.entity.PartnerViewEntity;
 import za.co.mawa.bes.entity.ProductEntity;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -20,7 +21,11 @@ public interface ProductRepository extends JpaRepository<ProductEntity,String>
     @Query("SELECT p FROM ProductEntity p WHERE p.code = :code ORDER BY p.code")
     ProductEntity findByCode(String code);
 
-    @Query("SELECT p FROM ProductEntity p WHERE p.description like :query and p.type = :type ORDER BY p.code")
-    List<ProductEntity> findByQuery(String type,String query);
+    @Query("SELECT p FROM ProductEntity p WHERE (:query IS NULL OR UPPER(p.description) like UPPER(:query) OR UPPER(p.code) like UPPER(:query)) AND (:type IS NULL OR p.type = :type) ORDER BY p.code")
+    List<ProductEntity> findByQuery(@Param("type") String type, @Param("query") String query);
+
+    long countByCategoryId(String categoryId);
+
+    long countByCategoryIdInAndTypeNot(Collection<String> categoryIds, String type);
 
 }

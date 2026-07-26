@@ -14,4 +14,6 @@ public class ProductQueryDto {
     private String description;
     private String category;
     private String type;
+    private Boolean availableForSale;
+    private Boolean stockControlled;
 }
