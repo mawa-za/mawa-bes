@@ -8,6 +8,9 @@ import lombok.Setter;
 public class CreatePickupRequestDto {
     private String deceasedName;
     private String pickupLocation;
+    private String pickupLocationCode;
+    private Boolean corpseInjured;
+    private String injuryDetails;
     private String contactPerson;
     private String contactNumber;
 }

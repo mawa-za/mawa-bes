@@ -13,6 +13,7 @@ import za.co.mawa.bes.repository.AddressRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Field;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,6 +25,8 @@ public class AddressService {
     AddressRepository addressRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
 
     public AddressDto add(AddressCreateDto addressCreateDto) {
         try {
@@ -37,7 +40,7 @@ public class AddressService {
             addressEntity.setSuburb(addressCreateDto.getSuburb());
             addressEntity.setTown(addressCreateDto.getTown());
             addressEntity.setCity(addressCreateDto.getCity());
-            addressEntity.setProvince(addressCreateDto.getProvince());
+            addressEntity.setProvince(referenceDataValidationService.requireOption("PROVINCE", addressCreateDto.getProvince(), "Province"));
             addressEntity.setPostalCode(addressCreateDto.getPostalCode());
             addressEntity.setValidFrom(new Date());
             addressEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
@@ -93,7 +96,7 @@ public class AddressService {
             addressEntity.setSuburb(addressEditDto.getSuburb());
             addressEntity.setTown(addressEditDto.getTown());
             addressEntity.setCity(addressEditDto.getCity());
-            addressEntity.setProvince(addressEditDto.getProvince());
+            addressEntity.setProvince(referenceDataValidationService.requireOption("PROVINCE", addressEditDto.getProvince(), "Province"));
             addressEntity.setPostalCode(addressEditDto.getPostalCode());
             addressEntity.setValidFrom(new Date());
             addressRepository.save(addressEntity);

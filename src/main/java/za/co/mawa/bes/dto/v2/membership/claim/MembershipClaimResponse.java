@@ -35,6 +35,7 @@ public class MembershipClaimResponse {
 
     private LocalDate dateOfDeath;
     private LocalDate claimDate;
+    private LocalDate burialDate;
 
     private String causeOfDeath;
     private String deathCertificateNo;
@@ -275,6 +276,13 @@ public class MembershipClaimResponse {
 
     public MembershipClaimResponse setClaimDate(LocalDate claimDate) {
         this.claimDate = claimDate;
+        return this;
+    }
+
+    public LocalDate getBurialDate() { return burialDate; }
+
+    public MembershipClaimResponse setBurialDate(LocalDate burialDate) {
+        this.burialDate = burialDate;
         return this;
     }
 

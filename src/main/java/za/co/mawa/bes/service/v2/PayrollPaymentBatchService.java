@@ -24,6 +24,7 @@ public class PayrollPaymentBatchService {
     private final PayrollPaymentBatchRepository batchRepository;
     private final PayrollPaymentItemRepository itemRepository;
     private final PayrollPaymentBatchAuditRepository auditRepository;
+    private final ReferenceDataValidationService referenceDataValidationService;
 
     @Transactional
     public PayrollPaymentBatchResponse createBatch(PayrollPaymentBatchCreateRequest request, String userId) {
@@ -123,7 +124,8 @@ public class PayrollPaymentBatchService {
                     item.setEmployeeName(itemRequest.getEmployeeName());
                 }
                 if (itemRequest.getBankName() != null) {
-                    item.setBankName(itemRequest.getBankName());
+                    item.setBankName(referenceDataValidationService.requireOption(
+                            "BANK-NAME", itemRequest.getBankName(), "Bank name"));
                 }
                 if (itemRequest.getBranchCode() != null) {
                     item.setBranchCode(itemRequest.getBranchCode());
@@ -386,10 +388,12 @@ public class PayrollPaymentBatchService {
         item.setEmployeeNo(request.getEmployeeNo());
         item.setEmployeeName(request.getEmployeeName());
 
-        item.setBankName(request.getBankName());
+        item.setBankName(referenceDataValidationService.requireOption(
+                "BANK-NAME", request.getBankName(), "Bank name"));
         item.setBranchCode(request.getBranchCode());
         item.setAccountNo(request.getAccountNo());
-        item.setAccountType(request.getAccountType());
+        item.setAccountType(referenceDataValidationService.requireOption(
+                "BANK-ACCOUNT-TYPE", request.getAccountType(), "Bank account type"));
         item.setAccountHolderName(request.getAccountHolderName());
 
         item.setAmountCents(request.getAmountCents());

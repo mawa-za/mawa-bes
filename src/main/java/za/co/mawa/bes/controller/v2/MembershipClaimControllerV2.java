@@ -58,6 +58,18 @@ public class MembershipClaimControllerV2 {
         return ResponseEntity.ok(membershipClaimService.getPage(status, query, pageable));
     }
 
+    @GetMapping("/benefit")
+    public ResponseEntity<java.util.Map<String, Object>> resolveBenefit(
+            @RequestParam String membershipId,
+            @RequestParam MembershipClaimType claimType,
+            @RequestParam(required = false) String deceasedPartnerId,
+            @RequestParam(required = false) java.time.LocalDate eventDate,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        return ResponseEntity.ok(membershipClaimService.resolveBenefit(
+                membershipId, claimType, deceasedPartnerId, eventDate, userId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<MembershipClaimResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(membershipClaimService.getById(id));

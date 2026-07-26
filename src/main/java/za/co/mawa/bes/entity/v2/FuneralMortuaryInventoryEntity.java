@@ -48,6 +48,15 @@ public class FuneralMortuaryInventoryEntity {
     @Column(name = "checkout_date")
     private LocalDateTime checkoutDate;
 
+    @Column(name = "storage_warehouse_id", length = 36)
+    private String storageWarehouseId;
+
+    @Column(name = "storage_location_id", length = 36)
+    private String storageLocationId;
+
+    @Column(name = "storage_bin_id", length = 36)
+    private String storageBinId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

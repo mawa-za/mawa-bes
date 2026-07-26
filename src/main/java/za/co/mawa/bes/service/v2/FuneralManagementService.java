@@ -66,6 +66,8 @@ public class FuneralManagementService {
     private final NumberRangeService numberRangeService;
     private final SettingService settingService;
     private final TenantAdminService tenantAdminService;
+    private final ReferenceDataValidationService referenceDataValidationService;
+    private final StorageConfigurationService storageConfigurationService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -74,13 +76,25 @@ public class FuneralManagementService {
     @Transactional
     public FuneralPickupRequestEntity createPickupRequest(CreatePickupRequestDto request) {
         validateRequired(request.getDeceasedName(), "deceasedName");
-        validateRequired(request.getPickupLocation(), "pickupLocation");
+        validateRequired(request.getPickupLocationCode(), "pickupLocationCode");
+        validateRequired(request.getContactPerson(), "contactPerson");
+        String contactNumber = referenceDataValidationService.requireContactNumber(request.getContactNumber());
+        String pickupLocationCode = referenceDataValidationService.requireOption(
+                "SALES-AREA", request.getPickupLocationCode(), "Pickup location");
+        boolean injured = Boolean.TRUE.equals(request.getCorpseInjured());
+        if (injured && !StringUtils.hasText(request.getInjuryDetails())) {
+            throw new IllegalArgumentException("Injury details are required when the corpse is marked as injured");
+        }
 
         FuneralPickupRequestEntity entity = new FuneralPickupRequestEntity();
-        entity.setDeceasedName(request.getDeceasedName());
-        entity.setPickupLocation(request.getPickupLocation());
-        entity.setContactPerson(request.getContactPerson());
-        entity.setContactNumber(request.getContactNumber());
+        entity.setDeceasedName(request.getDeceasedName().trim());
+        entity.setPickupLocation(StringUtils.hasText(request.getPickupLocation())
+                ? request.getPickupLocation().trim() : pickupLocationCode);
+        entity.setPickupLocationCode(pickupLocationCode);
+        entity.setContactPerson(request.getContactPerson().trim());
+        entity.setContactNumber(contactNumber);
+        entity.setCorpseInjured(injured);
+        entity.setInjuryDetails(injured ? request.getInjuryDetails().trim() : null);
         entity.setStatus("PENDING");
         return pickupRequestRepository.save(entity);
     }
@@ -101,6 +115,16 @@ public class FuneralManagementService {
             return pickup;
         }
 
+        storageConfigurationService.validateSelection(
+                request.getWarehouseId(), request.getStorageLocationId(), request.getStorageBinId());
+        if (Boolean.TRUE.equals(pickup.getCorpseInjured())) {
+            boolean hasInjuryPhoto = attachmentRepository.findByObjectId(pickup.getId()).stream()
+                    .anyMatch(attachment -> "PICKUP-INJURY-PHOTO".equalsIgnoreCase(attachment.getDocumentType()));
+            if (!hasInjuryPhoto) {
+                throw new IllegalArgumentException("At least one injury photo must be uploaded before completing an injured-corpse pickup");
+            }
+        }
+
         LocalDateTime completionTime = request.getCompletionTime() == null ? LocalDateTime.now() : request.getCompletionTime();
         FuneralMortuaryInventoryEntity inventory = new FuneralMortuaryInventoryEntity();
         inventory.setPickupRequestId(pickup.getId());
@@ -108,11 +132,17 @@ public class FuneralManagementService {
         inventory.setCheckInDate(completionTime);
         inventory.setStatus("IN_MORTUARY");
         inventory.setTagNumber(generateTagNumber(completionTime));
+        inventory.setStorageWarehouseId(request.getWarehouseId());
+        inventory.setStorageLocationId(request.getStorageLocationId());
+        inventory.setStorageBinId(request.getStorageBinId());
         inventory = mortuaryInventoryRepository.save(inventory);
 
         pickup.setCompletionTime(completionTime);
         pickup.setStatus("COMPLETED");
         pickup.setMortuaryInventoryId(inventory.getId());
+        pickup.setStorageWarehouseId(request.getWarehouseId());
+        pickup.setStorageLocationId(request.getStorageLocationId());
+        pickup.setStorageBinId(request.getStorageBinId());
         return pickupRequestRepository.save(pickup);
     }
 

@@ -8,6 +8,8 @@ public class MembershipClaimUpdateRequest {
 
     private LocalDate claimDate;
 
+    private LocalDate burialDate;
+
     private String causeOfDeath;
 
     private String deathCertificateNo;
@@ -32,6 +34,14 @@ public class MembershipClaimUpdateRequest {
 
     public void setClaimDate(LocalDate claimDate) {
         this.claimDate = claimDate;
+    }
+
+    public LocalDate getBurialDate() {
+        return burialDate;
+    }
+
+    public void setBurialDate(LocalDate burialDate) {
+        this.burialDate = burialDate;
     }
 
     public String getCauseOfDeath() {

@@ -40,6 +40,7 @@ public class PaymentRequestService {
     private final NumberRangeService numberRangeService;
     private final MembershipClaimService membershipClaimService;
     private final PaymentAccountConfigurationService paymentAccountConfigurationService;
+    private final ReferenceDataValidationService referenceDataValidationService;
     private final JdbcTemplate jdbcTemplate;
     private final za.co.mawa.bes.repository.AttachmentRepository attachmentRepository;
 
@@ -53,6 +54,7 @@ public class PaymentRequestService {
             NumberRangeService numberRangeService,
             MembershipClaimService membershipClaimService,
             PaymentAccountConfigurationService paymentAccountConfigurationService,
+            ReferenceDataValidationService referenceDataValidationService,
             JdbcTemplate jdbcTemplate,
             za.co.mawa.bes.repository.AttachmentRepository attachmentRepository
     ) {
@@ -62,6 +64,7 @@ public class PaymentRequestService {
         this.numberRangeService = numberRangeService;
         this.membershipClaimService = membershipClaimService;
         this.paymentAccountConfigurationService = paymentAccountConfigurationService;
+        this.referenceDataValidationService = referenceDataValidationService;
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentRepository = attachmentRepository;
     }
@@ -289,7 +292,31 @@ public class PaymentRequestService {
                                      pi.type,
                                      pi.value
                             LIMIT 1
-                       ), '') AS identityType
+                       ), '') AS identityType,
+                       EXISTS(
+                           SELECT 1 FROM partner_bank_account b
+                            WHERE b.partner = p.id
+                              AND b.status = 'ACTIVE'
+                              AND (b.valid_from IS NULL OR b.valid_from <= CURRENT_DATE)
+                              AND (b.valid_to IS NULL OR b.valid_to >= CURRENT_DATE)
+                       ) AS bankingReady,
+                       CASE
+                         WHEN NOT EXISTS (SELECT 1 FROM partner_bank_account b WHERE b.partner = p.id)
+                           THEN 'Supplier banking details are missing.'
+                         WHEN NOT EXISTS (
+                           SELECT 1 FROM partner_bank_account b
+                            WHERE b.partner = p.id
+                              AND b.status = 'ACTIVE'
+                              AND (b.valid_from IS NULL OR b.valid_from <= CURRENT_DATE)
+                              AND (b.valid_to IS NULL OR b.valid_to >= CURRENT_DATE)
+                         ) THEN 'Supplier banking details have not been approved or are no longer valid.'
+                         ELSE NULL
+                       END AS bankingMessage,
+                       (SELECT b.bank_name FROM partner_bank_account b WHERE b.partner=p.id AND b.status='ACTIVE' AND (b.valid_from IS NULL OR b.valid_from<=CURRENT_DATE) AND (b.valid_to IS NULL OR b.valid_to>=CURRENT_DATE) ORDER BY b.valid_from DESC,b.id LIMIT 1) AS bankName,
+                       (SELECT b.account_holder FROM partner_bank_account b WHERE b.partner=p.id AND b.status='ACTIVE' AND (b.valid_from IS NULL OR b.valid_from<=CURRENT_DATE) AND (b.valid_to IS NULL OR b.valid_to>=CURRENT_DATE) ORDER BY b.valid_from DESC,b.id LIMIT 1) AS accountHolder,
+                       (SELECT b.account_number FROM partner_bank_account b WHERE b.partner=p.id AND b.status='ACTIVE' AND (b.valid_from IS NULL OR b.valid_from<=CURRENT_DATE) AND (b.valid_to IS NULL OR b.valid_to>=CURRENT_DATE) ORDER BY b.valid_from DESC,b.id LIMIT 1) AS accountNumber,
+                       (SELECT b.branch_code FROM partner_bank_account b WHERE b.partner=p.id AND b.status='ACTIVE' AND (b.valid_from IS NULL OR b.valid_from<=CURRENT_DATE) AND (b.valid_to IS NULL OR b.valid_to>=CURRENT_DATE) ORDER BY b.valid_from DESC,b.id LIMIT 1) AS branchCode,
+                       (SELECT b.account_type FROM partner_bank_account b WHERE b.partner=p.id AND b.status='ACTIVE' AND (b.valid_from IS NULL OR b.valid_from<=CURRENT_DATE) AND (b.valid_to IS NULL OR b.valid_to>=CURRENT_DATE) ORDER BY b.valid_from DESC,b.id LIMIT 1) AS accountType
                   FROM partner p
                   JOIN partner_role pr ON pr.partner = p.id AND pr.role = 'SUPPLIER'
                  WHERE ? = ''
@@ -365,17 +392,21 @@ public class PaymentRequestService {
             throw new IllegalStateException("Only DRAFT payment requests can be updated.");
         }
 
-        if (request.getPayeePartnerId() != null) entity.setPayeePartnerId(request.getPayeePartnerId());
-        if (request.getPayeeName() != null) entity.setPayeeName(request.getPayeeName());
+        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+            rejectSupplierFieldChange(entity, request);
+            refreshSupplierCreditor(entity);
+        } else {
+            if (request.getPayeePartnerId() != null) entity.setPayeePartnerId(request.getPayeePartnerId());
+            if (request.getPayeeName() != null) entity.setPayeeName(request.getPayeeName());
+            if (request.getPaymentMethod() != null) entity.setPaymentMethod(request.getPaymentMethod());
+            entity.setBankName(request.getBankName());
+            entity.setAccountHolder(request.getAccountHolder());
+            entity.setAccountNumber(request.getAccountNumber());
+            entity.setBranchCode(request.getBranchCode());
+            entity.setAccountType(request.getAccountType());
+        }
         if (request.getAmount() != null) entity.setAmount(request.getAmount());
         if (request.getCurrency() != null) entity.setCurrency(defaultCurrency(request.getCurrency()));
-        if (request.getPaymentMethod() != null) entity.setPaymentMethod(request.getPaymentMethod());
-
-        entity.setBankName(request.getBankName());
-        entity.setAccountHolder(request.getAccountHolder());
-        entity.setAccountNumber(request.getAccountNumber());
-        entity.setBranchCode(request.getBranchCode());
-        entity.setAccountType(request.getAccountType());
         entity.setInvoiceNo(request.getInvoiceNo());
         entity.setExternalReference(request.getExternalReference());
         entity.setPaymentReason(request.getPaymentReason());
@@ -395,6 +426,9 @@ public class PaymentRequestService {
             throw new IllegalStateException("Only DRAFT payment requests can be submitted.");
         }
 
+        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+            refreshSupplierCreditor(entity);
+        }
         validateEntity(entity);
         PaymentRequestStatus oldStatus = entity.getStatus();
         entity.setStatus(PaymentRequestStatus.PENDING_APPROVAL);
@@ -718,7 +752,7 @@ public class PaymentRequestService {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("Amount must be greater than zero.");
         if (request.getPaymentMethod() == null) throw new IllegalArgumentException("Payment method is required.");
         if (request.getPaymentMethod() == PaymentMethod.EFT) {
-            validateBankingDetails(request.getBankName(), request.getAccountHolder(), request.getAccountNumber(), request.getBranchCode());
+            validateBankingDetails(request.getBankName(), request.getAccountHolder(), request.getAccountNumber(), request.getBranchCode(), request.getAccountType());
         }
     }
 
@@ -727,16 +761,26 @@ public class PaymentRequestService {
         if (entity.getPayeeName() == null || entity.getPayeeName().isBlank()) throw new IllegalArgumentException("Payee name is required.");
         if (entity.getAmount() == null || entity.getAmount().compareTo(BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("Amount must be greater than zero.");
         if (entity.getPaymentMethod() == null) throw new IllegalArgumentException("Payment method is required.");
+        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE && entity.getPaymentMethod() != PaymentMethod.EFT) {
+            throw new IllegalArgumentException("Supplier Invoice payment requests must use EFT.");
+        }
         if (entity.getPaymentMethod() == PaymentMethod.EFT) {
-            validateBankingDetails(entity.getBankName(), entity.getAccountHolder(), entity.getAccountNumber(), entity.getBranchCode());
+            validateBankingDetails(entity.getBankName(), entity.getAccountHolder(), entity.getAccountNumber(), entity.getBranchCode(), entity.getAccountType());
         }
     }
 
-    private void validateBankingDetails(String bankName, String accountHolder, String accountNumber, String branchCode) {
-        if (bankName == null || bankName.isBlank()) throw new IllegalArgumentException("Bank name is required for EFT payment.");
-        if (accountHolder == null || accountHolder.isBlank()) throw new IllegalArgumentException("Account holder is required for EFT payment.");
-        if (accountNumber == null || accountNumber.isBlank()) throw new IllegalArgumentException("Account number is required for EFT payment.");
-        if (branchCode == null || branchCode.isBlank()) throw new IllegalArgumentException("Branch code is required for EFT payment.");
+    private void validateBankingDetails(String bankName, String accountHolder, String accountNumber, String branchCode, String accountType) {
+        referenceDataValidationService.requireOption("BANK-NAME", bankName, "Bank name");
+        if (accountHolder == null || accountHolder.isBlank()) {
+            throw new IllegalArgumentException("Account holder is required for EFT payment.");
+        }
+        if (accountNumber == null || !accountNumber.trim().matches("\\d{5,20}")) {
+            throw new IllegalArgumentException("Account number must contain 5 to 20 numeric digits.");
+        }
+        if (branchCode == null || !branchCode.trim().matches("\\d{6}")) {
+            throw new IllegalArgumentException("Branch code must contain exactly 6 numeric digits.");
+        }
+        referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", accountType, "Bank account type");
     }
 
     private void validateStatusTransition(PaymentRequestStatus oldStatus, PaymentRequestStatus newStatus) {
@@ -785,7 +829,12 @@ public class PaymentRequestService {
         } else {
             entity.setDebtorAccountId(null);
             entity.setBankIntegration(null);
-            entity.setPaymentMethod(PaymentMethod.MANUAL);
+            if (entity.getRequestType() != PaymentRequestType.SUPPLIER_INVOICE) {
+                entity.setPaymentMethod(PaymentMethod.MANUAL);
+            }
+        }
+        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+            entity.setPaymentMethod(PaymentMethod.EFT);
         }
         String creditorRole = entity.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT
                 ? "PETTY_CASH_CREDITOR"
@@ -806,19 +855,88 @@ public class PaymentRequestService {
                        b.bank_name,b.account_holder,b.account_number,b.branch_code,b.account_type
                   FROM partner p JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
                   JOIN partner_bank_account b ON b.partner=p.id
-                 WHERE p.id=? ORDER BY b.id LIMIT 1
+                 WHERE p.id=?
+                   AND b.status='ACTIVE'
+                   AND (b.valid_from IS NULL OR b.valid_from <= CURRENT_DATE)
+                   AND (b.valid_to IS NULL OR b.valid_to >= CURRENT_DATE)
+                 ORDER BY b.valid_from DESC, b.id LIMIT 1
                 """, request.getPayeePartnerId());
-            if (rows.isEmpty()) throw new IllegalArgumentException("Selected recipient is not a supplier or has no banking details");
+            if (rows.isEmpty()) {
+                Integer supplierCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM partner_role WHERE partner=? AND role='SUPPLIER'",
+                        Integer.class,
+                        request.getPayeePartnerId());
+                if (supplierCount == null || supplierCount == 0) {
+                    throw new IllegalArgumentException("Selected recipient is not a supplier.");
+                }
+                throw new IllegalArgumentException("Supplier banking details are missing, unapproved, expired or not yet valid.");
+            }
+            request.setPayeeName(java.util.Objects.toString(rows.get(0).get("payee_name"), request.getPayeeName()));
             applyCreditor(request, rows.get(0));
+            request.setPaymentMethod(PaymentMethod.EFT);
         } else if (request.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
             var creditor = paymentAccountConfigurationService.activeCreditor("PETTY_CASH_CREDITOR");
             if (creditor.isPresent()) applyCreditor(request, creditor.get()); else request.setPaymentMethod(PaymentMethod.MANUAL);
         }
         var debtor = paymentAccountConfigurationService.activeDebtor(request.getRequestType().name());
+        if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+            request.setPaymentMethod(PaymentMethod.EFT);
+            return;
+        }
         if (debtor.isEmpty()) { request.setPaymentMethod(PaymentMethod.MANUAL); return; }
         String integration = java.util.Objects.toString(debtor.get().get("bank_integration"), "");
         boolean fnb = "FNB".equalsIgnoreCase(integration) && isFnbEnabled();
         request.setPaymentMethod(fnb ? PaymentMethod.EFT : PaymentMethod.MANUAL);
+    }
+
+
+    private void refreshSupplierCreditor(PaymentRequestEntity entity) {
+        if (entity.getPayeePartnerId() == null || entity.getPayeePartnerId().isBlank()) {
+            throw new IllegalArgumentException("Supplier is required.");
+        }
+        List<java.util.Map<String,Object>> rows = jdbcTemplate.queryForList("""
+            SELECT TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) payee_name,
+                   b.bank_name,b.account_holder,b.account_number,b.branch_code,b.account_type
+              FROM partner p
+              JOIN partner_role pr ON pr.partner=p.id AND pr.role='SUPPLIER'
+              JOIN partner_bank_account b ON b.partner=p.id
+             WHERE p.id=? AND b.status='ACTIVE'
+               AND (b.valid_from IS NULL OR b.valid_from <= CURRENT_DATE)
+               AND (b.valid_to IS NULL OR b.valid_to >= CURRENT_DATE)
+             ORDER BY b.valid_from DESC, b.id LIMIT 1
+            """, entity.getPayeePartnerId());
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Supplier banking details are missing, unapproved, expired or not yet valid.");
+        }
+        var row = rows.get(0);
+        entity.setPayeeName(java.util.Objects.toString(row.get("payee_name"), entity.getPayeeName()));
+        entity.setBankName(java.util.Objects.toString(row.get("bank_name"), null));
+        entity.setAccountHolder(java.util.Objects.toString(row.get("account_holder"), entity.getPayeeName()));
+        entity.setAccountNumber(java.util.Objects.toString(row.get("account_number"), null));
+        entity.setBranchCode(java.util.Objects.toString(row.get("branch_code"), null));
+        entity.setAccountType(java.util.Objects.toString(row.get("account_type"), null));
+        entity.setPaymentMethod(PaymentMethod.EFT);
+        applyConfiguredRouting(entity);
+    }
+
+    private void rejectSupplierFieldChange(PaymentRequestEntity entity, PaymentRequestUpdateRequest request) {
+        if (request.getPayeePartnerId() != null && !java.util.Objects.equals(request.getPayeePartnerId(), entity.getPayeePartnerId())) {
+            throw new IllegalArgumentException("Supplier cannot be changed after the payment request is created.");
+        }
+        if (request.getPaymentMethod() != null && request.getPaymentMethod() != PaymentMethod.EFT) {
+            throw new IllegalArgumentException("Supplier Invoice payment method is fixed to EFT.");
+        }
+        if (different(request.getBankName(), entity.getBankName())
+                || different(request.getAccountHolder(), entity.getAccountHolder())
+                || different(request.getAccountNumber(), entity.getAccountNumber())
+                || different(request.getBranchCode(), entity.getBranchCode())
+                || different(request.getAccountType(), entity.getAccountType())) {
+            throw new IllegalArgumentException("Supplier banking details are read-only and must be maintained through supplier banking approval.");
+        }
+    }
+
+    private boolean different(String requested, String current) {
+        return requested != null && !java.util.Objects.equals(requested, current);
     }
 
     private void applyCreditor(PaymentRequestCreateRequest request, java.util.Map<String,Object> account) {
