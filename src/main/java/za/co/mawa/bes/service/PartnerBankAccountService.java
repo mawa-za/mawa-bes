@@ -12,6 +12,7 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,6 +24,8 @@ public class PartnerBankAccountService {
     PartnerBankAccountRepository partnerBankAccountRepository;
     @Autowired
     PartnerRepository partnerRepository;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
 
 
     public String addBankAccount(PartnerBankAccountDto partnerBankAccount) {
@@ -50,10 +53,12 @@ public class PartnerBankAccountService {
 
 
             if (partnerBankAccount.getAccountType() != null) {
-                partnerBankAccountEntity.setAccountType(partnerBankAccount.getAccountType());
+                partnerBankAccountEntity.setAccountType(referenceDataValidationService.requireOption(
+                        "BANK-ACCOUNT-TYPE", partnerBankAccount.getAccountType(), "Bank account type"));
             }
             if (partnerBankAccount.getBankName() != null) {
-                partnerBankAccountEntity.setBankName(partnerBankAccount.getBankName());
+                partnerBankAccountEntity.setBankName(referenceDataValidationService.requireOption(
+                        "BANK-NAME", partnerBankAccount.getBankName(), "Bank name"));
 
             }
             if (partnerBankAccount.getBranchCode() != null) {
@@ -150,12 +155,14 @@ public class PartnerBankAccountService {
                 }
 
                 if (partnerBankAccount.getAccountType() != null) {
-                    partnerBankAccountEntity.setAccountType(partnerBankAccount.getAccountType());
+                    partnerBankAccountEntity.setAccountType(referenceDataValidationService.requireOption(
+                            "BANK-ACCOUNT-TYPE", partnerBankAccount.getAccountType(), "Bank account type"));
                 }
 
                 if (partnerBankAccount.getBankName() != null) {
 
-                    partnerBankAccountEntity.setBankName(partnerBankAccount.getBankName());
+                    partnerBankAccountEntity.setBankName(referenceDataValidationService.requireOption(
+                            "BANK-NAME", partnerBankAccount.getBankName(), "Bank name"));
                 }
                 if (partnerBankAccount.getBranchCode() != null) {
                     partnerBankAccountEntity.setBranchCode(partnerBankAccount.getBranchCode());

@@ -19,6 +19,7 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
     Optional<MembershipEntity> findByOldId(String oldId);
     Optional<MembershipEntity> findByMembershipNo(String membershipNo);
     boolean existsByMemberId(String memberId);
+    long countByMemberId(String memberId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from MembershipEntity m where m.id = :id")

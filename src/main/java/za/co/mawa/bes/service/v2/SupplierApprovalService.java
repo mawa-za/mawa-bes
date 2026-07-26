@@ -24,6 +24,7 @@ public class SupplierApprovalService {
     private final ApprovalService approvalService;
     private final PartnerServiceV2 partnerServiceV2;
     private final AttachmentRepository attachmentRepository;
+    private final ReferenceDataValidationService referenceDataValidationService;
     private final ObjectMapper objectMapper;
 
     public ApprovalRequestResponse submitSupplierOnboarding(
@@ -142,11 +143,12 @@ public class SupplierApprovalService {
             throw new IllegalArgumentException("Supplier banking details are required");
         }
         banking.setAccountHolder(requireText(banking.getAccountHolder(), "Account holder is required"));
-        banking.setBankName(requireText(banking.getBankName(), "Bank name is required"));
+        banking.setBankName(referenceDataValidationService.requireOption(
+                "BANK-NAME", banking.getBankName(), "Bank name"));
         banking.setAccountNumber(requireText(banking.getAccountNumber(), "Account number is required"));
         banking.setBranchCode(requireText(banking.getBranchCode(), "Branch code is required"));
-        banking.setAccountType(requireText(banking.getAccountType(), "Account type is required")
-                .toUpperCase(Locale.ROOT));
+        banking.setAccountType(referenceDataValidationService.requireOption(
+                "BANK-ACCOUNT-TYPE", banking.getAccountType(), "Bank account type"));
     }
 
     private String toJson(Object value) {

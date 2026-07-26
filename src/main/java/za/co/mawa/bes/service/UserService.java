@@ -27,6 +27,7 @@ import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.RoleRepository;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -55,6 +56,8 @@ public class UserService implements UserDao {
     PartnerService partnerService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
     private String encryptionSecret;
     public static final String SYSTEM_USER = "system";
     public static final String DEFAULT_SYSTEM_PASSWORD = "system";
@@ -97,7 +100,7 @@ public class UserService implements UserDao {
         userEntity.setPartner(userCreateDto.getPartnerId());
         userEntity.setUsername(userCreateDto.getUsername());
         userEntity.setEmail(userCreateDto.getEmail());
-        userEntity.setCellphone(userCreateDto.getCellphone());
+        userEntity.setCellphone(referenceDataValidationService.requireContactNumber(userCreateDto.getCellphone()));
         userEntity.setUserType(userCreateDto.getUserType() == null ? UserType.ADMIN : userCreateDto.getUserType().toUpperCase());
         userEntity.setAccountType(userCreateDto.getAccountType() == null ? "STANDARD" : userCreateDto.getAccountType().toUpperCase());
         userEntity.setTestUser(Boolean.TRUE.equals(userCreateDto.getTestUser()));
@@ -557,7 +560,7 @@ public class UserService implements UserDao {
                 if (getAll(queryDto).size() > 0) {
                     throw new RuntimeException("Cellphone already belongs to another user");
                 } else {
-                    user.setCellphone(edit.getCellphone());
+                    user.setCellphone(referenceDataValidationService.requireContactNumber(edit.getCellphone()));
                 }
             }
             if (edit.getUserType() != null && edit.getUserType() != "") {
