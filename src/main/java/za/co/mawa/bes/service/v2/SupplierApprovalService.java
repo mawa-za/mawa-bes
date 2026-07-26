@@ -25,6 +25,7 @@ public class SupplierApprovalService {
     private final PartnerServiceV2 partnerServiceV2;
     private final AttachmentRepository attachmentRepository;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final UniversalBranchCodeService universalBranchCodeService;
     private final ObjectMapper objectMapper;
 
     public ApprovalRequestResponse submitSupplierOnboarding(
@@ -146,7 +147,8 @@ public class SupplierApprovalService {
         banking.setBankName(referenceDataValidationService.requireOption(
                 "BANK-NAME", banking.getBankName(), "Bank name"));
         banking.setAccountNumber(requireText(banking.getAccountNumber(), "Account number is required"));
-        banking.setBranchCode(requireText(banking.getBranchCode(), "Branch code is required"));
+        banking.setBranchCode(universalBranchCodeService.resolve(banking.getBankName()));
+        banking.setBranchName("Universal Branch");
         banking.setAccountType(referenceDataValidationService.requireOption(
                 "BANK-ACCOUNT-TYPE", banking.getAccountType(), "Bank account type"));
     }

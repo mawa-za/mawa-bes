@@ -72,6 +72,9 @@ public class InvoiceService {
         }
 
         invoice.getLines().forEach(line -> {
+            if (line.getProductId() != null && !line.getProductId().isBlank()) {
+                productService.requireAvailableForSale(line.getProductId());
+            }
 //            line.setId(UUID.randomUUID().toString());
             line.setInvoice(invoice); // Ensure proper linkage
         });

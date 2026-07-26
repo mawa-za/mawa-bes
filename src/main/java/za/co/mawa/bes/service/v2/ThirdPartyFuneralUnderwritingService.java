@@ -52,15 +52,14 @@ public class ThirdPartyFuneralUnderwritingService {
                            m.member_id AS coveredPartnerId,
                            NULL AS membershipDependentId,
                            'MEMBER' AS coveredPartyType,
-                           COALESCE(NULLIF(pv.partner_name,''),
-                                    TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,'')))) AS coveredPartyName,
-                           COALESCE(NULLIF(pv.partner_no,''),p.number,'') AS partnerNumber,
+                           COALESCE(NULLIF(TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))), ''),
+                                    p.name1, '') AS coveredPartyName,
+                           COALESCE(p.number,'') AS partnerNumber,
                            COALESCE((SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
                                      ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END LIMIT 1),'') AS identityNumber,
                            m.status AS membershipStatus
                       FROM membership m
                       JOIN partner p ON p.id=m.member_id
-                      LEFT JOIN partner_view pv ON pv.partner_id=p.id
                      WHERE UPPER(COALESCE(m.status,'')) NOT IN ('CANCELLED','LAPSED','TERMINATED')
                     UNION ALL
                     SELECT m.id AS membershipId,
@@ -68,16 +67,15 @@ public class ThirdPartyFuneralUnderwritingService {
                            md.dependent_partner_id AS coveredPartnerId,
                            md.id AS membershipDependentId,
                            'DEPENDENT' AS coveredPartyType,
-                           COALESCE(NULLIF(pv.partner_name,''),
-                                    TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,'')))) AS coveredPartyName,
-                           COALESCE(NULLIF(pv.partner_no,''),p.number,'') AS partnerNumber,
+                           COALESCE(NULLIF(TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))), ''),
+                                    p.name1, '') AS coveredPartyName,
+                           COALESCE(p.number,'') AS partnerNumber,
                            COALESCE((SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
                                      ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END LIMIT 1),'') AS identityNumber,
                            m.status AS membershipStatus
                       FROM membership_dependent md
                       JOIN membership m ON m.id=md.membership_id
                       JOIN partner p ON p.id=md.dependent_partner_id
-                      LEFT JOIN partner_view pv ON pv.partner_id=p.id
                      WHERE COALESCE(md.active,1)=1
                        AND UPPER(COALESCE(md.status,'ACTIVE')) NOT IN ('REMOVED','REPLACED','DECEASED','INACTIVE')
                        AND UPPER(COALESCE(m.status,'')) NOT IN ('CANCELLED','LAPSED','TERMINATED')
@@ -95,10 +93,9 @@ public class ThirdPartyFuneralUnderwritingService {
     public List<Map<String, Object>> covers(String status) {
         String base = """
                 SELECT c.*, u.name AS underwriter_name, u.code AS underwriter_code,
-                       COALESCE(NULLIF(pv.partner_name,''),
-                                TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))),
-                                c.holder_name) AS covered_party_name,
-                       COALESCE(NULLIF(pv.partner_no,''),p.number,'') AS covered_partner_number,
+                       COALESCE(NULLIF(TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))), ''),
+                                p.name1, c.holder_name) AS covered_party_name,
+                       COALESCE(p.number,'') AS covered_partner_number,
                        COALESCE((SELECT pi.value FROM partner_identity pi WHERE pi.partner=c.covered_partner_id
                                  ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END LIMIT 1),
                                 c.holder_identity,'') AS covered_party_identity,
@@ -106,7 +103,6 @@ public class ThirdPartyFuneralUnderwritingService {
                   FROM third_party_funeral_cover c
                   JOIN third_party_funeral_underwriter u ON u.id=c.underwriter_id
                   LEFT JOIN partner p ON p.id=c.covered_partner_id
-                  LEFT JOIN partner_view pv ON pv.partner_id=p.id
                   LEFT JOIN membership m ON m.id=c.membership_id
                 """;
         if (!StringUtils.hasText(status)) {
@@ -184,13 +180,12 @@ public class ThirdPartyFuneralUnderwritingService {
         String q = """
                 SELECT m.id AS membershipId, m.membership_no AS membershipNo, p.id AS coveredPartnerId,
                        ? AS coveredPartyType,
-                       COALESCE(NULLIF(pv.partner_name,''),
-                                TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,'')))) AS coveredPartyName,
+                       COALESCE(NULLIF(TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))), ''),
+                                p.name1, '') AS coveredPartyName,
                        COALESCE((SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
                                  ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END LIMIT 1),'') AS identityNumber
                   FROM membership m
                   JOIN partner p ON p.id=?
-                  LEFT JOIN partner_view pv ON pv.partner_id=p.id
                  WHERE m.id=?
                 """;
         List<Map<String, Object>> rows;

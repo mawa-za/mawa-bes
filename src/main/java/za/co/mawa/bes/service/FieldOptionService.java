@@ -11,6 +11,7 @@ import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.FieldOptionPKEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
+import za.co.mawa.bes.enums.ProductTypeCode;
 import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.FieldRepository;
 import za.co.mawa.bes.utils.Constant;
@@ -28,6 +29,12 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public void create(FieldOptionDto fieldOptionDto) throws FieldDoesNotExist {
+        if ("PRODUCT-TYPE".equalsIgnoreCase(fieldOptionDto.getField())) {
+            throw new IllegalArgumentException("Product types are system controlled and cannot be added or changed by a tenant.");
+        }
+        if ("PRODUCT-CATEGORY".equalsIgnoreCase(fieldOptionDto.getField())) {
+            throw new IllegalArgumentException("Maintain product categories through Product Maintenance so hierarchy and product rules remain consistent.");
+        }
         List<FieldDto> result = getFields().stream()
                 .filter(a -> Objects.equals(a.getCode(), fieldOptionDto.getField()))
                 .toList();
@@ -55,6 +62,18 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public List<FieldOptionDto> getFieldOptions(String field) {
+        if ("PRODUCT-TYPE".equalsIgnoreCase(field)) {
+            return ProductTypeCode.definitions().stream().map(type -> {
+                FieldOptionDto option = new FieldOptionDto();
+                option.setField("PRODUCT-TYPE");
+                option.setCode(type.getCode());
+                option.setType("SYSTEM");
+                option.setDescription(type.getName());
+                option.setValidFrom(new Date());
+                option.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+                return option;
+            }).toList();
+        }
         List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
         for (FieldOptionEntity fieldOptionEntity : fieldOptionRepository.findFieldOptions(field)) {
             if (fieldOptionEntity.getValidTo().after(new Date())) {
@@ -67,7 +86,11 @@ public class FieldOptionService implements FieldOptionDao {
     public List<FieldOptionDto> getAllFieldOptions() {
         List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
 
-        for(FieldOptionEntity option : fieldOptionRepository.findAll()){
+        for (FieldOptionEntity option : fieldOptionRepository.findAll()) {
+            String field = option.getFieldOptionPKEntity().getField();
+            if ("PRODUCT-TYPE".equalsIgnoreCase(field) || "PRODUCT-CATEGORY".equalsIgnoreCase(field)) {
+                continue;
+            }
             fieldOptionDtoList.add(entityToDto(option));
         }
 
@@ -79,6 +102,10 @@ public class FieldOptionService implements FieldOptionDao {
         List<FieldDto> fieldDtoList = new ArrayList<>();
         List<FieldEntity> fieldEntities = fieldRepository.findAll();
         for (FieldEntity fieldEntity : fieldEntities) {
+            if ("PRODUCT-TYPE".equalsIgnoreCase(fieldEntity.getCode())
+                    || "PRODUCT-CATEGORY".equalsIgnoreCase(fieldEntity.getCode())) {
+                continue;
+            }
             FieldDto fieldDto = new FieldDto();
             fieldDto.setCode(fieldEntity.getCode());
             fieldDto.setDescription(fieldEntity.getDescription());
@@ -163,6 +190,12 @@ public class FieldOptionService implements FieldOptionDao {
 
     @Override
     public void deleteFieldOption(String field, String option) throws Exception {
+        if ("PRODUCT-TYPE".equalsIgnoreCase(field)) {
+            throw new IllegalArgumentException("Product types are system controlled and cannot be deleted.");
+        }
+        if ("PRODUCT-CATEGORY".equalsIgnoreCase(field)) {
+            throw new IllegalArgumentException("Maintain product categories through Product Maintenance so hierarchy and product rules remain consistent.");
+        }
         try {
             FieldOptionPKEntity pk = new FieldOptionPKEntity();
             pk.setCode(option);

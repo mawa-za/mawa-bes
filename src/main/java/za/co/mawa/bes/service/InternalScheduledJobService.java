@@ -1,5 +1,7 @@
 package za.co.mawa.bes.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +26,7 @@ import java.util.Set;
 
 @Service
 public class InternalScheduledJobService {
+    private static final Logger log = LoggerFactory.getLogger(InternalScheduledJobService.class);
     private static final String SYSTEM_USER = "system";
 
     private final UserService userService;
@@ -173,32 +176,31 @@ public class InternalScheduledJobService {
     }
 
     private void establishSystemExecutionContext() {
+        UserEntity systemUser = null;
         try {
-            UserEntity systemUser = userService.getUserEntityByName(SYSTEM_USER);
-            if (systemUser == null) {
-                userService.getUserByName(SYSTEM_USER);
-                systemUser = userService.getUserEntityByName(SYSTEM_USER);
-            }
-            if (systemUser == null) {
-                throw new IllegalStateException("Tenant system user is not available");
-            }
-
-            UserDetails principal = User.withUsername(SYSTEM_USER)
-                    .password("")
-                    .authorities("SYSTEM")
-                    .build();
-            SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(
-                            principal,
-                            null,
-                            principal.getAuthorities()
-                    )
-            );
-            UserContext.setCurrentUser(SYSTEM_USER);
-            UserContext.setCurrentUserId(systemUser.getId());
-            UserContext.setCurrentUserPartner(systemUser.getPartner());
+            systemUser = userService.getUserEntityByName(SYSTEM_USER);
         } catch (Exception ex) {
-            throw new IllegalStateException("Unable to establish trusted system execution context", ex);
+            log.warn("Unable to resolve tenant system user; scheduled execution will use the trusted synthetic system identity: {}",
+                    safeMessage(ex));
+        }
+
+        UserDetails principal = User.withUsername(SYSTEM_USER)
+                .password("")
+                .authorities("SYSTEM")
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        principal.getAuthorities()
+                )
+        );
+        UserContext.setCurrentUser(SYSTEM_USER);
+        UserContext.setCurrentUserId(systemUser == null ? SYSTEM_USER : systemUser.getId());
+        UserContext.setCurrentUserPartner(systemUser == null ? null : systemUser.getPartner());
+
+        if (systemUser == null) {
+            log.warn("Tenant system user is not present; scheduled job is continuing with the trusted synthetic system identity");
         }
     }
 

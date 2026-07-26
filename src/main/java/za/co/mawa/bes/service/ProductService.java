@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.ProductDao;
 import za.co.mawa.bes.dto.WorkcenterDto;
+import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
@@ -17,18 +18,22 @@ import za.co.mawa.bes.dto.product.attribute.ProductAttributeQueryDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryCreateDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryProcessDto;
+import za.co.mawa.bes.dto.product.classification.ProductCategoryDefinitionDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingCreateDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingEditDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingQueryDto;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.entity.product.ProductCategoryEntity;
+import za.co.mawa.bes.entity.product.ProductCategoryMasterEntity;
 import za.co.mawa.bes.exception.*;
+import za.co.mawa.bes.enums.ProductTypeCode;
 import za.co.mawa.bes.repository.ProductAttributeRepository;
 import za.co.mawa.bes.repository.ProductCategoryRepository;
 import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.v2.ProductClassificationService;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -49,28 +54,42 @@ public class ProductService implements ProductDao {
     FieldOptionService fieldOptionService;
     @Autowired
     JdbcTemplate jdbcTemplate;
+    @Autowired
+    ProductClassificationService productClassificationService;
 
     @Override
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
         try {
+            if (productCreateDto.getType() == null || productCreateDto.getType().isBlank()) {
+                throw new IllegalArgumentException("Product type is required.");
+            }
+            ProductTypeCode productType = ProductTypeCode.requireSelectable(productCreateDto.getType());
+            String requestedCategory = firstNonBlank(productCreateDto.getCategoryId(), productCreateDto.getCategory());
+            ProductCategoryMasterEntity category = productClassificationService.requireActiveCategory(
+                    requestedCategory, productType.getCode());
+
             ProductEntity productEntity = new ProductEntity();
-            if (productCreateDto.getCode() != null && productCreateDto.getCode() != "") {
+            if (productCreateDto.getCode() != null && !productCreateDto.getCode().isBlank()) {
                 productEntity.setCode(productCreateDto.getCode().trim().toUpperCase());
             } else {
                 String autogenerate = productCreateDto.getAutoGenerateCode() == null ? "" : productCreateDto.getAutoGenerateCode();
-                if (autogenerate.toUpperCase().equalsIgnoreCase("X")) {
+                if (autogenerate.equalsIgnoreCase("X")) {
                     productEntity.setCode(numberRangeService.generateNumber(NumberRangeType.PRODUCT));
                 }
             }
             productEntity.setDescription(productCreateDto.getDescription() == null ? "" : productCreateDto.getDescription().trim().toUpperCase());
-            productEntity.setType(productCreateDto.getType() == null ? "GENERAL" : productCreateDto.getType().trim().toUpperCase());
-//            productEntity.setCategory(productCreateDto.getCategory().toUpperCase());
+            productEntity.setType(productType.getCode());
+            productEntity.setCategoryId(category.getId());
+            productEntity.setAvailableForSale(productCreateDto.getAvailableForSale() == null
+                    ? productType.isDefaultAvailableForSale()
+                    : productCreateDto.getAvailableForSale());
             productEntity.setValidFrom(new Date());
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure() == null ? "EA" : productCreateDto.getBaseUnitOfMeasure().trim().toUpperCase());
             ProductDto productDto = get(productRepository.save(productEntity).getId());
-            writeProductAudit(productDto.getId(), "CREATE", null, productDto.getCode() + " - " + productDto.getDescription(), null);
-            if (productCreateDto.getPricingType() != null && productCreateDto.getPricingType() != "") {
+            writeProductAudit(productDto.getId(), "CREATE", null,
+                    productDto.getCode() + " - " + productDto.getDescription() + " [" + productType.getCode() + "]", null);
+            if (productCreateDto.getPricingType() != null && !productCreateDto.getPricingType().isBlank()) {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
                 productPricingCreateDto.setProduct(productDto.getId());
                 productPricingCreateDto.setPricing(productCreateDto.getPricingType().trim().toUpperCase());
@@ -81,7 +100,7 @@ public class ProductService implements ProductDao {
             }
             return productDto;
         } catch (Exception exception) {
-            throw new ProductCreationFailure();
+            throw new ProductCreationFailure(exception.getMessage());
         }
     }
 
@@ -91,21 +110,9 @@ public class ProductService implements ProductDao {
         Sort sort = Sort.by("id").descending();
         List<ProductEntity> productEntityList = productRepository.findAll(findByCriteria(productQueryDto), sort);
         for (ProductEntity productEntity : productEntityList) {
-            try {
-                productDtoList.add(get(productEntity.getId()));
-            } catch (Exception exception) {
-            }
-        }
-        for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.findByCategory(productQueryDto.getCategory())) {
-            try {
-                List<ProductDto> filteredList = productDtoList.stream()
-                        .filter(a -> Objects.equals(a.getId(), productCategoryEntity.getId()))
-                        .toList();
-                if (!filteredList.isEmpty()) {
-                    productDtoList.add(get(productCategoryEntity.getId()));
-                }
-
-            } catch (Exception exception) {
+            ProductDto product = entityToDto(productEntity);
+            if (product != null) {
+                productDtoList.add(product);
             }
         }
         return productDtoList;
@@ -115,20 +122,10 @@ public class ProductService implements ProductDao {
     public ProductDto get(String id) throws ProductNotFoundException {
         try {
             ProductEntity productEntity = productRepository.getById(id);
-            ProductDto productDto = new ProductDto();
-            productDto.setId(productEntity.getId());
-            String code = productEntity.getCode() == null ? "" : productEntity.getCode();
-            productDto.setCode(code);
-            productDto.setDescription(productEntity.getDescription());
-            productDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
-//            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
-            productDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
-            productDto.setValidTo(productEntity.getValidTo());
-            productDto.setValidFrom(productEntity.getValidFrom());
-            productDto.setPricings(getPricings(id));
-            productDto.setAttributes(getAttributes(id));
-            productDto.setCategories(getCategories(id));
-            productDto.setBarcodes(getBarcodes(id));
+            ProductDto productDto = entityToDto(productEntity);
+            if (productDto == null) {
+                throw new ProductNotFoundException();
+            }
             return productDto;
         } catch (EntityNotFoundException exception) {
             throw new ProductNotFoundException();
@@ -147,7 +144,8 @@ public class ProductService implements ProductDao {
     public List<ProductDto> query(String type,String query)  {
         try {
             List<ProductDto> productDtoList = new ArrayList<>();
-            List<ProductEntity> productEntities = productRepository.findByQuery(type,query);
+            String normalisedType = type == null || type.isBlank() ? null : ProductTypeCode.find(type).map(ProductTypeCode::getCode).orElse(type.trim().toUpperCase());
+            List<ProductEntity> productEntities = productRepository.findByQuery(normalisedType, query);
             for(ProductEntity productEntity: productEntities){
                 productDtoList.add(entityToDto(productEntity));
             }
@@ -163,11 +161,18 @@ public class ProductService implements ProductDao {
         try {
             ProductDto productDto = new ProductDto();
             productDto.setId(productEntity.getId());
-            String code = productEntity.getCode() == null ? "" : productEntity.getCode();
-            productDto.setCode(code);
+            productDto.setCode(productEntity.getCode() == null ? "" : productEntity.getCode());
             productDto.setDescription(productEntity.getDescription());
-            productDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
-//            productDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
+            productDto.setType(resolveProductTypeOption(productEntity.getType()));
+            ProductTypeCode.find(productEntity.getType()).ifPresent(type -> productDto.setTypeBehaviour(type.toDto()));
+            productDto.setAvailableForSale(Boolean.TRUE.equals(productEntity.getAvailableForSale()));
+            if (productEntity.getCategoryId() != null && !productEntity.getCategoryId().isBlank()) {
+                try {
+                    productDto.setPrimaryCategory(productClassificationService.getCategory(productEntity.getCategoryId()));
+                } catch (Exception ignored) {
+                    // Keeps migrated products readable when a category was removed outside the application.
+                }
+            }
             productDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productDto.setValidTo(productEntity.getValidTo());
             productDto.setValidFrom(productEntity.getValidFrom());
@@ -180,7 +185,6 @@ public class ProductService implements ProductDao {
             return null;
         }
     }
-
 
     public List<String> getBarcodes(String productId) {
         try {
@@ -203,7 +207,7 @@ public class ProductService implements ProductDao {
             String code = productEntity.getCode() == null ? "" : productEntity.getCode();
             productBasicDto.setCode(code);
             productBasicDto.setDescription(productEntity.getDescription());
-            productBasicDto.setType(fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, productEntity.getType()));
+            productBasicDto.setType(resolveProductTypeOption(productEntity.getType()));
 //            productBasicDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productEntity.getCategory()));
             productBasicDto.setBaseUnitOfMeasure(fieldOptionService.getFieldOption(Field.UOM, productEntity.getUom()));
             productBasicDto.setValidTo(productEntity.getValidTo());
@@ -218,23 +222,46 @@ public class ProductService implements ProductDao {
     public void edit(ProductEditDto productEditDto) throws ProductUpdateFailure {
         try {
             ProductEntity productEntity = productRepository.getById(productEditDto.getId());
-            if (productEditDto.getCode() != null && productEditDto.getCode() != "") {
+            if (productEditDto.getCode() != null && !productEditDto.getCode().isBlank()) {
                 productEntity.setCode(productEditDto.getCode().trim().toUpperCase());
             }
-            if (productEditDto.getCategory() != null && productEditDto.getCategory() != "") {
-//                productEntity.setCategory(productEditDto.getCategory());
-            }
-            if (productEditDto.getDescription() != null && productEditDto.getDescription() != "") {
+            if (productEditDto.getDescription() != null && !productEditDto.getDescription().isBlank()) {
                 productEntity.setDescription(productEditDto.getDescription().trim().toUpperCase());
             }
-            if (productEditDto.getType() != null && productEditDto.getType() != "") {
-                productEntity.setType(productEditDto.getType().trim().toUpperCase());
+
+            ProductTypeCode productType;
+            if (productEditDto.getType() != null && !productEditDto.getType().isBlank()) {
+                productType = ProductTypeCode.requireSelectable(productEditDto.getType());
+                productEntity.setType(productType.getCode());
+            } else {
+                productType = ProductTypeCode.find(productEntity.getType())
+                        .orElseThrow(() -> new IllegalArgumentException("Select one of the supported product types before saving this legacy product."));
             }
-            if (productEditDto.getBaseUnitOfMeasure() != null && productEditDto.getBaseUnitOfMeasure() != "") {
+
+            String requestedCategory = firstNonBlank(productEditDto.getCategoryId(), productEditDto.getCategory());
+            if (requestedCategory != null) {
+                ProductCategoryMasterEntity category = productClassificationService.requireActiveCategory(
+                        requestedCategory, productType.getCode());
+                productEntity.setCategoryId(category.getId());
+            } else if (productEntity.getCategoryId() == null || productEntity.getCategoryId().isBlank()) {
+                throw new IllegalArgumentException("Product category is required.");
+            } else {
+                ProductCategoryMasterEntity category = productClassificationService.requireActiveCategory(
+                        productEntity.getCategoryId(), productType.getCode());
+                productEntity.setCategoryId(category.getId());
+            }
+
+            if (productEditDto.getAvailableForSale() != null) {
+                productEntity.setAvailableForSale(productEditDto.getAvailableForSale());
+            } else if (productEntity.getAvailableForSale() == null) {
+                productEntity.setAvailableForSale(productType.isDefaultAvailableForSale());
+            }
+            if (productEditDto.getBaseUnitOfMeasure() != null && !productEditDto.getBaseUnitOfMeasure().isBlank()) {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().trim().toUpperCase());
             }
             productRepository.save(productEntity);
-            writeProductAudit(productEntity.getId(), "UPDATE", null, productEntity.getCode() + " - " + productEntity.getDescription(), null);
+            writeProductAudit(productEntity.getId(), "UPDATE", null,
+                    productEntity.getCode() + " - " + productEntity.getDescription() + " [" + productEntity.getType() + "]", null);
             if (productEditDto.getPrice() != null) {
                 ProductPricingCreateDto pricingCreateDto = new ProductPricingCreateDto();
                 pricingCreateDto.setProduct(productEditDto.getId());
@@ -247,7 +274,7 @@ public class ProductService implements ProductDao {
                 addPricing(pricingCreateDto);
             }
         } catch (Exception exception) {
-            throw new ProductUpdateFailure();
+            throw new ProductUpdateFailure(exception.getMessage());
         }
     }
 
@@ -422,44 +449,60 @@ public class ProductService implements ProductDao {
     }
 
     public void addCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
-        try {
-            ProductCategoryEntity productCategoryEntity = new ProductCategoryEntity();
-            productCategoryEntity.setProduct(productCategoryProcessDto.getProduct());
-            productCategoryEntity.setCategory(productCategoryProcessDto.getCategory());
-            productCategoryEntity.setValidFrom(new Date());
-            productCategoryEntity.setValidTo(Conversion.stringToDate("9999-12-31"));
-            productCategoryRepository.save(productCategoryEntity);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
+        ProductEntity product = productRepository.getById(productCategoryProcessDto.getProduct());
+        ProductTypeCode productType = ProductTypeCode.find(product.getType())
+                .orElseThrow(() -> new IllegalArgumentException("Select a supported product type before assigning a category."));
+        ProductCategoryMasterEntity category = productClassificationService.requireActiveCategory(
+                productCategoryProcessDto.getCategory(), productType.getCode());
+        product.setCategoryId(category.getId());
+        productRepository.save(product);
     }
 
     public ArrayList<ProductCategoryDto> getCategories(String id) {
+        ArrayList<ProductCategoryDto> categories = new ArrayList<>();
         try {
-            ArrayList<ProductCategoryDto> categoryDtoArrayList = new ArrayList<>();
-            for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.findByProduct(id)) {
-                ProductCategoryDto productCategoryDto = new ProductCategoryDto();
-                productCategoryDto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, productCategoryEntity.getCategory()));
-                productCategoryDto.setProduct(productCategoryEntity.getProduct());
-                productCategoryDto.setValidFrom(productCategoryEntity.getValidFrom());
-                productCategoryDto.setValidTo(productCategoryEntity.getValidTo());
-                categoryDtoArrayList.add(productCategoryDto);
+            ProductEntity product = productRepository.getById(id);
+            if (product.getCategoryId() != null && !product.getCategoryId().isBlank()) {
+                ProductCategoryDefinitionDto category = productClassificationService.getCategory(product.getCategoryId());
+                FieldOptionDto option = new FieldOptionDto();
+                option.setField(Field.PRODUCT_CATEGORY);
+                option.setCode(category.getCode());
+                option.setType("TENANT");
+                option.setDescription(category.getFullPath());
+                ProductCategoryDto dto = new ProductCategoryDto();
+                dto.setProduct(id);
+                dto.setCategory(option);
+                dto.setValidFrom(product.getValidFrom());
+                dto.setValidTo(product.getValidTo());
+                categories.add(dto);
+                return categories;
             }
-            return categoryDtoArrayList;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        } catch (Exception ignored) {
+            // Fall back to the legacy many-to-many category bridge below.
         }
+        for (ProductCategoryEntity legacy : productCategoryRepository.findByProduct(id)) {
+            ProductCategoryDto dto = new ProductCategoryDto();
+            dto.setCategory(fieldOptionService.getFieldOption(Field.PRODUCT_CATEGORY, legacy.getCategory()));
+            dto.setProduct(legacy.getProduct());
+            dto.setValidFrom(legacy.getValidFrom());
+            dto.setValidTo(legacy.getValidTo());
+            categories.add(dto);
+        }
+        return categories;
     }
 
     public void deleteCategory(ProductCategoryProcessDto productCategoryProcessDto) throws Exception {
-        try {
-            for (ProductCategoryEntity productCategoryEntity : productCategoryRepository.find(productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())) {
-                productCategoryRepository.deleteById(productCategoryEntity.getId());
+        ProductEntity product = productRepository.getById(productCategoryProcessDto.getProduct());
+        if (product.getCategoryId() != null) {
+            String selectedCategoryId = productClassificationService.resolveCategoryId(productCategoryProcessDto.getCategory());
+            if (product.getCategoryId().equals(selectedCategoryId)) {
+                throw new IllegalArgumentException("A product must have one primary category. Assign a replacement category instead of removing it.");
             }
-        } catch (Exception e) {
-
         }
-
+        for (ProductCategoryEntity legacy : productCategoryRepository.find(
+                productCategoryProcessDto.getProduct(), productCategoryProcessDto.getCategory())) {
+            productCategoryRepository.deleteById(legacy.getId());
+        }
     }
 
     @Override
@@ -498,6 +541,48 @@ public class ProductService implements ProductDao {
     }
 
 
+    public void requireAvailableForSale(String productId) {
+        ProductEntity product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product was not found: " + productId));
+        if (!Boolean.TRUE.equals(product.getAvailableForSale())) {
+            throw new IllegalArgumentException("Product " + product.getCode() + " is configured for internal use and cannot be added to a customer invoice.");
+        }
+    }
+
+    private FieldOptionDto resolveProductTypeOption(String storedType) {
+        return ProductTypeCode.find(storedType)
+                .map(type -> {
+                    FieldOptionDto option = new FieldOptionDto();
+                    option.setField(Field.PRODUCT_TYPE);
+                    option.setCode(type.getCode());
+                    option.setType("SYSTEM");
+                    option.setDescription(type.getDisplayName());
+                    return option;
+                })
+                .orElseGet(() -> {
+                    FieldOptionDto existing = fieldOptionService.getFieldOption(Field.PRODUCT_TYPE, storedType);
+                    if (existing != null) {
+                        return existing;
+                    }
+                    FieldOptionDto legacy = new FieldOptionDto();
+                    legacy.setField(Field.PRODUCT_TYPE);
+                    legacy.setCode(storedType == null ? "" : storedType);
+                    legacy.setType("LEGACY");
+                    legacy.setDescription(storedType == null ? "Legacy product" : storedType.replace('-', ' '));
+                    return legacy;
+                });
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first.trim();
+        }
+        if (second != null && !second.isBlank()) {
+            return second.trim();
+        }
+        return null;
+    }
+
     private void writeProductAudit(String productId, String action, String oldValue, String newValue, String userId) {
         try {
             jdbcTemplate.update("INSERT INTO product_audit_history (id, product_id, action, old_value, new_value, created_at, created_by) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP,?)",
@@ -513,8 +598,33 @@ public class ProductService implements ProductDao {
             if (productQuery.getCode() != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("code"), productQuery.getCode()));
             }
-            if (productQuery.getType() != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("type"), productQuery.getType().trim().toUpperCase()));
+            if (productQuery.getType() != null && !productQuery.getType().isBlank()) {
+                String type = ProductTypeCode.find(productQuery.getType())
+                        .map(ProductTypeCode::getCode)
+                        .orElse(productQuery.getType().trim().toUpperCase());
+                predicate = cb.and(predicate, cb.equal(root.get("type"), type));
+            }
+            if (productQuery.getCategory() != null && !productQuery.getCategory().isBlank()) {
+                Set<String> categoryIds = productClassificationService.resolveCategoryTreeIds(productQuery.getCategory());
+                if (categoryIds.isEmpty()) {
+                    predicate = cb.and(predicate, cb.disjunction());
+                } else {
+                    predicate = cb.and(predicate, root.get("categoryId").in(categoryIds));
+                }
+            }
+            if (productQuery.getAvailableForSale() != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("availableForSale"), productQuery.getAvailableForSale()));
+            }
+            if (Boolean.TRUE.equals(productQuery.getStockControlled())) {
+                predicate = cb.and(predicate, root.get("type").in(
+                        ProductTypeCode.PHYSICAL_PRODUCT.getCode(),
+                        ProductTypeCode.CONSUMABLE.getCode(),
+                        ProductTypeCode.TOMBSTONE.getCode()));
+            } else if (Boolean.FALSE.equals(productQuery.getStockControlled())) {
+                predicate = cb.and(predicate, cb.not(root.get("type").in(
+                        ProductTypeCode.PHYSICAL_PRODUCT.getCode(),
+                        ProductTypeCode.CONSUMABLE.getCode(),
+                        ProductTypeCode.TOMBSTONE.getCode())));
             }
             if (productQuery.getDescription() != null && !productQuery.getDescription().isBlank()) {
                 String search = "%" + productQuery.getDescription().trim().toUpperCase() + "%";

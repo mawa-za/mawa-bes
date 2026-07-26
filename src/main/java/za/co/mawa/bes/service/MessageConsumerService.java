@@ -20,6 +20,7 @@ import za.co.mawa.bes.fnb.dto.StatusReasonInformation;
 import za.co.mawa.bes.fnb.dto.TransactionInfoAndStatus;
 import za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService;
 import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
+import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
 
@@ -53,6 +54,8 @@ public class MessageConsumerService {
     PaymentDisbursementAttemptService paymentAttemptService;
     @Autowired
     PaymentRequestFnbPaymentQueueService paymentQueueService;
+    @Autowired
+    PayrollPaymentBatchService payrollPaymentBatchService;
     @Autowired
     SettingService settingService;
     Gson gson = new Gson();
@@ -215,6 +218,22 @@ public class MessageConsumerService {
                     case "FNB-EFT-PAYMENT-REPORT":
                         processFnbPaymentReport(msg, systemUserIdForReport());
                         break;
+                    case "FNB-PAYROLL-PAYMENT":
+                        payrollPaymentBatchService.processBankSubmission(
+                                msg.getReferenceId(), msg.getPayload(), resolveSystemUserId());
+                        msg.setProcessed(true);
+                        break;
+                    case "FNB-PAYROLL-PAYMENT-REPORT":
+                        boolean payrollReportFinal = payrollPaymentBatchService.processBankReport(
+                                msg.getReferenceId(), resolveSystemUserId());
+                        if (payrollReportFinal) {
+                            msg.setProcessed(true);
+                        } else {
+                            msg.setRetryCount(msg.getRetryCount() + 1);
+                            msg.setProcessed(false);
+                            msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                        }
+                        break;
                     case "INVOICE-EMAIL":
                         msg.setProcessed(true);
                         break;
@@ -239,7 +258,8 @@ public class MessageConsumerService {
                     xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
                 }
                 msg.setRetryCount(msg.getRetryCount() + 1);
-                if ("FNB-EFT-PAYMENT-REPORT".equals(msg.getType())) {
+                if ("FNB-EFT-PAYMENT-REPORT".equals(msg.getType())
+                        || "FNB-PAYROLL-PAYMENT-REPORT".equals(msg.getType())) {
                     // Bank report availability is eventually consistent. Keep polling instead
                     // of abandoning a valid disbursement after three temporary failures.
                     msg.setProcessed(false);
