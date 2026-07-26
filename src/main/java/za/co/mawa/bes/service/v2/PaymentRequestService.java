@@ -41,6 +41,7 @@ public class PaymentRequestService {
     private final MembershipClaimService membershipClaimService;
     private final PaymentAccountConfigurationService paymentAccountConfigurationService;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService;
     private final JdbcTemplate jdbcTemplate;
     private final za.co.mawa.bes.repository.AttachmentRepository attachmentRepository;
 
@@ -55,6 +56,7 @@ public class PaymentRequestService {
             MembershipClaimService membershipClaimService,
             PaymentAccountConfigurationService paymentAccountConfigurationService,
             ReferenceDataValidationService referenceDataValidationService,
+            PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService,
             JdbcTemplate jdbcTemplate,
             za.co.mawa.bes.repository.AttachmentRepository attachmentRepository
     ) {
@@ -65,6 +67,7 @@ public class PaymentRequestService {
         this.membershipClaimService = membershipClaimService;
         this.paymentAccountConfigurationService = paymentAccountConfigurationService;
         this.referenceDataValidationService = referenceDataValidationService;
+        this.paymentRequestInvoiceEmailService = paymentRequestInvoiceEmailService;
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentRepository = attachmentRepository;
     }
@@ -459,6 +462,7 @@ public class PaymentRequestService {
 
         if (newStatus == PaymentRequestStatus.APPROVED) {
             fnbPaymentQueueService.queueAfterApproval(saved.getId(), saved.getRequestNo(), currentUser);
+            paymentRequestInvoiceEmailService.deliverAfterApproval(saved.getId(), currentUser);
             saved = paymentRequestRepository.findById(saved.getId()).orElse(saved);
         }
 
@@ -565,6 +569,7 @@ public class PaymentRequestService {
         paymentRequestRepository.save(entity);
         saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.APPROVED,
                 "Payment request approved", approvedBy);
+        paymentRequestInvoiceEmailService.deliverAfterApproval(entity.getId(), approvedBy);
     }
 
     @Transactional
