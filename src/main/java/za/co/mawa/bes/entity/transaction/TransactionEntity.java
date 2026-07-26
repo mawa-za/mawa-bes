@@ -55,7 +55,7 @@ public class TransactionEntity implements Serializable {
     private String subDescription;
     @Column(name = "created_by")
     private String createdBy;
-    @Column(name = "changedBy")
+    @Column(name = "changed_by")
     private String changedBy;
     @Column(name = "priority")
     private String priority;

@@ -6,6 +6,8 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MembershipLapseServiceTest {
 
@@ -44,6 +46,14 @@ class MembershipLapseServiceTest {
                 outstanding(2026, 5),
                 outstanding(2026, 4)
         )));
+    }
+
+    @Test
+    void legacyTransactionUpdateUsesPhysicalSnakeCaseColumn() {
+        String sql = MembershipLapseService.LEGACY_TRANSACTION_LAPSE_SQL;
+
+        assertTrue(sql.contains("changed_by = ?"));
+        assertFalse(sql.contains("changedBy"));
     }
 
     private MembershipLapseService.PremiumPeriod outstanding(int year, int month) {
