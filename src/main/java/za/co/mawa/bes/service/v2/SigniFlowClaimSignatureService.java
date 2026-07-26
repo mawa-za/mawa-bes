@@ -125,9 +125,8 @@ public class SigniFlowClaimSignatureService {
                 .orElseThrow(() -> new IllegalArgumentException("Claim not found: " + claimId));
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT DISTINCT p.id AS partnerId,
-                       COALESCE(pv.partner_no, p.number, '') AS partnerNumber,
-                       COALESCE(NULLIF(pv.partner_name, ''),
-                                TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))),
+                       COALESCE(p.number, '') AS partnerNumber,
+                       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))), ''),
                                 p.name1, '') AS name,
                        COALESCE((
                            SELECT pc.value FROM partner_contact pc
@@ -145,13 +144,11 @@ public class SigniFlowClaimSignatureService {
                   FROM membership_claim mc
                   JOIN membership m ON m.id = mc.membership_id
                   JOIN partner p ON p.id IN (mc.claimant_partner_id, mc.deceased_partner_id, m.member_id)
-                  LEFT JOIN partner_view pv ON pv.partner_id = p.id
                  WHERE mc.id = ?
                 UNION
                 SELECT DISTINCT p.id AS partnerId,
-                       COALESCE(pv.partner_no, p.number, '') AS partnerNumber,
-                       COALESCE(NULLIF(pv.partner_name, ''),
-                                TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))),
+                       COALESCE(p.number, '') AS partnerNumber,
+                       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))), ''),
                                 p.name1, '') AS name,
                        COALESCE((
                            SELECT pc.value FROM partner_contact pc
@@ -164,7 +161,6 @@ public class SigniFlowClaimSignatureService {
                   FROM membership_claim mc
                   JOIN membership_dependent md ON md.membership_id = mc.membership_id
                   JOIN partner p ON p.id = md.dependent_partner_id
-                  LEFT JOIN partner_view pv ON pv.partner_id = p.id
                  WHERE mc.id = ?
                    AND COALESCE(md.active, 1) = 1
                    AND UPPER(COALESCE(md.status, 'ACTIVE')) NOT IN ('REMOVED','REPLACED','INACTIVE')
@@ -338,8 +334,7 @@ public class SigniFlowClaimSignatureService {
         if (!StringUtils.hasText(partnerId)) return result;
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT p.id AS partnerId,
-                       COALESCE(NULLIF(pv.partner_name, ''),
-                                TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))),
+                       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))), ''),
                                 p.name1, '') AS name,
                        COALESCE((
                            SELECT pc.value FROM partner_contact pc
@@ -349,7 +344,6 @@ public class SigniFlowClaimSignatureService {
                             ORDER BY pc.type LIMIT 1
                        ), '') AS email
                   FROM partner p
-                  LEFT JOIN partner_view pv ON pv.partner_id = p.id
                  WHERE p.id = ?
                 """, partnerId);
         if (rows.isEmpty()) throw new IllegalArgumentException("Signer partner not found");
