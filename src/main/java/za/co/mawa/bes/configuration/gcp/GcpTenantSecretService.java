@@ -172,6 +172,14 @@ public class GcpTenantSecretService {
         }
     }
 
+    /** Resolves an explicit Google Secret Manager reference for integration services. */
+    public String accessSecretReference(String secretReference) {
+        if (!StringUtils.hasText(secretReference)) {
+            return null;
+        }
+        return accessSecret(secretReference);
+    }
+
     public boolean hasAccessibleSecretVersion(String secretReference) {
         if (!StringUtils.hasText(secretReference)) {
             return false;
