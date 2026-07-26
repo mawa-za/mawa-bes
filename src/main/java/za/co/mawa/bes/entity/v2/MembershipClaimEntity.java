@@ -51,6 +51,9 @@ public class MembershipClaimEntity {
     @Column(name = "claim_date", nullable = false)
     private LocalDate claimDate;
 
+    @Column(name = "burial_date")
+    private LocalDate burialDate;
+
     @Column(name = "cause_of_death", length = 255)
     private String causeOfDeath;
 

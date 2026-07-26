@@ -47,6 +47,8 @@ public class MembershipClaimService {
     private final JdbcTemplate jdbcTemplate;
     private final MembershipChangeService membershipChangeService;
     private final MembershipPlanClaimPayoutService membershipPlanClaimPayoutService;
+    private final ClaimTypeConfigurationService claimTypeConfigurationService;
+    private final ReferenceDataValidationService referenceDataValidationService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
@@ -58,7 +60,9 @@ public class MembershipClaimService {
             NumberAllocationService numberAllocationService,
             JdbcTemplate jdbcTemplate,
             MembershipChangeService membershipChangeService,
-            MembershipPlanClaimPayoutService membershipPlanClaimPayoutService
+            MembershipPlanClaimPayoutService membershipPlanClaimPayoutService,
+            ClaimTypeConfigurationService claimTypeConfigurationService,
+            ReferenceDataValidationService referenceDataValidationService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
@@ -70,14 +74,16 @@ public class MembershipClaimService {
         this.jdbcTemplate = jdbcTemplate;
         this.membershipChangeService = membershipChangeService;
         this.membershipPlanClaimPayoutService = membershipPlanClaimPayoutService;
+        this.claimTypeConfigurationService = claimTypeConfigurationService;
+        this.referenceDataValidationService = referenceDataValidationService;
     }
 
     @Transactional
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
         validateCreateRequest(request);
-        if (request.getClaimType() != MembershipClaimType.CASH) {
-            throw new IllegalArgumentException("Only CASH claims may be created directly from a membership. Funeral and combination claims must originate from a funeral service request.");
-        }
+        claimTypeConfigurationService.requireEnabled(request.getClaimType());
+        String causeOfDeath = referenceDataValidationService.optionalOption(
+                "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death");
 
         MembershipEntity membership = membershipRepository.findById(request.getMembershipId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + request.getMembershipId()));
@@ -103,37 +109,30 @@ public class MembershipClaimService {
         entity.setDeceasedPartnerId(request.getDeceasedPartnerId());
         entity.setDateOfDeath(request.getDateOfDeath());
         entity.setClaimDate(request.getClaimDate() != null ? request.getClaimDate() : LocalDate.now());
-        entity.setCauseOfDeath(request.getCauseOfDeath());
+        entity.setBurialDate(request.getBurialDate());
+        entity.setCauseOfDeath(causeOfDeath);
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setClaimantPartnerId(request.getClaimantPartnerId());
-        Long requestedAmount = request.getClaimAmountCents() != null ? request.getClaimAmountCents() : 0L;
-        try {
-            za.co.mawa.bes.enums.DependentType payoutDependentType = za.co.mawa.bes.enums.DependentType.MAIN_MEMBER;
-            if (!membership.getMemberId().equals(request.getDeceasedPartnerId())) {
-                payoutDependentType = membershipDependentRepository.findByMembershipId(request.getMembershipId()).stream()
-                        .filter(item -> request.getDeceasedPartnerId().equals(item.getDependentPartnerId()))
-                        .map(MembershipDependentEntity::getDependentType)
-                        .findFirst().orElse(za.co.mawa.bes.enums.DependentType.ANY);
-            }
-            requestedAmount = membershipPlanClaimPayoutService.resolvePayoutAmountCents(
-                    coveragePlanId, request.getClaimType(), payoutDependentType);
-        } catch (RuntimeException ex) {
-            String message = ex.getMessage();
-            if (message == null || !message.startsWith("No payout rule configured")) {
-                throw ex;
-            }
-            // Preserve the explicit/manual claim amount only when this plan has no payout rule.
-        }
-        entity.setClaimAmountCents(requestedAmount);
+        entity.setClaimAmountCents(resolvePlanBenefitAmount(
+                membership,
+                request.getMembershipId(),
+                request.getDeceasedPartnerId(),
+                coveragePlanId,
+                request.getClaimType()));
         entity.setNotes(request.getNotes());
         if (request.getClaimType() == MembershipClaimType.CASH) {
-            entity.setPayoutMethod(za.co.mawa.bes.enums.PaymentMethod.valueOf(request.getPayoutMethod().trim().toUpperCase()));
-            entity.setBankName(request.getBankName());
-            entity.setAccountHolderName(request.getAccountHolderName());
-            entity.setAccountNumber(request.getAccountNumber());
-            entity.setBranchCode(request.getBranchCode());
-            if (StringUtils.hasText(request.getAccountType())) {
-                entity.setAccountType(za.co.mawa.bes.enums.BankAccountType.valueOf(request.getAccountType().trim().toUpperCase()));
+            za.co.mawa.bes.enums.PaymentMethod payoutMethod = za.co.mawa.bes.enums.PaymentMethod.valueOf(
+                    request.getPayoutMethod().trim().toUpperCase());
+            entity.setPayoutMethod(payoutMethod);
+            if (payoutMethod == za.co.mawa.bes.enums.PaymentMethod.EFT) {
+                entity.setBankName(referenceDataValidationService.requireOption(
+                        "BANK-NAME", request.getBankName(), "Bank name"));
+                entity.setAccountHolderName(request.getAccountHolderName().trim());
+                entity.setAccountNumber(request.getAccountNumber().trim());
+                entity.setBranchCode(request.getBranchCode().trim());
+                String accountType = referenceDataValidationService.requireOption(
+                        "BANK-ACCOUNT-TYPE", request.getAccountType(), "Bank account type");
+                entity.setAccountType(za.co.mawa.bes.enums.BankAccountType.valueOf(accountType.toUpperCase()));
             }
         }
         entity.setStatus(Boolean.TRUE.equals(request.getSubmit())
@@ -167,25 +166,21 @@ public class MembershipClaimService {
         }
 
         if ("EFT".equalsIgnoreCase(request.getPayoutMethod())) {
-            if (request.getBankName() == null || request.getBankName().isBlank()) {
-                throw new RuntimeException("Bank name is required for EFT payout");
+            referenceDataValidationService.requireOption("BANK-NAME", request.getBankName(), "Bank name");
+
+            if (!StringUtils.hasText(request.getAccountHolderName())) {
+                throw new IllegalArgumentException("Account holder name is required for EFT payout");
             }
 
-            if (request.getAccountHolderName() == null || request.getAccountHolderName().isBlank()) {
-                throw new RuntimeException("Account holder name is required for EFT payout");
+            if (!StringUtils.hasText(request.getAccountNumber()) || !request.getAccountNumber().trim().matches("\\d{5,20}")) {
+                throw new IllegalArgumentException("Account number must contain 5 to 20 numeric digits");
             }
 
-            if (request.getAccountNumber() == null || request.getAccountNumber().isBlank()) {
-                throw new RuntimeException("Account number is required for EFT payout");
+            if (!StringUtils.hasText(request.getBranchCode()) || !request.getBranchCode().trim().matches("\\d{6}")) {
+                throw new IllegalArgumentException("Branch code must contain exactly 6 numeric digits");
             }
 
-            if (request.getBranchCode() == null || request.getBranchCode().isBlank()) {
-                throw new RuntimeException("Branch code is required for EFT payout");
-            }
-
-            if (request.getAccountType() == null || request.getAccountType().isBlank()) {
-                throw new RuntimeException("Account type is required for EFT payout");
-            }
+            referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", request.getAccountType(), "Bank account type");
         }
     }
 
@@ -263,13 +258,9 @@ public class MembershipClaimService {
         if (request.getClaimDate() != null) {
             entity.setClaimDate(request.getClaimDate());
         }
-
-        Long fallbackClaimAmountCents = entity.getClaimAmountCents();
-        if (request.getClaimAmountCents() != null) {
-            if (request.getClaimAmountCents() < 0) {
-                throw new IllegalArgumentException("Claim amount cannot be negative.");
-            }
-            fallbackClaimAmountCents = request.getClaimAmountCents();
+        if (request.getBurialDate() != null) {
+            validateBurialDate(entity.getDateOfDeath(), request.getBurialDate());
+            entity.setBurialDate(request.getBurialDate());
         }
 
         MembershipEntity membership = membershipRepository.findById(entity.getMembershipId())
@@ -282,27 +273,15 @@ public class MembershipClaimService {
         entity.setCoveragePlanId(coveragePlanId);
         entity.setCoverageEventDate(coverageEventDate);
 
-        Long recalculatedClaimAmountCents = fallbackClaimAmountCents != null ? fallbackClaimAmountCents : 0L;
-        try {
-            za.co.mawa.bes.enums.DependentType payoutDependentType = za.co.mawa.bes.enums.DependentType.MAIN_MEMBER;
-            if (!membership.getMemberId().equals(entity.getDeceasedPartnerId())) {
-                payoutDependentType = membershipDependentRepository.findByMembershipId(entity.getMembershipId()).stream()
-                        .filter(item -> entity.getDeceasedPartnerId().equals(item.getDependentPartnerId()))
-                        .map(MembershipDependentEntity::getDependentType)
-                        .findFirst().orElse(za.co.mawa.bes.enums.DependentType.ANY);
-            }
-            recalculatedClaimAmountCents = membershipPlanClaimPayoutService.resolvePayoutAmountCents(
-                    coveragePlanId, entity.getClaimType(), payoutDependentType);
-        } catch (RuntimeException ex) {
-            String message = ex.getMessage();
-            if (message == null || !message.startsWith("No payout rule configured")) {
-                throw ex;
-            }
-            // Preserve the explicit/manual claim amount only when this plan has no payout rule.
-        }
-        entity.setClaimAmountCents(recalculatedClaimAmountCents);
+        entity.setClaimAmountCents(resolvePlanBenefitAmount(
+                membership,
+                entity.getMembershipId(),
+                entity.getDeceasedPartnerId(),
+                coveragePlanId,
+                entity.getClaimType()));
 
-        entity.setCauseOfDeath(request.getCauseOfDeath());
+        entity.setCauseOfDeath(referenceDataValidationService.optionalOption(
+                "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death"));
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setClaimantPartnerId(request.getClaimantPartnerId());
         entity.setNotes(request.getNotes());
@@ -647,9 +626,7 @@ public class MembershipClaimService {
             throw new IllegalArgumentException("Date of death cannot be in the future.");
         }
 
-        if (request.getClaimAmountCents() != null && request.getClaimAmountCents() < 0) {
-            throw new IllegalArgumentException("Claim amount cannot be negative.");
-        }
+        validateBurialDate(request.getDateOfDeath(), request.getBurialDate());
 
         if (request.getClaimType() == MembershipClaimType.COMBINATION
                 && request.getDeceasedType() != MembershipClaimDeceasedType.DEPENDENT) {
@@ -718,6 +695,53 @@ public class MembershipClaimService {
             if (!parentClaim.getDeceasedPartnerId().equals(linkedClaim.getDeceasedPartnerId())) {
                 throw new IllegalArgumentException("All linked claims must have the same deceased partner.");
             }
+        }
+    }
+
+    public java.util.Map<String, Object> resolveBenefit(
+            String membershipId,
+            MembershipClaimType claimType,
+            String deceasedPartnerId,
+            LocalDate eventDate,
+            String userId
+    ) {
+        claimTypeConfigurationService.requireEnabled(claimType);
+        MembershipEntity membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId));
+        String deceased = StringUtils.hasText(deceasedPartnerId) ? deceasedPartnerId : membership.getMemberId();
+        String planId = membershipChangeService.resolveCoveragePlanId(
+                membershipId, eventDate == null ? LocalDate.now() : eventDate, userId);
+        Long amount = resolvePlanBenefitAmount(membership, membershipId, deceased, planId, claimType);
+        return java.util.Map.of(
+                "membershipId", membershipId,
+                "coveragePlanId", planId,
+                "claimType", claimType.name(),
+                "claimAmountCents", amount
+        );
+    }
+
+    private Long resolvePlanBenefitAmount(
+            MembershipEntity membership,
+            String membershipId,
+            String deceasedPartnerId,
+            String coveragePlanId,
+            MembershipClaimType claimType
+    ) {
+        za.co.mawa.bes.enums.DependentType payoutDependentType = za.co.mawa.bes.enums.DependentType.MAIN_MEMBER;
+        if (!membership.getMemberId().equals(deceasedPartnerId)) {
+            payoutDependentType = membershipDependentRepository.findByMembershipId(membershipId).stream()
+                    .filter(item -> deceasedPartnerId.equals(item.getDependentPartnerId()))
+                    .map(MembershipDependentEntity::getDependentType)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Deceased partner is not linked to the membership."));
+        }
+        return membershipPlanClaimPayoutService.resolvePayoutAmountCents(
+                coveragePlanId, claimType, payoutDependentType);
+    }
+
+    private void validateBurialDate(LocalDate dateOfDeath, LocalDate burialDate) {
+        if (burialDate != null && dateOfDeath != null && burialDate.isBefore(dateOfDeath)) {
+            throw new IllegalArgumentException("Burial date cannot be before the date of death.");
         }
     }
 
@@ -808,6 +832,7 @@ public class MembershipClaimService {
                 .setDeceasedPartnerId(entity.getDeceasedPartnerId())
                 .setDateOfDeath(entity.getDateOfDeath())
                 .setClaimDate(entity.getClaimDate())
+                .setBurialDate(entity.getBurialDate())
                 .setCauseOfDeath(entity.getCauseOfDeath())
                 .setDeathCertificateNo(entity.getDeathCertificateNo())
                 .setClaimantPartnerId(entity.getClaimantPartnerId())

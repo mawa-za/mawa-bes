@@ -17,6 +17,7 @@ public class CasePartyService {
 
     private final CasePartyRepository casePartyRepository;
     private final LegalCaseService legalCaseService;
+    private final ReferenceDataValidationService referenceDataValidationService;
 
     @Transactional
     public CasePartyEntity create(String caseId, CasePartyCreateRequest request, String createdBy) {
@@ -29,7 +30,7 @@ public class CasePartyService {
         entity.setPartyType(request.getPartyType());
         entity.setIdNumber(request.getIdNumber());
         entity.setEmail(request.getEmail());
-        entity.setPhoneNumber(request.getPhoneNumber());
+        entity.setPhoneNumber(referenceDataValidationService.optionalContactNumber(request.getPhoneNumber()));
         entity.setAttorneyFirm(request.getAttorneyFirm());
         entity.setAttorneyName(request.getAttorneyName());
         entity.setNotes(request.getNotes());

@@ -62,6 +62,10 @@ public class MembershipService {
     PartnerService partnerService;
     @Autowired
     MembershipChangeService membershipChangeService;
+    @Autowired
+    MembershipPolicyConfigurationService membershipPolicyConfigurationService;
+    @Autowired
+    ApprovalService approvalService;
 
     @Autowired
     public MembershipService(MembershipRepository membershipRepository) {
@@ -141,14 +145,48 @@ public class MembershipService {
     @Transactional
     public MembershipEntity createMembership(MembershipEntity membership) {
         try {
+            long existingMemberships = membershipRepository.countByMemberId(membership.getMemberId());
+            boolean additionalMembership = existingMemberships > 0;
+            if (additionalMembership && !membershipPolicyConfigurationService.allowMultipleMemberships()) {
+                throw new IllegalArgumentException("Multiple memberships are not allowed for this member.");
+            }
+
             String id = numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP);
             membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
             membership.setMembershipNo(id);
-            membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId()).get().getPremiumCents());
+            membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId())
+                    .orElseThrow(() -> new IllegalArgumentException("Membership plan not found: " + membership.getPlanId()))
+                    .getPremiumCents());
+
+            boolean approvalRequired = additionalMembership
+                    && membershipPolicyConfigurationService.additionalMembershipRequiresApproval();
+            if (approvalRequired) {
+                membership.setStatus("PENDING_APPROVAL");
+            } else if (additionalMembership) {
+                membership.setStatus("ACTIVE");
+            }
+
             MembershipEntity savedMembership = membershipRepository.save(membership);
             membershipChangeService.ensureBaselineHistory(savedMembership, UserContext.getCurrentUserId());
             partnerService.addRole(savedMembership.getMemberId(), "MEMBER");
+
+            if (approvalRequired) {
+                za.co.mawa.bes.dto.v2.ApprovalSubmitRequest approval = new za.co.mawa.bes.dto.v2.ApprovalSubmitRequest();
+                approval.setApprovalType(za.co.mawa.bes.enums.ApprovalType.ADDITIONAL_MEMBERSHIP);
+                approval.setReferenceId(savedMembership.getId());
+                approval.setReferenceNo(savedMembership.getMembershipNo());
+                approval.setTitle("Additional membership approval");
+                approval.setDescription("Approve an additional membership for member " + savedMembership.getMemberId());
+                approval.setRequesterId(UserContext.getCurrentUserId());
+                approval.setPayloadJson("{\"membershipId\":\"" + savedMembership.getId()
+                        + "\",\"memberId\":\"" + savedMembership.getMemberId() + "\"}");
+                var approvalResponse = approvalService.submitForApproval(approval);
+                savedMembership.setApprovalRequestId(approvalResponse.getId());
+                savedMembership.setUpdatedBy(UserContext.getCurrentUserId());
+                savedMembership.setUpdatedAt(LocalDateTime.now());
+                savedMembership = membershipRepository.save(savedMembership);
+            }
             return savedMembership;
         } catch (Exception e) {
             throw new RuntimeException(e);

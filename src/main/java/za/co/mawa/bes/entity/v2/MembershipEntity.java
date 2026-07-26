@@ -72,6 +72,9 @@ public class MembershipEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
+    @Column(name = "approval_request_id", length = 36)
+    private String approvalRequestId;
+
     @Column(name = "old_id")
     private String oldId;
 //

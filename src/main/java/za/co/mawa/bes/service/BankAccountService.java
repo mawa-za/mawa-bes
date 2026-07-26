@@ -13,6 +13,7 @@ import za.co.mawa.bes.repository.TransactionBankAccountRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Field;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,15 +25,17 @@ public class BankAccountService {
     BankAccountRepository bankAccountRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
 
     public void add(BankAccountCreateDto bankAccountCreateDto) {
         try {
             BankAccountEntity bankAccountEntity = new BankAccountEntity();
             bankAccountEntity.setObjectId(bankAccountCreateDto.getObjectId());
             bankAccountEntity.setAccountHolder(bankAccountCreateDto.getAccountHolder());
-            bankAccountEntity.setAccountType(bankAccountCreateDto.getAccountType());
-            bankAccountEntity.setBankName(bankAccountCreateDto.getBankName());
-            bankAccountEntity.setAccountNumber(bankAccountCreateDto.getAccountNumber());
+            bankAccountEntity.setAccountType(referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", bankAccountCreateDto.getAccountType(), "Bank account type"));
+            bankAccountEntity.setBankName(referenceDataValidationService.requireOption("BANK-NAME", bankAccountCreateDto.getBankName(), "Bank name"));
+            bankAccountEntity.setAccountNumber(requireAccountNumber(bankAccountCreateDto.getAccountNumber()));
             bankAccountEntity.setBranchCode(getUBC(bankAccountCreateDto.getBankName()));
             bankAccountEntity.setStatus(Status.ACTIVE);
             bankAccountEntity.setValidFrom(new Date());
@@ -46,11 +49,10 @@ public class BankAccountService {
     public void edit(BankAccountEditDto bankAccountEditDto) {
         BankAccountEntity bankAccountEntity = bankAccountRepository.getById(bankAccountEditDto.getId());
         bankAccountEntity.setAccountHolder(bankAccountEditDto.getAccountHolder());
-        bankAccountEntity.setAccountType(bankAccountEditDto.getAccountType());
-        bankAccountEntity.setBankName(bankAccountEditDto.getBankName());
+        bankAccountEntity.setAccountType(referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", bankAccountEditDto.getAccountType(), "Bank account type"));
+        bankAccountEntity.setBankName(referenceDataValidationService.requireOption("BANK-NAME", bankAccountEditDto.getBankName(), "Bank name"));
         bankAccountEntity.setBranchCode(getUBC(bankAccountEntity.getBankName()));
-        bankAccountEntity.setAccountNumber(bankAccountEditDto.getAccountNumber());
-        bankAccountEntity.setBranchCode(bankAccountEditDto.getBankName());
+        bankAccountEntity.setAccountNumber(requireAccountNumber(bankAccountEditDto.getAccountNumber()));
 //        bankAccountEntity.setStatus(Status.ACTIVE);
         bankAccountEntity.setValidFrom(new Date());
 //        bankAccountEntity.setValidTo(new Date(Constant.END_DATE));
@@ -81,6 +83,13 @@ public class BankAccountService {
 
     public void delete(String id) {
         bankAccountRepository.deleteById(id);
+    }
+
+    private String requireAccountNumber(String value) {
+        if (value == null || !value.trim().matches("\\d{5,20}")) {
+            throw new IllegalArgumentException("Bank account number must contain 5 to 20 numeric digits");
+        }
+        return value.trim();
     }
 
     public String getUBC(String bank) {

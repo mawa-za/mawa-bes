@@ -9,35 +9,36 @@ import za.co.mawa.bes.configuration.gcp.TenantSecretNameService;
 import za.co.mawa.bes.dto.v2.integration.FnbIntegrationSettingsDto;
 import za.co.mawa.bes.service.SettingService;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class FnbIntegrationAdministrationService {
     private static final String FNB = "FNB-API";
-    private static final String EFT = "EFT-BANK-ACCOUNT";
 
     private final SettingService settingService;
     private final GcpTenantSecretService gcpTenantSecretService;
     private final TenantSecretNameService tenantSecretNameService;
+    private final PaymentAccountConfigurationService paymentAccountConfigurationService;
 
     public FnbIntegrationSettingsDto getSettings() {
         String clientIdSecret = tenantSecretNameService.currentTenantSecretName("fnb", "client-id");
         String clientSecretSecret = tenantSecretNameService.currentTenantSecretName("fnb", "client-secret");
-        String accountNumberSecret = tenantSecretNameService.currentTenantSecretName("fnb", "account-number");
 
         FnbIntegrationSettingsDto dto = new FnbIntegrationSettingsDto();
-        dto.setEnabled(parseBoolean(settingService.getSetting("ENABLED", FNB), settingService.getSetting("FNB-INTEGRATION-ENABLED", FNB)));
+        dto.setEnabled(parseBoolean(
+            settingService.getSetting("ENABLED", FNB),
+            settingService.getSetting("FNB-INTEGRATION-ENABLED", FNB)
+        ));
         dto.setBaseUrl(settingService.getSetting("BASE-URL", FNB));
         dto.setClientIdSecret(clientIdSecret);
         dto.setClientIdConfigured(gcpTenantSecretService.hasAccessibleSecretVersion(clientIdSecret));
         dto.setClientSecretSecret(clientSecretSecret);
         dto.setClientSecretConfigured(gcpTenantSecretService.hasAccessibleSecretVersion(clientSecretSecret));
         dto.setPopRecipient(settingService.getSetting("POP-RECIPIENT", FNB));
-        dto.setDebtorAccountNumberSecret(accountNumberSecret);
-        dto.setDebtorAccountNumberConfigured(gcpTenantSecretService.hasAccessibleSecretVersion(accountNumberSecret));
-        dto.setDebtorAccountHolder(settingService.getSetting("ACCOUNT-HOLDER", EFT));
-        dto.setDebtorBranchCode(settingService.getSetting("BRANCH-CODE", EFT));
-        dto.setDebtorAccountType(settingService.getSetting("ACCOUNT-TYPE", EFT));
-        dto.setDebtorBankName(settingService.getSetting("BANK-NAME", EFT));
+
+        // Compatibility-only response fields. The source of truth is Payment Account Configuration.
+        paymentAccountConfigurationService.activeFnbDebtor().ifPresent(account -> applyDebtorSummary(dto, account));
         return dto;
     }
 
@@ -49,29 +50,43 @@ public class FnbIntegrationAdministrationService {
 
         String clientIdSecret = tenantSecretNameService.currentTenantSecretName("fnb", "client-id");
         String clientSecretSecret = tenantSecretNameService.currentTenantSecretName("fnb", "client-secret");
-        String accountNumberSecret = tenantSecretNameService.currentTenantSecretName("fnb", "account-number");
 
         if (Boolean.TRUE.equals(request.getEnabled())) {
             requireConfigured(clientIdSecret, request.getClientId(), "FNB Client ID");
             requireConfigured(clientSecretSecret, request.getClientSecret(), "FNB Client Secret");
-            requireConfigured(accountNumberSecret, request.getDebtorAccountNumber(), "FNB debtor account number");
+            if (!paymentAccountConfigurationService.hasActiveFnbDebtor()) {
+                throw new IllegalArgumentException(
+                    "Configure and activate an FNB debtor account in Payment Account Configuration before enabling FNB integration"
+                );
+            }
         }
 
         saveSecretValue(clientIdSecret, request.getClientId());
         saveSecretValue(clientSecretSecret, request.getClientSecret());
-        saveSecretValue(accountNumberSecret, request.getDebtorAccountNumber());
 
-        upsert("ENABLED", FNB, boolString(request.getEnabled()));
+        upsert("ENABLED", FNB, booleanText(request.getEnabled()));
         upsert("BASE-URL", FNB, request.getBaseUrl());
         upsert("CLIENT-ID-SECRET", FNB, clientIdSecret);
         upsert("CLIENT-SECRET-SECRET", FNB, clientSecretSecret);
         upsert("POP-RECIPIENT", FNB, request.getPopRecipient());
-        upsert("ACCOUNT-NUMBER-SECRET", EFT, accountNumberSecret);
-        upsert("ACCOUNT-HOLDER", EFT, request.getDebtorAccountHolder());
-        upsert("BRANCH-CODE", EFT, request.getDebtorBranchCode());
-        upsert("ACCOUNT-TYPE", EFT, request.getDebtorAccountType());
-        upsert("BANK-NAME", EFT, request.getDebtorBankName());
         return getSettings();
+    }
+
+    private void applyDebtorSummary(FnbIntegrationSettingsDto dto, Map<String, Object> account) {
+        dto.setDebtorAccountNumber(mask(ObjectsText.get(account, "account_number")));
+        dto.setDebtorAccountNumberConfigured(true);
+        dto.setDebtorAccountHolder(ObjectsText.get(account, "account_holder"));
+        dto.setDebtorBranchCode(ObjectsText.get(account, "branch_code"));
+        dto.setDebtorAccountType(ObjectsText.get(account, "account_type"));
+        dto.setDebtorBankName(ObjectsText.get(account, "bank_name"));
+    }
+
+    private String mask(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= 4 ? "****" : "****" + trimmed.substring(trimmed.length() - 4);
     }
 
     private void saveSecretValue(String secretName, String value) {
@@ -92,14 +107,21 @@ public class FnbIntegrationAdministrationService {
 
     private Boolean parseBoolean(String... values) {
         for (String value : values) {
-            if (value != null && !value.isBlank()) {
+            if (StringUtils.hasText(value)) {
                 return "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value) || "1".equals(value);
             }
         }
         return false;
     }
 
-    private String boolString(Boolean value) {
+    private String booleanText(Boolean value) {
         return Boolean.TRUE.equals(value) ? "true" : "false";
+    }
+
+    private static final class ObjectsText {
+        private static String get(Map<String, Object> values, String key) {
+            Object value = values.get(key);
+            return value == null ? null : value.toString();
+        }
     }
 }

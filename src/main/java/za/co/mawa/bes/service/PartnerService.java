@@ -24,6 +24,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,6 +42,8 @@ public class PartnerService {
     PartnerRepository partnerRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
@@ -504,7 +507,7 @@ public class PartnerService {
 
             PartnerContactEntity partnerContact = new PartnerContactEntity();
             partnerContact.setPartnerContactPK(partnerContactPK);
-            partnerContact.setValue(contact.getValue());
+            partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             partnerContact.setValidFrom(new Date());
             partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerContactRepository.save(partnerContact);
@@ -551,7 +554,7 @@ public class PartnerService {
             if (partnerContact != null) {
 
                 if (contact.getValue() != null) {
-                    partnerContact.setValue(contact.getValue());
+                    partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
                     partnerContact.setValidFrom(new Date());
                     partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                     partnerContactRepository.save(partnerContact);
@@ -1001,7 +1004,7 @@ public class PartnerService {
             pk.setPartner(id);
             pk.setType(contact.getType());
             entity.setPartnerContactPK(pk);
-            entity.setValue(contact.getValue());
+            entity.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
             partnerContactRepository.save(entity);
@@ -1127,7 +1130,7 @@ public class PartnerService {
         try {
             PartnerContactEntity contactEntity = partnerContactRepository.getById(entity);
             if (editDto.getValue() != null && editDto.getValue() != "") {
-                contactEntity.setValue(editDto.getValue());
+                contactEntity.setValue(validatedContactValue(entity.getType(), editDto.getValue()));
             }
             if (editDto.getValidFrom() != null && editDto.getValidFrom() != "") {
                 contactEntity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
@@ -1313,6 +1316,14 @@ public class PartnerService {
 
         // Joining names with a single space
         return String.join(" ", names).trim();
+    }
+
+
+    private String validatedContactValue(String type, String value) {
+        if (type != null && !type.toUpperCase().contains("EMAIL")) {
+            return referenceDataValidationService.requireContactNumber(value);
+        }
+        return value == null ? null : value.trim();
     }
 
 }
