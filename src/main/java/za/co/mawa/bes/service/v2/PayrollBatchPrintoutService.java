@@ -38,7 +38,7 @@ public class PayrollBatchPrintoutService {
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PDFont regular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
             PDFont bold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-            PDPage page = new PDPage(PDRectangle.A4.rotate());
+            PDPage page = new PDPage(landscapeA4());
             document.addPage(page);
             PDPageContentStream content = new PDPageContentStream(document, page);
             float y = 560;
@@ -65,7 +65,7 @@ public class PayrollBatchPrintoutService {
             for (PayrollPaymentItemEntity item : items) {
                 if (y < 45) {
                     content.close();
-                    page = new PDPage(PDRectangle.A4.rotate());
+                    page = new PDPage(landscapeA4());
                     document.addPage(page);
                     content = new PDPageContentStream(document, page);
                     y = 560;
@@ -87,6 +87,10 @@ public class PayrollBatchPrintoutService {
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to generate payroll verification printout", exception);
         }
+    }
+
+    private PDRectangle landscapeA4() {
+        return new PDRectangle(PDRectangle.A4.getHeight(), PDRectangle.A4.getWidth());
     }
 
     private Map<String, Object> resolveDebtor(PayrollPaymentBatchEntity batch) {
