@@ -35,6 +35,14 @@ public class MembershipLapseService {
             "PAID", "CANCELLED", "WRITTEN_OFF", "REVERSED"
     );
 
+    static final String LEGACY_TRANSACTION_LAPSE_SQL = """
+            UPDATE `transaction`
+               SET status = 'INACTIVE',
+                   status_reason = 'LAPSED',
+                   changed_by = ?
+             WHERE BINARY id = BINARY ?
+            """;
+
     private final JdbcTemplate jdbc;
 
     public MembershipLapseService(JdbcTemplate jdbc) {
@@ -312,13 +320,7 @@ public class MembershipLapseService {
         if (transactionId == null) {
             return;
         }
-        jdbc.update("""
-                UPDATE `transaction`
-                   SET status = 'INACTIVE',
-                       status_reason = 'LAPSED',
-                       `changedBy` = ?
-                 WHERE BINARY id = BINARY ?
-                """, user, transactionId);
+        jdbc.update(LEGACY_TRANSACTION_LAPSE_SQL, user, transactionId);
     }
 
     private void insertLapseAudit(
