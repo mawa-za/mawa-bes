@@ -2,9 +2,12 @@ package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
+import za.co.mawa.bes.service.v2.PayrollBatchPrintoutService;
 
 import java.util.List;
 
@@ -15,6 +18,7 @@ import java.util.List;
 public class PayrollPaymentBatchControllerV2 {
 
     private final PayrollPaymentBatchService payrollPaymentBatchService;
+    private final PayrollBatchPrintoutService payrollBatchPrintoutService;
 
     @PostMapping
     public ResponseEntity<PayrollPaymentBatchResponse> createBatch(
@@ -86,6 +90,26 @@ public class PayrollPaymentBatchControllerV2 {
                 payrollPaymentBatchService.approveBatch(batchId, userId);
 
         return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/{batchId}/verification-printout")
+    public ResponseEntity<byte[]> verificationPrintout(@PathVariable String batchId) {
+        payrollPaymentBatchService.prepareVerificationPrintout(batchId);
+        PayrollPaymentBatchResponse batch = payrollPaymentBatchService.getBatch(batchId);
+        byte[] pdf = payrollBatchPrintoutService.generate(batchId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=payroll-verification-" + batch.getBatchNo() + ".pdf")
+                .body(pdf);
+    }
+
+    @PostMapping("/{batchId}/bank-report/refresh")
+    public ResponseEntity<PayrollPaymentBatchResponse> refreshBankReport(
+            @PathVariable String batchId,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(payrollPaymentBatchService.refreshBankReport(batchId, userId));
     }
 
     @PostMapping("/{batchId}/cancel")

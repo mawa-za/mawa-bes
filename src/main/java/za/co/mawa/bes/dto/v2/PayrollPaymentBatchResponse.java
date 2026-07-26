@@ -38,6 +38,17 @@ public class PayrollPaymentBatchResponse {
 
     private String notes;
 
+    private String approvalRequestId;
+    private String debtorAccountId;
+    private String bankMessageStatus;
+    private String fnbInstructionId;
+    private String bankReportStatus;
+    private String bankReportReason;
+    private String bankReportJson;
+    private LocalDateTime bankQueuedAt;
+    private LocalDateTime bankSubmittedAt;
+    private LocalDateTime bankReportRetrievedAt;
+
     private LocalDateTime createdAt;
 
     private List<PayrollPaymentItemResponse> items;

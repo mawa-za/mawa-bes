@@ -41,6 +41,7 @@ public class PaymentRequestService {
     private final MembershipClaimService membershipClaimService;
     private final PaymentAccountConfigurationService paymentAccountConfigurationService;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final UniversalBranchCodeService universalBranchCodeService;
     private final PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService;
     private final JdbcTemplate jdbcTemplate;
     private final za.co.mawa.bes.repository.AttachmentRepository attachmentRepository;
@@ -56,6 +57,7 @@ public class PaymentRequestService {
             MembershipClaimService membershipClaimService,
             PaymentAccountConfigurationService paymentAccountConfigurationService,
             ReferenceDataValidationService referenceDataValidationService,
+            UniversalBranchCodeService universalBranchCodeService,
             PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService,
             JdbcTemplate jdbcTemplate,
             za.co.mawa.bes.repository.AttachmentRepository attachmentRepository
@@ -67,6 +69,7 @@ public class PaymentRequestService {
         this.membershipClaimService = membershipClaimService;
         this.paymentAccountConfigurationService = paymentAccountConfigurationService;
         this.referenceDataValidationService = referenceDataValidationService;
+        this.universalBranchCodeService = universalBranchCodeService;
         this.paymentRequestInvoiceEmailService = paymentRequestInvoiceEmailService;
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentRepository = attachmentRepository;
@@ -112,10 +115,12 @@ public class PaymentRequestService {
         entity.setCurrency(defaultCurrency(request.getCurrency()));
         entity.setPaymentMethod(request.getPaymentMethod());
         applyConfiguredRouting(entity);
-        entity.setBankName(request.getBankName());
+        String bankName = request.getBankName() == null ? null : referenceDataValidationService.requireOption(
+                "BANK-NAME", request.getBankName(), "Bank name");
+        entity.setBankName(bankName);
         entity.setAccountHolder(request.getAccountHolder());
         entity.setAccountNumber(request.getAccountNumber());
-        entity.setBranchCode(request.getBranchCode());
+        entity.setBranchCode(bankName == null ? request.getBranchCode() : universalBranchCodeService.resolve(bankName));
         entity.setAccountType(request.getAccountType());
         entity.setInvoiceNo(request.getInvoiceNo());
         entity.setExternalReference(request.getExternalReference());
@@ -402,10 +407,12 @@ public class PaymentRequestService {
             if (request.getPayeePartnerId() != null) entity.setPayeePartnerId(request.getPayeePartnerId());
             if (request.getPayeeName() != null) entity.setPayeeName(request.getPayeeName());
             if (request.getPaymentMethod() != null) entity.setPaymentMethod(request.getPaymentMethod());
-            entity.setBankName(request.getBankName());
+            String bankName = request.getBankName() == null ? null : referenceDataValidationService.requireOption(
+                    "BANK-NAME", request.getBankName(), "Bank name");
+            entity.setBankName(bankName);
             entity.setAccountHolder(request.getAccountHolder());
             entity.setAccountNumber(request.getAccountNumber());
-            entity.setBranchCode(request.getBranchCode());
+            entity.setBranchCode(bankName == null ? entity.getBranchCode() : universalBranchCodeService.resolve(bankName));
             entity.setAccountType(request.getAccountType());
         }
         if (request.getAmount() != null) entity.setAmount(request.getAmount());
@@ -782,9 +789,7 @@ public class PaymentRequestService {
         if (accountNumber == null || !accountNumber.trim().matches("\\d{5,20}")) {
             throw new IllegalArgumentException("Account number must contain 5 to 20 numeric digits.");
         }
-        if (branchCode == null || !branchCode.trim().matches("\\d{6}")) {
-            throw new IllegalArgumentException("Branch code must contain exactly 6 numeric digits.");
-        }
+        universalBranchCodeService.resolve(bankName);
         referenceDataValidationService.requireOption("BANK-ACCOUNT-TYPE", accountType, "Bank account type");
     }
 

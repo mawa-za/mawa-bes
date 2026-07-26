@@ -17,11 +17,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentAccountConfigurationService {
     private static final Set<String> ACCOUNT_ROLES = Set.of(
-        "DEBTOR", "PETTY_CASH_CREDITOR", "CASH_CLAIM_CREDITOR"
+        "DEBTOR", "PETTY_CASH_CREDITOR", "CASH_CLAIM_CREDITOR", "PAYROLL_DEBTOR"
     );
 
     private final JdbcTemplate jdbc;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final UniversalBranchCodeService universalBranchCodeService;
 
     public List<Map<String, Object>> list() {
         return jdbc.queryForList("""
@@ -55,6 +56,9 @@ public class PaymentAccountConfigurationService {
         String bankName = referenceDataValidationService.requireOption(
             "BANK-NAME", required(request, "bankName"), "Bank name"
         );
+        if ("PAYROLL_DEBTOR".equals(role) && !"FNB".equalsIgnoreCase(bankName)) {
+            throw new IllegalArgumentException("Payroll debtor account must be an FNB account");
+        }
         String accountType = referenceDataValidationService.requireOption(
             "BANK-ACCOUNT-TYPE", required(request, "accountType"), "Bank account type"
         );
@@ -63,14 +67,14 @@ public class PaymentAccountConfigurationService {
         if (!accountNumber.matches("\\d{5,20}")) {
             throw new IllegalArgumentException("Bank account number must contain 5 to 20 numeric digits");
         }
-        String branchCode = required(request, "branchCode");
-        if (!branchCode.matches("\\d{6}")) {
-            throw new IllegalArgumentException("Branch code must contain exactly 6 numeric digits");
-        }
+        String branchCode = universalBranchCodeService.resolve(bankName);
 
         String bankIntegration = text(request.get("bankIntegration"));
         if (bankIntegration != null) {
             bankIntegration = bankIntegration.toUpperCase();
+        }
+        if ("PAYROLL_DEBTOR".equals(role)) {
+            bankIntegration = "FNB";
         }
         boolean active = booleanValue(request.get("active"), true);
 
@@ -146,6 +150,18 @@ public class PaymentAccountConfigurationService {
              ORDER BY updated_at DESC
              LIMIT 1
             """).stream().findFirst();
+    }
+
+
+    public Optional<Map<String, Object>> activePayrollDebtor() {
+        return first("""
+            SELECT *
+              FROM payment_bank_account
+             WHERE account_role = 'PAYROLL_DEBTOR'
+               AND active = 1
+             ORDER BY updated_at DESC
+             LIMIT 1
+            """);
     }
 
     public boolean hasActiveFnbDebtor() {
