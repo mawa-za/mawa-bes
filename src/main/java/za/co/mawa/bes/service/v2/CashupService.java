@@ -67,6 +67,7 @@ public class CashupService {
     private final AttachmentService attachmentService;
     private final NumberAllocationService numberAllocationService;
     private final ApprovalService approvalService;
+    private final ReferenceDataValidationService referenceDataValidationService;
     private final Gson gson;
 
     /**
@@ -369,7 +370,8 @@ public class CashupService {
         deposit.setDepositDate(parseDate(request.getDepositDate()));
         deposit.setAmountCents(defaultLong(request.getAmountCents()));
         deposit.setPaymentMethod(clean(request.getPaymentMethod()));
-        deposit.setBankName(clean(request.getBankName()));
+        deposit.setBankName(referenceDataValidationService.optionalOption(
+                "BANK-NAME", request.getBankName(), "Bank name"));
         deposit.setReferenceNo(clean(request.getReferenceNo()));
         deposit.setNotes(clean(request.getNotes()));
         deposit.setCreatedBy(clean(request.getCreatedBy()));

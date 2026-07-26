@@ -31,6 +31,7 @@ public class GroupSocietyService {
     private final GroupSocietyMemberRepository memberRepository;
     private final GroupSocietyAccountTxnRepository accountTxnRepository;
     private final PartnerRepository partnerRepository;
+    private final ReferenceDataValidationService referenceDataValidationService;
 
     /*
      * Inject your existing PartnerRepository here if available.
@@ -53,13 +54,15 @@ public class GroupSocietyService {
             GroupSocietyContactRepository contactRepository,
             GroupSocietyMemberRepository memberRepository,
             GroupSocietyAccountTxnRepository accountTxnRepository,
-            PartnerRepository partnerRepository
+            PartnerRepository partnerRepository,
+            ReferenceDataValidationService referenceDataValidationService
     ) {
         this.groupSocietyRepository = groupSocietyRepository;
         this.contactRepository = contactRepository;
         this.memberRepository = memberRepository;
         this.accountTxnRepository = accountTxnRepository;
         this.partnerRepository = partnerRepository;
+        this.referenceDataValidationService = referenceDataValidationService;
     }
 
     public List<GroupSocietyMasterDataDto> getMasterData(String status) {
@@ -243,7 +246,7 @@ public class GroupSocietyService {
         entity.setGroupSocietyId(groupSocietyId);
         entity.setContactName(request.getContactName());
         entity.setRole(request.getRole());
-        entity.setMobileNo(request.getMobileNo());
+        entity.setMobileNo(referenceDataValidationService.optionalContactNumber(request.getMobileNo()));
         entity.setEmail(request.getEmail());
         entity.setPrimaryContact(Boolean.TRUE.equals(request.getPrimaryContact()));
 

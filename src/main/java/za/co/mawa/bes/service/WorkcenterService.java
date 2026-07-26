@@ -80,6 +80,7 @@ public class WorkcenterService implements WorkcenterDao {
 //        workcenterDtoList.add(new WorkcenterDto("time-tracker","Time Tracker","search"));
 //        workcenterDtoList.add(new WorkcenterDto("company-info","Company Information",""));
         workcenterDtoList.add(new WorkcenterDto("system-configuration","System Configuration",""));
+        workcenterDtoList.add(new WorkcenterDto("company-forms","Company Forms","search"));
 //        workcenterDtoList.add(new WorkcenterDto("report","Reports",""));
         workcenterDtoList.add(new WorkcenterDto("api-log","API Logs","search"));
 //        workcenterDtoList.add(new WorkcenterDto("receipt","Receipts","search"));

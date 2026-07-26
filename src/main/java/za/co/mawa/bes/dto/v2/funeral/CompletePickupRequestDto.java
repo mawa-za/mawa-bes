@@ -9,4 +9,7 @@ import java.time.LocalDateTime;
 @Setter
 public class CompletePickupRequestDto {
     private LocalDateTime completionTime;
+    private String warehouseId;
+    private String storageLocationId;
+    private String storageBinId;
 }

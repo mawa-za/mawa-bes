@@ -25,6 +25,7 @@ import za.co.mawa.bes.repository.v2.tombstone.*;
 import za.co.mawa.bes.service.InvoiceService;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -81,6 +82,7 @@ public class TombstoneManagementService {
     private final InvoiceService invoiceService;
     private final PaymentRequestService paymentRequestService;
     private final NumberAllocationService numberAllocationService;
+    private final ReferenceDataValidationService referenceDataValidationService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -652,21 +654,15 @@ public class TombstoneManagementService {
             return existingResponse;
         }
         long amount = positive(request.getAmountCents(), "amountCents");
-        PaymentMethod method = PaymentMethod.valueOf(normalizeRequired(request.getPaymentMethod(), "paymentMethod"));
         PaymentRequestCreateRequest payment = new PaymentRequestCreateRequest();
         payment.setRequestType(PaymentRequestType.SUPPLIER_INVOICE);
         payment.setSourceType(PaymentRequestSourceType.TOMBSTONE_ORDER);
         payment.setSourceId(job.getTombstoneOrderId());
         payment.setPayeePartnerId(job.getSupplierPartnerId());
-        payment.setPayeeName(firstNonBlank(request.getPayeeName(), "Tombstone supplier"));
+        payment.setPayeeName("Tombstone supplier");
         payment.setAmount(BigDecimal.valueOf(amount, 2));
         payment.setCurrency("ZAR");
-        payment.setPaymentMethod(method);
-        payment.setBankName(request.getBankName());
-        payment.setAccountHolder(request.getAccountHolder());
-        payment.setAccountNumber(request.getAccountNumber());
-        payment.setBranchCode(request.getBranchCode());
-        payment.setAccountType(request.getAccountType());
+        payment.setPaymentMethod(PaymentMethod.EFT);
         payment.setExternalReference(externalReference);
         payment.setPaymentReason(milestone);
         payment.setIdempotencyKey(idempotencyKey);
@@ -706,7 +702,7 @@ public class TombstoneManagementService {
                 .graveNumber(firstNonBlank(request.getGraveNumber(), order.getGraveNumber()))
                 .assignedVehicleId(trimToNull(request.getAssignedVehicleId()))
                 .contactPerson(trimToNull(request.getContactPerson()))
-                .contactNumber(trimToNull(request.getContactNumber()))
+                .contactNumber(referenceDataValidationService.optionalContactNumber(request.getContactNumber()))
                 .permitReference(firstNonBlank(request.getPermitReference(), assessment.getPermitReference()))
                 .instructions(trimToNull(request.getInstructions()))
                 .createdBy(systemActor(actor)).updatedBy(systemActor(actor)).build();

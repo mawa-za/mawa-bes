@@ -28,6 +28,7 @@ public class SupplierBankingDetailsApprovalHandler implements ApprovalCompletion
                     approvalRequest.getPayloadJson(),
                     PartnerBankAccountDto.class
             );
+            details.setStatus("ACTIVE");
             if (details.getId() == null || details.getId().isBlank()) {
                 String bankAccountId = partnerBankAccountService.addBankAccount(details);
                 approvalRequest.setReferenceId(bankAccountId);
@@ -42,7 +43,7 @@ public class SupplierBankingDetailsApprovalHandler implements ApprovalCompletion
                 edit.setBranchName(details.getBranchName());
                 edit.setValidFrom(details.getValidFrom());
                 edit.setValidTo(details.getValidTo());
-                edit.setStatus(details.getStatus());
+                edit.setStatus("ACTIVE");
                 partnerBankAccountService.editBankAccount(edit, details.getId());
                 approvalRequest.setReferenceId(details.getId());
             }
