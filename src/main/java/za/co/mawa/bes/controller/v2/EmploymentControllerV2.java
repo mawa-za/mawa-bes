@@ -8,7 +8,11 @@ import za.co.mawa.bes.dto.EmploymentDto;
 import za.co.mawa.bes.dto.EmploymentEditDto;
 import za.co.mawa.bes.dto.EmploymentSearchDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.partner.PartnerBankAccountDto;
+import za.co.mawa.bes.dto.PartnerBankAccountGetDto;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.service.v2.EmploymentV2Service;
+import za.co.mawa.bes.service.v2.EmployeeBankingDetailsService;
 import za.co.mawa.bes.utils.Conversion;
 
 import java.util.List;
@@ -20,9 +24,13 @@ import java.util.NoSuchElementException;
 @RequestMapping("/v2/employment")
 public class EmploymentControllerV2 {
     private final EmploymentV2Service employmentService;
+    private final EmployeeBankingDetailsService employeeBankingDetailsService;
 
-    public EmploymentControllerV2(EmploymentV2Service employmentService) {
+    public EmploymentControllerV2(
+            EmploymentV2Service employmentService,
+            EmployeeBankingDetailsService employeeBankingDetailsService) {
         this.employmentService = employmentService;
+        this.employeeBankingDetailsService = employeeBankingDetailsService;
     }
 
     @PostMapping
@@ -93,6 +101,20 @@ public class EmploymentControllerV2 {
     @GetMapping("/employees")
     public ResponseEntity<List<PartnerDto>> employees() throws Exception {
         return ResponseEntity.ok(employmentService.employees());
+    }
+
+
+    @GetMapping("/{id}/bank-details")
+    public ResponseEntity<PartnerBankAccountGetDto> bankDetails(@PathVariable String id) {
+        return ResponseEntity.ok(employeeBankingDetailsService.get(id));
+    }
+
+    @PostMapping("/{id}/bank-details/submit-for-approval")
+    public ResponseEntity<ApprovalRequestResponse> submitBankDetails(
+            @PathVariable String id,
+            @RequestBody PartnerBankAccountDto request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(employeeBankingDetailsService.submit(id, request, userId));
     }
 
     @ExceptionHandler(NoSuchElementException.class)

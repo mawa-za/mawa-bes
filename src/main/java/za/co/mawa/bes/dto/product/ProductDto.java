@@ -7,6 +7,8 @@ import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.dto.PricingDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeDto;
 import za.co.mawa.bes.dto.product.category.ProductCategoryDto;
+import za.co.mawa.bes.dto.product.classification.ProductCategoryDefinitionDto;
+import za.co.mawa.bes.dto.product.classification.ProductTypeDefinitionDto;
 import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.entity.ProductEntity;
 
@@ -23,6 +25,9 @@ public class ProductDto {
     private String description;
     private FieldOptionDto type;
     private FieldOptionDto category;
+    private ProductCategoryDefinitionDto primaryCategory;
+    private ProductTypeDefinitionDto typeBehaviour;
+    private Boolean availableForSale;
     private FieldOptionDto baseUnitOfMeasure;
     private Date validTo;
     private Date validFrom;

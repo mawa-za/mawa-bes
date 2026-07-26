@@ -34,6 +34,7 @@ public class ProductMapper {
                 .description(request.getDescription())
                 .type(request.getType())
                 .uom(request.getUom())
+                .availableForSale(true)
                 .validFrom(request.getValidFrom())
                 .validTo(request.getValidTo())
                 .build();
