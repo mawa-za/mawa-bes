@@ -35,9 +35,9 @@ public class TransactionPartnerEntity implements Serializable {
     private String status;
     @Column(name = "status_reason")
     private String statusReason;
-    @Column(name = "createdBy")
+    @Column(name = "created_by")
     private String createdBy;
-    @Column(name = "changedBy")
+    @Column(name = "changed_by")
     private String changedBy;
 
 }
