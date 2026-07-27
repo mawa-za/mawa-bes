@@ -62,6 +62,18 @@ public class FieldOptionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
+    @RequestMapping(value = "/field/{field}/option", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateFieldOption(
+            @PathVariable String field,
+            @RequestParam("fieldOption") String fieldOption,
+            @RequestBody FieldOptionDto request) {
+        try {
+            return ResponseEntity.ok(gson.toJson(fieldOptionService.update(field, fieldOption, request)));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
     @RequestMapping(value = "/field/{field}/option", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteFieldOption(@PathVariable String field, @RequestParam("fieldOption") String fieldOption) {
         try {
