@@ -54,24 +54,36 @@ public class FieldOptionControllerV2 {
             fieldOptionService.create(fieldOptionDto);
             return ResponseEntity.ok().build();
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
     }
     @RequestMapping(value = "/field", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<FieldDto> addField(@RequestBody FieldCreateDto fieldDto) {
+    public ResponseEntity<?> addField(@RequestBody FieldCreateDto fieldDto) {
         try {
             return ResponseEntity.ok().body(fieldOptionService.createField(fieldDto));
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
     }
+    @RequestMapping(value = "/field/{field}/option", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateFieldOption(
+            @PathVariable String field,
+            @RequestParam("fieldOption") String fieldOption,
+            @RequestBody FieldOptionDto request) {
+        try {
+            return ResponseEntity.ok(fieldOptionService.update(field, fieldOption, request));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
     @RequestMapping(value = "/field/{field}/option", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteFieldOption(@PathVariable String field, @RequestParam("fieldOption") String fieldOption) {
         try {
             fieldOptionService.deleteFieldOption(field,fieldOption);
             return ResponseEntity.ok().build();
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
     }
 }
