@@ -13,9 +13,8 @@ public class ManualPremiumReceiptCaptureRequest {
     private LocalDate originalReceiptDate;
     private String receiptBookNo;
     private String manualReceiptNo;
-    private String originalCollector;
-    private String location;
-    private String workcentreId;
+    private String originalCollectorEmployeeId;
+    private String locationAreaCode;
     private String captureMode; // LEGACY_CATCH_UP or MANUAL_EMERGENCY
     private String lateCaptureReason;
     private String proofAttachmentId;
