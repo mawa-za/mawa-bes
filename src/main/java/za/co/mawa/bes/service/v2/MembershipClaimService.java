@@ -115,7 +115,7 @@ public class MembershipClaimService {
         entity.setBurialDate(request.getBurialDate());
         entity.setCauseOfDeath(causeOfDeath);
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
-        entity.setClaimantPartnerId(request.getClaimantPartnerId());
+        entity.setClaimantPartnerId(membership.getMemberId());
         entity.setClaimAmountCents(resolvePlanBenefitAmount(
                 membership,
                 request.getMembershipId(),
@@ -284,7 +284,7 @@ public class MembershipClaimService {
         entity.setCauseOfDeath(referenceDataValidationService.optionalOption(
                 "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death"));
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
-        entity.setClaimantPartnerId(request.getClaimantPartnerId());
+        entity.setClaimantPartnerId(membership.getMemberId());
         entity.setNotes(request.getNotes());
         entity.setUpdatedBy(userId);
 

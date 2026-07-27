@@ -3,6 +3,7 @@ package za.co.mawa.bes.dto.v2;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import za.co.mawa.bes.enums.DependentType;
+import za.co.mawa.bes.enums.MembershipDependentStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,11 @@ public class MembershipDependentResponseDto {
     private String dependentPartnerId;
     private DependentType dependentType;
     private Boolean active;
+    private MembershipDependentStatus status;
+    private LocalDate effectiveFrom;
+    private LocalDate effectiveTo;
+    private LocalDate deceasedDate;
+    private String statusReason;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;

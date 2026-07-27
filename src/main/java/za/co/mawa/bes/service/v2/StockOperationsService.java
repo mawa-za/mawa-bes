@@ -47,7 +47,7 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getStorageLocations(String warehouseId, String status) {
-        StringBuilder sql = new StringBuilder("SELECT l.*, w.warehouse_code FROM storage_location l LEFT JOIN warehouse w ON w.id = l.warehouse_id WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT l.*, w.warehouse_code, t.name AS location_type_name, t.purpose AS location_type_purpose, t.available_for_sale, t.available_for_issue, t.allow_putaway, t.allow_picking, t.allow_reservation, t.allow_negative_stock, t.requires_batch, t.requires_expiry_date, t.requires_serial_number, t.requires_quality_release, t.restricted_access, t.temporary_location, t.system_managed FROM storage_location l LEFT JOIN warehouse w ON w.id = l.warehouse_id LEFT JOIN storage_location_type t ON t.code = l.location_type WHERE 1=1");
         List<Object> args = new ArrayList<>();
         if (hasText(warehouseId)) { sql.append(" AND l.warehouse_id = ?"); args.add(warehouseId); }
         if (hasText(status)) { sql.append(" AND l.status = ?"); args.add(status.trim().toUpperCase()); }
@@ -58,19 +58,21 @@ public class StockOperationsService {
     @Transactional
     public Map<String, Object> createStorageLocation(StockDtos.StorageLocationRequest request, String userId) {
         String id = uuid();
+        String warehouseId = required(request.getWarehouseId(), "warehouseId");
+        String locationType = requireLocationType(defaultText(request.getLocationType(), "GENERAL_STORAGE"));
         jdbcTemplate.update("INSERT INTO storage_location (id, warehouse_id, location_code, name, location_type, status, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                id, required(request.getWarehouseId(), "warehouseId"), required(request.getLocationCode(), "locationCode").trim().toUpperCase(), required(request.getName(), "name"), defaultText(request.getLocationType(), "BIN"), defaultStatus(request.getStatus()), nowTs(), userId, nowTs(), userId);
+                id, warehouseId, required(request.getLocationCode(), "locationCode").trim().toUpperCase(), required(request.getName(), "name"), locationType, defaultStatus(request.getStatus()), nowTs(), userId, nowTs(), userId);
         audit("STORAGE_LOCATION", id, "CREATE", null, null, userId, request.getLocationCode());
         return jdbcTemplate.queryForMap("SELECT * FROM storage_location WHERE id = ?", id);
     }
 
     public List<Map<String, Object>> getStock(String warehouseId, String storageLocationId, String productId, Boolean availableOnly) {
-        StringBuilder sql = new StringBuilder("SELECT b.*, p.code AS product_code, p.description AS product_description, w.warehouse_code, w.name AS warehouse_name, l.location_code, l.name AS location_name FROM stock_balance b LEFT JOIN product p ON p.id = b.product_id LEFT JOIN warehouse w ON w.id = b.warehouse_id LEFT JOIN storage_location l ON l.id = b.storage_location_id WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT b.*, p.code AS product_code, p.description AS product_description, w.warehouse_code, w.name AS warehouse_name, l.location_code, l.name AS location_name, l.location_type, t.name AS location_type_name, t.available_for_sale, t.available_for_issue, t.allow_picking, t.allow_reservation FROM stock_balance b LEFT JOIN product p ON p.id = b.product_id LEFT JOIN warehouse w ON w.id = b.warehouse_id LEFT JOIN storage_location l ON l.id = b.storage_location_id LEFT JOIN storage_location_type t ON t.code = l.location_type WHERE 1=1");
         List<Object> args = new ArrayList<>();
         if (hasText(warehouseId)) { sql.append(" AND b.warehouse_id = ?"); args.add(warehouseId); }
         if (hasText(storageLocationId)) { sql.append(" AND b.storage_location_id = ?"); args.add(storageLocationId); }
         if (hasText(productId)) { sql.append(" AND b.product_id = ?"); args.add(productId); }
-        if (Boolean.TRUE.equals(availableOnly)) { sql.append(" AND b.available_qty > 0"); }
+        if (Boolean.TRUE.equals(availableOnly)) { sql.append(" AND b.available_qty > 0 AND COALESCE(t.available_for_issue,0)=1"); }
         sql.append(" ORDER BY p.code, w.warehouse_code, l.location_code");
         return jdbcTemplate.queryForList(sql.toString(), args.toArray());
     }
@@ -263,6 +265,7 @@ public class StockOperationsService {
         String receiptNo = nextNumber("GOODS_RECEIPT", "GRN");
         String warehouseId = required(request.getWarehouseId(), "warehouseId");
         String locationId = required(request.getStorageLocationId(), "storageLocationId");
+        LocationProfile receiptLocation = requireActiveLocation(warehouseId, locationId);
         LocalDate receiptDate = request.getReceiptDate() == null ? LocalDate.now() : request.getReceiptDate();
         AmountTotals totals = goodsReceiptTotals(request.getLines());
 
@@ -274,6 +277,12 @@ public class StockOperationsService {
             BigDecimal qty = positive(line.getQuantity(), "quantity");
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
             ProductProfile product = requireReceivable(productId);
+            if (receiptLocation.requiresBatch() && !hasText(line.getBatchNo())) {
+                throw new IllegalArgumentException("Batch number is required for storage location " + receiptLocation.code());
+            }
+            if (receiptLocation.requiresExpiryDate() && line.getExpiryDate() == null) {
+                throw new IllegalArgumentException("Expiry date is required for storage location " + receiptLocation.code());
+            }
             String lineId = uuid();
             BigDecimal unitCost = money(line.getUnitCost());
             BigDecimal taxRate = percent(line.getTaxRate());
@@ -320,6 +329,11 @@ public class StockOperationsService {
         String warehouseId = required(request.getWarehouseId(), "warehouseId");
         String fromLocationId = required(request.getFromLocationId(), "fromLocationId");
         String toLocationId = required(request.getToLocationId(), "toLocationId");
+        requireActiveLocation(warehouseId, fromLocationId);
+        LocationProfile destination = requireActiveLocation(warehouseId, toLocationId);
+        if (!destination.allowPutaway()) {
+            throw new IllegalArgumentException("Storage location " + destination.code() + " does not allow putaway");
+        }
         LocalDate movementDate = request.getMovementDate() == null ? LocalDate.now() : request.getMovementDate();
         jdbcTemplate.update("INSERT INTO putaway (id, putaway_no, goods_receipt_id, warehouse_id, from_location_id, to_location_id, movement_date, status, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 putawayId, putawayNo, request.getGoodsReceiptId(), warehouseId, fromLocationId, toLocationId, Date.valueOf(movementDate), "COMPLETED", request.getNotes(), nowTs(), userId, nowTs(), userId);
@@ -433,6 +447,12 @@ public class StockOperationsService {
         if (hasStockControlledLine && !hasText(warehouseId)) {
             throw new IllegalArgumentException("warehouseId is required to issue stock-controlled products");
         }
+        if (hasStockControlledLine && hasText(request == null ? null : request.getStorageLocationId())) {
+            LocationProfile issueLocation = requireActiveLocation(warehouseId, request.getStorageLocationId());
+            if (!issueLocation.allowPicking() || !issueLocation.availableForIssue()) {
+                throw new IllegalArgumentException("Storage location " + issueLocation.code() + " does not allow stock picking or issue");
+            }
+        }
         String issueNo = nextNumber("STOCK_ISSUE", "ISS");
         for (Map<String, Object> line : lines) {
             BigDecimal quantity = decimal(line.get("quantity"));
@@ -504,10 +524,10 @@ public class StockOperationsService {
     }
 
     private BigDecimal reserveStock(String productId, String warehouseId, BigDecimal quantity, String userId) {
-        StringBuilder sql = new StringBuilder("SELECT id, available_qty FROM stock_balance WHERE product_id = ? AND available_qty > 0");
+        StringBuilder sql = new StringBuilder("SELECT b.id, b.available_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_reservation=1 AND t.available_for_sale=1 WHERE b.product_id = ? AND b.available_qty > 0");
         List<Object> args = new ArrayList<>();
         args.add(productId);
-        if (hasText(warehouseId)) { sql.append(" AND warehouse_id = ?"); args.add(warehouseId); }
+        if (hasText(warehouseId)) { sql.append(" AND b.warehouse_id = ?"); args.add(warehouseId); }
         sql.append(" ORDER BY available_qty DESC");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         BigDecimal remaining = quantity;
@@ -524,11 +544,11 @@ public class StockOperationsService {
     }
 
     private void issueStock(String productId, String warehouseId, String storageLocationId, BigDecimal quantity, String userId) {
-        StringBuilder sql = new StringBuilder("SELECT id, on_hand_qty, reserved_qty, available_qty FROM stock_balance WHERE product_id = ? AND warehouse_id = ? AND on_hand_qty > 0");
+        StringBuilder sql = new StringBuilder("SELECT b.id, b.on_hand_qty, b.reserved_qty, b.available_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_picking=1 AND t.available_for_issue=1 WHERE b.product_id = ? AND b.warehouse_id = ? AND b.on_hand_qty > 0");
         List<Object> args = new ArrayList<>();
         args.add(productId);
         args.add(warehouseId);
-        if (hasText(storageLocationId)) { sql.append(" AND storage_location_id = ?"); args.add(storageLocationId); }
+        if (hasText(storageLocationId)) { sql.append(" AND b.storage_location_id = ?"); args.add(storageLocationId); }
         sql.append(" ORDER BY reserved_qty DESC, available_qty DESC");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         BigDecimal remaining = quantity;
@@ -612,8 +632,9 @@ public class StockOperationsService {
     }
 
     private BigDecimal availableStock(String productId, String warehouseId) {
-        if (hasText(warehouseId)) return queryBigDecimal("SELECT COALESCE(SUM(available_qty),0) FROM stock_balance WHERE product_id = ? AND warehouse_id = ?", productId, warehouseId);
-        return queryBigDecimal("SELECT COALESCE(SUM(available_qty),0) FROM stock_balance WHERE product_id = ?", productId);
+        String base = " FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.available_for_sale=1 AND t.allow_reservation=1 WHERE b.product_id = ?";
+        if (hasText(warehouseId)) return queryBigDecimal("SELECT COALESCE(SUM(b.available_qty),0)" + base + " AND b.warehouse_id = ?", productId, warehouseId);
+        return queryBigDecimal("SELECT COALESCE(SUM(b.available_qty),0)" + base, productId);
     }
 
     private void audit(String entityType, String entityId, String action, String oldValue, String newValue, String userId, String notes) {
@@ -674,6 +695,55 @@ public class StockOperationsService {
             totals.total = totals.total.add(subtotal).add(tax);
         }
         return totals;
+    }
+
+    private String requireLocationType(String value) {
+        String code = required(value, "locationType").trim().toUpperCase(Locale.ROOT);
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM storage_location_type WHERE code=? AND active=1", Integer.class, code);
+        if (count == null || count == 0) {
+            throw new IllegalArgumentException("Unknown or inactive storage location type: " + code);
+        }
+        return code;
+    }
+
+    private LocationProfile requireActiveLocation(String warehouseId, String locationId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT l.id, l.location_code, l.location_type,
+                       t.allow_putaway, t.allow_picking, t.allow_reservation,
+                       t.available_for_sale, t.available_for_issue,
+                       t.requires_batch, t.requires_expiry_date, t.requires_serial_number,
+                       t.requires_quality_release, t.restricted_access, t.temporary_location
+                  FROM storage_location l
+                  JOIN warehouse w ON w.id=l.warehouse_id AND UPPER(COALESCE(w.status,'ACTIVE'))='ACTIVE'
+                  JOIN storage_location_type t ON t.code=l.location_type AND t.active=1
+                 WHERE l.id=? AND l.warehouse_id=? AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE'
+                """, locationId, warehouseId);
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Storage location is not active or does not belong to the selected warehouse");
+        }
+        Map<String, Object> row = rows.get(0);
+        return new LocationProfile(
+                text(row.get("id")), text(row.get("location_code")), text(row.get("location_type")),
+                truth(row.get("allow_putaway")), truth(row.get("allow_picking")), truth(row.get("allow_reservation")),
+                truth(row.get("available_for_sale")), truth(row.get("available_for_issue")),
+                truth(row.get("requires_batch")), truth(row.get("requires_expiry_date")),
+                truth(row.get("requires_serial_number")), truth(row.get("requires_quality_release")),
+                truth(row.get("restricted_access")), truth(row.get("temporary_location")));
+    }
+
+    private boolean truth(Object value) {
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        return value instanceof byte[] bytes && bytes.length > 0 && bytes[0] != 0;
+    }
+
+    private record LocationProfile(
+            String id, String code, String type,
+            boolean allowPutaway, boolean allowPicking, boolean allowReservation,
+            boolean availableForSale, boolean availableForIssue,
+            boolean requiresBatch, boolean requiresExpiryDate, boolean requiresSerialNumber,
+            boolean requiresQualityRelease, boolean restrictedAccess, boolean temporaryLocation) {
     }
 
     private record ProductProfile(String id, String code, ProductTypeCode type, boolean availableForSale) {

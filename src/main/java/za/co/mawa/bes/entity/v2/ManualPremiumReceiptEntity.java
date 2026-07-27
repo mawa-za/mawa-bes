@@ -22,8 +22,10 @@ public class ManualPremiumReceiptEntity {
     @Column(name = "amount_cents", nullable = false) private Long amountCents;
     @Column(name = "payment_method", nullable = false, length = 50) private String paymentMethod;
     @Column(name = "original_collector", length = 255) private String originalCollector;
+    @Column(name = "original_collector_employee_id", length = 255) private String originalCollectorEmployeeId;
     @Column(name = "location", length = 255) private String location;
-    @Column(name = "workcentre_id", length = 255) private String workcentreId;
+    @Column(name = "location_name", length = 255) private String locationName;
+    @Column(name = "workcentre_id", length = 255) private String workcentreId; // legacy, no longer captured
     @Column(name = "late_capture_reason", columnDefinition = "TEXT") private String lateCaptureReason;
     @Column(name = "proof_attachment_id", length = 255) private String proofAttachmentId;
     @Column(name = "captured_at", nullable = false) private LocalDateTime capturedAt;
