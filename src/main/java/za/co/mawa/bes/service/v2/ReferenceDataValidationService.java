@@ -35,6 +35,21 @@ public class ReferenceDataValidationService {
         return StringUtils.hasText(value) ? requireOption(field, value, label) : null;
     }
 
+    public String description(String field, String code) {
+        if (!StringUtils.hasText(field) || !StringUtils.hasText(code)) return null;
+        var descriptions = jdbcTemplate.queryForList("""
+            SELECT description
+              FROM field_option
+             WHERE field = ?
+               AND UPPER(code) = UPPER(?)
+               AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
+               AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
+             ORDER BY type DESC
+             LIMIT 1
+            """, String.class, field.trim(), code.trim());
+        return descriptions.isEmpty() ? null : descriptions.get(0);
+    }
+
     public String requireContactNumber(String value) {
         if (!StringUtils.hasText(value) || !value.trim().matches("\\d{10}")) {
             throw new IllegalArgumentException("Contact number must contain exactly 10 numeric digits");

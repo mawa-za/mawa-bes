@@ -20,9 +20,7 @@ import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 import za.co.mawa.bes.repository.PartnerRepository;
-import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
@@ -62,12 +60,11 @@ public class CashupService {
     private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
     private final UserRepository userRepository;
     private final PartnerRepository partnerRepository;
-    private final PartnerService partnerService;
-    private final FieldOptionRepository fieldOptionRepository;
     private final AttachmentService attachmentService;
     private final NumberAllocationService numberAllocationService;
     private final ApprovalService approvalService;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final ManualReceiptBookService manualReceiptBookService;
     private final Gson gson;
 
     /**
@@ -249,7 +246,11 @@ public class CashupService {
     public CashupSummaryResponse createManualCashup(ManualCashupCreateRequest request) {
         validateManualCashupRequest(request);
 
-        String receiptBookNo = request.getReceiptBookNo().trim();
+        var receiptBook = manualReceiptBookService.requireActiveBookForRange(
+                request.getReceiptBookNo(), request.getReceiptFromNo(), request.getReceiptToNo());
+        var bookUsage = manualReceiptBookService.validateBookUsage(
+                receiptBook, request.getEmployeeResponsibleId(), request.getAreaCode());
+        String receiptBookNo = receiptBook.getReceiptBookNo();
         BigInteger fromNo = parseManualReceiptNumber(request.getReceiptFromNo(), "receiptFromNo");
         BigInteger toNo = parseManualReceiptNumber(request.getReceiptToNo(), "receiptToNo");
         if (fromNo.compareTo(toNo) > 0) {
@@ -302,26 +303,10 @@ public class CashupService {
         cashup.setManualAmountCents(totalCents);
         cashup.setReceiptTotalCents(receiptTotalCents);
         cashup.setVarianceCents(totalCents - receiptTotalCents);
-        PartnerEntity responsibleEmployee = partnerRepository.findById(request.getEmployeeResponsibleId().trim())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Employee responsible was not found: " + request.getEmployeeResponsibleId()));
-        if (!partnerService.getRoles(responsibleEmployee.getId()).contains("EMPLOYEE")) {
-            throw new IllegalArgumentException("The responsible partner is not an employee");
-        }
-        cashup.setEmployeeResponsibleId(responsibleEmployee.getId());
-        cashup.setEmployeeResponsibleName(partnerDisplayName(responsibleEmployee));
-        String requestedAreaCode = request.getAreaCode().trim();
-        String resolvedAreaName = fieldOptionRepository.findFieldOptions("SALES-AREA").stream()
-                .filter(option -> option.getFieldOptionPKEntity() != null
-                        && "SALES-AREA".equalsIgnoreCase(option.getFieldOptionPKEntity().getField())
-                        && requestedAreaCode.equalsIgnoreCase(option.getFieldOptionPKEntity().getCode()))
-                .map(option -> clean(option.getDescription()))
-                .filter(java.util.Objects::nonNull)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Cashup area was not found in SALES-AREA configuration: " + requestedAreaCode));
-        cashup.setAreaCode(requestedAreaCode);
-        cashup.setAreaName(resolvedAreaName);
+        cashup.setEmployeeResponsibleId(bookUsage.employee().id());
+        cashup.setEmployeeResponsibleName(bookUsage.employee().name());
+        cashup.setAreaCode(bookUsage.area().code());
+        cashup.setAreaName(bookUsage.area().name());
         cashup.setNotes(clean(request.getNotes()));
         cashup.setCreatedBy(request.getUserId().trim());
         cashup.setUpdatedBy(request.getUserId().trim());

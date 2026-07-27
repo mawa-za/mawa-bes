@@ -45,6 +45,12 @@ public class FuneralPickupRequestEntity {
     @Column(name = "assigned_staff_id")
     private String assignedStaffId;
 
+    @Column(name = "arrival_time")
+    private LocalDateTime arrivalTime;
+
+    @Column(name = "injury_assessed_at")
+    private LocalDateTime injuryAssessedAt;
+
     @Column(name = "completion_time")
     private LocalDateTime completionTime;
 

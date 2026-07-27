@@ -81,11 +81,6 @@ public class FuneralManagementService {
         String contactNumber = referenceDataValidationService.requireContactNumber(request.getContactNumber());
         String pickupLocationCode = referenceDataValidationService.requireOption(
                 "SALES-AREA", request.getPickupLocationCode(), "Pickup location");
-        boolean injured = Boolean.TRUE.equals(request.getCorpseInjured());
-        if (injured && !StringUtils.hasText(request.getInjuryDetails())) {
-            throw new IllegalArgumentException("Injury details are required when the corpse is marked as injured");
-        }
-
         FuneralPickupRequestEntity entity = new FuneralPickupRequestEntity();
         entity.setDeceasedName(request.getDeceasedName().trim());
         entity.setPickupLocation(StringUtils.hasText(request.getPickupLocation())
@@ -93,8 +88,11 @@ public class FuneralManagementService {
         entity.setPickupLocationCode(pickupLocationCode);
         entity.setContactPerson(request.getContactPerson().trim());
         entity.setContactNumber(contactNumber);
-        entity.setCorpseInjured(injured);
-        entity.setInjuryDetails(injured ? request.getInjuryDetails().trim() : null);
+        // Injury assessment belongs to the driver arrival step, not request logging.
+        entity.setCorpseInjured(false);
+        entity.setInjuryDetails(null);
+        entity.setInjuryAssessedAt(null);
+        entity.setArrivalTime(null);
         entity.setStatus("PENDING");
         return pickupRequestRepository.save(entity);
     }
@@ -109,10 +107,45 @@ public class FuneralManagementService {
     }
 
     @Transactional
+    public FuneralPickupRequestEntity arriveAtPickupLocation(String id, ArrivePickupRequestDto request) {
+        if (request == null) throw new IllegalArgumentException("Arrival assessment is required");
+        FuneralPickupRequestEntity pickup = getPickupRequestOrThrow(id);
+        if ("COMPLETED".equalsIgnoreCase(pickup.getStatus())) {
+            throw new IllegalArgumentException("Completed pickup requests cannot be reassessed");
+        }
+        if (!"ASSIGNED".equalsIgnoreCase(pickup.getStatus()) && !"ARRIVED".equalsIgnoreCase(pickup.getStatus())) {
+            throw new IllegalArgumentException("Pickup must be assigned before the driver can record arrival");
+        }
+
+        boolean injured = Boolean.TRUE.equals(request.getCorpseInjured());
+        if (injured && !StringUtils.hasText(request.getInjuryDetails())) {
+            throw new IllegalArgumentException("Injury details are required when injuries are identified at pickup");
+        }
+        if (injured) {
+            boolean hasInjuryPhoto = attachmentRepository.findByObjectId(pickup.getId()).stream()
+                    .anyMatch(attachment -> "PICKUP-INJURY-PHOTO".equalsIgnoreCase(attachment.getDocumentType()));
+            if (!hasInjuryPhoto) {
+                throw new IllegalArgumentException("At least one injury photo is required when injuries are identified at pickup");
+            }
+        }
+
+        LocalDateTime arrivalTime = request.getArrivalTime() == null ? LocalDateTime.now() : request.getArrivalTime();
+        pickup.setArrivalTime(arrivalTime);
+        pickup.setInjuryAssessedAt(LocalDateTime.now());
+        pickup.setCorpseInjured(injured);
+        pickup.setInjuryDetails(injured ? request.getInjuryDetails().trim() : null);
+        pickup.setStatus("ARRIVED");
+        return pickupRequestRepository.save(pickup);
+    }
+
+    @Transactional
     public FuneralPickupRequestEntity completePickupRequest(String id, CompletePickupRequestDto request) {
         FuneralPickupRequestEntity pickup = getPickupRequestOrThrow(id);
         if ("COMPLETED".equalsIgnoreCase(pickup.getStatus()) && pickup.getMortuaryInventoryId() != null) {
             return pickup;
+        }
+        if (!"ARRIVED".equalsIgnoreCase(pickup.getStatus())) {
+            throw new IllegalArgumentException("Driver arrival and injury assessment must be recorded before completing pickup");
         }
 
         storageConfigurationService.validateSelection(

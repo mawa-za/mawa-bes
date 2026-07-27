@@ -23,6 +23,14 @@ public class StorageConfigurationControllerV2 {
     public ResponseEntity<Map<String, Object>> saveWarehouse(@RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(service.saveWarehouse(body));
     }
+    @GetMapping("/location-types")
+    public ResponseEntity<List<Map<String, Object>>> locationTypes(@RequestParam(defaultValue = "true") boolean activeOnly) {
+        return ResponseEntity.ok(service.locationTypes(activeOnly));
+    }
+    @PostMapping("/location-types")
+    public ResponseEntity<Map<String, Object>> saveLocationType(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(service.saveLocationType(body));
+    }
     @GetMapping("/locations")
     public ResponseEntity<List<Map<String, Object>>> locations(@RequestParam String warehouseId, @RequestParam(defaultValue = "true") boolean activeOnly) {
         return ResponseEntity.ok(service.locations(warehouseId, activeOnly));
