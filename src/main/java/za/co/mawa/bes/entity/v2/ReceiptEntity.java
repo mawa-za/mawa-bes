@@ -101,8 +101,14 @@ public class ReceiptEntity {
     @Column(name = "original_collector", length = 255)
     private String originalCollector;
 
+    @Column(name = "original_collector_employee_id", length = 255)
+    private String originalCollectorEmployeeId;
+
+    @Column(name = "location_name", length = 255)
+    private String locationName;
+
     @Column(name = "workcentre_id", length = 255)
-    private String workcentreId;
+    private String workcentreId; // legacy, no longer captured
 
     @Column(name = "late_capture_reason", columnDefinition = "TEXT")
     private String lateCaptureReason;
