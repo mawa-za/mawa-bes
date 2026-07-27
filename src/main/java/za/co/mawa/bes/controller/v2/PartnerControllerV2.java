@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.exception.DuplicateCreationException;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.service.v2.SupplierApprovalService;
 
@@ -78,16 +79,20 @@ public class PartnerControllerV2 {
             if ("SUPPLIER".equalsIgnoreCase(partnerInboundDto.getPartnerRole())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build();
             }
+            boolean existingPartner = partnerServiceV2.identityExists(
+                    partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
             PartnerViewEntity partnerViewEntity = partnerServiceV2.create(partnerInboundDto);
             PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
             partnerOutboundDto.setPartnerId(partnerViewEntity.getPartnerId());
+            partnerOutboundDto.setExistingPartner(existingPartner);
             partnerOutboundDto.setPartnerNo(partnerViewEntity.getPartnerNo());
             partnerOutboundDto.setIdentityType(partnerViewEntity.getIdentityType());
             partnerOutboundDto.setIdentityNumber(partnerViewEntity.getIdentityNumber());
             partnerOutboundDto.setName1(partnerViewEntity.getName1());
             partnerOutboundDto.setName2(partnerViewEntity.getName2());
             partnerOutboundDto.setName3(partnerViewEntity.getName3());
-            return ResponseEntity.ok(partnerOutboundDto);
+            return ResponseEntity.status(existingPartner ? HttpStatus.OK : HttpStatus.CREATED)
+                    .body(partnerOutboundDto);
         } catch (Exception exception) {
             return ResponseEntity.badRequest().build();
         }
@@ -262,8 +267,10 @@ public class PartnerControllerV2 {
             partnerIdentityCreateDto.setPartner(id);
             partnerIdentityService.add(partnerIdentityCreateDto);
             return ResponseEntity.ok().build();
+        } catch (DuplicateCreationException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(exception.getMessage());
         }
     }
 
