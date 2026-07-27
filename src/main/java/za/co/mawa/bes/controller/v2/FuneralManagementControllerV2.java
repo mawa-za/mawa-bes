@@ -47,6 +47,15 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @PutMapping(value = "/pickup-request/{id}/arrive", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> arriveAtPickupLocation(@PathVariable String id, @RequestBody ArrivePickupRequestDto request) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.arriveAtPickupLocation(id, request));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PutMapping(value = "/pickup-request/{id}/complete", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> completePickupRequest(@PathVariable String id, @RequestBody CompletePickupRequestDto request) {
         try {
