@@ -2,6 +2,7 @@ package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.FieldOptionDao;
 import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldDto;
@@ -9,18 +10,23 @@ import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.entity.FieldEntity;
 import za.co.mawa.bes.entity.FieldOptionEntity;
 import za.co.mawa.bes.entity.FieldOptionPKEntity;
-import za.co.mawa.bes.entity.PartnerEntity;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.enums.ProductTypeCode;
+import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.repository.FieldOptionRepository;
 import za.co.mawa.bes.repository.FieldRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 @Service
 public class FieldOptionService implements FieldOptionDao {
+    private static final String TENANT_TYPE = "TENANT";
+
     @Autowired
     FieldOptionRepository fieldOptionRepository;
 
@@ -28,36 +34,54 @@ public class FieldOptionService implements FieldOptionDao {
     FieldRepository fieldRepository;
 
     @Override
+    @Transactional
     public void create(FieldOptionDto fieldOptionDto) throws FieldDoesNotExist {
-        if ("PRODUCT-TYPE".equalsIgnoreCase(fieldOptionDto.getField())) {
-            throw new IllegalArgumentException("Product types are system controlled and cannot be added or changed by a tenant.");
-        }
-        if ("PRODUCT-CATEGORY".equalsIgnoreCase(fieldOptionDto.getField())) {
-            throw new IllegalArgumentException("Maintain product categories through Product Maintenance so hierarchy and product rules remain consistent.");
-        }
-        List<FieldDto> result = getFields().stream()
-                .filter(a -> Objects.equals(a.getCode(), fieldOptionDto.getField()))
-                .toList();
-        if (!result.isEmpty()) {
-            fieldOptionDto.setValidFrom(new Date());
-            fieldOptionDto.setType("TENANT");
-            FieldOptionPKEntity fieldOptionPKEntity = new FieldOptionPKEntity();
-            fieldOptionPKEntity.setField(fieldOptionDto.getField());
-            fieldOptionPKEntity.setType(fieldOptionDto.getType());
-            fieldOptionPKEntity.setCode(fieldOptionDto.getCode());
-            if (fieldOptionRepository.existsById(fieldOptionPKEntity)) {
-                FieldOptionEntity fieldOptionEntity = fieldOptionRepository.getById(fieldOptionPKEntity);
-                fieldOptionEntity.setValidFrom(new Date());
-                fieldOptionEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-                fieldOptionRepository.save(fieldOptionEntity);
-            } else {
-                FieldOptionEntity fieldOptionEntity = dtoToEntity(fieldOptionDto);
-                fieldOptionRepository.save(fieldOptionEntity);
-            }
-        } else {
+        String field = normalizeCode(fieldOptionDto.getField(), "Field");
+        validateTenantMaintainableField(field);
+
+        String description = normalizeDescription(fieldOptionDto.getDescription());
+        String code = codeFromDescription(description);
+
+        boolean fieldExists = getFields().stream()
+                .anyMatch(existing -> existing.getCode() != null
+                        && existing.getCode().equalsIgnoreCase(field));
+        if (!fieldExists) {
             throw new FieldDoesNotExist();
         }
 
+        FieldOptionPKEntity key = FieldOptionPKEntity.builder()
+                .field(field)
+                .code(code)
+                .type(TENANT_TYPE)
+                .build();
+
+        FieldOptionEntity entity = fieldOptionRepository.findById(key)
+                .orElseGet(() -> FieldOptionEntity.builder()
+                        .fieldOptionPKEntity(key)
+                        .build());
+        entity.setDescription(description);
+        entity.setValidFrom(new Date());
+        entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
+        fieldOptionRepository.save(entity);
+    }
+
+    @Transactional
+    public FieldOptionDto update(String field, String existingCode, FieldOptionDto request) {
+        String normalizedField = normalizeCode(field, "Field");
+        String normalizedCode = normalizeCode(existingCode, "Field option code");
+        validateTenantMaintainableField(normalizedField);
+
+        FieldOptionPKEntity key = FieldOptionPKEntity.builder()
+                .field(normalizedField)
+                .code(normalizedCode)
+                .type(TENANT_TYPE)
+                .build();
+        FieldOptionEntity entity = fieldOptionRepository.findById(key)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant field option not found."));
+
+        entity.setDescription(normalizeDescription(request.getDescription()));
+        FieldOptionEntity saved = fieldOptionRepository.save(entity);
+        return entityToDto(saved);
     }
 
     @Override
@@ -76,7 +100,7 @@ public class FieldOptionService implements FieldOptionDao {
         }
         List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
         for (FieldOptionEntity fieldOptionEntity : fieldOptionRepository.findFieldOptions(field)) {
-            if (fieldOptionEntity.getValidTo().after(new Date())) {
+            if (fieldOptionEntity.getValidTo() != null && fieldOptionEntity.getValidTo().after(new Date())) {
                 fieldOptionDtoList.add(entityToDto(fieldOptionEntity));
             }
         }
@@ -86,9 +110,13 @@ public class FieldOptionService implements FieldOptionDao {
     public List<FieldOptionDto> getAllFieldOptions() {
         List<FieldOptionDto> fieldOptionDtoList = new ArrayList<>();
 
+        Date today = new Date();
         for (FieldOptionEntity option : fieldOptionRepository.findAll()) {
             String field = option.getFieldOptionPKEntity().getField();
             if ("PRODUCT-TYPE".equalsIgnoreCase(field) || "PRODUCT-CATEGORY".equalsIgnoreCase(field)) {
+                continue;
+            }
+            if (option.getValidTo() == null || !option.getValidTo().after(today)) {
                 continue;
             }
             fieldOptionDtoList.add(entityToDto(option));
@@ -106,58 +134,41 @@ public class FieldOptionService implements FieldOptionDao {
                     || "PRODUCT-CATEGORY".equalsIgnoreCase(fieldEntity.getCode())) {
                 continue;
             }
-            FieldDto fieldDto = new FieldDto();
-            fieldDto.setCode(fieldEntity.getCode());
-            fieldDto.setDescription(fieldEntity.getDescription());
-            fieldDto.setValidFrom(fieldEntity.getValidFrom());
-            fieldDto.setValidTo(fieldEntity.getValidTo());
-            fieldDtoList.add(new FieldDto(fieldDto.getCode(), fieldDto.getDescription(), fieldDto.getValidFrom(), fieldDto.getValidTo()));
+            fieldDtoList.add(new FieldDto(
+                    fieldEntity.getCode(),
+                    fieldEntity.getDescription(),
+                    fieldEntity.getValidFrom(),
+                    fieldEntity.getValidTo()
+            ));
         }
         return fieldDtoList;
     }
 
-
     @Override
     public String getFieldOptionDescription(String field, String code) {
-        List<FieldOptionDto> fieldOptionDtoList = getFieldOptions(field).stream()
-                .filter(a -> Objects.equals(a.getCode(), code))
-                .toList();
-        if (!fieldOptionDtoList.isEmpty()) {
-            return fieldOptionDtoList.iterator().next().getDescription();
-        } else {
-            return null;
-        }
+        return getFieldOptions(field).stream()
+                .filter(option -> Objects.equals(option.getCode(), code))
+                .map(FieldOptionDto::getDescription)
+                .findFirst()
+                .orElse(null);
     }
 
     public FieldOptionDto getFieldOption(String field, String code) {
-        List<FieldOptionDto> fieldOptionDtoList = getFieldOptions(field).stream()
-                .filter(a -> Objects.equals(a.getCode(), code))
-                .toList();
-        if (!fieldOptionDtoList.isEmpty()) {
-            return fieldOptionDtoList.iterator().next();
-        } else {
-            return null;
-        }
+        return getFieldOptions(field).stream()
+                .filter(option -> Objects.equals(option.getCode(), code))
+                .findFirst()
+                .orElse(null);
     }
 
-    public FieldOptionDto getOption(String code){
-        FieldOptionDto fieldOptionDto = new FieldOptionDto();
+    public FieldOptionDto getOption(String code) {
         try {
-            List<FieldOptionEntity> fieldOptions = fieldOptionRepository.findFieldOption(code);
-            for(FieldOptionEntity fieldOption : fieldOptions) {
-                fieldOptionDto.setField(fieldOption.getFieldOptionPKEntity().getField());
-                fieldOptionDto.setCode(fieldOption.getFieldOptionPKEntity().getCode());
-                fieldOptionDto.setType(fieldOption.getFieldOptionPKEntity().getType());
-                fieldOptionDto.setDescription(fieldOption.getDescription());
-                fieldOptionDto.setValidFrom(fieldOption.getValidFrom());
-                fieldOptionDto.setValidTo(fieldOption.getValidTo());
-                return fieldOptionDto;
-            }
+            return fieldOptionRepository.findFieldOption(code).stream()
+                    .findFirst()
+                    .map(this::entityToDto)
+                    .orElseGet(FieldOptionDto::new);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        return fieldOptionDto;
     }
 
     @Override
@@ -166,22 +177,18 @@ public class FieldOptionService implements FieldOptionDao {
     }
 
     @Override
-    public FieldDto createField(FieldCreateDto Field) {
+    @Transactional
+    public FieldDto createField(FieldCreateDto field) {
         try {
-            FieldEntity entity = new FieldEntity();
-            entity.setDescription(Field.getDescription());
-            String code = Field.getDescription().toUpperCase().replace(" ", "-");
+            String description = normalizeDescription(field.getDescription());
+            String code = codeFromDescription(description);
+            FieldEntity entity = fieldRepository.findById(code).orElseGet(FieldEntity::new);
+            entity.setDescription(description);
             entity.setCode(code);
-            if (Field.getValidTo() != null && Field.getValidTo() != "") {
-                entity.setValidTo(Field.getValidTo());
-            } else {
-                entity.setValidTo("9999-12-31");
-            }
-            if (Field.getValidFrom() != null && Field.getValidFrom() != "") {
-                entity.setValidFrom(Field.getValidFrom());
-            } else {
-                entity.setValidFrom(Conversion.dateToString(new Date()));
-            }
+            entity.setValidTo(hasText(field.getValidTo()) ? field.getValidTo() : "9999-12-31");
+            entity.setValidFrom(hasText(field.getValidFrom())
+                    ? field.getValidFrom()
+                    : Conversion.dateToString(new Date()));
             return entityFieldToDto(fieldRepository.save(entity));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -189,58 +196,73 @@ public class FieldOptionService implements FieldOptionDao {
     }
 
     @Override
-    public void deleteFieldOption(String field, String option) throws Exception {
+    @Transactional
+    public void deleteFieldOption(String field, String option) {
+        String normalizedField = normalizeCode(field, "Field");
+        String normalizedOption = normalizeCode(option, "Field option code");
+        validateTenantMaintainableField(normalizedField);
+
+        FieldOptionPKEntity key = FieldOptionPKEntity.builder()
+                .code(normalizedOption)
+                .field(normalizedField)
+                .type(TENANT_TYPE)
+                .build();
+        FieldOptionEntity fieldOption = fieldOptionRepository.findById(key)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant field option not found."));
+        fieldOption.setValidTo(new Date());
+        fieldOptionRepository.save(fieldOption);
+    }
+
+    static String codeFromDescription(String description) {
+        return normalizeDescription(description)
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("\\s+", "-");
+    }
+
+    private static String normalizeCode(String value, String label) {
+        if (!hasText(value)) {
+            throw new IllegalArgumentException(label + " is required.");
+        }
+        return value.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "-");
+    }
+
+    private static String normalizeDescription(String description) {
+        if (!hasText(description)) {
+            throw new IllegalArgumentException("Description is required.");
+        }
+        return description.trim();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private static void validateTenantMaintainableField(String field) {
         if ("PRODUCT-TYPE".equalsIgnoreCase(field)) {
-            throw new IllegalArgumentException("Product types are system controlled and cannot be deleted.");
+            throw new IllegalArgumentException("Product types are system controlled and cannot be maintained by a tenant.");
         }
         if ("PRODUCT-CATEGORY".equalsIgnoreCase(field)) {
             throw new IllegalArgumentException("Maintain product categories through Product Maintenance so hierarchy and product rules remain consistent.");
         }
-        try {
-            FieldOptionPKEntity pk = new FieldOptionPKEntity();
-            pk.setCode(option);
-            pk.setField(field);
-            pk.setType("TENANT");
-            FieldOptionEntity fieldOption = fieldOptionRepository.getById(pk);
-            fieldOption.setValidTo(new Date());
-            fieldOptionRepository.save(fieldOption);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-
     }
 
-    private FieldOptionDto entityToDto(FieldOptionEntity fieldOptionEntity) {
-        FieldOptionDto fieldOptionDto = new FieldOptionDto();
-        fieldOptionDto.setField(fieldOptionEntity.getFieldOptionPKEntity().getField());
-        fieldOptionDto.setCode(fieldOptionEntity.getFieldOptionPKEntity().getCode());
-        fieldOptionDto.setType(fieldOptionEntity.getFieldOptionPKEntity().getType());
-        fieldOptionDto.setDescription(fieldOptionEntity.getDescription());
-        fieldOptionDto.setValidFrom(fieldOptionEntity.getValidFrom());
-        fieldOptionDto.setValidTo(fieldOptionEntity.getValidTo());
-        return fieldOptionDto;
+    private FieldOptionDto entityToDto(FieldOptionEntity entity) {
+        FieldOptionDto dto = new FieldOptionDto();
+        dto.setField(entity.getFieldOptionPKEntity().getField());
+        dto.setCode(entity.getFieldOptionPKEntity().getCode());
+        dto.setType(entity.getFieldOptionPKEntity().getType());
+        dto.setDescription(entity.getDescription());
+        dto.setValidFrom(entity.getValidFrom());
+        dto.setValidTo(entity.getValidTo());
+        return dto;
     }
 
-    private FieldDto entityFieldToDto(FieldEntity fieldEntity) {
-        FieldDto fieldDto = new FieldDto();
-        fieldDto.setCode(fieldEntity.getCode());
-        fieldDto.setDescription(fieldEntity.getDescription());
-        fieldDto.setValidFrom(fieldEntity.getValidFrom());
-        fieldDto.setValidTo(fieldEntity.getValidTo());
-        return fieldDto;
-    }
-
-    private FieldOptionEntity dtoToEntity(FieldOptionDto fieldOptionDto) {
-        FieldOptionPKEntity fieldOptionPKEntity = new FieldOptionPKEntity();
-        fieldOptionPKEntity.setField(fieldOptionDto.getField());
-        fieldOptionPKEntity.setCode(fieldOptionDto.getCode());
-        fieldOptionPKEntity.setType(fieldOptionDto.getType());
-
-        FieldOptionEntity fieldOptionEntity = new FieldOptionEntity();
-        fieldOptionEntity.setFieldOptionPKEntity(fieldOptionPKEntity);
-        fieldOptionEntity.setDescription(fieldOptionDto.getDescription());
-        fieldOptionEntity.setValidFrom(fieldOptionDto.getValidFrom());
-        fieldOptionEntity.setValidTo(fieldOptionDto.getValidTo());
-        return fieldOptionEntity;
+    private FieldDto entityFieldToDto(FieldEntity entity) {
+        FieldDto dto = new FieldDto();
+        dto.setCode(entity.getCode());
+        dto.setDescription(entity.getDescription());
+        dto.setValidFrom(entity.getValidFrom());
+        dto.setValidTo(entity.getValidTo());
+        return dto;
     }
 }

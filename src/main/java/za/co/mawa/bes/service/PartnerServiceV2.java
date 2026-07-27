@@ -8,6 +8,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
@@ -70,13 +71,20 @@ public class PartnerServiceV2 {
     @Autowired
     NumberAllocationService numberAllocationService;
 
+    @Transactional
     public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
 
         try {
-            String identityType = partnerInboundDto.getIdentityType() == null ? null : partnerInboundDto.getIdentityType().trim();
-            String identityNumber = partnerInboundDto.getIdentityNumber() == null ? null : partnerInboundDto.getIdentityNumber().trim();
-            boolean hasIdentity = identityType != null && !identityType.isEmpty()
-                    && identityNumber != null && !identityNumber.isEmpty();
+            boolean hasIdentity = partnerInboundDto.getIdentityType() != null
+                    && !partnerInboundDto.getIdentityType().trim().isEmpty()
+                    && partnerInboundDto.getIdentityNumber() != null
+                    && !partnerInboundDto.getIdentityNumber().trim().isEmpty();
+            String identityType = hasIdentity
+                    ? PartnerIdentityServiceV2.normalizeIdentityType(partnerInboundDto.getIdentityType())
+                    : null;
+            String identityNumber = hasIdentity
+                    ? PartnerIdentityServiceV2.normalizeIdentityNumber(partnerInboundDto.getIdentityNumber())
+                    : null;
 
             PartnerIdentityDto partnerIdentityDto = hasIdentity
                     ? partnerIdentityServiceV2.getIdentity(identityType, identityNumber)
@@ -167,6 +175,14 @@ public class PartnerServiceV2 {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public boolean identityExists(String identityType, String identityNumber) {
+        if (identityType == null || identityType.trim().isEmpty()
+                || identityNumber == null || identityNumber.trim().isEmpty()) {
+            return false;
+        }
+        return partnerIdentityServiceV2.exists(identityType, identityNumber);
     }
 
     public void edit(PartnerEditDto partnerEditDto) {
