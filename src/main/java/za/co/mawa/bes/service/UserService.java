@@ -233,7 +233,7 @@ public class UserService implements UserDao {
             }
 
         } catch (Exception ex) {
-            return null;
+            throw ex;
         }
     }
 

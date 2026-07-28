@@ -221,14 +221,24 @@ public class InternalAdminController {
     }
 
     @RequestMapping(value = "/v2/admin-handoff/exchange", method = RequestMethod.POST)
-    public ResponseEntity<?> exchangeHandoff(@RequestBody AdminHandoffExchangeRequestDto requestDto, HttpServletRequest servletRequest) {
+    public ResponseEntity<?> exchangeHandoff(
+            @RequestBody AdminHandoffExchangeRequestDto requestDto,
+            HttpServletRequest servletRequest) throws Exception {
         try {
-            AuthenticationResponseDto responseDto = adminHandoffService.exchange(requestDto == null ? null : requestDto.getToken(), servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
+            AuthenticationResponseDto responseDto = adminHandoffService.exchange(
+                    requestDto == null ? null : requestDto.getToken(),
+                    servletRequest.getRemoteAddr(),
+                    servletRequest.getHeader("User-Agent"));
             return ResponseEntity.ok(gson.toJson(responseDto));
         } catch (SecurityException ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new za.co.mawa.bes.dto.ErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED.value()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new za.co.mawa.bes.dto.ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new za.co.mawa.bes.dto.ErrorResponse(ex.getMessage(), HttpStatus.CONFLICT.value()));
         }
     }
 
