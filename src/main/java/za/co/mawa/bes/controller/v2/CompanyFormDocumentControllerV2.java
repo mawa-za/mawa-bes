@@ -24,7 +24,7 @@ public class CompanyFormDocumentControllerV2 {
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> list(@RequestParam(defaultValue = "true") boolean activeOnly) {
         if (!activeOnly) {
-            assertSystemAdministrator();
+            assertCanViewUnpublishedForms();
         }
         return ResponseEntity.ok(service.list(activeOnly));
     }
@@ -33,20 +33,26 @@ public class CompanyFormDocumentControllerV2 {
     public ResponseEntity<Map<String, Object>> upload(
             @RequestBody Map<String, Object> request,
             @RequestHeader(value = "X-User-Id", required = false) String userId) throws Exception {
-        assertSystemAdministrator();
+        assertCanManageForms();
         return ResponseEntity.ok(service.upload(request, userId));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable String id) {
-        assertSystemAdministrator();
+        assertCanManageForms();
         service.deactivate(id);
         return ResponseEntity.noContent().build();
     }
 
-    private void assertSystemAdministrator() {
+    private void assertCanViewUnpublishedForms() {
         if (!userAccessService.isProtectedAdministrator()) {
-            throw new SecurityException("Only a system administrator can publish or unpublish company forms");
+            throw new SecurityException("Only a protected tenant administrator can view unpublished company forms");
+        }
+    }
+
+    private void assertCanManageForms() {
+        if (!userAccessService.isProtectedAdministrator()) {
+            throw new SecurityException("Only a protected tenant administrator can publish or unpublish company forms");
         }
     }
 
