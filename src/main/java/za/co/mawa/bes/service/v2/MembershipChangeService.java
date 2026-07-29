@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service.v2;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class MembershipChangeService {
     private final MembershipUpdateHandlerRegistry membershipUpdateHandlerRegistry;
     private final PartnerService partnerService;
     private final ObjectProvider<ApprovalService> approvalServiceProvider;
-    private final Gson gson;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public MembershipChangeConfigurationDto getConfiguration() {
@@ -642,7 +643,7 @@ public class MembershipChangeService {
         });
         request.setDescription(change.getReason());
         request.setRequesterId(actor);
-        request.setPayloadJson(gson.toJson(toResponse(change)));
+        request.setPayloadJson(toJson(toResponse(change)));
         return approvalServiceProvider.getObject().submitForApproval(request);
     }
 
@@ -703,9 +704,17 @@ public class MembershipChangeService {
     private void audit(MembershipChangeRequestEntity change, String event, Object oldValue, Object newValue, String details, String actor) {
         auditRepository.save(MembershipChangeAuditEntity.builder()
                 .membershipId(change.getMembershipId()).changeRequestId(change.getId()).eventType(event)
-                .oldValuesJson(oldValue == null ? null : gson.toJson(oldValue))
-                .newValuesJson(newValue == null ? null : gson.toJson(newValue))
+                .oldValuesJson(oldValue == null ? null : toJson(oldValue))
+                .newValuesJson(newValue == null ? null : toJson(newValue))
                 .details(details).performedBy(actor(actor)).performedAt(LocalDateTime.now()).build());
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to serialise membership change details", exception);
+        }
     }
 
     private MembershipChangeConfigurationDto toConfigurationDto(MembershipChangeConfigurationEntity entity) {

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dto.v2.funeral;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import java.util.List;
 @Setter
 public class FuneralInvoicePreviewRequestDto {
     /** Preferred once the arrangement exists. */
+    @JsonAlias("serviceRequestId")
     private String funeralServiceId;
 
     /** Backwards-compatible preview fields. */
