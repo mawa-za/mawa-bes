@@ -1506,7 +1506,7 @@ public class FuneralManagementService {
             INSERT INTO %s(id,claim_no,membership_id,claim_type,coverage_plan_id,coverage_event_date,
             deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,
             claimant_partner_id,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
-            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
+            VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
             """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),coveragePlanId,coverageEventDate,
             defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),service.getFamilyRepId(),groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
