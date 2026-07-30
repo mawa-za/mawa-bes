@@ -86,11 +86,12 @@ public class LegacyAttachmentObjectIdResolver {
      */
     private void resolveFuneralClaimAttachments(String objectId, Set<String> resolvedIds) {
         try {
-            jdbcTemplate.query(
-                    "SELECT DISTINCT funeral_service_id FROM funeral_service_claim "
-                            + "WHERE membership_claim_id = ?",
-                    rs -> addIfPresent(resolvedIds, rs.getString(1)),
-                    objectId);
+            jdbcTemplate.queryForList(
+                            "SELECT DISTINCT funeral_service_id FROM funeral_service_claim "
+                                    + "WHERE membership_claim_id = ?",
+                            String.class,
+                            objectId)
+                    .forEach(id -> addIfPresent(resolvedIds, id));
         } catch (DataAccessException ex) {
             log.debug("Could not resolve funeral claim attachment aliases for {}: {}",
                     objectId, ex.getMostSpecificCause().getMessage());
