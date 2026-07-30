@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
+import za.co.mawa.bes.service.LegacyAttachmentObjectIdResolver;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
@@ -33,6 +35,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FuneralManagementService {
 
@@ -54,6 +57,7 @@ public class FuneralManagementService {
     private final FuneralServiceInvoiceRepository funeralServiceInvoiceRepository;
     private final InvoiceRepository invoiceRepository;
     private final AttachmentRepository attachmentRepository;
+    private final LegacyAttachmentObjectIdResolver attachmentObjectIdResolver;
     private final FuneralServiceClaimRepository funeralServiceClaimRepository;
     private final FuneralExternalMembershipCoverRepository externalMembershipCoverRepository;
     private final FuneralTenantIntegrationConfigRepository tenantIntegrationConfigRepository;
@@ -656,8 +660,12 @@ public class FuneralManagementService {
 
         Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
         String status = String.valueOf(claim.get("status"));
-        if (attachmentRepository.findByObjectId(membershipClaimId).isEmpty()) {
-            throw new IllegalArgumentException("Attach the signed claim form and supporting claim documentation before submitting for approval");
+        List<String> attachmentObjectIds = attachmentObjectIdResolver.resolveObjectIds(membershipClaimId);
+        boolean hasSignedClaimForm = attachmentRepository.findByObjectIdIn(attachmentObjectIds).stream()
+                .anyMatch(attachment -> "CLAIM-FORM-SIGNED".equalsIgnoreCase(attachment.getDocumentType()));
+        if (!hasSignedClaimForm) {
+            throw new IllegalArgumentException(
+                    "Upload a signed claim form in Claim Documentation before submitting the funeral claims for approval");
         }
         if (!"DRAFT".equalsIgnoreCase(status)) {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
@@ -685,7 +693,14 @@ public class FuneralManagementService {
                 .stream()
                 .map(link -> readClaimDto(link.getMembershipClaimId()))
                 .collect(Collectors.toList());
-        refreshFuneralServiceStatus(funeralServiceId, claims);
+        try {
+            // A read request must still return the claims if a concurrent status
+            // synchronisation/update cannot be completed.
+            refreshFuneralServiceStatus(funeralServiceId, claims);
+        } catch (RuntimeException exception) {
+            log.warn("Claims loaded for funeral service {}, but its summary status could not be refreshed: {}",
+                    funeralServiceId, exception.getMessage(), exception);
+        }
         return claims;
     }
 
