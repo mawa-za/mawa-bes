@@ -42,6 +42,12 @@ public class ApiExceptionHandler {
         return response(HttpStatus.NOT_FOUND, safeMessage(ex, "The requested information could not be found"));
     }
 
+    @ExceptionHandler({TenantNotFound.class, TenantNotProvided.class})
+    public ResponseEntity<ErrorResponse> handleTenantResolution(Exception ex) {
+        return response(HttpStatus.BAD_REQUEST,
+                safeMessage(ex, "The tenant could not be identified. Open MAWA from the tenant-specific link"));
+    }
+
     @ExceptionHandler(UserLockedException.class)
     public ResponseEntity<ErrorResponse> handleLockedUser(UserLockedException ex) {
         return response(HttpStatus.LOCKED, safeMessage(ex, "This user account is locked"));

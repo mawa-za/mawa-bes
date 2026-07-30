@@ -115,10 +115,16 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         }
 
         TenantDto tenant = resolveTenant(tenantReference);
-        String canonicalHost = firstNonBlank(
-                TenantHostNormalizer.normalize(tenant.getHost()),
-                TenantHostNormalizer.normalize(tenantReference)
-        );
+        String normalizedReference = TenantHostNormalizer.normalize(tenantReference);
+        boolean explicitTenantId = Objects.equals(tenant.getId(), tenantReference.trim());
+        String canonicalHost = explicitTenantId
+                ? firstNonBlank(
+                        TenantHostNormalizer.normalize(tenant.getHost()),
+                        TenantHostNormalizer.normalize(tenant.getUrl()))
+                : firstNonBlank(
+                        normalizedReference,
+                        TenantHostNormalizer.normalize(tenant.getHost()),
+                        TenantHostNormalizer.normalize(tenant.getUrl()));
 
         TenantContext.setCurrentTenant(tenant.getId());
         TenantContext.setCurrentTenantURL(canonicalHost);
@@ -129,22 +135,53 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         String normalizedHost = TenantHostNormalizer.normalize(rawReference);
         List<TenantDto> tenants = tenantAdminService.getAll();
 
-        return tenants.stream()
+        Optional<TenantDto> directMatch = tenants.stream()
                 .filter(tenant -> Objects.equals(tenant.getId(), rawReference)
                         || hostsMatch(tenant.getHost(), normalizedHost))
-                .findFirst()
-                .orElseThrow(() -> new TenantNotFound(
-                        "Tenant not found for host: "
-                                + (StringUtils.hasText(normalizedHost) ? normalizedHost : rawReference)
-                ));
+                .findFirst();
+        if (directMatch.isPresent()) {
+            return directMatch.get();
+        }
+
+        // Some existing tenant records keep the browser-facing ERP address in
+        // url/erpAppUrl while host contains an older alias. Accept the URL only
+        // when it identifies exactly one tenant; never guess between tenants
+        // that share a common application address.
+        List<TenantDto> urlMatches = tenants.stream()
+                .filter(tenant -> hostsMatch(tenant.getUrl(), normalizedHost))
+                .filter(distinctTenantId())
+                .toList();
+        if (urlMatches.size() == 1) {
+            return urlMatches.get(0);
+        }
+        if (urlMatches.size() > 1) {
+            throw new TenantNotFound(
+                    "More than one tenant uses this MAWA address. Open the tenant-specific link or provide the tenant ID"
+            );
+        }
+
+        throw new TenantNotFound(
+                "Tenant not found for host: "
+                        + (StringUtils.hasText(normalizedHost) ? normalizedHost : rawReference)
+        );
+    }
+
+    private Predicate<TenantDto> distinctTenantId() {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        return tenant -> tenant != null && StringUtils.hasText(tenant.getId()) && seen.add(tenant.getId());
     }
 
     private boolean hostsMatch(String configuredHost, String normalizedRequestHost) {
-        if (!StringUtils.hasText(normalizedRequestHost)) {
+        if (!StringUtils.hasText(configuredHost) || !StringUtils.hasText(normalizedRequestHost)) {
             return false;
         }
-        String normalizedConfiguredHost = TenantHostNormalizer.normalize(configuredHost);
-        return normalizedRequestHost.equals(normalizedConfiguredHost);
+        for (String alias : configuredHost.split(";")) {
+            String normalizedConfiguredHost = TenantHostNormalizer.normalize(alias);
+            if (normalizedRequestHost.equals(normalizedConfiguredHost)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean setTenantContext(String tenant) {
