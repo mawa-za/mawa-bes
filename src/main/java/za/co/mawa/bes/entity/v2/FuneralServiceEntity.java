@@ -64,6 +64,10 @@ public class FuneralServiceEntity {
     @Column(name = "status", nullable = false)
     private String status = "ARRANGEMENT_CREATED";
 
+    /** Last successfully completed wizard step (0-based). */
+    @Column(name = "wizard_step", nullable = false)
+    private Integer wizardStep = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -76,6 +80,7 @@ public class FuneralServiceEntity {
         createdAt = now;
         updatedAt = now;
         if (status == null) status = "ARRANGEMENT_CREATED";
+        if (wizardStep == null) wizardStep = 0;
     }
 
     @PreUpdate

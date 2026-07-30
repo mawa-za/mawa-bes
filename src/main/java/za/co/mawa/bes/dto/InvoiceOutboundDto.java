@@ -18,6 +18,7 @@ public class InvoiceOutboundDto {
     private Integer discountCents;
     private Integer totalCents;
     private Integer paidCents;
+    private Integer creditedCents;
     private Integer balanceCents;
     private String externalRef;
     private String notes;
@@ -33,6 +34,7 @@ public class InvoiceOutboundDto {
         private String productId;
         private String description;
         private Integer quantity;
+        private Boolean showAmount;
         private Integer unitPriceCents;
         private Integer discountCents;
         private Integer taxCents;
@@ -62,6 +64,14 @@ public class InvoiceOutboundDto {
 
         public void setQuantity(Integer quantity) {
             this.quantity = quantity;
+        }
+
+        public Boolean getShowAmount() {
+            return showAmount;
+        }
+
+        public void setShowAmount(Boolean showAmount) {
+            this.showAmount = showAmount;
         }
 
         public Integer getUnitPriceCents() {
@@ -216,6 +226,14 @@ public class InvoiceOutboundDto {
 
     public void setPaidCents(Integer paidCents) {
         this.paidCents = paidCents;
+    }
+
+    public Integer getCreditedCents() {
+        return creditedCents;
+    }
+
+    public void setCreditedCents(Integer creditedCents) {
+        this.creditedCents = creditedCents;
     }
 
     public Integer getBalanceCents() {
