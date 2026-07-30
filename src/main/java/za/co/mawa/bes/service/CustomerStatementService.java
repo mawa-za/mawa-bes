@@ -49,16 +49,22 @@ public class CustomerStatementService {
         jdbcTemplate.query("""
                 SELECT invoice_date, invoice_no, external_ref, total_cents
                   FROM invoice WHERE partner_id=? AND invoice_date BETWEEN ? AND ?
-                """, rs -> entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "INVOICE", rs.getString(2), rs.getString(3), rs.getLong(4), 0L)), partnerId, fromDate, toDate);
+                """, rs -> {
+                    entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "INVOICE", rs.getString(2), rs.getString(3), rs.getLong(4), 0L));
+                }, partnerId, fromDate, toDate);
         jdbcTemplate.query("""
                 SELECT DATE(ip.payment_date), COALESCE(ip.reference_no,'Payment'), ip.payment_method, ip.amount_cents
                   FROM invoice_payment ip JOIN invoice i ON i.id=ip.invoice_id
                  WHERE i.partner_id=? AND DATE(ip.payment_date) BETWEEN ? AND ?
-                """, rs -> entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "PAYMENT", rs.getString(2), rs.getString(3), 0L, rs.getLong(4))), partnerId, fromDate, toDate);
+                """, rs -> {
+                    entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "PAYMENT", rs.getString(2), rs.getString(3), 0L, rs.getLong(4)));
+                }, partnerId, fromDate, toDate);
         jdbcTemplate.query("""
                 SELECT credit_note_date, credit_note_no, reason, total_cents
                   FROM credit_note WHERE partner_id=? AND credit_note_date BETWEEN ? AND ? AND status='ISSUED'
-                """, rs -> entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "CREDIT_NOTE", rs.getString(2), rs.getString(3), 0L, rs.getLong(4))), partnerId, fromDate, toDate);
+                """, rs -> {
+                    entries.add(new StatementEntry(rs.getDate(1).toLocalDate(), "CREDIT_NOTE", rs.getString(2), rs.getString(3), 0L, rs.getLong(4)));
+                }, partnerId, fromDate, toDate);
         entries.sort(Comparator.comparing(StatementEntry::date).thenComparing(StatementEntry::type).thenComparing(StatementEntry::reference));
 
         long running = opening;
