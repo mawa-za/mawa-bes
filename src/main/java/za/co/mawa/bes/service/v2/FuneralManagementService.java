@@ -611,6 +611,8 @@ public class FuneralManagementService {
                     ? qualifiedTable(claimTenantId, "membership_claim")
                     : "membership_claim";
 
+            String claimantPartnerId = resolveClaimantPartnerId(service, externalClaim ? claimTenantId : null);
+
             jdbcTemplate.update("""
                     INSERT INTO %s
                     (id, claim_no, membership_id, claim_type, coverage_plan_id, coverage_event_date,
@@ -631,7 +633,7 @@ public class FuneralManagementService {
                     LocalDate.now(),
                     defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
                     defaultString(request.getDeathCertificateNo(), service.getDeathCertificateNo()),
-                    service.getFamilyRepId(),
+                    claimantPartnerId,
                     claimAmount,
                     service.getId(),
                     TenantContext.getCurrentTenant(),
@@ -1597,6 +1599,7 @@ public class FuneralManagementService {
         long groceryAmount = defaultLong(tenantId == null
                 ? findMembershipPlanPayout(coveragePlanId, "GROCERY", coverageDependentType)
                 : findExternalMembershipPlanPayout(tenantId, coveragePlanId, "GROCERY", coverageDependentType));
+        String claimantPartnerId = resolveClaimantPartnerId(service, tenantId);
         jdbcTemplate.update("""
             INSERT INTO %s(id,claim_no,membership_id,claim_type,coverage_plan_id,coverage_event_date,
             deceased_type,deceased_partner_id,date_of_death,claim_date,cause_of_death,death_certificate_no,
@@ -1604,7 +1607,7 @@ public class FuneralManagementService {
             VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
             """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),coveragePlanId,coverageEventDate,
             defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),coverageEventDate,LocalDate.now(),
-            defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),service.getFamilyRepId(),groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
+            defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),claimantPartnerId,groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
         FuneralServiceClaimEntity groceryLink=new FuneralServiceClaimEntity(); groceryLink.setFuneralServiceId(service.getId()); groceryLink.setMembershipClaimId(groceryId);
         groceryLink.setClaimStorageScope(tenantId==null?"LOCAL":"EXTERNAL"); groceryLink.setClaimOwnerTenantId(tenantId==null?TenantContext.getCurrentTenant():tenantId);
@@ -1612,6 +1615,97 @@ public class FuneralManagementService {
         groceryLink.setSourceMembershipId(cover.getSourceMembershipId()); groceryLink.setSourceReference(cover.getSourceReference()); groceryLink.setBurialSocietyPartnerId(cover.getBurialSocietyPartnerId());
         funeralServiceClaimRepository.save(groceryLink);
         prepareFuneralClaimForm(service, groceryId, groceryNo, "GROCERY", groceryAmount);
+    }
+
+    private String resolveClaimantPartnerId(FuneralServiceEntity service, String claimTenantId) {
+        String familyRepresentativeId = trimToNull(service.getFamilyRepId());
+        if (familyRepresentativeId == null) {
+            throw new IllegalArgumentException("A family representative is required before claims can be created");
+        }
+        if (!StringUtils.hasText(claimTenantId)
+                || Objects.equals(claimTenantId, TenantContext.getCurrentTenant())) {
+            return familyRepresentativeId;
+        }
+        return ensurePartnerAvailableInTenant(claimTenantId, familyRepresentativeId);
+    }
+
+    /**
+     * External membership claims are stored in the membership tenant, whose
+     * foreign keys cannot reference a partner row from the funeral provider
+     * tenant. Reuse an identity-matched partner when one exists; otherwise copy
+     * the family representative's core person record and identities using the
+     * same globally generated partner id.
+     */
+    private String ensurePartnerAvailableInTenant(String tenantId, String sourcePartnerId) {
+        String targetPartner = qualifiedTable(tenantId, "partner");
+        String targetIdentity = qualifiedTable(tenantId, "partner_identity");
+
+        Integer existingById = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + targetPartner + " WHERE id = ?",
+                Integer.class,
+                sourcePartnerId);
+        if (existingById != null && existingById > 0) {
+            return sourcePartnerId;
+        }
+
+        List<Map<String, Object>> sourceIdentities = jdbcTemplate.queryForList(
+                "SELECT type, value, valid_from, valid_to FROM partner_identity WHERE partner = ? ORDER BY type, value",
+                sourcePartnerId);
+        for (Map<String, Object> identity : sourceIdentities) {
+            List<String> matches = jdbcTemplate.query(
+                    "SELECT partner FROM " + targetIdentity + " WHERE type = ? AND value = ? LIMIT 1",
+                    (rs, rowNum) -> rs.getString(1),
+                    identity.get("type"),
+                    identity.get("value"));
+            if (!matches.isEmpty() && StringUtils.hasText(matches.get(0))) {
+                return matches.get(0);
+            }
+        }
+
+        List<Map<String, Object>> sourcePartners = jdbcTemplate.queryForList("""
+                SELECT birth_date, gender, language, marital_status, name1, name2, name3,
+                       status, status_reason, title, type, valid_from, valid_to
+                  FROM partner
+                 WHERE id = ?
+                """, sourcePartnerId);
+        if (sourcePartners.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "The selected family representative could not be found. Re-select the representative and try again");
+        }
+        Map<String, Object> source = sourcePartners.get(0);
+        jdbcTemplate.update("""
+                INSERT IGNORE INTO %s
+                (id, birth_date, gender, language, marital_status, name1, name2, name3, no,
+                 status, status_reason, title, type, valid_from, valid_to)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+                """.formatted(targetPartner),
+                sourcePartnerId,
+                source.get("birth_date"),
+                source.get("gender"),
+                source.get("language"),
+                source.get("marital_status"),
+                source.get("name1"),
+                source.get("name2"),
+                source.get("name3"),
+                defaultString(Objects.toString(source.get("status"), null), "ACTIVE"),
+                source.get("status_reason"),
+                source.get("title"),
+                defaultString(Objects.toString(source.get("type"), null), "PERSON"),
+                source.get("valid_from"),
+                source.get("valid_to"));
+
+        for (Map<String, Object> identity : sourceIdentities) {
+            jdbcTemplate.update("""
+                    INSERT IGNORE INTO %s(type, value, partner, valid_from, valid_to)
+                    VALUES (?, ?, ?, ?, ?)
+                    """.formatted(targetIdentity),
+                    identity.get("type"),
+                    identity.get("value"),
+                    sourcePartnerId,
+                    identity.get("valid_from"),
+                    identity.get("valid_to"));
+        }
+        return sourcePartnerId;
     }
 
     private void prepareFuneralClaimForm(FuneralServiceEntity service, String claimId, String claimNo,
