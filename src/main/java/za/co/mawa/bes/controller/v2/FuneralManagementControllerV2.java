@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -274,6 +275,28 @@ public class FuneralManagementControllerV2 {
             return ResponseEntity.ok(funeralManagementService.getClaims(id));
         } catch (Exception exception) {
             log.warn("Unable to load claims for funeral service {}: {}", id, exception.getMessage(), exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping(value = "/claims/{membershipClaimId}/claim-form", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<?> downloadClaimForm(@PathVariable String membershipClaimId) {
+        try {
+            byte[] pdf = funeralManagementService.downloadClaimForm(membershipClaimId);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=claim-form-" + membershipClaimId + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.TEXT_PLAIN).body(exception.getMessage());
+        }
+    }
+
+    @PutMapping(value = "/service-request/{id}/wizard-step/{wizardStep}")
+    public ResponseEntity<?> updateWizardStep(@PathVariable String id, @PathVariable int wizardStep) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.updateWizardStep(id, wizardStep));
+        } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }

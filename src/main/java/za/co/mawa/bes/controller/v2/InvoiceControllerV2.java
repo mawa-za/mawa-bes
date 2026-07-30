@@ -39,6 +39,15 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok(responseDto);
 
     }
+    @PutMapping(value = "{id}")
+    public ResponseEntity<?> updateInvoice(@PathVariable String id, @RequestBody InvoiceEntity invoice) {
+        try {
+            return ResponseEntity.ok(invoiceService.mapToDto(invoiceService.updateInvoice(id, invoice)));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String partnerId,

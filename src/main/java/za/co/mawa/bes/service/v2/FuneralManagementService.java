@@ -219,6 +219,8 @@ public class FuneralManagementService {
         validateRequired(request.getName(), "name");
         FuneralPackageEntity entity = new FuneralPackageEntity();
         entity.setName(request.getName().trim());
+        entity.setPricingMode(normalizePackagePricingMode(request.getPricingMode()));
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
         entity.setInclusionsJson("[]");
         entity.setActive(request.getActive() == null || request.getActive());
         entity = funeralPackageRepository.save(entity);
@@ -232,6 +234,8 @@ public class FuneralManagementService {
         validateRequired(request.getName(), "name");
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setName(request.getName().trim());
+        entity.setPricingMode(normalizePackagePricingMode(request.getPricingMode()));
+        entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
         entity.setInclusionsJson("[]");
         if (request.getActive() != null) {
             entity.setActive(request.getActive());
@@ -274,8 +278,23 @@ public class FuneralManagementService {
                     .productCode(product.getCode()).productDescription(product.getDescription())
                     .quantity(quantity).unitPriceCents(unitPrice).lineTotalCents(lineTotal).build());
         }
-        funeralPackage.setBasePriceCents(total);
+        if ("FIXED_PRICE".equalsIgnoreCase(funeralPackage.getPricingMode())) {
+            if (defaultLong(funeralPackage.getBasePriceCents()) <= 0) {
+                throw new IllegalArgumentException("A fixed-price funeral package must have a price greater than zero");
+            }
+        } else {
+            funeralPackage.setPricingMode("ITEM_TOTAL");
+            funeralPackage.setBasePriceCents(total);
+        }
         funeralPackageRepository.save(funeralPackage);
+    }
+
+    private String normalizePackagePricingMode(String pricingMode) {
+        String value = defaultString(pricingMode, "ITEM_TOTAL").trim().toUpperCase(Locale.ROOT);
+        if (!List.of("FIXED_PRICE", "ITEM_TOTAL").contains(value)) {
+            throw new IllegalArgumentException("pricingMode must be FIXED_PRICE or ITEM_TOTAL");
+        }
+        return value;
     }
 
     @Transactional
@@ -506,6 +525,7 @@ public class FuneralManagementService {
         entity.setExtrasJson(toJson(request.getExtras()));
         entity.setTotalAmountCents((packageEntity == null ? 0L : defaultLong(packageEntity.getBasePriceCents())) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus(packageEntity == null ? "COVER_IDENTIFIED" : "ARRANGEMENT_CREATED");
+        entity.setWizardStep(packageEntity == null ? 2 : 3);
         return toServiceResponse(funeralServiceRepository.save(entity));
     }
 
@@ -527,6 +547,7 @@ public class FuneralManagementService {
         if (request.getCauseOfDeath() != null && !request.getCauseOfDeath().isBlank()) service.setCauseOfDeath(request.getCauseOfDeath());
         if (!"INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
             service.setStatus("ARRANGEMENT_CREATED");
+            service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 3));
         }
         return toServiceResponse(funeralServiceRepository.save(service));
     }
@@ -645,6 +666,7 @@ public class FuneralManagementService {
         createGroceryClaimForFuneral(service, groceryCover, request);
 
         service.setStatus("CLAIMS_INITIATED");
+        service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 4));
         funeralServiceRepository.save(service);
         return response;
     }
@@ -656,6 +678,9 @@ public class FuneralManagementService {
         if (link.isPresent() && isExternalClaimStorage(link.get())) {
             throw new IllegalArgumentException(
                     "External claims must be reviewed and submitted from the source membership tenant");
+        }
+        if (link.isPresent() && defaultInt(link.get().getClaimFormPrintCount()) < 1) {
+            throw new IllegalArgumentException("Print or download this claim form at least once before continuing");
         }
 
         Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
@@ -835,6 +860,7 @@ public class FuneralManagementService {
         }
 
         service.setStatus("INVOICED");
+        service.setWizardStep(6);
         funeralServiceRepository.save(service);
         return GenerateFuneralInvoicesResponseDto.builder()
                 .funeralServiceId(service.getId())
@@ -1331,10 +1357,11 @@ public class FuneralManagementService {
         String invoiceId = UUID.randomUUID().toString();
         String invoiceNo = generateInvoiceNo();
         long invoiceAmount = defaultLong(split.getAmountCents());
-        boolean coveredByApprovedClaim = "BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType());
-        long paidAmount = 0L;
+        boolean coveredByApprovedClaim = "BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                && StringUtils.hasText(split.getMembershipClaimId());
+        long paidAmount = coveredByApprovedClaim ? invoiceAmount : 0L;
         long balanceAmount = Math.max(0L, invoiceAmount - paidAmount);
-        String status = "ISSUED";
+        String status = coveredByApprovedClaim ? "PAID" : "ISSUED";
         LocalDate invoiceDate = LocalDate.now();
         LocalDate dueDate = service.getFuneralDate() == null ? invoiceDate : service.getFuneralDate();
         String externalReference = truncate(defaultString(service.getDeceasedName(), service.getServiceRequestNo()), 100);
@@ -1362,6 +1389,15 @@ public class FuneralManagementService {
                 balanceAmount,
                 notes);
 
+        if (coveredByApprovedClaim && paidAmount > 0) {
+            jdbcTemplate.update("""
+                    INSERT INTO invoice_payment
+                    (id, invoice_id, payment_date, amount_cents, payment_method, reference_no, created_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, ?, 'MEMBERSHIP_COVER', ?, CURRENT_TIMESTAMP)
+                    """, UUID.randomUUID().toString(), invoiceId, paidAmount,
+                    truncate(defaultString(split.getDescription(), split.getMembershipClaimId()), 100));
+        }
+
         FuneralPackageEntity funeralPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
         String packageName = funeralPackage == null ? "FUNERAL SERVICE" : defaultString(funeralPackage.getName(), "FUNERAL SERVICE");
         String primaryDescription = packageName.toUpperCase(Locale.ROOT).contains("FUNERAL SERVICE")
@@ -1369,33 +1405,74 @@ public class FuneralManagementService {
                 : packageName.toUpperCase(Locale.ROOT) + " FUNERAL SERVICE";
         List<Map<String,Object>> packageItems = funeralPackage == null ? List.of() : jdbcTemplate.queryForList(
                 "SELECT product_description,quantity,unit_price_cents,line_total_cents FROM funeral_package_item WHERE funeral_package_id=? ORDER BY product_description", funeralPackage.getId());
-        if (packageItems.isEmpty()) {
-            insertInvoiceLine(invoiceId, primaryDescription, 1.0, invoiceAmount);
+        boolean fixedPrice = funeralPackage != null && "FIXED_PRICE".equalsIgnoreCase(funeralPackage.getPricingMode());
+        if (packageItems.isEmpty() || fixedPrice) {
+            // The package carries the full price; included products remain descriptive and print with blank amounts.
+            insertInvoiceLine(invoiceId, primaryDescription, 1.0, invoiceAmount, true);
+            for (Map<String,Object> item : packageItems) {
+                insertInvoiceLine(invoiceId,
+                        Objects.toString(item.get("product_description"), "Product"),
+                        ((Number)item.get("quantity")).doubleValue(), 0L, false);
+            }
         } else {
             long packageTotal = packageItems.stream().mapToLong(item -> ((Number)item.get("line_total_cents")).longValue()).sum();
-            for (Map<String,Object> item : packageItems) {
-                long lineTotal=((Number)item.get("line_total_cents")).longValue();
-                long allocated=packageTotal<=0?0:Math.round((double)invoiceAmount*lineTotal/packageTotal);
-                insertInvoiceLine(invoiceId, Objects.toString(item.get("product_description"),"Product"), ((Number)item.get("quantity")).doubleValue(), allocated);
+            long allocatedSoFar = 0L;
+            for (int index = 0; index < packageItems.size(); index++) {
+                Map<String,Object> item = packageItems.get(index);
+                long lineTotal = ((Number)item.get("line_total_cents")).longValue();
+                long allocated = index == packageItems.size() - 1
+                        ? Math.max(0L, invoiceAmount - allocatedSoFar)
+                        : (packageTotal <= 0 ? 0L : Math.round((double) invoiceAmount * lineTotal / packageTotal));
+                allocatedSoFar += allocated;
+                insertInvoiceLine(invoiceId, Objects.toString(item.get("product_description"), "Product"),
+                        ((Number)item.get("quantity")).doubleValue(), allocated, true);
             }
         }
         for (FuneralExtraDto extra : parseFuneralExtras(service.getExtrasJson())) {
             if (extra != null && StringUtils.hasText(extra.getDescription())) {
-                insertInvoiceLine(invoiceId, extra.getDescription().trim().toUpperCase(Locale.ROOT), 1.0, 0L);
+                // The split total already includes extras. Keep them visible without duplicating the invoice amount.
+                insertInvoiceLine(invoiceId, extra.getDescription().trim().toUpperCase(Locale.ROOT), 1.0, 0L, false);
             }
         }
 
         return invoiceId;
     }
 
-    private void insertInvoiceLine(String invoiceId, String description, double quantity, long amountCents) {
+    private void insertInvoiceLine(String invoiceId, String description, double quantity, long amountCents, boolean showAmount) {
         jdbcTemplate.update("""
                 INSERT INTO invoice_line
-                (id, invoice_id, description, quantity, unit_price_cents, discount_cents, tax_cents, subtotal_cents, total_cents, created_at)
-                VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
+                (id, invoice_id, description, quantity, show_amount, unit_price_cents, discount_cents, tax_cents, subtotal_cents, total_cents, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
                 """,
                 UUID.randomUUID().toString(), invoiceId, truncate(defaultString(description, "Funeral service"), 255),
-                quantity, amountCents, amountCents, amountCents);
+                quantity, showAmount, amountCents, amountCents, amountCents);
+    }
+
+    @Transactional
+    public byte[] downloadClaimForm(String membershipClaimId) {
+        FuneralServiceClaimEntity link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId)
+                .orElseThrow(() -> new IllegalArgumentException("Funeral claim not found: " + membershipClaimId));
+        FuneralServiceEntity service = getFuneralServiceOrThrow(link.getFuneralServiceId());
+        FuneralClaimDto claim = readClaimDto(membershipClaimId);
+        byte[] pdf = claimFormGenerationService.generateFuneralPdf(
+                claim.getClaimNo(), claim.getClaimType(), claim.getMembershipNumber(),
+                service.getDeceasedName(), resolvePartnerName(service.getFamilyRepId()),
+                claim.getClaimedAmountCents(), claim.getDateOfDeath() == null ? "" : claim.getDateOfDeath().toString(),
+                service.getCauseOfDeath(), service.getDeathCertificateNo(), "");
+        link.setClaimFormPrintCount(defaultInt(link.getClaimFormPrintCount()) + 1);
+        link.setClaimFormLastPrintedAt(LocalDateTime.now());
+        funeralServiceClaimRepository.save(link);
+        return pdf;
+    }
+
+    @Transactional
+    public FuneralServiceRequestResponseDto updateWizardStep(String funeralServiceId, int wizardStep) {
+        if (wizardStep < 0 || wizardStep > 6) throw new IllegalArgumentException("wizardStep must be between 0 and 6");
+        FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        if (!"INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
+            service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), wizardStep));
+        }
+        return toServiceResponse(funeralServiceRepository.save(service));
     }
 
     private List<String> parsePackageInclusions(String inclusionsJson) {
@@ -1466,6 +1543,9 @@ public class FuneralManagementService {
                 .sourceTenantName(link == null ? null : link.getSourceTenantName())
                 .sourceMembershipId(link == null ? null : link.getSourceMembershipId())
                 .sourceReference(link == null ? null : link.getSourceReference())
+                .claimFormPrinted(link != null && defaultInt(link.getClaimFormPrintCount()) > 0)
+                .claimFormPrintCount(link == null ? 0 : defaultInt(link.getClaimFormPrintCount()))
+                .claimFormLastPrintedAt(link == null ? null : link.getClaimFormLastPrintedAt())
                 .approvedAt(asLocalDateTime(row.get("approved_at")))
                 .build();
     }
@@ -1677,6 +1757,8 @@ public class FuneralManagementService {
                 .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
                 .status(entity.getStatus())
+                .wizardStep(defaultInt(entity.getWizardStep()))
+                .extras(parseFuneralExtras(entity.getExtrasJson()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -2087,6 +2169,10 @@ public class FuneralManagementService {
 
     private void validateRequired(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) throw new IllegalArgumentException(fieldName + " is required");
+    }
+
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private long defaultLong(Long value) {

@@ -64,6 +64,9 @@ public class InvoiceEntity {
     @Column(name = "paid_cents", nullable = false)
     private Long paidCents = 0L;
 
+    @Column(name = "credited_cents", nullable = false)
+    private Long creditedCents = 0L;
+
     @Column(name = "balance_cents", nullable = false)
     private Long balanceCents = 0L;
 
