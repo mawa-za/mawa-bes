@@ -273,6 +273,7 @@ public class FuneralManagementControllerV2 {
         try {
             return ResponseEntity.ok(funeralManagementService.getClaims(id));
         } catch (Exception exception) {
+            log.warn("Unable to load claims for funeral service {}: {}", id, exception.getMessage(), exception);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
@@ -285,6 +286,8 @@ public class FuneralManagementControllerV2 {
         try {
             return ResponseEntity.ok(funeralManagementService.submitClaimForApproval(membershipClaimId, userId));
         } catch (Exception exception) {
+            log.warn("Unable to submit funeral claim {} for approval: {}",
+                    membershipClaimId, exception.getMessage(), exception);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
     }
