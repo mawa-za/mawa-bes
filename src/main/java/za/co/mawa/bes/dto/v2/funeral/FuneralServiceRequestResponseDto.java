@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -23,6 +24,8 @@ public class FuneralServiceRequestResponseDto {
     private String causeOfDeath;
     private Long totalAmountCents;
     private String status;
+    private Integer wizardStep;
+    private List<FuneralExtraDto> extras;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

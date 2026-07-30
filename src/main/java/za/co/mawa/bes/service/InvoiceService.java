@@ -27,7 +27,6 @@ import za.co.mawa.bes.utils.TransactionType;
 import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.io.ByteArrayOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -71,7 +70,11 @@ public class InvoiceService {
             throw new RuntimeException(e);
         }
 
+        if (invoice.getLines() == null) invoice.setLines(new java.util.ArrayList<>());
+        if (invoice.getPayments() == null) invoice.setPayments(new java.util.ArrayList<>());
+        if (invoice.getCreditedCents() == null) invoice.setCreditedCents(0L);
         invoice.getLines().forEach(line -> {
+            if (line.getShowAmount() == null) line.setShowAmount(true);
             if (line.getProductId() != null && !line.getProductId().isBlank()) {
                 productService.requireAvailableForSale(line.getProductId());
             }
@@ -86,6 +89,39 @@ public class InvoiceService {
         xeroInvoiceQueueService.queueInvoiceIfEnabled(savedInvoice);
         return savedInvoice;
     }
+
+    public InvoiceEntity updateInvoice(String invoiceId, InvoiceEntity request) {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + invoiceId));
+        invoice.setExternalRef(request.getExternalRef());
+        invoice.setPartnerId(request.getPartnerId());
+        invoice.setInvoiceDate(request.getInvoiceDate());
+        invoice.setDueDate(request.getDueDate());
+        invoice.setStatus(request.getStatus() == null ? invoice.getStatus() : request.getStatus());
+        invoice.setSubtotalCents(request.getSubtotalCents());
+        invoice.setTaxCents(request.getTaxCents());
+        invoice.setDiscountCents(request.getDiscountCents());
+        invoice.setTotalCents(request.getTotalCents());
+        invoice.setBalanceCents(Math.max(0L, value(request.getTotalCents()) - value(invoice.getPaidCents()) - value(invoice.getCreditedCents())));
+        invoice.setCurrency(request.getCurrency() == null ? "ZAR" : request.getCurrency());
+        invoice.setNotes(request.getNotes());
+        invoice.getLines().clear();
+        if (request.getLines() != null) {
+            request.getLines().forEach(line -> {
+                if (line.getProductId() != null && !line.getProductId().isBlank()) productService.requireAvailableForSale(line.getProductId());
+                line.setId(null);
+                line.setInvoice(invoice);
+                if (line.getShowAmount() == null) line.setShowAmount(true);
+                invoice.getLines().add(line);
+            });
+        }
+        invoice.setUpdatedAt(LocalDateTime.now());
+        InvoiceEntity saved = invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(saved);
+        return saved;
+    }
+
+    private long value(Long amount) { return amount == null ? 0L : amount; }
 
     public Optional<InvoiceEntity> getInvoice(String invoiceId) {
         return invoiceRepository.findById(invoiceId);
@@ -223,6 +259,7 @@ public class InvoiceService {
         dto.setDiscountCents(Conversion.safeLongToInteger(invoice.getDiscountCents()));
         dto.setTotalCents(Conversion.safeLongToInteger(invoice.getTotalCents()));
         dto.setPaidCents(Conversion.safeLongToInteger(invoice.getPaidCents()));
+        dto.setCreditedCents(Conversion.safeLongToInteger(invoice.getCreditedCents()));
         dto.setBalanceCents(Conversion.safeLongToInteger(invoice.getBalanceCents()));
         dto.setExternalRef(invoice.getExternalRef());
         dto.setNotes(invoice.getNotes());
@@ -238,6 +275,7 @@ public class InvoiceService {
             lineDto.setProductId(line.getProductId());
             lineDto.setDescription(line.getDescription());
             lineDto.setQuantity(line.getQuantity().intValue());
+            lineDto.setShowAmount(!Boolean.FALSE.equals(line.getShowAmount()));
             lineDto.setUnitPriceCents(Conversion.safeLongToInteger(line.getUnitPriceCents()));
             lineDto.setDiscountCents(Conversion.safeLongToInteger(line.getDiscountCents()));
             lineDto.setTaxCents(Conversion.safeLongToInteger(line.getTaxCents()));

@@ -34,6 +34,10 @@ public class InvoiceLineEntity {
     @Column(name = "quantity", nullable = false)
     private Double quantity = 1.0;
 
+    /** False for descriptive package-inclusion rows that must print with blank amount columns. */
+    @Column(name = "show_amount", nullable = false)
+    private Boolean showAmount = true;
+
     @Column(name = "unit_price_cents", nullable = false)
     private Long unitPriceCents = 0L;
 
