@@ -59,6 +59,12 @@ public class FuneralServiceClaimEntity {
     @Column(name = "service_payment_request_id") private String servicePaymentRequestId;
     @Column(name = "grocery_claim_id") private String groceryClaimId;
 
+    @Column(name = "claim_form_print_count", nullable = false)
+    private Integer claimFormPrintCount = 0;
+
+    @Column(name = "claim_form_last_printed_at")
+    private LocalDateTime claimFormLastPrintedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -67,6 +73,7 @@ public class FuneralServiceClaimEntity {
         if (claimStorageScope == null || claimStorageScope.isBlank()) {
             claimStorageScope = "LOCAL";
         }
+        if (claimFormPrintCount == null) claimFormPrintCount = 0;
         createdAt = LocalDateTime.now();
     }
 }

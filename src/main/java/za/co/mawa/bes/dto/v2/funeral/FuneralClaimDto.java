@@ -28,5 +28,8 @@ public class FuneralClaimDto {
     private String sourceTenantName;
     private String sourceMembershipId;
     private String sourceReference;
+    private Boolean claimFormPrinted;
+    private Integer claimFormPrintCount;
+    private LocalDateTime claimFormLastPrintedAt;
     private LocalDateTime approvedAt;
 }

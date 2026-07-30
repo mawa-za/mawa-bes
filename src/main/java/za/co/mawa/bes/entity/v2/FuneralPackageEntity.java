@@ -23,6 +23,10 @@ public class FuneralPackageEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
+    /** FIXED_PRICE keeps one package price; ITEM_TOTAL derives the price from included products. */
+    @Column(name = "pricing_mode", nullable = false)
+    private String pricingMode = "ITEM_TOTAL";
+
     @Column(name = "base_price_cents", nullable = false)
     private Long basePriceCents = 0L;
 

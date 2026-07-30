@@ -14,6 +14,7 @@ import java.util.List;
 public class FuneralPackageCreateRequestDto {
 
     private String name;
+    private String pricingMode;
     private Long basePriceCents;
     private String inclusionsJson;
     private List<String> inclusions;
