@@ -57,6 +57,7 @@ public class LegacyAttachmentObjectIdResolver {
         for (LegacyIdMapping mapping : MAPPINGS) {
             resolveMapping(mapping, requestedId, resolvedIds);
         }
+        resolveFuneralClaimAttachments(requestedId, resolvedIds);
         return new ArrayList<>(resolvedIds);
     }
 
@@ -75,6 +76,24 @@ public class LegacyAttachmentObjectIdResolver {
             // from loading by their current object id.
             log.debug("Could not resolve attachment lineage from {}.{}: {}",
                     mapping.tableName(), mapping.legacyColumn(), ex.getMostSpecificCause().getMessage());
+        }
+    }
+
+    /**
+     * Funeral claim documents are uploaded once against the funeral service
+     * request. A claim therefore resolves its parent service id, while keeping
+     * claim-specific generated forms isolated to the claim that owns them.
+     */
+    private void resolveFuneralClaimAttachments(String objectId, Set<String> resolvedIds) {
+        try {
+            jdbcTemplate.query(
+                    "SELECT DISTINCT funeral_service_id FROM funeral_service_claim "
+                            + "WHERE membership_claim_id = ?",
+                    rs -> addIfPresent(resolvedIds, rs.getString(1)),
+                    objectId);
+        } catch (DataAccessException ex) {
+            log.debug("Could not resolve funeral claim attachment aliases for {}: {}",
+                    objectId, ex.getMostSpecificCause().getMessage());
         }
     }
 
