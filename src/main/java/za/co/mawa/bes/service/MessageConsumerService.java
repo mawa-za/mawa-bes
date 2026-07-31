@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
 
 import java.time.LocalDateTime;
+import java.sql.SQLException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -67,6 +69,12 @@ public class MessageConsumerService {
     private static final String RETRY_DELAY_SECONDS = "RETRY-DELAY-SECONDS";
     private final Map<String, LocalDateTime> lastRunByTenant = new ConcurrentHashMap<>();
 
+    @Value("${mawa.scheduler.transient-db-retry-attempts:2}")
+    private int transientDatabaseRetryAttempts;
+
+    @Value("${mawa.scheduler.transient-db-retry-backoff-ms:500}")
+    private long transientDatabaseRetryBackoffMs;
+
     @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
     public void processAllTenants() {
         final List<TenantDto> tenants;
@@ -79,19 +87,112 @@ public class MessageConsumerService {
             return;
         }
         for (TenantDto tenant : tenants) {
+            processTenantWithRetry(tenant);
+        }
+    }
+
+    private void processTenantWithRetry(TenantDto tenant) {
+        int attempts = Math.max(1, transientDatabaseRetryAttempts);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
                 if (!isSchedulerEnabled() || !isDueToRun()) {
+                    return;
+                }
+
+                int processed = processCurrentTenant();
+                lastRunByTenant.put(TenantContext.getCurrentTenant(), LocalDateTime.now());
+                if (processed > 0) {
+                    log.info("Message queue processed {} item(s) for tenant {}", processed, tenantLabel(tenant));
+                }
+                return;
+            } catch (Exception ex) {
+                boolean retryable = isTransientDatabaseFailure(ex) && attempt < attempts;
+                if (retryable) {
+                    log.warn(
+                            "Transient database failure while processing message queue for tenant {} "
+                                    + "(attempt {}/{}). A fresh connection will be used: {}",
+                            tenantLabel(tenant),
+                            attempt,
+                            attempts,
+                            rootMessage(ex));
+                    sleepBeforeRetry(attempt);
                     continue;
                 }
-                lastRunByTenant.put(TenantContext.getCurrentTenant(), LocalDateTime.now());
-                processCurrentTenant();
-            } catch (Exception e) {
-                System.err.println("Error processing tenant " + tenant + ": " + e.getMessage());
+
+                log.error("Message queue processing failed for tenant {}: {}",
+                        tenantLabel(tenant), rootMessage(ex), ex);
+                return;
             } finally {
                 TenantContext.clear();
             }
         }
+    }
+
+    private boolean isTransientDatabaseFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SQLException sqlException) {
+                String sqlState = sqlException.getSQLState();
+                if (sqlState != null && sqlState.startsWith("08")) {
+                    return true;
+                }
+            }
+
+            String className = current.getClass().getName();
+            if (className.contains("JDBCConnectionException")
+                    || className.contains("CannotGetJdbcConnectionException")
+                    || className.contains("TransientDataAccessResourceException")
+                    || className.contains("SQLTransientConnectionException")) {
+                return true;
+            }
+
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(java.util.Locale.ROOT);
+                if (normalized.contains("communications link failure")
+                        || normalized.contains("connection reset by peer")
+                        || normalized.contains("no operations allowed after connection closed")
+                        || normalized.contains("unable to rollback against jdbc connection")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long delay = Math.max(0L, transientDatabaseRetryBackoffMs) * Math.max(1, attempt);
+        if (delay == 0L) {
+            return;
+        }
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private String tenantLabel(TenantDto tenant) {
+        if (tenant == null) {
+            return "unknown";
+        }
+        String name = tenant.getName();
+        return name == null || name.isBlank()
+                ? String.valueOf(tenant.getId())
+                : name + " (" + tenant.getId() + ")";
+    }
+
+    private String rootMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null && current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        if (current == null || current.getMessage() == null || current.getMessage().isBlank()) {
+            return throwable == null ? "Unknown error" : throwable.getClass().getSimpleName();
+        }
+        return current.getMessage();
     }
 
     public boolean isSchedulerEnabled() {
@@ -155,7 +256,8 @@ public class MessageConsumerService {
 
         for (MessageQueueEntity msg : messageQueueEntities) {
             try {
-                System.out.println("Tenant: " + TenantContext.getCurrentTenant() + " Payload: " + msg.getPayload());
+                log.debug("Processing message queue item {} of type {} for tenant {}",
+                        msg.getId(), msg.getType(), TenantContext.getCurrentTenant());
                 switch (msg.getType()) {
                     case "FNB-EFT-PAYMENT":
                         BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
@@ -242,11 +344,17 @@ public class MessageConsumerService {
                         msg.setProcessed(true);
                         break;
                     default:
-                        System.out.println("No processor registered for message type: " + msg.getType());
+                        log.warn("No processor is registered for message queue type {}", msg.getType());
                         break;
                 }
 
             } catch (Exception e) {
+                if (isTransientDatabaseFailure(e)) {
+                    if (e instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+                    throw new IllegalStateException("Transient database failure while processing message queue", e);
+                }
                 log.error(
                         "Message queue processing failed for tenant {}, message {}, type {}",
                         TenantContext.getCurrentTenant(),
