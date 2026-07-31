@@ -14,6 +14,9 @@ import java.util.List;
 public class FuneralPackageResponseDto {
 
     private String id;
+    private String productId;
+    private String productCode;
+    private String productDescription;
     private String name;
     private String pricingMode;
     private Long basePriceCents;

@@ -64,6 +64,9 @@ public class ProductService implements ProductDao {
                 throw new IllegalArgumentException("Product type is required.");
             }
             ProductTypeCode productType = ProductTypeCode.requireSelectable(productCreateDto.getType());
+            if (ProductTypeCode.FUNERAL_PACKAGE == productType) {
+                throw new IllegalArgumentException("Create funeral packages from Funeral Package Setup so that pricing and package composition remain linked.");
+            }
             String requestedCategory = firstNonBlank(productCreateDto.getCategoryId(), productCreateDto.getCategory());
             ProductCategoryMasterEntity category = productClassificationService.requireActiveCategory(
                     requestedCategory, productType.getCode());
@@ -180,6 +183,16 @@ public class ProductService implements ProductDao {
             productDto.setAttributes(getAttributes(productEntity.getId()));
             productDto.setCategories(getCategories(productEntity.getId()));
             productDto.setBarcodes(getBarcodes(productEntity.getId()));
+            try {
+                List<Map<String, Object>> packageLinks = jdbcTemplate.queryForList(
+                        "SELECT id FROM funeral_package WHERE product_id = ? LIMIT 1", productEntity.getId());
+                productDto.setManagedByFuneralPackage(!packageLinks.isEmpty());
+                if (!packageLinks.isEmpty()) {
+                    productDto.setFuneralPackageId(Objects.toString(packageLinks.get(0).get("id"), null));
+                }
+            } catch (Exception ignored) {
+                productDto.setManagedByFuneralPackage(false);
+            }
             return productDto;
         } catch (EntityNotFoundException exception) {
             return null;
@@ -222,6 +235,11 @@ public class ProductService implements ProductDao {
     public void edit(ProductEditDto productEditDto) throws ProductUpdateFailure {
         try {
             ProductEntity productEntity = productRepository.getById(productEditDto.getId());
+            if (isManagedFuneralPackageProduct(productEntity.getId())
+                    || ProductTypeCode.FUNERAL_PACKAGE == ProductTypeCode.find(productEntity.getType()).orElse(null)
+                    || ProductTypeCode.FUNERAL_PACKAGE == ProductTypeCode.find(productEditDto.getType()).orElse(null)) {
+                throw new IllegalArgumentException("Manage funeral package products from Funeral Package Setup.");
+            }
             if (productEditDto.getCode() != null && !productEditDto.getCode().isBlank()) {
                 productEntity.setCode(productEditDto.getCode().trim().toUpperCase());
             }
@@ -260,6 +278,14 @@ public class ProductService implements ProductDao {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().trim().toUpperCase());
             }
             productRepository.save(productEntity);
+            if (ProductTypeCode.SERVICE != productType) {
+                try {
+                    jdbcTemplate.update("UPDATE product_asset_link SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE service_product_id = ?",
+                            productEntity.getId());
+                } catch (Exception ignored) {
+                    // Keeps product maintenance compatible until the hire-asset migration has run.
+                }
+            }
             writeProductAudit(productEntity.getId(), "UPDATE", null,
                     productEntity.getCode() + " - " + productEntity.getDescription() + " [" + productEntity.getType() + "]", null);
             if (productEditDto.getPrice() != null) {
@@ -281,6 +307,9 @@ public class ProductService implements ProductDao {
     @Override
     public void delete(String id) throws ProductDeleteFailure {
         try {
+            if (isManagedFuneralPackageProduct(id)) {
+                throw new IllegalArgumentException("Deactivate the funeral package from Funeral Package Setup instead of deleting its linked product.");
+            }
             for (ProductPricingEntity price : productPricingRepository.findByProduct(id)) {
                 deletePricing(price.getProductPricingPKEntity());
             }
@@ -288,7 +317,7 @@ public class ProductService implements ProductDao {
             jdbcTemplate.update("DELETE FROM product_barcode WHERE product_id = ?", id);
             productRepository.deleteById(id);
         } catch (Exception exception) {
-            throw new ProductDeleteFailure();
+            throw new ProductDeleteFailure(exception.getMessage());
         }
     }
 
@@ -572,6 +601,18 @@ public class ProductService implements ProductDao {
                     return legacy;
                 });
     }
+
+    private boolean isManagedFuneralPackageProduct(String productId) {
+        if (productId == null || productId.isBlank()) return false;
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM funeral_package WHERE product_id = ?", Integer.class, productId);
+            return count != null && count > 0;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
 
     private String firstNonBlank(String first, String second) {
         if (first != null && !first.isBlank()) {
