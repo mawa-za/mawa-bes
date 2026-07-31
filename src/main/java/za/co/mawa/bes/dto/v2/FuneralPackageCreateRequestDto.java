@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class FuneralPackageCreateRequestDto {
 
+    private String productCode;
     private String name;
     private String pricingMode;
     private Long basePriceCents;

@@ -35,4 +35,6 @@ public class ProductDto {
     private List<ProductAttributeDto> attributes;
     private List<ProductCategoryDto> categories;
     private List<String> barcodes;
+    private Boolean managedByFuneralPackage;
+    private String funeralPackageId;
 }
