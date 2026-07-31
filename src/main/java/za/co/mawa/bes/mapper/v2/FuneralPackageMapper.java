@@ -16,7 +16,11 @@ public class FuneralPackageMapper {
 
         return FuneralPackageResponseDto.builder()
                 .id(entity.getId())
+                .productId(entity.getProductId())
+                .productCode(entity.getProductCode())
+                .productDescription(entity.getProductDescription())
                 .name(entity.getName())
+                .pricingMode(entity.getPricingMode())
                 .basePriceCents(entity.getBasePriceCents())
                 .inclusionsJson(entity.getInclusionsJson())
                 .active(entity.getActive())
@@ -29,6 +33,7 @@ public class FuneralPackageMapper {
         }
         return FuneralPackageEntity.builder()
                 .name(request.getName())
+                .pricingMode(request.getPricingMode())
                 .basePriceCents(request.getBasePriceCents())
                 .inclusionsJson(request.getInclusionsJson())
                 .active(request.getActive())
@@ -41,6 +46,7 @@ public class FuneralPackageMapper {
         }
         entity.setId(request.getId());
         entity.setName(request.getName());
+        entity.setPricingMode(request.getPricingMode());
         entity.setBasePriceCents(request.getBasePriceCents());
         entity.setInclusionsJson(request.getInclusionsJson());
         entity.setActive(request.getActive());

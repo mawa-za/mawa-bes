@@ -20,6 +20,9 @@ public class FuneralPackageEntity {
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
+    @Column(name = "product_id")
+    private String productId;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -35,6 +38,12 @@ public class FuneralPackageEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    @Transient
+    private String productCode;
+
+    @Transient
+    private String productDescription;
 
     @Transient
     private List<FuneralPackageItemEntity> products;
