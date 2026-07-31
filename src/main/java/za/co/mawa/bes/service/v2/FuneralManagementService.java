@@ -28,6 +28,7 @@ import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
+import za.co.mawa.bes.enums.ProductTypeCode;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -72,6 +73,7 @@ public class FuneralManagementService {
     private final TenantAdminService tenantAdminService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final StorageConfigurationService storageConfigurationService;
+    private final AssetHireService assetHireService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -225,6 +227,7 @@ public class FuneralManagementService {
         entity.setActive(request.getActive() == null || request.getActive());
         entity = funeralPackageRepository.save(entity);
         replacePackageItems(entity, request.getProducts());
+        synchronizePackageProduct(entity, request.getProductCode());
         return attachPackageItems(entity);
     }
 
@@ -242,6 +245,7 @@ public class FuneralManagementService {
         }
         entity = funeralPackageRepository.save(entity);
         replacePackageItems(entity, request.getProducts());
+        synchronizePackageProduct(entity, request.getProductCode());
         return attachPackageItems(entity);
     }
 
@@ -252,6 +256,12 @@ public class FuneralManagementService {
 
     private FuneralPackageEntity attachPackageItems(FuneralPackageEntity entity) {
         entity.setProducts(funeralPackageItemRepository.findByFuneralPackageIdOrderByProductDescriptionAsc(entity.getId()));
+        if (StringUtils.hasText(entity.getProductId())) {
+            productRepository.findById(entity.getProductId()).ifPresent(product -> {
+                entity.setProductCode(product.getCode());
+                entity.setProductDescription(product.getDescription());
+            });
+        }
         return entity;
     }
 
@@ -271,11 +281,20 @@ public class FuneralManagementService {
             if (unitPrice < 0) throw new IllegalArgumentException("Product unit price cannot be negative");
             za.co.mawa.bes.entity.ProductEntity product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProductId()));
+            ProductTypeCode componentType = ProductTypeCode.find(product.getType())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Product " + product.getCode() + " uses an unsupported legacy product type and cannot be added to a funeral package."));
+            if (!List.of(ProductTypeCode.PHYSICAL_PRODUCT, ProductTypeCode.CONSUMABLE,
+                    ProductTypeCode.SERVICE, ProductTypeCode.TOMBSTONE).contains(componentType)) {
+                throw new IllegalArgumentException("Funeral packages may contain only Physical Products, Consumables, Services or Tombstones. "
+                        + product.getCode() + " is " + componentType.getDisplayName() + ".");
+            }
             long lineTotal = Math.multiplyExact(unitPrice, quantity);
             total = Math.addExact(total, lineTotal);
             funeralPackageItemRepository.save(FuneralPackageItemEntity.builder()
                     .funeralPackageId(funeralPackage.getId()).productId(product.getId())
                     .productCode(product.getCode()).productDescription(product.getDescription())
+                    .productType(componentType.getCode())
                     .quantity(quantity).unitPriceCents(unitPrice).lineTotalCents(lineTotal).build());
         }
         if ("FIXED_PRICE".equalsIgnoreCase(funeralPackage.getPricingMode())) {
@@ -287,6 +306,98 @@ public class FuneralManagementService {
             funeralPackage.setBasePriceCents(total);
         }
         funeralPackageRepository.save(funeralPackage);
+    }
+
+    private void synchronizePackageProduct(FuneralPackageEntity funeralPackage, String requestedCode) {
+        za.co.mawa.bes.entity.ProductEntity product = null;
+        if (StringUtils.hasText(funeralPackage.getProductId())) {
+            product = productRepository.findById(funeralPackage.getProductId()).orElse(null);
+        }
+
+        String normalizedRequestedCode = normalizeOptionalProductCode(requestedCode);
+        if (product == null && StringUtils.hasText(normalizedRequestedCode)) {
+            za.co.mawa.bes.entity.ProductEntity existing = productRepository.findByCode(normalizedRequestedCode);
+            if (existing != null) {
+                Integer linkedCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM funeral_package WHERE product_id = ? AND id <> ?",
+                        Integer.class, existing.getId(), funeralPackage.getId());
+                if (linkedCount != null && linkedCount > 0) {
+                    throw new IllegalArgumentException("Product code " + normalizedRequestedCode + " is already linked to another funeral package.");
+                }
+                if (ProductTypeCode.FUNERAL_PACKAGE != ProductTypeCode.find(existing.getType()).orElse(null)) {
+                    throw new IllegalArgumentException("Product code " + normalizedRequestedCode + " already belongs to a non-package product.");
+                }
+                product = existing;
+            }
+        }
+
+        if (product == null) {
+            product = new za.co.mawa.bes.entity.ProductEntity();
+            product.setCode(StringUtils.hasText(normalizedRequestedCode)
+                    ? normalizedRequestedCode : generatePackageProductCode(funeralPackage.getName()));
+            product.setValidFrom(new java.util.Date());
+            try {
+                product.setValidTo(java.sql.Date.valueOf("9999-12-31"));
+            } catch (Exception ignored) {
+                product.setValidTo(null);
+            }
+        } else if (StringUtils.hasText(normalizedRequestedCode)
+                && !normalizedRequestedCode.equalsIgnoreCase(defaultString(product.getCode(), ""))) {
+            za.co.mawa.bes.entity.ProductEntity duplicate = productRepository.findByCode(normalizedRequestedCode);
+            if (duplicate != null && !duplicate.getId().equals(product.getId())) {
+                throw new IllegalArgumentException("Product code " + normalizedRequestedCode + " already exists.");
+            }
+            product.setCode(normalizedRequestedCode);
+        }
+
+        product.setDescription(funeralPackage.getName().trim().toUpperCase(Locale.ROOT));
+        product.setType(ProductTypeCode.FUNERAL_PACKAGE.getCode());
+        product.setUom("EA");
+        product.setCategoryId(resolveFuneralPackageCategoryId());
+        product.setAvailableForSale(Boolean.TRUE.equals(funeralPackage.getActive()));
+        product = productRepository.save(product);
+
+        funeralPackage.setProductId(product.getId());
+        funeralPackage.setProductCode(product.getCode());
+        funeralPackage.setProductDescription(product.getDescription());
+        funeralPackageRepository.save(funeralPackage);
+
+        jdbcTemplate.update("""
+                INSERT INTO product_pricing (pricing, product, value, valid_from, valid_to)
+                VALUES ('SELLING-PRICE', ?, ?, CURRENT_DATE, '9999-12-31')
+                ON DUPLICATE KEY UPDATE value = VALUES(value), valid_to = VALUES(valid_to)
+                """, product.getId(), defaultLong(funeralPackage.getBasePriceCents()) / 100.0d);
+    }
+
+    private String resolveFuneralPackageCategoryId() {
+        List<String> ids = jdbcTemplate.queryForList(
+                "SELECT id FROM product_category_master WHERE code = 'FUNERAL-PACKAGES' AND active = 1 LIMIT 1",
+                String.class);
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("The Funeral Packages product category is missing. Run the latest tenant migrations.");
+        }
+        return ids.get(0);
+    }
+
+    private String generatePackageProductCode(String name) {
+        String base = defaultString(name, "PACKAGE").trim().toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (base.isBlank()) base = "PACKAGE";
+        if (base.length() > 40) base = base.substring(0, 40);
+        String candidate = "FP-" + base;
+        int suffix = 1;
+        while (productRepository.findByCode(candidate) != null) {
+            candidate = "FP-" + base + "-" + suffix++;
+        }
+        return candidate;
+    }
+
+    private String normalizeOptionalProductCode(String productCode) {
+        if (!StringUtils.hasText(productCode)) return null;
+        String value = productCode.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "-");
+        if (value.length() > 255) throw new IllegalArgumentException("Package product code is too long.");
+        return value;
     }
 
     private String normalizePackagePricingMode(String pricingMode) {
@@ -302,6 +413,7 @@ public class FuneralManagementService {
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setActive(false);
         funeralPackageRepository.save(entity);
+        synchronizePackageProduct(entity, null);
     }
 
 
@@ -526,7 +638,10 @@ public class FuneralManagementService {
         entity.setTotalAmountCents((packageEntity == null ? 0L : defaultLong(packageEntity.getBasePriceCents())) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus(packageEntity == null ? "COVER_IDENTIFIED" : "ARRANGEMENT_CREATED");
         entity.setWizardStep(packageEntity == null ? 2 : 3);
-        return toServiceResponse(funeralServiceRepository.save(entity));
+        FuneralServiceEntity saved = funeralServiceRepository.save(entity);
+        assetHireService.synchronizeFuneralServiceReservations(
+                saved.getId(), saved.getPackageId(), saved.getFuneralDate(), saved.getFamilyRepId(), saved.getServiceRequestNo());
+        return toServiceResponse(saved);
     }
 
     @Transactional
@@ -549,7 +664,10 @@ public class FuneralManagementService {
             service.setStatus("ARRANGEMENT_CREATED");
             service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 3));
         }
-        return toServiceResponse(funeralServiceRepository.save(service));
+        FuneralServiceEntity saved = funeralServiceRepository.save(service);
+        assetHireService.synchronizeFuneralServiceReservations(
+                saved.getId(), saved.getPackageId(), saved.getFuneralDate(), saved.getFamilyRepId(), saved.getServiceRequestNo());
+        return toServiceResponse(saved);
     }
 
     @Transactional
