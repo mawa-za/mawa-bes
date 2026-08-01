@@ -68,6 +68,15 @@ public class GroupSocietyEntity {
     @Column(name = "agreement_last_printed_at")
     private Date agreementLastPrintedAt;
 
+    @Transient
+    private String displayName;
+
+    @Transient
+    private String partnerNumber;
+
+    @Transient
+    private Boolean partnerAvailable;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;
 
