@@ -9,6 +9,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dao.UserDao;
@@ -35,6 +39,7 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     @Autowired
     EntityManager entityManager;
     @Autowired
@@ -82,24 +87,47 @@ public class UserService implements UserDao {
     }
 
     @Override
+    @Transactional
     public UserDto create(UserCreateDto userCreateDto) throws UserExistException {
-        UserEntity userFound = userRepository.getByName(userCreateDto.getUsername());
+        if (userCreateDto == null) {
+            throw new IllegalArgumentException("User details are required");
+        }
+        String username = required(userCreateDto.getUsername(), "Username");
+        String email = required(userCreateDto.getEmail(), "Email address").toLowerCase(java.util.Locale.ROOT);
+        String cellphone = referenceDataValidationService.requireContactNumber(userCreateDto.getCellphone());
+        String partnerId = required(userCreateDto.getPartnerId(), "Employee partner");
+        String password = StringUtils.hasText(userCreateDto.getPassword())
+                ? userCreateDto.getPassword()
+                : keyGenerator.generatePassword();
+
+        try {
+            PartnerDto selectedPartner = partnerService.get(partnerId);
+            if (selectedPartner == null) {
+                throw new IllegalArgumentException("The selected employee partner could not be found");
+            }
+        } catch (IllegalArgumentException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("The selected employee partner could not be found");
+        }
+
+        UserEntity userFound = userRepository.getByName(username);
         if (userFound != null) {
             throw new UserExistException("Username already exist");
         }
-        userFound = userRepository.getByEmail(userCreateDto.getEmail());
+        userFound = userRepository.getByEmail(email);
         if (userFound != null) {
             throw new UserExistException("Email already assigned to user");
         }
-        userFound = userRepository.getByCellphone(userCreateDto.getCellphone());
+        userFound = userRepository.getByCellphone(cellphone);
         if (userFound != null) {
             throw new UserExistException("Cellphone number already assigned to user");
         }
         UserEntity userEntity = new UserEntity();
-        userEntity.setPartner(userCreateDto.getPartnerId());
-        userEntity.setUsername(userCreateDto.getUsername());
-        userEntity.setEmail(userCreateDto.getEmail());
-        userEntity.setCellphone(referenceDataValidationService.requireContactNumber(userCreateDto.getCellphone()));
+        userEntity.setPartner(partnerId);
+        userEntity.setUsername(username);
+        userEntity.setEmail(email);
+        userEntity.setCellphone(cellphone);
         userEntity.setUserType(userCreateDto.getUserType() == null ? UserType.ADMIN : userCreateDto.getUserType().toUpperCase());
         userEntity.setAccountType(userCreateDto.getAccountType() == null ? "STANDARD" : userCreateDto.getAccountType().toUpperCase());
         userEntity.setTestUser(Boolean.TRUE.equals(userCreateDto.getTestUser()));
@@ -107,7 +135,9 @@ public class UserService implements UserDao {
         userEntity.setProtectedUser(false);
         userEntity.setSystemManaged(false);
         userEntity.setAccessScope("STANDARD");
-        userEntity.setEnvironmentScope(userCreateDto.getEnvironmentScope());
+        userEntity.setEnvironmentScope(StringUtils.hasText(userCreateDto.getEnvironmentScope())
+                ? userCreateDto.getEnvironmentScope().trim()
+                : null);
         userEntity.setExternalTransactionsBlocked(Boolean.TRUE.equals(userCreateDto.getExternalTransactionsBlocked()));
         userEntity.setExpiresAt(userCreateDto.getExpiresAt());
         if ("SUPPORT_VERIFICATION".equalsIgnoreCase(userEntity.getAccountType()) && userEntity.getExpiresAt() == null) {
@@ -127,39 +157,49 @@ public class UserService implements UserDao {
         userEntity.setPasswordStatus(PasswordStatus.INITIAL);
         userEntity.setValidFrom(new Date());
         userEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
-        if (userCreateDto.getPassword() == null) {
-            userCreateDto.setPassword(keyGenerator.generatePassword());
-        }
-        userEntity.setPassword(encryptionService.encrypt(userCreateDto.getPassword(), encryptionSecret).getBytes());
+        userCreateDto.setPassword(password);
+        userEntity.setPassword(encryptionService.encrypt(password, encryptionSecret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         userEntity.setPasswordChangedAt(new Date());
         UserDto userDto = entityToDto(userRepository.save(userEntity));
-        EmailDto emailDto = new EmailDto();
-        emailDto.setTo(userEntity.getEmail());
-        emailDto.setSubject("New user");
-        emailDto.setTemplate("new-user");
-        List<PropertyDto> props = new ArrayList<>();
-        props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, userCreateDto.getUsername()));
-        props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, userCreateDto.getPassword()));
-        props.add(new PropertyDto(HtmlTemplateVariableKey.TENANT_URL, buildTenantURL()));
-
-        emailDto.setProperties(props);
+        userDto.setPassword(null);
         try {
+            EmailDto emailDto = new EmailDto();
+            emailDto.setTo(userEntity.getEmail());
+            emailDto.setSubject("New user");
+            emailDto.setTemplate("new-user");
+            List<PropertyDto> props = new ArrayList<>();
+            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_NAME, username));
+            props.add(new PropertyDto(HtmlTemplateVariableKey.USER_PASSWORD, password));
+            props.add(new PropertyDto(HtmlTemplateVariableKey.TENANT_URL, buildTenantURL()));
+            emailDto.setProperties(props);
             emailService.send(emailDto);
-        } catch (Exception ex) {
-
+        } catch (Exception exception) {
+            // Notification delivery must not turn an already valid user creation into an HTTP 400.
+            log.warn("User {} was created, but the welcome email could not be sent: {}",
+                    username, exception.getMessage());
         }
         return userDto;
     }
 
     public String buildTenantURL() {
-
-        String domain = settingService.getSetting("ACCESS-URL","TENANT");
-        if(domain == null){
+        String domain = settingService.getSetting("ACCESS-URL", "TENANT");
+        if (!StringUtils.hasText(domain)) {
             domain = TenantContext.getCurrentTenantURL();
         }
-        return domain.startsWith("http://") || domain.startsWith("https://")
-                ? domain
-                : "https://" + domain;
+        if (!StringUtils.hasText(domain)) {
+            return "";
+        }
+        String normalized = domain.trim();
+        return normalized.startsWith("http://") || normalized.startsWith("https://")
+                ? normalized
+                : "https://" + normalized;
+    }
+
+    private String required(String value, String label) {
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException(label + " is required");
+        }
+        return value.trim();
     }
 
     @Override
@@ -205,6 +245,8 @@ public class UserService implements UserDao {
                     userCreateDto.setPartnerId(partnerDto.getId());
                     userCreateDto.setUsername(SYSTEM_USER);
                     userCreateDto.setPassword(DEFAULT_SYSTEM_PASSWORD);
+                    userCreateDto.setEmail("system@mawa.local");
+                    userCreateDto.setCellphone("0000000000");
                     userCreateDto.setUserType(UserType.ADMIN);
                     userCreateDto.setAccountType("STANDARD");
                     userCreateDto.setProtectedUser(true);

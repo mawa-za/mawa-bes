@@ -1,7 +1,10 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping(value = "/v2/user")
 public class UserControllerV2 {
+    private static final Logger log = LoggerFactory.getLogger(UserControllerV2.class);
     Gson gson = new Gson();
     @Autowired
     UserService userService;
@@ -36,11 +40,25 @@ public class UserControllerV2 {
     public ResponseEntity<?> createUser(@RequestBody UserCreateDto userCreateDto) {
         try {
             UserDto userDto = userService.create(userCreateDto);
-            return ResponseEntity.ok(gson.toJson(userDto));
-        } catch (UserExistException e) {
-            return ResponseEntity.status(HttpStatus.MULTIPLE_CHOICES).body(e);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+            return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
+        } catch (UserExistException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                    "code", "USER_ALREADY_EXISTS",
+                    "message", exception.getMessage()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(
+                    "code", "INVALID_USER_DETAILS",
+                    "message", exception.getMessage()));
+        } catch (DataIntegrityViolationException exception) {
+            log.warn("User creation conflicted with existing data: {}", exception.getMostSpecificCause().getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                    "code", "USER_DETAILS_CONFLICT",
+                    "message", "A user already exists with one or more of these details"));
+        } catch (Exception exception) {
+            log.error("Unable to create user", exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "USER_CREATION_FAILED",
+                    "message", "MAWA could not create the user right now"));
         }
     }
 
