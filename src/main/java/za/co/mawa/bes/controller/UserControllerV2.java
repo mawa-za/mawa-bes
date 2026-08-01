@@ -66,8 +66,15 @@ public class UserControllerV2 {
             UserDto userDto = userService.getUserById(id);
             userDto.setPassword(null);
             return ResponseEntity.ok(gson.toJson(userDto));
+        } catch (za.co.mawa.bes.exception.DoesNotExist exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of(
+                    "message", exception.getMessage() == null ? "User not found" : exception.getMessage()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(
+                    "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "message", "MAWA could not load the user details right now"));
         }
     }
 

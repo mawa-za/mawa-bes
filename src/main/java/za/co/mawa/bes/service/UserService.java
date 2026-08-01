@@ -21,7 +21,6 @@ import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.UserRoleEntity;
 import za.co.mawa.bes.entity.UserRolePKEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
-import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.exception.UserExistException;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.RoleRepository;
@@ -620,7 +619,9 @@ public class UserService implements UserDao {
         try {
             userDto.setId(userEntity.getId());
             userDto.setUsername(userEntity.getUsername());
-            userDto.setPassword(new String(userEntity.getPassword(), "UTF-8"));
+            if (userEntity.getPassword() != null) {
+                userDto.setPassword(new String(userEntity.getPassword(), "UTF-8"));
+            }
             userDto.setEmail(userEntity.getEmail());
             userDto.setCellphone(userEntity.getCellphone());
             userDto.setType(userEntity.getUserType());
@@ -628,10 +629,12 @@ public class UserService implements UserDao {
             userDto.setPasswordStatus(userEntity.getPasswordStatus());
             userDto.setValidFrom(userEntity.getValidFrom());
             userDto.setValidTo(userEntity.getValidTo());
-            try {
-                userDto.setPartner(partnerService.get(userEntity.getPartner()));
-            } catch (PartnerNotFoundException e) {
-
+            if (userEntity.getPartner() != null && !userEntity.getPartner().isBlank()) {
+                try {
+                    userDto.setPartner(partnerService.get(userEntity.getPartner()));
+                } catch (Exception ignored) {
+                    // User lookup must remain available even when optional partner master data is incomplete.
+                }
             }
             userDto.setStatusReason(userEntity.getStatusReason());
             userDto.setAccountType(userEntity.getAccountType());
@@ -691,11 +694,12 @@ public class UserService implements UserDao {
     }
     @Override
     public UserDto getUserById(String id) throws Exception {
-        try {
-            return entityToDto(userRepository.getById(id));
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("User ID is required");
         }
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new DoesNotExist("User not found: " + id));
+        return entityToDto(user);
     }
 
     public UserEntity getUserEntityByName(String username) {
