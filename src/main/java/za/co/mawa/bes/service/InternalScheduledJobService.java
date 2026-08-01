@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.controller.ClaimController;
 import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
@@ -23,11 +24,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class InternalScheduledJobService {
     private static final Logger log = LoggerFactory.getLogger(InternalScheduledJobService.class);
     private static final String SYSTEM_USER = "system";
+    private static final Set<String> SYNTHETIC_SYSTEM_USER_TENANTS = ConcurrentHashMap.newKeySet();
 
     private final UserService userService;
     private final TransactionService transactionService;
@@ -200,7 +203,12 @@ public class InternalScheduledJobService {
         UserContext.setCurrentUserPartner(systemUser == null ? null : systemUser.getPartner());
 
         if (systemUser == null) {
-            log.warn("Tenant system user is not present; scheduled job is continuing with the trusted synthetic system identity");
+            String tenantId = TenantContext.getCurrentTenant();
+            String warningKey = tenantId == null || tenantId.isBlank() ? "unknown" : tenantId;
+            if (SYNTHETIC_SYSTEM_USER_TENANTS.add(warningKey)) {
+                log.info("Tenant {} does not have a system user; scheduled jobs will use the trusted synthetic system identity",
+                        warningKey);
+            }
         }
     }
 

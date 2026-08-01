@@ -25,11 +25,19 @@ public class CustomerStatementControllerV2 {
         catch (Exception exception) { return ResponseEntity.badRequest().body(exception.getMessage()); }
     }
 
-    @GetMapping(value = "/{partnerId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    // Do not constrain handler selection using `produces`. Older ERP clients
+    // sent Accept: application/json even though they expected PDF bytes, which
+    // caused Spring to reject the request before this method was invoked.
+    @GetMapping("/{partnerId}/pdf")
     public ResponseEntity<byte[]> pdf(@PathVariable String partnerId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=customer-statement-" + partnerId + ".pdf")
-                .contentType(MediaType.APPLICATION_PDF).body(customerStatementService.generatePdf(partnerId, fromDate, toDate));
+        byte[] pdf = customerStatementService.generatePdf(partnerId, fromDate, toDate);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=customer-statement-" + partnerId + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(pdf.length)
+                .body(pdf);
     }
 }
