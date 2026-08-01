@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.entity.*;
 import za.co.mawa.bes.exception.DuplicateCreationException;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.*;
 import za.co.mawa.bes.service.v2.SupplierApprovalService;
 
@@ -139,13 +140,9 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PartnerDto> getPartnerById(@PathVariable String id) {
-        try {
-            PartnerDto partnerDto = partnerService.get(id);
-            return ResponseEntity.ok(partnerDto);
-        } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<PartnerDto> getPartnerById(@PathVariable String id)
+            throws PartnerNotFoundException {
+        return ResponseEntity.ok(partnerService.get(id));
     }
 
     @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
