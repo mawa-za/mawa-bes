@@ -30,6 +30,7 @@ public class ApprovalService {
     private final ApprovalCompletionHandlerRegistry completionHandlerRegistry;
     private final ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
     private final JdbcTemplate jdbcTemplate;
+    private final UserInboxService userInboxService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -114,6 +115,7 @@ public class ApprovalService {
                 "Submitted for approval"
         );
         submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
+        userInboxService.notifyApprovalRequired(entity);
         return toResponse(entity);
     }
 
@@ -139,9 +141,10 @@ public class ApprovalService {
             throw new RuntimeException("User has already actioned this approval step");
         }
 
-        recordAction(
+        Integer actionedStepNo = approvalRequest.getCurrentStepNo();
+        ApprovalActionEntity action = recordAction(
                 approvalRequestId,
-                approvalRequest.getCurrentStepNo(),
+                actionedStepNo,
                 ApprovalActionType.APPROVED,
                 request.getActionBy(),
                 request.getComments()
@@ -150,15 +153,25 @@ public class ApprovalService {
         long approvedCount = approvalActionRepository
                 .countByApprovalRequestIdAndStepNoAndAction(
                         approvalRequestId,
-                        approvalRequest.getCurrentStepNo(),
+                        actionedStepNo,
                         ApprovalActionType.APPROVED
                 );
 
         if (approvedCount >= currentStep.getRequiredApprovals()) {
+            userInboxService.resolveApprovalStep(approvalRequestId, actionedStepNo);
             moveToNextStepOrComplete(approvalRequest, request.getActionBy());
+        } else {
+            userInboxService.resolveApprovalStepForUser(
+                    approvalRequestId, actionedStepNo, request.getActionBy());
         }
 
-        return toResponse(approvalRequestRepository.save(approvalRequest));
+        ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
+        userInboxService.notifyRequesterActioned(saved, action, request.getActionBy());
+        if ((saved.getStatus() == ApprovalStatus.IN_PROGRESS || saved.getStatus() == ApprovalStatus.PENDING)
+                && !actionedStepNo.equals(saved.getCurrentStepNo())) {
+            userInboxService.notifyApprovalRequired(saved);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -176,13 +189,15 @@ public class ApprovalService {
 
         validateApprover(currentStep, request.getActionBy(), approvalRequest);
 
-        recordAction(
+        Integer actionedStepNo = approvalRequest.getCurrentStepNo();
+        ApprovalActionEntity action = recordAction(
                 approvalRequestId,
-                approvalRequest.getCurrentStepNo(),
+                actionedStepNo,
                 ApprovalActionType.REJECTED,
                 request.getActionBy(),
                 request.getComments()
         );
+        userInboxService.resolveApprovalStep(approvalRequestId, actionedStepNo);
 
         approvalRequest.setStatus(ApprovalStatus.REJECTED);
         approvalRequest.setFinalActionBy(request.getActionBy());
@@ -191,6 +206,7 @@ public class ApprovalService {
 
         ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
         completionHandlerRegistry.handleRejected(saved, request.getActionBy());
+        userInboxService.notifyRequesterActioned(saved, action, request.getActionBy());
         return toResponse(saved);
     }
 
@@ -204,13 +220,15 @@ public class ApprovalService {
             throw new RuntimeException("Approval request is already finalised");
         }
 
-        recordAction(
+        Integer actionedStepNo = approvalRequest.getCurrentStepNo();
+        ApprovalActionEntity action = recordAction(
                 approvalRequestId,
-                approvalRequest.getCurrentStepNo(),
+                actionedStepNo,
                 ApprovalActionType.CANCELLED,
                 request.getActionBy(),
                 request.getComments()
         );
+        userInboxService.resolveApprovalStep(approvalRequestId, actionedStepNo);
 
         approvalRequest.setStatus(ApprovalStatus.CANCELLED);
         approvalRequest.setFinalActionBy(request.getActionBy());
@@ -219,6 +237,7 @@ public class ApprovalService {
 
         ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
         completionHandlerRegistry.handleCancelled(saved, request.getActionBy());
+        userInboxService.notifyRequesterActioned(saved, action, request.getActionBy());
         return toResponse(saved);
     }
 
@@ -409,7 +428,7 @@ public class ApprovalService {
         return count != null && count > 0;
     }
 
-    private void recordAction(
+    private ApprovalActionEntity recordAction(
             String approvalRequestId,
             Integer stepNo,
             ApprovalActionType action,
@@ -425,7 +444,7 @@ public class ApprovalService {
         actionEntity.setComments(comments);
         actionEntity.setCreatedBy(actionBy);
 
-        approvalActionRepository.save(actionEntity);
+        return approvalActionRepository.save(actionEntity);
     }
 
     private ApprovalRequestEntity getApprovalRequestOrThrow(String id) {
