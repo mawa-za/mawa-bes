@@ -721,15 +721,44 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
         }
 
+        FuneralClaimDto claimDetails = readClaimDto(membershipClaimId);
+        FuneralServiceEntity funeralService = link
+                .map(item -> getFuneralServiceOrThrow(item.getFuneralServiceId()))
+                .orElse(null);
+        String deceasedName = funeralService != null && StringUtils.hasText(funeralService.getDeceasedName())
+                ? funeralService.getDeceasedName().trim()
+                : "Deceased not identified";
+        String deceasedIdentity = funeralService != null
+                ? funeralService.getDeceasedIdentityNumber()
+                : null;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("claimNumber", claimDetails.getClaimNo());
+        summary.put("membershipNumber", claimDetails.getMembershipNumber());
+        summary.put("deceasedName", deceasedName);
+        summary.put("deceasedIdentity", deceasedIdentity);
+        summary.put("claimType", claimDetails.getClaimType());
+        summary.put("claimedAmountCents", claimDetails.getClaimedAmountCents());
+        summary.put("dateOfDeath", claimDetails.getDateOfDeath());
+        summary.put("coverSource", claimDetails.getCoverSource());
+        payload.put("claimSummary", summary);
+        payload.put("membershipClaimId", membershipClaimId);
+        payload.put("membershipId", claimDetails.getMembershipId());
+        payload.put("deceasedPartnerId", claimDetails.getDeceasedPartnerId());
+        payload.put("claimantPartnerId", claimDetails.getClaimantPartnerId());
+        payload.put("attachmentObjectIds", attachmentObjectIds);
+
         ApprovalSubmitRequest request = new ApprovalSubmitRequest();
         request.setApprovalType(ApprovalType.CLAIM);
         request.setReferenceId(membershipClaimId);
-        request.setReferenceNo(String.valueOf(claim.get("claim_no")));
-        request.setTitle("Membership claim " + claim.get("claim_no"));
-        request.setDescription("Funeral arrangement claim submitted for approval");
+        request.setReferenceNo(claimDetails.getClaimNo());
+        request.setTitle("Funeral claim - " + claimDetails.getClaimNo() + " - " + deceasedName
+                + (StringUtils.hasText(claimDetails.getMembershipNumber())
+                ? " - Membership " + claimDetails.getMembershipNumber() : ""));
+        request.setDescription("Review the deceased, membership, claim amount, signed form, and supporting documents before approval.");
         request.setRequesterId(userId);
         try {
-            request.setPayloadJson(objectMapper.writeValueAsString(claim));
+            request.setPayloadJson(objectMapper.writeValueAsString(payload));
         } catch (JsonProcessingException ignored) {
             request.setPayloadJson("{}");
         }

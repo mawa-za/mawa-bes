@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class GroupSocietyFuneralClaimService {
     private final GroupSocietyService groupSocietyService;
     private final ApprovalService approvalService;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public GroupSocietyFuneralClaimResponse submit(String funeralServiceId,
@@ -86,18 +88,34 @@ public class GroupSocietyFuneralClaimService {
                 request.getIdentityNumber().trim(), request.getRequestedCoverCents(),
                 request.getNotes(), actor);
 
+        String deceasedName = (request.getDeceasedFirstNames() + " " + request.getDeceasedLastName()).trim();
+        String societyName = groupSocietyName(society.getId(), society.getGroupNo());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("claimNumber", claimNo);
+        summary.put("groupSocietyNumber", society.getGroupNo());
+        summary.put("groupSocietyName", societyName);
+        summary.put("deceasedName", deceasedName);
+        summary.put("identityType", identityType);
+        summary.put("identityNumber", request.getIdentityNumber().trim());
+        summary.put("requestedCoverCents", request.getRequestedCoverCents());
+        summary.put("funeralTotalCents", funeralTotal);
+        summary.put("availableSocietyBalanceCents", society.getAvailableBalanceCents());
+        summary.put("notes", request.getNotes());
+        payload.put("requestSummary", summary);
+        payload.put("funeralServiceId", funeralServiceId);
+        payload.put("groupSocietyId", society.getId());
+        payload.put("attachmentObjectIds", List.of(funeralServiceId, society.getId(), id));
+
         ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
         approval.setApprovalType(ApprovalType.GROUP_SOCIETY_FUNERAL_CLAIM);
         approval.setReferenceId(id);
         approval.setReferenceNo(claimNo);
-        approval.setTitle("Group society funeral cover");
-        approval.setDescription("Approval required for " + society.getGroupNo()
-                + " to fund " + request.getRequestedCoverCents() + " cents for "
-                + request.getDeceasedFirstNames() + " " + request.getDeceasedLastName());
+        approval.setTitle("Group society funeral cover - " + societyName + " (" + society.getGroupNo()
+                + ") - " + deceasedName);
+        approval.setDescription("Review the deceased details, requested cover, funeral total, and available group society balance.");
         approval.setRequesterId(actor);
-        approval.setPayloadJson("{\"funeralServiceId\":\"" + funeralServiceId
-                + "\",\"groupSocietyId\":\"" + society.getId()
-                + "\",\"requestedCoverCents\":" + request.getRequestedCoverCents() + "}");
+        approval.setPayloadJson(toJson(payload));
         var response = approvalService.submitForApproval(approval);
         jdbcTemplate.update("UPDATE group_society_funeral_claim SET approval_request_id=? WHERE id=?",
                 response.getId(), id);
@@ -182,6 +200,29 @@ public class GroupSocietyFuneralClaimService {
                 .notes(rs.getString("notes"))
                 .createdAt(created == null ? null : created.toLocalDateTime())
                 .build();
+    }
+
+    private String groupSocietyName(String societyId, String fallback) {
+        List<String> values = jdbcTemplate.query("""
+                SELECT COALESCE(
+                    NULLIF(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))), ''),
+                    NULLIF(TRIM(p.name1), ''),
+                    g.group_no
+                )
+                  FROM group_society g
+                  JOIN partner p ON p.id = g.partner_id
+                 WHERE g.id = ?
+                """, (rs, rowNum) -> rs.getString(1), societyId);
+        return values.isEmpty() || values.get(0) == null || values.get(0).isBlank()
+                ? fallback : values.get(0).trim();
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to create the group society funeral approval details", exception);
+        }
     }
 
     private long value(Long value) { return value == null ? 0L : value; }

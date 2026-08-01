@@ -22,6 +22,7 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -636,11 +637,24 @@ public class MembershipChangeService {
         request.setApprovalType(approvalType);
         request.setReferenceId(change.getId());
         request.setReferenceNo(membership.getMembershipNo());
+        String membershipHolder = firstNonBlank(partnerName(membership.getMemberId()), membership.getMembershipNo());
+        String changeLabel = change.getChangeType() == null
+                ? "change"
+                : change.getChangeType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         request.setTitle(switch (approvalType) {
-            case MEMBERSHIP_TRANSFER -> "Membership Transfer: " + membership.getMembershipNo();
-            case MEMBERSHIP_PLAN_CHANGE -> "Membership Plan Change: " + membership.getMembershipNo();
-            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership Dependent Change: " + membership.getMembershipNo();
-            default -> "Membership Change: " + membership.getMembershipNo();
+            case MEMBERSHIP_TRANSFER -> "Membership transfer - " + membership.getMembershipNo()
+                    + " - " + partnerName(change.getOldMemberId()) + " to " + partnerName(change.getNewMemberId());
+            case MEMBERSHIP_PLAN_CHANGE -> "Membership plan change - " + membership.getMembershipNo()
+                    + " - " + membershipHolder + " - " + planName(change.getOldPlanId())
+                    + " to " + planName(change.getNewPlanId());
+            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership dependent "
+                    + changeLabel
+                    + " - " + membership.getMembershipNo() + " - "
+                    + firstNonBlank(
+                    partnerName(change.getNewDependentPartnerId()),
+                    partnerName(change.getOldDependentPartnerId()),
+                    membershipHolder);
+            default -> "Membership change - " + membership.getMembershipNo() + " - " + membershipHolder;
         });
         request.setDescription(approvalDescription(change, membership, approvalType));
         request.setRequesterId(actor);
@@ -737,6 +751,14 @@ public class MembershipChangeService {
         if (!impact.isEmpty()) payload.put("approvalImpact", impact);
         payload.put("attachmentObjectIds", List.of(membership.getId(), change.getId()));
         return payload;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return "Not specified";
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return "Not specified";
     }
 
     private Long estimatedPremiumCents(

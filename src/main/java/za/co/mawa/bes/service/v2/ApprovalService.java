@@ -95,8 +95,8 @@ public class ApprovalService {
         ApprovalRequestEntity entity = new ApprovalRequestEntity();
         entity.setApprovalType(request.getApprovalType());
         entity.setReferenceId(request.getReferenceId());
-        entity.setReferenceNo(request.getReferenceNo());
-        entity.setTitle(request.getTitle());
+        entity.setReferenceNo(truncate(request.getReferenceNo(), 100));
+        entity.setTitle(approvalTitle(request));
         entity.setDescription(request.getDescription());
         entity.setRequesterId(request.getRequesterId());
         entity.setWorkflowId(workflow.getId());
@@ -450,6 +450,25 @@ public class ApprovalService {
     private ApprovalRequestEntity getApprovalRequestOrThrow(String id) {
         return approvalRequestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Approval request not found: " + id));
+    }
+
+    private String approvalTitle(ApprovalSubmitRequest request) {
+        String title = request.getTitle();
+        if (title == null || title.isBlank()) {
+            String type = request.getApprovalType() == null
+                    ? "Approval"
+                    : request.getApprovalType().name().replace('_', ' ');
+            String reference = request.getReferenceNo();
+            title = reference == null || reference.isBlank()
+                    ? type + " approval request"
+                    : type + " approval request - " + reference.trim();
+        }
+        return truncate(title.trim(), 255);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, Math.max(0, maxLength - 3)).trim() + "...";
     }
 
     private ApprovalRequestResponse toResponse(ApprovalRequestEntity entity) {
