@@ -60,6 +60,14 @@ public class ApiExceptionHandler {
         return response(HttpStatus.PAYLOAD_TOO_LARGE, "The selected file is too large. Choose a smaller file and try again");
     }
 
+    @ExceptionHandler(ClaimFormGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleClaimFormGeneration(ClaimFormGenerationException ex) {
+        log.error("Claim form generation failed: {}", ex.getMessage(), ex);
+        return response(HttpStatus.INTERNAL_SERVER_ERROR,
+                "MAWA could not generate the claim form. The claim was not submitted. "
+                        + "Please try again. If the problem continues, contact support");
+    }
+
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ErrorResponse> handleSecurity(SecurityException ex) {
         return response(HttpStatus.FORBIDDEN, safeMessage(ex, "You do not have permission to perform this action"));

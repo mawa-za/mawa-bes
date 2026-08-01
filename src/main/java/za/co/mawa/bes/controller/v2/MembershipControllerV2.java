@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
+import za.co.mawa.bes.dto.v2.MembershipResponseDto;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
@@ -111,21 +112,24 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping
-    public ResponseEntity<Page<MembershipEntity>> listMemberships(
+    public ResponseEntity<Page<MembershipResponseDto>> listMemberships(
             Pageable pageable,
             @RequestParam(required = false) List<String> memberId,
             @RequestParam(required = false) String status
     ) {
-        Page<MembershipEntity> page = membershipService.getMembershipsByMemberId(memberId, status, pageable);
-        return ResponseEntity.ok(page);
+        return ResponseEntity.ok(
+                membershipService.getMembershipResponsesByMemberId(memberId, status, pageable)
+        );
     }
 
     @GetMapping(value = "/all")
-    public ResponseEntity<Page<MembershipEntity>> getMemberships(
+    public ResponseEntity<Page<MembershipResponseDto>> getMemberships(
             Pageable pageable,
             @RequestParam(required = false) String status
     ) {
-        return ResponseEntity.ok(membershipService.getAllMemberships(status, pageable));
+        return ResponseEntity.ok(
+                membershipService.getAllMembershipResponses(status, pageable)
+        );
     }
 
     /**
