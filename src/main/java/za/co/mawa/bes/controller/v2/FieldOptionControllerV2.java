@@ -1,12 +1,9 @@
 package za.co.mawa.bes.controller.v2;
 
-import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
 import za.co.mawa.bes.service.FieldOptionService;
@@ -19,7 +16,6 @@ import java.util.List;
 public class FieldOptionControllerV2 {
     @Autowired
     FieldOptionService fieldOptionService;
-    Gson gson = new Gson();
 
     @RequestMapping(value = "/field", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<FieldDto>> getFields(){
@@ -53,14 +49,6 @@ public class FieldOptionControllerV2 {
             fieldOptionDto.setField(field);
             fieldOptionService.create(fieldOptionDto);
             return ResponseEntity.ok().build();
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
-    }
-    @RequestMapping(value = "/field", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addField(@RequestBody FieldCreateDto fieldDto) {
-        try {
-            return ResponseEntity.ok().body(fieldOptionService.createField(fieldDto));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
         }
