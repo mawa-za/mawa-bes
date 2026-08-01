@@ -72,7 +72,8 @@ public class SupplierApprovalService {
         request.setApprovalType(ApprovalType.SUPPLIER_ONBOARDING);
         request.setReferenceId(onboardingRequestId);
         request.setReferenceNo("SUP-PENDING-" + shortReference(onboardingRequestId));
-        request.setTitle("New supplier: " + supplierName);
+        request.setTitle("Supplier onboarding - " + supplierName
+                + (StringUtils.hasText(supplier.getPartnerNo()) ? " (" + supplier.getPartnerNo().trim() + ")" : ""));
         request.setDescription(
                 "Approve supplier onboarding. Supporting documents and banking details were captured; " +
                 "banking approval will only be created after the supplier is approved.");
@@ -121,7 +122,9 @@ public class SupplierApprovalService {
         request.setApprovalType(ApprovalType.SUPPLIER_BANKING_DETAILS);
         request.setReferenceId(referenceId);
         request.setReferenceNo("SUP-BANK-" + shortReference(referenceId));
-        request.setTitle("Supplier banking details: " + supplierName);
+        request.setTitle("Supplier banking details change - " + supplierName
+                + (supplierDetails != null && StringUtils.hasText(supplierDetails.getNumber())
+                ? " (" + supplierDetails.getNumber().trim() + ")" : ""));
         request.setDescription(
                 "Compare the proposed banking details with the supplier evidence before approval. " +
                 "Approval activates the new account for payments and replaces the currently active account.");

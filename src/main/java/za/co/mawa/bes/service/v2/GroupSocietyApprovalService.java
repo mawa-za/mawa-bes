@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class GroupSocietyApprovalService {
     private final AttachmentRepository attachmentRepository;
     private final ApprovalService approvalService;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public GroupSocietyEntity requestStatus(String groupSocietyId, String targetStatus,
@@ -53,18 +55,26 @@ public class GroupSocietyApprovalService {
                 """, actionId, groupSocietyId, society.getStatus(), target,
                 request == null ? null : request.getNotes(), actor);
 
+        String societyName = groupSocietyName(society);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("groupSociety", groupSocietySummary(society, societyName));
+        payload.put("currentValues", Map.of("status", society.getStatus()));
+        payload.put("proposedValues", Map.of("status", target));
+        if (request != null && request.getNotes() != null && !request.getNotes().isBlank()) {
+            payload.put("reason", request.getNotes().trim());
+        }
+        payload.put("attachmentObjectIds", attachmentObjectIds(groupSocietyId,
+                request == null ? null : request.getSupportingAttachmentIds()));
+
         ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
         approval.setApprovalType(ApprovalType.GROUP_SOCIETY_STATUS_CHANGE);
         approval.setReferenceId(actionId);
         approval.setReferenceNo(society.getGroupNo());
-        approval.setTitle("Group society " + target.toLowerCase(Locale.ROOT) + " request");
-        approval.setDescription("Approval required to change group society " + society.getGroupNo()
-                + " from " + society.getStatus() + " to " + target);
+        approval.setTitle("Group society status change - " + societyName + " (" + society.getGroupNo()
+                + ") - " + society.getStatus() + " to " + target);
+        approval.setDescription("Review the current and requested group society statuses before approval.");
         approval.setRequesterId(actor);
-        approval.setPayloadJson("{\"groupSocietyId\":\"" + groupSocietyId
-                + "\",\"requestedStatus\":\"" + target
-                + "\",\"supportingAttachmentIds\":"
-                + jsonStringArray(request == null ? null : request.getSupportingAttachmentIds()) + "}");
+        approval.setPayloadJson(toJson(payload));
         var response = approvalService.submitForApproval(approval);
 
         jdbcTemplate.update("UPDATE group_society_approval_action SET approval_request_id=? WHERE id=?",
@@ -123,19 +133,28 @@ public class GroupSocietyApprovalService {
         txn.setCreatedBy(actor);
         txn = txnRepository.save(txn);
 
+        String societyName = groupSocietyName(society);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("groupSociety", groupSocietySummary(society, societyName));
+        payload.put("adjustmentType", direction);
+        payload.put("adjustmentAmountCents", request.getAmountCents());
+        payload.put("adjustmentDate", txn.getTxnDate());
+        payload.put("referenceNumber", request.getReferenceNo());
+        payload.put("reason", request.getNotes());
+        payload.put("currentValues", Map.of("availableBalanceCents", before));
+        payload.put("proposedValues", Map.of("availableBalanceCents", proposed));
+        payload.put("attachmentObjectIds", attachmentObjectIds(groupSocietyId,
+                request.getSupportingAttachmentIds()));
+
         ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
         approval.setApprovalType(ApprovalType.GROUP_SOCIETY_BALANCE_ADJUSTMENT);
         approval.setReferenceId(txn.getId());
         approval.setReferenceNo(society.getGroupNo());
-        approval.setTitle("Group society balance adjustment");
-        approval.setDescription(direction + " adjustment of " + request.getAmountCents()
-                + " cents for group society " + society.getGroupNo());
+        approval.setTitle("Group society " + direction.toLowerCase(Locale.ROOT) + " balance adjustment - "
+                + societyName + " (" + society.getGroupNo() + ")");
+        approval.setDescription("Review the adjustment amount and the resulting balance before approval.");
         approval.setRequesterId(actor);
-        approval.setPayloadJson("{\"groupSocietyId\":\"" + groupSocietyId
-                + "\",\"direction\":\"" + direction
-                + "\",\"amountCents\":" + request.getAmountCents()
-                + ",\"supportingAttachmentIds\":"
-                + jsonStringArray(request.getSupportingAttachmentIds()) + "}");
+        approval.setPayloadJson(toJson(payload));
         var response = approvalService.submitForApproval(approval);
         txn.setApprovalRequestId(response.getId());
         return txnRepository.save(txn);
@@ -237,6 +256,45 @@ public class GroupSocietyApprovalService {
     }
 
     private String actor(String value) { return value == null || value.isBlank() ? "SYSTEM" : value.trim(); }
+    private String groupSocietyName(GroupSocietyEntity society) {
+        if (society.getDisplayName() != null && !society.getDisplayName().isBlank()) {
+            return society.getDisplayName().trim();
+        }
+        List<String> names = jdbcTemplate.query("""
+                SELECT COALESCE(
+                    NULLIF(TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))), ''),
+                    NULLIF(TRIM(p.name1), ''),
+                    g.group_no
+                )
+                  FROM group_society g
+                  JOIN partner p ON p.id = g.partner_id
+                 WHERE g.id = ?
+                """, (rs, rowNum) -> rs.getString(1), society.getId());
+        return names.isEmpty() || names.get(0) == null || names.get(0).isBlank()
+                ? society.getGroupNo() : names.get(0).trim();
+    }
+
+    private Map<String, Object> groupSocietySummary(GroupSocietyEntity society, String societyName) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("groupSocietyNumber", society.getGroupNo());
+        summary.put("groupSocietyName", societyName);
+        summary.put("societyType", society.getSocietyType());
+        return summary;
+    }
+
+    private List<String> attachmentObjectIds(String groupSocietyId, List<String> supportingIds) {
+        // Supporting IDs are attachment record IDs; the attachment viewer loads by business object ID.
+        return List.of(groupSocietyId);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to create the group society approval details", exception);
+        }
+    }
+
     private long value(Long value) { return value == null ? 0L : value; }
     private String append(String current, String value) {
         return current == null || current.isBlank() ? value : current + "\n" + value;

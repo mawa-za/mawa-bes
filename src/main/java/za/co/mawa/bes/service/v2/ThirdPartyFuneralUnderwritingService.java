@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +20,16 @@ import java.util.UUID;
 public class ThirdPartyFuneralUnderwritingService {
     private final JdbcTemplate jdbc;
     private final ApprovalService approvalService;
+    private final ObjectMapper objectMapper;
 
-    public ThirdPartyFuneralUnderwritingService(JdbcTemplate jdbc, ApprovalService approvalService) {
+    public ThirdPartyFuneralUnderwritingService(
+            JdbcTemplate jdbc,
+            ApprovalService approvalService,
+            ObjectMapper objectMapper
+    ) {
         this.jdbc = jdbc;
         this.approvalService = approvalService;
+        this.objectMapper = objectMapper;
     }
 
     public List<Map<String, Object>> underwriters() {
@@ -241,19 +248,44 @@ public class ThirdPartyFuneralUnderwritingService {
                 ) VALUES(?,?,?,?,?,'PENDING_APPROVAL',?,?,CURRENT_TIMESTAMP)
                 """, actionId, coverId, actionType, current, requestedStatus, notes, actor);
 
+        String policyNumber = Objects.toString(cover.get("external_policy_no"), coverId);
+        String coveredPartyName = firstNonBlank(
+                Objects.toString(cover.get("covered_party_name"), null),
+                Objects.toString(cover.get("holder_name"), null),
+                "Covered member");
+        String underwriterName = firstNonBlank(
+                Objects.toString(cover.get("underwriter_name"), null),
+                Objects.toString(cover.get("underwriter_code"), null),
+                "Underwriter");
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("externalPolicyNumber", policyNumber);
+        summary.put("coveredPartyName", coveredPartyName);
+        summary.put("coveredPartyNumber", cover.get("covered_partner_number"));
+        summary.put("coveredPartyIdentity", cover.get("covered_party_identity"));
+        summary.put("membershipNumber", cover.get("membership_no"));
+        summary.put("underwriterName", underwriterName);
+        summary.put("coverAmountCents", cover.get("cover_amount_cents"));
+        summary.put("effectiveFrom", cover.get("effective_from"));
+        summary.put("effectiveTo", cover.get("effective_to"));
+        summary.put("notes", notes);
+        payload.put("coverSummary", summary);
+        payload.put("currentValues", Map.of("status", current));
+        payload.put("proposedValues", Map.of("status", requestedStatus));
+        payload.put("coverId", coverId);
+        payload.put("attachmentObjectIds", List.of(coverId));
+
         ApprovalSubmitRequest request = new ApprovalSubmitRequest();
         request.setApprovalType(approvalType);
         request.setReferenceId(actionId);
-        request.setReferenceNo(Objects.toString(cover.get("external_policy_no"), coverId));
+        request.setReferenceNo(policyNumber);
         request.setTitle("UNDERWRITE".equals(actionType)
-                ? "Funeral cover underwriting"
-                : "Funeral cover status change");
-        request.setDescription("Approval required for funeral cover "
-                + Objects.toString(cover.get("external_policy_no"), coverId)
-                + " to " + requestedStatus);
+                ? "Funeral cover underwriting - " + coveredPartyName + " - " + policyNumber
+                : "Funeral cover status change - " + coveredPartyName + " - " + current + " to " + requestedStatus);
+        request.setDescription("Review the cover, member, underwriter, and requested status before approval.");
         request.setRequesterId(actor);
-        request.setPayloadJson("{\"coverId\":\"" + coverId
-                + "\",\"requestedStatus\":\"" + requestedStatus + "\"}");
+        request.setPayloadJson(toJson(payload));
         var response = approvalService.submitForApproval(request);
         jdbc.update("UPDATE funeral_cover_approval_action SET approval_request_id=? WHERE id=?",
                 response.getId(), actionId);
@@ -266,6 +298,21 @@ public class ThirdPartyFuneralUnderwritingService {
                        previous_status=?,requested_status=?,updated_at=CURRENT_TIMESTAMP
                  WHERE id=?
                 """, pending, response.getId(), actionType, current, requestedStatus, coverId);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return "Not specified";
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to create the funeral cover approval details", exception);
+        }
     }
 
     public Map<String, Object> getCover(String id) {
