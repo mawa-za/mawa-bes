@@ -155,28 +155,26 @@ public class PartnerService {
     }
 
     public PartnerDto get(String id) throws PartnerNotFoundException {
-        try {
-            PartnerEntity partner = partnerRepository.getById(id);
-            PartnerDto partnerDto = new PartnerDto();
-            partnerDto.setId(partner.getId());
-            partnerDto.setNumber(partner.getNo());
-            partnerDto.setIdentity(partnerIdentityService.get(id));
-            partnerDto.setName1(partner.getName1());
-            partnerDto.setName2(partner.getName2());
-            partnerDto.setName3(partner.getName3());
-            partnerDto.setBirthDate(partner.getBirthDate());
-            partnerDto.setTitle(fieldOptionService.getFieldOption(Field.TITLE, partner.getTitle()));
-            partnerDto.setType(fieldOptionService.getFieldOption(Field.PARTNER_TYPE, partner.getType()));
-            partnerDto.setStatus(fieldOptionService.getFieldOption(Field.PARTNER_STATUS, partner.getStatus()));
-            partnerDto.setGender(fieldOptionService.getFieldOption(Field.GENDER, partner.getGender()));
-            partnerDto.setMaritalStatus(fieldOptionService.getFieldOption(Field.MARITAL_STATUS, partner.getMaritalStatus()));
-            partnerDto.setLanguage(fieldOptionService.getFieldOption(Field.LANGUAGE, partner.getLanguage()));
-            partnerDto.setValidFrom(partner.getValidFrom());
-            partnerDto.setValidTo(partner.getValidTo());
-            return partnerDto;
-        } catch (Exception exception) {
-            throw new PartnerNotFoundException();
-        }
+        PartnerEntity partner = partnerRepository.findById(id)
+                .orElseThrow(() -> new PartnerNotFoundException("Partner not found: " + id));
+
+        PartnerDto partnerDto = new PartnerDto();
+        partnerDto.setId(partner.getId());
+        partnerDto.setNumber(partner.getNo());
+        partnerDto.setIdentity(partnerIdentityService.get(id));
+        partnerDto.setName1(partner.getName1());
+        partnerDto.setName2(partner.getName2());
+        partnerDto.setName3(partner.getName3());
+        partnerDto.setBirthDate(partner.getBirthDate());
+        partnerDto.setTitle(fieldOptionService.getFieldOption(Field.TITLE, partner.getTitle()));
+        partnerDto.setType(fieldOptionService.getFieldOption(Field.PARTNER_TYPE, partner.getType()));
+        partnerDto.setStatus(fieldOptionService.getFieldOption(Field.PARTNER_STATUS, partner.getStatus()));
+        partnerDto.setGender(fieldOptionService.getFieldOption(Field.GENDER, partner.getGender()));
+        partnerDto.setMaritalStatus(fieldOptionService.getFieldOption(Field.MARITAL_STATUS, partner.getMaritalStatus()));
+        partnerDto.setLanguage(fieldOptionService.getFieldOption(Field.LANGUAGE, partner.getLanguage()));
+        partnerDto.setValidFrom(partner.getValidFrom());
+        partnerDto.setValidTo(partner.getValidTo());
+        return partnerDto;
     }
 
     private ContactDto getContact(ContactDto contact) {

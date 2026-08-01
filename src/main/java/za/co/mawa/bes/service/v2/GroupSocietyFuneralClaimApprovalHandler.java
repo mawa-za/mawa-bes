@@ -1,13 +1,36 @@
 package za.co.mawa.bes.service.v2;
-import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.enums.ApprovalType;
-@Component @RequiredArgsConstructor
+
+@Component
 public class GroupSocietyFuneralClaimApprovalHandler implements ApprovalCompletionHandler {
-    private final GroupSocietyFuneralClaimService service;
-    public ApprovalType supports(){ return ApprovalType.GROUP_SOCIETY_FUNERAL_CLAIM; }
-    public void onApproved(ApprovalRequestEntity request,String actor){ service.complete(request.getReferenceId(),true,actor); }
-    public void onRejected(ApprovalRequestEntity request,String actor){ service.complete(request.getReferenceId(),false,actor); }
-    public void onCancelled(ApprovalRequestEntity request,String actor){ service.complete(request.getReferenceId(),false,actor); }
+
+    private final ObjectProvider<GroupSocietyFuneralClaimService> serviceProvider;
+
+    public GroupSocietyFuneralClaimApprovalHandler(ObjectProvider<GroupSocietyFuneralClaimService> serviceProvider) {
+        this.serviceProvider = serviceProvider;
+    }
+
+    @Override
+    public ApprovalType supports() {
+        return ApprovalType.GROUP_SOCIETY_FUNERAL_CLAIM;
+    }
+
+    @Override
+    public void onApproved(ApprovalRequestEntity request, String actor) {
+        serviceProvider.getObject().complete(request.getReferenceId(), true, actor);
+    }
+
+    @Override
+    public void onRejected(ApprovalRequestEntity request, String actor) {
+        serviceProvider.getObject().complete(request.getReferenceId(), false, actor);
+    }
+
+    @Override
+    public void onCancelled(ApprovalRequestEntity request, String actor) {
+        serviceProvider.getObject().complete(request.getReferenceId(), false, actor);
+    }
 }
