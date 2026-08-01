@@ -19,6 +19,7 @@ import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+import za.co.mawa.bes.repository.v2.GroupSocietyAccountTxnRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDate;
@@ -32,6 +33,7 @@ public class GroupSocietyPaymentSyncOfflineService {
 
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptRepository receiptRepository;
+    private final GroupSocietyAccountTxnRepository accountTxnRepository;
     private final GroupSocietyService groupSocietyService;
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
@@ -92,6 +94,12 @@ public class GroupSocietyPaymentSyncOfflineService {
 
             ReceiptEntity receipt = createReceiptFromOfflineRequest(batch, request, society, offlineReceipt);
             GroupSocietyAccountTxnEntity accountTxn = recordAccountCredit(request, receipt, offlineReceipt);
+            accountTxn.setPaymentBatchId(batch.getId());
+            accountTxn.setReceiptId(receipt.getId());
+            accountTxn.setStatus("POSTED");
+            accountTxn.setRequestedBy(request.getCreatedBy());
+            accountTxn.setCreatedBy(request.getCreatedBy());
+            accountTxn = accountTxnRepository.save(accountTxn);
 
             ReceiptAllocationEntity allocation = receiptService.createAllocation(
                     receipt.getId(),
@@ -188,10 +196,14 @@ public class GroupSocietyPaymentSyncOfflineService {
         paymentRequest.setAmountCents(offlineReceipt.getAmountCents());
         paymentRequest.setPaymentDate(toDateOnly(request.getPaymentDate()));
         paymentRequest.setPaymentMethod(request.getPaymentMethod());
-        paymentRequest.setPeriod(null);
         paymentRequest.setReferenceId(receipt.getId());
         paymentRequest.setReferenceNo(receipt.getReceiptNo());
         paymentRequest.setNotes("Offline MawaPay group society receipt " + receipt.getReceiptNo());
+        paymentRequest.setCreatedBy(request.getCreatedBy());
+        paymentRequest.setDeviceId(request.getDeviceId());
+        paymentRequest.setTerminalId(request.getTerminalId());
+        paymentRequest.setLocation(request.getLocation());
+        paymentRequest.setEmployeeResponsible(request.getEmployeeResponsible());
 
         return groupSocietyService.recordPayment(request.getGroupSocietyId(), paymentRequest);
     }

@@ -10,6 +10,7 @@ import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.ReceiptAllocationType;
 import za.co.mawa.bes.enums.ReceiptStatus;
+import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
@@ -89,11 +90,25 @@ public class ReceiptService {
         if (receipt.getMembershipId() != null) {
             var rows=jdbcTemplate.queryForList("""
                 SELECT m.membership_no,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
-                       (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END, pi.type, pi.value LIMIT 1) identity_number,
+                       (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
+                         AND UPPER(TRIM(pi.type)) IN ('SA-ID','PASSPORT')
+                         ORDER BY CASE WHEN UPPER(TRIM(pi.type))='SA-ID' THEN 0 ELSE 1 END, pi.type, pi.value LIMIT 1) identity_number,
                        mp.name plan_name
                   FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
                 """,receipt.getMembershipId());
             if(!rows.isEmpty()) member=rows.get(0);
+        } else if (receipt.getSourceType() == ReceiptSourceType.GROUP_SOCIETY
+                && receipt.getReceivedFromPartnerId() != null) {
+            var rows = jdbcTemplate.queryForList("""
+                SELECT g.group_no membership_no,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''))) member_name,
+                       g.group_no identity_number,
+                       COALESCE(g.society_type,'Group Society Cover') plan_name
+                  FROM group_society g
+                  JOIN partner p ON p.id=g.partner_id
+                 WHERE g.partner_id=?
+                """, receipt.getReceivedFromPartnerId());
+            if (!rows.isEmpty()) member = rows.get(0);
         }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
@@ -101,7 +116,7 @@ public class ReceiptService {
                 .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
                 .membershipId(receipt.getMembershipId())
                 .memberName(java.util.Objects.toString(member.get("member_name"),""))
-                .membershipNo(java.util.Objects.toString(member.get("membership_no"),receipt.getMembershipId()))
+                .membershipNo(java.util.Objects.toString(member.get("membership_no"), receipt.getMembershipId() == null ? "" : receipt.getMembershipId()))
                 .identityNumber(java.util.Objects.toString(member.get("identity_number"),""))
                 .planName(java.util.Objects.toString(member.get("plan_name"),""))
                 .premiumPeriodYYYYMM(firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM())

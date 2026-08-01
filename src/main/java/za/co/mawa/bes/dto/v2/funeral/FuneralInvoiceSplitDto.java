@@ -12,6 +12,7 @@ public class FuneralInvoiceSplitDto {
     private Long amountCents;
     private String description;
     private String membershipClaimId;
+    private String groupSocietyClaimId;
     private String coverSource;
     private String sourceTenantId;
 }

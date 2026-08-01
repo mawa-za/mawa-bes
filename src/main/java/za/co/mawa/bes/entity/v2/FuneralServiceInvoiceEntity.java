@@ -36,6 +36,9 @@ public class FuneralServiceInvoiceEntity {
     @Column(name = "membership_claim_id")
     private String membershipClaimId;
 
+    @Column(name = "group_society_claim_id")
+    private String groupSocietyClaimId;
+
     @Column(name = "amount_cents", nullable = false)
     private Long amountCents = 0L;
 

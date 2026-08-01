@@ -65,6 +65,21 @@ public class GroupSocietyAccountTxnEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "status", nullable = false, length = 30)
+    private String status = "POSTED";
+
+    @Column(name = "approval_request_id", length = 36)
+    private String approvalRequestId;
+
+    @Column(name = "payment_batch_id", length = 255)
+    private String paymentBatchId;
+
+    @Column(name = "receipt_id", length = 255)
+    private String receiptId;
+
+    @Column(name = "requested_by", length = 255)
+    private String requestedBy;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;
 

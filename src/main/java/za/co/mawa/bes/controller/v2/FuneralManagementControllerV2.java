@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.service.v2.FuneralManagementService;
+import za.co.mawa.bes.service.v2.GroupSocietyFuneralClaimService;
 
 @RestController
 @CrossOrigin
@@ -20,6 +21,7 @@ import za.co.mawa.bes.service.v2.FuneralManagementService;
 public class FuneralManagementControllerV2 {
 
     private final FuneralManagementService funeralManagementService;
+    private final GroupSocietyFuneralClaimService groupSocietyFuneralClaimService;
 
     @GetMapping("/pickup-requests")
     public ResponseEntity<?> getPickupRequests() {
@@ -253,6 +255,19 @@ public class FuneralManagementControllerV2 {
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
         }
+    }
+
+    @GetMapping("/service-request/{id}/group-society-cover")
+    public ResponseEntity<?> getGroupSocietyCover(@PathVariable String id) {
+        return ResponseEntity.ok(groupSocietyFuneralClaimService.findByFuneralService(id));
+    }
+
+    @PostMapping(value = "/service-request/{id}/group-society-cover", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> submitGroupSocietyCover(
+            @PathVariable String id,
+            @RequestBody za.co.mawa.bes.dto.v2.group.GroupSocietyFuneralClaimRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(groupSocietyFuneralClaimService.submit(id, request));
     }
 
     @PostMapping(value = "/service-request/{id}/initiate-claims", consumes = MediaType.APPLICATION_JSON_VALUE)

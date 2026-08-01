@@ -37,8 +37,16 @@ public class PayAppMasterDataControllerV2 {
             SELECT m.id membership_id, m.membership_no, m.member_id partner_id,
                    p.number partner_no, p.name1, p.name2, p.name3,
                    p.status partner_status, p.birth_date, p.gender,
-                   (SELECT pi.type FROM partner_identity pi WHERE pi.partner = p.id ORDER BY pi.type LIMIT 1) identity_type,
-                   (SELECT pi.value FROM partner_identity pi WHERE pi.partner = p.id ORDER BY pi.type LIMIT 1) identity_number,
+                   (SELECT UPPER(TRIM(pi.type)) FROM partner_identity pi
+                     WHERE pi.partner = p.id
+                       AND UPPER(TRIM(pi.type)) IN ('SA-ID','PASSPORT')
+                       AND NULLIF(TRIM(pi.value),'') IS NOT NULL
+                     ORDER BY CASE WHEN UPPER(TRIM(pi.type))='SA-ID' THEN 0 ELSE 1 END,pi.type,pi.value LIMIT 1) identity_type,
+                   (SELECT TRIM(pi.value) FROM partner_identity pi
+                     WHERE pi.partner = p.id
+                       AND UPPER(TRIM(pi.type)) IN ('SA-ID','PASSPORT')
+                       AND NULLIF(TRIM(pi.value),'') IS NOT NULL
+                     ORDER BY CASE WHEN UPPER(TRIM(pi.type))='SA-ID' THEN 0 ELSE 1 END,pi.type,pi.value LIMIT 1) identity_number,
                    m.plan_id, m.status membership_status,
                    COALESCE(
                        NULLIF(m.paid_up_to_period, ''),

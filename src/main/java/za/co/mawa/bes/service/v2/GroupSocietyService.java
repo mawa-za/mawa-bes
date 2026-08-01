@@ -2,7 +2,6 @@ package za.co.mawa.bes.service.v2;
 
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyClaimDebitRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyContactRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyMemberRequest;
@@ -67,6 +66,7 @@ public class GroupSocietyService {
 
     public List<GroupSocietyMasterDataDto> getMasterData(String status) {
         List<GroupSocietyEntity> societies = status == null || status.isBlank()
+                || "ALL".equalsIgnoreCase(status)
                 ? groupSocietyRepository.findAll()
                 : groupSocietyRepository.findByStatus(status);
 
@@ -99,7 +99,7 @@ public class GroupSocietyService {
     }
 
     public List<GroupSocietyEntity> getAll(String status, String societyType) {
-        if (status != null && !status.isBlank()) {
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
             return groupSocietyRepository.findByStatus(status);
         }
 
@@ -143,42 +143,21 @@ public class GroupSocietyService {
          * group_society only stores prepaid account information.
          */
 
-        Long openingBalance = safeLong(request.getOpeningBalanceCents());
-
-        if (openingBalance < 0) {
-            throw new RuntimeException("Opening balance cannot be negative");
+        Long requestedOpeningBalance = safeLong(request.getOpeningBalanceCents());
+        if (requestedOpeningBalance != 0L) {
+            throw new IllegalArgumentException(
+                    "Group societies must start with a zero balance. Attach supporting documents and submit a balance adjustment for approval after creation.");
         }
 
         GroupSocietyEntity entity = new GroupSocietyEntity();
-
         entity.setPartnerId(request.getPartnerId());
         entity.setGroupNo(request.getGroupNo());
         entity.setSocietyType(request.getSocietyType());
-        entity.setStatus(defaultValue(request.getStatus(), "ACTIVE"));
-
-        entity.setAvailableBalanceCents(openingBalance);
+        entity.setStatus("ACTIVE");
+        entity.setAvailableBalanceCents(0L);
         entity.setTotalPaidCents(0L);
         entity.setTotalClaimedCents(0L);
-
-        GroupSocietyEntity saved = groupSocietyRepository.save(entity);
-
-        if (openingBalance > 0) {
-            GroupSocietyAccountTxnEntity txn = new GroupSocietyAccountTxnEntity();
-            txn.setGroupSocietyId(saved.getId());
-            txn.setTxnType("ADJUSTMENT_CREDIT");
-            txn.setDirection("CREDIT");
-            txn.setAmountCents(openingBalance);
-            txn.setBalanceBeforeCents(0L);
-            txn.setBalanceAfterCents(openingBalance);
-            txn.setTxnDate(LocalDate.now());
-            txn.setReferenceType("OPENING_BALANCE");
-            txn.setReferenceNo("OPENING-BALANCE");
-            txn.setNotes("Opening balance loaded on group society creation");
-
-            accountTxnRepository.save(txn);
-        }
-
-        return saved;
+        return groupSocietyRepository.save(entity);
     }
 
     @Transactional
@@ -189,44 +168,16 @@ public class GroupSocietyService {
             entity.setSocietyType(request.getSocietyType());
         }
 
-        if (request.getStatus() != null) {
-            entity.setStatus(request.getStatus());
-        }
-
-        return groupSocietyRepository.save(entity);
-    }
-
-    @Transactional
-    public GroupSocietyEntity activate(String id) {
-        GroupSocietyEntity entity = getById(id);
-        entity.setStatus("ACTIVE");
-        return groupSocietyRepository.save(entity);
-    }
-
-    @Transactional
-    public GroupSocietyEntity suspend(String id) {
-        GroupSocietyEntity entity = getById(id);
-        entity.setStatus("SUSPENDED");
-        return groupSocietyRepository.save(entity);
-    }
-
-    @Transactional
-    public GroupSocietyEntity close(String id) {
-        GroupSocietyEntity entity = getById(id);
-        entity.setStatus("CLOSED");
+        // Lifecycle status is intentionally not editable here. Activation,
+        // suspension and closure must always pass through the approval workflow.
         return groupSocietyRepository.save(entity);
     }
 
     @Transactional
     public void delete(String id) {
         getById(id);
-
-        accountTxnRepository.findByGroupSocietyIdOrderByTxnDatetimeDesc(id)
-                .forEach(accountTxnRepository::delete);
-
-        memberRepository.deleteByGroupSocietyId(id);
-        contactRepository.deleteByGroupSocietyId(id);
-        groupSocietyRepository.deleteById(id);
+        throw new IllegalStateException(
+                "Group societies cannot be deleted directly. Submit a closure request for approval instead.");
     }
 
     public List<GroupSocietyContactEntity> getContacts(String groupSocietyId) {
@@ -345,14 +296,15 @@ public class GroupSocietyService {
         txn.setReferenceId(request.getReferenceId());
         txn.setReferenceNo(request.getReferenceNo());
         txn.setPaymentMethod(request.getPaymentMethod());
-        txn.setPeriod(request.getPeriod());
         txn.setNotes(request.getNotes());
+        txn.setStatus("POSTED");
+        txn.setCreatedBy(request.getCreatedBy());
 
         return accountTxnRepository.save(txn);
     }
 
     @Transactional
-    public GroupSocietyAccountTxnEntity debitClaim(String groupSocietyId, GroupSocietyClaimDebitRequest request) {
+    GroupSocietyAccountTxnEntity debitClaim(String groupSocietyId, GroupSocietyClaimDebitRequest request) {
         validateAmount(request.getAmountCents());
 
         GroupSocietyEntity society = getByIdForUpdate(groupSocietyId);
@@ -399,62 +351,6 @@ public class GroupSocietyService {
         txn.setReferenceType("CLAIM");
         txn.setReferenceId(request.getClaimId());
         txn.setReferenceNo(request.getClaimNo());
-        txn.setNotes(request.getNotes());
-
-        return accountTxnRepository.save(txn);
-    }
-
-    @Transactional
-    public GroupSocietyAccountTxnEntity adjustBalance(String groupSocietyId, GroupSocietyAdjustmentRequest request) {
-        validateAmount(request.getAmountCents());
-
-        if (request.getDirection() == null || request.getDirection().isBlank()) {
-            throw new RuntimeException("direction is required. Use CREDIT or DEBIT");
-        }
-
-        String direction = request.getDirection().trim().toUpperCase();
-
-        if (!direction.equals("CREDIT") && !direction.equals("DEBIT")) {
-            throw new RuntimeException("Invalid adjustment direction. Use CREDIT or DEBIT");
-        }
-
-        GroupSocietyEntity society = getByIdForUpdate(groupSocietyId);
-        validateGroupIsOpenForPosting(society);
-
-        Long balanceBefore = safeLong(society.getAvailableBalanceCents());
-        Long amount = request.getAmountCents();
-        Long balanceAfter;
-        String txnType;
-
-        if (direction.equals("CREDIT")) {
-            balanceAfter = balanceBefore + amount;
-            txnType = "ADJUSTMENT_CREDIT";
-        } else {
-            if (balanceBefore < amount) {
-                throw new RuntimeException("Insufficient balance for debit adjustment");
-            }
-
-            balanceAfter = balanceBefore - amount;
-            txnType = "ADJUSTMENT_DEBIT";
-        }
-
-        LocalDate adjustmentDate = request.getAdjustmentDate() != null
-                ? request.getAdjustmentDate()
-                : LocalDate.now();
-
-        society.setAvailableBalanceCents(balanceAfter);
-        groupSocietyRepository.save(society);
-
-        GroupSocietyAccountTxnEntity txn = new GroupSocietyAccountTxnEntity();
-        txn.setGroupSocietyId(groupSocietyId);
-        txn.setTxnType(txnType);
-        txn.setDirection(direction);
-        txn.setAmountCents(amount);
-        txn.setBalanceBeforeCents(balanceBefore);
-        txn.setBalanceAfterCents(balanceAfter);
-        txn.setTxnDate(adjustmentDate);
-        txn.setReferenceType("MANUAL_ADJUSTMENT");
-        txn.setReferenceNo(request.getReferenceNo());
         txn.setNotes(request.getNotes());
 
         return accountTxnRepository.save(txn);
