@@ -1,6 +1,10 @@
 package za.co.mawa.bes.repository.v2;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
@@ -14,6 +18,10 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
             ApprovalType approvalType,
             String referenceId
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select request from ApprovalRequestEntity request where request.id = :id")
+    Optional<ApprovalRequestEntity> findByIdForUpdate(@Param("id") String id);
 
     List<ApprovalRequestEntity> findByStatusOrderByCreatedAtDesc(ApprovalStatus status);
 

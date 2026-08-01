@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -78,6 +79,8 @@ public class MembershipService {
     MembershipChangeService membershipChangeService;
     @Autowired
     MembershipPolicyConfigurationService membershipPolicyConfigurationService;
+    @Autowired
+    ObjectMapper objectMapper;
     @Autowired
     ApprovalService approvalService;
 
@@ -289,11 +292,21 @@ public class MembershipService {
                 approval.setApprovalType(za.co.mawa.bes.enums.ApprovalType.ADDITIONAL_MEMBERSHIP);
                 approval.setReferenceId(savedMembership.getId());
                 approval.setReferenceNo(savedMembership.getMembershipNo());
-                approval.setTitle("Additional membership approval");
-                approval.setDescription("Approve an additional membership for member " + savedMembership.getMemberId());
+                PartnerEntity member = partnerRepository.findById(savedMembership.getMemberId()).orElse(null);
+                String memberName = formatPartnerName(member);
+                approval.setTitle("Additional membership - " + savedMembership.getMembershipNo()
+                        + " - " + (memberName.isBlank() ? savedMembership.getMemberId() : memberName));
+                approval.setDescription("Review the member and existing memberships before approving this additional membership.");
                 approval.setRequesterId(UserContext.getCurrentUserId());
-                approval.setPayloadJson("{\"membershipId\":\"" + savedMembership.getId()
-                        + "\",\"memberId\":\"" + savedMembership.getMemberId() + "\"}");
+                Map<String, Object> approvalPayload = new LinkedHashMap<>();
+                approvalPayload.put("membershipNumber", savedMembership.getMembershipNo());
+                approvalPayload.put("memberName", memberName);
+                approvalPayload.put("membershipStatus", savedMembership.getStatus());
+                approvalPayload.put("planId", savedMembership.getPlanId());
+                approvalPayload.put("membershipId", savedMembership.getId());
+                approvalPayload.put("memberId", savedMembership.getMemberId());
+                approvalPayload.put("attachmentObjectIds", List.of(savedMembership.getId(), savedMembership.getMemberId()));
+                approval.setPayloadJson(objectMapper.writeValueAsString(approvalPayload));
                 var approvalResponse = approvalService.submitForApproval(approval);
                 savedMembership.setApprovalRequestId(approvalResponse.getId());
                 savedMembership.setUpdatedBy(UserContext.getCurrentUserId());

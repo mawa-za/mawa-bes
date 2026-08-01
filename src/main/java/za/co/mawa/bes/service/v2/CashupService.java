@@ -445,7 +445,9 @@ public class CashupService {
         approvalRequest.setApprovalType(ApprovalType.CASHUP);
         approvalRequest.setReferenceId(cashup.getId());
         approvalRequest.setReferenceNo(String.valueOf(cashup.getCashupNo()));
-        approvalRequest.setTitle("Cashup Approval: #" + cashup.getCashupNo());
+        String cashierName = resolveCashierName(cashup.getUserId());
+        approvalRequest.setTitle("Cashup " + cashup.getCashupNo() + " - " + cashierName
+                + " - " + cashup.getCashupDate());
         approvalRequest.setDescription("Cashup submitted for approval. Total collected: "
                 + defaultLong(cashup.getTotalCents())
                 + " cents, deposits: " + defaultLong(cashup.getDepositTotalCents()) + " cents.");

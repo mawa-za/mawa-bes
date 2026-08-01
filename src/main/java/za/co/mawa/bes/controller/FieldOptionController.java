@@ -6,9 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.service.FieldOptionService;
 
 @RestController
@@ -50,14 +48,6 @@ public class FieldOptionController {
             fieldOptionDto.setField(field);
             fieldOptionService.create(fieldOptionDto);
             return ResponseEntity.ok().build();
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-    }
-    @RequestMapping(value = "/field", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addField(@RequestBody FieldCreateDto fieldDto) {
-        try {
-            return ResponseEntity.ok().body(gson.toJson(fieldOptionService.createField(fieldDto)));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
