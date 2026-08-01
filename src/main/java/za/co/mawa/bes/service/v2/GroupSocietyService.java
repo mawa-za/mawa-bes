@@ -20,7 +20,12 @@ import za.co.mawa.bes.repository.v2.GroupSocietyMemberRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyRepository;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service(value = "GroupSocietyServiceV2")
 public class GroupSocietyService {
@@ -69,60 +74,47 @@ public class GroupSocietyService {
                 || "ALL".equalsIgnoreCase(status)
                 ? groupSocietyRepository.findAll()
                 : groupSocietyRepository.findByStatus(status);
+        enrichPartnerDetails(societies);
 
-        return societies.stream().map(society -> {
-            PartnerEntity partner = partnerRepository.findById(society.getPartnerId()).orElse(null);
-            String name = society.getGroupNo();
-            String partnerNo = null;
-            if (partner != null) {
-                partnerNo = partner.getNo();
-                String combined = ((partner.getName1() == null ? "" : partner.getName1()) + " "
-                        + (partner.getName2() == null ? "" : partner.getName2())).trim();
-                if (!combined.isBlank()) {
-                    name = combined;
-                }
-            }
-
-            return GroupSocietyMasterDataDto.builder()
-                    .id(society.getId())
-                    .partnerId(society.getPartnerId())
-                    .partnerNo(partnerNo)
-                    .groupNo(society.getGroupNo())
-                    .name(name)
-                    .societyType(society.getSocietyType())
-                    .status(society.getStatus())
-                    .availableBalanceCents(society.getAvailableBalanceCents())
-                    .totalPaidCents(society.getTotalPaidCents())
-                    .lastPaymentDate(society.getLastPaymentDate())
-                    .build();
-        }).toList();
+        return societies.stream().map(society -> GroupSocietyMasterDataDto.builder()
+                .id(society.getId())
+                .partnerId(society.getPartnerId())
+                .partnerNo(society.getPartnerNumber())
+                .groupNo(society.getGroupNo())
+                .name(society.getDisplayName())
+                .societyType(society.getSocietyType())
+                .status(society.getStatus())
+                .availableBalanceCents(society.getAvailableBalanceCents())
+                .totalPaidCents(society.getTotalPaidCents())
+                .lastPaymentDate(society.getLastPaymentDate())
+                .build()).toList();
     }
 
     public List<GroupSocietyEntity> getAll(String status, String societyType) {
+        List<GroupSocietyEntity> societies;
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
-            return groupSocietyRepository.findByStatus(status);
+            societies = groupSocietyRepository.findByStatus(status);
+        } else if (societyType != null && !societyType.isBlank()) {
+            societies = groupSocietyRepository.findBySocietyType(societyType);
+        } else {
+            societies = groupSocietyRepository.findAll();
         }
-
-        if (societyType != null && !societyType.isBlank()) {
-            return groupSocietyRepository.findBySocietyType(societyType);
-        }
-
-        return groupSocietyRepository.findAll();
+        return enrichPartnerDetails(societies);
     }
 
     public GroupSocietyEntity getById(String id) {
-        return groupSocietyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Group society not found: " + id));
+        return enrichPartnerDetails(groupSocietyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group society not found: " + id)));
     }
 
     public GroupSocietyEntity getByGroupNo(String groupNo) {
-        return groupSocietyRepository.findByGroupNo(groupNo)
-                .orElseThrow(() -> new RuntimeException("Group society not found: " + groupNo));
+        return enrichPartnerDetails(groupSocietyRepository.findByGroupNo(groupNo)
+                .orElseThrow(() -> new RuntimeException("Group society not found: " + groupNo)));
     }
 
     public GroupSocietyEntity getByPartnerId(String partnerId) {
-        return groupSocietyRepository.findByPartnerId(partnerId)
-                .orElseThrow(() -> new RuntimeException("Group society not found for partner: " + partnerId));
+        return enrichPartnerDetails(groupSocietyRepository.findByPartnerId(partnerId)
+                .orElseThrow(() -> new RuntimeException("Group society not found for partner: " + partnerId)));
     }
 
     @Transactional
@@ -137,11 +129,9 @@ public class GroupSocietyService {
             throw new RuntimeException("Group society number already exists: " + request.getGroupNo());
         }
 
-        /*
-         * Validate partner exists and partner.type = GROUP here using your existing PartnerRepository.
-         * The partner is the customer master record.
-         * group_society only stores prepaid account information.
-         */
+        PartnerEntity partner = partnerRepository.findById(request.getPartnerId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The selected partner does not exist in this tenant: " + request.getPartnerId()));
 
         Long requestedOpeningBalance = safeLong(request.getOpeningBalanceCents());
         if (requestedOpeningBalance != 0L) {
@@ -157,7 +147,7 @@ public class GroupSocietyService {
         entity.setAvailableBalanceCents(0L);
         entity.setTotalPaidCents(0L);
         entity.setTotalClaimedCents(0L);
-        return groupSocietyRepository.save(entity);
+        return enrichPartnerDetails(groupSocietyRepository.save(entity), partner);
     }
 
     @Transactional
@@ -170,7 +160,7 @@ public class GroupSocietyService {
 
         // Lifecycle status is intentionally not editable here. Activation,
         // suspension and closure must always pass through the approval workflow.
-        return groupSocietyRepository.save(entity);
+        return enrichPartnerDetails(groupSocietyRepository.save(entity));
     }
 
     @Transactional
@@ -369,6 +359,40 @@ public class GroupSocietyService {
     private GroupSocietyEntity getByIdForUpdate(String id) {
         return groupSocietyRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RuntimeException("Group society not found: " + id));
+    }
+
+    private List<GroupSocietyEntity> enrichPartnerDetails(List<GroupSocietyEntity> societies) {
+        Set<String> partnerIds = societies.stream()
+                .map(GroupSocietyEntity::getPartnerId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+        Map<String, PartnerEntity> partners = partnerRepository.findAllById(partnerIds).stream()
+                .collect(Collectors.toMap(PartnerEntity::getId, Function.identity(), (left, right) -> left, LinkedHashMap::new));
+        societies.forEach(society -> enrichPartnerDetails(society, partners.get(society.getPartnerId())));
+        return societies;
+    }
+
+    private GroupSocietyEntity enrichPartnerDetails(GroupSocietyEntity society) {
+        PartnerEntity partner = society.getPartnerId() == null
+                ? null
+                : partnerRepository.findById(society.getPartnerId()).orElse(null);
+        return enrichPartnerDetails(society, partner);
+    }
+
+    private GroupSocietyEntity enrichPartnerDetails(GroupSocietyEntity society, PartnerEntity partner) {
+        society.setPartnerAvailable(partner != null);
+        society.setPartnerNumber(partner == null ? null : partner.getNo());
+        society.setDisplayName(partnerDisplayName(partner, society.getGroupNo()));
+        return society;
+    }
+
+    private String partnerDisplayName(PartnerEntity partner, String fallback) {
+        if (partner == null) return fallback;
+        String name = java.util.stream.Stream.of(partner.getName1(), partner.getName2(), partner.getName3())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(" "))
+                .trim();
+        return name.isBlank() ? fallback : name;
     }
 
     private void validateGroupSocietyRequest(GroupSocietyRequest request) {

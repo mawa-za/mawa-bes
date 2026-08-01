@@ -92,6 +92,7 @@ public class MembershipPlanClaimPayoutService {
         return toDto(payoutRepository.save(entity));
     }
 
+    @Transactional(readOnly = true)
     public List<MembershipPlanClaimPayoutResponseDto> getActiveByPlan(String planId) {
         return payoutRepository.findByPlanIdAndActiveTrue(planId)
                 .stream()
@@ -99,6 +100,7 @@ public class MembershipPlanClaimPayoutService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<MembershipPlanClaimPayoutResponseDto> getAllByPlan(String planId) {
         return payoutRepository.findByPlanId(planId)
                 .stream()
