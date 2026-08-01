@@ -9,6 +9,7 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.partner.PartnerDto;
 import za.co.mawa.bes.dto.product.ProductDto;
@@ -127,10 +128,51 @@ public class InvoiceService {
         return invoiceRepository.findById(invoiceId);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<InvoiceOutboundDto> getInvoiceDto(String invoiceId) {
+        if (invoiceId == null || invoiceId.isBlank()) {
+            throw new IllegalArgumentException("Invoice ID is required");
+        }
+        return invoiceRepository.findById(invoiceId.trim()).map(this::mapToDto);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceOutboundDto> searchInvoiceDtos(String status, String partnerId, String invoiceDate) {
+        LocalDate requestedDate = null;
+        if (invoiceDate != null && !invoiceDate.isBlank()) {
+            try {
+                requestedDate = LocalDate.parse(invoiceDate.trim());
+            } catch (java.time.format.DateTimeParseException exception) {
+                throw new IllegalArgumentException("Invoice date must use the format YYYY-MM-DD");
+            }
+        }
+
+        final String requestedStatus = status == null ? null : status.trim();
+        final String requestedPartner = partnerId == null ? null : partnerId.trim();
+        final LocalDate finalRequestedDate = requestedDate;
+
+        return invoiceRepository.findAll().stream()
+                .filter(invoice -> requestedStatus == null || requestedStatus.isBlank()
+                        || requestedStatus.equalsIgnoreCase(invoice.getStatus()))
+                .filter(invoice -> requestedPartner == null || requestedPartner.isBlank()
+                        || requestedPartner.equals(invoice.getPartnerId()))
+                .filter(invoice -> finalRequestedDate == null
+                        || finalRequestedDate.equals(invoice.getInvoiceDate()))
+                .sorted(java.util.Comparator
+                        .comparing(InvoiceEntity::getInvoiceDate,
+                                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()))
+                        .thenComparing(InvoiceEntity::getInvoiceNo,
+                                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<InvoiceLineEntity> getInvoiceLines(String invoiceId) {
         return invoiceLineRepository.findByInvoiceId(invoiceId);
     }
 
+    @Transactional(readOnly = true)
     public List<InvoicePaymentEntity> getInvoicePayments(String invoiceId) {
         return invoicePaymentRepository.findByInvoiceId(invoiceId);
     }
@@ -247,10 +289,15 @@ public class InvoiceService {
         dto.setPartnerId(invoice.getPartnerId());
         dto.setSourceType(invoice.getSourceType());
         dto.setSourceId(invoice.getSourceId());
-        try {
-            PartnerDto partner = partnerService.get(invoice.getPartnerId());
-            dto.setPartnerName(partner == null ? null : fullName(partner));
-        } catch (Exception ignored) {}
+        if (invoice.getPartnerId() != null && !invoice.getPartnerId().isBlank()) {
+            try {
+                PartnerDto partner = partnerService.get(invoice.getPartnerId());
+                dto.setPartnerName(partner == null ? null : fullName(partner));
+            } catch (Exception ignored) {
+                // Historical invoices may reference a partner that is no longer available.
+                // Keep the invoice readable and allow the client to display the partner reference.
+            }
+        }
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setDueDate(invoice.getDueDate());
         dto.setStatus(invoice.getStatus());
@@ -270,11 +317,13 @@ public class InvoiceService {
         dto.setIntegrationError(invoice.getIntegrationError());
 
         // Map the line items to the nested DTO
-        List<InvoiceOutboundDto.InvoiceLineDto> lineDtos = invoice.getLines().stream().map(line -> {
+        List<InvoiceLineEntity> lines = invoice.getLines() == null ? List.of() : invoice.getLines();
+        List<InvoiceOutboundDto.InvoiceLineDto> lineDtos = lines.stream().map(line -> {
             InvoiceOutboundDto.InvoiceLineDto lineDto = new InvoiceOutboundDto.InvoiceLineDto();
             lineDto.setProductId(line.getProductId());
-            lineDto.setDescription(line.getDescription());
-            lineDto.setQuantity(line.getQuantity().intValue());
+            lineDto.setDescription(line.getDescription() == null ? "Invoice item" : line.getDescription());
+            Double quantity = line.getQuantity();
+            lineDto.setQuantity(quantity == null ? 1 : Math.max(0, quantity.intValue()));
             lineDto.setShowAmount(!Boolean.FALSE.equals(line.getShowAmount()));
             lineDto.setUnitPriceCents(Conversion.safeLongToInteger(line.getUnitPriceCents()));
             lineDto.setDiscountCents(Conversion.safeLongToInteger(line.getDiscountCents()));
