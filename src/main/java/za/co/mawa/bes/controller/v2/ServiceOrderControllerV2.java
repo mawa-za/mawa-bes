@@ -12,20 +12,28 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Backward-compatible singular routes. New clients should use /v2/service-orders.
- */
-@Deprecated
 @CrossOrigin
 @RestController
-@RequestMapping("/v2/service-order")
-public class AppointmentServiceOrderControllerV2 {
+@RequestMapping("/v2/service-orders")
+public class ServiceOrderControllerV2 {
     private final ServiceOrderService serviceOrderService;
     private final InvoiceService invoiceService;
 
-    public AppointmentServiceOrderControllerV2(ServiceOrderService serviceOrderService, InvoiceService invoiceService) {
+    public ServiceOrderControllerV2(ServiceOrderService serviceOrderService, InvoiceService invoiceService) {
         this.serviceOrderService = serviceOrderService;
         this.invoiceService = invoiceService;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> create(
+            @RequestBody ServiceOrderRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(serviceOrderService.create(request, currentUser));
+        } catch (Exception exception) {
+            return badRequest(exception);
+        }
     }
 
     @PostMapping("/from-appointment/{appointmentId}")
@@ -36,22 +44,40 @@ public class AppointmentServiceOrderControllerV2 {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(serviceOrderService.createFromAppointment(appointmentId, currentUser));
-        } catch (Exception exception) { return badRequest(exception); }
+        } catch (Exception exception) {
+            return badRequest(exception);
+        }
+    }
+
+    @PostMapping("/from-service-request/{serviceRequestId}")
+    public ResponseEntity<?> createFromServiceRequest(
+            @PathVariable String serviceRequestId,
+            @RequestParam(defaultValue = "false") boolean additional,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(serviceOrderService.createFromServiceRequest(serviceRequestId, currentUser, additional));
+        } catch (Exception exception) {
+            return badRequest(exception);
+        }
     }
 
     @GetMapping
     public ResponseEntity<?> search(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String customerId,
-            @RequestParam(required = false) String appointmentId,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) String sourceId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
     ) {
         try {
-            return ResponseEntity.ok(serviceOrderService.search(status, customerId,
-                    appointmentId == null || appointmentId.isBlank() ? null : "APPOINTMENT",
-                    appointmentId, fromDate, toDate));
-        } catch (Exception exception) { return badRequest(exception); }
+            return ResponseEntity.ok(serviceOrderService.search(
+                    status, customerId, sourceType, sourceId, fromDate, toDate));
+        } catch (Exception exception) {
+            return badRequest(exception);
+        }
     }
 
     @GetMapping("/{id}")
@@ -78,7 +104,9 @@ public class AppointmentServiceOrderControllerV2 {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(invoiceService.mapToDto(serviceOrderService.createInvoice(id, currentUser)));
-        } catch (Exception exception) { return badRequest(exception); }
+        } catch (Exception exception) {
+            return badRequest(exception);
+        }
     }
 
     private ResponseEntity<Map<String, Object>> badRequest(Exception exception) {
