@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.PremiumEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
@@ -16,11 +18,15 @@ import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.PremiumRepository;
+import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipMasterDataProjection;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.mapper.v2.MembershipMapper;
+import za.co.mawa.bes.dto.v2.MembershipResponseDto;
 import za.co.mawa.bes.utils.TransactionType;
 
 import java.time.LocalDate;
@@ -30,6 +36,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -47,6 +55,12 @@ public class MembershipService {
 
     @Autowired
     PremiumRepository premiumRepository;
+    @Autowired
+    PartnerRepository partnerRepository;
+    @Autowired
+    PartnerIdentityRepository partnerIdentityRepository;
+    @Autowired
+    MembershipMapper membershipMapper;
 
     @Autowired
     MembershipDependentService membershipDependentService;
@@ -74,6 +88,18 @@ public class MembershipService {
 
     public Page<MembershipEntity> getAllMemberships(String status, Pageable pageable) {
         return getMembershipsByMemberId(null, status, pageable);
+    }
+
+    public Page<MembershipResponseDto> getAllMembershipResponses(String status, Pageable pageable) {
+        return enrichMembershipPage(getAllMemberships(status, pageable));
+    }
+
+    public Page<MembershipResponseDto> getMembershipResponsesByMemberId(
+            List<String> memberIds,
+            String status,
+            Pageable pageable
+    ) {
+        return enrichMembershipPage(getMembershipsByMemberId(memberIds, status, pageable));
     }
 
     public Page<MembershipEntity> getMembershipsByMemberId(
@@ -109,6 +135,93 @@ public class MembershipService {
         Page<MembershipEntity> memberships = membershipRepository.findAll(spec, pageable);
         repairMissingPaidUpToPeriods(memberships.getContent());
         return memberships;
+    }
+
+    private Page<MembershipResponseDto> enrichMembershipPage(Page<MembershipEntity> page) {
+        List<String> memberIds = page.getContent().stream()
+                .map(MembershipEntity::getMemberId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        Map<String, PartnerEntity> partnersById = new LinkedHashMap<>();
+        if (!memberIds.isEmpty()) {
+            partnerRepository.findAllById(memberIds)
+                    .forEach(partner -> partnersById.put(partner.getId(), partner));
+        }
+
+        Map<String, PartnerIdentityEntity> identitiesByPartner = new LinkedHashMap<>();
+        if (!memberIds.isEmpty()) {
+            for (PartnerIdentityEntity identity : partnerIdentityRepository.findByPartnerIn(memberIds)) {
+                if (identity == null || identity.getPartner() == null
+                        || identity.getPartnerIdentityPK() == null) {
+                    continue;
+                }
+                identitiesByPartner.merge(
+                        identity.getPartner(),
+                        identity,
+                        this::preferredIdentity
+                );
+            }
+        }
+
+        return page.map(membership -> {
+            MembershipResponseDto response = membershipMapper.toResponse(membership);
+            PartnerEntity partner = partnersById.get(membership.getMemberId());
+            PartnerIdentityEntity identity = identitiesByPartner.get(membership.getMemberId());
+
+            if (partner != null) {
+                response.setMemberNumber(partner.getNo());
+                response.setMemberName(formatPartnerName(partner));
+            }
+            if (identity != null && identity.getPartnerIdentityPK() != null) {
+                response.setMemberIdentityType(identity.getPartnerIdentityPK().getType());
+                response.setMemberIdentityNumber(identity.getPartnerIdentityPK().getValue());
+            }
+            return response;
+        });
+    }
+
+    private PartnerIdentityEntity preferredIdentity(
+            PartnerIdentityEntity current,
+            PartnerIdentityEntity candidate
+    ) {
+        return identityPriority(candidate) < identityPriority(current) ? candidate : current;
+    }
+
+    private int identityPriority(PartnerIdentityEntity identity) {
+        if (identity == null || identity.getPartnerIdentityPK() == null
+                || identity.getPartnerIdentityPK().getType() == null) {
+            return Integer.MAX_VALUE;
+        }
+        return switch (identity.getPartnerIdentityPK().getType().trim().toUpperCase()) {
+            case "SA-ID", "SA_ID", "RSA-ID", "NATIONAL-ID" -> 0;
+            case "PASSPORT" -> 1;
+            default -> 2;
+        };
+    }
+
+    private String formatPartnerName(PartnerEntity partner) {
+        if (partner == null) {
+            return "";
+        }
+        String type = partner.getType() == null ? "" : partner.getType().trim().toUpperCase();
+        if ("ORGANISATION".equals(type) || "ORGANIZATION".equals(type) || "GROUP".equals(type)) {
+            return cleanName(partner.getName1());
+        }
+
+        return java.util.stream.Stream.of(
+                        partner.getName2(),
+                        partner.getName3(),
+                        partner.getName1()
+                )
+                .map(this::cleanName)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
+    }
+
+    private String cleanName(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public Optional<MembershipEntity> getMembershipById(String id) {
