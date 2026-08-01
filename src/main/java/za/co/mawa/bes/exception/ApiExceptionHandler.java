@@ -13,6 +13,8 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import za.co.mawa.bes.dto.ErrorResponse;
@@ -109,6 +111,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
         return response(HttpStatus.BAD_REQUEST, "The request contains invalid or incomplete information");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return response(HttpStatus.NOT_ACCEPTABLE,
+                "The requested response format is not supported. Refresh the application and try again");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        return response(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "The submitted content format is not supported");
     }
 
     @ExceptionHandler(ResponseStatusException.class)

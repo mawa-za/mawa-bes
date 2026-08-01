@@ -257,16 +257,11 @@ public class FuneralManagementControllerV2 {
 
     @PostMapping(value = "/service-request/{id}/initiate-claims", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> initiateClaims(@PathVariable String id, @RequestBody InitiateFuneralClaimsDto request) {
-        try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.initiateClaims(id, request));
-        } catch (Exception exception) {
-            log.warn("Unable to initiate claims for funeral service {} with memberships {}: {}",
-                    id,
-                    request == null ? null : request.getMemberships(),
-                    exception.getMessage(),
-                    exception);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
+        // Let the central API exception handler convert validation, database
+        // and unexpected failures into safe, consistent error envelopes. The
+        // previous catch-all returned raw SQL messages to the ERP client.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(funeralManagementService.initiateClaims(id, request));
     }
 
     @GetMapping("/service-request/{id}/claims")
