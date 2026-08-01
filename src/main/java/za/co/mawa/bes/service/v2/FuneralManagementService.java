@@ -232,7 +232,8 @@ public class FuneralManagementService {
     public FuneralPackageEntity updatePackage(String id, FuneralPackageUpdateRequestDto request) {
         validateRequired(id, "id");
         validateRequired(request.getName(), "name");
-        FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
+        FuneralPackageEntity entity = funeralPackageRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + id));
         entity.setName(request.getName().trim());
         entity.setPricingMode(normalizePackagePricingMode(request.getPricingMode()));
         entity.setBasePriceCents(defaultLong(request.getBasePriceCents()));
@@ -259,25 +260,43 @@ public class FuneralManagementService {
         if (products == null || products.isEmpty()) {
             throw new IllegalArgumentException("A funeral package must contain at least one product");
         }
+
         java.util.Set<String> seen = new java.util.HashSet<>();
-        funeralPackageItemRepository.deleteByFuneralPackageId(funeralPackage.getId());
+        java.util.List<FuneralPackageItemEntity> replacements = new java.util.ArrayList<>();
         long total = 0L;
+
         for (FuneralPackageItemRequestDto item : products) {
-            if (item.getProductId() == null || item.getProductId().isBlank()) throw new IllegalArgumentException("productId is required");
-            if (!seen.add(item.getProductId())) throw new IllegalArgumentException("A product may only appear once in a funeral package");
+            if (item.getProductId() == null || item.getProductId().isBlank()) {
+                throw new IllegalArgumentException("productId is required");
+            }
+            String productId = item.getProductId().trim();
+            if (!seen.add(productId)) {
+                throw new IllegalArgumentException("A product may only appear once in a funeral package");
+            }
             int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
-            if (quantity <= 0) throw new IllegalArgumentException("Product quantity must be greater than zero");
+            if (quantity <= 0) {
+                throw new IllegalArgumentException("Product quantity must be greater than zero");
+            }
             long unitPrice = item.getUnitPriceCents() == null ? 0L : item.getUnitPriceCents();
-            if (unitPrice < 0) throw new IllegalArgumentException("Product unit price cannot be negative");
-            za.co.mawa.bes.entity.ProductEntity product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProductId()));
+            if (unitPrice < 0) {
+                throw new IllegalArgumentException("Product unit price cannot be negative");
+            }
+
+            za.co.mawa.bes.entity.ProductEntity product = productRepository.findById(productId)
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
             long lineTotal = Math.multiplyExact(unitPrice, quantity);
             total = Math.addExact(total, lineTotal);
-            funeralPackageItemRepository.save(FuneralPackageItemEntity.builder()
-                    .funeralPackageId(funeralPackage.getId()).productId(product.getId())
-                    .productCode(product.getCode()).productDescription(product.getDescription())
-                    .quantity(quantity).unitPriceCents(unitPrice).lineTotalCents(lineTotal).build());
+            replacements.add(FuneralPackageItemEntity.builder()
+                    .funeralPackageId(funeralPackage.getId())
+                    .productId(product.getId())
+                    .productCode(product.getCode())
+                    .productDescription(product.getDescription())
+                    .quantity(quantity)
+                    .unitPriceCents(unitPrice)
+                    .lineTotalCents(lineTotal)
+                    .build());
         }
+
         if ("FIXED_PRICE".equalsIgnoreCase(funeralPackage.getPricingMode())) {
             if (defaultLong(funeralPackage.getBasePriceCents()) <= 0) {
                 throw new IllegalArgumentException("A fixed-price funeral package must have a price greater than zero");
@@ -286,6 +305,10 @@ public class FuneralManagementService {
             funeralPackage.setPricingMode("ITEM_TOTAL");
             funeralPackage.setBasePriceCents(total);
         }
+
+        funeralPackageItemRepository.deleteByFuneralPackageId(funeralPackage.getId());
+        funeralPackageItemRepository.flush();
+        funeralPackageItemRepository.saveAllAndFlush(replacements);
         funeralPackageRepository.save(funeralPackage);
     }
 
