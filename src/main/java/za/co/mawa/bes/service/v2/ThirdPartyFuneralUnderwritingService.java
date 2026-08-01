@@ -4,6 +4,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.enums.ApprovalType;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,9 +18,11 @@ import java.util.UUID;
 @Service
 public class ThirdPartyFuneralUnderwritingService {
     private final JdbcTemplate jdbc;
+    private final ApprovalService approvalService;
 
-    public ThirdPartyFuneralUnderwritingService(JdbcTemplate jdbc) {
+    public ThirdPartyFuneralUnderwritingService(JdbcTemplate jdbc, ApprovalService approvalService) {
         this.jdbc = jdbc;
+        this.approvalService = approvalService;
     }
 
     public List<Map<String, Object>> underwriters() {
@@ -114,6 +118,15 @@ public class ThirdPartyFuneralUnderwritingService {
     @Transactional
     public Map<String, Object> saveCover(Map<String, Object> body) {
         String id = id(body);
+        List<Map<String,Object>> existingRows = jdbc.queryForList(
+                "SELECT status,pending_action FROM third_party_funeral_cover WHERE id=?", id);
+        String previousStatus = existingRows.isEmpty()
+                ? "DRAFT"
+                : Objects.toString(existingRows.get(0).get("status"), "DRAFT");
+        if (!existingRows.isEmpty()
+                && StringUtils.hasText(Objects.toString(existingRows.get(0).get("pending_action"), null))) {
+            throw new IllegalStateException("This funeral cover already has an approval request in progress");
+        }
         String membershipId = req(body, "membershipId");
         String coveredPartnerId = req(body, "coveredPartnerId");
         String partyType = req(body, "coveredPartyType").toUpperCase(Locale.ROOT);
@@ -134,34 +147,125 @@ public class ThirdPartyFuneralUnderwritingService {
                     cover_amount_cents, effective_from, effective_to, status,
                     underwriting_notes, covered_partner_id, covered_party_type,
                     membership_dependent_id
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) AS incoming
                 ON DUPLICATE KEY UPDATE
-                    underwriter_id=VALUES(underwriter_id), external_policy_no=VALUES(external_policy_no),
-                    membership_id=VALUES(membership_id), holder_name=VALUES(holder_name),
-                    holder_identity=VALUES(holder_identity), deceased_name=VALUES(deceased_name),
-                    deceased_identity=VALUES(deceased_identity), cover_amount_cents=VALUES(cover_amount_cents),
-                    effective_from=VALUES(effective_from), effective_to=VALUES(effective_to),
-                    status=VALUES(status), underwriting_notes=VALUES(underwriting_notes),
-                    covered_partner_id=VALUES(covered_partner_id), covered_party_type=VALUES(covered_party_type),
-                    membership_dependent_id=VALUES(membership_dependent_id)
+                    underwriter_id=incoming.underwriter_id, external_policy_no=incoming.external_policy_no,
+                    membership_id=incoming.membership_id, holder_name=incoming.holder_name,
+                    holder_identity=incoming.holder_identity, deceased_name=incoming.deceased_name,
+                    deceased_identity=incoming.deceased_identity, cover_amount_cents=incoming.cover_amount_cents,
+                    effective_from=incoming.effective_from, effective_to=incoming.effective_to,
+                    status=incoming.status, underwriting_notes=incoming.underwriting_notes,
+                    covered_partner_id=incoming.covered_partner_id, covered_party_type=incoming.covered_party_type,
+                    membership_dependent_id=incoming.membership_dependent_id
                 """, id, req(body, "underwriterId"), req(body, "externalPolicyNo"), membershipId,
                 partyName, identity, body.get("deceasedName"), body.get("deceasedIdentity"), amount,
-                req(body, "effectiveFrom"), body.get("effectiveTo"), val(body, "status", "PENDING_UNDERWRITING"),
+                req(body, "effectiveFrom"), body.get("effectiveTo"), previousStatus,
                 body.get("underwritingNotes"), coveredPartnerId, partyType,
                 "DEPENDENT".equals(partyType) ? reqValue(dependentId, "membershipDependentId") : null);
         replaceBeneficiaries(id, body.get("beneficiaries"));
+        submitApproval(id, "UNDERWRITE", "ACTIVE", val(body, "requestedBy", "SYSTEM"),
+                Objects.toString(body.get("underwritingNotes"), null), ApprovalType.FUNERAL_UNDERWRITING,
+                previousStatus);
         return getCover(id);
     }
 
     @Transactional
     public Map<String, Object> decide(String id, Map<String, Object> body) {
-        String status = req(body, "status").toUpperCase(Locale.ROOT);
-        if (!Set.of("APPROVED", "DECLINED", "SUSPENDED", "ACTIVE").contains(status)) {
-            throw new IllegalArgumentException("Invalid underwriting status");
+        Map<String,Object> cover = getCover(id);
+        String requested = req(body, "status").toUpperCase(Locale.ROOT);
+        if (!Set.of("ACTIVE", "SUSPENDED", "CANCELLED").contains(requested)) {
+            throw new IllegalArgumentException("Status must be ACTIVE, SUSPENDED or CANCELLED");
         }
-        jdbc.update("UPDATE third_party_funeral_cover SET status=?,underwriting_notes=? WHERE id=?",
-                status, body.get("notes"), id);
+        String current = Objects.toString(cover.get("status"), "");
+        if (current.startsWith("PENDING_")) {
+            throw new IllegalStateException("This funeral cover already has an approval request in progress");
+        }
+        if (requested.equals(current)) {
+            throw new IllegalArgumentException("The funeral cover is already " + requested);
+        }
+        submitApproval(id, "STATUS_CHANGE", requested, val(body, "requestedBy", "SYSTEM"),
+                Objects.toString(body.get("notes"), null), ApprovalType.FUNERAL_COVER_STATUS_CHANGE,
+                current);
         return getCover(id);
+    }
+
+    @Transactional
+    public void completeApproval(String actionId, boolean approved, String actor) {
+        List<Map<String,Object>> rows = jdbc.queryForList(
+                "SELECT * FROM funeral_cover_approval_action WHERE id=?", actionId);
+        if (rows.isEmpty()) throw new IllegalArgumentException("Funeral cover approval action not found: " + actionId);
+        Map<String,Object> action = rows.get(0);
+        if (!"PENDING_APPROVAL".equalsIgnoreCase(Objects.toString(action.get("status"), ""))) return;
+        String coverId = Objects.toString(action.get("cover_id"));
+        String actionType = Objects.toString(action.get("action_type"));
+        String previous = Objects.toString(action.get("previous_status"), "PENDING_UNDERWRITING");
+        String requested = Objects.toString(action.get("requested_status"), "ACTIVE");
+        String finalStatus;
+        if (approved) {
+            finalStatus = requested;
+        } else if ("UNDERWRITE".equalsIgnoreCase(actionType)
+                && ("DRAFT".equalsIgnoreCase(previous)
+                    || "PENDING_UNDERWRITING".equalsIgnoreCase(previous))) {
+            finalStatus = "DECLINED";
+        } else {
+            finalStatus = previous;
+        }
+        jdbc.update("""
+                UPDATE third_party_funeral_cover
+                   SET status=?,approval_request_id=NULL,pending_action=NULL,
+                       requested_status=NULL,previous_status=NULL,updated_at=CURRENT_TIMESTAMP
+                 WHERE id=?
+                """, finalStatus, coverId);
+        jdbc.update("""
+                UPDATE funeral_cover_approval_action
+                   SET status=?,completed_by=?,completed_at=CURRENT_TIMESTAMP
+                 WHERE id=?
+                """, approved ? "APPROVED" : "REJECTED", actor, actionId);
+    }
+
+    private void submitApproval(String coverId, String actionType, String requestedStatus,
+                                String actor, String notes, ApprovalType approvalType,
+                                String previousStatus) {
+        Map<String,Object> cover = getCover(coverId);
+        String current = StringUtils.hasText(previousStatus)
+                ? previousStatus
+                : Objects.toString(cover.get("status"), "DRAFT");
+        if (Objects.toString(cover.get("pending_action"), "").length() > 0) {
+            throw new IllegalStateException("This funeral cover already has an approval request in progress");
+        }
+        String actionId = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT INTO funeral_cover_approval_action(
+                    id,cover_id,action_type,previous_status,requested_status,status,
+                    notes,requested_by,created_at
+                ) VALUES(?,?,?,?,?,'PENDING_APPROVAL',?,?,CURRENT_TIMESTAMP)
+                """, actionId, coverId, actionType, current, requestedStatus, notes, actor);
+
+        ApprovalSubmitRequest request = new ApprovalSubmitRequest();
+        request.setApprovalType(approvalType);
+        request.setReferenceId(actionId);
+        request.setReferenceNo(Objects.toString(cover.get("external_policy_no"), coverId));
+        request.setTitle("UNDERWRITE".equals(actionType)
+                ? "Funeral cover underwriting"
+                : "Funeral cover status change");
+        request.setDescription("Approval required for funeral cover "
+                + Objects.toString(cover.get("external_policy_no"), coverId)
+                + " to " + requestedStatus);
+        request.setRequesterId(actor);
+        request.setPayloadJson("{\"coverId\":\"" + coverId
+                + "\",\"requestedStatus\":\"" + requestedStatus + "\"}");
+        var response = approvalService.submitForApproval(request);
+        jdbc.update("UPDATE funeral_cover_approval_action SET approval_request_id=? WHERE id=?",
+                response.getId(), actionId);
+        String pending = "UNDERWRITE".equals(actionType)
+                ? "PENDING_UNDERWRITING"
+                : "PENDING_" + ("CANCELLED".equals(requestedStatus) ? "CANCELLATION" : requestedStatus);
+        jdbc.update("""
+                UPDATE third_party_funeral_cover
+                   SET status=?,approval_request_id=?,pending_action=?,
+                       previous_status=?,requested_status=?,updated_at=CURRENT_TIMESTAMP
+                 WHERE id=?
+                """, pending, response.getId(), actionType, current, requestedStatus, coverId);
     }
 
     public Map<String, Object> getCover(String id) {
