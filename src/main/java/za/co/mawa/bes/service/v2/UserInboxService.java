@@ -221,22 +221,22 @@ public class UserInboxService {
                   JOIN approval_workflow_step_approver approver
                     ON approver.workflow_step_id = step.id
                    AND approver.active = 1
-                  JOIN `user` current_user ON current_user.id = ?
+                  JOIN `user` inbox_user ON inbox_user.id = ?
                  WHERE ar.status IN ('PENDING', 'IN_PROGRESS')
-                   AND current_user.status = 'ACTIVE'
-                   AND (current_user.expires_at IS NULL OR current_user.expires_at > NOW())
+                   AND inbox_user.status = 'ACTIVE'
+                   AND (inbox_user.expires_at IS NULL OR inbox_user.expires_at > NOW())
                    AND (
                         (approver.approver_type = 'USER' AND (
-                            approver.approver_value = current_user.id OR
-                            approver.approver_value = current_user.username OR
-                            approver.approver_value = current_user.email
+                            approver.approver_value = inbox_user.id OR
+                            approver.approver_value = inbox_user.username OR
+                            approver.approver_value = inbox_user.email
                         ))
                         OR
                         (approver.approver_type = 'ROLE' AND EXISTS (
                             SELECT 1
                               FROM user_role ur
                               JOIN role r ON r.id = ur.role
-                             WHERE ur.user = current_user.id
+                             WHERE ur.user = inbox_user.id
                                AND (r.id = approver.approver_value OR
                                     UPPER(r.description) = UPPER(approver.approver_value))
                                AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
@@ -246,7 +246,7 @@ public class UserInboxService {
                         (approver.approver_type = 'GROUP' AND EXISTS (
                             SELECT 1
                               FROM approval_group_member gm
-                             WHERE gm.user_id = current_user.id
+                             WHERE gm.user_id = inbox_user.id
                                AND gm.group_code = approver.approver_value
                                AND gm.active = 1
                         ))
@@ -255,7 +255,7 @@ public class UserInboxService {
                             SELECT 1
                               FROM approval_manager_assignment ma
                               LEFT JOIN `user` requester_user ON requester_user.id = ma.requester_user_id
-                             WHERE ma.manager_user_id = current_user.id
+                             WHERE ma.manager_user_id = inbox_user.id
                                AND ma.active = 1
                                AND (
                                     ma.requester_user_id = ar.requester_id OR
@@ -272,10 +272,10 @@ public class UserInboxService {
                            AND actioned.step_no = ar.current_step_no
                            AND actioned.action IN ('APPROVED', 'REJECTED')
                            AND (
-                                actioned.action_by = current_user.id OR
-                                actioned.action_by = current_user.username OR
-                                actioned.action_by = current_user.email OR
-                                actioned.action_by = current_user.partner
+                                actioned.action_by = inbox_user.id OR
+                                actioned.action_by = inbox_user.username OR
+                                actioned.action_by = inbox_user.email OR
+                                actioned.action_by = inbox_user.partner
                            )
                    )
                  GROUP BY ar.id, ar.created_at
