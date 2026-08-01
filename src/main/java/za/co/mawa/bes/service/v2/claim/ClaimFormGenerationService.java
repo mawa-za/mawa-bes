@@ -14,6 +14,7 @@ import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.exception.ClaimFormGenerationException;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
@@ -34,6 +35,7 @@ public class ClaimFormGenerationService {
     private static final String OBJECT_TYPE = "claims";
     private static final float LEFT = 46;
     private static final float RIGHT = 549;
+    private static final float RGB_SCALE = 255f;
 
     private final MembershipClaimRepository claimRepository;
     private final MembershipRepository membershipRepository;
@@ -115,7 +117,12 @@ public class ClaimFormGenerationService {
             document.save(out);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate claim form", e);
+            String claimReference = clean(data.claimNo);
+            throw new ClaimFormGenerationException(
+                    claimReference.isBlank()
+                            ? "Failed to generate claim form"
+                            : "Failed to generate claim form for claim " + claimReference,
+                    e);
         }
     }
 
@@ -149,10 +156,10 @@ public class ClaimFormGenerationService {
         content.setLineWidth(.8f);
         content.addRect(LEFT, y - height, RIGHT - LEFT, height);
         content.stroke();
-        content.setNonStrokingColor(235, 238, 242);
+        content.setNonStrokingColor(235f / RGB_SCALE, 238f / RGB_SCALE, 242f / RGB_SCALE);
         content.addRect(LEFT, y - 24, RIGHT - LEFT, 24);
         content.fill();
-        content.setNonStrokingColor(0, 0, 0);
+        content.setNonStrokingColor(0f, 0f, 0f);
         write(content, title, LEFT + 9, y - 17, 10, true);
         float rowY = y - 24;
         for (String[] row : rows) {
