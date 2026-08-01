@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentRequest;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentStatusUpdateRequest;
 import za.co.mawa.bes.service.v2.AppointmentService;
-import za.co.mawa.bes.service.v2.AppointmentServiceOrderService;
+import za.co.mawa.bes.service.v2.ServiceOrderService;
 import za.co.mawa.bes.service.InvoiceService;
 
 import java.time.LocalDate;
@@ -20,12 +20,12 @@ import java.util.Map;
 public class AppointmentControllerV2 {
 
     private final AppointmentService appointmentService;
-    private final AppointmentServiceOrderService serviceOrderService;
+    private final ServiceOrderService serviceOrderService;
     private final InvoiceService invoiceService;
 
     public AppointmentControllerV2(
             AppointmentService appointmentService,
-            AppointmentServiceOrderService serviceOrderService,
+            ServiceOrderService serviceOrderService,
             InvoiceService invoiceService
     ) {
         this.appointmentService = appointmentService;
