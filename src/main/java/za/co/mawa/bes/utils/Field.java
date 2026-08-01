@@ -35,6 +35,7 @@ public class Field {
     public static String ADDRESS_TYPE = "ADDRESS-TYPE";
     public static String SALES_AREA = "SALES-AREA";
     public static String EMPLOYMENT_TYPE = "EMPLOYMENT-TYPE";
+    public static String EMPLOYMENT_POSITION = "EMPLOYMENT-POSITION";
     public static String DEPARTMENT = "DEPARTMENT";
     public static String DOCUMENT_TYPE = "DOCUMENT-TYPE";
     public static String DOCUMENT_TYPE_DEPOSIT = "DOCUMENT-TYPE-DEPOSIT";

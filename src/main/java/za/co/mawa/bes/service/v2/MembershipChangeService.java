@@ -20,7 +20,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -635,16 +637,141 @@ public class MembershipChangeService {
         request.setApprovalType(approvalType);
         request.setReferenceId(change.getId());
         request.setReferenceNo(membership.getMembershipNo());
+        String membershipHolder = firstNonBlank(partnerName(membership.getMemberId()), membership.getMembershipNo());
+        String changeLabel = change.getChangeType() == null
+                ? "change"
+                : change.getChangeType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         request.setTitle(switch (approvalType) {
-            case MEMBERSHIP_TRANSFER -> "Membership Transfer: " + membership.getMembershipNo();
-            case MEMBERSHIP_PLAN_CHANGE -> "Membership Plan Change: " + membership.getMembershipNo();
-            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership Dependent Change: " + membership.getMembershipNo();
-            default -> "Membership Change: " + membership.getMembershipNo();
+            case MEMBERSHIP_TRANSFER -> "Membership transfer - " + membership.getMembershipNo()
+                    + " - " + partnerName(change.getOldMemberId()) + " to " + partnerName(change.getNewMemberId());
+            case MEMBERSHIP_PLAN_CHANGE -> "Membership plan change - " + membership.getMembershipNo()
+                    + " - " + membershipHolder + " - " + planName(change.getOldPlanId())
+                    + " to " + planName(change.getNewPlanId());
+            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership dependent "
+                    + changeLabel
+                    + " - " + membership.getMembershipNo() + " - "
+                    + firstNonBlank(
+                    partnerName(change.getNewDependentPartnerId()),
+                    partnerName(change.getOldDependentPartnerId()),
+                    membershipHolder);
+            default -> "Membership change - " + membership.getMembershipNo() + " - " + membershipHolder;
         });
-        request.setDescription(change.getReason());
+        request.setDescription(approvalDescription(change, membership, approvalType));
         request.setRequesterId(actor);
-        request.setPayloadJson(toJson(toResponse(change)));
+        request.setPayloadJson(toJson(buildApprovalPayload(change, membership, approvalType)));
         return approvalServiceProvider.getObject().submitForApproval(request);
+    }
+
+    private String approvalDescription(
+            MembershipChangeRequestEntity change,
+            MembershipEntity membership,
+            ApprovalType approvalType
+    ) {
+        if (approvalType == ApprovalType.MEMBERSHIP_PLAN_CHANGE) {
+            return "Review the current and proposed membership plans, premium impact, waiting period, " +
+                    "expected effective date, and request reason before actioning. Reason: " + change.getReason();
+        }
+        if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
+            return "Review the current and proposed membership holders before actioning. Reason: " + change.getReason();
+        }
+        if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
+            return "Review the dependent change, relationship, effective date, and request reason before actioning. " +
+                    "Reason: " + change.getReason();
+        }
+        return change.getReason();
+    }
+
+    private Map<String, Object> buildApprovalPayload(
+            MembershipChangeRequestEntity change,
+            MembershipEntity membership,
+            ApprovalType approvalType
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("membershipId", membership.getId());
+        summary.put("membershipNumber", membership.getMembershipNo());
+        summary.put("membershipHolder", partnerName(membership.getMemberId()));
+        summary.put("membershipStatus", membership.getStatus());
+        summary.put("changeType", change.getChangeType());
+        summary.put("reason", change.getReason());
+        summary.put("requestedAt", change.getRequestedAt());
+        summary.put("requestedBy", change.getRequestedBy());
+        payload.put("requestSummary", summary);
+
+        Map<String, Object> current = new LinkedHashMap<>();
+        Map<String, Object> proposed = new LinkedHashMap<>();
+        Map<String, Object> impact = new LinkedHashMap<>();
+
+        if (approvalType == ApprovalType.MEMBERSHIP_PLAN_CHANGE) {
+            MembershipPlanEntity currentPlan = membershipPlanRepository.findById(change.getOldPlanId()).orElse(null);
+            MembershipPlanEntity newPlan = membershipPlanRepository.findById(change.getNewPlanId()).orElse(null);
+            int waitingMonths = change.getWaitingPeriodMonths() == null
+                    ? DEFAULT_WAITING_PERIOD_MONTHS : change.getWaitingPeriodMonths();
+            LocalDate expectedEffectiveDate = LocalDate.now().plusMonths(waitingMonths);
+
+            current.put("planId", change.getOldPlanId());
+            current.put("planCode", currentPlan == null ? null : currentPlan.getPlanCode());
+            current.put("planName", planName(change.getOldPlanId()));
+            current.put("monthlyPremiumCents", membership.getPremiumCents());
+            current.put("maximumDependents", currentPlan == null ? null : currentPlan.getMaxDependents());
+
+            proposed.put("planId", change.getNewPlanId());
+            proposed.put("planCode", newPlan == null ? null : newPlan.getPlanCode());
+            proposed.put("planName", planName(change.getNewPlanId()));
+            proposed.put("basePremiumCents", newPlan == null ? null : newPlan.getPremiumCents());
+            proposed.put("estimatedMonthlyPremiumCents",
+                    estimatedPremiumCents(membership.getId(), newPlan, expectedEffectiveDate));
+            proposed.put("maximumDependents", newPlan == null ? null : newPlan.getMaxDependents());
+
+            impact.put("waitingPeriodMonths", waitingMonths);
+            impact.put("estimatedEffectiveDateIfApprovedToday", expectedEffectiveDate);
+            impact.put("coverBeforeEffectiveDate", planName(change.getOldPlanId()));
+            impact.put("coverFromEffectiveDate", planName(change.getNewPlanId()));
+        } else if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
+            current.put("memberId", change.getOldMemberId());
+            current.put("memberName", partnerName(change.getOldMemberId()));
+            proposed.put("memberId", change.getNewMemberId());
+            proposed.put("memberName", partnerName(change.getNewMemberId()));
+            impact.put("effectiveDate", "On final approval");
+        } else if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
+            current.put("dependentId", change.getOldDependentId());
+            current.put("dependentPartnerId", change.getOldDependentPartnerId());
+            current.put("dependentName", partnerName(change.getOldDependentPartnerId()));
+            current.put("dependentType", change.getOldDependentType());
+            proposed.put("dependentPartnerId", change.getNewDependentPartnerId());
+            proposed.put("dependentName", partnerName(change.getNewDependentPartnerId()));
+            proposed.put("dependentType", change.getNewDependentType());
+            impact.put("effectiveDate", change.getEffectiveDate() == null ? "On final approval" : change.getEffectiveDate());
+        } else {
+            payload.put("change", toResponse(change));
+        }
+
+        if (!current.isEmpty()) payload.put("currentValues", current);
+        if (!proposed.isEmpty()) payload.put("proposedValues", proposed);
+        if (!impact.isEmpty()) payload.put("approvalImpact", impact);
+        payload.put("attachmentObjectIds", List.of(membership.getId(), change.getId()));
+        return payload;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return "Not specified";
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return "Not specified";
+    }
+
+    private Long estimatedPremiumCents(
+            String membershipId,
+            MembershipPlanEntity plan,
+            LocalDate effectiveDate
+    ) {
+        if (plan == null) return null;
+        try {
+            return calculateTotalPremiumCents(membershipId, plan, effectiveDate);
+        } catch (Exception ignored) {
+            return plan.getPremiumCents();
+        }
     }
 
     private void requireNoOpenChange(String membershipId) {

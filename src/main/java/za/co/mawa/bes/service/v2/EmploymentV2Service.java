@@ -53,7 +53,7 @@ public class EmploymentV2Service {
         entity.setStartDate(hasText(request.getStartDate()) ? parseDate(request.getStartDate(), "Start date") : new Date());
         entity.setEndDate(hasText(request.getEndDate()) ? parseDate(request.getEndDate(), "End date") : parseDate("9999-12-31", "End date"));
         validateDateRange(entity.getStartDate(), entity.getEndDate());
-        entity.setPosition(trimToNull(request.getPosition()));
+        entity.setPosition(validateOption(Field.EMPLOYMENT_POSITION, request.getPosition(), "Position", true));
         entity.setBranch(validateOption(Field.BRANCH, request.getBranch(), "Branch", false));
         entity.setDepartment(validateOption(Field.DEPARTMENT, request.getDepartment(), "Department", false));
         entity.setStatus(Status.ACTIVE);
@@ -97,7 +97,7 @@ public class EmploymentV2Service {
         if (hasText(request.getType())) entity.setType(validateOption(Field.EMPLOYMENT_TYPE, request.getType(), "Employment type", true));
         if (hasText(request.getStartDate())) entity.setStartDate(parseDate(request.getStartDate(), "Start date"));
         if (hasText(request.getEndDate())) entity.setEndDate(parseDate(request.getEndDate(), "End date"));
-        if (hasText(request.getPosition())) entity.setPosition(request.getPosition().trim());
+        if (hasText(request.getPosition())) entity.setPosition(validateOption(Field.EMPLOYMENT_POSITION, request.getPosition(), "Position", true));
         if (hasText(request.getBranch())) entity.setBranch(validateOption(Field.BRANCH, request.getBranch(), "Branch", false));
         if (hasText(request.getDepartment())) entity.setDepartment(validateOption(Field.DEPARTMENT, request.getDepartment(), "Department", false));
         validateDateRange(entity.getStartDate(), entity.getEndDate());
@@ -183,6 +183,7 @@ public class EmploymentV2Service {
         dto.setStartDate(Conversion.dateToString(entity.getStartDate()));
         dto.setEndDate(Conversion.dateToString(entity.getEndDate()));
         dto.setPosition(entity.getPosition());
+        dto.setPositionDescription(fieldOptionService.getFieldOptionDescription(Field.EMPLOYMENT_POSITION, entity.getPosition()));
         dto.setStatus(entity.getStatus());
         dto.setBranch(resolveOption(Field.BRANCH, entity.getBranch()));
         dto.setDepartment(resolveOption(Field.DEPARTMENT, entity.getDepartment()));
@@ -228,7 +229,7 @@ public class EmploymentV2Service {
         }
         String code = normalize(value);
         if (fieldOptionService.getFieldOption(field, code) == null) {
-            throw new IllegalArgumentException("Invalid " + field + " option: " + value);
+            throw new IllegalArgumentException(label + " must be selected from the configured options");
         }
         return code;
     }

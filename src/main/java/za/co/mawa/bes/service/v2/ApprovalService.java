@@ -95,8 +95,8 @@ public class ApprovalService {
         ApprovalRequestEntity entity = new ApprovalRequestEntity();
         entity.setApprovalType(request.getApprovalType());
         entity.setReferenceId(request.getReferenceId());
-        entity.setReferenceNo(request.getReferenceNo());
-        entity.setTitle(request.getTitle());
+        entity.setReferenceNo(truncate(request.getReferenceNo(), 100));
+        entity.setTitle(approvalTitle(request));
         entity.setDescription(request.getDescription());
         entity.setRequesterId(request.getRequesterId());
         entity.setWorkflowId(workflow.getId());
@@ -121,7 +121,9 @@ public class ApprovalService {
 
     @Transactional
     public ApprovalRequestResponse approve(String approvalRequestId, ApprovalDecisionRequest request) {
-        ApprovalRequestEntity approvalRequest = getApprovalRequestOrThrow(approvalRequestId);
+        ApprovalRequestEntity approvalRequest = getApprovalRequestForUpdateOrThrow(approvalRequestId);
+        String actionBy = canonicalActionUser(request.getActionBy());
+        request.setActionBy(actionBy);
 
         validateCanAction(approvalRequest);
 
@@ -138,7 +140,7 @@ public class ApprovalService {
                         approvalRequestId, approvalRequest.getCurrentStepNo(), request.getActionBy(),
                         List.of(ApprovalActionType.APPROVED, ApprovalActionType.REJECTED));
         if (alreadyActioned) {
-            throw new RuntimeException("User has already actioned this approval step");
+            throw new IllegalStateException("You have already actioned this approval step");
         }
 
         Integer actionedStepNo = approvalRequest.getCurrentStepNo();
@@ -176,7 +178,9 @@ public class ApprovalService {
 
     @Transactional
     public ApprovalRequestResponse reject(String approvalRequestId, ApprovalDecisionRequest request) {
-        ApprovalRequestEntity approvalRequest = getApprovalRequestOrThrow(approvalRequestId);
+        ApprovalRequestEntity approvalRequest = getApprovalRequestForUpdateOrThrow(approvalRequestId);
+        String actionBy = canonicalActionUser(request.getActionBy());
+        request.setActionBy(actionBy);
 
         validateCanAction(approvalRequest);
 
@@ -188,6 +192,14 @@ public class ApprovalService {
                 .orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
         validateApprover(currentStep, request.getActionBy(), approvalRequest);
+
+        boolean alreadyActioned = approvalActionRepository
+                .existsByApprovalRequestIdAndStepNoAndActionByAndActionIn(
+                        approvalRequestId, approvalRequest.getCurrentStepNo(), request.getActionBy(),
+                        List.of(ApprovalActionType.APPROVED, ApprovalActionType.REJECTED));
+        if (alreadyActioned) {
+            throw new IllegalStateException("You have already actioned this approval step");
+        }
 
         Integer actionedStepNo = approvalRequest.getCurrentStepNo();
         ApprovalActionEntity action = recordAction(
@@ -212,7 +224,9 @@ public class ApprovalService {
 
     @Transactional
     public ApprovalRequestResponse cancel(String approvalRequestId, ApprovalDecisionRequest request) {
-        ApprovalRequestEntity approvalRequest = getApprovalRequestOrThrow(approvalRequestId);
+        ApprovalRequestEntity approvalRequest = getApprovalRequestForUpdateOrThrow(approvalRequestId);
+        String actionBy = canonicalActionUser(request.getActionBy());
+        request.setActionBy(actionBy);
 
         if (approvalRequest.getStatus() == ApprovalStatus.APPROVED ||
                 approvalRequest.getStatus() == ApprovalStatus.REJECTED ||
@@ -447,9 +461,41 @@ public class ApprovalService {
         return approvalActionRepository.save(actionEntity);
     }
 
+    private String canonicalActionUser(String identity) {
+        String canonical = userInboxService.canonicalUserId(identity);
+        if (canonical == null || canonical.isBlank()) {
+            throw new IllegalArgumentException("Action user is required");
+        }
+        return canonical;
+    }
+
+    private ApprovalRequestEntity getApprovalRequestForUpdateOrThrow(String id) {
+        return approvalRequestRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Approval request not found: " + id));
+    }
+
     private ApprovalRequestEntity getApprovalRequestOrThrow(String id) {
         return approvalRequestRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Approval request not found: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Approval request not found: " + id));
+    }
+
+    private String approvalTitle(ApprovalSubmitRequest request) {
+        String title = request.getTitle();
+        if (title == null || title.isBlank()) {
+            String type = request.getApprovalType() == null
+                    ? "Approval"
+                    : request.getApprovalType().name().replace('_', ' ');
+            String reference = request.getReferenceNo();
+            title = reference == null || reference.isBlank()
+                    ? type + " approval request"
+                    : type + " approval request - " + reference.trim();
+        }
+        return truncate(title.trim(), 255);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, Math.max(0, maxLength - 3)).trim() + "...";
     }
 
     private ApprovalRequestResponse toResponse(ApprovalRequestEntity entity) {

@@ -7,14 +7,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.partner.PartnerBankAccountDto;
 import za.co.mawa.bes.dto.partner.PartnerInboundDto;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.PartnerBankAccountGetDto;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.service.PartnerServiceV2;
+import za.co.mawa.bes.service.PartnerBankAccountService;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +30,7 @@ public class SupplierApprovalService {
 
     private final ApprovalService approvalService;
     private final PartnerServiceV2 partnerServiceV2;
+    private final PartnerBankAccountService partnerBankAccountService;
     private final AttachmentRepository attachmentRepository;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final UniversalBranchCodeService universalBranchCodeService;
@@ -64,7 +72,8 @@ public class SupplierApprovalService {
         request.setApprovalType(ApprovalType.SUPPLIER_ONBOARDING);
         request.setReferenceId(onboardingRequestId);
         request.setReferenceNo("SUP-PENDING-" + shortReference(onboardingRequestId));
-        request.setTitle("New supplier: " + supplierName);
+        request.setTitle("Supplier onboarding - " + supplierName
+                + (StringUtils.hasText(supplier.getPartnerNo()) ? " (" + supplier.getPartnerNo().trim() + ")" : ""));
         request.setDescription(
                 "Approve supplier onboarding. Supporting documents and banking details were captured; " +
                 "banking approval will only be created after the supplier is approved.");
@@ -88,18 +97,76 @@ public class SupplierApprovalService {
             throw new IllegalArgumentException("Banking approval is only available for approved suppliers");
         }
 
+        if (attachmentRepository.findByObjectId(partnerId).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Attach bank confirmation or other banking evidence to the supplier before submitting banking details for approval");
+        }
+
         bankingDetails.setPartner(partnerId);
         bankingDetails.setStatus("PENDING_APPROVAL");
         String referenceId = UUID.randomUUID().toString();
+        PartnerDto supplierDetails = getSupplier(partnerId);
+        String supplierName = displayPartnerName(supplierDetails);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> supplierSummary = new LinkedHashMap<>();
+        supplierSummary.put("partnerId", partnerId);
+        supplierSummary.put("supplierNumber", supplierDetails == null ? null : supplierDetails.getNumber());
+        supplierSummary.put("supplierName", supplierName);
+        payload.put("supplier", supplierSummary);
+        payload.put("currentBankingDetails", currentBankingDetails(partnerId));
+        payload.put("proposedBankingDetails", bankingDetails);
+        payload.put("attachmentObjectIds", List.of(partnerId));
+
         ApprovalSubmitRequest request = new ApprovalSubmitRequest();
         request.setApprovalType(ApprovalType.SUPPLIER_BANKING_DETAILS);
         request.setReferenceId(referenceId);
         request.setReferenceNo("SUP-BANK-" + shortReference(referenceId));
-        request.setTitle("Supplier banking details approval");
-        request.setDescription("Approve supplier banking details before they can be used for payment.");
+        request.setTitle("Supplier banking details change - " + supplierName
+                + (supplierDetails != null && StringUtils.hasText(supplierDetails.getNumber())
+                ? " (" + supplierDetails.getNumber().trim() + ")" : ""));
+        request.setDescription(
+                "Compare the proposed banking details with the supplier evidence before approval. " +
+                "Approval activates the new account for payments and replaces the currently active account.");
         request.setRequesterId(requireRequester(requesterId));
-        request.setPayloadJson(toJson(bankingDetails));
+        request.setPayloadJson(toJson(payload));
         return approvalService.submitForApproval(request);
+    }
+
+
+    private PartnerDto getSupplier(String partnerId) {
+        try {
+            return partnerServiceV2.get(partnerId);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("Supplier was not found: " + partnerId, exception);
+        }
+    }
+
+    private List<PartnerBankAccountDto> currentBankingDetails(String partnerId) {
+        PartnerBankAccountGetDto current = partnerBankAccountService.getBankAccounts(partnerId);
+        if (current == null || current.getPartnerBankAccountDtoList() == null) return List.of();
+        List<PartnerBankAccountDto> active = new ArrayList<>();
+        for (PartnerBankAccountDto account : current.getPartnerBankAccountDtoList()) {
+            if (account != null && "ACTIVE".equalsIgnoreCase(account.getStatus())) active.add(account);
+        }
+        return active;
+    }
+
+    private String displayPartnerName(PartnerDto partner) {
+        if (partner == null) return "Supplier";
+        StringBuilder name = new StringBuilder();
+        appendName(name, partner.getName2());
+        appendName(name, partner.getName3());
+        appendName(name, partner.getName1());
+        appendName(name, partner.getName4());
+        if (!name.isEmpty()) return name.toString();
+        return StringUtils.hasText(partner.getNumber()) ? partner.getNumber().trim() : "Supplier";
+    }
+
+    private void appendName(StringBuilder target, String value) {
+        if (!StringUtils.hasText(value)) return;
+        if (!target.isEmpty()) target.append(' ');
+        target.append(value.trim());
     }
 
     private void normaliseSupplier(PartnerInboundDto supplier) {
