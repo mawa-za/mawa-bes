@@ -850,6 +850,7 @@ public class FuneralManagementService {
             link.setEntityType(split.getEntityType());
             link.setPartnerId(split.getPartnerId());
             link.setMembershipClaimId(split.getMembershipClaimId());
+            link.setGroupSocietyClaimId(split.getGroupSocietyClaimId());
             link.setAmountCents(split.getAmountCents());
             Map<String,String> identity = resolveInvoiceIdentity(service, split);
             link.setMembershipHolderName(identity.get("holderName"));
@@ -1323,6 +1324,34 @@ public class FuneralManagementService {
         // "Proceed to Generate" option for pending claims.
         long remaining = defaultLong(service.getTotalAmountCents());
         List<FuneralInvoiceSplitDto> splits = new ArrayList<>();
+
+        List<Map<String,Object>> societyClaims = jdbcTemplate.queryForList("""
+                SELECT c.id,c.claim_no,c.approved_cover_cents,c.group_society_id,
+                       g.partner_id,g.group_no,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''))) society_name
+                  FROM group_society_funeral_claim c
+                  JOIN group_society g ON g.id=c.group_society_id
+                  JOIN partner p ON p.id=g.partner_id
+                 WHERE c.funeral_service_id=? AND c.status='APPROVED'
+                 ORDER BY c.created_at
+                """, service.getId());
+        for (Map<String,Object> societyClaim : societyClaims) {
+            if (remaining <= 0) break;
+            long amount = Math.min(asLong(societyClaim.get("approved_cover_cents")), remaining);
+            if (amount <= 0) continue;
+            splits.add(FuneralInvoiceSplitDto.builder()
+                    .entityName(defaultString(Objects.toString(societyClaim.get("society_name"), null),
+                            Objects.toString(societyClaim.get("group_no"), "Group Society")))
+                    .entityType("GROUP_SOCIETY")
+                    .partnerId(Objects.toString(societyClaim.get("partner_id"), null))
+                    .amountCents(amount)
+                    .description("Approved group society cover " + Objects.toString(societyClaim.get("claim_no"), ""))
+                    .groupSocietyClaimId(Objects.toString(societyClaim.get("id"), null))
+                    .coverSource("GROUP_SOCIETY")
+                    .build());
+            remaining -= amount;
+        }
+
         for (FuneralClaimDto claim : claims) {
             if (remaining <= 0) break;
             if ("GROCERY".equalsIgnoreCase(defaultString(claim.getClaimType(), ""))) continue;
@@ -1359,8 +1388,11 @@ public class FuneralManagementService {
         String invoiceId = UUID.randomUUID().toString();
         String invoiceNo = generateInvoiceNo();
         long invoiceAmount = defaultLong(split.getAmountCents());
-        boolean coveredByApprovedClaim = "BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
-                && StringUtils.hasText(split.getMembershipClaimId());
+        boolean coveredByApprovedClaim =
+                ("BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                        && StringUtils.hasText(split.getMembershipClaimId()))
+                || ("GROUP_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                        && StringUtils.hasText(split.getGroupSocietyClaimId()));
         long paidAmount = coveredByApprovedClaim ? invoiceAmount : 0L;
         long balanceAmount = Math.max(0L, invoiceAmount - paidAmount);
         String status = coveredByApprovedClaim ? "PAID" : "ISSUED";
@@ -1395,9 +1427,12 @@ public class FuneralManagementService {
             jdbcTemplate.update("""
                     INSERT INTO invoice_payment
                     (id, invoice_id, payment_date, amount_cents, payment_method, reference_no, created_at)
-                    VALUES (?, ?, CURRENT_TIMESTAMP, ?, 'MEMBERSHIP_COVER', ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, CURRENT_TIMESTAMP)
                     """, UUID.randomUUID().toString(), invoiceId, paidAmount,
-                    truncate(defaultString(split.getDescription(), split.getMembershipClaimId()), 100));
+                    StringUtils.hasText(split.getGroupSocietyClaimId())
+                            ? "GROUP_SOCIETY_COVER" : "MEMBERSHIP_COVER",
+                    truncate(defaultString(split.getDescription(),
+                            defaultString(split.getMembershipClaimId(), split.getGroupSocietyClaimId())), 100));
         }
 
         FuneralPackageEntity funeralPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
@@ -1574,14 +1609,33 @@ public class FuneralManagementService {
 
     private Map<String,String> resolveInvoiceIdentity(FuneralServiceEntity service, FuneralInvoiceSplitDto split) {
         Map<String,String> result=new HashMap<>();
-        if (split.getMembershipClaimId()!=null) {
+        if (StringUtils.hasText(split.getGroupSocietyClaimId())) {
+            List<Map<String,Object>> rows = jdbcTemplate.queryForList("""
+                    SELECT TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''))) holder_name,
+                           g.group_no holder_identity,
+                           CONCAT_WS(' ',c.deceased_first_names,c.deceased_last_name) deceased_name,
+                           c.identity_number deceased_identity
+                      FROM group_society_funeral_claim c
+                      JOIN group_society g ON g.id=c.group_society_id
+                      JOIN partner p ON p.id=g.partner_id
+                     WHERE c.id=?
+                    """, split.getGroupSocietyClaimId());
+            if(!rows.isEmpty()){
+                result.put("holderName",Objects.toString(rows.get(0).get("holder_name"),null));
+                result.put("holderIdentity",Objects.toString(rows.get(0).get("holder_identity"),null));
+                result.put("deceasedName",Objects.toString(rows.get(0).get("deceased_name"),null));
+                result.put("deceasedIdentity",Objects.toString(rows.get(0).get("deceased_identity"),null));
+            }
+        } else if (split.getMembershipClaimId()!=null) {
             FuneralServiceClaimEntity link=funeralServiceClaimRepository.findByMembershipClaimId(split.getMembershipClaimId()).orElse(null);
             String claimTable="membership_claim",membershipTable="membership",partnerTable="partner",identityTable="partner_identity";
             if(link!=null&&isExternalClaimStorage(link)){String t=requireExternalClaimTenant(link);claimTable=qualifiedTable(t,"membership_claim");membershipTable=qualifiedTable(t,"membership");partnerTable=qualifiedTable(t,"partner");identityTable=qualifiedTable(t,"partner_identity");}
             List<Map<String,Object>> rows=jdbcTemplate.queryForList("SELECT TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) holder_name,(SELECT pi.value FROM "+identityTable+" pi WHERE pi.partner=p.id ORDER BY CASE WHEN pi.type='SA-ID' THEN 0 WHEN pi.type='PASSPORT' THEN 1 ELSE 2 END, pi.type, pi.value LIMIT 1) holder_identity FROM "+claimTable+" c JOIN "+membershipTable+" m ON m.id=c.membership_id JOIN "+partnerTable+" p ON p.id=m.member_id WHERE c.id=?",split.getMembershipClaimId());
             if(!rows.isEmpty()){result.put("holderName",Objects.toString(rows.get(0).get("holder_name"),null));result.put("holderIdentity",Objects.toString(rows.get(0).get("holder_identity"),null));}
         }
-        result.put("deceasedName",service.getDeceasedName());result.put("deceasedIdentity",service.getDeceasedIdentityNumber());return result;
+        result.putIfAbsent("deceasedName", service.getDeceasedName());
+        result.putIfAbsent("deceasedIdentity", service.getDeceasedIdentityNumber());
+        return result;
     }
 
     private void createGroceryClaimForFuneral(FuneralServiceEntity service, FuneralMembershipCoverDto cover, InitiateFuneralClaimsDto request) {

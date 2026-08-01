@@ -50,6 +50,24 @@ public class GroupSocietyEntity {
     @Column(name = "legacy_transaction_id", length = 255)
     private String legacyTransactionId;
 
+    @Column(name = "approval_request_id", length = 36)
+    private String approvalRequestId;
+
+    @Column(name = "pending_action", length = 40)
+    private String pendingAction;
+
+    @Column(name = "requested_status", length = 30)
+    private String requestedStatus;
+
+    @Column(name = "previous_status", length = 30)
+    private String previousStatus;
+
+    @Column(name = "agreement_print_count", nullable = false)
+    private Integer agreementPrintCount = 0;
+
+    @Column(name = "agreement_last_printed_at")
+    private Date agreementLastPrintedAt;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;
 
