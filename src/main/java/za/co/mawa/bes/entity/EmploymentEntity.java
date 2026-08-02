@@ -6,6 +6,7 @@ import org.hibernate.annotations.GenericGenerator;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "employment")
@@ -21,6 +22,8 @@ public class EmploymentEntity implements Serializable {
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
+    @Column(name = "previous_employment_id")
+    private String previousEmploymentId;
     @Column(name = "partner_id")
     private String partnerId;
     @Column(name = "employee_number")
@@ -41,6 +44,14 @@ public class EmploymentEntity implements Serializable {
     private String status;
     @Column(name = "type")
     private String type;
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+    @Column(name = "created_by")
+    private String createdBy;
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
+    @Column(name = "updated_by")
+    private String updatedBy;
 
 
 }

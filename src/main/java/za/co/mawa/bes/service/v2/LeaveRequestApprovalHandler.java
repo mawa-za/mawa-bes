@@ -17,7 +17,7 @@ public class LeaveRequestApprovalHandler implements ApprovalSubmissionHandler, A
 
     @Override
     public void onSubmit(ApprovalRequestEntity approvalRequest, String actionBy) {
-        leaveRequestService.submitFromApproval(approvalRequest.getReferenceId(), actionBy);
+        leaveRequestService.submitFromApproval(approvalRequest.getReferenceId(), approvalRequest.getId(), actionBy);
     }
 
     @Override
