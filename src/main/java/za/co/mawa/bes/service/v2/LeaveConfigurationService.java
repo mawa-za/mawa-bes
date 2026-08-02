@@ -124,8 +124,9 @@ public class LeaveConfigurationService {
         WorkingCalendarEntity entity = hasText(id)
                 ? calendarRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Working calendar not found: " + id))
                 : new WorkingCalendarEntity();
+        String entityId = entity.getId();
         calendarRepository.findByCodeIgnoreCase(code).ifPresent(existing -> {
-            if (!Objects.equals(existing.getId(), entity.getId())) throw new IllegalArgumentException("Calendar code already exists: " + code);
+            if (!Objects.equals(existing.getId(), entityId)) throw new IllegalArgumentException("Calendar code already exists: " + code);
         });
         entity.setCode(code);
         entity.setName(required(request.getName(), "Calendar name", 150));
@@ -185,14 +186,15 @@ public class LeaveConfigurationService {
         LeaveProfileEntity entity = hasText(id)
                 ? profileRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Leave profile not found: " + id))
                 : new LeaveProfileEntity();
+        String entityId = entity.getId();
         profileRepository.findByCodeIgnoreCase(code).ifPresent(existing -> {
-            if (!Objects.equals(existing.getId(), entity.getId())) throw new IllegalArgumentException("Leave profile code already exists: " + code);
+            if (!Objects.equals(existing.getId(), entityId)) throw new IllegalArgumentException("Leave profile code already exists: " + code);
         });
         WorkingCalendarEntity calendar = calendarRepository.findById(required(request.getWorkingCalendarId(), "Working calendar", 255))
                 .orElseThrow(() -> new IllegalArgumentException("Working calendar not found"));
         boolean defaultProfile = defaultBoolean(request.getDefaultProfile(), false);
         if (defaultProfile) {
-            profileRepository.findAll().stream().filter(item -> !Objects.equals(item.getId(), entity.getId()) && Boolean.TRUE.equals(item.getDefaultProfile()))
+            profileRepository.findAll().stream().filter(item -> !Objects.equals(item.getId(), entityId) && Boolean.TRUE.equals(item.getDefaultProfile()))
                     .forEach(item -> { item.setDefaultProfile(false); item.setUpdatedBy(actor()); profileRepository.save(item); });
         }
         entity.setCode(code);
