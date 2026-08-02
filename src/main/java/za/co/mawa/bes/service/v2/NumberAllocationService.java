@@ -97,7 +97,7 @@ public class NumberAllocationService {
         Long nextNo = fromNo + 1;
         sequence.setNextNo(nextNo);
         numberSequenceRepository.save(sequence);
-        return fromNo.toString();
+        return format(sequence, fromNo);
     }
 
     public NumberAllocationResponse getLatestActiveRange(String deviceId, String seqType) {
@@ -164,6 +164,17 @@ public class NumberAllocationService {
         if (allocationSize > 10000) {
             throw new IllegalArgumentException("allocationSize cannot exceed 10000");
         }
+    }
+
+    private String format(NumberSequenceEntity sequence, Long value) {
+        String prefix = sequence.getPrefix() == null ? "" : sequence.getPrefix().trim();
+        String separator = sequence.getSeparator() == null ? "" : sequence.getSeparator();
+        int padding = sequence.getPaddingLength() == null ? 0 : sequence.getPaddingLength();
+        String number = value.toString();
+        if (padding > 0 && number.length() < padding) {
+            number = "0".repeat(padding - number.length()) + number;
+        }
+        return prefix.isEmpty() ? number : prefix + separator + number;
     }
 
     private String currentActor() {

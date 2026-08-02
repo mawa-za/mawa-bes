@@ -89,11 +89,18 @@ public class NumberRangeConfigurationService {
         int allocationSize = valueOr(request.getDefaultAllocationSize(), DEFAULT_ALLOCATION_SIZE);
         long warningThreshold = valueOr(request.getWarningThreshold(), DEFAULT_WARNING_THRESHOLD);
         boolean active = request.getActive() == null || request.getActive();
+        String prefix = normalizePrefix(request.getPrefix());
+        String separator = normalizeSeparator(request.getSeparator());
+        int paddingLength = request.getPaddingLength() == null ? 0 : request.getPaddingLength();
         validateSequenceValues(startNo, nextNo, endNo, allocationSize, warningThreshold, null);
+        validateFormatting(prefix, separator, paddingLength);
 
         NumberSequenceEntity entity = NumberSequenceEntity.builder()
                 .seqType(seqType)
                 .description(normalizeDescription(request.getDescription(), seqType))
+                .prefix(prefix)
+                .separator(separator)
+                .paddingLength(paddingLength)
                 .startNo(startNo)
                 .nextNo(nextNo)
                 .endNo(endNo)
@@ -132,9 +139,16 @@ public class NumberRangeConfigurationService {
         int allocationSize = valueOr(request.getDefaultAllocationSize(), entity.getDefaultAllocationSize());
         long warningThreshold = valueOr(request.getWarningThreshold(), entity.getWarningThreshold());
         boolean active = request.getActive() == null ? entity.getActive() : request.getActive();
+        String prefix = request.getPrefix() == null ? entity.getPrefix() : normalizePrefix(request.getPrefix());
+        String separator = request.getSeparator() == null ? entity.getSeparator() : normalizeSeparator(request.getSeparator());
+        int paddingLength = request.getPaddingLength() == null ? entity.getPaddingLength() : request.getPaddingLength();
         validateSequenceValues(startNo, nextNo, endNo, allocationSize, warningThreshold, entity);
+        validateFormatting(prefix, separator, paddingLength);
 
         entity.setDescription(normalizeDescription(request.getDescription(), entity.getSeqType(), entity.getDescription()));
+        entity.setPrefix(prefix);
+        entity.setSeparator(separator);
+        entity.setPaddingLength(paddingLength);
         entity.setStartNo(startNo);
         entity.setNextNo(nextNo);
         entity.setEndNo(endNo);
@@ -335,6 +349,34 @@ public class NumberRangeConfigurationService {
             throw new IllegalArgumentException(label + " may only contain letters, numbers, underscores and hyphens, with a maximum of " + maxLength + " characters");
         }
         return normalized;
+    }
+
+
+    private String normalizePrefix(String value) {
+        if (!text(value)) return null;
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (normalized.length() > 32 || !normalized.matches("[A-Z0-9_-]+")) {
+            throw new IllegalArgumentException("Prefix may only contain letters, numbers, underscores and hyphens, with a maximum of 32 characters");
+        }
+        return normalized;
+    }
+
+    private String normalizeSeparator(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        if (normalized.length() > 8 || normalized.matches(".*[A-Za-z0-9].*")) {
+            throw new IllegalArgumentException("Separator may contain up to 8 non-alphanumeric characters");
+        }
+        return normalized;
+    }
+
+    private void validateFormatting(String prefix, String separator, int paddingLength) {
+        if (paddingLength < 0 || paddingLength > 18) {
+            throw new IllegalArgumentException("Padding length must be between 0 and 18");
+        }
+        if (!text(prefix) && text(separator)) {
+            throw new IllegalArgumentException("A separator can only be used when a prefix is configured");
+        }
     }
 
     private String normalizeDescription(String value, String seqType) {

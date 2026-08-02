@@ -15,6 +15,10 @@ public class NumberSequenceResponseDto {
     private Long id;
     private String seqType;
     private String description;
+    private String prefix;
+    private String separator;
+    private Integer paddingLength;
+    private String nextFormattedNumber;
     private Long startNo;
     private Long nextNo;
     private Long endNo;
