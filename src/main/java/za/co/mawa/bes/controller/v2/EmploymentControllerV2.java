@@ -3,16 +3,13 @@ package za.co.mawa.bes.controller.v2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.EmploymentCreateDto;
-import za.co.mawa.bes.dto.EmploymentDto;
-import za.co.mawa.bes.dto.EmploymentEditDto;
-import za.co.mawa.bes.dto.EmploymentSearchDto;
-import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.PartnerBankAccountDto;
-import za.co.mawa.bes.dto.PartnerBankAccountGetDto;
-import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
-import za.co.mawa.bes.service.v2.EmploymentV2Service;
+import za.co.mawa.bes.dto.partner.PartnerDto;
+import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.service.v2.EmployeeBankingDetailsService;
+import za.co.mawa.bes.service.v2.EmploymentLifecycleService;
+import za.co.mawa.bes.service.v2.EmploymentV2Service;
 import za.co.mawa.bes.utils.Conversion;
 
 import java.util.List;
@@ -24,18 +21,52 @@ import java.util.NoSuchElementException;
 @RequestMapping("/v2/employment")
 public class EmploymentControllerV2 {
     private final EmploymentV2Service employmentService;
+    private final EmploymentLifecycleService lifecycleService;
     private final EmployeeBankingDetailsService employeeBankingDetailsService;
 
     public EmploymentControllerV2(
             EmploymentV2Service employmentService,
+            EmploymentLifecycleService lifecycleService,
             EmployeeBankingDetailsService employeeBankingDetailsService) {
         this.employmentService = employmentService;
+        this.lifecycleService = lifecycleService;
         this.employeeBankingDetailsService = employeeBankingDetailsService;
     }
 
+    /** Backward-compatible route; this now creates an approval request instead of a live employment record. */
     @PostMapping
-    public ResponseEntity<EmploymentDto> hire(@RequestBody EmploymentCreateDto request) throws Exception {
-        return ResponseEntity.status(HttpStatus.CREATED).body(employmentService.hire(request));
+    public ResponseEntity<EmploymentActionResponseDto> requestHire(@RequestBody EmploymentActionRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(lifecycleService.requestHire(request));
+    }
+
+    @PostMapping("/actions/hire")
+    public ResponseEntity<EmploymentActionResponseDto> requestHireAction(@RequestBody EmploymentActionRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(lifecycleService.requestHire(request));
+    }
+
+    @PostMapping("/{id}/actions/{actionType}")
+    public ResponseEntity<EmploymentActionResponseDto> requestAction(
+            @PathVariable String id,
+            @PathVariable String actionType,
+            @RequestBody EmploymentActionRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(lifecycleService.requestAction(id, actionType, request));
+    }
+
+    @GetMapping("/actions")
+    public ResponseEntity<List<EmploymentActionResponseDto>> actions(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String actionType) {
+        return ResponseEntity.ok(lifecycleService.listActions(status, actionType));
+    }
+
+    @GetMapping("/actions/{id}")
+    public ResponseEntity<EmploymentActionResponseDto> action(@PathVariable String id) {
+        return ResponseEntity.ok(lifecycleService.getAction(id));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<EmploymentHistoryDto>> history(@RequestParam(required = false) String employmentId) {
+        return ResponseEntity.ok(lifecycleService.history(employmentId));
     }
 
     @GetMapping
@@ -48,16 +79,13 @@ public class EmploymentControllerV2 {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String partnerId,
-            @RequestParam(required = false) String employeeNumber) throws Exception {
+            @RequestParam(required = false) String employeeNumber) {
         EmploymentSearchDto search = new EmploymentSearchDto();
         if (hasText(startDate)) search.setStartDate(Conversion.stringToDate(startDate));
         if (hasText(endDate)) search.setEndDate(Conversion.stringToDate(endDate));
-        search.setBranch(trimToNull(branch));
-        search.setDepartment(trimToNull(department));
-        search.setPosition(trimToNull(position));
-        search.setType(trimToNull(type));
-        search.setStatus(trimToNull(status));
-        search.setPartnerId(trimToNull(partnerId));
+        search.setBranch(trimToNull(branch)); search.setDepartment(trimToNull(department));
+        search.setPosition(trimToNull(position)); search.setType(trimToNull(type));
+        search.setStatus(trimToNull(status)); search.setPartnerId(trimToNull(partnerId));
         search.setEmployeeNumber(trimToNull(employeeNumber));
         return ResponseEntity.ok(employmentService.search(search));
     }
@@ -68,41 +96,29 @@ public class EmploymentControllerV2 {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EmploymentDto> update(
-            @PathVariable String id,
-            @RequestBody EmploymentEditDto request) throws Exception {
+    public ResponseEntity<EmploymentDto> update(@PathVariable String id, @RequestBody EmploymentEditDto request) {
         return ResponseEntity.ok(employmentService.update(id, request));
     }
 
     @PutMapping("/{id}/terminate")
-    public ResponseEntity<EmploymentDto> terminate(@PathVariable String id) throws Exception {
-        return ResponseEntity.ok(employmentService.terminate(id));
+    public ResponseEntity<Map<String, String>> terminateLegacy(@PathVariable String id) {
+        throw new IllegalStateException("Termination now requires an approval request. Use /v2/employment/" + id + "/actions/terminate");
     }
 
     @PutMapping("/{id}/suspend")
-    public ResponseEntity<EmploymentDto> suspend(@PathVariable String id) throws Exception {
-        return ResponseEntity.ok(employmentService.suspend(id));
+    public ResponseEntity<Map<String, String>> suspendLegacy(@PathVariable String id) {
+        throw new IllegalStateException("Suspension now requires an approval request. Use /v2/employment/" + id + "/actions/suspend");
     }
 
     @PutMapping("/{id}/rehire")
-    public ResponseEntity<EmploymentDto> rehire(
-            @PathVariable String id,
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) throws Exception {
-        return ResponseEntity.ok(employmentService.rehire(id, startDate, endDate));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) throws Exception {
-        employmentService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Map<String, String>> rehireLegacy(@PathVariable String id) {
+        throw new IllegalStateException("Rehire now requires an approval request. Use /v2/employment/" + id + "/actions/rehire");
     }
 
     @GetMapping("/employees")
-    public ResponseEntity<List<PartnerDto>> employees() throws Exception {
+    public ResponseEntity<List<PartnerDto>> employees() {
         return ResponseEntity.ok(employmentService.employees());
     }
-
 
     @GetMapping("/{id}/bank-details")
     public ResponseEntity<PartnerBankAccountGetDto> bankDetails(@PathVariable String id) {
@@ -132,11 +148,6 @@ public class EmploymentControllerV2 {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", exception.getMessage()));
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.trim().isEmpty();
-    }
-
-    private String trimToNull(String value) {
-        return hasText(value) ? value.trim() : null;
-    }
+    private boolean hasText(String value) { return value != null && !value.trim().isEmpty(); }
+    private String trimToNull(String value) { return hasText(value) ? value.trim() : null; }
 }

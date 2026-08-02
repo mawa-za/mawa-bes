@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 public class NumberSequenceCreateRequestDto {
     private String seqType;
     private String description;
+    private String prefix;
+    private String separator;
+    private Integer paddingLength;
     private Long startNo;
     private Long nextNo;
     private Long endNo;

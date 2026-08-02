@@ -18,6 +18,10 @@ public class NumberSequenceMapper {
                 .id(entity.getId())
                 .seqType(entity.getSeqType())
                 .description(entity.getDescription())
+                .prefix(entity.getPrefix())
+                .separator(entity.getSeparator())
+                .paddingLength(entity.getPaddingLength())
+                .nextFormattedNumber(format(entity, entity.getNextNo()))
                 .startNo(entity.getStartNo())
                 .nextNo(entity.getNextNo())
                 .endNo(entity.getEndNo())
@@ -40,6 +44,9 @@ public class NumberSequenceMapper {
         return NumberSequenceEntity.builder()
                 .seqType(request.getSeqType())
                 .description(request.getDescription())
+                .prefix(request.getPrefix())
+                .separator(request.getSeparator())
+                .paddingLength(request.getPaddingLength())
                 .startNo(request.getStartNo())
                 .nextNo(request.getNextNo())
                 .endNo(request.getEndNo())
@@ -52,11 +59,23 @@ public class NumberSequenceMapper {
     public void updateEntity(NumberSequenceEntity entity, NumberSequenceUpdateRequestDto request) {
         if (entity == null || request == null) return;
         entity.setDescription(request.getDescription());
+        entity.setPrefix(request.getPrefix());
+        entity.setSeparator(request.getSeparator());
+        entity.setPaddingLength(request.getPaddingLength());
         entity.setStartNo(request.getStartNo());
         entity.setNextNo(request.getNextNo());
         entity.setEndNo(request.getEndNo());
         entity.setDefaultAllocationSize(request.getDefaultAllocationSize());
         entity.setWarningThreshold(request.getWarningThreshold());
         entity.setActive(request.getActive());
+    }
+    private String format(NumberSequenceEntity entity, Long value) {
+        if (entity == null || value == null) return null;
+        String prefix = entity.getPrefix() == null ? "" : entity.getPrefix().trim();
+        String separator = entity.getSeparator() == null ? "" : entity.getSeparator();
+        int padding = entity.getPaddingLength() == null ? 0 : entity.getPaddingLength();
+        String number = value.toString();
+        if (padding > 0 && number.length() < padding) number = "0".repeat(padding - number.length()) + number;
+        return prefix.isEmpty() ? number : prefix + separator + number;
     }
 }

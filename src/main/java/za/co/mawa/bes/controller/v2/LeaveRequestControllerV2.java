@@ -3,10 +3,7 @@ package za.co.mawa.bes.controller.v2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.v2.LeaveRequestV2CancelRequestDto;
-import za.co.mawa.bes.dto.v2.LeaveRequestV2CreateRequestDto;
-import za.co.mawa.bes.dto.v2.LeaveRequestV2ResponseDto;
-import za.co.mawa.bes.dto.v2.LeaveRequestV2UpdateRequestDto;
+import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.service.v2.LeaveRequestV2Service;
 
 import java.time.LocalDate;
@@ -22,6 +19,11 @@ public class LeaveRequestControllerV2 {
 
     public LeaveRequestControllerV2(LeaveRequestV2Service service) {
         this.service = service;
+    }
+
+    @PostMapping("/preview")
+    public ResponseEntity<LeaveRequestPreviewDto> preview(@RequestBody LeaveRequestV2CreateRequestDto request) {
+        return ResponseEntity.ok(service.preview(request));
     }
 
     @PostMapping
@@ -57,20 +59,6 @@ public class LeaveRequestControllerV2 {
         return ResponseEntity.ok(service.submit(id));
     }
 
-    @PutMapping("/{id}/approve")
-    public ResponseEntity<LeaveRequestV2ResponseDto> approve(
-            @PathVariable String id,
-            @RequestBody(required = false) LeaveRequestV2CancelRequestDto request) {
-        return ResponseEntity.ok(service.approve(id, request == null ? null : request.getReason()));
-    }
-
-    @PutMapping("/{id}/reject")
-    public ResponseEntity<LeaveRequestV2ResponseDto> reject(
-            @PathVariable String id,
-            @RequestBody(required = false) LeaveRequestV2CancelRequestDto request) {
-        return ResponseEntity.ok(service.reject(id, request == null ? null : request.getReason()));
-    }
-
     @PutMapping("/{id}/cancel")
     public ResponseEntity<LeaveRequestV2ResponseDto> cancel(
             @PathVariable String id,
@@ -83,6 +71,7 @@ public class LeaveRequestControllerV2 {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
+
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, String>> notFound(NoSuchElementException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", exception.getMessage()));
@@ -97,5 +86,4 @@ public class LeaveRequestControllerV2 {
     public ResponseEntity<Map<String, String>> conflict(IllegalStateException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", exception.getMessage()));
     }
-
 }

@@ -33,6 +33,7 @@ import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -615,25 +616,62 @@ public class CashupService {
     }
 
     private void replaceReceipts(CashupEntity cashup, List<CashupReceiptRequest> receipts) {
-        cashupReceiptRepository.deleteByCashupId(cashup.getId());
+        List<CashupReceiptEntity> existing = cashupReceiptRepository.findByCashupId(cashup.getId());
 
         if (receipts == null || receipts.isEmpty()) {
+            if (!existing.isEmpty()) {
+                cashupReceiptRepository.deleteAll(existing);
+            }
             return;
         }
 
-        List<CashupReceiptEntity> entities = receipts.stream()
-                .map(item -> {
-                    CashupReceiptEntity entity = new CashupReceiptEntity();
-                    entity.setCashup(cashup);
-                    entity.setReceiptId(item.getReceiptId());
-                    entity.setReceiptNo(item.getReceiptNo());
-                    entity.setAmountCents(defaultLong(item.getAmountCents()));
-                    entity.setPaymentMethod(item.getPaymentMethod());
-                    return entity;
-                })
-                .toList();
+        Map<String, CashupReceiptEntity> existingByKey = new HashMap<>();
+        for (CashupReceiptEntity entity : existing) {
+            String key = receiptKey(entity.getReceiptId(), entity.getReceiptNo());
+            if (key != null) {
+                existingByKey.put(key, entity);
+            }
+        }
 
-        cashupReceiptRepository.saveAll(entities);
+        Map<String, CashupReceiptRequest> incomingByKey = new LinkedHashMap<>();
+        int rowIndex = 0;
+        for (CashupReceiptRequest item : receipts) {
+            if (item == null) continue;
+            String key = receiptKey(item.getReceiptId(), item.getReceiptNo());
+            if (key == null) {
+                key = "ROW:" + rowIndex;
+            }
+            rowIndex++;
+            incomingByKey.put(key, item);
+        }
+
+        List<CashupReceiptEntity> entitiesToSave = new ArrayList<>();
+        for (Map.Entry<String, CashupReceiptRequest> entry : incomingByKey.entrySet()) {
+            CashupReceiptRequest item = entry.getValue();
+            CashupReceiptEntity entity = existingByKey.remove(entry.getKey());
+            if (entity == null) {
+                entity = new CashupReceiptEntity();
+                entity.setCashup(cashup);
+            }
+            entity.setReceiptId(clean(item.getReceiptId()));
+            entity.setReceiptNo(item.getReceiptNo());
+            entity.setAmountCents(defaultLong(item.getAmountCents()));
+            entity.setPaymentMethod(normalizePaymentMethod(item.getPaymentMethod()));
+            entitiesToSave.add(entity);
+        }
+
+        if (!existingByKey.isEmpty()) {
+            cashupReceiptRepository.deleteAll(existingByKey.values());
+        }
+        if (!entitiesToSave.isEmpty()) {
+            cashupReceiptRepository.saveAll(entitiesToSave);
+        }
+    }
+
+    private String receiptKey(String receiptId, Long receiptNo) {
+        String id = clean(receiptId);
+        if (id != null) return "ID:" + id;
+        return receiptNo == null ? null : "NO:" + receiptNo;
     }
 
     private CashupSummaryResponse toSummary(CashupEntity cashup) {
