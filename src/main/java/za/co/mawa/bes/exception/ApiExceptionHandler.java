@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import za.co.mawa.bes.dto.ErrorResponse;
@@ -114,6 +116,18 @@ public class ApiExceptionHandler {
                 .collect(Collectors.joining(". "));
         return response(HttpStatus.BAD_REQUEST,
                 message.isBlank() ? "Review the supplied information and try again" : message);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String field = humanise(ex.getName());
+        return response(HttpStatus.BAD_REQUEST, field + " contains an unsupported value");
+    }
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMissingEndpoint(NoHandlerFoundException ex) {
+        return response(HttpStatus.NOT_FOUND,
+                "The requested service is not available in this application version. Refresh the application and try again");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

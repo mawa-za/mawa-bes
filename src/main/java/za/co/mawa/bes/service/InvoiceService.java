@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -63,6 +64,9 @@ public class InvoiceService {
     @Autowired
     PartnerService partnerService;
 
+    @Autowired
+    InvoicePDFService invoicePDFService;
+
     public InvoiceEntity createInvoice(InvoiceEntity invoice) {
 //        invoice.setId(UUID.randomUUID().toString());
         try {
@@ -91,6 +95,7 @@ public class InvoiceService {
         return savedInvoice;
     }
 
+    @Transactional
     public InvoiceEntity updateInvoice(String invoiceId, InvoiceEntity request) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + invoiceId));
@@ -122,10 +127,25 @@ public class InvoiceService {
         return saved;
     }
 
+    @Transactional
+    public InvoiceOutboundDto updateInvoiceDto(String invoiceId, InvoiceEntity request) {
+        return mapToDto(updateInvoice(invoiceId, request));
+    }
+
     private long value(Long amount) { return amount == null ? 0L : amount; }
 
     public Optional<InvoiceEntity> getInvoice(String invoiceId) {
         return invoiceRepository.findById(invoiceId);
+    }
+
+    @Transactional(readOnly = true)
+    public ByteArrayOutputStream generateInvoicePdf(String invoiceId) {
+        if (invoiceId == null || invoiceId.isBlank()) {
+            throw new IllegalArgumentException("Invoice ID is required");
+        }
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId.trim())
+                .orElseThrow(() -> new NoSuchElementException("Invoice not found with ID: " + invoiceId));
+        return invoicePDFService.generateInvoicePdf(invoice);
     }
 
     @Transactional(readOnly = true)
@@ -181,11 +201,17 @@ public class InvoiceService {
         invoiceRepository.deleteById(invoiceId);
     }
 
+    @Transactional
     public InvoiceEntity queueInvoiceForXero(String invoiceId) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + invoiceId));
         xeroInvoiceQueueService.queueInvoice(invoice);
         return invoiceRepository.findById(invoiceId).orElse(invoice);
+    }
+
+    @Transactional
+    public InvoiceOutboundDto queueInvoiceForXeroDto(String invoiceId) {
+        return mapToDto(queueInvoiceForXero(invoiceId));
     }
 
     public List<InvoiceEntity> getAllInvoices() {

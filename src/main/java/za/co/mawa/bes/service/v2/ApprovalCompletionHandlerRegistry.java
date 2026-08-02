@@ -1,17 +1,17 @@
 package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 
-import java.util.List;
 import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
 public class ApprovalCompletionHandlerRegistry {
 
-    private final List<ApprovalCompletionHandler> handlers;
+    private final ObjectProvider<ApprovalCompletionHandler> handlers;
 
     public void handleApproved(ApprovalRequestEntity approvalRequest, String actionBy) {
         findHandler(approvalRequest).ifPresent(handler -> handler.onApproved(approvalRequest, actionBy));
@@ -26,7 +26,7 @@ public class ApprovalCompletionHandlerRegistry {
     }
 
     private Optional<ApprovalCompletionHandler> findHandler(ApprovalRequestEntity approvalRequest) {
-        return handlers.stream()
+        return handlers.orderedStream()
                 .filter(handler -> handler.supports() == approvalRequest.getApprovalType())
                 .findFirst();
     }
