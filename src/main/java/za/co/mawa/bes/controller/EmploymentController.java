@@ -21,14 +21,9 @@ public class EmploymentController {
     EmploymentService employmentService;
 
     @RequestMapping(value = "/employment", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> createEmployee(@RequestBody EmploymentCreateDto employmentDto){
-        try{
-            EmploymentDto employee = new EmploymentDto();
-            employee.setId(employmentService.hire(employmentDto));
-            return ResponseEntity.ok(gson.toJson(employee));
-        }catch(Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
+    public ResponseEntity<?> createEmployee(@RequestBody EmploymentCreateDto employmentDto){
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(java.util.Map.of("message", "Hiring requires approval. Use the v2 employment hire request endpoint"));
     }
 
     @RequestMapping(value = "/employment/{id}", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
@@ -85,52 +80,32 @@ public class EmploymentController {
     }
 
     @RequestMapping(value = "/employment/{id}", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> editEmployee(@PathVariable String id, @RequestBody EmploymentEditDto employmentDto){
-        try{
-            return ResponseEntity.ok(employmentService.edit(employmentDto,id));
-        }catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
-
+    public ResponseEntity<?> editEmployee(@PathVariable String id, @RequestBody EmploymentEditDto employmentDto){
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(java.util.Map.of("message", "Use the v2 employment endpoint. Employee number and employment dates are controlled by approved lifecycle actions"));
     }
 
     @RequestMapping(value = "/employment/{id}/terminate", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> terminate(@PathVariable String id){
-        try{
-            return ResponseEntity.ok(gson.toJson(employmentService.terminate(id)));
-        }catch(Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
+    public ResponseEntity<?> terminate(@PathVariable String id){
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("message", "Termination requires approval. Use the v2 employment termination request endpoint"));
     }
 
     @RequestMapping(value = "/employment/{id}/suspend", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> suspend(@PathVariable String id){
-        try{
-            return ResponseEntity.ok(gson.toJson(employmentService.suspend(id)));
-        }catch(Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
+    public ResponseEntity<?> suspend(@PathVariable String id){
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("message", "Suspension requires approval. Use the v2 employment suspension request endpoint"));
     }
 
     @RequestMapping(value = "/employment/{id}/rehire", method = RequestMethod.PUT,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> rehire(@PathVariable String id,
-                                     @RequestParam(required = false) String startDate,
-                                     @RequestParam(required = false) String endDate){
-        try{
-            return ResponseEntity.ok(gson.toJson(employmentService.rehire(id,startDate,endDate)));
-        }catch(Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
+    public ResponseEntity<?> rehire(@PathVariable String id, @RequestParam(required = false) String startDate, @RequestParam(required = false) String endDate){
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of("message", "Rehire requires approval. Use the v2 employment rehire request endpoint"));
     }
+
     @RequestMapping(value = "/employment/{id}", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public  ResponseEntity<?> delete(@PathVariable String id, @RequestParam(required = true) String partner){
-        try{
-            return ResponseEntity.ok(gson.toJson(employmentService.deleteEmployment(id)));
-        }catch(Exception ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
-        }
+    public ResponseEntity<?> delete(@PathVariable String id, @RequestParam(required = true) String partner){
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(java.util.Map.of("message", "Employment records cannot be deleted because employment history must be preserved"));
     }
-  
+
     @RequestMapping(value = "/employees", method = RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
     public  ResponseEntity<?> getEmployees(){
         try{

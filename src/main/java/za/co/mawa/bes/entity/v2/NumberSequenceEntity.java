@@ -28,6 +28,15 @@ public class NumberSequenceEntity {
     @Column(name = "description", length = 160)
     private String description;
 
+    @Column(name = "prefix", length = 32)
+    private String prefix;
+
+    @Column(name = "separator", length = 8)
+    private String separator;
+
+    @Column(name = "padding_length", nullable = false)
+    private Integer paddingLength;
+
     @Column(name = "start_no", nullable = false)
     private Long startNo;
 
