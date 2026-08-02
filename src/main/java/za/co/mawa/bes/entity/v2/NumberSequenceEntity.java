@@ -31,7 +31,7 @@ public class NumberSequenceEntity {
     @Column(name = "prefix", length = 32)
     private String prefix;
 
-    @Column(name = "separator", length = 8)
+    @Column(name = "number_separator", length = 8)
     private String separator;
 
     @Column(name = "padding_length", nullable = false)
