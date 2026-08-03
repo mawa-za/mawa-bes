@@ -326,8 +326,8 @@ public class PartnerServiceV2 {
     }
 
     public PartnerViewEntity getById(String id) {
-        PartnerViewEntity partnerViewEntity = partnerViewRepository.getReferenceById(id);
-        return partnerViewEntity;
+        return partnerViewRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Partner not found: " + id));
     }
 
     public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
