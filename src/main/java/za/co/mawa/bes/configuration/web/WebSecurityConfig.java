@@ -36,6 +36,7 @@ import java.util.List;
         prePostEnabled = true)
 public class WebSecurityConfig {
     public static final String[] AUTH_WHITELIST = {
+            "/actuator/health/**",
             "/authenticate",
             "/v2/authenticate",
             "/forgot-password",

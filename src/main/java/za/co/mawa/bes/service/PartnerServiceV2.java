@@ -92,11 +92,12 @@ public class PartnerServiceV2 {
 
             if (partnerIdentityDto == null) {
                 PartnerEntity entity = new PartnerEntity();
-                if (partnerInboundDto.getPartnerNo() == null) {
+                if (partnerInboundDto.getPartnerNo() == null
+                        || partnerInboundDto.getPartnerNo().trim().isEmpty()) {
                     String partnerNo = numberAllocationService.allocateNumber("PARTNER");
                     entity.setNo(partnerNo);
-                }else{
-                    entity.setNo(partnerInboundDto.getPartnerNo());
+                } else {
+                    entity.setNo(partnerInboundDto.getPartnerNo().trim());
                 }
 
                 String partnerType = partnerInboundDto.getPartnerType() == null || partnerInboundDto.getPartnerType().trim().isEmpty()
@@ -104,13 +105,13 @@ public class PartnerServiceV2 {
                         : partnerInboundDto.getPartnerType().trim().toUpperCase();
                 entity.setType(partnerType);
                 if (partnerInboundDto.getName1() != null) {
-                    entity.setName1(partnerInboundDto.getName1().toUpperCase());
+                    entity.setName1(partnerInboundDto.getName1().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getName2() != null) {
-                    entity.setName2(partnerInboundDto.getName2().toUpperCase());
+                    entity.setName2(partnerInboundDto.getName2().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getName3() != null) {
-                    entity.setName3(partnerInboundDto.getName3().toUpperCase());
+                    entity.setName3(partnerInboundDto.getName3().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getBirthDate() != null) {
                     entity.setBirthDate(partnerInboundDto.getBirthDate());
@@ -151,7 +152,8 @@ public class PartnerServiceV2 {
                         addPartnersRole(rolePartnerDto);
                     }
 
-                    if(partnerInboundDto.getContactNumber() != null){
+                    if (partnerInboundDto.getContactNumber() != null
+                            && !partnerInboundDto.getContactNumber().trim().isEmpty()) {
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
                         contactInboundDto.setType("CELLPHONE");
@@ -159,11 +161,12 @@ public class PartnerServiceV2 {
                         addPartnerContact(contactInboundDto);
                     }
 
-                    if(partnerInboundDto.getEmail() != null){
+                    if (partnerInboundDto.getEmail() != null
+                            && !partnerInboundDto.getEmail().trim().isEmpty()) {
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
                         contactInboundDto.setType("EMAIL");
-                        contactInboundDto.setValue(partnerInboundDto.getEmail());
+                        contactInboundDto.setValue(partnerInboundDto.getEmail().trim());
                         addPartnerContact(contactInboundDto);
                     }
                 }
