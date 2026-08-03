@@ -25,11 +25,14 @@ public class BillingEntitlementClient {
     private final String baseUrl;
     private final String internalServiceToken;
     private final Duration cacheDuration;
+    private final CloudRunIdTokenProvider cloudRunIdTokenProvider;
 
     public BillingEntitlementClient(
+            CloudRunIdTokenProvider cloudRunIdTokenProvider,
             @Value("${mawa.billing.base-url:http://localhost:8085}") String baseUrl,
             @Value("${mawa.internal.service-token:}") String internalServiceToken,
             @Value("${mawa.billing.entitlement-cache-seconds:30}") long cacheSeconds) {
+        this.cloudRunIdTokenProvider = cloudRunIdTokenProvider;
         this.baseUrl = stripTrailingSlash(baseUrl);
         this.internalServiceToken = internalServiceToken;
         this.cacheDuration = Duration.ofSeconds(Math.max(0, cacheSeconds));
@@ -44,6 +47,7 @@ public class BillingEntitlementClient {
         }
 
         HttpHeaders headers = new HttpHeaders();
+        cloudRunIdTokenProvider.apply(headers);
         if (StringUtils.hasText(internalServiceToken)) {
             headers.set(INTERNAL_TOKEN_HEADER, internalServiceToken);
         }

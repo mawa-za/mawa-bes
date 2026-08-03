@@ -51,10 +51,21 @@ public class ReferenceDataValidationService {
     }
 
     public String requireContactNumber(String value) {
-        if (!StringUtils.hasText(value) || !value.trim().matches("\\d{10}")) {
-            throw new IllegalArgumentException("Contact number must contain exactly 10 numeric digits");
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException("Contact number is required");
         }
-        return value.trim();
+
+        String normalized = value.trim().replaceAll("[\\s()\\-]", "");
+        if (normalized.startsWith("+27")) {
+            normalized = "0" + normalized.substring(3);
+        } else if (normalized.startsWith("27") && normalized.length() == 11) {
+            normalized = "0" + normalized.substring(2);
+        }
+
+        if (!normalized.matches("0\\d{9}")) {
+            throw new IllegalArgumentException("Contact number must be a valid 10-digit South African number");
+        }
+        return normalized;
     }
 
     public String optionalContactNumber(String value) {

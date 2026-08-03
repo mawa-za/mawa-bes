@@ -204,6 +204,11 @@ public class TenantAdminService implements TenantDao {
                 : executeLegacy("GET", "/tenant/" + encode(tenant) + "/property", null);
     }
 
+    public String upsertPurpleProvider(String tenant, Object request) {
+        if (!StringUtils.hasText(tenant)) throw new IllegalArgumentException("Tenant is required");
+        return execute("POST", "/internal/erp/purple/providers/" + encode(tenant), request, true);
+    }
+
     public void invalidateTenantCache() {
         cachedTenantsAt = 0L;
     }
