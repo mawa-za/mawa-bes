@@ -55,7 +55,8 @@ public class AdminHandoffService {
         AdminHandoffResponseDto response = new AdminHandoffResponseDto();
         response.setTenant(request.getTenant()); response.setTenantHost(request.getTenantHost()); response.setTenantUrl(request.getTenantUrl());
         response.setHandoffToken(token); response.setExpiresAt(expiresAt);
-        response.setTargetUrl(buildTargetUrl(request.getTenantUrl(), request.getTenantHost(), token, redirectPath));
+        response.setTargetUrl(buildTargetUrl(
+                request.getTenantUrl(), request.getTenantHost(), request.getTenant(), token, redirectPath));
         return response;
     }
 
@@ -169,10 +170,18 @@ public class AdminHandoffService {
     private boolean bool(Claims claims, String key) { Object v=claims.get(key); return v instanceof Boolean b ? b : Boolean.parseBoolean(String.valueOf(v)); }
     private String defaultText(String value, String fallback) { return StringUtils.hasText(value) ? value : fallback; }
 
-    private String buildTargetUrl(String tenantUrl, String tenantHost, String token, String redirectPath) {
+    private String buildTargetUrl(
+            String tenantUrl,
+            String tenantHost,
+            String tenant,
+            String token,
+            String redirectPath
+    ) {
         String baseUrl = resolveBaseUrl(tenantUrl, tenantHost);
-        return trimTrailingSlash(baseUrl) + "/#/admin-handoff?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
-                + "&redirect=" + URLEncoder.encode(redirectPath, StandardCharsets.UTF_8);
+        return trimTrailingSlash(baseUrl) + "/#/admin-handoff?token="
+                + URLEncoder.encode(token, StandardCharsets.UTF_8)
+                + "&redirect=" + URLEncoder.encode(redirectPath, StandardCharsets.UTF_8)
+                + "&tenant=" + URLEncoder.encode(tenant, StandardCharsets.UTF_8);
     }
     private String resolveBaseUrl(String tenantUrl, String tenantHost) {
         if (StringUtils.hasText(tenantUrl)) return normalizeAppOrigin(tenantUrl);
