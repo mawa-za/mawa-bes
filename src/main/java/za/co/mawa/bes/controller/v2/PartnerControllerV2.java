@@ -75,7 +75,7 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PartnerOutboundDto> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
+    public ResponseEntity<?> post(@RequestBody PartnerInboundDto partnerInboundDto) {
         try {
             if ("SUPPLIER".equalsIgnoreCase(partnerInboundDto.getPartnerRole())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -95,7 +95,19 @@ public class PartnerControllerV2 {
             return ResponseEntity.status(existingPartner ? HttpStatus.OK : HttpStatus.CREATED)
                     .body(partnerOutboundDto);
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            Throwable root = exception;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            String message = root instanceof IllegalArgumentException
+                    ? root.getMessage()
+                    : "Unable to create partner. Review the supplied information and try again";
+            if (message == null || message.isBlank()) {
+                message = "Unable to create partner. Review the supplied information and try again";
+            }
+            return ResponseEntity.badRequest().body(
+                    new ErrorResponse(message, HttpStatus.BAD_REQUEST.value())
+            );
         }
     }
 

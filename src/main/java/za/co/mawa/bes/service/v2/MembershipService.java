@@ -261,19 +261,61 @@ public class MembershipService {
     @Transactional
     public MembershipEntity createMembership(MembershipEntity membership) {
         try {
-            long existingMemberships = membershipRepository.countByMemberId(membership.getMemberId());
+            if (membership == null) {
+                throw new IllegalArgumentException("Membership details are required");
+            }
+
+            String memberId = membership.getMemberId() == null ? "" : membership.getMemberId().trim();
+            if (memberId.isEmpty() || !partnerRepository.existsById(memberId)) {
+                throw new IllegalArgumentException("The selected member has not synced to the server yet");
+            }
+            membership.setMemberId(memberId);
+
+            String planId = membership.getPlanId() == null ? "" : membership.getPlanId().trim();
+            if (planId.isEmpty()) {
+                throw new IllegalArgumentException("Membership plan is required");
+            }
+            membership.setPlanId(planId);
+
+            String requestedMembershipNo = membership.getMembershipNo() == null
+                    ? ""
+                    : membership.getMembershipNo().trim();
+            if (!requestedMembershipNo.isEmpty()) {
+                Optional<MembershipEntity> existing = membershipRepository.findByMembershipNo(requestedMembershipNo);
+                if (existing.isPresent()) {
+                    MembershipEntity existingMembership = existing.get();
+                    if (memberId.equals(existingMembership.getMemberId())
+                            && planId.equals(existingMembership.getPlanId())) {
+                        return existingMembership;
+                    }
+                    throw new IllegalStateException(
+                            "Membership number " + requestedMembershipNo + " is already in use"
+                    );
+                }
+            }
+
+            long existingMemberships = membershipRepository.countByMemberId(memberId);
             boolean additionalMembership = existingMemberships > 0;
             if (additionalMembership && !membershipPolicyConfigurationService.allowMultipleMemberships()) {
                 throw new IllegalArgumentException("Multiple memberships are not allowed for this member.");
             }
 
-            String id = numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP);
             membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
-            membership.setMembershipNo(id);
-            membership.setPremiumCents(membershipPlanService.getPlanById(membership.getPlanId())
-                    .orElseThrow(() -> new IllegalArgumentException("Membership plan not found: " + membership.getPlanId()))
+            membership.setMembershipNo(requestedMembershipNo.isEmpty()
+                    ? numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP)
+                    : requestedMembershipNo);
+            membership.setPremiumCents(membershipPlanService.getPlanById(planId)
+                    .orElseThrow(() -> new IllegalArgumentException("Membership plan not found: " + planId))
                     .getPremiumCents());
+            if (membership.getStartDate() == null) {
+                throw new IllegalArgumentException("Membership start date is required");
+            }
+            if (membership.getStatus() == null || membership.getStatus().isBlank()) {
+                membership.setStatus("ACTIVE");
+            } else {
+                membership.setStatus(membership.getStatus().trim().toUpperCase());
+            }
 
             boolean approvalRequired = additionalMembership
                     && membershipPolicyConfigurationService.additionalMembershipRequiresApproval();
@@ -314,10 +356,11 @@ public class MembershipService {
                 savedMembership = membershipRepository.save(savedMembership);
             }
             return savedMembership;
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Unable to create membership", e);
         }
-
     }
 
     public List<MembershipMasterDataDto> getMasterData(int page, int size) {
