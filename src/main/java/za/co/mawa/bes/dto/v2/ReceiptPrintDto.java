@@ -13,6 +13,8 @@ public class ReceiptPrintDto {
 
     private String receiptNo;
 
+    private String traceId;
+
     private String paymentBatchNo;
 
     private String sourceType;
