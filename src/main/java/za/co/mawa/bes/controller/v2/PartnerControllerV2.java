@@ -1,6 +1,7 @@
 package za.co.mawa.bes.controller.v2;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @CrossOrigin
 @RequestMapping(value = "v2/partner")
@@ -99,6 +101,7 @@ public class PartnerControllerV2 {
             while (root.getCause() != null && root.getCause() != root) {
                 root = root.getCause();
             }
+            log.error("Unable to create partner: {}", root.getMessage(), exception);
             String message = root instanceof IllegalArgumentException
                     ? root.getMessage()
                     : "Unable to create partner. Review the supplied information and try again";
