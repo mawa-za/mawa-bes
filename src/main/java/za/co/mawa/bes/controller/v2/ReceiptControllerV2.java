@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.v2.PosPrintingDtos.PrintJobResponse;
 import za.co.mawa.bes.dto.v2.PosPrintingDtos.QueueReceiptRequest;
 import za.co.mawa.bes.dto.v2.ReceiptPrintDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
+import za.co.mawa.bes.dto.v2.ReceiptVerificationDto;
 import za.co.mawa.bes.service.v2.PosPrintingService;
 import za.co.mawa.bes.service.v2.ReceiptService;
 
@@ -34,6 +35,11 @@ public class ReceiptControllerV2 {
     @GetMapping("/by-number/{receiptNo}")
     public ReceiptResponseDto getReceiptByNumber(@PathVariable String receiptNo) {
         return receiptService.getReceiptByNumber(receiptNo);
+    }
+
+    @GetMapping("/verify/{traceId}")
+    public ReceiptVerificationDto verifyReceipt(@PathVariable String traceId) {
+        return receiptService.verifyReceipt(traceId);
     }
 
     @GetMapping("/{receiptId}/print")

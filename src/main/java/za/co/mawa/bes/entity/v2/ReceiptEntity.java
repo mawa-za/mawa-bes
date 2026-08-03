@@ -6,6 +6,7 @@ import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
+import za.co.mawa.bes.util.ReceiptTraceId;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +27,9 @@ public class ReceiptEntity {
 
     @Column(name = "receipt_no", nullable = false, unique = true, length = 100)
     private String receiptNo;
+
+    @Column(name = "trace_id", nullable = false, unique = true, length = 32)
+    private String traceId;
 
     @Column(name = "payment_batch_id", length = 255)
     private String paymentBatchId;
@@ -133,4 +137,10 @@ public class ReceiptEntity {
 
     @Column(name = "updated_by", length = 255)
     private String updatedBy;
+
+    @PrePersist
+    @PreUpdate
+    void ensureTraceId() {
+        traceId = ReceiptTraceId.fromReceiptNo(receiptNo);
+    }
 }

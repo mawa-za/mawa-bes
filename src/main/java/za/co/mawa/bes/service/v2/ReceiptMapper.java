@@ -18,6 +18,7 @@ public class ReceiptMapper {
         return ReceiptResponseDto.builder()
                 .id(receipt.getId())
                 .receiptNo(receipt.getReceiptNo())
+                .traceId(receipt.getTraceId())
                 .paymentBatchId(receipt.getPaymentBatchId())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
                 .sourceType(receipt.getSourceType())
