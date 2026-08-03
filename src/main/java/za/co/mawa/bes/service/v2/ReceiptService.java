@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.ReceiptPrintDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
+import za.co.mawa.bes.dto.v2.ReceiptVerificationDto;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.ReceiptAllocationType;
@@ -16,6 +17,7 @@ import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service(value = "ReceiptServiceV2")
 @RequiredArgsConstructor
@@ -39,6 +41,20 @@ public class ReceiptService {
         ReceiptEntity receipt = getReceiptEntity(receiptId);
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository.findByReceiptId(receiptId);
         return receiptMapper.toDto(receipt, allocations);
+    }
+
+    public ReceiptVerificationDto verifyReceipt(String traceId) {
+        String normalized = traceId == null ? "" : traceId.trim().toUpperCase(Locale.ROOT);
+        ReceiptEntity receipt = receiptRepository.findByTraceId(normalized)
+                .orElseThrow(() -> new RuntimeException("Receipt trace ID not found: " + normalized));
+        return ReceiptVerificationDto.builder()
+                .traceId(receipt.getTraceId())
+                .receiptNo(receipt.getReceiptNo())
+                .receiptDate(receipt.getReceiptDate())
+                .amountCents(receipt.getTotalAmountCents())
+                .status(receipt.getStatus() == null ? null : receipt.getStatus().name())
+                .authentic(true)
+                .build();
     }
 
     public ReceiptResponseDto getReceiptByNumber(String receiptNo) {
@@ -112,6 +128,7 @@ public class ReceiptService {
         }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
+                .traceId(receipt.getTraceId())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
                 .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
                 .membershipId(receipt.getMembershipId())

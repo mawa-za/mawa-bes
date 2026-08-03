@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -697,25 +698,51 @@ public class PosPrintingService {
         if (reprint) {
             receipt.append(center("*** REPRINT ***", width)).append('\n');
         }
-        receipt.append(center(nullSafe(companyInfoService.getCompanyName()), width)).append('\n');
-        receipt.append(center(nullSafe(companyInfoService.getCompanyAddress()), width)).append('\n');
-        receipt.append(center("Tel: " + nullSafe(companyInfoService.getCompanyTelephoneNumber()), width)).append('\n');
-        receipt.append("-".repeat(width)).append('\n');
+
+        String companyName = nullSafe(companyInfoService.getCompanyName());
+        receipt.append(center(companyName.isBlank() ? "MawaPay" : companyName, width)).append('\n');
+        appendCenteredDetail(receipt, "Reg: ", companyInfoService.getCompanyRegistrationNumber(), width);
+        appendCenteredDetail(receipt, "VAT: ", companyInfoService.getVATNumber(), width);
+        appendCenteredDetail(receipt, "FSP: ", companyInfoService.getFspNumber(), width);
+        appendCenteredDetail(receipt, "", companyInfoService.getCompanyAddress(), width);
+        appendCenteredDetail(receipt, "", companyInfoService.getContactDetails(), width);
+        receipt.append('\n')
+                .append(center("OFFICIAL RECEIPT", width)).append('\n')
+                .append("-".repeat(width)).append('\n');
+
         line(receipt, "Receipt No", data.getReceiptNo(), width);
+        line(receipt, "Trace ID", data.getTraceId(), width);
+        line(receipt, "Date", data.getReceiptDate() == null
+                ? ""
+                : data.getReceiptDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), width);
+        receipt.append('\n');
         line(receipt, "Member", data.getMemberName(), width);
         line(receipt, "Membership No", data.getMembershipNo(), width);
         line(receipt, "ID Number", data.getIdentityNumber(), width);
         line(receipt, "Plan", data.getPlanName(), width);
         line(receipt, "Period", data.getPremiumPeriodYYYYMM(), width);
-        line(receipt, "Payment Method", data.getPaymentMethod(), width);
+        line(receipt, "Payment", data.getPaymentMethod(), width);
+        receipt.append('\n');
         line(receipt, "Amount", money(data.getAmountCents()), width);
-        line(receipt, "Receipt Date", String.valueOf(data.getReceiptDate()), width);
-        line(receipt, "Location", data.getLocation(), width);
-        line(receipt, "Received By", data.getEmployeeResponsible(), width);
-        receipt.append("-".repeat(width)).append('\n')
-                .append(center("Thank you for your support!", width))
-                .append('\n');
+        receipt.append('\n');
+        line(receipt, "Cashier", data.getEmployeeResponsible(), width);
+        receipt.append('\n')
+                .append(center("Thank you", width)).append('\n')
+                .append('\n')
+                .append(center("MawaPay", width)).append('\n');
         return receipt.toString();
+    }
+
+    private void appendCenteredDetail(
+            StringBuilder receipt,
+            String prefix,
+            String value,
+            int width
+    ) {
+        String safe = nullSafe(value).trim();
+        if (!safe.isEmpty()) {
+            receipt.append(center(prefix + safe, width)).append('\n');
+        }
     }
 
     private void line(StringBuilder receipt, String label, String value, int width) {
