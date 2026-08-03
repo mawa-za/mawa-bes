@@ -1,12 +1,13 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.payapp.*;
-import com.google.gson.Gson;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.attachment.AttachmentCreateDto;
@@ -66,7 +67,7 @@ public class CashupService {
     private final ApprovalService approvalService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final ManualReceiptBookService manualReceiptBookService;
-    private final Gson gson;
+    private final ObjectMapper objectMapper;
 
     /**
      * Upserts the cashup received from the offline Flutter app.
@@ -453,7 +454,7 @@ public class CashupService {
                 + defaultLong(cashup.getTotalCents())
                 + " cents, deposits: " + defaultLong(cashup.getDepositTotalCents()) + " cents.");
         approvalRequest.setRequesterId(requesterId);
-        approvalRequest.setPayloadJson(gson.toJson(toSummary(cashup)));
+        approvalRequest.setPayloadJson(toJson(toSummary(cashup)));
 
         ApprovalRequestResponse approvalResponse = approvalService.submitForApproval(approvalRequest);
 
@@ -701,6 +702,14 @@ public class CashupService {
                 .approvalRequestId(cashup.getApprovalRequestId())
                 .deposits(getDeposits(cashup.getId()))
                 .build();
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to serialise cashup approval details", exception);
+        }
     }
 
     @Transactional

@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+target
+build
+.dart_tool
+*.iml
+*.log
+.env
+.env.*
+!deploy/prod-v2/*.env
