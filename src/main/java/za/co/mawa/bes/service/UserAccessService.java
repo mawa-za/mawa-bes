@@ -13,6 +13,7 @@ import za.co.mawa.bes.entity.RoleEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.access.UserAccessAuditEntity;
 import za.co.mawa.bes.repository.RoleRepository;
+import za.co.mawa.bes.repository.RoleWorkcenterRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.repository.access.UserAccessAuditRepository;
@@ -25,6 +26,7 @@ public class UserAccessService {
     @Autowired private UserRepository userRepository;
     @Autowired private UserRoleRepository userRoleRepository;
     @Autowired private RoleRepository roleRepository;
+    @Autowired private RoleWorkcenterRepository roleWorkcenterRepository;
     @Autowired private UserAccessAuditRepository auditRepository;
     @Value("${spring.profiles.active:local}") private String environment;
 
@@ -104,6 +106,54 @@ public class UserAccessService {
         return activeRoleIds(user.getId()).stream()
                 .map(roleRepository::findById).filter(Optional::isPresent).map(Optional::get)
                 .anyMatch(role -> Boolean.TRUE.equals(role.getAccessAllWorkcentres()));
+    }
+
+    public boolean hasWorkcentreAccess(String workcentreId, String selectedRoleId) {
+        if (!StringUtils.hasText(workcentreId)) return false;
+
+        String normalizedWorkcentre = workcentreId.trim().toLowerCase(Locale.ROOT);
+        UserAccessProfileDto accessProfile = profile();
+        if (UserContext.isPlatformSession()
+                && Boolean.TRUE.equals(accessProfile.getAllWorkcentres())) {
+            return true;
+        }
+        List<String> accessibleRoles = accessProfile.getRoles() == null
+                ? List.of()
+                : accessProfile.getRoles();
+
+        List<String> rolesToCheck;
+        if (StringUtils.hasText(selectedRoleId)) {
+            String selectedRole = selectedRoleId.trim();
+            String assignedRole = accessibleRoles.stream()
+                    .filter(roleId -> roleId.equalsIgnoreCase(selectedRole))
+                    .findFirst()
+                    .orElse(null);
+            if (assignedRole == null) return false;
+            rolesToCheck = List.of(assignedRole);
+        } else {
+            if (Boolean.TRUE.equals(accessProfile.getAllWorkcentres())) return true;
+            rolesToCheck = accessibleRoles;
+        }
+
+        for (String roleId : rolesToCheck) {
+            RoleEntity role = roleRepository.findById(roleId).orElse(null);
+            if (role == null) continue;
+            if (Boolean.TRUE.equals(role.getAccessAllWorkcentres())) return true;
+
+            za.co.mawa.bes.entity.RoleWorkcenterPKEntity key =
+                    new za.co.mawa.bes.entity.RoleWorkcenterPKEntity();
+            key.setRole(roleId);
+            key.setWorkcenter(normalizedWorkcentre);
+            if (roleWorkcenterRepository.existsById(key)) return true;
+        }
+        return false;
+    }
+
+    public void assertWorkcentreAccess(String workcentreId, String selectedRoleId) {
+        if (hasWorkcentreAccess(workcentreId, selectedRoleId)) return;
+        throw new SecurityException(
+                "You do not have access to configure " + workcentreId.replace('-', ' ')
+        );
     }
 
     public boolean externalTransactionsBlocked() {

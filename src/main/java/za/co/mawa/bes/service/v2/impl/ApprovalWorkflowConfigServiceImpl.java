@@ -37,6 +37,9 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         entity.setCreatedAt(LocalDateTime.now());
 
         applySteps(entity, request.getSteps());
+        if (Boolean.TRUE.equals(entity.getActive())) {
+            validateCanActivate(entity);
+        }
 
         return toDto(workflowRepository.save(entity));
     }
@@ -46,6 +49,10 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         validateWorkflowRequest(request);
 
         ApprovalWorkflowEntity entity = getEntity(id);
+
+        if (entity.getApprovalType() != request.getApprovalType()) {
+            throw new RuntimeException("Approval type cannot be changed after a workflow is created");
+        }
 
         workflowRepository.findByApprovalType(request.getApprovalType())
                 .ifPresent(existing -> {
@@ -59,6 +66,9 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
 
         entity.getSteps().clear();
         applySteps(entity, request.getSteps());
+        if (Boolean.TRUE.equals(entity.getActive())) {
+            validateCanActivate(entity);
+        }
 
         return toDto(workflowRepository.save(entity));
     }
@@ -121,6 +131,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
     @Override
     public void activate(String id) {
         ApprovalWorkflowEntity entity = getEntity(id);
+        validateCanActivate(entity);
         entity.setActive(true);
         entity.setUpdatedAt(LocalDateTime.now());
         workflowRepository.save(entity);
@@ -136,8 +147,10 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
 
     @Override
     public void delete(String id) {
-        ApprovalWorkflowEntity entity = getEntity(id);
-        workflowRepository.delete(entity);
+        getEntity(id);
+        throw new IllegalStateException(
+                "Approval workflows cannot be deleted. Deactivate the workflow to disable approval for new requests."
+        );
     }
 
     private ApprovalWorkflowEntity getEntity(String id) {
@@ -249,6 +262,34 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
 
             if (!stepNos.add(step.getStepNo())) {
                 throw new RuntimeException("Duplicate step number found: " + step.getStepNo());
+            }
+        }
+    }
+
+    private void validateCanActivate(ApprovalWorkflowEntity workflow) {
+        List<ApprovalWorkflowStepEntity> activeSteps = workflow.getSteps() == null
+                ? List.of()
+                : workflow.getSteps().stream()
+                .filter(step -> Boolean.TRUE.equals(step.getActive()))
+                .sorted(Comparator.comparing(ApprovalWorkflowStepEntity::getStepNo))
+                .toList();
+
+        if (activeSteps.isEmpty()) {
+            throw new RuntimeException("An active workflow requires at least one active approval step");
+        }
+
+        for (ApprovalWorkflowStepEntity step : activeSteps) {
+            long activeApprovers = step.getApprovers() == null
+                    ? 0
+                    : step.getApprovers().stream()
+                    .filter(approver -> Boolean.TRUE.equals(approver.getActive()))
+                    .count();
+            int requiredApprovals = step.getRequiredApprovals() == null ? 1 : step.getRequiredApprovals();
+            if (activeApprovers < requiredApprovals) {
+                throw new RuntimeException(
+                        "Step " + step.getStepNo() + " requires " + requiredApprovals
+                                + " active approver(s), but only " + activeApprovers + " are configured"
+                );
             }
         }
     }
