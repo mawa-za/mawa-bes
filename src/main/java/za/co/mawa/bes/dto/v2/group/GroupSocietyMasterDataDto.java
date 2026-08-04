@@ -15,6 +15,9 @@ public class GroupSocietyMasterDataDto {
     private String id;
     private String partnerId;
     private String partnerNo;
+    private String productId;
+    private String productCode;
+    private String productDescription;
     private String groupNo;
     private String name;
     private String societyType;
