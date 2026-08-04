@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dao.ProductDao;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
@@ -58,6 +59,7 @@ public class ProductService implements ProductDao {
     ProductClassificationService productClassificationService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ProductDto create(ProductCreateDto productCreateDto) throws ProductCreationFailure {
         try {
             if (productCreateDto.getType() == null || productCreateDto.getType().isBlank()) {
@@ -73,7 +75,11 @@ public class ProductService implements ProductDao {
 
             ProductEntity productEntity = new ProductEntity();
             if (productCreateDto.getCode() != null && !productCreateDto.getCode().isBlank()) {
-                productEntity.setCode(productCreateDto.getCode().trim().toUpperCase());
+                String productCode = productCreateDto.getCode().trim().toUpperCase();
+                if (productRepository.findByCode(productCode) != null) {
+                    throw new IllegalArgumentException("A product with code " + productCode + " already exists.");
+                }
+                productEntity.setCode(productCode);
             } else {
                 String autogenerate = productCreateDto.getAutoGenerateCode() == null ? "" : productCreateDto.getAutoGenerateCode();
                 if (autogenerate.equalsIgnoreCase("X")) {
