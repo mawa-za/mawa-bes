@@ -133,7 +133,12 @@ public class PartnerServiceV2 {
                 entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                 entity.setCreationDate(new Date());
                 entity.setCreatedBy(getUser());
-                entity = partnerRepository.save(entity);
+                // PartnerViewEntity is backed by a database view. A regular save may
+                // leave the INSERT queued in the persistence context, so an immediate
+                // lookup through partner_view cannot see the newly created partner.
+                // Flush before reading the view to keep partner creation atomic and
+                // prevent false "Partner not found" failures.
+                entity = partnerRepository.saveAndFlush(entity);
 
                 if(entity != null){
 

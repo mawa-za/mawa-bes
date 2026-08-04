@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import za.co.mawa.bes.dto.partner.PartnerIdentityDto;
 import za.co.mawa.bes.dto.partner.PartnerInboundDto;
 import za.co.mawa.bes.entity.PartnerContactEntity;
@@ -14,12 +15,14 @@ import za.co.mawa.bes.entity.PartnerViewEntity;
 import za.co.mawa.bes.repository.PartnerContactRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.PartnerViewRepository;
+import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +40,8 @@ class PartnerServiceV2Test {
     private PartnerContactRepository partnerContactRepository;
     @Mock
     private ReferenceDataValidationService referenceDataValidationService;
+    @Mock
+    private NumberAllocationService numberAllocationService;
 
     private PartnerServiceV2 service;
 
@@ -48,6 +53,7 @@ class PartnerServiceV2Test {
         service.partnerIdentityServiceV2 = partnerIdentityServiceV2;
         service.partnerContactRepository = partnerContactRepository;
         service.referenceDataValidationService = referenceDataValidationService;
+        service.numberAllocationService = numberAllocationService;
     }
 
     @Test
@@ -76,6 +82,39 @@ class PartnerServiceV2Test {
 
         org.junit.jupiter.api.Assertions.assertEquals("Partner not found: missing", exception.getMessage());
     }
+
+    @Test
+    void createFlushesNewPartnerBeforeReadingPartnerView() {
+        PartnerInboundDto request = new PartnerInboundDto();
+        request.setPartnerType("GROUP");
+        request.setName1("Test Society");
+
+        PartnerEntity persisted = PartnerEntity.builder()
+                .id("partner-1")
+                .no("P000001")
+                .name1("TEST SOCIETY")
+                .type("GROUP")
+                .build();
+        PartnerViewEntity view = PartnerViewEntity.builder()
+                .partnerId("partner-1")
+                .partnerNo("P000001")
+                .partnerType("GROUP")
+                .name1("TEST SOCIETY")
+                .build();
+
+        when(numberAllocationService.allocateNumber("PARTNER")).thenReturn("P000001");
+        when(partnerRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class)))
+                .thenReturn(persisted);
+        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(view));
+
+        PartnerViewEntity result = service.create(request);
+
+        assertSame(view, result);
+        InOrder ordered = inOrder(partnerRepository, partnerViewRepository);
+        ordered.verify(partnerRepository).saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class));
+        ordered.verify(partnerViewRepository).findById("partner-1");
+    }
+
     @Test
     void createEnrichesExistingIdentityWithMiddleNameAndCellphone() {
         PartnerIdentityDto identity = new PartnerIdentityDto();
