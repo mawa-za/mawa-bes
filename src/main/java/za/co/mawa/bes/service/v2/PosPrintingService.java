@@ -720,7 +720,7 @@ public class PosPrintingService {
         line(receipt, "Membership No", data.getMembershipNo(), width);
         line(receipt, "ID Number", data.getIdentityNumber(), width);
         line(receipt, "Plan", data.getPlanName(), width);
-        line(receipt, "Period", data.getPremiumPeriodYYYYMM(), width);
+        line(receipt, "Period", data.getPeriodDescription(), width);
         line(receipt, "Payment", data.getPaymentMethod(), width);
         receipt.append('\n');
         line(receipt, "Amount", money(data.getAmountCents()), width);

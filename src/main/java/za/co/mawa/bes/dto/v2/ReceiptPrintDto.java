@@ -27,6 +27,8 @@ public class ReceiptPrintDto {
 
     private String premiumPeriodYYYYMM;
 
+    private String periodDescription;
+
     private Long amountCents;
 
     private String paymentMethod;
