@@ -297,7 +297,19 @@ public class MembershipService {
             long existingMemberships = membershipRepository.countByMemberId(memberId);
             boolean additionalMembership = existingMemberships > 0;
             if (additionalMembership && !membershipPolicyConfigurationService.allowMultipleMemberships()) {
-                throw new IllegalArgumentException("Multiple memberships are not allowed for this member.");
+                Optional<MembershipEntity> existingForMember =
+                        membershipRepository.findFirstByMemberIdOrderByCreatedAtDesc(memberId);
+                if (requestedMembershipNo.isEmpty()
+                        && existingForMember.isPresent()
+                        && planId.equals(existingForMember.get().getPlanId())
+                        && java.util.Objects.equals(
+                                membership.getStartDate(),
+                                existingForMember.get().getStartDate())) {
+                    // A mobile retry can arrive after the original response was
+                    // lost, before the device stored the server membership id.
+                    return existingForMember.get();
+                }
+                throw new IllegalStateException("Multiple memberships are not allowed for this member.");
             }
 
             membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
