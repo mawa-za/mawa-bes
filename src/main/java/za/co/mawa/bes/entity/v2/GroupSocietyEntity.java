@@ -23,6 +23,9 @@ public class GroupSocietyEntity {
     @Column(name = "partner_id", nullable = false, unique = true)
     private String partnerId;
 
+    @Column(name = "product_id")
+    private String productId;
+
     @Column(name = "group_no", nullable = false, unique = true)
     private String groupNo;
 
@@ -76,6 +79,15 @@ public class GroupSocietyEntity {
 
     @Transient
     private Boolean partnerAvailable;
+
+    @Transient
+    private String productCode;
+
+    @Transient
+    private String productDescription;
+
+    @Transient
+    private Boolean productAvailable;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;

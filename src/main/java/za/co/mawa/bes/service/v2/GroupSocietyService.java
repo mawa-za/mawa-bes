@@ -13,7 +13,12 @@ import za.co.mawa.bes.entity.v2.GroupSocietyContactEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyMemberEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.PartnerViewEntity;
+import za.co.mawa.bes.entity.ProductEntity;
+import za.co.mawa.bes.dto.partner.PartnerInboundDto;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.ProductRepository;
+import za.co.mawa.bes.service.PartnerServiceV2;
 import za.co.mawa.bes.repository.v2.GroupSocietyAccountTxnRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyContactRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyMemberRepository;
@@ -35,6 +40,8 @@ public class GroupSocietyService {
     private final GroupSocietyMemberRepository memberRepository;
     private final GroupSocietyAccountTxnRepository accountTxnRepository;
     private final PartnerRepository partnerRepository;
+    private final ProductRepository productRepository;
+    private final PartnerServiceV2 partnerServiceV2;
     private final ReferenceDataValidationService referenceDataValidationService;
 
     /*
@@ -59,6 +66,8 @@ public class GroupSocietyService {
             GroupSocietyMemberRepository memberRepository,
             GroupSocietyAccountTxnRepository accountTxnRepository,
             PartnerRepository partnerRepository,
+            ProductRepository productRepository,
+            PartnerServiceV2 partnerServiceV2,
             ReferenceDataValidationService referenceDataValidationService
     ) {
         this.groupSocietyRepository = groupSocietyRepository;
@@ -66,6 +75,8 @@ public class GroupSocietyService {
         this.memberRepository = memberRepository;
         this.accountTxnRepository = accountTxnRepository;
         this.partnerRepository = partnerRepository;
+        this.productRepository = productRepository;
+        this.partnerServiceV2 = partnerServiceV2;
         this.referenceDataValidationService = referenceDataValidationService;
     }
 
@@ -75,11 +86,15 @@ public class GroupSocietyService {
                 ? groupSocietyRepository.findAll()
                 : groupSocietyRepository.findByStatus(status);
         enrichPartnerDetails(societies);
+        enrichProductDetails(societies);
 
         return societies.stream().map(society -> GroupSocietyMasterDataDto.builder()
                 .id(society.getId())
                 .partnerId(society.getPartnerId())
                 .partnerNo(society.getPartnerNumber())
+                .productId(society.getProductId())
+                .productCode(society.getProductCode())
+                .productDescription(society.getProductDescription())
                 .groupNo(society.getGroupNo())
                 .name(society.getDisplayName())
                 .societyType(society.getSocietyType())
@@ -99,21 +114,23 @@ public class GroupSocietyService {
         } else {
             societies = groupSocietyRepository.findAll();
         }
-        return enrichPartnerDetails(societies);
+        enrichPartnerDetails(societies);
+        enrichProductDetails(societies);
+        return societies;
     }
 
     public GroupSocietyEntity getById(String id) {
-        return enrichPartnerDetails(groupSocietyRepository.findById(id)
+        return enrichDetails(groupSocietyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Group society not found: " + id)));
     }
 
     public GroupSocietyEntity getByGroupNo(String groupNo) {
-        return enrichPartnerDetails(groupSocietyRepository.findByGroupNo(groupNo)
+        return enrichDetails(groupSocietyRepository.findByGroupNo(groupNo)
                 .orElseThrow(() -> new RuntimeException("Group society not found: " + groupNo)));
     }
 
     public GroupSocietyEntity getByPartnerId(String partnerId) {
-        return enrichPartnerDetails(groupSocietyRepository.findByPartnerId(partnerId)
+        return enrichDetails(groupSocietyRepository.findByPartnerId(partnerId)
                 .orElseThrow(() -> new RuntimeException("Group society not found for partner: " + partnerId)));
     }
 
@@ -121,17 +138,15 @@ public class GroupSocietyService {
     public GroupSocietyEntity create(GroupSocietyRequest request) {
         validateGroupSocietyRequest(request);
 
-        if (groupSocietyRepository.existsByPartnerId(request.getPartnerId())) {
-            throw new RuntimeException("This partner is already linked to a group society");
-        }
-
-        if (groupSocietyRepository.existsByGroupNo(request.getGroupNo())) {
+        if (groupSocietyRepository.existsByGroupNo(request.getGroupNo().trim())) {
             throw new RuntimeException("Group society number already exists: " + request.getGroupNo());
         }
 
-        PartnerEntity partner = partnerRepository.findById(request.getPartnerId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "The selected partner does not exist in this tenant: " + request.getPartnerId()));
+        ProductEntity product = validateGroupSocietyProduct(request.getProductId());
+        PartnerEntity partner = resolveOrCreateGroupPartner(request);
+        if (groupSocietyRepository.existsByPartnerId(partner.getId())) {
+            throw new RuntimeException("This group partner is already linked to a group society");
+        }
 
         Long requestedOpeningBalance = safeLong(request.getOpeningBalanceCents());
         if (requestedOpeningBalance != 0L) {
@@ -140,14 +155,17 @@ public class GroupSocietyService {
         }
 
         GroupSocietyEntity entity = new GroupSocietyEntity();
-        entity.setPartnerId(request.getPartnerId());
-        entity.setGroupNo(request.getGroupNo());
-        entity.setSocietyType(request.getSocietyType());
+        entity.setPartnerId(partner.getId());
+        entity.setProductId(product.getId());
+        entity.setGroupNo(request.getGroupNo().trim().toUpperCase());
+        entity.setSocietyType(defaultValue(request.getSocietyType(), "GROUP").trim().toUpperCase());
         entity.setStatus("ACTIVE");
         entity.setAvailableBalanceCents(0L);
         entity.setTotalPaidCents(0L);
         entity.setTotalClaimedCents(0L);
-        return enrichPartnerDetails(groupSocietyRepository.save(entity), partner);
+        GroupSocietyEntity saved = groupSocietyRepository.save(entity);
+        enrichPartnerDetails(saved, partner);
+        return enrichProductDetails(saved, product);
     }
 
     @Transactional
@@ -160,7 +178,7 @@ public class GroupSocietyService {
 
         // Lifecycle status is intentionally not editable here. Activation,
         // suspension and closure must always pass through the approval workflow.
-        return enrichPartnerDetails(groupSocietyRepository.save(entity));
+        return enrichDetails(groupSocietyRepository.save(entity));
     }
 
     @Transactional
@@ -372,6 +390,73 @@ public class GroupSocietyService {
         return societies;
     }
 
+    private GroupSocietyEntity enrichDetails(GroupSocietyEntity society) {
+        enrichPartnerDetails(society);
+        return enrichProductDetails(society);
+    }
+
+    private List<GroupSocietyEntity> enrichProductDetails(List<GroupSocietyEntity> societies) {
+        Set<String> productIds = societies.stream()
+                .map(GroupSocietyEntity::getProductId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+        Map<String, ProductEntity> products = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(ProductEntity::getId, Function.identity(),
+                        (left, right) -> left, LinkedHashMap::new));
+        societies.forEach(society -> enrichProductDetails(society, products.get(society.getProductId())));
+        return societies;
+    }
+
+    private GroupSocietyEntity enrichProductDetails(GroupSocietyEntity society) {
+        ProductEntity product = society.getProductId() == null
+                ? null
+                : productRepository.findById(society.getProductId()).orElse(null);
+        return enrichProductDetails(society, product);
+    }
+
+    private GroupSocietyEntity enrichProductDetails(GroupSocietyEntity society, ProductEntity product) {
+        society.setProductAvailable(product != null);
+        society.setProductCode(product == null ? null : product.getCode());
+        society.setProductDescription(product == null ? null : product.getDescription());
+        return society;
+    }
+
+    private PartnerEntity resolveOrCreateGroupPartner(GroupSocietyRequest request) {
+        String requestedPartnerId = request.getPartnerId() == null ? "" : request.getPartnerId().trim();
+        String groupName = request.getGroupName() == null ? "" : request.getGroupName().trim();
+
+        // partnerId remains accepted for older clients, but the current creation
+        // flow supplies groupName and creates the GROUP partner atomically.
+        if (!requestedPartnerId.isEmpty()) {
+            PartnerEntity existing = partnerRepository.findById(requestedPartnerId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "The selected partner does not exist in this tenant: " + requestedPartnerId));
+            if (!"GROUP".equalsIgnoreCase(existing.getType())) {
+                throw new IllegalArgumentException("The selected partner must be a GROUP partner");
+            }
+            return existing;
+        }
+
+        PartnerInboundDto partnerRequest = new PartnerInboundDto();
+        partnerRequest.setPartnerType("GROUP");
+        partnerRequest.setName1(groupName.toUpperCase());
+        PartnerViewEntity created = partnerServiceV2.create(partnerRequest);
+        return partnerRepository.findById(created.getPartnerId())
+                .orElseThrow(() -> new IllegalStateException("The group partner was created without a persisted record"));
+    }
+
+    private ProductEntity validateGroupSocietyProduct(String productId) {
+        ProductEntity product = productRepository.findById(productId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("The selected group society product does not exist"));
+        String type = product.getType() == null
+                ? ""
+                : product.getType().trim().toUpperCase().replace('_', '-');
+        if (!"GROUP-SOCIETY".equals(type)) {
+            throw new IllegalArgumentException("Select a product with product type Group Society");
+        }
+        return product;
+    }
+
     private GroupSocietyEntity enrichPartnerDetails(GroupSocietyEntity society) {
         PartnerEntity partner = society.getPartnerId() == null
                 ? null
@@ -396,12 +481,25 @@ public class GroupSocietyService {
     }
 
     private void validateGroupSocietyRequest(GroupSocietyRequest request) {
-        if (request.getPartnerId() == null || request.getPartnerId().isBlank()) {
-            throw new RuntimeException("partnerId is required");
+        if (request == null) {
+            throw new IllegalArgumentException("Group society details are required");
         }
-
+        boolean hasPartnerId = request.getPartnerId() != null && !request.getPartnerId().isBlank();
+        boolean hasGroupName = request.getGroupName() != null && !request.getGroupName().isBlank();
+        if (!hasPartnerId && !hasGroupName) {
+            throw new IllegalArgumentException("Group / society name is required");
+        }
+        if (hasPartnerId && hasGroupName) {
+            throw new IllegalArgumentException("Supply either an existing group partner or a new group name, not both");
+        }
+        if (hasGroupName && request.getGroupName().trim().length() > 60) {
+            throw new IllegalArgumentException("Group / society name cannot exceed 60 characters");
+        }
+        if (request.getProductId() == null || request.getProductId().isBlank()) {
+            throw new IllegalArgumentException("Group society product is required");
+        }
         if (request.getGroupNo() == null || request.getGroupNo().isBlank()) {
-            throw new RuntimeException("groupNo is required");
+            throw new IllegalArgumentException("groupNo is required");
         }
     }
 

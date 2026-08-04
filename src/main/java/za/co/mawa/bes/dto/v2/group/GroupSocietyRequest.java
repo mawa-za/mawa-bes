@@ -3,6 +3,8 @@ package za.co.mawa.bes.dto.v2.group;
 public class GroupSocietyRequest {
 
     private String partnerId;
+    private String groupName;
+    private String productId;
     private String groupNo;
     private String societyType;
     private String status;
@@ -10,6 +12,14 @@ public class GroupSocietyRequest {
 
     public String getPartnerId() {
         return partnerId;
+    }
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public String getProductId() {
+        return productId;
     }
 
     public String getGroupNo() {
