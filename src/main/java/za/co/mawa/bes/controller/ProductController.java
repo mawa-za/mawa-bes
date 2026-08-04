@@ -112,7 +112,13 @@ public class ProductController {
             productService.edit(productEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            String message = exception.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Unable to update product. Review the supplied information and try again.";
+            }
+            log.warn("Unable to update product id={}: {}", id, message, exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(message, HttpStatus.BAD_REQUEST.value()));
         }
     }
 
