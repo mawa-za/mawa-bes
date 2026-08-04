@@ -1,11 +1,13 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.ErrorResponse;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
@@ -27,6 +29,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 
+@Slf4j
 @RestController
 @CrossOrigin
 @RequestMapping(value = "product")
@@ -40,7 +43,18 @@ public class ProductController {
         try {
             return ResponseEntity.ok(gson.toJson(productService.create(productCreateDto)));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            String message = exception.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Unable to create product. Review the supplied information and try again.";
+            }
+            log.warn(
+                    "Unable to create product code={} type={}: {}",
+                    productCreateDto == null ? null : productCreateDto.getCode(),
+                    productCreateDto == null ? null : productCreateDto.getType(),
+                    message
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(message, HttpStatus.BAD_REQUEST.value()));
         }
     }
 
