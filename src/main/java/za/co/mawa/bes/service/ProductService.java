@@ -101,7 +101,7 @@ public class ProductService implements ProductDao {
             if (productCreateDto.getPricingType() != null && !productCreateDto.getPricingType().isBlank()) {
                 ProductPricingCreateDto productPricingCreateDto = new ProductPricingCreateDto();
                 productPricingCreateDto.setProduct(productDto.getId());
-                productPricingCreateDto.setPricing(productCreateDto.getPricingType().trim().toUpperCase());
+                productPricingCreateDto.setPricing(normalizePricingType(productCreateDto.getPricingType()));
                 productPricingCreateDto.setValue(productCreateDto.getPrice() == null ? BigDecimal.ZERO : productCreateDto.getPrice());
                 productPricingCreateDto.setValidFrom(new Date());
                 productPricingCreateDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
@@ -238,9 +238,11 @@ public class ProductService implements ProductDao {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void edit(ProductEditDto productEditDto) throws ProductUpdateFailure {
         try {
-            ProductEntity productEntity = productRepository.getById(productEditDto.getId());
+            ProductEntity productEntity = productRepository.findById(productEditDto.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found."));
             if (isManagedFuneralPackageProduct(productEntity.getId())
                     || ProductTypeCode.FUNERAL_PACKAGE == ProductTypeCode.find(productEntity.getType()).orElse(null)
                     || ProductTypeCode.FUNERAL_PACKAGE == ProductTypeCode.find(productEditDto.getType()).orElse(null)) {
@@ -297,16 +299,14 @@ public class ProductService implements ProductDao {
             if (productEditDto.getPrice() != null) {
                 ProductPricingCreateDto pricingCreateDto = new ProductPricingCreateDto();
                 pricingCreateDto.setProduct(productEditDto.getId());
-                pricingCreateDto.setPricing(productEditDto.getPricingType() == null || productEditDto.getPricingType().isBlank()
-                        ? PriceType.SELLING_PRICE
-                        : productEditDto.getPricingType().trim().toUpperCase());
+                pricingCreateDto.setPricing(normalizePricingType(productEditDto.getPricingType()));
                 pricingCreateDto.setValue(productEditDto.getPrice());
                 pricingCreateDto.setValidFrom(new Date());
                 pricingCreateDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                 addPricing(pricingCreateDto);
             }
         } catch (Exception exception) {
-            throw new ProductUpdateFailure(exception.getMessage());
+            throw new ProductUpdateFailure(rootCauseMessage(exception, "Unable to update product."));
         }
     }
 
@@ -328,39 +328,51 @@ public class ProductService implements ProductDao {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addPricing(ProductPricingCreateDto productPricingCreateDto) throws Exception {
         try {
-            ProductPricingPKEntity pkEntity = new ProductPricingPKEntity();
-            ProductPricingEntity entity = new ProductPricingEntity();
-            pkEntity.setProduct(productPricingCreateDto.getProduct());
-            pkEntity.setPricing(productPricingCreateDto.getPricing());
+            if (productPricingCreateDto == null
+                    || productPricingCreateDto.getProduct() == null
+                    || productPricingCreateDto.getProduct().isBlank()) {
+                throw new IllegalArgumentException("Product is required when saving a price.");
+            }
+
+            String pricingType = normalizePricingType(productPricingCreateDto.getPricing());
+            ProductPricingPKEntity pkEntity = ProductPricingPKEntity.builder()
+                    .product(productPricingCreateDto.getProduct().trim())
+                    .pricing(pricingType)
+                    .build();
+
+            ProductPricingEntity entity = productPricingRepository.findById(pkEntity)
+                    .orElseGet(() -> ProductPricingEntity.builder()
+                            .productPricingPKEntity(pkEntity)
+                            .build());
             entity.setValue(productPricingCreateDto.getValue());
-            entity.setProductPricingPKEntity(pkEntity);
-            entity.setValidFrom(productPricingCreateDto.getValidFrom());
-            entity.setValidTo(productPricingCreateDto.getValidTo());
+            if (entity.getValidFrom() == null) {
+                entity.setValidFrom(productPricingCreateDto.getValidFrom() == null
+                        ? new Date()
+                        : productPricingCreateDto.getValidFrom());
+            }
+            entity.setValidTo(productPricingCreateDto.getValidTo() == null
+                    ? Conversion.stringToDate(Constant.END_DATE)
+                    : productPricingCreateDto.getValidTo());
             productPricingRepository.save(entity);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(rootCauseMessage(e, "Unable to save product pricing."), e);
         }
 
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void editPricing(ProductPricingEditDto productPricingEditDto) throws Exception {
-        try {
-            ProductPricingPKEntity pkEntity = new ProductPricingPKEntity();
-            ProductPricingEntity entity = new ProductPricingEntity();
-            pkEntity.setProduct(productPricingEditDto.getProduct());
-            pkEntity.setPricing(productPricingEditDto.getPricing());
-            entity.setValue(productPricingEditDto.getValue());
-            entity.setProductPricingPKEntity(pkEntity);
-            entity.setValidFrom(productPricingEditDto.getValidFrom());
-            entity.setValidTo(productPricingEditDto.getValidTo());
-            productPricingRepository.save(entity);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-
+        ProductPricingCreateDto request = new ProductPricingCreateDto();
+        request.setProduct(productPricingEditDto.getProduct());
+        request.setPricing(productPricingEditDto.getPricing());
+        request.setValue(productPricingEditDto.getValue());
+        request.setValidFrom(productPricingEditDto.getValidFrom());
+        request.setValidTo(productPricingEditDto.getValidTo());
+        addPricing(request);
     }
 
     @Override
@@ -619,6 +631,26 @@ public class ProductService implements ProductDao {
         }
     }
 
+
+    String normalizePricingType(String rawPricingType) {
+        if (rawPricingType == null || rawPricingType.isBlank()) {
+            return PriceType.SELLING_PRICE;
+        }
+        String normalized = rawPricingType.trim().toUpperCase(Locale.ROOT).replace('_', '-');
+        return "SELLING-PRICE".equals(normalized) ? PriceType.SELLING_PRICE : normalized;
+    }
+
+    private String rootCauseMessage(Throwable error, String fallback) {
+        Throwable current = error;
+        String message = null;
+        while (current != null) {
+            if (current.getMessage() != null && !current.getMessage().isBlank()) {
+                message = current.getMessage();
+            }
+            current = current.getCause();
+        }
+        return message == null || message.isBlank() ? fallback : message;
+    }
 
     private String firstNonBlank(String first, String second) {
         if (first != null && !first.isBlank()) {
