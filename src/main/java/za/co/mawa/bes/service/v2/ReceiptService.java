@@ -16,8 +16,13 @@ import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Service(value = "ReceiptServiceV2")
 @RequiredArgsConstructor
@@ -137,6 +142,8 @@ public class ReceiptService {
                 .identityNumber(java.util.Objects.toString(member.get("identity_number"),""))
                 .planName(java.util.Objects.toString(member.get("plan_name"),""))
                 .premiumPeriodYYYYMM(firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM())
+                .periodDescription(formatPeriodDescription(
+                        firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM()))
                 .amountCents(firstAllocation == null ? receipt.getTotalAmountCents() : firstAllocation.getAmountCents())
                 .paymentMethod(receipt.getPaymentMethod())
                 .receiptDate(receipt.getReceiptDate())
@@ -148,6 +155,32 @@ public class ReceiptService {
                 .status(receipt.getStatus() == null ? null : receipt.getStatus().name())
                 .printCount(receipt.getPrintCount())
                 .build();
+    }
+
+
+    private String formatPeriodDescription(String rawPeriods) {
+        if (rawPeriods == null || rawPeriods.isBlank()) {
+            return "-";
+        }
+        return Arrays.stream(rawPeriods.split("[,;|]"))
+                .map(String::trim)
+                .filter(period -> !period.isEmpty())
+                .distinct()
+                .map(this::formatPeriodCode)
+                .collect(Collectors.joining(", "));
+    }
+
+    private String formatPeriodCode(String period) {
+        try {
+            YearMonth yearMonth = YearMonth.parse(
+                    period,
+                    DateTimeFormatter.ofPattern("yyyyMM", Locale.ENGLISH));
+            return yearMonth.format(
+                    DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))
+                    + " (" + period + ")";
+        } catch (DateTimeParseException ignored) {
+            return period;
+        }
     }
 
 
