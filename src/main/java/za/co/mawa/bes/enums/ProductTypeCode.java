@@ -28,6 +28,10 @@ public enum ProductTypeCode {
             "FUNERAL-PACKAGE", "Funeral Package",
             "Bundled funeral offering made up of products and services.",
             false, false, false, false, false, false, true, true, true),
+    GROUP_SOCIETY(
+            "GROUP-SOCIETY", "Group Society",
+            "Cover product selected when a group society is registered.",
+            false, false, false, false, false, false, false, true, false),
     TOMBSTONE(
             "TOMBSTONE", "Tombstone",
             "Physical memorial product using specialised sales, installation, layby and cover workflows.",
@@ -153,6 +157,6 @@ public enum ProductTypeCode {
 
     public static ProductTypeCode requireSelectable(String rawCode) {
         return find(rawCode).orElseThrow(() -> new IllegalArgumentException(
-                "Unsupported product type. Select Physical Product, Consumable, Service, Asset, Funeral Package or Tombstone."));
+                "Unsupported product type. Select Physical Product, Consumable, Service, Asset, Funeral Package, Group Society or Tombstone."));
     }
 }

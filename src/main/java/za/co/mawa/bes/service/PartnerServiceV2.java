@@ -171,13 +171,69 @@ public class PartnerServiceV2 {
                     }
                 }
                 return getById(entity.getId());
-            }else{
-                return getById(partnerIdentityDto.getPartner());
+            } else {
+                return enrichExistingPartner(partnerIdentityDto.getPartner(), partnerInboundDto);
             }
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private PartnerViewEntity enrichExistingPartner(
+            String partnerId,
+            PartnerInboundDto partnerInboundDto
+    ) throws Exception {
+        PartnerEntity partner = partnerRepository.findById(partnerId)
+                .orElseThrow(() -> new IllegalArgumentException("Partner not found: " + partnerId));
+        boolean changed = false;
+
+        if (isBlank(partner.getName1()) && hasText(partnerInboundDto.getName1())) {
+            partner.setName1(partnerInboundDto.getName1().trim().toUpperCase());
+            changed = true;
+        }
+        if (isBlank(partner.getName2()) && hasText(partnerInboundDto.getName2())) {
+            partner.setName2(partnerInboundDto.getName2().trim().toUpperCase());
+            changed = true;
+        }
+        if (isBlank(partner.getName3()) && hasText(partnerInboundDto.getName3())) {
+            partner.setName3(partnerInboundDto.getName3().trim().toUpperCase());
+            changed = true;
+        }
+        if (changed) {
+            partnerRepository.save(partner);
+        }
+
+        if (hasText(partnerInboundDto.getPartnerRole())) {
+            RolePartnerDto rolePartnerDto = new RolePartnerDto();
+            rolePartnerDto.setPartner(partnerId);
+            rolePartnerDto.setRole(partnerInboundDto.getPartnerRole());
+            addPartnersRole(rolePartnerDto);
+        }
+        if (hasText(partnerInboundDto.getContactNumber())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("CELLPHONE");
+            contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+            addPartnerContact(contactInboundDto);
+        }
+        if (hasText(partnerInboundDto.getEmail())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("EMAIL");
+            contactInboundDto.setValue(partnerInboundDto.getEmail().trim());
+            addPartnerContact(contactInboundDto);
+        }
+
+        return getById(partnerId);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean isBlank(String value) {
+        return !hasText(value);
     }
 
     public boolean identityExists(String identityType, String identityNumber) {
