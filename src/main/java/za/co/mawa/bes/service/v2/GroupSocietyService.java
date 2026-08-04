@@ -42,6 +42,7 @@ public class GroupSocietyService {
     private final PartnerRepository partnerRepository;
     private final ProductRepository productRepository;
     private final PartnerServiceV2 partnerServiceV2;
+    private final NumberAllocationService numberAllocationService;
     private final ReferenceDataValidationService referenceDataValidationService;
 
     /*
@@ -68,6 +69,7 @@ public class GroupSocietyService {
             PartnerRepository partnerRepository,
             ProductRepository productRepository,
             PartnerServiceV2 partnerServiceV2,
+            NumberAllocationService numberAllocationService,
             ReferenceDataValidationService referenceDataValidationService
     ) {
         this.groupSocietyRepository = groupSocietyRepository;
@@ -77,6 +79,7 @@ public class GroupSocietyService {
         this.partnerRepository = partnerRepository;
         this.productRepository = productRepository;
         this.partnerServiceV2 = partnerServiceV2;
+        this.numberAllocationService = numberAllocationService;
         this.referenceDataValidationService = referenceDataValidationService;
     }
 
@@ -138,8 +141,9 @@ public class GroupSocietyService {
     public GroupSocietyEntity create(GroupSocietyRequest request) {
         validateGroupSocietyRequest(request);
 
-        if (groupSocietyRepository.existsByGroupNo(request.getGroupNo().trim())) {
-            throw new RuntimeException("Group society number already exists: " + request.getGroupNo());
+        String groupNo = numberAllocationService.allocateNumber("GROUP_SOCIETY");
+        if (groupSocietyRepository.existsByGroupNo(groupNo)) {
+            throw new IllegalStateException("Allocated group society number already exists: " + groupNo);
         }
 
         ProductEntity product = validateGroupSocietyProduct(request.getProductId());
@@ -157,7 +161,7 @@ public class GroupSocietyService {
         GroupSocietyEntity entity = new GroupSocietyEntity();
         entity.setPartnerId(partner.getId());
         entity.setProductId(product.getId());
-        entity.setGroupNo(request.getGroupNo().trim().toUpperCase());
+        entity.setGroupNo(groupNo);
         entity.setSocietyType(defaultValue(request.getSocietyType(), "GROUP").trim().toUpperCase());
         entity.setStatus("ACTIVE");
         entity.setAvailableBalanceCents(0L);
@@ -497,9 +501,6 @@ public class GroupSocietyService {
         }
         if (request.getProductId() == null || request.getProductId().isBlank()) {
             throw new IllegalArgumentException("Group society product is required");
-        }
-        if (request.getGroupNo() == null || request.getGroupNo().isBlank()) {
-            throw new IllegalArgumentException("groupNo is required");
         }
     }
 
