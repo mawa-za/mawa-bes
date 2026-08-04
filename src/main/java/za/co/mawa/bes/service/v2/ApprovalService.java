@@ -80,8 +80,13 @@ public class ApprovalService {
                 });
 
         ApprovalWorkflowEntity workflow = workflowRepository
-                .findByApprovalTypeAndActiveTrue(request.getApprovalType())
-                .orElseThrow(() -> new RuntimeException("No active approval workflow found for type: " + request.getApprovalType()));
+                .findByApprovalType(request.getApprovalType())
+                .orElseThrow(() -> new RuntimeException(
+                        "No approval workflow configured for type: " + request.getApprovalType()));
+
+        if (!Boolean.TRUE.equals(workflow.getActive())) {
+            return autoApproveWithoutWorkflow(request, workflow);
+        }
 
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
@@ -92,19 +97,7 @@ public class ApprovalService {
 
         Integer firstStepNo = steps.get(0).getStepNo();
 
-        ApprovalRequestEntity entity = new ApprovalRequestEntity();
-        entity.setApprovalType(request.getApprovalType());
-        entity.setReferenceId(request.getReferenceId());
-        entity.setReferenceNo(truncate(request.getReferenceNo(), 100));
-        entity.setTitle(approvalTitle(request));
-        entity.setDescription(request.getDescription());
-        entity.setRequesterId(request.getRequesterId());
-        entity.setWorkflowId(workflow.getId());
-        entity.setCurrentStepNo(firstStepNo);
-        entity.setStatus(ApprovalStatus.IN_PROGRESS);
-        entity.setPayloadJson(request.getPayloadJson());
-        entity.setCreatedBy(request.getRequesterId());
-
+        ApprovalRequestEntity entity = createApprovalRequest(request, workflow, firstStepNo);
         entity = approvalRequestRepository.save(entity);
 
         recordAction(
@@ -117,6 +110,59 @@ public class ApprovalService {
         submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
         userInboxService.notifyApprovalRequired(entity);
         return toResponse(entity);
+    }
+
+    private ApprovalRequestResponse autoApproveWithoutWorkflow(
+            ApprovalSubmitRequest request,
+            ApprovalWorkflowEntity workflow
+    ) {
+        ApprovalRequestEntity entity = createApprovalRequest(request, workflow, 0);
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.SUBMITTED,
+                request.getRequesterId(),
+                "Submitted while approval workflow is inactive"
+        );
+        submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
+
+        entity.setStatus(ApprovalStatus.APPROVED);
+        entity.setFinalActionBy(request.getRequesterId());
+        entity.setFinalActionAt(new Date());
+        entity.setUpdatedBy(request.getRequesterId());
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.APPROVED,
+                request.getRequesterId(),
+                "Auto-approved because the approval workflow is inactive"
+        );
+        completionHandlerRegistry.handleApproved(entity, request.getRequesterId());
+        return toResponse(entity);
+    }
+
+    private ApprovalRequestEntity createApprovalRequest(
+            ApprovalSubmitRequest request,
+            ApprovalWorkflowEntity workflow,
+            Integer currentStepNo
+    ) {
+        ApprovalRequestEntity entity = new ApprovalRequestEntity();
+        entity.setApprovalType(request.getApprovalType());
+        entity.setReferenceId(request.getReferenceId());
+        entity.setReferenceNo(truncate(request.getReferenceNo(), 100));
+        entity.setTitle(approvalTitle(request));
+        entity.setDescription(request.getDescription());
+        entity.setRequesterId(request.getRequesterId());
+        entity.setWorkflowId(workflow.getId());
+        entity.setCurrentStepNo(currentStepNo);
+        entity.setStatus(ApprovalStatus.IN_PROGRESS);
+        entity.setPayloadJson(request.getPayloadJson());
+        entity.setCreatedBy(request.getRequesterId());
+        return entity;
     }
 
     @Transactional
