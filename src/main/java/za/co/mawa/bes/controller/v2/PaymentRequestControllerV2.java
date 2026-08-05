@@ -128,7 +128,7 @@ public class PaymentRequestControllerV2 {
             @PathVariable String id,
             @RequestHeader(value = "X-User-Id", required = false) String currentUser
     ) {
-        fnbPaymentQueueService.queueAfterApproval(id, null, currentUser);
+        fnbPaymentQueueService.queueForBank(id, null, currentUser);
         return ResponseEntity.ok(paymentRequestService.getById(id));
     }
 

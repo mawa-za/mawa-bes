@@ -1003,6 +1003,8 @@ public class PaymentRequestService {
                 .setIdempotencyKey(entity.getIdempotencyKey())
                 .setPaidDate(entity.getPaidDate())
                 .setPaidReference(entity.getPaidReference())
+                .setDebtorAccountId(entity.getDebtorAccountId())
+                .setBankIntegration(entity.getBankIntegration())
                 .setFnbInstructionId(entity.getFnbInstructionId())
                 .setPaidBy(entity.getPaidBy())
                 .setCreatedAt(entity.getCreatedAt())
