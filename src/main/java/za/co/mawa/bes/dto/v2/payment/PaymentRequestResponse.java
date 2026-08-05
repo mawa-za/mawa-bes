@@ -40,6 +40,8 @@ public class PaymentRequestResponse {
     private String idempotencyKey;
     private LocalDate paidDate;
     private String paidReference;
+    private String debtorAccountId;
+    private String bankIntegration;
     private String fnbInstructionId;
     private String paidBy;
     private LocalDateTime createdAt;
@@ -105,6 +107,10 @@ public class PaymentRequestResponse {
     public PaymentRequestResponse setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; return this; }
     public String getPaidReference() { return paidReference; }
     public PaymentRequestResponse setPaidReference(String paidReference) { this.paidReference = paidReference; return this; }
+    public String getDebtorAccountId() { return debtorAccountId; }
+    public PaymentRequestResponse setDebtorAccountId(String debtorAccountId) { this.debtorAccountId = debtorAccountId; return this; }
+    public String getBankIntegration() { return bankIntegration; }
+    public PaymentRequestResponse setBankIntegration(String bankIntegration) { this.bankIntegration = bankIntegration; return this; }
     public String getFnbInstructionId() { return fnbInstructionId; }
     public PaymentRequestResponse setFnbInstructionId(String fnbInstructionId) { this.fnbInstructionId = fnbInstructionId; return this; }
     public String getPaidBy() { return paidBy; }

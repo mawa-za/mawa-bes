@@ -18,6 +18,10 @@ import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
 import za.co.mawa.bes.service.MessageProducerService;
 import za.co.mawa.bes.service.SettingService;
 
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class PaymentRequestFnbPaymentQueueService {
@@ -33,13 +37,37 @@ public class PaymentRequestFnbPaymentQueueService {
     private final SettingService settingService;
     private final Gson gson;
     private final PaymentDisbursementAttemptService attemptService;
+    private final PaymentAccountConfigurationService paymentAccountConfigurationService;
 
     @Autowired
     @Qualifier("bankPaymentServiceV2")
     private BankPaymentService bankPaymentService;
 
+    /**
+     * Best-effort queueing used by automatic approval completion handlers. A missing
+     * or disabled payment configuration must not reverse an otherwise valid claim
+     * approval; the reason is written to payment-request history for diagnosis.
+     */
     @Transactional
     public void queueAfterApproval(String paymentRequestId, String referenceNo, String actionBy) {
+        queue(paymentRequestId, referenceNo, actionBy, false);
+    }
+
+    /**
+     * Explicit user-triggered queueing. Configuration problems are returned to the
+     * caller so an approved request can be corrected and reprocessed safely.
+     */
+    @Transactional
+    public void queueForBank(String paymentRequestId, String referenceNo, String actionBy) {
+        queue(paymentRequestId, referenceNo, actionBy, true);
+    }
+
+    private void queue(
+            String paymentRequestId,
+            String referenceNo,
+            String actionBy,
+            boolean failWhenNotQueueable
+    ) {
         PaymentRequestEntity paymentRequest = findById(paymentRequestId);
 
         if (paymentRequest.getStatus() == PaymentRequestStatus.QUEUED_FOR_PAYMENT
@@ -49,14 +77,13 @@ public class PaymentRequestFnbPaymentQueueService {
         }
 
         if (paymentRequest.getStatus() != PaymentRequestStatus.APPROVED) {
-            throw new RuntimeException("Payment request must be APPROVED before sending to FNB: " + paymentRequest.getRequestNo());
+            throw new IllegalStateException(
+                    "Payment request must be APPROVED before sending to FNB: " + paymentRequest.getRequestNo()
+            );
         }
 
-        if (!isFnbEnabled()) {
-            return;
-        }
-
-        if (paymentRequest.getPaymentMethod() != PaymentMethod.EFT) {
+        String actor = defaultActor(actionBy);
+        if (!prepareFnbRouting(paymentRequest, actor, failWhenNotQueueable)) {
             return;
         }
 
@@ -70,7 +97,7 @@ public class PaymentRequestFnbPaymentQueueService {
 
         messageProducerService.sendMessageIfNotExists(message);
         attemptService.ensureQueued(paymentRequest.getId());
-        markQueuedForPayment(paymentRequest, actionBy);
+        markQueuedForPayment(paymentRequest, actor);
     }
 
     @Transactional
@@ -81,6 +108,95 @@ public class PaymentRequestFnbPaymentQueueService {
         message.setReferenceNo(instructionId);
         message.setPayload("{\"instructionId\":\"" + instructionId.replace("\"", "") + "\"}");
         messageProducerService.sendMessageIfNotExists(message);
+    }
+
+    private boolean prepareFnbRouting(
+            PaymentRequestEntity paymentRequest,
+            String actionBy,
+            boolean failWhenNotQueueable
+    ) {
+        if (!isFnbEnabled()) {
+            return notQueueable(
+                    paymentRequest,
+                    "Bank message not queued because FNB integration is disabled.",
+                    failWhenNotQueueable,
+                    actionBy
+            );
+        }
+
+        if (paymentRequest.getRequestType() == null) {
+            return notQueueable(
+                    paymentRequest,
+                    "Bank message not queued because the payment request type is missing.",
+                    failWhenNotQueueable,
+                    actionBy
+            );
+        }
+
+        Optional<Map<String, Object>> configuredDebtor =
+                paymentAccountConfigurationService.activeDebtor(paymentRequest.getRequestType().name());
+        if (configuredDebtor.isEmpty()) {
+            return notQueueable(
+                    paymentRequest,
+                    "Bank message not queued because no active debtor account is configured for payment request type "
+                            + paymentRequest.getRequestType().name() + ".",
+                    failWhenNotQueueable,
+                    actionBy
+            );
+        }
+
+        Map<String, Object> debtor = configuredDebtor.get();
+        String integration = Objects.toString(debtor.get("bank_integration"), "").trim();
+        if (!"FNB".equalsIgnoreCase(integration)) {
+            return notQueueable(
+                    paymentRequest,
+                    "Bank message not queued because the active debtor account for payment request type "
+                            + paymentRequest.getRequestType().name() + " is not configured for FNB.",
+                    failWhenNotQueueable,
+                    actionBy
+            );
+        }
+
+        String debtorAccountId = Objects.toString(debtor.get("id"), null);
+        boolean routingChanged = !Objects.equals(paymentRequest.getDebtorAccountId(), debtorAccountId)
+                || !"FNB".equalsIgnoreCase(paymentRequest.getBankIntegration())
+                || paymentRequest.getPaymentMethod() != PaymentMethod.EFT;
+
+        paymentRequest.setDebtorAccountId(debtorAccountId);
+        paymentRequest.setBankIntegration("FNB");
+        paymentRequest.setPaymentMethod(PaymentMethod.EFT);
+        paymentRequest.setUpdatedBy(actionBy);
+
+        if (routingChanged) {
+            paymentRequestRepository.saveAndFlush(paymentRequest);
+            saveHistory(
+                    paymentRequest.getId(),
+                    PaymentRequestStatus.APPROVED,
+                    PaymentRequestStatus.APPROVED,
+                    "Payment routing refreshed from active FNB debtor account before queueing",
+                    actionBy
+            );
+        }
+        return true;
+    }
+
+    private boolean notQueueable(
+            PaymentRequestEntity paymentRequest,
+            String reason,
+            boolean failWhenNotQueueable,
+            String actionBy
+    ) {
+        saveHistory(
+                paymentRequest.getId(),
+                PaymentRequestStatus.APPROVED,
+                PaymentRequestStatus.APPROVED,
+                reason,
+                actionBy
+        );
+        if (failWhenNotQueueable) {
+            throw new IllegalStateException(reason);
+        }
+        return false;
     }
 
     private void markQueuedForPayment(PaymentRequestEntity paymentRequest, String updatedBy) {
@@ -146,5 +262,9 @@ public class PaymentRequestFnbPaymentQueueService {
             return primary;
         }
         return fallback;
+    }
+
+    private String defaultActor(String actionBy) {
+        return actionBy == null || actionBy.isBlank() ? "SYSTEM" : actionBy;
     }
 }
