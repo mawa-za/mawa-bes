@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -34,6 +36,14 @@ public class DeviceSyncSubmissionService {
 
  public DeviceSyncSubmissionDto get(String id){ return dto(find(id)); }
 
+ public Page<DeviceSyncSubmissionDto> list(String status, String search, int page, int size) {
+  Specification<DeviceSyncSubmissionEntity> spec=Specification.where(null);
+  if(!blank(status) && !"ALL".equalsIgnoreCase(status)) spec=spec.and((root,q,cb)->cb.equal(root.get("status"),status.toUpperCase(Locale.ROOT)));
+  if(!blank(search)){String term="%"+search.trim().toLowerCase(Locale.ROOT)+"%"; spec=spec.and((root,q,cb)->cb.or(cb.like(cb.lower(root.get("submissionId")),term),cb.like(cb.lower(root.get("idempotencyKey")),term),cb.like(cb.lower(root.get("deviceId")),term),cb.like(cb.lower(root.get("submittedBy")),term),cb.like(cb.lower(root.get("targetPath")),term),cb.like(cb.lower(root.get("errorMessage")),term)));}
+  Pageable pageable=PageRequest.of(Math.max(page,0),Math.min(Math.max(size,1),200),Sort.by(Sort.Direction.DESC,"createdAt"));
+  return repository.findAll(spec,pageable).map(this::dto);
+ }
+
  @Transactional
  public DeviceSyncSubmissionDto process(String id, HttpHeaders incoming) {
   DeviceSyncSubmissionEntity e=find(id);
@@ -57,7 +67,7 @@ public class DeviceSyncSubmissionService {
  }
  private DeviceSyncSubmissionEntity find(String id){return repository.findBySubmissionId(id).orElseThrow(()->new IllegalArgumentException("Device sync submission not found: "+id));}
  private void validate(DeviceSyncSubmitRequest r){if(r==null||blank(r.getIdempotencyKey())||blank(r.getMethod())||blank(r.getPath()))throw new IllegalArgumentException("idempotencyKey, method and path are required"); if(!(r.getPath().startsWith("/v2/") || r.getPath().startsWith("/pay-app/")))throw new IllegalArgumentException("Only supported device transaction endpoints may be queued"); if(Set.of("/v2/device-sync/submissions").stream().anyMatch(r.getPath()::startsWith))throw new IllegalArgumentException("Device sync endpoint cannot queue itself"); if(!Set.of("POST","PUT","PATCH","DELETE").contains(r.getMethod().toUpperCase(Locale.ROOT)))throw new IllegalArgumentException("Unsupported queued method");}
- private DeviceSyncSubmissionDto dto(DeviceSyncSubmissionEntity e){return DeviceSyncSubmissionDto.builder().submissionId(e.getSubmissionId()).idempotencyKey(e.getIdempotencyKey()).deviceId(e.getDeviceId()).method(e.getHttpMethod()).path(e.getTargetPath()).requestPayload(parse(e.getRequestPayload())).responsePayload(parse(e.getResponsePayload())).responseStatus(e.getResponseStatus()).status(e.getStatus()).attemptCount(e.getAttemptCount()).errorMessage(e.getErrorMessage()).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt()).processedAt(e.getProcessedAt()).build();}
+ private DeviceSyncSubmissionDto dto(DeviceSyncSubmissionEntity e){return DeviceSyncSubmissionDto.builder().submissionId(e.getSubmissionId()).idempotencyKey(e.getIdempotencyKey()).deviceId(e.getDeviceId()).submittedBy(e.getSubmittedBy()).method(e.getHttpMethod()).path(e.getTargetPath()).requestPayload(parse(e.getRequestPayload())).responsePayload(parse(e.getResponsePayload())).responseStatus(e.getResponseStatus()).status(e.getStatus()).attemptCount(e.getAttemptCount()).errorMessage(e.getErrorMessage()).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt()).processedAt(e.getProcessedAt()).build();}
  private Object parse(String s){if(blank(s))return null;try{return mapper.readValue(s,Object.class);}catch(Exception x){return s;}}
  private String json(Object o){try{return o==null?null:mapper.writeValueAsString(o);}catch(JsonProcessingException e){throw new IllegalArgumentException("Invalid sync payload",e);}}
  private String extractMessage(String body,String fallback){Object o=parse(body);if(o instanceof Map<?,?> m && m.get("message")!=null)return m.get("message").toString();return fallback;}
