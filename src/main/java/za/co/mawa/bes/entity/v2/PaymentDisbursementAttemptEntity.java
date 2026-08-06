@@ -49,6 +49,12 @@ public class PaymentDisbursementAttemptEntity {
     @Column(name = "failure_message", columnDefinition = "TEXT")
     private String failureMessage;
 
+    @Column(name = "bank_report_json", columnDefinition = "LONGTEXT")
+    private String bankReportJson;
+
+    @Column(name = "bank_report_retrieved_at")
+    private LocalDateTime bankReportRetrievedAt;
+
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 

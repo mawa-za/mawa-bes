@@ -143,19 +143,30 @@ public class PaymentRequestControllerV2 {
         return ResponseEntity.ok(paymentRequestService.getHistory(id));
     }
 
-    @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{id}/bank-report", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BankPaymentResponse> getBankReport(@PathVariable String id) {
-        try {
-            PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
-            String instructionId = paymentRequestResponse.getFnbInstructionId();
-            if (instructionId == null || instructionId.isBlank()) {
-                return ResponseEntity.noContent().build();
-            }
+        paymentRequestService.getById(id);
+        return paymentAttemptService.getLatestBankReport(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
 
-            BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(instructionId);
-            return ResponseEntity.ok(bankPaymentResponse);
+    @PostMapping(value = "/{id}/bank-report/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BankPaymentResponse> refreshBankReport(@PathVariable String id) {
+        PaymentRequestResponse paymentRequest = paymentRequestService.getById(id);
+        String instructionId = paymentRequest.getFnbInstructionId();
+        if (instructionId == null || instructionId.isBlank()) {
+            throw new IllegalStateException("The payment request has not yet received an FNB instruction ID");
+        }
+        try {
+            BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
+            paymentAttemptService.recordBankReport(id, report);
+            return ResponseEntity.ok(report);
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalStateException(
+                    "The FNB bank report is not available yet. The system will continue checking automatically.",
+                    exception
+            );
         }
     }
 }
