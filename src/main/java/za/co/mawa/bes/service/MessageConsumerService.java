@@ -395,6 +395,7 @@ public class MessageConsumerService {
         }
 
         BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
+        paymentAttemptService.recordBankReport(paymentRequestId, report);
         String providerStatus = resolveProviderStatus(report);
         String reason = resolveProviderReason(report);
 
