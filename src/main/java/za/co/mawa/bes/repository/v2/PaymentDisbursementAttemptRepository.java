@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface PaymentDisbursementAttemptRepository extends JpaRepository<PaymentDisbursementAttemptEntity, String> {
     Optional<PaymentDisbursementAttemptEntity> findFirstByPaymentRequestIdOrderByAttemptNoDesc(String paymentRequestId);
+    Optional<PaymentDisbursementAttemptEntity> findFirstByPaymentRequestIdAndBankReportJsonIsNotNullOrderByAttemptNoDesc(String paymentRequestId);
     Optional<PaymentDisbursementAttemptEntity> findFirstByInstructionIdOrderByAttemptNoDesc(String instructionId);
     List<PaymentDisbursementAttemptEntity> findByPaymentRequestIdOrderByAttemptNoAsc(String paymentRequestId);
 }
