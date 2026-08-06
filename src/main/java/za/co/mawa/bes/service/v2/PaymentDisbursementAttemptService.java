@@ -1,21 +1,26 @@
 package za.co.mawa.bes.service.v2;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.payment.PaymentDisbursementAttemptResponse;
 import za.co.mawa.bes.entity.v2.PaymentDisbursementAttemptEntity;
 import za.co.mawa.bes.enums.PaymentDisbursementAttemptStatus;
+import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.repository.v2.PaymentDisbursementAttemptRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentDisbursementAttemptService {
 
     private final PaymentDisbursementAttemptRepository repository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<PaymentDisbursementAttemptResponse> getAttempts(String paymentRequestId) {
@@ -50,6 +55,33 @@ public class PaymentDisbursementAttemptService {
         attempt.setStatus(PaymentDisbursementAttemptStatus.SUBMITTED);
         if (attempt.getSubmittedAt() == null) attempt.setSubmittedAt(LocalDateTime.now());
         repository.save(attempt);
+    }
+
+    @Transactional
+    public void recordBankReport(String paymentRequestId, BankPaymentResponse report) {
+        if (report == null) return;
+        PaymentDisbursementAttemptEntity attempt = current(paymentRequestId);
+        try {
+            attempt.setBankReportJson(objectMapper.writeValueAsString(report));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to store the bank report", exception);
+        }
+        attempt.setBankReportRetrievedAt(LocalDateTime.now());
+        attempt.setLastCheckedAt(LocalDateTime.now());
+        repository.save(attempt);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<BankPaymentResponse> getLatestBankReport(String paymentRequestId) {
+        return repository.findFirstByPaymentRequestIdAndBankReportJsonIsNotNullOrderByAttemptNoDesc(paymentRequestId)
+                .filter(attempt -> !attempt.getBankReportJson().isBlank())
+                .map(attempt -> {
+                    try {
+                        return objectMapper.readValue(attempt.getBankReportJson(), BankPaymentResponse.class);
+                    } catch (JsonProcessingException exception) {
+                        throw new IllegalStateException("Stored bank report could not be read", exception);
+                    }
+                });
     }
 
     @Transactional
@@ -101,6 +133,8 @@ public class PaymentDisbursementAttemptService {
                 .providerStatus(entity.getProviderStatus())
                 .failureCode(entity.getFailureCode())
                 .failureMessage(entity.getFailureMessage())
+                .bankReportAvailable(entity.getBankReportJson() != null && !entity.getBankReportJson().isBlank())
+                .bankReportRetrievedAt(entity.getBankReportRetrievedAt())
                 .submittedAt(entity.getSubmittedAt())
                 .lastCheckedAt(entity.getLastCheckedAt())
                 .completedAt(entity.getCompletedAt())

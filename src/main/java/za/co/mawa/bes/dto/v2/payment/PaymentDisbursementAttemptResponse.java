@@ -18,6 +18,8 @@ public class PaymentDisbursementAttemptResponse {
     String providerStatus;
     String failureCode;
     String failureMessage;
+    boolean bankReportAvailable;
+    LocalDateTime bankReportRetrievedAt;
     LocalDateTime submittedAt;
     LocalDateTime lastCheckedAt;
     LocalDateTime completedAt;
