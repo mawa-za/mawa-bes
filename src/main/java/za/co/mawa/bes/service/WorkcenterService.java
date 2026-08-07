@@ -103,7 +103,15 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("business-partner","Business Partners","search"));
         workcenterDtoList.add(new WorkcenterDto("payroll-batch","Payroll Batch","search"));
         workcenterDtoList.add(new WorkcenterDto("approvals","Approvals","search"));
-        workcenterDtoList.add(new WorkcenterDto("reports","Reports",""));
+        // Reporting permissions are intentionally granular. Each report is a
+        // separate workcentre so role administrators can grant only the
+        // management/operational information a user is allowed to see. The
+        // legacy hidden "reports" marker is retained only in role_workcenter
+        // data for reporting-service compatibility and is not exposed here.
+        workcenterDtoList.add(new WorkcenterDto("management-membership-overview-report","Membership Overview","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-memberships-by-plan-report","Memberships by Plan","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-premium-performance-report","Premium Performance","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-claims-activity-report","Claims by Month & Type","search"));
         return workcenterDtoList;
     }
 
