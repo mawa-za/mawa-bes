@@ -27,4 +27,14 @@ public class MembershipPremiumResponseDto {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+
+    // Latest posted receipt context for a more useful premium history view.
+    private String receiptId;
+    private String receiptNo;
+    private LocalDateTime paymentDate;
+    private String paymentMethod;
+    private String cashier;
+    private String paymentLocation;
+    private String deviceId;
+    private Integer paymentCount;
 }

@@ -2,13 +2,25 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
+import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
+import za.co.mawa.bes.enums.ReceiptStatus;
+import za.co.mawa.bes.mapper.v2.MembershipPremiumMapper;
 import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
+import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
+import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -16,11 +28,106 @@ public class MembershipPremiumService {
 
     private final MembershipPremiumRepository membershipPremiumRepository;
     private final MembershipService membershipService;
+    private final ReceiptAllocationRepository receiptAllocationRepository;
+    private final ReceiptRepository receiptRepository;
+    private final MembershipPremiumMapper membershipPremiumMapper;
 
     public List<MembershipPremiumEntity> getPremiumsForMembership(String membershipId) {
         return membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(
                 membershipService.membershipIdentifiers(membershipId)
         );
+    }
+
+    public List<MembershipPremiumResponseDto> getPremiumHistory(String membershipId) {
+        List<String> membershipIds = membershipService.membershipIdentifiers(membershipId);
+        List<MembershipPremiumEntity> premiums =
+                membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds);
+        if (premiums.isEmpty()) {
+            return List.of();
+        }
+
+        List<ReceiptAllocationEntity> allocations =
+                receiptAllocationRepository.findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
+                        .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                        .toList();
+
+        List<String> receiptIds = allocations.stream()
+                .map(ReceiptAllocationEntity::getReceiptId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, ReceiptEntity> receiptsById = receiptRepository.findAllById(receiptIds).stream()
+                .collect(Collectors.toMap(ReceiptEntity::getId, Function.identity()));
+
+        Map<String, List<ReceiptAllocationEntity>> allocationsByPremium = new HashMap<>();
+        for (ReceiptAllocationEntity allocation : allocations) {
+            String referenceId = trim(allocation.getReferenceId());
+            if (!referenceId.isEmpty()) {
+                allocationsByPremium.computeIfAbsent(referenceId, ignored -> new java.util.ArrayList<>())
+                        .add(allocation);
+            }
+        }
+
+        return premiums.stream().map(premium -> {
+            MembershipPremiumResponseDto response = membershipPremiumMapper.toResponse(premium);
+            List<ReceiptAllocationEntity> premiumAllocations =
+                    allocationsByPremium.getOrDefault(premium.getId(), List.of());
+
+            // Legacy/manual rows may not carry the premium id as reference. Fall
+            // back to the membership + period tuple used by the receipt ledger.
+            if (premiumAllocations.isEmpty()) {
+                premiumAllocations = allocations.stream()
+                        .filter(allocation -> Objects.equals(
+                                trim(allocation.getPeriodYYYYMM()),
+                                trim(premium.getPeriodYYYYMM())))
+                        .filter(allocation -> membershipIds.contains(trim(allocation.getMembershipId())))
+                        .toList();
+            }
+
+            ReceiptEntity latestReceipt = premiumAllocations.stream()
+                    .map(allocation -> receiptsById.get(allocation.getReceiptId()))
+                    .filter(Objects::nonNull)
+                    .filter(receipt -> receipt.getStatus() == ReceiptStatus.POSTED)
+                    .max((left, right) -> safeDate(left).compareTo(safeDate(right)))
+                    .orElse(null);
+
+            response.setPaymentCount(premiumAllocations.size());
+            if (latestReceipt != null) {
+                response.setReceiptId(latestReceipt.getId());
+                response.setReceiptNo(latestReceipt.getReceiptNo());
+                response.setPaymentDate(latestReceipt.getReceiptDate());
+                response.setPaymentMethod(latestReceipt.getPaymentMethod());
+                response.setCashier(firstNonBlank(
+                        latestReceipt.getOriginalCollector(),
+                        latestReceipt.getEmployeeResponsible(),
+                        latestReceipt.getCapturedBy(),
+                        latestReceipt.getCreatedBy()));
+                response.setPaymentLocation(firstNonBlank(
+                        latestReceipt.getLocationName(),
+                        latestReceipt.getLocation()));
+                response.setDeviceId(firstNonBlank(
+                        latestReceipt.getTerminalId(),
+                        latestReceipt.getDeviceId()));
+            }
+            return response;
+        }).toList();
+    }
+
+    private static LocalDateTime safeDate(ReceiptEntity receipt) {
+        if (receipt.getReceiptDate() != null) return receipt.getReceiptDate();
+        if (receipt.getCreatedAt() != null) return receipt.getCreatedAt();
+        return LocalDateTime.MIN;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) return value.trim();
+        }
+        return null;
+    }
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public List<MembershipPremiumEntity> getUnpaidPremiums(String membershipId) {
