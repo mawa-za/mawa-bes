@@ -923,6 +923,13 @@ public class FuneralManagementService {
         service.setStatus("INVOICED");
         service.setWizardStep(6);
         funeralServiceRepository.save(service);
+
+        // Repair as well as create settlement requests. This covers claims that
+        // were already approved before the payment-request generation fix was
+        // deployed, while all operations remain idempotent by claim/source key.
+        funeralClaimSettlementService.reconcileApprovedClaimsForFuneralService(
+                service.getId(), "SYSTEM-FUNERAL-INVOICE");
+
         return GenerateFuneralInvoicesResponseDto.builder()
                 .funeralServiceId(service.getId())
                 .invoiceIds(invoiceIds)

@@ -21,6 +21,7 @@ public class GroupSocietyFuneralClaimResponse {
     private Long approvedCoverCents;
     private String status;
     private String approvalRequestId;
+    private String paymentRequestId;
     private String notes;
     private LocalDateTime createdAt;
 }
