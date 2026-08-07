@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -67,6 +69,8 @@ public class MessageConsumerService {
     private static final String INTERVAL_SECONDS = "INTERVAL-SECONDS";
     private static final String BATCH_SIZE = "BATCH-SIZE";
     private static final String RETRY_DELAY_SECONDS = "RETRY-DELAY-SECONDS";
+    private static final Pattern RETRY_AFTER_SECONDS = Pattern.compile(
+            "Retry-After\\s+(\\d+)\\s+seconds", Pattern.CASE_INSENSITIVE);
     private final Map<String, LocalDateTime> lastRunByTenant = new ConcurrentHashMap<>();
 
     @Value("${mawa.scheduler.transient-db-retry-attempts:2}")
@@ -355,27 +359,36 @@ public class MessageConsumerService {
                     }
                     throw new IllegalStateException("Transient database failure while processing message queue", e);
                 }
-                log.error(
-                        "Message queue processing failed for tenant {}, message {}, type {}",
-                        TenantContext.getCurrentTenant(),
-                        msg.getId(),
-                        msg.getType(),
-                        e
-                );
-                if ("XERO-INVOICE".equals(msg.getType())) {
-                    xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
-                }
-                msg.setRetryCount(msg.getRetryCount() + 1);
-                if ("FNB-EFT-PAYMENT-REPORT".equals(msg.getType())
-                        || "FNB-PAYROLL-PAYMENT-REPORT".equals(msg.getType())) {
-                    // Bank report availability is eventually consistent. Keep polling instead
-                    // of abandoning a valid disbursement after three temporary failures.
+                if (isBankPaymentReportMessage(msg) && isBankReportTooEarly(e)) {
+                    int retryAfterSeconds = resolveBankReportRetryAfterSeconds(e);
                     msg.setProcessed(false);
-                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
-                } else if (msg.getRetryCount() > 3) {
-                    msg.setProcessed(true);
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(retryAfterSeconds));
+                    log.info(
+                            "FNB report is not ready for queue message {} ({}); retrying in {} seconds",
+                            msg.getId(), msg.getType(), retryAfterSeconds
+                    );
                 } else {
-                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
+                    log.error(
+                            "Message queue processing failed for tenant {}, message {}, type {}",
+                            TenantContext.getCurrentTenant(),
+                            msg.getId(),
+                            msg.getType(),
+                            e
+                    );
+                    if ("XERO-INVOICE".equals(msg.getType())) {
+                        xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                    }
+                    msg.setRetryCount(msg.getRetryCount() + 1);
+                    if (isBankPaymentReportMessage(msg)) {
+                        // Bank report availability is eventually consistent. Keep polling instead
+                        // of abandoning a valid disbursement after three temporary failures.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                    } else if (msg.getRetryCount() > 3) {
+                        msg.setProcessed(true);
+                    } else {
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
+                    }
                 }
             }
             messageQueueRepository.save(msg);
@@ -418,6 +431,35 @@ public class MessageConsumerService {
         msg.setRetryCount(msg.getRetryCount() + 1);
         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
         msg.setProcessed(false);
+    }
+
+    private boolean isBankPaymentReportMessage(MessageQueueEntity message) {
+        if (message == null) return false;
+        return "FNB-EFT-PAYMENT-REPORT".equals(message.getType())
+                || "FNB-PAYROLL-PAYMENT-REPORT".equals(message.getType());
+    }
+
+    private boolean isBankReportTooEarly(Throwable throwable) {
+        String message = rootMessage(throwable);
+        if (message == null) return false;
+        String normalized = message.toLowerCase();
+        return normalized.contains("code: 425")
+                || normalized.contains("425 too early")
+                || normalized.contains("too early. retry-after");
+    }
+
+    private int resolveBankReportRetryAfterSeconds(Throwable throwable) {
+        int configuredInterval = getPaymentReportIntervalSeconds();
+        String message = rootMessage(throwable);
+        if (message == null) return configuredInterval;
+        Matcher matcher = RETRY_AFTER_SECONDS.matcher(message);
+        if (!matcher.find()) return configuredInterval;
+        try {
+            int providerDelay = Integer.parseInt(matcher.group(1));
+            return Math.max(configuredInterval, Math.min(providerDelay, 3600));
+        } catch (NumberFormatException ignored) {
+            return configuredInterval;
+        }
     }
 
     private int getPaymentReportIntervalSeconds() {
@@ -563,12 +605,18 @@ public class MessageConsumerService {
 
     private String resolveSystemUserId() {
         try {
-            String userId = userService.getUserByName("BGUSER").getId();
-            if (userId != null && !userId.isBlank()) {
-                return userId;
+            var backgroundUser = userService.getUserByName("BGUSER");
+            if (backgroundUser != null
+                    && backgroundUser.getId() != null
+                    && !backgroundUser.getId().isBlank()) {
+                return backgroundUser.getId();
             }
+            log.debug("BGUSER is not configured; using SYSTEM for FNB queue audit updates");
         } catch (Exception exception) {
-            log.warn("BGUSER is unavailable; using SYSTEM for FNB queue audit updates", exception);
+            log.warn(
+                    "BGUSER lookup failed; using SYSTEM for FNB queue audit updates: {}",
+                    rootMessage(exception)
+            );
         }
         return "SYSTEM";
     }

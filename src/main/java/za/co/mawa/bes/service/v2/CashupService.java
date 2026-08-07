@@ -259,6 +259,8 @@ public class CashupService {
             throw new IllegalArgumentException("receiptFromNo cannot be greater than receiptToNo");
         }
 
+        preventOverlappingManualCashup(receiptBookNo, fromNo, toNo);
+
         List<ManualPremiumReceiptEntity> selectedReceipts = manualPremiumReceiptRepository
                 .findByReceiptBookNoForUpdate(receiptBookNo)
                 .stream()
@@ -270,10 +272,9 @@ public class CashupService {
                         .compareTo(parseManualReceiptNumber(right.getManualReceiptNo(), "manualReceiptNo")))
                 .toList();
 
-        if (selectedReceipts.isEmpty()) {
-            throw new IllegalArgumentException("No captured manual receipts were found in the supplied receipt-book range");
-        }
-
+        // A manual cashup is a physical receipt-book declaration. Captured manual receipt
+        // rows are linked when they exist, but they are not a prerequisite for creating the
+        // cashup because the operator supplies the authoritative manual amount and range.
         List<String> alreadyCashupped = selectedReceipts.stream()
                 .filter(receipt -> clean(receipt.getCashupId()) != null)
                 .map(ManualPremiumReceiptEntity::getManualReceiptNo)
@@ -287,6 +288,8 @@ public class CashupService {
                 .mapToLong(receipt -> defaultLong(receipt.getAmountCents()))
                 .sum();
         long totalCents = defaultLong(request.getAmountCents());
+        int declaredReceiptCount = manualReceiptRangeCount(fromNo, toNo);
+        boolean completeCapturedRange = selectedReceipts.size() == declaredReceiptCount;
 
         CashupEntity cashup = new CashupEntity();
         cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
@@ -296,15 +299,18 @@ public class CashupService {
                 ? LocalDate.now()
                 : parseDate(request.getCashupDate()));
         cashup.setTotalCents(totalCents);
-        cashup.setReceiptCount(selectedReceipts.size());
+        cashup.setReceiptCount(declaredReceiptCount);
         cashup.setStatus(STATUS_AWAITING_DEPOSITS);
         cashup.setSource(SOURCE_MANUAL_RECEIPT_BOOK);
         cashup.setReceiptBookNo(receiptBookNo);
         cashup.setReceiptFromNo(request.getReceiptFromNo().trim());
         cashup.setReceiptToNo(request.getReceiptToNo().trim());
         cashup.setManualAmountCents(totalCents);
-        cashup.setReceiptTotalCents(receiptTotalCents);
-        cashup.setVarianceCents(totalCents - receiptTotalCents);
+        // The manual amount remains authoritative until every receipt number in the declared
+        // range has a captured system row. Partial capture must not create a false variance.
+        long effectiveReceiptTotalCents = completeCapturedRange ? receiptTotalCents : totalCents;
+        cashup.setReceiptTotalCents(effectiveReceiptTotalCents);
+        cashup.setVarianceCents(totalCents - effectiveReceiptTotalCents);
         cashup.setEmployeeResponsibleId(bookUsage.employee().id());
         cashup.setEmployeeResponsibleName(bookUsage.employee().name());
         cashup.setAreaCode(bookUsage.area().code());
@@ -784,6 +790,40 @@ public class CashupService {
         if (request.getAmountCents() == null || request.getAmountCents() <= 0) throw new IllegalArgumentException("amountCents must be greater than zero");
         if (clean(request.getEmployeeResponsibleId()) == null) throw new IllegalArgumentException("employeeResponsibleId is required");
         if (clean(request.getAreaCode()) == null) throw new IllegalArgumentException("areaCode is required");
+    }
+
+    private void preventOverlappingManualCashup(
+            String receiptBookNo,
+            BigInteger requestedFrom,
+            BigInteger requestedTo) {
+        List<CashupEntity> existingCashups = cashupRepository
+                .findBySourceAndReceiptBookNoIgnoreCaseOrderByCreatedAtAsc(
+                        SOURCE_MANUAL_RECEIPT_BOOK, receiptBookNo);
+        for (CashupEntity existing : existingCashups) {
+            String existingFromValue = clean(existing.getReceiptFromNo());
+            String existingToValue = clean(existing.getReceiptToNo());
+            if (existingFromValue == null || existingToValue == null) continue;
+            BigInteger existingFrom = parseManualReceiptNumber(existingFromValue, "receiptFromNo");
+            BigInteger existingTo = parseManualReceiptNumber(existingToValue, "receiptToNo");
+            boolean overlaps = requestedFrom.compareTo(existingTo) <= 0
+                    && requestedTo.compareTo(existingFrom) >= 0;
+            if (overlaps) {
+                throw new IllegalStateException(
+                        "Receipt range overlaps manual cashup #" + existing.getCashupNo()
+                                + " (" + existingFrom + " - " + existingTo + ")");
+            }
+        }
+    }
+
+    private int manualReceiptRangeCount(BigInteger fromNo, BigInteger toNo) {
+        BigInteger count = toNo.subtract(fromNo).add(BigInteger.ONE);
+        if (count.signum() <= 0) {
+            throw new IllegalArgumentException("Receipt range must contain at least one receipt");
+        }
+        if (count.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
+            throw new IllegalArgumentException("Receipt range is too large");
+        }
+        return count.intValue();
     }
 
     private BigInteger parseManualReceiptNumber(String value, String fieldName) {
