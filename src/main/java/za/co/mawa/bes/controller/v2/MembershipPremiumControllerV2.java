@@ -2,7 +2,8 @@ package za.co.mawa.bes.controller.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-        import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
+import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
+import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.service.v2.MembershipPremiumService;
 
 import java.util.List;
@@ -16,10 +17,10 @@ public class MembershipPremiumControllerV2 {
     private final MembershipPremiumService membershipPremiumService;
 
     @GetMapping
-    public List<MembershipPremiumEntity> getPremiums(
+    public List<MembershipPremiumResponseDto> getPremiums(
             @PathVariable String membershipId
     ) {
-        return membershipPremiumService.getPremiumsForMembership(membershipId);
+        return membershipPremiumService.getPremiumHistory(membershipId);
     }
 
     @GetMapping("/unpaid")
