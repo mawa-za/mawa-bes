@@ -12,6 +12,8 @@ public class DeviceSyncSubmissionEntity {
     @Column(name="submission_id", nullable=false, unique=true, length=36) private String submissionId;
     @Column(name="idempotency_key", nullable=false, length=160) private String idempotencyKey;
     @Column(name="device_id", length=160) private String deviceId;
+    @Column(name="sync_time", nullable=false) private LocalDateTime syncTime;
+    @Column(name="device_serial_number", length=160) private String deviceSerialNumber;
     @Column(name="submitted_by", length=160) private String submittedBy;
     @Column(name="http_method", nullable=false, length=10) private String httpMethod;
     @Column(name="target_path", nullable=false, length=500) private String targetPath;
