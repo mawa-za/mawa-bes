@@ -86,6 +86,13 @@ public class StockOperationsControllerV2 {
         return ResponseEntity.ok(stockOperationsService.getQuotation(id));
     }
 
+    @PutMapping("/quotations/{id}")
+    public ResponseEntity<Map<String, Object>> updateQuotation(@PathVariable String id,
+                                                                 @RequestBody StockDtos.QuotationRequest request,
+                                                                 @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.updateQuotation(id, request, userId));
+    }
+
     @PostMapping("/quotations/{id}/status")
     public ResponseEntity<Map<String, Object>> updateQuotationStatus(@PathVariable String id,
                                                                       @RequestBody StockDtos.StatusUpdateRequest request,
@@ -98,6 +105,12 @@ public class StockOperationsControllerV2 {
                                                                              @RequestBody(required = false) StockDtos.ConvertQuotationRequest request,
                                                                              @RequestHeader(value = "X-User-Id", required = false) String userId) {
         return ResponseEntity.ok(stockOperationsService.convertQuotationToSalesOrder(id, request, userId));
+    }
+
+    @PostMapping("/quotations/{id}/convert-to-invoice")
+    public ResponseEntity<?> convertQuotationToInvoice(@PathVariable String id,
+                                                         @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(stockOperationsService.convertQuotationToInvoice(id, userId));
     }
 
     @PostMapping("/purchase-orders")

@@ -3,9 +3,13 @@ package za.co.mawa.bes.service.v2;
 import jakarta.transaction.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.dto.v2.stock.StockDtos;
+import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.enums.ProductTypeCode;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
+import za.co.mawa.bes.service.InvoiceService;
 import za.co.mawa.bes.service.NumberRangeService;
 
 import java.math.BigDecimal;
@@ -20,10 +24,12 @@ import java.util.*;
 public class StockOperationsService {
     private final JdbcTemplate jdbcTemplate;
     private final NumberRangeService numberRangeService;
+    private final InvoiceService invoiceService;
 
-    public StockOperationsService(JdbcTemplate jdbcTemplate, NumberRangeService numberRangeService) {
+    public StockOperationsService(JdbcTemplate jdbcTemplate, NumberRangeService numberRangeService, InvoiceService invoiceService) {
         this.jdbcTemplate = jdbcTemplate;
         this.numberRangeService = numberRangeService;
+        this.invoiceService = invoiceService;
     }
 
     public List<Map<String, Object>> getWarehouses(String status) {
@@ -121,7 +127,10 @@ public class StockOperationsService {
     }
 
     public List<Map<String, Object>> getQuotations(String status, String customerPartnerId) {
-        StringBuilder sql = new StringBuilder("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id LEFT JOIN (SELECT quotation_id, COUNT(*) AS line_count FROM quotation_line GROUP BY quotation_id) l ON l.quotation_id = q.id WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, COALESCE(l.line_count,0) AS line_count, " +
+                "(SELECT i.id FROM invoice i WHERE i.source_type='QUOTATION' AND i.source_id=q.id ORDER BY i.invoice_date DESC, i.invoice_no DESC LIMIT 1) AS invoice_id, " +
+                "(SELECT i.invoice_no FROM invoice i WHERE i.source_type='QUOTATION' AND i.source_id=q.id ORDER BY i.invoice_date DESC, i.invoice_no DESC LIMIT 1) AS invoice_no " +
+                "FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id LEFT JOIN (SELECT quotation_id, COUNT(*) AS line_count FROM quotation_line GROUP BY quotation_id) l ON l.quotation_id = q.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
         if (hasText(status)) { sql.append(" AND q.status = ?"); args.add(status.trim().toUpperCase()); }
         if (hasText(customerPartnerId)) { sql.append(" AND q.customer_partner_id = ?"); args.add(customerPartnerId); }
@@ -130,14 +139,127 @@ public class StockOperationsService {
     }
 
     public Map<String, Object> getQuotation(String id) {
-        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id WHERE q.id = ?", id);
+        Map<String, Object> quotation = jdbcTemplate.queryForMap("SELECT q.*, p.number AS customer_no, TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) AS customer_name, " +
+                "(SELECT i.id FROM invoice i WHERE i.source_type='QUOTATION' AND i.source_id=q.id ORDER BY i.invoice_date DESC, i.invoice_no DESC LIMIT 1) AS invoice_id, " +
+                "(SELECT i.invoice_no FROM invoice i WHERE i.source_type='QUOTATION' AND i.source_id=q.id ORDER BY i.invoice_date DESC, i.invoice_no DESC LIMIT 1) AS invoice_no " +
+                "FROM quotation q LEFT JOIN partner p ON p.id = q.customer_partner_id WHERE q.id = ?", id);
         quotation.put("lines", jdbcTemplate.queryForList("SELECT l.*, p.code AS product_code, p.description AS product_description FROM quotation_line l LEFT JOIN product p ON p.id = l.product_id WHERE l.quotation_id = ? ORDER BY l.line_no", id));
         return quotation;
     }
 
     @Transactional
+    public Map<String, Object> updateQuotation(String id, StockDtos.QuotationRequest request, String userId) {
+        if (request == null) throw new IllegalArgumentException("Request is required");
+        Map<String, Object> current = getQuotation(id);
+        String currentStatus = text(current.get("status")).trim().toUpperCase(Locale.ROOT);
+        if ("INVOICED".equals(currentStatus) || "CONVERTED".equals(currentStatus)) {
+            throw new IllegalStateException("This quotation has already been converted and can no longer be edited");
+        }
+        if (request.getLines() == null || request.getLines().isEmpty()) {
+            throw new IllegalArgumentException("At least one quotation line is required");
+        }
+        AmountTotals totals = totals(request.getLines());
+        LocalDate quotationDate = request.getQuotationDate() == null
+                ? dateValue(current.get("quotation_date"), LocalDate.now())
+                : request.getQuotationDate();
+        String status = hasText(request.getStatus()) ? request.getStatus().trim().toUpperCase(Locale.ROOT) : currentStatus;
+        jdbcTemplate.update("UPDATE quotation SET customer_partner_id=?, customer_reference=?, quotation_date=?, valid_until=?, requested_delivery_date=?, status=?, currency=?, subtotal_amount=?, tax_amount=?, total_amount=?, notes=?, updated_at=?, updated_by=? WHERE id=?",
+                request.getCustomerPartnerId(), request.getCustomerReference(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()),
+                toSqlDate(request.getRequestedDeliveryDate()), status, defaultText(request.getCurrency(), defaultText(text(current.get("currency")), "ZAR")),
+                totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, id);
+
+        jdbcTemplate.update("DELETE FROM quotation_line WHERE quotation_id = ?", id);
+        int lineNo = 10;
+        for (StockDtos.CommercialLineRequest line : request.getLines()) {
+            String productId = resolveProductId(line.getProductId(), line.getProductCode());
+            requireSaleable(productId);
+            BigDecimal qty = positive(line.getQuantity(), "quantity");
+            BigDecimal unitPrice = money(line.getUnitPrice());
+            BigDecimal taxRate = percent(line.getTaxRate());
+            BigDecimal lineSubtotal = unitPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            jdbcTemplate.update("INSERT INTO quotation_line (id, quotation_id, line_no, product_id, product_description, quantity, uom, unit_price, tax_rate, line_subtotal, line_tax, line_total, notes, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    uuid(), id, lineNo, productId, line.getDescription(), qty, defaultText(line.getUom(), "EA"), unitPrice, taxRate, lineSubtotal, lineTax, lineSubtotal.add(lineTax), line.getNotes(), nowTs(), userId);
+            lineNo += 10;
+        }
+        audit("QUOTATION", id, "UPDATE", null, null, userId, text(current.get("quotation_no")));
+        return getQuotation(id);
+    }
+
+    @Transactional
+    public InvoiceOutboundDto convertQuotationToInvoice(String quotationId, String userId) {
+        jdbcTemplate.queryForMap("SELECT id FROM quotation WHERE id = ? FOR UPDATE", quotationId);
+        Map<String, Object> quotation = getQuotation(quotationId);
+        String existingInvoiceId = text(quotation.get("invoice_id"));
+        if (hasText(existingInvoiceId)) {
+            jdbcTemplate.update("UPDATE quotation SET status='INVOICED', updated_at=?, updated_by=? WHERE id=?", nowTs(), userId, quotationId);
+            return invoiceService.getInvoiceDto(existingInvoiceId)
+                    .orElseThrow(() -> new IllegalStateException("The quotation is linked to an invoice that could not be loaded"));
+        }
+        String customerPartnerId = required(text(quotation.get("customer_partner_id")), "customerPartnerId");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) quotation.get("lines");
+        if (lines == null || lines.isEmpty()) throw new IllegalArgumentException("The quotation has no line items");
+
+        long subtotalCents = cents(decimal(quotation.get("subtotal_amount")));
+        long taxCents = cents(decimal(quotation.get("tax_amount")));
+        long totalCents = cents(decimal(quotation.get("total_amount")));
+        String quotationNo = text(quotation.get("quotation_no"));
+        String customerReference = text(quotation.get("customer_reference"));
+        String quotationNotes = text(quotation.get("notes"));
+
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .externalRef(hasText(customerReference) ? customerReference : quotationNo)
+                .sourceType("QUOTATION")
+                .sourceId(quotationId)
+                .partnerId(customerPartnerId)
+                .invoiceDate(LocalDate.now())
+                .dueDate(LocalDate.now().plusDays(30))
+                .status("DRAFT")
+                .subtotalCents(subtotalCents)
+                .taxCents(taxCents)
+                .discountCents(0L)
+                .totalCents(totalCents)
+                .paidCents(0L)
+                .creditedCents(0L)
+                .balanceCents(totalCents)
+                .currency(defaultText(text(quotation.get("currency")), "ZAR"))
+                .notes(hasText(quotationNotes) ? quotationNotes + "\nCreated from quotation " + quotationNo : "Created from quotation " + quotationNo)
+                .createdBy(userId)
+                .updatedBy(userId)
+                .updatedAt(LocalDateTime.now())
+                .lines(new ArrayList<>())
+                .payments(new ArrayList<>())
+                .build();
+
+        for (Map<String, Object> line : lines) {
+            InvoiceLineEntity invoiceLine = InvoiceLineEntity.builder()
+                    .productId(text(line.get("product_id")))
+                    .description(defaultText(text(line.get("product_description")), text(line.get("product_code"))))
+                    .quantity(decimal(line.get("quantity")).doubleValue())
+                    .showAmount(true)
+                    .unitPriceCents(cents(decimal(line.get("unit_price"))))
+                    .discountCents(0L)
+                    .taxCents(cents(decimal(line.get("line_tax"))))
+                    .subtotalCents(cents(decimal(line.get("line_subtotal"))))
+                    .totalCents(cents(decimal(line.get("line_total"))))
+                    .build();
+            invoice.getLines().add(invoiceLine);
+        }
+
+        InvoiceEntity created = invoiceService.createInvoice(invoice);
+        jdbcTemplate.update("UPDATE quotation SET status='INVOICED', updated_at=?, updated_by=? WHERE id=?", nowTs(), userId, quotationId);
+        audit("QUOTATION", quotationId, "CREATE_INVOICE", null, created.getInvoiceNo(), userId, created.getId());
+        return invoiceService.mapToDto(created);
+    }
+
+    @Transactional
     public Map<String, Object> updateQuotationStatus(String id, StockDtos.StatusUpdateRequest request, String userId) {
         String status = required(request.getStatus(), "status").trim().toUpperCase();
+        String currentStatus = text(getQuotation(id).get("status")).trim().toUpperCase(Locale.ROOT);
+        if (("INVOICED".equals(currentStatus) || "CONVERTED".equals(currentStatus)) && !currentStatus.equals(status)) {
+            throw new IllegalStateException("A converted quotation is read-only");
+        }
         jdbcTemplate.update("UPDATE quotation SET status = ?, updated_at = ?, updated_by = ? WHERE id = ?", status, nowTs(), userId, id);
         audit("QUOTATION", id, "STATUS", null, status, userId, request.getNotes());
         return getQuotation(id);
@@ -787,5 +909,16 @@ public class StockOperationsService {
     private String defaultText(String value, String defaultValue) { return hasText(value) ? value.trim() : defaultValue; }
     private boolean hasText(String value) { return value != null && !value.trim().isEmpty(); }
     private String uuid() { return UUID.randomUUID().toString().replace("-", ""); }
+    private long cents(BigDecimal amount) {
+        return amount.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();
+    }
+
+    private LocalDate dateValue(Object value, LocalDate fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Date date) return date.toLocalDate();
+        if (value instanceof java.time.LocalDate date) return date;
+        try { return LocalDate.parse(value.toString()); } catch (Exception ignored) { return fallback; }
+    }
+
     private Timestamp nowTs() { return Timestamp.valueOf(LocalDateTime.now()); }
 }
