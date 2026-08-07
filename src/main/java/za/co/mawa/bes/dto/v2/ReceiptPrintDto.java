@@ -29,6 +29,12 @@ public class ReceiptPrintDto {
 
     private String periodDescription;
 
+    private String invoiceId;
+    private String invoiceNo;
+    private String invoiceReference;
+    private String customerName;
+    private String customerNumber;
+
     private Long amountCents;
 
     private String paymentMethod;
