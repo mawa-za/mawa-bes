@@ -936,41 +936,6 @@ public class FuneralManagementService {
                 .build();
     }
 
-    @Transactional
-    public InvoiceSummaryDto captureInvoicePayment(String invoiceId, CaptureInvoicePaymentDto request) {
-        validateRequired(invoiceId, "invoiceId");
-        if (defaultLong(request.getAmountCents()) <= 0) {
-            throw new IllegalArgumentException("amountCents must be greater than zero");
-        }
-
-        Map<String, Object> invoice = jdbcTemplate.queryForMap("SELECT * FROM invoice WHERE id = ?", invoiceId);
-        long balance = asLong(invoice.get("balance_cents"));
-        if (request.getAmountCents() > balance) {
-            throw new IllegalArgumentException("Payment amount exceeds invoice balance");
-        }
-
-        jdbcTemplate.update("""
-                INSERT INTO invoice_payment (id, invoice_id, payment_date, amount_cents, payment_method, reference_no, created_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, CURRENT_TIMESTAMP)
-                """, UUID.randomUUID().toString(), invoiceId, request.getAmountCents(), request.getPaymentMethod(), request.getReference());
-
-        long newPaid = asLong(invoice.get("paid_cents")) + request.getAmountCents();
-        long total = asLong(invoice.get("total_cents"));
-        long newBalance = Math.max(0, total - newPaid);
-        String status = newBalance == 0 ? "PAID" : "PARTIALLY_PAID";
-        jdbcTemplate.update("UPDATE invoice SET paid_cents = ?, balance_cents = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                newPaid, newBalance, status, invoiceId);
-
-        return InvoiceSummaryDto.builder()
-                .invoiceId(invoiceId)
-                .invoiceNo(String.valueOf(invoice.get("invoice_no")))
-                .status(status)
-                .totalCents(total)
-                .paidCents(newPaid)
-                .balanceCents(newBalance)
-                .build();
-    }
-
     private List<FuneralMembershipCoverDto> findLocalMembershipCover(String identityNumber) {
         String mainMemberSql = """
                 SELECT CONCAT('LOCAL:', m.id, ':', p.id, ':MAIN_MEMBER') AS selection_id,

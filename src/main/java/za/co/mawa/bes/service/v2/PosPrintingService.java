@@ -716,11 +716,20 @@ public class PosPrintingService {
                 ? ""
                 : data.getReceiptDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), width);
         receipt.append('\n');
-        line(receipt, "Member", data.getMemberName(), width);
-        line(receipt, "Membership No", data.getMembershipNo(), width);
-        line(receipt, "ID Number", data.getIdentityNumber(), width);
-        line(receipt, "Plan", data.getPlanName(), width);
-        line(receipt, "Period", data.getPeriodDescription(), width);
+        if ("INVOICE".equalsIgnoreCase(data.getSourceType())) {
+            line(receipt, "Customer", data.getCustomerName(), width);
+            line(receipt, "Customer No", data.getCustomerNumber(), width);
+            line(receipt, "Invoice No", data.getInvoiceNo(), width);
+            if (data.getInvoiceReference() != null && !data.getInvoiceReference().isBlank()) {
+                line(receipt, "Invoice Ref", data.getInvoiceReference(), width);
+            }
+        } else {
+            line(receipt, "Member", data.getMemberName(), width);
+            line(receipt, "Membership No", data.getMembershipNo(), width);
+            line(receipt, "ID Number", data.getIdentityNumber(), width);
+            line(receipt, "Plan", data.getPlanName(), width);
+            line(receipt, "Period", data.getPeriodDescription(), width);
+        }
         line(receipt, "Payment", data.getPaymentMethod(), width);
         receipt.append('\n');
         line(receipt, "Amount", money(data.getAmountCents()), width);
