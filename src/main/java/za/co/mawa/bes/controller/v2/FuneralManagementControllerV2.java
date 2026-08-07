@@ -337,7 +337,7 @@ public class FuneralManagementControllerV2 {
     @PostMapping(value = "/generate-invoices", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> generateInvoices(@RequestBody FuneralInvoicePreviewRequestDto request) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(funeralManagementService.generateInvoices(request));
+            return ResponseEntity.ok(funeralManagementService.generateInvoices(request));
         } catch (Exception exception) {
             log.warn("Unable to generate invoices for funeral service {}: {}",
                     request == null ? null : request.getFuneralServiceId(),
