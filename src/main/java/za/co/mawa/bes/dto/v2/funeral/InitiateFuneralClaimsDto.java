@@ -22,9 +22,7 @@ public class InitiateFuneralClaimsDto {
     private List<String> membershipIds;
     private List<String> sourceReferences;
 
-    /**
-     * Preferred claim amount mode from Flutter. If omitted, backend derives it from selected count.
-     */
+    /** Preferred claim amount mode from Flutter. */
     private String claimType;
 
     private String causeOfDeath;
@@ -61,7 +59,10 @@ public class InitiateFuneralClaimsDto {
         String value = claimType == null ? "" : claimType.trim().toUpperCase();
         if ("COMBINATION".equals(value)) return "COMBINATION";
         if ("FUNERAL".equals(value)) return "FUNERAL";
-        return selectedCoverCount > 1 ? "COMBINATION" : "FUNERAL";
+        // Multiple funding memberships are still separate funeral-cover claims.
+        // COMBINATION is a benefit/claim type and must be requested explicitly;
+        // it must not be inferred from how many memberships are selected.
+        return "FUNERAL";
     }
 
     public String getCauseOfDeath() {

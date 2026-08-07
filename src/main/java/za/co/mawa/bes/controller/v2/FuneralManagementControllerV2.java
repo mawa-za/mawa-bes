@@ -325,15 +325,6 @@ public class FuneralManagementControllerV2 {
         }
     }
 
-    @PutMapping(value = "/claims/{membershipClaimId}/approve", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> approveClaim(@PathVariable String membershipClaimId, @RequestBody ApproveFuneralClaimDto request) {
-        try {
-            return ResponseEntity.ok(funeralManagementService.decideClaim(membershipClaimId, request));
-        } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
-        }
-    }
-
     @PostMapping(value = "/invoice-preview", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> previewInvoice(@RequestBody FuneralInvoicePreviewRequestDto request) {
         try {
