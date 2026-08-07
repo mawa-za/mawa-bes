@@ -16,9 +16,17 @@ import za.co.mawa.bes.utils.Conversion;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class RoleService implements RoleDao {
+    private static final String LEGACY_REPORTS_WORKCENTER = "reports";
+    private static final Set<String> GRANULAR_REPORT_WORKCENTERS = Set.of(
+            "management-membership-overview-report",
+            "management-memberships-by-plan-report",
+            "operational-premium-performance-report",
+            "operational-claims-activity-report"
+    );
     @Autowired
     RoleRepository roleRepository;
     @Autowired
@@ -145,6 +153,12 @@ public class RoleService implements RoleDao {
             roleWorkcenterEntity.setRoleWorkcenterPKEntity(roleWorkcenterPKEntity);
             roleWorkcenterEntity.setPosition(roleWorkcenterCreateDto.getPosition());
             roleWorkcenterRepository.save(roleWorkcenterEntity);
+            if (isGranularReportWorkcenter(roleWorkcenterCreateDto.getWorkcenter())) {
+                ensureLegacyReportsMarker(
+                        roleWorkcenterCreateDto.getRole(),
+                        roleWorkcenterCreateDto.getPosition()
+                );
+            }
         } catch (IllegalStateException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -164,11 +178,49 @@ public class RoleService implements RoleDao {
                 throw new IllegalStateException("ACCESS_ALL_ROLE: Workcentre assignments cannot be removed from this role");
             }
             roleWorkcenterRepository.deleteById(entity);
+            if (isGranularReportWorkcenter(entity.getWorkcenter())) {
+                removeLegacyReportsMarkerWhenUnused(entity.getRole());
+            }
             return true;
         } catch (IllegalStateException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
+        }
+    }
+
+    private boolean isGranularReportWorkcenter(String workcenter) {
+        return workcenter != null && GRANULAR_REPORT_WORKCENTERS.contains(workcenter.trim().toLowerCase());
+    }
+
+    /**
+     * Keep the historic reports permission as a hidden compatibility marker.
+     * The reporting service may still use it while ERP access is controlled by
+     * the new per-report workcentres.
+     */
+    private void ensureLegacyReportsMarker(String role, Integer requestedPosition) {
+        RoleWorkcenterPKEntity markerPk = new RoleWorkcenterPKEntity();
+        markerPk.setRole(role);
+        markerPk.setWorkcenter(LEGACY_REPORTS_WORKCENTER);
+        if (roleWorkcenterRepository.existsById(markerPk)) return;
+
+        RoleWorkcenterEntity marker = new RoleWorkcenterEntity();
+        marker.setRoleWorkcenterPKEntity(markerPk);
+        marker.setPosition(requestedPosition == null ? 999 : requestedPosition);
+        roleWorkcenterRepository.save(marker);
+    }
+
+    private void removeLegacyReportsMarkerWhenUnused(String role) {
+        boolean anyGranularReport = roleWorkcenterRepository.findRoleWorkcenters(role).stream()
+                .map(item -> item.getRoleWorkcenterPKEntity().getWorkcenter())
+                .anyMatch(this::isGranularReportWorkcenter);
+        if (anyGranularReport) return;
+
+        RoleWorkcenterPKEntity markerPk = new RoleWorkcenterPKEntity();
+        markerPk.setRole(role);
+        markerPk.setWorkcenter(LEGACY_REPORTS_WORKCENTER);
+        if (roleWorkcenterRepository.existsById(markerPk)) {
+            roleWorkcenterRepository.deleteById(markerPk);
         }
     }
 
