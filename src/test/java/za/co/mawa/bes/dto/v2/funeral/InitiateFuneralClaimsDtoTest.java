@@ -20,7 +20,24 @@ class InitiateFuneralClaimsDtoTest {
         request.setClaimType("GROCERY");
 
         assertEquals("FUNERAL", request.getEffectiveClaimType(1));
+        assertEquals("FUNERAL", request.getEffectiveClaimType(2));
+    }
+
+    @Test
+    void combinationMustBeRequestedExplicitly() {
+        InitiateFuneralClaimsDto request = new InitiateFuneralClaimsDto();
+        request.setClaimType("COMBINATION");
+
+        assertEquals("COMBINATION", request.getEffectiveClaimType(1));
         assertEquals("COMBINATION", request.getEffectiveClaimType(2));
+    }
+
+    @Test
+    void invoicePreviewAlsoDefaultsMultipleMembershipsToFuneral() {
+        FuneralInvoicePreviewRequestDto request = new FuneralInvoicePreviewRequestDto();
+
+        assertEquals("FUNERAL", request.getEffectiveClaimType(1));
+        assertEquals("FUNERAL", request.getEffectiveClaimType(2));
     }
 
     @Test
