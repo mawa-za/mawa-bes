@@ -783,55 +783,6 @@ public class FuneralManagementService {
         return claims;
     }
 
-    /**
-     * Convenience endpoint for early testing. In production, the existing approval/payment workflow should update
-     * membership_claim, and this endpoint can be removed or restricted to administrators.
-     */
-    @Transactional
-    public FuneralClaimDto decideClaim(String membershipClaimId, ApproveFuneralClaimDto request) {
-        String status = request.getStatus() == null ? "APPROVED" : request.getStatus().trim().toUpperCase();
-        if (!List.of("SUBMITTED", "APPROVED", "PARTIALLY_APPROVED", "REJECTED", "CANCELLED", "PAID").contains(status)) {
-            throw new IllegalArgumentException("Unsupported claim status: " + status);
-        }
-
-        Optional<FuneralServiceClaimEntity> link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId);
-        if (link.isPresent() && isExternalClaimStorage(link.get())) {
-            throw new IllegalArgumentException(
-                    "External claims must be approved, rejected or cancelled in the source membership tenant");
-        }
-        String claimTable = "membership_claim";
-
-        Long claimAmount = jdbcTemplate.queryForObject(
-                "SELECT claim_amount_cents FROM " + claimTable + " WHERE id = ?",
-                Long.class,
-                membershipClaimId);
-        long approvedAmount = "REJECTED".equals(status) || "CANCELLED".equals(status) ? 0L : defaultLong(request.getApprovedAmountCents());
-        if (("APPROVED".equals(status) || "PARTIALLY_APPROVED".equals(status)) && approvedAmount <= 0) {
-            approvedAmount = defaultLong(claimAmount);
-        }
-        if (approvedAmount > defaultLong(claimAmount)) {
-            throw new IllegalArgumentException("approvedAmountCents may not exceed claim_amount_cents");
-        }
-        if (approvedAmount < defaultLong(claimAmount) && "APPROVED".equals(status)) {
-            status = "PARTIALLY_APPROVED";
-        }
-
-        jdbcTemplate.update("""
-                UPDATE %s
-                   SET status = ?,
-                       approved_amount_cents = ?,
-                       rejection_reason = ?,
-                       approved_at = CASE WHEN ? IN ('APPROVED','PARTIALLY_APPROVED','PAID','REJECTED','CANCELLED') THEN CURRENT_TIMESTAMP ELSE approved_at END,
-                       updated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?
-                """.formatted(claimTable), status, approvedAmount, request.getDecisionNotes(), status, membershipClaimId);
-
-        updateFuneralServiceClaimStatus(membershipClaimId);
-        if (List.of("APPROVED","PARTIALLY_APPROVED").contains(status)) {
-            funeralClaimSettlementService.settleApprovedClaim(membershipClaimId, "SYSTEM");
-        }
-        return readClaimDto(membershipClaimId);
-    }
 
     public List<FuneralInvoiceSplitDto> previewInvoiceSplit(FuneralInvoicePreviewRequestDto request) {
         if (request.getFuneralServiceId() != null && !request.getFuneralServiceId().isBlank()) {
