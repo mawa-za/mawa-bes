@@ -197,6 +197,7 @@ public class GroupSocietyFuneralClaimService {
                 .approvedCoverCents(rs.getLong("approved_cover_cents"))
                 .status(rs.getString("status"))
                 .approvalRequestId(rs.getString("approval_request_id"))
+                .paymentRequestId(rs.getString("payment_request_id"))
                 .notes(rs.getString("notes"))
                 .createdAt(created == null ? null : created.toLocalDateTime())
                 .build();

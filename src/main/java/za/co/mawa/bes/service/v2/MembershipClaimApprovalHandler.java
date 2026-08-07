@@ -36,11 +36,22 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
         MembershipClaimResponse claim = membershipClaimService
                 .markApprovedFromWorkflow(approvalRequest.getReferenceId(), actionBy);
 
-        if (claim != null && (claim.getClaimType() == MembershipClaimType.FUNERAL || claim.getClaimType() == MembershipClaimType.COMBINATION)) {
-            funeralClaimSettlementService.settleApprovedClaim(claim.getId(), actionBy);
+        if (claim == null) {
+            return;
         }
 
-        if (claim != null && claim.getClaimType() == MembershipClaimType.CASH) {
+        if (claim.getClaimType() == MembershipClaimType.FUNERAL
+                || claim.getClaimType() == MembershipClaimType.COMBINATION) {
+            PaymentRequestResponse paymentRequest = funeralClaimSettlementService
+                    .settleApprovedClaim(claim.getId(), actionBy);
+            if (paymentRequest != null) {
+                membershipClaimService.linkPaymentRequest(paymentRequest, actionBy);
+            }
+            return;
+        }
+
+        if (claim.getClaimType() == MembershipClaimType.CASH
+                || claim.getClaimType() == MembershipClaimType.GROCERY) {
             PaymentRequestResponse paymentRequest = paymentRequestService
                     .createOrReuseApprovedClaimPayout(claim, approvalRequest, actionBy);
             membershipClaimService.linkPaymentRequest(paymentRequest, actionBy);

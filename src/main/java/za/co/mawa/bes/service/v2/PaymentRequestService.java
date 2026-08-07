@@ -18,6 +18,7 @@ import za.co.mawa.bes.enums.PaymentRequestSourceType;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
+import za.co.mawa.bes.enums.MembershipClaimType;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestStatusHistoryRepository;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
@@ -146,17 +147,34 @@ public class PaymentRequestService {
         if (claim == null || claim.getId() == null) {
             throw new IllegalArgumentException("Approved claim is required");
         }
+        if (claim.getClaimType() != MembershipClaimType.CASH
+                && claim.getClaimType() != MembershipClaimType.GROCERY) {
+            throw new IllegalArgumentException("Direct claim payout is supported only for CASH and GROCERY claims");
+        }
+
+        String claimLabel = claim.getClaimType().name();
+        String paymentPurpose = claim.getClaimType() == MembershipClaimType.GROCERY
+                ? "GROCERY_CLAIM_DISBURSEMENT"
+                : "CASH_CLAIM_DISBURSEMENT";
+        String paymentReason = claim.getClaimType() == MembershipClaimType.GROCERY
+                ? "GROCERY-CLAIM-PAYOUT"
+                : "CASH-CLAIM-PAYOUT";
+        PaymentMethod payoutMethod = claim.getPayoutMethod();
+        if (payoutMethod == null && claim.getClaimType() == MembershipClaimType.GROCERY) {
+            payoutMethod = PaymentMethod.CASH;
+        }
+        if (payoutMethod == null) {
+            throw new IllegalArgumentException("Payout method is required before approving a " + claimLabel + " claim");
+        }
+
         long payoutAmountCents = claim.getApprovedAmountCents() != null && claim.getApprovedAmountCents() > 0
                 ? claim.getApprovedAmountCents()
                 : (claim.getClaimAmountCents() == null ? 0L : claim.getClaimAmountCents());
         if (payoutAmountCents <= 0) {
-            throw new IllegalArgumentException("Approved CASH claim amount must be greater than zero");
-        }
-        if (claim.getPayoutMethod() == null) {
-            throw new IllegalArgumentException("Payout method is required before approving a CASH claim");
+            throw new IllegalArgumentException("Approved " + claimLabel + " claim amount must be greater than zero");
         }
 
-        String idempotencyKey = claimPayoutIdempotencyKey(claim.getId());
+        String idempotencyKey = claimPayoutIdempotencyKey(claim.getId(), paymentPurpose);
         PaymentRequestEntity entity = paymentRequestRepository.findByIdempotencyKey(idempotencyKey)
                 .orElseGet(() -> paymentRequestRepository
                         .findFirstBySourceTypeAndSourceIdAndRequestTypeOrderByCreatedAtAsc(
@@ -173,78 +191,34 @@ public class PaymentRequestService {
             entity.setRequestType(PaymentRequestType.CLAIM_PAYOUT);
             entity.setSourceType(PaymentRequestSourceType.MEMBERSHIP_CLAIM);
             entity.setSourceId(claim.getId());
-            entity.setPayeePartnerId(claim.getClaimantPartnerId());
-            entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
-            entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
             entity.setCurrency("ZAR");
-            if (claim.getPayoutMethod() == PaymentMethod.CASH) {
-                var cashAccount = paymentAccountConfigurationService.activeCreditor("CASH_CLAIM_CREDITOR");
-                if (cashAccount.isPresent()) {
-                    entity.setPaymentMethod(PaymentMethod.EFT);
-                    entity.setBankName(java.util.Objects.toString(cashAccount.get().get("bank_name"), null));
-                    entity.setAccountHolder(java.util.Objects.toString(cashAccount.get().get("account_holder"), null));
-                    entity.setAccountNumber(java.util.Objects.toString(cashAccount.get().get("account_number"), null));
-                    entity.setBranchCode(java.util.Objects.toString(cashAccount.get().get("branch_code"), null));
-                    entity.setAccountType(java.util.Objects.toString(cashAccount.get().get("account_type"), null));
-                } else {
-                    entity.setPaymentMethod(PaymentMethod.MANUAL);
-                }
-            } else {
-                entity.setPaymentMethod(claim.getPayoutMethod());
-                entity.setBankName(claim.getBankName());
-                entity.setAccountHolder(claim.getAccountHolderName());
-                entity.setAccountNumber(claim.getAccountNumber());
-                entity.setBranchCode(claim.getBranchCode());
-                entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
-            }
-            entity.setExternalReference("CLAIM-" + claim.getClaimNo());
-            entity.setPaymentReason("CASH-CLAIM-PAYOUT");
-            entity.setPaymentPurpose("CASH_CLAIM_DISBURSEMENT");
             entity.setRequestedPaymentDate(LocalDate.now());
             entity.setCreatedBy(systemActor(actionBy));
         }
 
-        // Immutable snapshot used by the bank. For an existing DRAFT request created by the
-        // previous implementation, fill missing values before inheriting claim approval.
-        if (entity.getStatus() == null || entity.getStatus() == PaymentRequestStatus.DRAFT
-                || entity.getStatus() == PaymentRequestStatus.PENDING_APPROVAL) {
+        PaymentRequestStatus oldStatus = entity.getStatus();
+        if (created || oldStatus == null || oldStatus == PaymentRequestStatus.DRAFT
+                || oldStatus == PaymentRequestStatus.PENDING_APPROVAL
+                || oldStatus == PaymentRequestStatus.REJECTED) {
             entity.setPayeePartnerId(claim.getClaimantPartnerId());
             entity.setPayeeName(firstNonBlank(claim.getAccountHolderName(), claim.getClaimantName()));
             entity.setAmount(BigDecimal.valueOf(payoutAmountCents, 2));
-            if (claim.getPayoutMethod() == PaymentMethod.CASH) {
-                var cashAccount = paymentAccountConfigurationService.activeCreditor("CASH_CLAIM_CREDITOR");
-                if (cashAccount.isPresent()) {
-                    entity.setPaymentMethod(PaymentMethod.EFT);
-                    entity.setBankName(java.util.Objects.toString(cashAccount.get().get("bank_name"), null));
-                    entity.setAccountHolder(java.util.Objects.toString(cashAccount.get().get("account_holder"), null));
-                    entity.setAccountNumber(java.util.Objects.toString(cashAccount.get().get("account_number"), null));
-                    entity.setBranchCode(java.util.Objects.toString(cashAccount.get().get("branch_code"), null));
-                    entity.setAccountType(java.util.Objects.toString(cashAccount.get().get("account_type"), null));
-                } else {
-                    entity.setPaymentMethod(PaymentMethod.MANUAL);
-                }
-            } else {
-                entity.setPaymentMethod(claim.getPayoutMethod());
-                entity.setBankName(claim.getBankName());
-                entity.setAccountHolder(claim.getAccountHolderName());
-                entity.setAccountNumber(claim.getAccountNumber());
-                entity.setBranchCode(claim.getBranchCode());
-                entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
-            }
+            applyClaimPayoutDetails(entity, claim, payoutMethod);
+            entity.setExternalReference(claimLabel + "-CLAIM-" + claim.getClaimNo());
+            entity.setPaymentReason(paymentReason);
         }
 
+        entity.setPaymentPurpose(paymentPurpose);
         applyConfiguredRouting(entity);
         entity.setIdempotencyKey(idempotencyKey);
         entity.setApprovalRequestId(approvalRequest == null ? claim.getApprovalRequestId() : approvalRequest.getId());
         entity.setApprovalSource("CLAIM_APPROVAL");
         entity.setApprovalReference(approvalRequest == null ? claim.getApprovalRequestId() : approvalRequest.getId());
         entity.setApprovalInherited(true);
-        entity.setPaymentPurpose("CASH_CLAIM_DISBURSEMENT");
         entity.setUpdatedBy(systemActor(actionBy));
 
         validateEntity(entity);
 
-        PaymentRequestStatus oldStatus = entity.getStatus();
         if (oldStatus == null || oldStatus == PaymentRequestStatus.DRAFT
                 || oldStatus == PaymentRequestStatus.PENDING_APPROVAL
                 || oldStatus == PaymentRequestStatus.REJECTED) {
@@ -256,10 +230,12 @@ public class PaymentRequestService {
         PaymentRequestEntity saved = paymentRequestRepository.save(entity);
         if (created) {
             saveHistory(saved.getId(), null, PaymentRequestStatus.APPROVED,
-                    "Payment request created and authorised by approved CASH claim", systemActor(actionBy));
+                    "Payment request created and authorised by approved " + claimLabel + " claim",
+                    systemActor(actionBy));
         } else if (oldStatus != saved.getStatus()) {
             saveHistory(saved.getId(), oldStatus, saved.getStatus(),
-                    "Payment approval inherited from approved CASH claim", systemActor(actionBy));
+                    "Payment approval inherited from approved " + claimLabel + " claim",
+                    systemActor(actionBy));
         }
 
         if (saved.getStatus() == PaymentRequestStatus.APPROVED) {
@@ -267,6 +243,43 @@ public class PaymentRequestService {
             saved = paymentRequestRepository.findById(saved.getId()).orElse(saved);
         }
         return toResponse(saved);
+    }
+
+    private void applyClaimPayoutDetails(
+            PaymentRequestEntity entity,
+            MembershipClaimResponse claim,
+            PaymentMethod payoutMethod
+    ) {
+        if (payoutMethod == PaymentMethod.CASH) {
+            var cashAccount = paymentAccountConfigurationService.activeCreditor("CASH_CLAIM_CREDITOR");
+            if (cashAccount.isPresent()) {
+                entity.setPaymentMethod(PaymentMethod.EFT);
+                entity.setBankName(java.util.Objects.toString(cashAccount.get().get("bank_name"), null));
+                entity.setAccountHolder(java.util.Objects.toString(cashAccount.get().get("account_holder"), null));
+                entity.setAccountNumber(java.util.Objects.toString(cashAccount.get().get("account_number"), null));
+                entity.setBranchCode(java.util.Objects.toString(cashAccount.get().get("branch_code"), null));
+                entity.setAccountType(java.util.Objects.toString(cashAccount.get().get("account_type"), null));
+            } else {
+                entity.setPaymentMethod(PaymentMethod.MANUAL);
+                clearBanking(entity);
+            }
+            return;
+        }
+
+        entity.setPaymentMethod(payoutMethod);
+        entity.setBankName(claim.getBankName());
+        entity.setAccountHolder(claim.getAccountHolderName());
+        entity.setAccountNumber(claim.getAccountNumber());
+        entity.setBranchCode(claim.getBranchCode());
+        entity.setAccountType(claim.getAccountType() == null ? null : claim.getAccountType().name());
+    }
+
+    private void clearBanking(PaymentRequestEntity entity) {
+        entity.setBankName(null);
+        entity.setAccountHolder(null);
+        entity.setAccountNumber(null);
+        entity.setBranchCode(null);
+        entity.setAccountType(null);
     }
 
 
@@ -750,8 +763,8 @@ public class PaymentRequestService {
         return fallback;
     }
 
-    private String claimPayoutIdempotencyKey(String claimId) {
-        return "MEMBERSHIP_CLAIM:" + claimId + ":CASH_CLAIM_DISBURSEMENT";
+    private String claimPayoutIdempotencyKey(String claimId, String paymentPurpose) {
+        return "MEMBERSHIP_CLAIM:" + claimId + ":" + paymentPurpose;
     }
 
     private String systemActor(String updatedBy) {
@@ -848,7 +861,9 @@ public class PaymentRequestService {
         }
         String creditorRole = entity.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT
                 ? "PETTY_CASH_CREDITOR"
-                : (entity.getRequestType() == PaymentRequestType.CLAIM_PAYOUT && "CASH_CLAIM_DISBURSEMENT".equals(entity.getPaymentPurpose())
+                : (entity.getRequestType() == PaymentRequestType.CLAIM_PAYOUT
+                   && java.util.Set.of("CASH_CLAIM_DISBURSEMENT", "GROCERY_CLAIM_DISBURSEMENT")
+                           .contains(entity.getPaymentPurpose())
                    ? "CASH_CLAIM_CREDITOR" : null);
         if (creditorRole != null) {
             paymentAccountConfigurationService.activeCreditor(creditorRole).ifPresent(a ->
@@ -896,6 +911,13 @@ public class PaymentRequestService {
         if (debtor.isEmpty()) { request.setPaymentMethod(PaymentMethod.MANUAL); return; }
         String integration = java.util.Objects.toString(debtor.get().get("bank_integration"), "");
         boolean fnb = "FNB".equalsIgnoreCase(integration) && isFnbEnabled();
+        if (request.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT
+                && request.getPaymentMethod() == PaymentMethod.MANUAL) {
+            // A funeral/provider payment must still be created when no approved
+            // provider banking details exist. FNB automation is used only when
+            // both the debtor integration and the provider banking are ready.
+            return;
+        }
         request.setPaymentMethod(fnb ? PaymentMethod.EFT : PaymentMethod.MANUAL);
     }
 
