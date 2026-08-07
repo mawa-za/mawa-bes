@@ -77,7 +77,14 @@ public class InvoiceService {
 
         if (invoice.getLines() == null) invoice.setLines(new java.util.ArrayList<>());
         if (invoice.getPayments() == null) invoice.setPayments(new java.util.ArrayList<>());
+        if (invoice.getStatus() == null || invoice.getStatus().isBlank()) invoice.setStatus("DRAFT");
+        if (invoice.getPaidCents() == null) invoice.setPaidCents(0L);
         if (invoice.getCreditedCents() == null) invoice.setCreditedCents(0L);
+        // Never trust a client-provided/default balance for a new invoice. The entity
+        // defaults this field to zero, so an omitted JSON field otherwise looks like a
+        // fully-paid invoice before any payment has been captured.
+        invoice.setBalanceCents(Math.max(0L,
+                value(invoice.getTotalCents()) - value(invoice.getPaidCents()) - value(invoice.getCreditedCents())));
         invoice.getLines().forEach(line -> {
             if (line.getShowAmount() == null) line.setShowAmount(true);
             if (line.getProductId() != null && !line.getProductId().isBlank()) {
@@ -319,6 +326,7 @@ public class InvoiceService {
             try {
                 PartnerDto partner = partnerService.get(invoice.getPartnerId());
                 dto.setPartnerName(partner == null ? null : fullName(partner));
+                dto.setPartnerNumber(partner == null ? null : partner.getNumber());
             } catch (Exception ignored) {
                 // Historical invoices may reference a partner that is no longer available.
                 // Keep the invoice readable and allow the client to display the partner reference.
@@ -360,6 +368,17 @@ public class InvoiceService {
         }).toList();
 
         dto.setLines(lineDtos);
+
+        List<InvoicePaymentEntity> payments = invoice.getPayments() == null ? List.of() : invoice.getPayments();
+        dto.setPayments(payments.stream().map(payment -> {
+            InvoiceOutboundDto.InvoicePaymentDto paymentDto = new InvoiceOutboundDto.InvoicePaymentDto();
+            paymentDto.setId(payment.getId());
+            paymentDto.setPaymentDate(payment.getPaymentDate());
+            paymentDto.setAmountCents(Conversion.safeLongToInteger(payment.getAmountCents()));
+            paymentDto.setPaymentMethod(payment.getPaymentMethod());
+            paymentDto.setReferenceNo(payment.getReferenceNo());
+            return paymentDto;
+        }).toList());
         return dto;
     }
 

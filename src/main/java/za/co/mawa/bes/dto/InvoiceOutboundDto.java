@@ -8,6 +8,7 @@ public class InvoiceOutboundDto {
     private String invoiceNo;
     private String partnerId;
     private String partnerName;
+    private String partnerNumber;
     private String sourceType;
     private String sourceId;
     private LocalDate invoiceDate;
@@ -29,6 +30,26 @@ public class InvoiceOutboundDto {
     private String integrationError;
 
     private List<InvoiceLineDto> lines;
+    private List<InvoicePaymentDto> payments;
+
+    public static class InvoicePaymentDto {
+        private String id;
+        private java.time.LocalDateTime paymentDate;
+        private Integer amountCents;
+        private String paymentMethod;
+        private String referenceNo;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public java.time.LocalDateTime getPaymentDate() { return paymentDate; }
+        public void setPaymentDate(java.time.LocalDateTime paymentDate) { this.paymentDate = paymentDate; }
+        public Integer getAmountCents() { return amountCents; }
+        public void setAmountCents(Integer amountCents) { this.amountCents = amountCents; }
+        public String getPaymentMethod() { return paymentMethod; }
+        public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+        public String getReferenceNo() { return referenceNo; }
+        public void setReferenceNo(String referenceNo) { this.referenceNo = referenceNo; }
+    }
 
     public static class InvoiceLineDto {
         private String productId;
@@ -146,6 +167,14 @@ public class InvoiceOutboundDto {
 
     public void setPartnerName(String partnerName) {
         this.partnerName = partnerName;
+    }
+
+    public String getPartnerNumber() {
+        return partnerNumber;
+    }
+
+    public void setPartnerNumber(String partnerNumber) {
+        this.partnerNumber = partnerNumber;
     }
 
     public String getSourceType() {
@@ -307,4 +336,8 @@ public class InvoiceOutboundDto {
     public void setLines(List<InvoiceLineDto> lines) {
         this.lines = lines;
     }
+    public List<InvoicePaymentDto> getPayments() { return payments; }
+
+    public void setPayments(List<InvoicePaymentDto> payments) { this.payments = payments; }
+
 }

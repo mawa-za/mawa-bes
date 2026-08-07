@@ -131,6 +131,20 @@ public class ReceiptService {
                 """, receipt.getReceivedFromPartnerId());
             if (!rows.isEmpty()) member = rows.get(0);
         }
+
+        java.util.Map<String,Object> invoice = new java.util.HashMap<>();
+        if (receipt.getSourceType() == ReceiptSourceType.INVOICE && firstAllocation != null
+                && firstAllocation.getReferenceId() != null && !firstAllocation.getReferenceId().isBlank()) {
+            var rows = jdbcTemplate.queryForList("""
+                SELECT i.id invoice_id, i.invoice_no, i.external_ref,
+                       p.number customer_number,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''),NULLIF(p.name4,''))) customer_name
+                  FROM invoice i
+             LEFT JOIN partner p ON p.id=i.partner_id
+                 WHERE i.id=?
+                """, firstAllocation.getReferenceId());
+            if (!rows.isEmpty()) invoice = rows.get(0);
+        }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
                 .traceId(receipt.getTraceId())
@@ -144,6 +158,15 @@ public class ReceiptService {
                 .premiumPeriodYYYYMM(firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM())
                 .periodDescription(formatPeriodDescription(
                         firstAllocation == null ? null : firstAllocation.getPeriodYYYYMM()))
+                .invoiceId(java.util.Objects.toString(invoice.get("invoice_id"),
+                        firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.INVOICE
+                                ? firstAllocation.getReferenceId() : ""))
+                .invoiceNo(java.util.Objects.toString(invoice.get("invoice_no"),
+                        firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.INVOICE
+                                ? firstAllocation.getReferenceNo() : ""))
+                .invoiceReference(java.util.Objects.toString(invoice.get("external_ref"), ""))
+                .customerName(java.util.Objects.toString(invoice.get("customer_name"), ""))
+                .customerNumber(java.util.Objects.toString(invoice.get("customer_number"), ""))
                 .amountCents(firstAllocation == null ? receipt.getTotalAmountCents() : firstAllocation.getAmountCents())
                 .paymentMethod(receipt.getPaymentMethod())
                 .receiptDate(receipt.getReceiptDate())
