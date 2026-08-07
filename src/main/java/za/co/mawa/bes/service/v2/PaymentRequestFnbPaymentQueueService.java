@@ -157,6 +157,18 @@ public class PaymentRequestFnbPaymentQueueService {
             );
         }
 
+        if (isBlank(paymentRequest.getAccountNumber())
+                || isBlank(paymentRequest.getBranchCode())
+                || isBlank(paymentRequest.getAccountType())
+                || (isBlank(paymentRequest.getAccountHolder()) && isBlank(paymentRequest.getPayeeName()))) {
+            return notQueueable(
+                    paymentRequest,
+                    "Bank message not queued because approved creditor banking details are incomplete.",
+                    failWhenNotQueueable,
+                    actionBy
+            );
+        }
+
         String debtorAccountId = Objects.toString(debtor.get("id"), null);
         boolean routingChanged = !Objects.equals(paymentRequest.getDebtorAccountId(), debtorAccountId)
                 || !"FNB".equalsIgnoreCase(paymentRequest.getBankIntegration())
@@ -255,6 +267,10 @@ public class PaymentRequestFnbPaymentQueueService {
         history.setComment(comment);
         history.setChangedBy(currentUser);
         statusHistoryRepository.save(history);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String firstNonBlank(String primary, String fallback) {
