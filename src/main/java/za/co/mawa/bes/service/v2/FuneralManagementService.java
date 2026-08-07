@@ -787,7 +787,7 @@ public class FuneralManagementService {
     public List<FuneralInvoiceSplitDto> previewInvoiceSplit(FuneralInvoicePreviewRequestDto request) {
         if (request.getFuneralServiceId() != null && !request.getFuneralServiceId().isBlank()) {
             FuneralServiceEntity service = getFuneralServiceOrThrow(request.getFuneralServiceId());
-            return buildSplitsFromApprovedClaims(service);
+            return attachExistingInvoiceReferences(service.getId(), buildSplitsFromApprovedClaims(service));
         }
 
         validateRequired(request.getPackageId(), "packageId");
@@ -836,20 +836,68 @@ public class FuneralManagementService {
     @Transactional
     public GenerateFuneralInvoicesResponseDto generateInvoices(FuneralInvoicePreviewRequestDto request) {
         validateRequired(request.getFuneralServiceId(), "funeralServiceId");
+        // Acquire the row lock before any non-locking read in this transaction. On MySQL's default
+        // REPEATABLE READ isolation this ensures a second concurrent request sees the invoices
+        // committed by the first request after it obtains the lock.
+        List<String> lockedServiceIds = jdbcTemplate.query(
+                "SELECT id FROM funeral_service WHERE id = ? FOR UPDATE",
+                (rs, rowNum) -> rs.getString(1),
+                request.getFuneralServiceId());
+        if (lockedServiceIds.isEmpty()) {
+            throw new IllegalArgumentException("Funeral service request not found: " + request.getFuneralServiceId());
+        }
         FuneralServiceEntity service = getFuneralServiceOrThrow(request.getFuneralServiceId());
         List<FuneralInvoiceSplitDto> splits = buildSplitsFromApprovedClaims(service);
         if (splits.isEmpty()) {
             throw new IllegalArgumentException("No invoice splits generated. Resolve claims first or check funeral amount.");
         }
 
+        // Invoice generation is deliberately idempotent. Approval processing can create an
+        // invoice link before the wizard reaches this step, and users can also revisit the
+        // wizard. Reconcile each logical split with its existing invoice instead of inserting
+        // another invoice every time Generate Final Invoices is selected.
+        List<FuneralServiceInvoiceEntity> existingLinks = funeralServiceInvoiceRepository
+                .findByFuneralServiceId(service.getId());
+        Map<String, Boolean> financiallyActiveLinks = existingLinks.stream()
+                .collect(Collectors.toMap(
+                        link -> defaultString(link.getId(), link.getInvoiceId()),
+                        this::hasIndependentFuneralInvoiceActivity,
+                        (first, ignored) -> first));
+        Comparator<FuneralServiceInvoiceEntity> linkPreference = Comparator
+                .comparing((FuneralServiceInvoiceEntity link) -> financiallyActiveLinks.getOrDefault(
+                        defaultString(link.getId(), link.getInvoiceId()), false) ? 0 : 1)
+                .thenComparing(
+                        FuneralServiceInvoiceEntity::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+        Map<String, Deque<FuneralServiceInvoiceEntity>> existingBySplit = existingLinks.stream()
+                .sorted(linkPreference)
+                .collect(Collectors.groupingBy(
+                        this::funeralInvoiceSplitKey,
+                        LinkedHashMap::new,
+                        Collectors.toCollection(ArrayDeque::new)));
+
         List<String> invoiceIds = new ArrayList<>();
         for (FuneralInvoiceSplitDto split : splits) {
-            String invoiceId = createInvoice(service, split);
+            String splitKey = funeralInvoiceSplitKey(split);
+            Deque<FuneralServiceInvoiceEntity> candidates = existingBySplit.get(splitKey);
+            FuneralServiceInvoiceEntity link = candidates == null ? null : candidates.pollFirst();
+
+            String invoiceId;
+            if (link != null
+                    && StringUtils.hasText(link.getInvoiceId())
+                    && invoiceRepository.existsById(link.getInvoiceId())) {
+                invoiceId = link.getInvoiceId();
+                updateInvoice(service, split, invoiceId, link);
+            } else {
+                invoiceId = createInvoice(service, split);
+                if (link == null) {
+                    link = new FuneralServiceInvoiceEntity();
+                    link.setFuneralServiceId(service.getId());
+                }
+                link.setInvoiceId(invoiceId);
+            }
             invoiceIds.add(invoiceId);
 
-            FuneralServiceInvoiceEntity link = new FuneralServiceInvoiceEntity();
-            link.setFuneralServiceId(service.getId());
-            link.setInvoiceId(invoiceId);
             link.setEntityType(split.getEntityType());
             link.setPartnerId(split.getPartnerId());
             link.setMembershipClaimId(split.getMembershipClaimId());
@@ -864,6 +912,13 @@ public class FuneralManagementService {
             link.setCoverTenantId(defaultString(split.getSourceTenantId(), TenantContext.getCurrentTenant()));
             funeralServiceInvoiceRepository.save(link);
         }
+
+        // Remove stale/duplicate funeral invoices left by earlier generation attempts when
+        // they have no independent financial activity. This also reconciles a family split
+        // that disappears after additional cover is approved.
+        existingBySplit.values().stream()
+                .flatMap(Collection::stream)
+                .forEach(this::retireUnusedFuneralInvoice);
 
         service.setStatus("INVOICED");
         service.setWizardStep(6);
@@ -1391,53 +1446,179 @@ public class FuneralManagementService {
         String invoiceId = UUID.randomUUID().toString();
         String invoiceNo = generateInvoiceNo();
         long invoiceAmount = defaultLong(split.getAmountCents());
-        boolean coveredByApprovedClaim =
-                ("BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
-                        && StringUtils.hasText(split.getMembershipClaimId()))
-                || ("GROUP_SOCIETY".equalsIgnoreCase(split.getEntityType())
-                        && StringUtils.hasText(split.getGroupSocietyClaimId()));
-        long paidAmount = coveredByApprovedClaim ? invoiceAmount : 0L;
-        long balanceAmount = Math.max(0L, invoiceAmount - paidAmount);
-        String status = coveredByApprovedClaim ? "PAID" : "ISSUED";
         LocalDate invoiceDate = LocalDate.now();
         LocalDate dueDate = service.getFuneralDate() == null ? invoiceDate : service.getFuneralDate();
         String externalReference = truncate(defaultString(service.getDeceasedName(), service.getServiceRequestNo()), 100);
-        String notes = "Funeral service " + defaultString(service.getServiceRequestNo(), service.getId())
-                + " for " + defaultString(service.getDeceasedName(), "deceased")
-                + ". " + defaultString(split.getDescription(), "");
+        String notes = funeralInvoiceNotes(service, split);
 
         jdbcTemplate.update("""
                 INSERT INTO invoice
                 (id, invoice_no, external_ref, source_type, source_id, partner_id, invoice_date, due_date, status,
                  subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents, balance_cents, currency, notes, created_at)
-                VALUES (?, ?, ?, 'FUNERAL_SERVICE', ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'ZAR', ?, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, 'FUNERAL_SERVICE', ?, ?, ?, ?, 'ISSUED', ?, 0, 0, ?, 0, ?, 'ZAR', ?, CURRENT_TIMESTAMP)
                 """,
-                invoiceId,
-                invoiceNo,
-                externalReference,
-                service.getId(),
-                split.getPartnerId(),
-                invoiceDate,
-                dueDate,
-                status,
-                invoiceAmount,
-                invoiceAmount,
-                paidAmount,
-                balanceAmount,
-                notes);
+                invoiceId, invoiceNo, externalReference, service.getId(), split.getPartnerId(),
+                invoiceDate, dueDate, invoiceAmount, invoiceAmount, invoiceAmount, notes);
 
-        if (coveredByApprovedClaim && paidAmount > 0) {
+        rebuildFuneralInvoiceLines(service, split, invoiceId);
+        reconcileFuneralCoverPayment(invoiceId, split);
+        return invoiceId;
+    }
+
+    private void updateInvoice(
+            FuneralServiceEntity service,
+            FuneralInvoiceSplitDto split,
+            String invoiceId,
+            FuneralServiceInvoiceEntity link) {
+        long invoiceAmount = defaultLong(split.getAmountCents());
+        assertFuneralInvoiceEditable(invoiceId, link, invoiceAmount);
+        LocalDate dueDate = service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate();
+        String externalReference = truncate(defaultString(service.getDeceasedName(), service.getServiceRequestNo()), 100);
+
+        jdbcTemplate.update("""
+                UPDATE invoice
+                   SET external_ref = ?, source_type = 'FUNERAL_SERVICE', source_id = ?, partner_id = ?,
+                       due_date = ?, subtotal_cents = ?, tax_cents = 0, discount_cents = 0,
+                       total_cents = ?, currency = 'ZAR', notes = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?
+                """,
+                externalReference, service.getId(), split.getPartnerId(), dueDate,
+                invoiceAmount, invoiceAmount, funeralInvoiceNotes(service, split), invoiceId);
+
+        rebuildFuneralInvoiceLines(service, split, invoiceId);
+        reconcileFuneralCoverPayment(invoiceId, split);
+    }
+
+    private void assertFuneralInvoiceEditable(
+            String invoiceId, FuneralServiceInvoiceEntity link, long newTotalCents) {
+        Map<String, Object> invoice = jdbcTemplate.queryForMap(
+                "SELECT invoice_no, total_cents, credited_cents, xero_invoice_id FROM invoice WHERE id = ?",
+                invoiceId);
+        String invoiceNo = Objects.toString(invoice.get("invoice_no"), invoiceId);
+        if (asLong(invoice.get("credited_cents")) > 0) {
+            throw new IllegalStateException(
+                    "Invoice " + invoiceNo + " has a credit note and cannot be regenerated automatically.");
+        }
+        if (StringUtils.hasText(Objects.toString(invoice.get("xero_invoice_id"), null))) {
+            throw new IllegalStateException(
+                    "Invoice " + invoiceNo
+                            + " has already been posted to the accounting integration and cannot be regenerated automatically.");
+        }
+
+        long currentTotal = asLong(invoice.get("total_cents"));
+        if (currentTotal != newTotalCents && link != null && StringUtils.hasText(link.getPaymentRequestId())) {
+            throw new IllegalStateException(
+                    "Invoice " + invoiceNo
+                            + " already has a payment request. Reverse or correct that payment request before changing the invoice amount.");
+        }
+
+        long manualPayments = manualFuneralInvoicePayments(invoiceId);
+        if (currentTotal != newTotalCents && manualPayments > 0) {
+            throw new IllegalStateException(
+                    "Invoice " + invoiceNo
+                            + " already has captured payments. Reverse or correct those payments before changing the invoice amount.");
+        }
+    }
+
+    private boolean hasIndependentFuneralInvoiceActivity(FuneralServiceInvoiceEntity link) {
+        if (link == null || !StringUtils.hasText(link.getInvoiceId())) return false;
+        if (StringUtils.hasText(link.getPaymentRequestId())) return true;
+        InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId()).orElse(null);
+        if (invoice == null) return false;
+        if (StringUtils.hasText(invoice.getXeroInvoiceId()) || defaultLong(invoice.getCreditedCents()) > 0) return true;
+        return manualFuneralInvoicePayments(link.getInvoiceId()) > 0;
+    }
+
+    private long manualFuneralInvoicePayments(String invoiceId) {
+        return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                SELECT COALESCE(SUM(amount_cents), 0)
+                  FROM invoice_payment
+                 WHERE invoice_id = ?
+                   AND COALESCE(payment_method, '') NOT IN ('MEMBERSHIP_COVER', 'GROUP_SOCIETY_COVER')
+                """, Long.class, invoiceId)).orElse(0L);
+    }
+
+    private void retireUnusedFuneralInvoice(FuneralServiceInvoiceEntity link) {
+        if (link == null || !StringUtils.hasText(link.getInvoiceId())) return;
+        String invoiceId = link.getInvoiceId();
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId).orElse(null);
+        if (invoice == null) {
+            funeralServiceInvoiceRepository.delete(link);
+            return;
+        }
+
+        long manualPayments = manualFuneralInvoicePayments(invoiceId);
+        boolean externallyReferenced = StringUtils.hasText(link.getPaymentRequestId())
+                || StringUtils.hasText(invoice.getXeroInvoiceId())
+                || defaultLong(invoice.getCreditedCents()) > 0;
+
+        if (manualPayments > 0 || externallyReferenced) {
+            throw new IllegalStateException(
+                    "Obsolete or duplicate invoice " + defaultString(invoice.getInvoiceNo(), invoiceId)
+                            + " has financial activity and cannot be removed automatically. Reconcile that invoice before regenerating.");
+        }
+
+        jdbcTemplate.update("DELETE FROM invoice_payment WHERE invoice_id = ?", invoiceId);
+        jdbcTemplate.update("DELETE FROM invoice_line WHERE invoice_id = ?", invoiceId);
+        funeralServiceInvoiceRepository.delete(link);
+        invoiceRepository.deleteById(invoiceId);
+    }
+
+    private String funeralInvoiceNotes(FuneralServiceEntity service, FuneralInvoiceSplitDto split) {
+        return "Funeral service " + defaultString(service.getServiceRequestNo(), service.getId())
+                + " for " + defaultString(service.getDeceasedName(), "deceased")
+                + ". " + defaultString(split.getDescription(), "");
+    }
+
+    private void reconcileFuneralCoverPayment(String invoiceId, FuneralInvoiceSplitDto split) {
+        boolean coveredByApprovedClaim =
+                ("BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                        && StringUtils.hasText(split.getMembershipClaimId()))
+                || ("GROUP_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                        && StringUtils.hasText(split.getGroupSocietyClaimId()));
+
+        // Replace only the system-generated cover allocation. Cash/card/EFT payments captured
+        // by users remain untouched when the funeral invoice is regenerated.
+        jdbcTemplate.update("""
+                DELETE FROM invoice_payment
+                 WHERE invoice_id = ?
+                   AND payment_method IN ('MEMBERSHIP_COVER', 'GROUP_SOCIETY_COVER')
+                """, invoiceId);
+
+        long credited = Optional.ofNullable(jdbcTemplate.queryForObject(
+                "SELECT COALESCE(credited_cents, 0) FROM invoice WHERE id = ?", Long.class, invoiceId)).orElse(0L);
+        long total = defaultLong(split.getAmountCents());
+        long paidBeforeCover = Optional.ofNullable(jdbcTemplate.queryForObject(
+                "SELECT COALESCE(SUM(amount_cents), 0) FROM invoice_payment WHERE invoice_id = ?",
+                Long.class, invoiceId)).orElse(0L);
+        long coverAllocation = coveredByApprovedClaim
+                ? Math.max(0L, total - paidBeforeCover - credited)
+                : 0L;
+
+        if (coverAllocation > 0) {
             jdbcTemplate.update("""
                     INSERT INTO invoice_payment
                     (id, invoice_id, payment_date, amount_cents, payment_method, reference_no, created_at)
                     VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, CURRENT_TIMESTAMP)
-                    """, UUID.randomUUID().toString(), invoiceId, paidAmount,
+                    """, UUID.randomUUID().toString(), invoiceId, coverAllocation,
                     StringUtils.hasText(split.getGroupSocietyClaimId())
                             ? "GROUP_SOCIETY_COVER" : "MEMBERSHIP_COVER",
                     truncate(defaultString(split.getDescription(),
                             defaultString(split.getMembershipClaimId(), split.getGroupSocietyClaimId())), 100));
         }
 
+        long paid = paidBeforeCover + coverAllocation;
+        long balance = Math.max(0L, total - paid - credited);
+        String status = balance == 0 ? "PAID" : (paid > 0 ? "PARTIALLY_PAID" : "ISSUED");
+        jdbcTemplate.update(
+                "UPDATE invoice SET paid_cents = ?, balance_cents = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                paid, balance, status, invoiceId);
+    }
+
+    private void rebuildFuneralInvoiceLines(FuneralServiceEntity service, FuneralInvoiceSplitDto split, String invoiceId) {
+        jdbcTemplate.update("DELETE FROM invoice_line WHERE invoice_id = ?", invoiceId);
+
+        long invoiceAmount = defaultLong(split.getAmountCents());
         FuneralPackageEntity funeralPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
         String packageName = funeralPackage == null ? "FUNERAL SERVICE" : defaultString(funeralPackage.getName(), "FUNERAL SERVICE");
         String primaryDescription = packageName.toUpperCase(Locale.ROOT).contains("FUNERAL SERVICE")
@@ -1447,7 +1628,6 @@ public class FuneralManagementService {
                 "SELECT product_description,quantity,unit_price_cents,line_total_cents FROM funeral_package_item WHERE funeral_package_id=? ORDER BY product_description", funeralPackage.getId());
         boolean fixedPrice = funeralPackage != null && "FIXED_PRICE".equalsIgnoreCase(funeralPackage.getPricingMode());
         if (packageItems.isEmpty() || fixedPrice) {
-            // The package carries the full price; included products remain descriptive and print with blank amounts.
             insertInvoiceLine(invoiceId, primaryDescription, 1.0, invoiceAmount, true);
             for (Map<String,Object> item : packageItems) {
                 insertInvoiceLine(invoiceId,
@@ -1470,12 +1650,67 @@ public class FuneralManagementService {
         }
         for (FuneralExtraDto extra : parseFuneralExtras(service.getExtrasJson())) {
             if (extra != null && StringUtils.hasText(extra.getDescription())) {
-                // The split total already includes extras. Keep them visible without duplicating the invoice amount.
                 insertInvoiceLine(invoiceId, extra.getDescription().trim().toUpperCase(Locale.ROOT), 1.0, 0L, false);
             }
         }
+    }
 
-        return invoiceId;
+    private List<FuneralInvoiceSplitDto> attachExistingInvoiceReferences(
+            String funeralServiceId, List<FuneralInvoiceSplitDto> splits) {
+        List<FuneralServiceInvoiceEntity> links = funeralServiceInvoiceRepository
+                .findByFuneralServiceId(funeralServiceId)
+                .stream()
+                .filter(link -> StringUtils.hasText(link.getInvoiceId()))
+                .toList();
+        Map<String, Boolean> financiallyActiveLinks = links.stream()
+                .collect(Collectors.toMap(
+                        link -> defaultString(link.getId(), link.getInvoiceId()),
+                        this::hasIndependentFuneralInvoiceActivity,
+                        (first, ignored) -> first));
+        Map<String, FuneralServiceInvoiceEntity> existingBySplit = links.stream()
+                .sorted(Comparator
+                        .comparing((FuneralServiceInvoiceEntity link) -> financiallyActiveLinks.getOrDefault(
+                                defaultString(link.getId(), link.getInvoiceId()), false) ? 0 : 1)
+                        .thenComparing(
+                                FuneralServiceInvoiceEntity::getCreatedAt,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toMap(
+                        this::funeralInvoiceSplitKey,
+                        link -> link,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
+
+        return splits.stream().map(split -> {
+            FuneralServiceInvoiceEntity link = existingBySplit.get(funeralInvoiceSplitKey(split));
+            if (link == null) return split;
+            InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId()).orElse(null);
+            if (invoice == null) return split;
+            return split.toBuilder()
+                    .invoiceId(invoice.getId())
+                    .invoiceNo(invoice.getInvoiceNo())
+                    .invoiceStatus(invoice.getStatus())
+                    .build();
+        }).toList();
+    }
+
+    private String funeralInvoiceSplitKey(FuneralInvoiceSplitDto split) {
+        if (StringUtils.hasText(split.getMembershipClaimId())) {
+            return "MEMBERSHIP:" + split.getMembershipClaimId();
+        }
+        if (StringUtils.hasText(split.getGroupSocietyClaimId())) {
+            return "GROUP_SOCIETY:" + split.getGroupSocietyClaimId();
+        }
+        return defaultString(split.getEntityType(), "UNKNOWN") + ":" + defaultString(split.getPartnerId(), "UNKNOWN");
+    }
+
+    private String funeralInvoiceSplitKey(FuneralServiceInvoiceEntity link) {
+        if (StringUtils.hasText(link.getMembershipClaimId())) {
+            return "MEMBERSHIP:" + link.getMembershipClaimId();
+        }
+        if (StringUtils.hasText(link.getGroupSocietyClaimId())) {
+            return "GROUP_SOCIETY:" + link.getGroupSocietyClaimId();
+        }
+        return defaultString(link.getEntityType(), "UNKNOWN") + ":" + defaultString(link.getPartnerId(), "UNKNOWN");
     }
 
     private void insertInvoiceLine(String invoiceId, String description, double quantity, long amountCents, boolean showAmount) {
