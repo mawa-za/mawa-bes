@@ -9,5 +9,7 @@ public interface CashupReceiptRepository extends JpaRepository<CashupReceiptEnti
 
     List<CashupReceiptEntity> findByCashupId(String cashupId);
 
+    boolean existsByCashupIdAndReceiptId(String cashupId, String receiptId);
+
     void deleteByCashupId(String cashupId);
 }

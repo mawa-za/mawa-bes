@@ -3,6 +3,7 @@ package za.co.mawa.bes.service.v2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
+import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
@@ -31,6 +32,7 @@ public class MembershipPremiumService {
     private final ReceiptAllocationRepository receiptAllocationRepository;
     private final ReceiptRepository receiptRepository;
     private final MembershipPremiumMapper membershipPremiumMapper;
+    private final ReceiptMapper receiptMapper;
 
     public List<MembershipPremiumEntity> getPremiumsForMembership(String membershipId) {
         return membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(
@@ -111,6 +113,41 @@ public class MembershipPremiumService {
             }
             return response;
         }).toList();
+    }
+
+    public List<ReceiptResponseDto> getPremiumReceipts(String membershipId, String premiumId) {
+        List<String> membershipIds = membershipService.membershipIdentifiers(membershipId);
+        MembershipPremiumEntity premium = membershipPremiumRepository.findById(premiumId)
+                .orElseThrow(() -> new IllegalArgumentException("Premium not found: " + premiumId));
+        if (!membershipIds.contains(trim(premium.getMembershipId()))) {
+            throw new IllegalArgumentException("Premium does not belong to membership: " + membershipId);
+        }
+
+        List<ReceiptAllocationEntity> allocations = receiptAllocationRepository
+                .findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
+                        za.co.mawa.bes.enums.ReceiptAllocationType.MEMBERSHIP_PREMIUM, premium.getId())
+                .stream()
+                .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                .toList();
+
+        if (allocations.isEmpty()) {
+            allocations = receiptAllocationRepository.findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
+                    .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                    .filter(allocation -> Objects.equals(trim(allocation.getPeriodYYYYMM()), trim(premium.getPeriodYYYYMM())))
+                    .toList();
+        }
+
+        Map<String, List<ReceiptAllocationEntity>> byReceipt = allocations.stream()
+                .filter(allocation -> allocation.getReceiptId() != null)
+                .collect(Collectors.groupingBy(ReceiptAllocationEntity::getReceiptId));
+        Map<String, ReceiptEntity> receipts = receiptRepository.findAllById(byReceipt.keySet()).stream()
+                .filter(receipt -> receipt.getStatus() == ReceiptStatus.POSTED)
+                .collect(Collectors.toMap(ReceiptEntity::getId, Function.identity()));
+
+        return receipts.values().stream()
+                .sorted((left, right) -> safeDate(right).compareTo(safeDate(left)))
+                .map(receipt -> receiptMapper.toDto(receipt, byReceipt.getOrDefault(receipt.getId(), List.of())))
+                .toList();
     }
 
     private static LocalDateTime safeDate(ReceiptEntity receipt) {
