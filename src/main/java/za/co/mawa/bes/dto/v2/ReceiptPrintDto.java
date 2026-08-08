@@ -35,6 +35,14 @@ public class ReceiptPrintDto {
     private String customerName;
     private String customerNumber;
 
+    private String groupSocietyId;
+    private String groupSocietyNo;
+    private String groupSocietyName;
+    private String groupSocietyType;
+
+    private String referenceType;
+    private String referenceNo;
+
     private Long amountCents;
 
     private String paymentMethod;

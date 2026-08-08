@@ -8,9 +8,6 @@ import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.invoice.CaptureInvoicePaymentDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
-import za.co.mawa.bes.entity.v2.CashupEntity;
-import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
-import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.PaymentBatchStatus;
@@ -20,9 +17,6 @@ import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
 import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
-import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
-import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
-import za.co.mawa.bes.repository.v2.CashupRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
@@ -41,9 +35,7 @@ public class InvoicePaymentService {
     private final ReceiptRepository receiptRepository;
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
-    private final CashupRepository cashupRepository;
-    private final CashupReceiptRepository cashupReceiptRepository;
-    private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
+    private final OnlineCashupService onlineCashupService;
     private final NumberAllocationService numberAllocationService;
 
     @Transactional
@@ -156,7 +148,7 @@ public class InvoicePaymentService {
         invoice.setUpdatedBy(actor);
         invoiceRepository.save(invoice);
 
-        addToOnlineCashup(batch, receipt, request.getAmountCents(), actor);
+        onlineCashupService.addReceipts(batch, List.of(receipt.getId()), actor, deviceId);
         ReceiptResponseDto receiptDto = receiptMapper.toDto(receipt, List.of(allocation));
 
         return PaymentBatchResponseDto.builder()
@@ -178,50 +170,6 @@ public class InvoicePaymentService {
                 .createdBy(batch.getCreatedBy())
                 .receipts(List.of(receiptDto))
                 .build();
-    }
-
-    private void addToOnlineCashup(PaymentBatchEntity batch, ReceiptEntity receipt, long amountCents, String actor) {
-        String device = blank(batch.getDeviceId()) ? "ERP-ONLINE" : batch.getDeviceId().trim();
-        CashupEntity cashup = cashupRepository
-                .findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
-                        device, actor, "OPEN", "ERP_ONLINE")
-                .orElseGet(() -> {
-                    CashupEntity value = new CashupEntity();
-                    value.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
-                    value.setDeviceId(device);
-                    value.setUserId(actor);
-                    value.setCashupDate(LocalDate.now());
-                    value.setStatus("OPEN");
-                    value.setSource("ERP_ONLINE");
-                    value.setCreatedBy(actor);
-                    value.setTotalCents(0L);
-                    value.setReceiptCount(0);
-                    return cashupRepository.save(value);
-                });
-
-        CashupReceiptEntity cashupReceipt = new CashupReceiptEntity();
-        cashupReceipt.setCashup(cashup);
-        cashupReceipt.setReceiptId(receipt.getId());
-        cashupReceipt.setAmountCents(amountCents);
-        cashupReceipt.setPaymentMethod(batch.getPaymentMethod());
-        cashupReceipt.setLegacyTransactionId(batch.getId());
-        cashupReceiptRepository.save(cashupReceipt);
-
-        cashup.setTotalCents(value(cashup.getTotalCents()) + amountCents);
-        cashup.setReceiptCount((cashup.getReceiptCount() == null ? 0 : cashup.getReceiptCount()) + 1);
-        cashup.setUpdatedBy(actor);
-        cashupRepository.save(cashup);
-
-        CashupPaymentSummaryEntity summary = cashupPaymentSummaryRepository.findByCashupId(cashup.getId())
-                .stream()
-                .filter(item -> batch.getPaymentMethod().equalsIgnoreCase(item.getPaymentMethod()))
-                .findFirst()
-                .orElseGet(CashupPaymentSummaryEntity::new);
-        summary.setCashup(cashup);
-        summary.setPaymentMethod(batch.getPaymentMethod());
-        summary.setAmountCents(value(summary.getAmountCents()) + amountCents);
-        summary.setPaymentCount((summary.getPaymentCount() == null ? 0 : summary.getPaymentCount()) + 1);
-        cashupPaymentSummaryRepository.save(summary);
     }
 
     private String invoiceReceiptNotes(InvoiceEntity invoice, CaptureInvoicePaymentDto request) {

@@ -18,12 +18,6 @@ import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
-import za.co.mawa.bes.repository.v2.CashupRepository;
-import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
-import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
-import za.co.mawa.bes.entity.v2.CashupEntity;
-import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
-import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.ManualReceiptCutoverConfigurationEntity;
 import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 import za.co.mawa.bes.entity.v2.ManualReceiptBookEntity;
@@ -48,9 +42,7 @@ public class MembershipPremiumPaymentService {
     private final ReceiptRepository receiptRepository;
     private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
     private final AttachmentRepository attachmentRepository;
-    private final CashupRepository cashupRepository;
-    private final CashupReceiptRepository cashupReceiptRepository;
-    private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
+    private final OnlineCashupService onlineCashupService;
     private final ManualReceiptCutoverConfigurationService cutoverConfigurationService;
     private final ManualReceiptBookService manualReceiptBookService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
@@ -65,7 +57,11 @@ public class MembershipPremiumPaymentService {
 
         List<ReceiptResponseDto> receipts = allocateAmountToPremiums(
                 batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), null);
-        addToOnlineCashup(batch, receipts, request);
+        onlineCashupService.addReceipts(
+                batch,
+                receipts.stream().map(ReceiptResponseDto::getId).toList(),
+                request.getCreatedBy(),
+                request.getDeviceId());
         String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
 
         return PaymentBatchResponseDto.builder()
@@ -148,10 +144,8 @@ public class MembershipPremiumPaymentService {
         saveManualReceiptRegister(batch, request, mode, collector, area);
         String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
 
-        if ("MANUAL_EMERGENCY".equals(mode)) {
-            addToEmergencyCashup(batch, receipts, request, collector, area);
-        }
-
+        // Receipt-book captures are reconciled through the dedicated manual cashup flow.
+        // They must not be added to the automatic ERP online cashup.
         return PaymentBatchResponseDto.builder()
                 .id(batch.getId()).paymentBatchNo(batch.getPaymentBatchNo()).sourceType(batch.getSourceType())
                 .membershipId(batch.getMembershipId()).paymentMethod(batch.getPaymentMethod())
@@ -211,45 +205,6 @@ public class MembershipPremiumPaymentService {
     }
 
 
-    private void addToOnlineCashup(PaymentBatchEntity batch, List<ReceiptResponseDto> receipts, MembershipPremiumPaymentCreateRequest request) {
-        String user = isBlank(request.getCreatedBy()) ? "SYSTEM" : request.getCreatedBy();
-        String device = isBlank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId();
-        CashupEntity cashup = cashupRepository.findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(device,user,"OPEN","ERP_ONLINE")
-                .orElseGet(() -> { CashupEntity c=new CashupEntity();c.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));c.setDeviceId(device);c.setUserId(user);c.setCashupDate(LocalDate.now());c.setStatus("OPEN");c.setSource("ERP_ONLINE");c.setCreatedBy(user);return cashupRepository.save(c);});
-        CashupReceiptEntity cr=new CashupReceiptEntity();cr.setCashup(cashup);cr.setReceiptId(receipts.isEmpty()?null:receipts.get(0).getId());cr.setAmountCents(request.getAmountCents());cr.setPaymentMethod(request.getPaymentMethod());cr.setLegacyTransactionId(batch.getId());cashupReceiptRepository.save(cr);
-        cashup.setTotalCents((cashup.getTotalCents()==null?0L:cashup.getTotalCents())+request.getAmountCents());cashup.setReceiptCount((cashup.getReceiptCount()==null?0:cashup.getReceiptCount())+1);cashup.setUpdatedBy(user);cashupRepository.save(cashup);
-        CashupPaymentSummaryEntity summary=cashupPaymentSummaryRepository.findByCashupId(cashup.getId()).stream().filter(x->request.getPaymentMethod().equalsIgnoreCase(x.getPaymentMethod())).findFirst().orElseGet(CashupPaymentSummaryEntity::new);summary.setCashup(cashup);summary.setPaymentMethod(request.getPaymentMethod());summary.setAmountCents((summary.getAmountCents()==null?0L:summary.getAmountCents())+request.getAmountCents());summary.setPaymentCount((summary.getPaymentCount()==null?0:summary.getPaymentCount())+1);cashupPaymentSummaryRepository.save(summary);
-    }
-
-    private void addToEmergencyCashup(
-            PaymentBatchEntity batch,
-            List<ReceiptResponseDto> receipts,
-            ManualPremiumReceiptCaptureRequest request,
-            ManualReceiptBookService.EmployeeReference collector,
-            ManualReceiptBookService.AreaReference area) {
-        String device = "ERP-MANUAL-EMERGENCY-" + area.code();
-        CashupEntity cashup = cashupRepository.findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(device, request.getCreatedBy(), "OPEN", "MANUAL_EMERGENCY")
-                .orElseGet(() -> {
-                    CashupEntity c = new CashupEntity(); c.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
-                    c.setDeviceId(device); c.setUserId(request.getCreatedBy()); c.setCashupDate(LocalDate.now()); c.setStatus("OPEN");
-                    c.setSource("MANUAL_EMERGENCY"); c.setCreatedBy(request.getCreatedBy()); c.setTotalCents(0L); c.setReceiptCount(0);
-                    c.setEmployeeResponsibleId(collector.id()); c.setEmployeeResponsibleName(collector.name());
-                    c.setAreaCode(area.code()); c.setAreaName(area.name());
-                    return cashupRepository.save(c);
-                });
-        CashupReceiptEntity cr = new CashupReceiptEntity(); cr.setCashup(cashup);
-        cr.setReceiptId(receipts.isEmpty() ? null : receipts.get(0).getId()); cr.setAmountCents(request.getAmountCents());
-        cr.setPaymentMethod(request.getPaymentMethod()); cr.setLegacyTransactionId(batch.getId()); cashupReceiptRepository.save(cr);
-        cashup.setTotalCents((cashup.getTotalCents() == null ? 0L : cashup.getTotalCents()) + request.getAmountCents());
-        cashup.setReceiptCount((cashup.getReceiptCount() == null ? 0 : cashup.getReceiptCount()) + 1); cashup.setUpdatedBy(request.getCreatedBy());
-        cashupRepository.save(cashup);
-        CashupPaymentSummaryEntity summary = cashupPaymentSummaryRepository.findByCashupId(cashup.getId()).stream()
-                .filter(x -> request.getPaymentMethod().equalsIgnoreCase(x.getPaymentMethod())).findFirst().orElseGet(CashupPaymentSummaryEntity::new);
-        summary.setCashup(cashup); summary.setPaymentMethod(request.getPaymentMethod());
-        summary.setAmountCents((summary.getAmountCents() == null ? 0L : summary.getAmountCents()) + request.getAmountCents());
-        summary.setPaymentCount((summary.getPaymentCount() == null ? 0 : summary.getPaymentCount()) + 1); cashupPaymentSummaryRepository.save(summary);
-    }
-
     private void validateManual(ManualPremiumReceiptCaptureRequest request) {
         if (request == null || isBlank(request.getMembershipId())) throw new IllegalArgumentException("membershipId is required");
         if (request.getAmountCents() == null || request.getAmountCents() <= 0) throw new IllegalArgumentException("amountCents must be greater than zero");
@@ -285,7 +240,7 @@ public class MembershipPremiumPaymentService {
 
             long amountForPremium = Math.min(remaining, premium.getBalanceCents());
 
-            ReceiptEntity receipt = createPremiumReceipt(batch, premium, amountForPremium, createdBy, null, true);
+            ReceiptEntity receipt = createPremiumReceipt(batch, premium, amountForPremium, createdBy, null);
             MembershipPremiumEntity updatedPremium = membershipPremiumService.applyPayment(
                     premium,
                     amountForPremium,
@@ -320,7 +275,7 @@ public class MembershipPremiumPaymentService {
                     createdBy
             );
 
-            ReceiptEntity receipt = createPremiumReceipt(batch, premium, amountForPremium, createdBy, null, true);
+            ReceiptEntity receipt = createPremiumReceipt(batch, premium, amountForPremium, createdBy, null);
 
             MembershipPremiumEntity updatedPremium = membershipPremiumService.applyPayment(
                     premium,
@@ -353,8 +308,7 @@ public class MembershipPremiumPaymentService {
             MembershipPremiumEntity premium,
             Long amountCents,
             String createdBy,
-            String receiptNo,
-            Boolean printed
+            String receiptNo
     ) {
         ReceiptEntity receipt = new ReceiptEntity();
         receipt.setReceiptNo(receiptNo == null ? numberAllocationService.allocateNumber("RECEIPT") : receiptNo);
@@ -371,8 +325,10 @@ public class MembershipPremiumPaymentService {
         receipt.setEmployeeResponsible(batch.getEmployeeResponsible());
         receipt.setDeviceId(batch.getDeviceId());
         receipt.setTerminalId(batch.getTerminalId());
-        receipt.setPrinted(Boolean.TRUE.equals(printed));
-        receipt.setPrintCount(Boolean.TRUE.equals(printed) ? 1 : 0);
+        // A receipt only becomes printed after the POS agent (or direct Bluetooth fallback)
+        // confirms that the print was actually spooled successfully.
+        receipt.setPrinted(false);
+        receipt.setPrintCount(0);
         receipt.setCreatedAt(LocalDateTime.now());
         receipt.setCreatedBy(createdBy);
 
