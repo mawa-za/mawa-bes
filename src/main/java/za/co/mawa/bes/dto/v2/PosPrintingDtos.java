@@ -1,5 +1,6 @@
 package za.co.mawa.bes.dto.v2;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,6 +25,7 @@ public final class PosPrintingDtos {
     @Builder
     public static class EnrollmentResponse {
         private String code;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime expiresAt;
         private String agentName;
         private String location;
@@ -87,6 +89,7 @@ public final class PosPrintingDtos {
         private boolean defaultPrinter;
         private boolean supportsCut;
         private Integer paperWidthChars;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime lastSeenAt;
     }
 
@@ -101,6 +104,7 @@ public final class PosPrintingDtos {
         private String status;
         private boolean online;
         private String agentVersion;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime lastHeartbeatAt;
         private List<PrinterResponse> printers;
     }
@@ -179,7 +183,9 @@ public final class PosPrintingDtos {
         private String status;
         private String claimToken;
         private int attemptCount;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime claimExpiresAt;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime createdAt;
         private String lastError;
     }
