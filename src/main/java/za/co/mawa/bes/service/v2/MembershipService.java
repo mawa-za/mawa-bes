@@ -447,6 +447,11 @@ public class MembershipService {
     public String recalculatePaidUpToPeriod(String membershipId) {
         MembershipEntity membership = resolveMembership(membershipId);
 
+        // Premium writes and paid-up-to recalculation often happen inside the same
+        // offline-sync transaction. Force pending premium changes to the database
+        // before querying PAID rows so the membership never keeps the old period.
+        membershipPremiumRepository.flush();
+
         List<MembershipPremiumEntity> paidPremiums =
                 membershipPremiumRepository.findByMembershipIdInAndStatusOrderByPeriodYYYYMMAsc(
                         membershipIdentifiers(membership),
@@ -458,7 +463,7 @@ public class MembershipService {
         membership.setPaidUpToPeriod(paidUpToPeriod);
         membership.setUpdatedAt(LocalDateTime.now());
 
-        membershipRepository.save(membership);
+        membershipRepository.saveAndFlush(membership);
 
         return paidUpToPeriod;
     }
