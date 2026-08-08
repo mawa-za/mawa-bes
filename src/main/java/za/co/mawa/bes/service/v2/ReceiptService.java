@@ -118,18 +118,21 @@ public class ReceiptService {
                   FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
                 """,receipt.getMembershipId());
             if(!rows.isEmpty()) member=rows.get(0);
-        } else if (receipt.getSourceType() == ReceiptSourceType.GROUP_SOCIETY
-                && receipt.getReceivedFromPartnerId() != null) {
+        }
+
+        java.util.Map<String,Object> groupSociety = new java.util.HashMap<>();
+        if (receipt.getSourceType() == ReceiptSourceType.GROUP_SOCIETY && firstAllocation != null
+                && firstAllocation.getReferenceNo() != null && !firstAllocation.getReferenceNo().isBlank()) {
             var rows = jdbcTemplate.queryForList("""
-                SELECT g.group_no membership_no,
-                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''))) member_name,
-                       g.group_no identity_number,
-                       COALESCE(g.society_type,'Group Society Cover') plan_name
+                SELECT g.id group_society_id, g.group_no group_society_no,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name4,''))) group_society_name,
+                       COALESCE(g.society_type,'Group Society') group_society_type
                   FROM group_society g
                   JOIN partner p ON p.id=g.partner_id
-                 WHERE g.partner_id=?
-                """, receipt.getReceivedFromPartnerId());
-            if (!rows.isEmpty()) member = rows.get(0);
+                 WHERE g.group_no=?
+                 LIMIT 1
+                """, firstAllocation.getReferenceNo());
+            if (!rows.isEmpty()) groupSociety = rows.get(0);
         }
 
         java.util.Map<String,Object> invoice = new java.util.HashMap<>();
@@ -167,11 +170,25 @@ public class ReceiptService {
                 .invoiceReference(java.util.Objects.toString(invoice.get("external_ref"), ""))
                 .customerName(java.util.Objects.toString(invoice.get("customer_name"), ""))
                 .customerNumber(java.util.Objects.toString(invoice.get("customer_number"), ""))
+                .groupSocietyId(java.util.Objects.toString(groupSociety.get("group_society_id"), ""))
+                .groupSocietyNo(java.util.Objects.toString(groupSociety.get("group_society_no"),
+                        firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.GROUP_SOCIETY_BALANCE
+                                ? firstAllocation.getReferenceNo() : ""))
+                .groupSocietyName(java.util.Objects.toString(groupSociety.get("group_society_name"), ""))
+                .groupSocietyType(java.util.Objects.toString(groupSociety.get("group_society_type"), ""))
+                .referenceType(firstAllocation == null || firstAllocation.getAllocationType() == null
+                        ? receipt.getSourceType() == null ? "" : receipt.getSourceType().name()
+                        : firstAllocation.getAllocationType().name())
+                .referenceNo(firstAllocation == null ? "" : firstAllocation.getReferenceNo())
                 .amountCents(firstAllocation == null ? receipt.getTotalAmountCents() : firstAllocation.getAmountCents())
                 .paymentMethod(receipt.getPaymentMethod())
                 .receiptDate(receipt.getReceiptDate())
-                .location(receipt.getLocation())
-                .employeeResponsible(receipt.getEmployeeResponsible())
+                .location(firstNonBlank(receipt.getLocationName(), receipt.getLocation()))
+                .employeeResponsible(firstNonBlank(
+                        receipt.getOriginalCollector(),
+                        receipt.getEmployeeResponsible(),
+                        receipt.getCapturedBy(),
+                        receipt.getCreatedBy()))
                 .deviceId(receipt.getDeviceId())
                 .terminalId(receipt.getTerminalId())
                 .syncStatus(receipt.getSyncStatus() == null ? null : receipt.getSyncStatus().name())
@@ -180,6 +197,15 @@ public class ReceiptService {
                 .build();
     }
 
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
 
     private String formatPeriodDescription(String rawPeriods) {
         if (rawPeriods == null || rawPeriods.isBlank()) {

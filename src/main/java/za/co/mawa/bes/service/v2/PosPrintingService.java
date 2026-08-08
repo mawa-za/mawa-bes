@@ -2,12 +2,15 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.v2.PosPrintingDtos.*;
 import za.co.mawa.bes.dto.v2.ReceiptPrintDto;
+import za.co.mawa.bes.dto.v2.payapp.CashupPaymentSummaryDto;
+import za.co.mawa.bes.dto.v2.payapp.CashupSummaryResponse;
 import za.co.mawa.bes.entity.v2.PosPrintAgentEntity;
 import za.co.mawa.bes.entity.v2.PosPrintAttemptEntity;
 import za.co.mawa.bes.entity.v2.PosPrintEnrollmentEntity;
@@ -54,6 +57,7 @@ public class PosPrintingService {
     private final PosPrintAttemptRepository attemptRepository;
     private final ReceiptService receiptService;
     private final CompanyInfoService companyInfoService;
+    private final @Qualifier("CashupServiceV2") CashupService cashupService;
 
     @Transactional
     public EnrollmentResponse createEnrollment(EnrollmentCreateRequest request) {
@@ -336,6 +340,21 @@ public class PosPrintingService {
         PosPrinterEntity selectedPrinter = selectedPrinter(request);
         String content = renderReceipt(data, reprint, paperWidth(selectedPrinter));
         return queueContent("RECEIPT", receiptId, receiptId, content, request);
+    }
+
+    @Transactional
+    public PrintJobResponse queueCashup(String cashupId, QueueReceiptRequest request) {
+        CashupSummaryResponse data = cashupService.getCashup(cashupId);
+        QueueReceiptRequest destination = request == null ? new QueueReceiptRequest() : request;
+        boolean reprint = Boolean.TRUE.equals(destination.getReprint());
+        if (!reprint) {
+            // Submission-triggered cashup printing is idempotent. A retry must not
+            // create a second physical slip for the same cashup and terminal.
+            destination.setRequestId("INITIAL");
+        }
+        PosPrinterEntity selectedPrinter = selectedPrinter(destination);
+        String content = renderCashup(data, reprint, paperWidth(selectedPrinter));
+        return queueContent("CASHUP", cashupId, null, content, destination);
     }
 
     @Transactional
@@ -723,12 +742,19 @@ public class PosPrintingService {
             if (data.getInvoiceReference() != null && !data.getInvoiceReference().isBlank()) {
                 line(receipt, "Invoice Ref", data.getInvoiceReference(), width);
             }
-        } else {
+        } else if ("GROUP_SOCIETY".equalsIgnoreCase(data.getSourceType())) {
+            line(receipt, "Group Society", data.getGroupSocietyName(), width);
+            line(receipt, "Group No", data.getGroupSocietyNo(), width);
+            line(receipt, "Society Type", data.getGroupSocietyType(), width);
+        } else if ("MEMBERSHIP_PREMIUM".equalsIgnoreCase(data.getSourceType())) {
             line(receipt, "Member", data.getMemberName(), width);
             line(receipt, "Membership No", data.getMembershipNo(), width);
             line(receipt, "ID Number", data.getIdentityNumber(), width);
             line(receipt, "Plan", data.getPlanName(), width);
             line(receipt, "Period", data.getPeriodDescription(), width);
+        } else {
+            line(receipt, "Reference Type", data.getReferenceType(), width);
+            line(receipt, "Reference No", data.getReferenceNo(), width);
         }
         line(receipt, "Payment", data.getPaymentMethod(), width);
         receipt.append('\n');
@@ -740,6 +766,57 @@ public class PosPrintingService {
                 .append('\n')
                 .append(center("MawaPay", width)).append('\n');
         return receipt.toString();
+    }
+
+    private String renderCashup(CashupSummaryResponse data, boolean reprint, int width) {
+        StringBuilder slip = new StringBuilder();
+        if (reprint) {
+            slip.append(center("*** REPRINT ***", width)).append('\n');
+        }
+
+        String companyName = nullSafe(companyInfoService.getCompanyName());
+        slip.append(center(companyName.isBlank() ? "MawaPay" : companyName, width)).append('\n');
+        appendCenteredDetail(slip, "Reg: ", companyInfoService.getCompanyRegistrationNumber(), width);
+        appendCenteredDetail(slip, "VAT: ", companyInfoService.getVATNumber(), width);
+        appendCenteredDetail(slip, "FSP: ", companyInfoService.getFspNumber(), width);
+        appendCenteredDetail(slip, "", companyInfoService.getCompanyAddress(), width);
+        appendCenteredDetail(slip, "", companyInfoService.getContactDetails(), width);
+        slip.append('\n')
+                .append(center("CASH UP SLIP", width)).append('\n')
+                .append("-".repeat(width)).append('\n');
+
+        line(slip, "Cash Up No", data.getCashupNo() == null ? "" : data.getCashupNo().toString(), width);
+        line(slip, "Date", data.getCashupDate() == null ? "" : data.getCashupDate().format(DateTimeFormatter.ISO_LOCAL_DATE), width);
+        line(slip, "Cashier", firstNonBlank(data.getCashierName(), data.getUserId()), width);
+        slip.append('\n');
+        line(slip, "Total Amount", money(data.getTotalCents()), width);
+        line(slip, "Total Receipts", data.getReceiptCount() == null ? "0" : data.getReceiptCount().toString(), width);
+        slip.append('\n').append("BREAKDOWN:").append('\n')
+                .append("-".repeat(width)).append('\n');
+
+        if (data.getPayments() != null) {
+            for (CashupPaymentSummaryDto payment : data.getPayments()) {
+                if (payment == null) continue;
+                String method = firstNonBlank(payment.getPaymentMethod(), "OTHER").toUpperCase(Locale.ROOT);
+                int count = payment.getPaymentCount() == null ? 0 : payment.getPaymentCount();
+                slip.append(method).append(" (").append(count).append("):").append('\n');
+                slip.append("           ").append(money(payment.getAmountCents())).append('\n');
+            }
+        }
+
+        slip.append('\n').append("-".repeat(width)).append('\n')
+                .append('\n')
+                .append(center("MawaPay", width)).append('\n');
+        return slip.toString();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 
     private void appendCenteredDetail(

@@ -17,7 +17,10 @@ import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupSummaryResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest;
+import za.co.mawa.bes.dto.v2.PosPrintingDtos.PrintJobResponse;
+import za.co.mawa.bes.dto.v2.PosPrintingDtos.QueueReceiptRequest;
 import za.co.mawa.bes.service.v2.CashupService;
+import za.co.mawa.bes.service.v2.PosPrintingService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,6 +35,9 @@ public class CashupControllerV2 {
 @Autowired
 @Qualifier("CashupServiceV2")
 CashupService cashupService;
+
+@Autowired
+PosPrintingService posPrintingService;
 
     /**
      * Offline app submits cashup to backend.
@@ -137,6 +143,14 @@ CashupService cashupService;
             @RequestBody(required = false) CashupSubmitForApprovalRequest request
     ) {
         return ResponseEntity.ok(cashupService.submitForApproval(id, request));
+    }
+
+    @PostMapping("/{id}/print-jobs")
+    public ResponseEntity<PrintJobResponse> queueCashupPrint(
+            @PathVariable String id,
+            @RequestBody QueueReceiptRequest request
+    ) {
+        return ResponseEntity.ok(posPrintingService.queueCashup(id, request));
     }
 
     @PostMapping("/{id}/approve")
