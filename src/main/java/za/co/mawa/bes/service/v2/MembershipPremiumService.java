@@ -200,7 +200,10 @@ public class MembershipPremiumService {
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(updatedBy);
 
-        MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
+        // Flush the premium before recalculating the membership. This makes the
+        // PAID status visible even when the surrounding device-sync transaction
+        // is running with deferred JPA flushing.
+        MembershipPremiumEntity saved = membershipPremiumRepository.saveAndFlush(premium);
         membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
         return saved;
     }
@@ -230,7 +233,7 @@ public class MembershipPremiumService {
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(updatedBy);
 
-        MembershipPremiumEntity saved = membershipPremiumRepository.save(premium);
+        MembershipPremiumEntity saved = membershipPremiumRepository.saveAndFlush(premium);
         membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
         return saved;
     }
