@@ -543,6 +543,7 @@ public class FuneralManagementService {
         entity.setFamilyRepId(request.getFamilyRepId());
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
+        entity.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
@@ -566,6 +567,9 @@ public class FuneralManagementService {
         service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
         if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) service.setFuneralArea(request.getFuneralArea());
+        if (request.getDeceasedDeliveryDirections() != null) {
+            service.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
+        }
         if (request.getDeathCertificateNo() != null && !request.getDeathCertificateNo().isBlank()) service.setDeathCertificateNo(request.getDeathCertificateNo());
         if (request.getCauseOfDeath() != null && !request.getCauseOfDeath().isBlank()) service.setCauseOfDeath(request.getCauseOfDeath());
         if (!"INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
@@ -2120,6 +2124,7 @@ public class FuneralManagementService {
                 .familyRepId(entity.getFamilyRepId())
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
+                .deceasedDeliveryDirections(entity.getDeceasedDeliveryDirections())
                 .deathCertificateNo(entity.getDeathCertificateNo())
                 .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
