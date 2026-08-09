@@ -49,6 +49,9 @@ public class FuneralServiceEntity {
     @Column(name = "funeral_area")
     private String funeralArea;
 
+    @Column(name = "deceased_delivery_directions", columnDefinition = "TEXT")
+    private String deceasedDeliveryDirections;
+
     @Column(name = "death_certificate_no", length = 100)
     private String deathCertificateNo;
 
