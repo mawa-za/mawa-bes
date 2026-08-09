@@ -20,6 +20,7 @@ public class FuneralServiceRequestResponseDto {
     private String familyRepId;
     private LocalDate funeralDate;
     private String funeralArea;
+    private String deceasedDeliveryDirections;
     private String deathCertificateNo;
     private String causeOfDeath;
     private Long totalAmountCents;

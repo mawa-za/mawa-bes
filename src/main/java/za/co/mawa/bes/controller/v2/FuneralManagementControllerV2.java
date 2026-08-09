@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.service.v2.FuneralManagementService;
+import za.co.mawa.bes.service.v2.FuneralDocumentService;
 import za.co.mawa.bes.service.v2.GroupSocietyFuneralClaimService;
 
 @RestController
@@ -21,6 +22,7 @@ import za.co.mawa.bes.service.v2.GroupSocietyFuneralClaimService;
 public class FuneralManagementControllerV2 {
 
     private final FuneralManagementService funeralManagementService;
+    private final FuneralDocumentService funeralDocumentService;
     private final GroupSocietyFuneralClaimService groupSocietyFuneralClaimService;
 
     @GetMapping("/pickup-requests")
@@ -235,6 +237,34 @@ public class FuneralManagementControllerV2 {
             return ResponseEntity.ok(funeralManagementService.getServiceRequest(id));
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping(value = "/service-request/{id}/confirmation-letter", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<?> downloadConfirmationLetter(@PathVariable String id) {
+        try {
+            byte[] pdf = funeralDocumentService.generateConfirmationLetter(id);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=funeral-confirmation-" + id + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (Exception exception) {
+            log.warn("Unable to generate funeral confirmation letter for {}: {}", id, exception.getMessage(), exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.TEXT_PLAIN).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping(value = "/service-request/{id}/service-request-form", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<?> downloadServiceRequestForm(@PathVariable String id) {
+        try {
+            byte[] pdf = funeralDocumentService.generateServiceRequestForm(id);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=funeral-service-request-" + id + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (Exception exception) {
+            log.warn("Unable to generate funeral service request form for {}: {}", id, exception.getMessage(), exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.TEXT_PLAIN).body(exception.getMessage());
         }
     }
 
