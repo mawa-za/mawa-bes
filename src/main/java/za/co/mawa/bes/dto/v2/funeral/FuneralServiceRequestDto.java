@@ -21,6 +21,8 @@ public class FuneralServiceRequestDto {
     private LocalDate funeralDate;
     @JsonAlias({"funeralLocation", "serviceLocation"})
     private String funeralArea;
+    @JsonAlias({"deliveryDirections", "directionsToDeliveryLocation", "deceasedDeliveryLocationDirections"})
+    private String deceasedDeliveryDirections;
     @JsonAlias({"certificateNumber", "deathCertificateNumber", "deathCertificateNo"})
     private String deathCertificateNo;
     private String causeOfDeath;

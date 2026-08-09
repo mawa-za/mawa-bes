@@ -125,7 +125,7 @@ public class ReceiptService {
                 && firstAllocation.getReferenceNo() != null && !firstAllocation.getReferenceNo().isBlank()) {
             var rows = jdbcTemplate.queryForList("""
                 SELECT g.id group_society_id, g.group_no group_society_no,
-                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name4,''))) group_society_name,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name1,''),NULLIF(p.name2,''),NULLIF(p.name3,''))) group_society_name,
                        COALESCE(g.society_type,'Group Society') group_society_type
                   FROM group_society g
                   JOIN partner p ON p.id=g.partner_id
@@ -141,7 +141,7 @@ public class ReceiptService {
             var rows = jdbcTemplate.queryForList("""
                 SELECT i.id invoice_id, i.invoice_no, i.external_ref,
                        p.number customer_number,
-                       TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''),NULLIF(p.name4,''))) customer_name
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))) customer_name
                   FROM invoice i
              LEFT JOIN partner p ON p.id=i.partner_id
                  WHERE i.id=?
