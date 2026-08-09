@@ -5,5 +5,6 @@ public enum PaymentRequestSourceType {
     CUSTOMER_REFUND,
     MEMBERSHIP_CLAIM,
     GROUP_SOCIETY,
+    TOMBSTONE_ORDER,
     MANUAL
 }

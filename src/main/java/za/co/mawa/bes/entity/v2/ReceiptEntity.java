@@ -6,6 +6,7 @@ import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
+import za.co.mawa.bes.util.ReceiptTraceId;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +27,9 @@ public class ReceiptEntity {
 
     @Column(name = "receipt_no", nullable = false, unique = true, length = 100)
     private String receiptNo;
+
+    @Column(name = "trace_id", nullable = false, unique = true, length = 32)
+    private String traceId;
 
     @Column(name = "payment_batch_id", length = 255)
     private String paymentBatchId;
@@ -75,14 +79,49 @@ public class ReceiptEntity {
     @Column(name = "external_receipt_no", length = 100)
     private String externalReceiptNo;
 
+    @Builder.Default
     @Column(name = "printed", nullable = false)
-    private Boolean printed = true;
+    private Boolean printed = false;
 
+    @Builder.Default
     @Column(name = "print_count", nullable = false)
-    private Integer printCount = 1;
+    private Integer printCount = 0;
 
     @Column(name = "legacy_premium_payment_id", length = 50)
     private String legacyPremiumPaymentId;
+
+    @Column(name = "capture_source", nullable = false, length = 30)
+    private String captureSource = "SYSTEM";
+
+    @Column(name = "manual_receipt_book_no", length = 100)
+    private String manualReceiptBookNo;
+
+    @Column(name = "manual_receipt_no", length = 100)
+    private String manualReceiptNo;
+
+    @Column(name = "original_receipt_date")
+    private java.time.LocalDate originalReceiptDate;
+
+    @Column(name = "original_collector", length = 255)
+    private String originalCollector;
+
+    @Column(name = "original_collector_employee_id", length = 255)
+    private String originalCollectorEmployeeId;
+
+    @Column(name = "location_name", length = 255)
+    private String locationName;
+
+    @Column(name = "workcentre_id", length = 255)
+    private String workcentreId; // legacy, no longer captured
+
+    @Column(name = "late_capture_reason", columnDefinition = "TEXT")
+    private String lateCaptureReason;
+
+    @Column(name = "proof_attachment_id", length = 255)
+    private String proofAttachmentId;
+
+    @Column(name = "captured_by", length = 255)
+    private String capturedBy;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
@@ -98,4 +137,10 @@ public class ReceiptEntity {
 
     @Column(name = "updated_by", length = 255)
     private String updatedBy;
+
+    @PrePersist
+    @PreUpdate
+    void ensureTraceId() {
+        traceId = ReceiptTraceId.fromReceiptNo(receiptNo);
+    }
 }

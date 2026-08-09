@@ -17,6 +17,8 @@ public class ApiEndpointLogMapper {
         return ApiEndpointLogResponseDto.builder()
                 .id(entity.getId())
                 .requestId(entity.getRequestId())
+                .direction(entity.getDirection())
+                .integrationName(entity.getIntegrationName())
                 .userId(entity.getUserId())
                 .username(entity.getUsername())
                 .method(entity.getMethod())
@@ -40,6 +42,8 @@ public class ApiEndpointLogMapper {
         }
         return ApiEndpointLogEntity.builder()
                 .requestId(request.getRequestId())
+                .direction(request.getDirection() == null || request.getDirection().isBlank() ? "INBOUND" : request.getDirection())
+                .integrationName(request.getIntegrationName())
                 .userId(request.getUserId())
                 .username(request.getUsername())
                 .method(request.getMethod())
@@ -62,6 +66,10 @@ public class ApiEndpointLogMapper {
         }
         entity.setId(request.getId());
         entity.setRequestId(request.getRequestId());
+        if (request.getDirection() != null && !request.getDirection().isBlank()) {
+            entity.setDirection(request.getDirection());
+        }
+        entity.setIntegrationName(request.getIntegrationName());
         entity.setUserId(request.getUserId());
         entity.setUsername(request.getUsername());
         entity.setMethod(request.getMethod());

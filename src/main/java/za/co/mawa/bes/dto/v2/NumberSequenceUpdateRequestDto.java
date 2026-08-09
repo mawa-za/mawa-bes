@@ -10,8 +10,17 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NumberSequenceUpdateRequestDto {
-
     private Long id;
     private String seqType;
+    private String description;
+    private String prefix;
+    private String separator;
+    private Integer paddingLength;
+    private Long startNo;
     private Long nextNo;
+    private Long endNo;
+    private Integer defaultAllocationSize;
+    private Long warningThreshold;
+    private Boolean active;
+    private Long lockVersion;
 }

@@ -6,9 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.dto.FieldCreateDto;
 import za.co.mawa.bes.dto.FieldOptionDto;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.service.FieldOptionService;
 
 @RestController
@@ -54,14 +52,18 @@ public class FieldOptionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
         }
     }
-    @RequestMapping(value = "/field", method = RequestMethod.POST,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addField(@RequestBody FieldCreateDto fieldDto) {
+    @RequestMapping(value = "/field/{field}/option", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateFieldOption(
+            @PathVariable String field,
+            @RequestParam("fieldOption") String fieldOption,
+            @RequestBody FieldOptionDto request) {
         try {
-            return ResponseEntity.ok().body(gson.toJson(fieldOptionService.createField(fieldDto)));
+            return ResponseEntity.ok(gson.toJson(fieldOptionService.update(field, fieldOption, request)));
         } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
+
     @RequestMapping(value = "/field/{field}/option", method = RequestMethod.DELETE,produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteFieldOption(@PathVariable String field, @RequestParam("fieldOption") String fieldOption) {
         try {

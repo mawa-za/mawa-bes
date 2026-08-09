@@ -1,8 +1,10 @@
 package za.co.mawa.bes.configuration.web;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 //import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -15,28 +17,50 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.CorsConfiguration;
 import za.co.mawa.bes.configuration.ApiEndpointLoggingFilter;
 import za.co.mawa.bes.configuration.jwt.JwtAuthenticationEntryPoint;
 import za.co.mawa.bes.configuration.jwt.JwtRequestFilter;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.v2.ApiEndpointLogService;
 
+import java.util.List;
+
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableGlobalMethodSecurity(
         // securedEnabled = true,
         // jsr250Enabled = true,
         prePostEnabled = true)
 public class WebSecurityConfig {
     public static final String[] AUTH_WHITELIST = {
+            "/actuator/health/**",
             "/authenticate",
             "/v2/authenticate",
             "/forgot-password",
-            "/refresh-token"
+            "/v2/forgot-password",
+            "/reset-password",
+            "/v2/reset-password",
+            "/refresh-token",
+            "/v2/refresh-token",
+            "/v2/company-logo/content",
+            "/v2/admin-handoff/exchange",
+            "/v2/pos-print-agents/**",
+            "/error",
+            "/internal/admin/**",
+            "/xero/callback"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] LOG_EXCLUSION = {
+            "/error",
             "/print-job",
-            "/authenticate"
+            "/v2/pos-print-agents/**",
+            "/authenticate",
+            "/v2/authenticate",
+            "/v2/membership/master-data/**",
+            "/v2/company-logo/content"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] SWAGGER_WHITELIST = {
@@ -87,6 +111,28 @@ public class WebSecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of(
+                "Authorization",
+                "X-TenantID",
+                "X-Tenant-Id",
+                "X-UserID",
+                "X-User-Id",
+                "X-Role"
+        ));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -94,6 +140,7 @@ public class WebSecurityConfig {
                 .exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeHttpRequests((requests) -> requests
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(AUTH_WHITELIST).permitAll()
                         .anyRequest().authenticated()

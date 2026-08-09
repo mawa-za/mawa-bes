@@ -41,7 +41,53 @@ public class CashupEntity {
     private Integer receiptCount = 0;
 
     @Column(name = "status", nullable = false, length = 30)
-    private String status = "SUBMITTED";
+    private String status = "AWAITING_DEPOSITS";
+
+    @Column(name = "deposit_total_cents", nullable = false)
+    private Long depositTotalCents = 0L;
+
+    @Column(name = "deposit_count", nullable = false)
+    private Integer depositCount = 0;
+
+    @Column(name = "approval_request_id", length = 255)
+    private String approvalRequestId;
+
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
+    @Column(name = "source", nullable = false, length = 30)
+    private String source = "MAWAPAY";
+
+    @Column(name = "receipt_book_no", length = 100)
+    private String receiptBookNo;
+
+    @Column(name = "receipt_from_no", length = 100)
+    private String receiptFromNo;
+
+    @Column(name = "receipt_to_no", length = 100)
+    private String receiptToNo;
+
+
+    @Column(name = "manual_amount_cents")
+    private Long manualAmountCents;
+
+    @Column(name = "receipt_total_cents")
+    private Long receiptTotalCents;
+
+    @Column(name = "variance_cents")
+    private Long varianceCents;
+
+    @Column(name = "employee_responsible_id", length = 255)
+    private String employeeResponsibleId;
+
+    @Column(name = "employee_responsible_name", length = 255)
+    private String employeeResponsibleName;
+
+    @Column(name = "area_code", length = 100)
+    private String areaCode;
+
+    @Column(name = "area_name", length = 255)
+    private String areaName;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;

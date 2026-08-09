@@ -5,14 +5,20 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FuneralPackageCreateRequestDto {
 
+    private String productCode;
     private String name;
+    private String pricingMode;
     private Long basePriceCents;
     private String inclusionsJson;
+    private List<String> inclusions;
     private Boolean active;
+    private List<FuneralPackageItemRequestDto> products;
 }

@@ -31,6 +31,12 @@ public class InvoiceEntity {
     @Column(name = "external_ref")
     private String externalRef;
 
+    @Column(name = "source_type", length = 50)
+    private String sourceType;
+
+    @Column(name = "source_id", length = 36)
+    private String sourceId;
+
     @Column(name = "partner_id", nullable = false)
     private String partnerId;
 
@@ -58,6 +64,9 @@ public class InvoiceEntity {
     @Column(name = "paid_cents", nullable = false)
     private Long paidCents = 0L;
 
+    @Column(name = "credited_cents", nullable = false)
+    private Long creditedCents = 0L;
+
     @Column(name = "balance_cents", nullable = false)
     private Long balanceCents = 0L;
 
@@ -66,6 +75,24 @@ public class InvoiceEntity {
 
     @Column(name = "notes")
     private String notes;
+
+    @Column(name = "xero_invoice_id")
+    private String xeroInvoiceId;
+
+    @Column(name = "xero_invoice_no")
+    private String xeroInvoiceNo;
+
+    @Column(name = "integration_status")
+    private String integrationStatus;
+
+    @Column(name = "integration_error", columnDefinition = "TEXT")
+    private String integrationError;
+
+    @Column(name = "integration_last_attempt_at")
+    private LocalDateTime integrationLastAttemptAt;
+
+    @Column(name = "integration_posted_at")
+    private LocalDateTime integrationPostedAt;
 
 //    @Column(name = "created_at", updatable = false)
 //    private LocalDateTime createdAt;

@@ -8,4 +8,8 @@ import java.util.List;
 public interface CashupReceiptRepository extends JpaRepository<CashupReceiptEntity, String> {
 
     List<CashupReceiptEntity> findByCashupId(String cashupId);
+
+    boolean existsByCashupIdAndReceiptId(String cashupId, String receiptId);
+
+    void deleteByCashupId(String cashupId);
 }

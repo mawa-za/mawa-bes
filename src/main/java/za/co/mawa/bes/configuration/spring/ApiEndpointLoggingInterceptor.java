@@ -1,12 +1,12 @@
 package za.co.mawa.bes.configuration.spring;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.ContentCachingRequestWrapper;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.ApiEndpointLogEntity;
 import za.co.mawa.bes.service.v2.ApiEndpointLogService;
@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @RequiredArgsConstructor
 public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
 
@@ -70,7 +71,7 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
             log.setResponseBody("[HIDDEN]");
         } else {
             log.setRequestBody(limitBody(getRequestBody(request)));
-            log.setResponseBody(limitBody(getResponseBody(response)));
+            log.setResponseBody(null);
         }
 
         boolean success = response.getStatus() < 400 && ex == null;
@@ -88,20 +89,6 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
 
     private String getRequestBody(HttpServletRequest request) {
         if (!(request instanceof ContentCachingRequestWrapper wrapper)) {
-            return null;
-        }
-
-        byte[] content = wrapper.getContentAsByteArray();
-
-        if (content.length == 0) {
-            return null;
-        }
-
-        return new String(content, StandardCharsets.UTF_8);
-    }
-
-    private String getResponseBody(HttpServletResponse response) {
-        if (!(response instanceof ContentCachingResponseWrapper wrapper)) {
             return null;
         }
 

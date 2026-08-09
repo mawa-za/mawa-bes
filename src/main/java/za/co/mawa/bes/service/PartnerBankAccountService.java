@@ -12,6 +12,8 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.utils.Constant;
 import za.co.mawa.bes.utils.Conversion;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
+import za.co.mawa.bes.service.v2.UniversalBranchCodeService;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,6 +25,10 @@ public class PartnerBankAccountService {
     PartnerBankAccountRepository partnerBankAccountRepository;
     @Autowired
     PartnerRepository partnerRepository;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
+    @Autowired
+    UniversalBranchCodeService universalBranchCodeService;
 
 
     public String addBankAccount(PartnerBankAccountDto partnerBankAccount) {
@@ -50,19 +56,16 @@ public class PartnerBankAccountService {
 
 
             if (partnerBankAccount.getAccountType() != null) {
-                partnerBankAccountEntity.setAccountType(partnerBankAccount.getAccountType());
+                partnerBankAccountEntity.setAccountType(referenceDataValidationService.requireOption(
+                        "BANK-ACCOUNT-TYPE", partnerBankAccount.getAccountType(), "Bank account type"));
             }
             if (partnerBankAccount.getBankName() != null) {
-                partnerBankAccountEntity.setBankName(partnerBankAccount.getBankName());
+                partnerBankAccountEntity.setBankName(referenceDataValidationService.requireOption(
+                        "BANK-NAME", partnerBankAccount.getBankName(), "Bank name"));
 
             }
-            if (partnerBankAccount.getBranchCode() != null) {
-                partnerBankAccountEntity.setBranchCode(partnerBankAccount.getBranchCode());
-            }
-
-            if (partnerBankAccount.getBranchName() != null) {
-                partnerBankAccountEntity.setBranchName(partnerBankAccount.getBranchName());
-            }
+            partnerBankAccountEntity.setBranchCode(universalBranchCodeService.resolve(partnerBankAccountEntity.getBankName()));
+            partnerBankAccountEntity.setBranchName("Universal Branch");
 
             partnerBankAccountEntity.setValidFrom(new Date());
             if (partnerBankAccount.getValidTo() != null) {
@@ -150,17 +153,17 @@ public class PartnerBankAccountService {
                 }
 
                 if (partnerBankAccount.getAccountType() != null) {
-                    partnerBankAccountEntity.setAccountType(partnerBankAccount.getAccountType());
+                    partnerBankAccountEntity.setAccountType(referenceDataValidationService.requireOption(
+                            "BANK-ACCOUNT-TYPE", partnerBankAccount.getAccountType(), "Bank account type"));
                 }
 
                 if (partnerBankAccount.getBankName() != null) {
 
-                    partnerBankAccountEntity.setBankName(partnerBankAccount.getBankName());
+                    partnerBankAccountEntity.setBankName(referenceDataValidationService.requireOption(
+                            "BANK-NAME", partnerBankAccount.getBankName(), "Bank name"));
                 }
-                if (partnerBankAccount.getBranchCode() != null) {
-                    partnerBankAccountEntity.setBranchCode(partnerBankAccount.getBranchCode());
-
-                }
+                partnerBankAccountEntity.setBranchCode(universalBranchCodeService.resolve(partnerBankAccountEntity.getBankName()));
+                partnerBankAccountEntity.setBranchName("Universal Branch");
 
                 if (partnerBankAccount.getValidTo() != null) {
 
@@ -189,6 +192,51 @@ public class PartnerBankAccountService {
         }
 
 
+    }
+
+
+    public PartnerBankAccountEntity getActiveBankAccountEntity(String partnerId) {
+        return partnerBankAccountRepository.findByPartnerAndStatus(partnerId, Status.ACTIVE)
+                .stream()
+                .filter(account -> account.getValidTo() == null || !account.getValidTo().before(new Date()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Employee does not have active approved banking details"));
+    }
+
+    public String activateApprovedBankAccount(PartnerBankAccountDto details) {
+        if (details == null || details.getPartner() == null || details.getPartner().isBlank()) {
+            throw new IllegalArgumentException("Partner is required for banking details");
+        }
+        for (PartnerBankAccountEntity existing : partnerBankAccountRepository.findByPartnerAndStatus(
+                details.getPartner(), Status.ACTIVE)) {
+            if (details.getId() == null || !details.getId().equals(existing.getId())) {
+                existing.setStatus("INACTIVE");
+                existing.setValidTo(new Date());
+                partnerBankAccountRepository.save(existing);
+            }
+        }
+        if (details.getId() == null || details.getId().isBlank()) {
+            return addBankAccount(details);
+        }
+        PartnerBankAccountEditDto edit = new PartnerBankAccountEditDto();
+        edit.setPartner(details.getPartner());
+        edit.setAccountHolder(details.getAccountHolder());
+        edit.setAccountNumber(details.getAccountNumber());
+        edit.setAccountType(details.getAccountType());
+        edit.setBankName(details.getBankName());
+        edit.setBranchCode(universalBranchCodeService.resolve(details.getBankName()));
+        edit.setBranchName("Universal Branch");
+        edit.setValidFrom(details.getValidFrom());
+        edit.setValidTo(details.getValidTo());
+        edit.setStatus(Status.ACTIVE);
+        editBankAccount(edit, details.getId());
+        PartnerBankAccountEntity saved = partnerBankAccountRepository.getById(details.getId());
+        saved.setStatus(Status.ACTIVE);
+        saved.setBranchCode(universalBranchCodeService.resolve(saved.getBankName()));
+        saved.setBranchName("Universal Branch");
+        partnerBankAccountRepository.save(saved);
+        return saved.getId();
     }
 
 

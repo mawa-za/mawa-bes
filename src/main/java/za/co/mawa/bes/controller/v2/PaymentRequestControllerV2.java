@@ -13,6 +13,7 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.fnb.v2.BankPaymentService;
+import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
 
 import java.util.List;
@@ -27,9 +28,17 @@ public class PaymentRequestControllerV2 {
     BankPaymentService bankPaymentService;
 
     private final PaymentRequestService paymentRequestService;
+    private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
+    private final za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService;
 
-    public PaymentRequestControllerV2(@Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService) {
+    public PaymentRequestControllerV2(
+            @Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService,
+            PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
+            za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService
+    ) {
         this.paymentRequestService = paymentRequestService;
+        this.fnbPaymentQueueService = fnbPaymentQueueService;
+        this.paymentAttemptService = paymentAttemptService;
     }
 
     @PostMapping
@@ -37,7 +46,12 @@ public class PaymentRequestControllerV2 {
             @RequestBody PaymentRequestCreateRequest request,
             @RequestHeader(value = "X-User-Id", required = false) String currentUser
     ) {
-        return ResponseEntity.ok(paymentRequestService.create(request, currentUser));
+        return ResponseEntity.ok(paymentRequestService.createManual(request, currentUser));
+    }
+
+    @GetMapping("/recipient-options")
+    public ResponseEntity<List<java.util.Map<String,Object>>> recipientOptions(@RequestParam PaymentRequestType type,@RequestParam(required=false) String query) {
+        return ResponseEntity.ok(paymentRequestService.recipientOptions(type, query));
     }
 
     @GetMapping
@@ -109,23 +123,50 @@ public class PaymentRequestControllerV2 {
         return ResponseEntity.ok(paymentRequestService.markPaid(id, request, currentUser));
     }
 
+    @PostMapping("/{id}/send-to-bank")
+    public ResponseEntity<PaymentRequestResponse> sendToBank(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String currentUser
+    ) {
+        fnbPaymentQueueService.queueForBank(id, null, currentUser);
+        return ResponseEntity.ok(paymentRequestService.getById(id));
+    }
+
+    @GetMapping("/{id}/attempts")
+    public ResponseEntity<List<PaymentDisbursementAttemptResponse>> getAttempts(@PathVariable String id) {
+        paymentRequestService.getById(id);
+        return ResponseEntity.ok(paymentAttemptService.getAttempts(id));
+    }
+
     @GetMapping("/{id}/history")
     public ResponseEntity<List<PaymentRequestStatusHistoryEntity>> getHistory(@PathVariable String id) {
         return ResponseEntity.ok(paymentRequestService.getHistory(id));
     }
 
-    @RequestMapping(value = "{id}/bank-report", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{id}/bank-report", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BankPaymentResponse> getBankReport(@PathVariable String id) {
+        paymentRequestService.getById(id);
+        return paymentAttemptService.getLatestBankReport(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @PostMapping(value = "/{id}/bank-report/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BankPaymentResponse> refreshBankReport(@PathVariable String id) {
+        PaymentRequestResponse paymentRequest = paymentRequestService.getById(id);
+        String instructionId = paymentRequest.getFnbInstructionId();
+        if (instructionId == null || instructionId.isBlank()) {
+            throw new IllegalStateException("The payment request has not yet received an FNB instruction ID");
+        }
         try {
-           PaymentRequestResponse paymentRequestResponse = paymentRequestService.getById(id);
-            if (paymentRequestResponse.getExternalReference() != null) {
-                BankPaymentResponse bankPaymentResponse = bankPaymentService.getPaymentReport(paymentRequestResponse.getPaidReference());
-                return ResponseEntity.ok(bankPaymentResponse);
-            }else{
-                return ResponseEntity.ok().build();
-            }
+            BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
+            paymentAttemptService.recordBankReport(id, report);
+            return ResponseEntity.ok(report);
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalStateException(
+                    "The FNB bank report is not available yet. The system will continue checking automatically.",
+                    exception
+            );
         }
     }
 }

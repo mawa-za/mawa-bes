@@ -8,16 +8,28 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
+import za.co.mawa.bes.dto.v2.MembershipResponseDto;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentReplaceRequest;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
+import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.v2.MembershipDependentService;
+import za.co.mawa.bes.service.v2.MembershipChangeService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MigrateService;
+import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
+import java.security.Principal;
 import java.util.List;
+import za.co.mawa.bes.configuration.context.UserContext;
 
 @CrossOrigin
 @RestController
@@ -30,24 +42,34 @@ public class MembershipControllerV2 {
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
+    private final MembershipChangeService membershipChangeService;
+    private final PayAppMasterDataService payAppMasterDataService;
 
     public MembershipControllerV2(
             MembershipPlanService membershipPlanService,
             @Qualifier("MembershipServiceV2")
             MembershipService membershipService,
-            MembershipDependentService membershipDependentService) {
+            MembershipDependentService membershipDependentService,
+            MembershipChangeService membershipChangeService,
+            PayAppMasterDataService payAppMasterDataService) {
         this.membershipPlanService = membershipPlanService;
         this.membershipService = membershipService;
         this.membershipDependentService = membershipDependentService;
+        this.membershipChangeService = membershipChangeService;
+        this.payAppMasterDataService = payAppMasterDataService;
     }
 
     // ------------------------------------------
     // Membership Plan Endpoints
     // ------------------------------------------
-    @GetMapping("migrate")
+    @PostMapping("migrate")
     public ResponseEntity<?> migrate() {
-        migrateService.migrateMemberships();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(migrateService.migrateMemberships());
+    }
+
+    @GetMapping("migrate")
+    public ResponseEntity<?> migrateLegacyGet() {
+        return ResponseEntity.ok(migrateService.migrateMemberships());
     }
 
     @GetMapping("/plans")
@@ -90,16 +112,58 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping
-    public ResponseEntity<Page<MembershipEntity>> listMemberships(Pageable pageable,
-                                                                  @RequestParam(required = false) List<String> memberId
-                                                                  ) {
-        Page<MembershipEntity> page = membershipService.getMembershipsByMemberId(memberId, pageable);
-        return ResponseEntity.ok(page);
+    public ResponseEntity<Page<MembershipResponseDto>> listMemberships(
+            Pageable pageable,
+            @RequestParam(required = false) List<String> memberId,
+            @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(
+                membershipService.getMembershipResponsesByMemberId(memberId, status, pageable)
+        );
     }
 
     @GetMapping(value = "/all")
-    public ResponseEntity<Page<MembershipEntity>> getMemberships(Pageable pageable) {
-        return ResponseEntity.ok(membershipRepository.findAll(pageable));
+    public ResponseEntity<Page<MembershipResponseDto>> getMemberships(
+            Pageable pageable,
+            @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(
+                membershipService.getAllMembershipResponses(status, pageable)
+        );
+    }
+
+    /**
+     * Bounded master-data feed used by MAWA Pay. A page contains the membership
+     * and the minimal partner fields required for offline receipt lookup.
+     */
+    @GetMapping(value = "/master-data")
+    public ResponseEntity<List<MembershipMasterDataDto>> getMasterData(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "250") int size) {
+        return ResponseEntity.ok(membershipService.getMasterData(page, size));
+    }
+
+
+    /**
+     * Stable keyset-paged initial snapshot for MAWA Pay. The returned watermark
+     * becomes the starting point for later incremental requests.
+     */
+    @GetMapping(value = "/master-data/snapshot")
+    public ResponseEntity<PayAppMasterDataSnapshotResponse> getMasterDataSnapshot(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(payAppMasterDataService.snapshot(cursor, size));
+    }
+
+    /**
+     * Watermark-based incremental feed containing upserts and tombstones.
+     */
+    @GetMapping(value = "/master-data/changes")
+    public ResponseEntity<PayAppMasterDataChangesResponse> getMasterDataChanges(
+            @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "500") int size) {
+        return ResponseEntity.ok(payAppMasterDataService.changes(after, cursor, size));
     }
 
     @GetMapping("/{id}")
@@ -142,31 +206,61 @@ public class MembershipControllerV2 {
     }
 
     @PostMapping("/{membershipId}/dependents")
-    public ResponseEntity<MembershipDependentEntity> addDependent(
+    public ResponseEntity<MembershipChangeResponse> addDependent(
             @PathVariable String membershipId,
-            @Valid @RequestBody MembershipDependentEntity dependent) {
-        MembershipDependentEntity createdDependent = membershipDependentService.addDependent(membershipId, dependent);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdDependent);
+            @Valid @RequestBody MembershipDependentAddRequest request,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(membershipChangeService.requestDependentAdd(
+                        membershipId, request, actor(principal)));
     }
 
     @PutMapping("/{membershipId}/dependents/{dependentId}")
-    public ResponseEntity<MembershipDependentEntity> updateDependent(
+    public ResponseEntity<MembershipChangeResponse> replaceDependent(
             @PathVariable String membershipId,
             @PathVariable String dependentId,
-            @Valid @RequestBody MembershipDependentEntity dependent) {
-        return membershipDependentService.updateDependent(membershipId, dependentId, dependent)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            @Valid @RequestBody MembershipDependentReplaceRequest request,
+            Principal principal) {
+        return ResponseEntity.ok(membershipChangeService.requestDependentReplace(
+                membershipId, dependentId, request, actor(principal)));
     }
 
-    @DeleteMapping("/{membershipId}/dependents/{dependentId}")
-    public ResponseEntity<Void> deleteDependent(
+    @PostMapping("/{membershipId}/dependents/{dependentId}/remove")
+    public ResponseEntity<MembershipChangeResponse> removeDependent(
             @PathVariable String membershipId,
-            @PathVariable String dependentId) {
-        if (membershipDependentService.deleteDependent(membershipId, dependentId)) {
-            return ResponseEntity.noContent().build();
+            @PathVariable String dependentId,
+            @RequestBody MembershipDependentRemoveRequest request,
+            Principal principal) {
+        return ResponseEntity.ok(membershipChangeService.requestDependentRemove(
+                membershipId, dependentId, request, actor(principal)));
+    }
+
+    /**
+     * Compatibility endpoint for older clients. Removal still follows the
+     * same one-month approval rule and is never a physical delete.
+     */
+    @DeleteMapping("/{membershipId}/dependents/{dependentId}")
+    public ResponseEntity<MembershipChangeResponse> deleteDependent(
+            @PathVariable String membershipId,
+            @PathVariable String dependentId,
+            Principal principal) {
+        MembershipDependentRemoveRequest request = new MembershipDependentRemoveRequest();
+        request.setReason("Dependent removed");
+        return ResponseEntity.ok(membershipChangeService.requestDependentRemove(
+                membershipId, dependentId, request, actor(principal)));
+    }
+
+    private String actor(Principal principal) {
+        if (UserContext.getCurrentUserId() != null && !UserContext.getCurrentUserId().isBlank()) {
+            return UserContext.getCurrentUserId();
         }
-        return ResponseEntity.notFound().build();
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (UserContext.getCurrentUser() != null && !UserContext.getCurrentUser().isBlank()) {
+            return UserContext.getCurrentUser();
+        }
+        return "SYSTEM";
     }
 
 }

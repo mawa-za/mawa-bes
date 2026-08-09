@@ -1,71 +1,130 @@
 package za.co.mawa.bes.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
-import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.configuration.jwt.JwtTokenUtil;
-import za.co.mawa.bes.dto.EmailDto;
-import za.co.mawa.bes.dto.PropertyDto;
-import za.co.mawa.bes.dto.membership.MembershipCreateDto;
-import za.co.mawa.bes.dto.user.UserDto;
-import za.co.mawa.bes.entity.UserEntity;
-import za.co.mawa.bes.repository.UserRepository;
-import za.co.mawa.bes.service.*;
-import org.thymeleaf.context.Context;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
+import za.co.mawa.bes.service.PasswordResetService;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import java.util.Map;
 
 @RestController
 @CrossOrigin
 public class PasswordController {
-    @Autowired
-    private JwtTokenUtil jwtTokenUtil;
-    @Autowired
-    EncryptionService encryptionService;
-    @Autowired
-    EmailService emailService;
-    @Autowired
-    UserService userService;
-    @Autowired
-    SettingService settingService;
 
-    @Autowired
-    UserRepository userRepository;
+    private static final Logger log = LoggerFactory.getLogger(PasswordController.class);
+    private static final String NEUTRAL_RESPONSE =
+            "If the email address is registered, password reset instructions will be sent.";
 
-    @RequestMapping(value = "forgot-password", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+    private final PasswordResetService passwordResetService;
+
+    public PasswordController(PasswordResetService passwordResetService) {
+        this.passwordResetService = passwordResetService;
+    }
+
+    @RequestMapping(
+            value = {"forgot-password", "v2/forgot-password"},
+            method = RequestMethod.POST,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<?> forgotPassword(
+            @RequestParam(required = false) String email,
+            @RequestBody(required = false) ForgotPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String requestEmail = email;
+        if (!StringUtils.hasText(requestEmail) && request != null) {
+            requestEmail = request.getEmail();
+        }
+        if (!StringUtils.hasText(requestEmail)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email address is required"));
+        }
+
         try {
-            UserEntity userEntity = userRepository.getByEmail(email);
-            String tenant = settingService.getSetting("ACCESS-URL","TENANT");
-            if(tenant == null){
-                tenant = TenantContext.getCurrentTenantURL();
-            }
-            final String token = jwtTokenUtil.generateToken(userEntity.getUsername());
-            String resetLink = buildResetEmail(tenant, token);
-            EmailDto emailDto = new EmailDto();
-            emailDto.setTo(userEntity.getEmail());
-            emailDto.setSubject("Reset Password");
-            emailDto.setTemplate("reset-password");
-            List<PropertyDto> properties = new ArrayList<>();
-            properties.add(new PropertyDto("resetLink", resetLink));
-            emailDto.setProperties(properties);
-            emailService.send(emailDto);
-            return ResponseEntity.ok().build();
+            passwordResetService.requestReset(
+                    requestEmail,
+                    resolveClientIp(httpRequest),
+                    httpRequest.getHeader("User-Agent")
+            );
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            // Never reveal account existence or mail infrastructure details.
+            log.error("Password reset request could not be completed", exception);
+        }
+        return ResponseEntity.ok(Map.of("message", NEUTRAL_RESPONSE));
+    }
+
+    @RequestMapping(
+            value = {"reset-password", "v2/reset-password"},
+            method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        if (request == null || !StringUtils.hasText(request.getToken())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Reset token is invalid or expired"));
+        }
+        if (!StringUtils.hasText(request.getPassword())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "New password is required"));
+        }
+
+        try {
+            passwordResetService.resetPassword(request.getToken(), request.getPassword());
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        } catch (Exception exception) {
+            log.error("Password reset failed", exception);
+            return ResponseEntity.badRequest().body(Map.of("message", "Reset token is invalid or expired"));
         }
     }
 
-    public String buildResetEmail(String domain, String token) {
-               // Build reset URL
-        return domain.startsWith("http://") || domain.startsWith("https://")
-                ? domain + "/#/reset-password?token=" + token
-                : "https://" + domain + "/#/reset-password?token=" + token;
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (StringUtils.hasText(forwarded)) {
+            int comma = forwarded.indexOf(',');
+            return (comma >= 0 ? forwarded.substring(0, comma) : forwarded).trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    public static class ForgotPasswordRequest {
+        private String email;
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+    }
+
+    public static class ResetPasswordRequest {
+        private String token;
+        private String password;
+
+        public String getToken() {
+            return token;
+        }
+
+        public void setToken(String token) {
+            this.token = token;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
     }
 }

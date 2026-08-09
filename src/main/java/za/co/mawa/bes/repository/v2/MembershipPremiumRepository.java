@@ -15,10 +15,24 @@ public interface MembershipPremiumRepository extends JpaRepository<MembershipPre
             String periodYYYYMM
     );
 
+    List<MembershipPremiumEntity> findByMembershipIdInAndPeriodYYYYMMOrderByMembershipIdAsc(
+            Collection<String> membershipIds,
+            String periodYYYYMM
+    );
+
     List<MembershipPremiumEntity> findByMembershipIdOrderByPeriodYYYYMMAsc(String membershipId);
+
+    List<MembershipPremiumEntity> findByMembershipIdInOrderByPeriodYYYYMMAsc(
+            Collection<String> membershipIds
+    );
 
     List<MembershipPremiumEntity> findByMembershipIdAndStatusInOrderByPeriodYYYYMMAsc(
             String membershipId,
+            Collection<PremiumStatus> statuses
+    );
+
+    List<MembershipPremiumEntity> findByMembershipIdInAndStatusInOrderByPeriodYYYYMMAsc(
+            Collection<String> membershipIds,
             Collection<PremiumStatus> statuses
     );
 
@@ -26,6 +40,11 @@ public interface MembershipPremiumRepository extends JpaRepository<MembershipPre
 
     List<MembershipPremiumEntity> findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
             String membershipId,
+            PremiumStatus status
+    );
+
+    List<MembershipPremiumEntity> findByMembershipIdInAndStatusOrderByPeriodYYYYMMAsc(
+            Collection<String> membershipIds,
             PremiumStatus status
     );
 }

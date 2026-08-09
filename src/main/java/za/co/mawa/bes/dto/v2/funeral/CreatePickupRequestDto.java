@@ -8,6 +8,7 @@ import lombok.Setter;
 public class CreatePickupRequestDto {
     private String deceasedName;
     private String pickupLocation;
+    private String pickupLocationCode;
     private String contactPerson;
     private String contactNumber;
 }

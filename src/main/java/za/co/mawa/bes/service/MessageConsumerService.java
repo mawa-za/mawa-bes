@@ -4,20 +4,38 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
-import za.co.mawa.bes.dto.v2.payment.PaymentRequestUpdateRequest;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
+import za.co.mawa.bes.fnb.FnbInitiationRecoveryService;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
+import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
+import za.co.mawa.bes.fnb.dto.OriginalPaymentInformation;
+import za.co.mawa.bes.fnb.dto.StatusReasonInformation;
+import za.co.mawa.bes.fnb.dto.TransactionInfoAndStatus;
+import za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService;
+import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
+import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.xero.XeroInvoicePushService;
 
 import java.time.LocalDateTime;
+import java.sql.SQLException;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 public class MessageConsumerService {
 
@@ -30,59 +48,584 @@ public class MessageConsumerService {
     @Autowired
     BankPaymentService bankPaymentService;
     @Autowired
+    FnbInitiationRecoveryService fnbInitiationRecoveryService;
+    @Autowired
     @Qualifier("paymentRequestServiceV2")
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
+    @Autowired
+    XeroInvoicePushService xeroInvoicePushService;
+    @Autowired
+    PaymentDisbursementAttemptService paymentAttemptService;
+    @Autowired
+    PaymentRequestFnbPaymentQueueService paymentQueueService;
+    @Autowired
+    PayrollPaymentBatchService payrollPaymentBatchService;
+    @Autowired
+    SettingService settingService;
     Gson gson = new Gson();
 
-    @Scheduled(fixedDelay = 60000)
-    public void processAllTenants() {
-        ObjectMapper mapper = new ObjectMapper();
-        for (TenantDto tenant : tenantAdminService.getAll()) {
+    private static final String QUEUE_GROUP = "MESSAGE-QUEUE";
+    private static final String ENABLED = "ENABLED";
+    private static final String INTERVAL_SECONDS = "INTERVAL-SECONDS";
+    private static final String BATCH_SIZE = "BATCH-SIZE";
+    private static final String RETRY_DELAY_SECONDS = "RETRY-DELAY-SECONDS";
+    private static final Pattern RETRY_AFTER_SECONDS = Pattern.compile(
+            "Retry-After\\s+(\\d+)\\s+seconds", Pattern.CASE_INSENSITIVE);
+    private final Map<String, LocalDateTime> lastRunByTenant = new ConcurrentHashMap<>();
 
+    @Value("${mawa.scheduler.transient-db-retry-attempts:2}")
+    private int transientDatabaseRetryAttempts;
+
+    @Value("${mawa.scheduler.transient-db-retry-backoff-ms:500}")
+    private long transientDatabaseRetryBackoffMs;
+
+    @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
+    public void processAllTenants() {
+        final List<TenantDto> tenants;
+        try {
+            tenants = tenantAdminService.getAll();
+        } catch (RuntimeException ex) {
+            // A temporary admin-service outage must not escape the scheduled
+            // method and generate an unbounded TaskUtils stack trace every run.
+            log.error("Message queue dispatch skipped because tenant discovery is unavailable: {}", ex.getMessage());
+            return;
+        }
+        for (TenantDto tenant : tenants) {
+            processTenantWithRetry(tenant);
+        }
+    }
+
+    private void processTenantWithRetry(TenantDto tenant) {
+        int attempts = Math.max(1, transientDatabaseRetryAttempts);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
-                List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
-                        .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
-
-                for (MessageQueueEntity msg : messageQueueEntities) {
-                    try {
-                        System.out.println("Tenant: " + tenant + " Payload: " + msg.getPayload());
-                        switch (msg.getType()) {
-                            case "FNB-EFT-PAYMENT":
-                                String instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
-                                BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
-                                for (PaymentInformation paymentInformation : bankPaymentRequest.getPaymentInformation()) {
-                                    PaymentRequestUpdateRequest request = new PaymentRequestUpdateRequest();
-                                    request.setPaidReference(instructionId);
-                                    paymentRequestService.update(msg.getReferenceId(), request, userService.getUserByName("BGUSER").getId());
-                                }
-                                msg.setProcessed(true);
-                                break;
-                            case "INVOICE-EMAIL":
-//                                paymentRequestService.sendInvoiceFile(msg.getPayload());
-                                msg.setProcessed(true);
-                                break;
-                            default:
-                                // code block
-                        }
-
-                    } catch (Exception e) {
-                        msg.setRetryCount(msg.getRetryCount() + 1);
-                        if (msg.getRetryCount() > 3) {
-                            msg.setProcessed(true); // Optionally move to DeadLetterQueue
-                        } else {
-                            msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
-                        }
-                    }
-                    messageQueueRepository.save(msg);
+                if (!isSchedulerEnabled() || !isDueToRun()) {
+                    return;
                 }
 
-            } catch (Exception e) {
-                System.err.println("Error processing tenant " + tenant + ": " + e.getMessage());
+                int processed = processCurrentTenant();
+                lastRunByTenant.put(TenantContext.getCurrentTenant(), LocalDateTime.now());
+                if (processed > 0) {
+                    log.info("Message queue processed {} item(s) for tenant {}", processed, tenantLabel(tenant));
+                }
+                return;
+            } catch (Exception ex) {
+                boolean retryable = isTransientDatabaseFailure(ex) && attempt < attempts;
+                if (retryable) {
+                    log.warn(
+                            "Transient database failure while processing message queue for tenant {} "
+                                    + "(attempt {}/{}). A fresh connection will be used: {}",
+                            tenantLabel(tenant),
+                            attempt,
+                            attempts,
+                            rootMessage(ex));
+                    sleepBeforeRetry(attempt);
+                    continue;
+                }
+
+                log.error("Message queue processing failed for tenant {}: {}",
+                        tenantLabel(tenant), rootMessage(ex), ex);
+                return;
             } finally {
                 TenantContext.clear();
             }
         }
+    }
+
+    private boolean isTransientDatabaseFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SQLException sqlException) {
+                String sqlState = sqlException.getSQLState();
+                if (sqlState != null && sqlState.startsWith("08")) {
+                    return true;
+                }
+            }
+
+            String className = current.getClass().getName();
+            if (className.contains("JDBCConnectionException")
+                    || className.contains("CannotGetJdbcConnectionException")
+                    || className.contains("TransientDataAccessResourceException")
+                    || className.contains("SQLTransientConnectionException")) {
+                return true;
+            }
+
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(java.util.Locale.ROOT);
+                if (normalized.contains("communications link failure")
+                        || normalized.contains("connection reset by peer")
+                        || normalized.contains("no operations allowed after connection closed")
+                        || normalized.contains("unable to rollback against jdbc connection")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long delay = Math.max(0L, transientDatabaseRetryBackoffMs) * Math.max(1, attempt);
+        if (delay == 0L) {
+            return;
+        }
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private String tenantLabel(TenantDto tenant) {
+        if (tenant == null) {
+            return "unknown";
+        }
+        String name = tenant.getName();
+        return name == null || name.isBlank()
+                ? String.valueOf(tenant.getId())
+                : name + " (" + tenant.getId() + ")";
+    }
+
+    private String rootMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null && current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        if (current == null || current.getMessage() == null || current.getMessage().isBlank()) {
+            return throwable == null ? "Unknown error" : throwable.getClass().getSimpleName();
+        }
+        return current.getMessage();
+    }
+
+    public boolean isSchedulerEnabled() {
+        String enabled = settingService.getSetting(ENABLED, QUEUE_GROUP);
+        return enabled == null || enabled.isBlank() || "true".equalsIgnoreCase(enabled) || "1".equals(enabled) || "Y".equalsIgnoreCase(enabled);
+    }
+
+    public int getSchedulerIntervalSeconds() {
+        String value = settingService.getSetting(INTERVAL_SECONDS, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(30, parsed);
+        } catch (Exception ignored) {
+            return 60;
+        }
+    }
+
+    public int getBatchSize() {
+        String value = settingService.getSetting(BATCH_SIZE, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(1, Math.min(parsed, 100));
+        } catch (Exception ignored) {
+            return 10;
+        }
+    }
+
+    public int getRetryDelaySeconds() {
+        String value = settingService.getSetting(RETRY_DELAY_SECONDS, QUEUE_GROUP);
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(5, Math.min(parsed, 3600));
+        } catch (Exception ignored) {
+            return 10;
+        }
+    }
+
+    public LocalDateTime getLastRunAt() { return lastRunByTenant.get(TenantContext.getCurrentTenant()); }
+
+    public LocalDateTime getNextRunAt() {
+        if (!isSchedulerEnabled()) return null;
+        LocalDateTime lastRunAt = getLastRunAt();
+        if (lastRunAt == null) return LocalDateTime.now();
+        return lastRunAt.plusSeconds(getSchedulerIntervalSeconds());
+    }
+
+    private boolean isDueToRun() {
+        LocalDateTime lastRunAt = getLastRunAt();
+        return lastRunAt == null || !lastRunAt.plusSeconds(getSchedulerIntervalSeconds()).isAfter(LocalDateTime.now());
+    }
+
+    public int processCurrentTenant() {
+        ObjectMapper mapper = new ObjectMapper();
+        int processedCount = 0;
+        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
+                .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
+        int batchSize = getBatchSize();
+        if (messageQueueEntities.size() > batchSize) {
+            messageQueueEntities = messageQueueEntities.subList(0, batchSize);
+        }
+
+        for (MessageQueueEntity msg : messageQueueEntities) {
+            try {
+                log.debug("Processing message queue item {} of type {} for tenant {}",
+                        msg.getId(), msg.getType(), TenantContext.getCurrentTenant());
+                switch (msg.getType()) {
+                    case "FNB-EFT-PAYMENT":
+                        BankPaymentRequest bankPaymentRequest = mapper.readValue(msg.getPayload(), BankPaymentRequest.class);
+                        List<String> paymentRequestReferences = resolvePaymentRequestReferences(msg, bankPaymentRequest);
+                        List<String> fnbLogReferences = resolveFnbLogReferences(msg, bankPaymentRequest);
+                        String instructionId = resolveStoredInstructionId(paymentRequestReferences);
+                        String systemUserId = resolveSystemUserId();
+
+                        if (instructionId == null) {
+                            instructionId = fnbInitiationRecoveryService
+                                    .recoverInstructionId(fnbLogReferences);
+                            if (instructionId != null) {
+                                log.info(
+                                        "Recovered FNB instruction ID {} from API activity logs for queue message {}",
+                                        instructionId,
+                                        msg.getId()
+                                );
+                            }
+                        }
+
+                        if (instructionId == null) {
+                            instructionId = bankPaymentService.sendPaymentRequest(msg.getPayload());
+                            if (instructionId == null || instructionId.isBlank()) {
+                                throw new IllegalStateException("FNB initiate response did not contain an instructionId");
+                            }
+                        } else {
+                            log.info(
+                                    "Skipping duplicate FNB initiate call for queue message {}. Reusing instruction ID {}",
+                                    msg.getId(),
+                                    instructionId
+                            );
+                        }
+
+                        // Persist first, in an independent transaction, before any other
+                        // local processing that could fail and cause a queue retry.
+                        for (String paymentRequestReference : paymentRequestReferences) {
+                            paymentRequestService.recordFnbInstruction(
+                                    paymentRequestReference,
+                                    instructionId,
+                                    systemUserId
+                            );
+                        }
+
+                        if (resolveStoredInstructionId(paymentRequestReferences) == null) {
+                            throw new IllegalStateException("FNB instruction ID could not be persisted against the payment request");
+                        }
+
+                        for (String paymentRequestReference : paymentRequestReferences) {
+                            paymentRequestService.markSentToBank(
+                                    paymentRequestReference,
+                                    instructionId,
+                                    systemUserId
+                            );
+                            paymentAttemptService.markSubmitted(paymentRequestReference, instructionId);
+                            paymentQueueService.queuePaymentReport(paymentRequestReference, instructionId);
+                        }
+
+                        msg.setProcessed(true);
+                        break;
+                    case "FNB-EFT-PAYMENT-REPORT":
+                        processFnbPaymentReport(msg, systemUserIdForReport());
+                        break;
+                    case "FNB-PAYROLL-PAYMENT":
+                        payrollPaymentBatchService.processBankSubmission(
+                                msg.getReferenceId(), msg.getPayload(), resolveSystemUserId());
+                        msg.setProcessed(true);
+                        break;
+                    case "FNB-PAYROLL-PAYMENT-REPORT":
+                        boolean payrollReportFinal = payrollPaymentBatchService.processBankReport(
+                                msg.getReferenceId(), resolveSystemUserId());
+                        if (payrollReportFinal) {
+                            msg.setProcessed(true);
+                        } else {
+                            msg.setRetryCount(msg.getRetryCount() + 1);
+                            msg.setProcessed(false);
+                            msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                        }
+                        break;
+                    case "INVOICE-EMAIL":
+                        msg.setProcessed(true);
+                        break;
+                    case "XERO-INVOICE":
+                        xeroInvoicePushService.pushInvoice(resolveInvoiceId(msg));
+                        msg.setProcessed(true);
+                        break;
+                    default:
+                        log.warn("No processor is registered for message queue type {}", msg.getType());
+                        break;
+                }
+
+            } catch (Exception e) {
+                if (isTransientDatabaseFailure(e)) {
+                    if (e instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+                    throw new IllegalStateException("Transient database failure while processing message queue", e);
+                }
+                if (isBankPaymentReportMessage(msg) && isBankReportTooEarly(e)) {
+                    int retryAfterSeconds = resolveBankReportRetryAfterSeconds(e);
+                    msg.setProcessed(false);
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(retryAfterSeconds));
+                    log.info(
+                            "FNB report is not ready for queue message {} ({}); retrying in {} seconds",
+                            msg.getId(), msg.getType(), retryAfterSeconds
+                    );
+                } else {
+                    log.error(
+                            "Message queue processing failed for tenant {}, message {}, type {}",
+                            TenantContext.getCurrentTenant(),
+                            msg.getId(),
+                            msg.getType(),
+                            e
+                    );
+                    if ("XERO-INVOICE".equals(msg.getType())) {
+                        xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                    }
+                    msg.setRetryCount(msg.getRetryCount() + 1);
+                    if (isBankPaymentReportMessage(msg)) {
+                        // Bank report availability is eventually consistent. Keep polling instead
+                        // of abandoning a valid disbursement after three temporary failures.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                    } else if (msg.getRetryCount() > 3) {
+                        msg.setProcessed(true);
+                    } else {
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
+                    }
+                }
+            }
+            messageQueueRepository.save(msg);
+            processedCount++;
+        }
+        return processedCount;
+    }
+
+    private void processFnbPaymentReport(MessageQueueEntity msg, String systemUserId) throws Exception {
+        String paymentRequestId = msg.getReferenceId();
+        String instructionId = paymentRequestService.getFnbInstructionId(paymentRequestId);
+        if (instructionId == null || instructionId.isBlank()) {
+            instructionId = msg.getReferenceNo();
+        }
+        if (instructionId == null || instructionId.isBlank()) {
+            throw new IllegalStateException("FNB payment report message has no instruction ID");
+        }
+
+        BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
+        paymentAttemptService.recordBankReport(paymentRequestId, report);
+        String providerStatus = resolveProviderStatus(report);
+        String reason = resolveProviderReason(report);
+
+        if (isSuccessfulBankStatus(providerStatus)) {
+            paymentRequestService.markBankPaymentPaid(paymentRequestId, providerStatus, systemUserId);
+            paymentAttemptService.markSucceeded(paymentRequestId, providerStatus);
+            msg.setProcessed(true);
+            return;
+        }
+
+        if (isFailedBankStatus(providerStatus)) {
+            paymentRequestService.markBankPaymentFailed(paymentRequestId, providerStatus, reason, systemUserId);
+            paymentAttemptService.markFailed(paymentRequestId, providerStatus, providerStatus, reason);
+            msg.setProcessed(true);
+            return;
+        }
+
+        paymentRequestService.markBankPaymentPending(paymentRequestId, providerStatus, systemUserId);
+        paymentAttemptService.markPending(paymentRequestId, providerStatus);
+        msg.setRetryCount(msg.getRetryCount() + 1);
+        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+        msg.setProcessed(false);
+    }
+
+    private boolean isBankPaymentReportMessage(MessageQueueEntity message) {
+        if (message == null) return false;
+        return "FNB-EFT-PAYMENT-REPORT".equals(message.getType())
+                || "FNB-PAYROLL-PAYMENT-REPORT".equals(message.getType());
+    }
+
+    private boolean isBankReportTooEarly(Throwable throwable) {
+        String message = rootMessage(throwable);
+        if (message == null) return false;
+        String normalized = message.toLowerCase();
+        return normalized.contains("code: 425")
+                || normalized.contains("425 too early")
+                || normalized.contains("too early. retry-after");
+    }
+
+    private int resolveBankReportRetryAfterSeconds(Throwable throwable) {
+        int configuredInterval = getPaymentReportIntervalSeconds();
+        String message = rootMessage(throwable);
+        if (message == null) return configuredInterval;
+        Matcher matcher = RETRY_AFTER_SECONDS.matcher(message);
+        if (!matcher.find()) return configuredInterval;
+        try {
+            int providerDelay = Integer.parseInt(matcher.group(1));
+            return Math.max(configuredInterval, Math.min(providerDelay, 3600));
+        } catch (NumberFormatException ignored) {
+            return configuredInterval;
+        }
+    }
+
+    private int getPaymentReportIntervalSeconds() {
+        String value = settingService.getSetting("PAYMENT-REPORT-INTERVAL-SECONDS", "FNB-API");
+        try {
+            return Math.max(30, Math.min(Integer.parseInt(value), 3600));
+        } catch (Exception ignored) {
+            return 60;
+        }
+    }
+
+    private String systemUserIdForReport() {
+        return resolveSystemUserId();
+    }
+
+    private String resolveProviderStatus(BankPaymentResponse report) {
+        if (report == null) return "PENDING";
+        if (report.getOriginalPaymentInformation() != null) {
+            for (OriginalPaymentInformation payment : report.getOriginalPaymentInformation()) {
+                if (payment.getTransactionInfoAndStatus() != null) {
+                    for (TransactionInfoAndStatus transaction : payment.getTransactionInfoAndStatus()) {
+                        if (transaction.getTransactionStatus() != null && !transaction.getTransactionStatus().isBlank()) {
+                            return transaction.getTransactionStatus();
+                        }
+                    }
+                }
+                if (payment.getPaymentInformationStatus() != null && !payment.getPaymentInformationStatus().isBlank()) {
+                    return payment.getPaymentInformationStatus();
+                }
+            }
+        }
+        return report.getGroupStatus() == null || report.getGroupStatus().isBlank() ? "PENDING" : report.getGroupStatus();
+    }
+
+    private String resolveProviderReason(BankPaymentResponse report) {
+        if (report == null) return "No payment report returned by FNB";
+        String reason = reasonFrom(report.getStatusReasonInformation());
+        if (reason != null) return reason;
+        if (report.getOriginalPaymentInformation() != null) {
+            for (OriginalPaymentInformation payment : report.getOriginalPaymentInformation()) {
+                reason = reasonFrom(payment.getStatusReasonInformation());
+                if (reason != null) return reason;
+                if (payment.getTransactionInfoAndStatus() != null) {
+                    for (TransactionInfoAndStatus transaction : payment.getTransactionInfoAndStatus()) {
+                        reason = reasonFrom(transaction.getStatusReasonInformation());
+                        if (reason != null) return reason;
+                    }
+                }
+            }
+        }
+        return "FNB returned status " + resolveProviderStatus(report);
+    }
+
+    private String reasonFrom(List<StatusReasonInformation> reasons) {
+        if (reasons == null) return null;
+        for (StatusReasonInformation reason : reasons) {
+            if (reason == null) continue;
+            String value = firstNonBlank(reason.getAdditionalInformation(), reason.getReason());
+            if (value != null && !value.isBlank()) return value;
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) return primary;
+        return fallback;
+    }
+
+    private boolean isSuccessfulBankStatus(String status) {
+        if (status == null) return false;
+        return Set.of("ACSC", "ACCC", "COMPLETED", "COMPLETE", "SUCCESS", "SUCCEEDED", "PAID")
+                .contains(status.trim().toUpperCase());
+    }
+
+    private boolean isFailedBankStatus(String status) {
+        if (status == null) return false;
+        return Set.of("RJCT", "REJECTED", "FAILED", "FAILURE", "CANCELLED", "CANCELED", "CANC")
+                .contains(status.trim().toUpperCase());
+    }
+
+    private List<String> resolvePaymentRequestReferences(
+            MessageQueueEntity message,
+            BankPaymentRequest bankPaymentRequest
+    ) {
+        if (message.getReferenceId() != null && !message.getReferenceId().isBlank()) {
+            // Resolve now, before calling FNB, so an invalid queue reference cannot
+            // result in a successful external payment with no local payment request.
+            paymentRequestService.getFnbInstructionId(message.getReferenceId());
+            return List.of(message.getReferenceId());
+        }
+
+        if (bankPaymentRequest.getPaymentInformation() == null || bankPaymentRequest.getPaymentInformation().isEmpty()) {
+            throw new IllegalStateException("FNB queue message contains no payment request reference");
+        }
+
+        List<String> references = bankPaymentRequest.getPaymentInformation().stream()
+                .map(PaymentInformation::getPaymentInformationId)
+                .filter(reference -> reference != null && !reference.isBlank())
+                .distinct()
+                .toList();
+
+        if (references.isEmpty()) {
+            throw new IllegalStateException("FNB queue message contains no payment request reference");
+        }
+
+        for (String reference : references) {
+            paymentRequestService.getFnbInstructionId(reference);
+        }
+        return references;
+    }
+
+    private List<String> resolveFnbLogReferences(
+            MessageQueueEntity message,
+            BankPaymentRequest bankPaymentRequest
+    ) {
+        Set<String> references = new LinkedHashSet<>();
+        if (message.getReferenceNo() != null && !message.getReferenceNo().isBlank()) {
+            references.add(message.getReferenceNo());
+        }
+        if (bankPaymentRequest.getPaymentInformation() != null) {
+            bankPaymentRequest.getPaymentInformation().stream()
+                    .map(PaymentInformation::getPaymentInformationId)
+                    .filter(reference -> reference != null && !reference.isBlank())
+                    .forEach(references::add);
+        }
+        return List.copyOf(references);
+    }
+
+    private String resolveStoredInstructionId(List<String> paymentRequestReferences) {
+        String resolvedInstructionId = null;
+        for (String reference : paymentRequestReferences) {
+            String storedInstructionId = paymentRequestService.getFnbInstructionId(reference);
+            if (storedInstructionId == null || storedInstructionId.isBlank()) {
+                continue;
+            }
+            if (resolvedInstructionId != null && !resolvedInstructionId.equals(storedInstructionId)) {
+                throw new IllegalStateException("Payment requests in the same FNB message have different instruction IDs");
+            }
+            resolvedInstructionId = storedInstructionId;
+        }
+        return resolvedInstructionId;
+    }
+
+    private String resolveSystemUserId() {
+        try {
+            var backgroundUser = userService.getUserByName("BGUSER");
+            if (backgroundUser != null
+                    && backgroundUser.getId() != null
+                    && !backgroundUser.getId().isBlank()) {
+                return backgroundUser.getId();
+            }
+            log.debug("BGUSER is not configured; using SYSTEM for FNB queue audit updates");
+        } catch (Exception exception) {
+            log.warn(
+                    "BGUSER lookup failed; using SYSTEM for FNB queue audit updates: {}",
+                    rootMessage(exception)
+            );
+        }
+        return "SYSTEM";
+    }
+
+    private String resolveInvoiceId(MessageQueueEntity msg) {
+        if (msg.getReferenceId() != null && !msg.getReferenceId().isBlank()) {
+            return msg.getReferenceId();
+        }
+        return msg.getPayload();
     }
 
     private void sendInvoice(MessageQueueEntity msg) {
@@ -94,7 +637,7 @@ public class MessageConsumerService {
             if (msg.getRetryCount() > 3) {
                 msg.setProcessed(true); // Optionally move to DeadLetterQueue
             } else {
-                msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getRetryDelaySeconds()));
             }
         }
         messageQueueRepository.save(msg);

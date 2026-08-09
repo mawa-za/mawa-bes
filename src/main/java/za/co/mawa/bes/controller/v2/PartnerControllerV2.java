@@ -1,20 +1,29 @@
 package za.co.mawa.bes.controller.v2;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.*;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.partner.*;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.entity.*;
+import za.co.mawa.bes.exception.DuplicateCreationException;
+import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.service.*;
+import za.co.mawa.bes.service.v2.SupplierApprovalService;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @CrossOrigin
 @RequestMapping(value = "v2/partner")
@@ -34,16 +43,22 @@ public class PartnerControllerV2 {
     PartnerAddressService partnerAddressService;
     @Autowired
     AddressService addressService;
+    @Autowired
+    SupplierApprovalService supplierApprovalService;
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<PartnerViewEntity>> getPartners(@RequestParam(required = false) String query, @RequestParam(required = false) String role) {
         try {
+            query = query == null ? "" : query.trim();
+            role = role == null ? "" : role.trim();
             List<PartnerViewEntity> partnerViewEntities = new ArrayList<>();
-            if (!query.isEmpty()) {
+            if (!query.isEmpty() && !role.isEmpty()) {
+                partnerViewEntities = partnerServiceV2.searchByStringAndRole('%' + query + '%', role);
+            } else if (!query.isEmpty()) {
                 partnerViewEntities = partnerServiceV2.searchByString('%' + query + '%');
             } else if (!role.isEmpty()) {
                 partnerViewEntities = partnerServiceV2.getByRole(role);
-            } else if (role.isEmpty() && query.isEmpty()) {
+            } else {
                 partnerViewEntities = partnerServiceV2.getAll();
             }
             List<PartnerViewEntity> uniquePartners = new ArrayList<>(
@@ -62,21 +77,71 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PartnerOutboundDto> post(@RequestBody PartnerInboundDto partnerInboundDto) throws Exception {
+    public ResponseEntity<?> post(@RequestBody PartnerInboundDto partnerInboundDto) {
         try {
+            if ("SUPPLIER".equalsIgnoreCase(partnerInboundDto.getPartnerRole())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+            boolean existingPartner = partnerServiceV2.identityExists(
+                    partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
             PartnerViewEntity partnerViewEntity = partnerServiceV2.create(partnerInboundDto);
             PartnerOutboundDto partnerOutboundDto = new PartnerOutboundDto();
             partnerOutboundDto.setPartnerId(partnerViewEntity.getPartnerId());
+            partnerOutboundDto.setExistingPartner(existingPartner);
             partnerOutboundDto.setPartnerNo(partnerViewEntity.getPartnerNo());
             partnerOutboundDto.setIdentityType(partnerViewEntity.getIdentityType());
             partnerOutboundDto.setIdentityNumber(partnerViewEntity.getIdentityNumber());
             partnerOutboundDto.setName1(partnerViewEntity.getName1());
             partnerOutboundDto.setName2(partnerViewEntity.getName2());
             partnerOutboundDto.setName3(partnerViewEntity.getName3());
-            return ResponseEntity.ok(partnerOutboundDto);
+            return ResponseEntity.status(existingPartner ? HttpStatus.OK : HttpStatus.CREATED)
+                    .body(partnerOutboundDto);
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            Throwable root = exception;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            log.error("Unable to create partner: {}", root.getMessage(), exception);
+            String message = root instanceof IllegalArgumentException
+                    ? root.getMessage()
+                    : "Unable to create partner. Review the supplied information and try again";
+            if (message == null || message.isBlank()) {
+                message = "Unable to create partner. Review the supplied information and try again";
+            }
+            return ResponseEntity.badRequest().body(
+                    new ErrorResponse(message, HttpStatus.BAD_REQUEST.value())
+            );
         }
+    }
+
+    @PostMapping(value = "/supplier/submit-for-approval", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApprovalRequestResponse> submitSupplierForApproval(
+            @RequestBody SupplierOnboardingRequest onboardingRequest,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(
+                supplierApprovalService.submitSupplierOnboarding(
+                        onboardingRequest, resolveActor(userId, principal))
+        );
+    }
+
+    @GetMapping(value = "/{id}/bank-accounts", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PartnerBankAccountGetDto> getSupplierBankAccounts(@PathVariable String id) {
+        return ResponseEntity.ok(partnerBankAccountService.getBankAccounts(id));
+    }
+
+    @PostMapping(value = "/{id}/bank-accounts/submit-for-approval", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApprovalRequestResponse> submitSupplierBankingForApproval(
+            @PathVariable String id,
+            @RequestBody PartnerBankAccountDto bankAccount,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(
+                supplierApprovalService.submitBankingDetails(
+                        id, bankAccount, resolveActor(userId, principal))
+        );
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -90,18 +155,18 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PartnerDto> getPartnerById(@PathVariable String id) {
-        try {
-            PartnerDto partnerDto = partnerService.get(id);
-            return ResponseEntity.ok(partnerDto);
-        } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<PartnerDto> getPartnerById(@PathVariable String id)
+            throws PartnerNotFoundException {
+        return ResponseEntity.ok(partnerService.get(id));
     }
 
     @RequestMapping(value = "{id}/role", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> assignPartnerRoleToPartner(@PathVariable String id, @RequestBody List<String> roleList) {
         try {
+            if (roleList != null && roleList.stream().anyMatch(role -> "SUPPLIER".equalsIgnoreCase(role))) {
+                throw new IllegalArgumentException(
+                        "Supplier role must be assigned through the supplier onboarding approval process");
+            }
             for (String role : roleList) {
                 RolePartnerDto partnerRole = new RolePartnerDto();
                 partnerRole.setPartner(id);
@@ -214,8 +279,10 @@ public class PartnerControllerV2 {
             partnerIdentityCreateDto.setPartner(id);
             partnerIdentityService.add(partnerIdentityCreateDto);
             return ResponseEntity.ok().build();
+        } catch (DuplicateCreationException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
         } catch (Exception exception) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(exception.getMessage());
         }
     }
 
@@ -326,5 +393,19 @@ public class PartnerControllerV2 {
         }
     }
 
+
+    private String resolveActor(String headerUserId, Principal principal) {
+        if (headerUserId != null && !headerUserId.isBlank()) return headerUserId.trim();
+        if (UserContext.getCurrentUserId() != null && !UserContext.getCurrentUserId().isBlank()) {
+            return UserContext.getCurrentUserId();
+        }
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (UserContext.getCurrentUser() != null && !UserContext.getCurrentUser().isBlank()) {
+            return UserContext.getCurrentUser();
+        }
+        return "SYSTEM";
+    }
 
 }

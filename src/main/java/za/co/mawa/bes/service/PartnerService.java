@@ -24,6 +24,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,6 +42,8 @@ public class PartnerService {
     PartnerRepository partnerRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
@@ -152,28 +155,26 @@ public class PartnerService {
     }
 
     public PartnerDto get(String id) throws PartnerNotFoundException {
-        try {
-            PartnerEntity partner = partnerRepository.getById(id);
-            PartnerDto partnerDto = new PartnerDto();
-            partnerDto.setId(partner.getId());
-            partnerDto.setNumber(partner.getNo());
-            partnerDto.setIdentity(partnerIdentityService.get(id));
-            partnerDto.setName1(partner.getName1());
-            partnerDto.setName2(partner.getName2());
-            partnerDto.setName3(partner.getName3());
-            partnerDto.setBirthDate(partner.getBirthDate());
-            partnerDto.setTitle(fieldOptionService.getFieldOption(Field.TITLE, partner.getTitle()));
-            partnerDto.setType(fieldOptionService.getFieldOption(Field.PARTNER_TYPE, partner.getType()));
-            partnerDto.setStatus(fieldOptionService.getFieldOption(Field.PARTNER_STATUS, partner.getStatus()));
-            partnerDto.setGender(fieldOptionService.getFieldOption(Field.GENDER, partner.getGender()));
-            partnerDto.setMaritalStatus(fieldOptionService.getFieldOption(Field.MARITAL_STATUS, partner.getMaritalStatus()));
-            partnerDto.setLanguage(fieldOptionService.getFieldOption(Field.LANGUAGE, partner.getLanguage()));
-            partnerDto.setValidFrom(partner.getValidFrom());
-            partnerDto.setValidTo(partner.getValidTo());
-            return partnerDto;
-        } catch (Exception exception) {
-            throw new PartnerNotFoundException();
-        }
+        PartnerEntity partner = partnerRepository.findById(id)
+                .orElseThrow(() -> new PartnerNotFoundException("Partner not found: " + id));
+
+        PartnerDto partnerDto = new PartnerDto();
+        partnerDto.setId(partner.getId());
+        partnerDto.setNumber(partner.getNo());
+        partnerDto.setIdentity(partnerIdentityService.get(id));
+        partnerDto.setName1(partner.getName1());
+        partnerDto.setName2(partner.getName2());
+        partnerDto.setName3(partner.getName3());
+        partnerDto.setBirthDate(partner.getBirthDate());
+        partnerDto.setTitle(fieldOptionService.getFieldOption(Field.TITLE, partner.getTitle()));
+        partnerDto.setType(fieldOptionService.getFieldOption(Field.PARTNER_TYPE, partner.getType()));
+        partnerDto.setStatus(fieldOptionService.getFieldOption(Field.PARTNER_STATUS, partner.getStatus()));
+        partnerDto.setGender(fieldOptionService.getFieldOption(Field.GENDER, partner.getGender()));
+        partnerDto.setMaritalStatus(fieldOptionService.getFieldOption(Field.MARITAL_STATUS, partner.getMaritalStatus()));
+        partnerDto.setLanguage(fieldOptionService.getFieldOption(Field.LANGUAGE, partner.getLanguage()));
+        partnerDto.setValidFrom(partner.getValidFrom());
+        partnerDto.setValidTo(partner.getValidTo());
+        return partnerDto;
     }
 
     private ContactDto getContact(ContactDto contact) {
@@ -504,7 +505,7 @@ public class PartnerService {
 
             PartnerContactEntity partnerContact = new PartnerContactEntity();
             partnerContact.setPartnerContactPK(partnerContactPK);
-            partnerContact.setValue(contact.getValue());
+            partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             partnerContact.setValidFrom(new Date());
             partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerContactRepository.save(partnerContact);
@@ -551,7 +552,7 @@ public class PartnerService {
             if (partnerContact != null) {
 
                 if (contact.getValue() != null) {
-                    partnerContact.setValue(contact.getValue());
+                    partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
                     partnerContact.setValidFrom(new Date());
                     partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                     partnerContactRepository.save(partnerContact);
@@ -1001,7 +1002,7 @@ public class PartnerService {
             pk.setPartner(id);
             pk.setType(contact.getType());
             entity.setPartnerContactPK(pk);
-            entity.setValue(contact.getValue());
+            entity.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
             partnerContactRepository.save(entity);
@@ -1127,7 +1128,7 @@ public class PartnerService {
         try {
             PartnerContactEntity contactEntity = partnerContactRepository.getById(entity);
             if (editDto.getValue() != null && editDto.getValue() != "") {
-                contactEntity.setValue(editDto.getValue());
+                contactEntity.setValue(validatedContactValue(entity.getType(), editDto.getValue()));
             }
             if (editDto.getValidFrom() != null && editDto.getValidFrom() != "") {
                 contactEntity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
@@ -1313,6 +1314,14 @@ public class PartnerService {
 
         // Joining names with a single space
         return String.join(" ", names).trim();
+    }
+
+
+    private String validatedContactValue(String type, String value) {
+        if (type != null && !type.toUpperCase().contains("EMAIL")) {
+            return referenceDataValidationService.requireContactNumber(value);
+        }
+        return value == null ? null : value.trim();
     }
 
 }

@@ -15,6 +15,7 @@ public class CashupSummaryResponse {
 
     private String deviceId;
     private String userId;
+    private String cashierName;
 
     private LocalDate cashupDate;
 
@@ -22,6 +23,22 @@ public class CashupSummaryResponse {
     private Integer receiptCount;
 
     private String status;
+    private String source;
+    private String receiptBookNo;
+    private String receiptFromNo;
+    private String receiptToNo;
+    private Long manualAmountCents;
+    private Long receiptTotalCents;
+    private Long varianceCents;
+    private String employeeResponsibleId;
+    private String employeeResponsibleName;
+    private String areaCode;
+    private String areaName;
+
+    private Long depositTotalCents;
+    private Integer depositCount;
+    private String approvalRequestId;
 
     private List<CashupPaymentSummaryDto> payments;
+    private List<CashupDepositResponse> deposits;
 }

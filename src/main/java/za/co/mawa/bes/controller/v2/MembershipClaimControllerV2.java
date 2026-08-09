@@ -1,14 +1,21 @@
 package za.co.mawa.bes.controller.v2;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimCreateRequest;
+import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimListItemResponse;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimResponse;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimUpdateRequest;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimsAttachRequest;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
 import za.co.mawa.bes.service.v2.MembershipClaimService;
+import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.util.List;
 
@@ -18,9 +25,11 @@ import java.util.List;
 public class MembershipClaimControllerV2 {
 
     private final MembershipClaimService membershipClaimService;
+    private final ClaimFormGenerationService claimFormGenerationService;
 
-    public MembershipClaimControllerV2(MembershipClaimService membershipClaimService) {
+    public MembershipClaimControllerV2(MembershipClaimService membershipClaimService, ClaimFormGenerationService claimFormGenerationService) {
         this.membershipClaimService = membershipClaimService;
+        this.claimFormGenerationService = claimFormGenerationService;
     }
 
     @PostMapping
@@ -34,6 +43,31 @@ public class MembershipClaimControllerV2 {
     @GetMapping
     public ResponseEntity<List<MembershipClaimResponse>> getAll() {
         return ResponseEntity.ok(membershipClaimService.getAll());
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Slice<MembershipClaimListItemResponse>> getPage(
+            @RequestParam(required = false) MembershipClaimStatus status,
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        return ResponseEntity.ok(membershipClaimService.getPage(status, query, pageable));
+    }
+
+    @GetMapping("/benefit")
+    public ResponseEntity<java.util.Map<String, Object>> resolveBenefit(
+            @RequestParam String membershipId,
+            @RequestParam MembershipClaimType claimType,
+            @RequestParam(required = false) String deceasedPartnerId,
+            @RequestParam(required = false) java.time.LocalDate eventDate,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        return ResponseEntity.ok(membershipClaimService.resolveBenefit(
+                membershipId, claimType, deceasedPartnerId, eventDate, userId));
     }
 
     @GetMapping("/{id}")
@@ -75,6 +109,20 @@ public class MembershipClaimControllerV2 {
             @RequestHeader(value = "X-User-Id", required = false) String userId
     ) {
         return ResponseEntity.ok(membershipClaimService.update(id, request, userId));
+    }
+
+    @PostMapping("/{id}/claim-form")
+    public ResponseEntity<byte[]> generateClaimForm(@PathVariable String id) {
+        byte[] pdf = claimFormGenerationService.generatePdf(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=claim-form-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
+    @GetMapping("/{id}/claim-form")
+    public ResponseEntity<byte[]> downloadClaimForm(@PathVariable String id) {
+        return generateClaimForm(id);
     }
 
     @PostMapping("/{id}/submit")

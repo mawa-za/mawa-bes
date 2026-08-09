@@ -2,18 +2,23 @@ package za.co.mawa.bes.controller.v2;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-        import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
-import za.co.mawa.bes.dto.v2.group.GroupSocietyClaimDebitRequest;
+import za.co.mawa.bes.dto.v2.group.GroupSocietyAdjustmentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyContactRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyMemberRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyPaymentRequest;
 import za.co.mawa.bes.dto.v2.group.GroupSocietyRequest;
+import za.co.mawa.bes.dto.v2.group.GroupSocietyStatusChangeRequest;
 import za.co.mawa.bes.entity.v2.GroupSocietyAccountTxnEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyContactEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyMemberEntity;
 import za.co.mawa.bes.service.v2.GroupSocietyService;
+import za.co.mawa.bes.service.v2.GroupSocietyPaymentService;
+import za.co.mawa.bes.service.v2.GroupSocietyApprovalService;
+import za.co.mawa.bes.service.v2.GroupSocietyAgreementService;
 
 import java.util.List;
 
@@ -23,10 +28,18 @@ import java.util.List;
 public class GroupSocietyControllerV2 {
 
     private final GroupSocietyService groupSocietyService;
+    private final GroupSocietyPaymentService paymentService;
+    private final GroupSocietyApprovalService approvalService;
+    private final GroupSocietyAgreementService agreementService;
 
-    public GroupSocietyControllerV2(@Qualifier("GroupSocietyServiceV2")
-                                    GroupSocietyService groupSocietyService) {
+    public GroupSocietyControllerV2(@Qualifier("GroupSocietyServiceV2") GroupSocietyService groupSocietyService,
+                                    GroupSocietyPaymentService paymentService,
+                                    GroupSocietyApprovalService approvalService,
+                                    GroupSocietyAgreementService agreementService) {
         this.groupSocietyService = groupSocietyService;
+        this.paymentService = paymentService;
+        this.approvalService = approvalService;
+        this.agreementService = agreementService;
     }
 
     @GetMapping
@@ -35,6 +48,13 @@ public class GroupSocietyControllerV2 {
             @RequestParam(required = false) String societyType
     ) {
         return ResponseEntity.ok(groupSocietyService.getAll(status, societyType));
+    }
+
+    @GetMapping("/master-data")
+    public ResponseEntity<?> getMasterData(
+            @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(groupSocietyService.getMasterData(status));
     }
 
     @GetMapping("/{id}")
@@ -66,18 +86,22 @@ public class GroupSocietyControllerV2 {
     }
 
     @PostMapping("/{id}/activate")
-    public ResponseEntity<GroupSocietyEntity> activate(@PathVariable String id) {
-        return ResponseEntity.ok(groupSocietyService.activate(id));
+    public ResponseEntity<GroupSocietyEntity> activate(@PathVariable String id,
+            @RequestBody(required = false) GroupSocietyStatusChangeRequest request) {
+        return ResponseEntity.ok(approvalService.requestStatus(id, "ACTIVE",
+                request == null ? new GroupSocietyStatusChangeRequest() : request));
     }
 
     @PostMapping("/{id}/suspend")
-    public ResponseEntity<GroupSocietyEntity> suspend(@PathVariable String id) {
-        return ResponseEntity.ok(groupSocietyService.suspend(id));
+    public ResponseEntity<GroupSocietyEntity> suspend(@PathVariable String id,
+            @RequestBody GroupSocietyStatusChangeRequest request) {
+        return ResponseEntity.ok(approvalService.requestStatus(id, "SUSPENDED", request));
     }
 
     @PostMapping("/{id}/close")
-    public ResponseEntity<GroupSocietyEntity> close(@PathVariable String id) {
-        return ResponseEntity.ok(groupSocietyService.close(id));
+    public ResponseEntity<GroupSocietyEntity> close(@PathVariable String id,
+            @RequestBody GroupSocietyStatusChangeRequest request) {
+        return ResponseEntity.ok(approvalService.requestStatus(id, "CLOSED", request));
     }
 
     @DeleteMapping("/{id}")
@@ -130,19 +154,11 @@ public class GroupSocietyControllerV2 {
     }
 
     @PostMapping("/{id}/payments")
-    public ResponseEntity<GroupSocietyAccountTxnEntity> recordPayment(
+    public ResponseEntity<?> recordPayment(
             @PathVariable String id,
             @RequestBody GroupSocietyPaymentRequest request
     ) {
-        return ResponseEntity.ok(groupSocietyService.recordPayment(id, request));
-    }
-
-    @PostMapping("/{id}/claims/debit")
-    public ResponseEntity<GroupSocietyAccountTxnEntity> debitClaim(
-            @PathVariable String id,
-            @RequestBody GroupSocietyClaimDebitRequest request
-    ) {
-        return ResponseEntity.ok(groupSocietyService.debitClaim(id, request));
+        return ResponseEntity.ok(paymentService.createPayment(id, request));
     }
 
     @PostMapping("/{id}/adjustments")
@@ -150,7 +166,18 @@ public class GroupSocietyControllerV2 {
             @PathVariable String id,
             @RequestBody GroupSocietyAdjustmentRequest request
     ) {
-        return ResponseEntity.ok(groupSocietyService.adjustBalance(id, request));
+        return ResponseEntity.ok(approvalService.requestAdjustment(id, request));
+    }
+
+    @GetMapping(value = "/{id}/agreement", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> agreement(@PathVariable String id) {
+        byte[] pdf = agreementService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=group-society-agreement-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(pdf.length)
+                .body(pdf);
     }
 
     @GetMapping("/{id}/statement")

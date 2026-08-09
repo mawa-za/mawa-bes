@@ -27,6 +27,8 @@ public class MembershipClaimCreateRequest {
 
     private LocalDate claimDate;
 
+    private LocalDate burialDate;
+
     private String causeOfDeath;
 
     private String deathCertificateNo;

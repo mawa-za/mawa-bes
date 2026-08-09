@@ -33,8 +33,16 @@ public class PaymentRequestResponse {
     private LocalDate requestedPaymentDate;
     private PaymentRequestStatus status;
     private String approvalRequestId;
+    private String approvalSource;
+    private String approvalReference;
+    private boolean approvalInherited;
+    private String paymentPurpose;
+    private String idempotencyKey;
     private LocalDate paidDate;
     private String paidReference;
+    private String debtorAccountId;
+    private String bankIntegration;
+    private String fnbInstructionId;
     private String paidBy;
     private LocalDateTime createdAt;
     private String createdBy;
@@ -85,10 +93,26 @@ public class PaymentRequestResponse {
     public PaymentRequestResponse setStatus(PaymentRequestStatus status) { this.status = status; return this; }
     public String getApprovalRequestId() { return approvalRequestId; }
     public PaymentRequestResponse setApprovalRequestId(String approvalRequestId) { this.approvalRequestId = approvalRequestId; return this; }
+    public String getApprovalSource() { return approvalSource; }
+    public PaymentRequestResponse setApprovalSource(String approvalSource) { this.approvalSource = approvalSource; return this; }
+    public String getApprovalReference() { return approvalReference; }
+    public PaymentRequestResponse setApprovalReference(String approvalReference) { this.approvalReference = approvalReference; return this; }
+    public boolean isApprovalInherited() { return approvalInherited; }
+    public PaymentRequestResponse setApprovalInherited(boolean approvalInherited) { this.approvalInherited = approvalInherited; return this; }
+    public String getPaymentPurpose() { return paymentPurpose; }
+    public PaymentRequestResponse setPaymentPurpose(String paymentPurpose) { this.paymentPurpose = paymentPurpose; return this; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public PaymentRequestResponse setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; return this; }
     public LocalDate getPaidDate() { return paidDate; }
     public PaymentRequestResponse setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; return this; }
     public String getPaidReference() { return paidReference; }
     public PaymentRequestResponse setPaidReference(String paidReference) { this.paidReference = paidReference; return this; }
+    public String getDebtorAccountId() { return debtorAccountId; }
+    public PaymentRequestResponse setDebtorAccountId(String debtorAccountId) { this.debtorAccountId = debtorAccountId; return this; }
+    public String getBankIntegration() { return bankIntegration; }
+    public PaymentRequestResponse setBankIntegration(String bankIntegration) { this.bankIntegration = bankIntegration; return this; }
+    public String getFnbInstructionId() { return fnbInstructionId; }
+    public PaymentRequestResponse setFnbInstructionId(String fnbInstructionId) { this.fnbInstructionId = fnbInstructionId; return this; }
     public String getPaidBy() { return paidBy; }
     public PaymentRequestResponse setPaidBy(String paidBy) { this.paidBy = paidBy; return this; }
     public LocalDateTime getCreatedAt() { return createdAt; }

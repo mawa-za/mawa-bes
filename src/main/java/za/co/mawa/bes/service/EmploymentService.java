@@ -53,7 +53,7 @@ public class EmploymentService implements EmploymentDao {
                     }
                 }
                 if(removeRole){
-                    partnerService.removeRole(id,RoleType.EMPLOYEE);
+                    partnerService.removeRole(employ.getPartnerId(),RoleType.EMPLOYEE);
                 }
                 return true;
 
@@ -74,13 +74,13 @@ public class EmploymentService implements EmploymentDao {
                         EmploymentEntity employ = new EmploymentEntity();
                         employ.setPartnerId(employment.getPartnerId());
                         employ.setType(employment.getType());
-                        if(employment.getEndDate() != null && employment.getEndDate() != ""){
+                        if(employment.getEndDate() != null && !employment.getEndDate().isBlank()){
                             employ.setEndDate(Conversion.stringToDate(employment.getEndDate()));
                         }
                         else{
                             employ.setEndDate(Conversion.stringToDate("9999-12-31"));
                         }
-                        if(employment.getStartDate() != null && employment.getStartDate() != ""){
+                        if(employment.getStartDate() != null && !employment.getStartDate().isBlank()){
                             employ.setStartDate(Conversion.stringToDate(employment.getStartDate()));
                         }
                         else{
@@ -90,7 +90,7 @@ public class EmploymentService implements EmploymentDao {
                         employ.setStatus(Status.ACTIVE);
                         employ.setBranch(employment.getBranch());
                         employ.setDepartment(employment.getDepartment());
-                        if(employment.getEmployeeNumber() != null && employment.getEmployeeNumber() != ""){
+                        if(employment.getEmployeeNumber() != null && !employment.getEmployeeNumber().isBlank()){
                             employ.setEmployeeNumber(employment.getEmployeeNumber());
                         }
                         EmploymentEntity created = employmentRepository.save(employ);
@@ -140,14 +140,14 @@ public class EmploymentService implements EmploymentDao {
             EmploymentEntity employ = employmentRepository.getById(id);
             if (employ != null) {
                 employ.setStatus(Status.ACTIVE);
-                if(endDate != null && endDate != ""){
+                if(endDate != null && !endDate.isBlank()){
                     employ.setEndDate(Conversion.stringToDate(endDate));
                 }
                 else{
                     employ.setEndDate(Conversion.stringToDate("9999-12-31"));
                 }
-                if(startDate != null && startDate != ""){
-                    employ.setStartDate(Conversion.stringToDate(endDate));
+                if(startDate != null && !startDate.isBlank()){
+                    employ.setStartDate(Conversion.stringToDate(startDate));
                 }
                 else{
                     employ.setStartDate(new Date());
@@ -160,7 +160,7 @@ public class EmploymentService implements EmploymentDao {
                     }
                 }
                 if(addRole){
-                    partnerService.addRole(id,RoleType.EMPLOYEE);
+                    partnerService.addRole(employ.getPartnerId(),RoleType.EMPLOYEE);
                 }
                 return true;
             }
@@ -220,25 +220,25 @@ public class EmploymentService implements EmploymentDao {
     public boolean edit(EmploymentEditDto employment,String id) throws Exception {
         try{
             EmploymentEntity entity = employmentRepository.getById(id);
-            if(employment.getBranch() != null && employment.getBranch() != ""){
+            if(employment.getBranch() != null && !employment.getBranch().isBlank()){
                 entity.setBranch(employment.getBranch());
             }
-            if(employment.getDepartment() != null && employment.getDepartment() != ""){
+            if(employment.getDepartment() != null && !employment.getDepartment().isBlank()){
                 entity.setDepartment(employment.getDepartment());
             }
-            if(employment.getPosition() != null && employment.getPosition() != ""){
+            if(employment.getPosition() != null && !employment.getPosition().isBlank()){
                 entity.setPosition(employment.getPosition());
             }
-            if(employment.getType() != null && employment.getType() != ""){
+            if(employment.getType() != null && !employment.getType().isBlank()){
                 entity.setType(employment.getType());
             }
-            if(employment.getEndDate() != null && employment.getEndDate() != ""){
+            if(employment.getEndDate() != null && !employment.getEndDate().isBlank()){
                 entity.setEndDate(Conversion.stringToDate(employment.getEndDate()));
             }
-            if(employment.getStartDate() != null && employment.getStartDate() != ""){
+            if(employment.getStartDate() != null && !employment.getStartDate().isBlank()){
                 entity.setStartDate(Conversion.stringToDate(employment.getStartDate()));
             }
-            if(employment.getEmployeeNumber() != null && employment.getEmployeeNumber() != ""){
+            if(employment.getEmployeeNumber() != null && !employment.getEmployeeNumber().isBlank()){
                 entity.setEmployeeNumber(employment.getEmployeeNumber());
             }
             employmentRepository.save(entity);

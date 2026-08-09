@@ -52,10 +52,8 @@ public class XeroInvoiceService {
         try {
             String tenant = xeroAuthService.checkXeroInfo();
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
-            String tenantProperty = tenantAdminService.getTenantProperty(tenant);
-            JSONObject jsonObject = new JSONObject(tenantProperty);
-            String XeroTenantId = jsonObject.getString("XERO-TENANT-ID");
-            String XeroBaseURL = jsonObject.getString("XERO-BASE-URL");
+            String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
+            String XeroBaseURL = xeroAuthService.getXeroProperty(tenant, "XERO-BASE-URL");
 
             URL url = new URL(XeroBaseURL);
             connection = (HttpURLConnection) url.openConnection();

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.configuration.web;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,8 +8,11 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.web.servlet.config.annotation.*;
 import za.co.mawa.bes.configuration.spring.ApiEndpointLoggingInterceptor;
 import za.co.mawa.bes.configuration.spring.TenantRequestInterceptor;
+import za.co.mawa.bes.configuration.security.TestUserTransactionGuardInterceptor;
+import za.co.mawa.bes.billing.BillingEntitlementInterceptor;
 
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableWebMvc
 public class WebConfiguration  implements WebMvcConfigurer    {
     private static final String EMAIL_TEMPLATE_ENCODING = "UTF-8";
@@ -18,11 +22,17 @@ public class WebConfiguration  implements WebMvcConfigurer    {
     private TenantRequestInterceptor tenantInterceptor;
     @Autowired
     private ApiEndpointLoggingInterceptor apiEndpointLoggingInterceptor;
+    @Autowired
+    private TestUserTransactionGuardInterceptor testUserTransactionGuardInterceptor;
+    @Autowired
+    private BillingEntitlementInterceptor billingEntitlementInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
-        registry.addInterceptor(apiEndpointLoggingInterceptor).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.LOG_EXCLUSION);
+        registry.addInterceptor(tenantInterceptor).order(0).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
+        registry.addInterceptor(billingEntitlementInterceptor).order(1).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
+        registry.addInterceptor(apiEndpointLoggingInterceptor).order(2).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.LOG_EXCLUSION);
+        registry.addInterceptor(testUserTransactionGuardInterceptor).order(3).addPathPatterns("/**").excludePathPatterns(WebSecurityConfig.SWAGGER_WHITELIST);
     }
 
     @Override
@@ -38,6 +48,12 @@ public class WebConfiguration  implements WebMvcConfigurer    {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        WebMvcConfigurer.super.addCorsMappings(registry);
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .exposedHeaders("Authorization", "X-TenantID", "X-Tenant-Id", "X-UserID", "X-User-Id", "X-Role")
+                .allowCredentials(false)
+                .maxAge(3600);
     }
 }

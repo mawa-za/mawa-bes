@@ -94,14 +94,47 @@ public class PaymentRequestEntity {
     @Column(name = "approval_request_id")
     private String approvalRequestId;
 
+    @Column(name = "approval_source", length = 50)
+    private String approvalSource;
+
+    @Column(name = "approval_reference", length = 255)
+    private String approvalReference;
+
+    @Column(name = "approval_inherited", nullable = false)
+    private boolean approvalInherited;
+
+    @Column(name = "payment_purpose", length = 100)
+    private String paymentPurpose;
+
+    @Column(name = "idempotency_key", length = 500, unique = true)
+    private String idempotencyKey;
+
     @Column(name = "paid_date")
     private LocalDate paidDate;
 
     @Column(name = "paid_reference")
     private String paidReference;
 
+    @Column(name = "debtor_account_id")
+    private String debtorAccountId;
+
+    @Column(name = "creditor_account_id")
+    private String creditorAccountId;
+
+    @Column(name = "bank_integration")
+    private String bankIntegration;
+
+    @Column(name = "manual_proof_attachment_id")
+    private String manualProofAttachmentId;
+
+    @Column(name = "fnb_instruction_id", length = 255)
+    private String fnbInstructionId;
+
     @Column(name = "paid_by")
     private String paidBy;
+
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

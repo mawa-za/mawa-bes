@@ -13,13 +13,35 @@ public class ReceiptPrintDto {
 
     private String receiptNo;
 
+    private String traceId;
+
     private String paymentBatchNo;
 
     private String sourceType;
 
     private String membershipId;
+    private String memberName;
+    private String membershipNo;
+    private String identityNumber;
+    private String planName;
 
     private String premiumPeriodYYYYMM;
+
+    private String periodDescription;
+
+    private String invoiceId;
+    private String invoiceNo;
+    private String invoiceReference;
+    private String customerName;
+    private String customerNumber;
+
+    private String groupSocietyId;
+    private String groupSocietyNo;
+    private String groupSocietyName;
+    private String groupSocietyType;
+
+    private String referenceType;
+    private String referenceNo;
 
     private Long amountCents;
 

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.util.List;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -18,16 +20,31 @@ public class FuneralPackageEntity {
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id;
 
+    @Column(name = "product_id")
+    private String productId;
+
     @Column(name = "name", nullable = false)
     private String name;
+
+    /** FIXED_PRICE keeps one package price; ITEM_TOTAL derives the price from included products. */
+    @Column(name = "pricing_mode", nullable = false)
+    private String pricingMode = "ITEM_TOTAL";
 
     @Column(name = "base_price_cents", nullable = false)
     private Long basePriceCents = 0L;
 
-    @Lob
-    @Column(name = "inclusions_json")
+    @Column(name = "inclusions_json", columnDefinition = "json")
     private String inclusionsJson;
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    @Transient
+    private String productCode;
+
+    @Transient
+    private String productDescription;
+
+    @Transient
+    private List<FuneralPackageItemEntity> products;
 }

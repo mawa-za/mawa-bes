@@ -18,6 +18,7 @@ public class EmploymentDto implements Serializable {
     private String startDate;
     private String endDate;
     private String position;
+    private String positionDescription;
     private String status;
     private FieldOptionDto branch;
     private FieldOptionDto department;

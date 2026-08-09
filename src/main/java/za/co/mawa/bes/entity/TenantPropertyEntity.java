@@ -18,7 +18,7 @@ public class TenantPropertyEntity implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected TenantPropertyPKEntity tenantPropertyPKEntity;
-    @Column(name = "value")
+    @Column(name = "value", columnDefinition = "LONGTEXT")
     private String value;
 
 }

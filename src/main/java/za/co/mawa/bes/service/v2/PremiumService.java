@@ -222,7 +222,7 @@ public class PremiumService {
 
     public ArrayList<PremiumDto> findByMembership(String id) throws Exception {
         ArrayList<PremiumDto> premiumDtoArrayList = new ArrayList<>();
-        List<PremiumEntity> premiumEntities = premiumRepository.findByMembership(id);
+        List<PremiumEntity> premiumEntities = premiumRepository.findByMembershipIds(membershipIdentifiers(id));
         for (PremiumEntity premiumEntity : premiumEntities) {
             try {
                 premiumDtoArrayList.add(entityToDto(premiumEntity));
@@ -322,24 +322,23 @@ public class PremiumService {
     }
 
     public void updatePaidUpToPeriod(String membershipId) {
-        MembershipEntity membership = membershipRepository.findById(membershipId)
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+        MembershipEntity membership = resolveMembership(membershipId);
 
         membership.setPaidUpToPeriod(getPaidUpToPeriod(membershipId));
+        membership.setUpdatedAt(LocalDateTime.now());
         membershipRepository.save(membership);
     }
 
     public String recalculatePaidUpToPeriod(String membershipId) {
-        MembershipEntity membership = membershipRepository.findById(membershipId)
-                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+        MembershipEntity membership = resolveMembership(membershipId);
 
         List<MembershipPremiumEntity> paidPremiums =
-                membershipPremiumRepository.findByMembershipIdAndStatusOrderByPeriodYYYYMMAsc(
-                        membershipId,
+                membershipPremiumRepository.findByMembershipIdInAndStatusOrderByPeriodYYYYMMAsc(
+                        membershipIdentifiers(membership),
                         PremiumStatus.PAID
                 );
 
-        String paidUpToPeriod = calculateContinuousPaidUpToPeriod(paidPremiums);
+        String paidUpToPeriod = calculateHighestPaidUpToPeriod(paidPremiums);
 
         membership.setPaidUpToPeriod(paidUpToPeriod);
         membership.setUpdatedAt(LocalDateTime.now());
@@ -349,33 +348,40 @@ public class PremiumService {
         return paidUpToPeriod;
     }
 
-    private String calculateContinuousPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
+    private MembershipEntity resolveMembership(String membershipId) {
+        return membershipRepository.findById(membershipId)
+                .or(() -> membershipRepository.findByOldId(membershipId))
+                .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
+    }
+
+    private List<String> membershipIdentifiers(String membershipId) {
+        Optional<MembershipEntity> membership = membershipRepository.findById(membershipId)
+                .or(() -> membershipRepository.findByOldId(membershipId));
+        return membership.map(this::membershipIdentifiers)
+                .orElseGet(() -> List.of(membershipId));
+    }
+
+    private List<String> membershipIdentifiers(MembershipEntity membership) {
+        LinkedHashSet<String> identifiers = new LinkedHashSet<>();
+        if (membership.getId() != null && !membership.getId().isBlank()) {
+            identifiers.add(membership.getId());
+        }
+        if (membership.getOldId() != null && !membership.getOldId().isBlank()) {
+            identifiers.add(membership.getOldId());
+        }
+        return List.copyOf(identifiers);
+    }
+
+    private String calculateHighestPaidUpToPeriod(List<MembershipPremiumEntity> paidPremiums) {
         if (paidPremiums == null || paidPremiums.isEmpty()) {
             return null;
         }
 
-        String paidUpToPeriod = null;
-
-        for (MembershipPremiumEntity premium : paidPremiums) {
-            String currentPeriod = premium.getPeriodYYYYMM();
-
-            if (!PeriodUtil.isValidPeriod(currentPeriod)) {
-                continue;
-            }
-
-            if (paidUpToPeriod == null) {
-                paidUpToPeriod = currentPeriod;
-                continue;
-            }
-
-            if (PeriodUtil.isNextPeriod(paidUpToPeriod, currentPeriod)) {
-                paidUpToPeriod = currentPeriod;
-            } else {
-                break;
-            }
-        }
-
-        return paidUpToPeriod;
+        return paidPremiums.stream()
+                .map(MembershipPremiumEntity::getPeriodYYYYMM)
+                .filter(PeriodUtil::isValidPeriod)
+                .max(String::compareTo)
+                .orElse(null);
     }
 
     public String getPaidUpToPeriod(String id) {

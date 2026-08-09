@@ -32,6 +32,12 @@ public class MembershipClaimEntity {
     @Column(name = "claim_type", nullable = false, length = 40)
     private MembershipClaimType claimType;
 
+    @Column(name = "coverage_plan_id", length = 255)
+    private String coveragePlanId;
+
+    @Column(name = "coverage_event_date")
+    private LocalDate coverageEventDate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "deceased_type", nullable = false, length = 30)
     private MembershipClaimDeceasedType deceasedType;
@@ -45,6 +51,9 @@ public class MembershipClaimEntity {
     @Column(name = "claim_date", nullable = false)
     private LocalDate claimDate;
 
+    @Column(name = "burial_date")
+    private LocalDate burialDate;
+
     @Column(name = "cause_of_death", length = 255)
     private String causeOfDeath;
 
@@ -56,6 +65,9 @@ public class MembershipClaimEntity {
 
     @Column(name = "claim_amount_cents", nullable = false)
     private Long claimAmountCents = 0L;
+
+    @Column(name = "approved_amount_cents")
+    private Long approvedAmountCents;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -90,6 +102,21 @@ public class MembershipClaimEntity {
 
     @Column(name = "payment_request_id", length = 255)
     private String paymentRequestId;
+
+    @Column(name = "tombstone_order_id", length = 255)
+    private String tombstoneOrderId;
+
+    @Column(name = "settlement_method", length = 50)
+    private String settlementMethod;
+
+    @Column(name = "settlement_reference", length = 255)
+    private String settlementReference;
+
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payout_method", length = 20)

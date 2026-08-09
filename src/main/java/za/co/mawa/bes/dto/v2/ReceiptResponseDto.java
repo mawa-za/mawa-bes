@@ -20,6 +20,7 @@ public class ReceiptResponseDto {
 
     private String id;
     private String receiptNo;
+    private String traceId;
     private String paymentBatchId;
     private String paymentBatchNo;
     private ReceiptSourceType sourceType;

@@ -16,5 +16,15 @@ public class UserCreateDto implements Serializable {
     private String cellphone;
     private String userType;
     private String partnerId;
+    private String accountType;
+    private Boolean testUser;
+    private Boolean protectedUser;
+    private Boolean systemManaged;
+    private String accessScope;
+    private String environmentScope;
+    private Boolean externalTransactionsBlocked;
+    private java.util.Date expiresAt;
+    private String protectedReason;
+    private Boolean mfaRequired;
 
 }

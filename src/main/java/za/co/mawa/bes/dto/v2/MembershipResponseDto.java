@@ -16,6 +16,10 @@ public class MembershipResponseDto {
 
     private String id;
     private String memberId;
+    private String memberNumber;
+    private String memberName;
+    private String memberIdentityType;
+    private String memberIdentityNumber;
     private String membershipNo;
     private String planId;
     private Long premiumCents;
@@ -28,5 +32,6 @@ public class MembershipResponseDto {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+    private String approvalRequestId;
     private String oldId;
 }

@@ -3,6 +3,7 @@ package za.co.mawa.bes.controller.v2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
         import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
+import za.co.mawa.bes.dto.v2.ManualPremiumReceiptCaptureRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.service.v2.MembershipPremiumPaymentService;
 
@@ -20,4 +21,11 @@ public class PaymentBatchControllerV2 {
     ) {
         return membershipPremiumPaymentService.createPayment(request);
     }
+    @PostMapping("/membership-premiums/manual-receipts")
+    public PaymentBatchResponseDto captureManualMembershipPremiumReceipt(
+            @RequestBody ManualPremiumReceiptCaptureRequest request
+    ) {
+        return membershipPremiumPaymentService.captureManualReceipt(request);
+    }
+
 }

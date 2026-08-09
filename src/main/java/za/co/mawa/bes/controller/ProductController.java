@@ -1,11 +1,13 @@
 package za.co.mawa.bes.controller;
 
 import com.nimbusds.jose.shaded.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.co.mawa.bes.dto.ErrorResponse;
 import za.co.mawa.bes.dto.product.*;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeCreateDto;
 import za.co.mawa.bes.dto.product.attribute.ProductAttributeEditDto;
@@ -27,6 +29,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 
+@Slf4j
 @RestController
 @CrossOrigin
 @RequestMapping(value = "product")
@@ -40,24 +43,43 @@ public class ProductController {
         try {
             return ResponseEntity.ok(gson.toJson(productService.create(productCreateDto)));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            String message = exception.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Unable to create product. Review the supplied information and try again.";
+            }
+            log.warn(
+                    "Unable to create product code={} type={}: {}",
+                    productCreateDto == null ? null : productCreateDto.getCode(),
+                    productCreateDto == null ? null : productCreateDto.getType(),
+                    message
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(message, HttpStatus.BAD_REQUEST.value()));
         }
     }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getProducts(@RequestParam(required = false) String code,
                                          @RequestParam(required = false) String category,
-                                         @RequestParam(required = false) String type) {
+                                         @RequestParam(required = false) String type,
+                                         @RequestParam(required = false) Boolean availableForSale,
+                                         @RequestParam(required = false) Boolean stockControlled,
+                                         @RequestParam(required = false) String query) {
         try {
             ProductQueryDto productQueryDto = new ProductQueryDto();
-            if (code != null && code != "") {
+            if (code != null && !code.isBlank()) {
                 productQueryDto.setCode(code);
             }
-            if (category != null && category != "") {
+            if (category != null && !category.isBlank()) {
                 productQueryDto.setCategory(category);
             }
-            if (type != null && type != "") {
+            if (type != null && !type.isBlank()) {
                 productQueryDto.setType(type);
+            }
+            productQueryDto.setAvailableForSale(availableForSale);
+            productQueryDto.setStockControlled(stockControlled);
+            if (query != null && !query.isBlank()) {
+                productQueryDto.setDescription(query);
             }
             return ResponseEntity.ok(gson.toJson(productService.search(productQueryDto)));
         } catch (Exception exception) {
@@ -86,10 +108,17 @@ public class ProductController {
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editProduct(@PathVariable String id, @RequestBody ProductEditDto productEditDto) {
         try {
+            productEditDto.setId(id);
             productService.edit(productEditDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+            String message = exception.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Unable to update product. Review the supplied information and try again.";
+            }
+            log.warn("Unable to update product id={}: {}", id, message, exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(message, HttpStatus.BAD_REQUEST.value()));
         }
     }
 
@@ -206,12 +235,13 @@ public class ProductController {
     @RequestMapping(value = "{id}/category", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addCategory(@PathVariable String id, @RequestBody List<String> categoryList) {
         try {
-            for (String category : categoryList) {
-                ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
-                productCategoryProcessDto.setProduct(id);
-                productCategoryProcessDto.setCategory(category);
-                productService.addCategory(productCategoryProcessDto);
+            if (categoryList == null || categoryList.size() != 1) {
+                throw new IllegalArgumentException("A product must have exactly one primary category.");
             }
+            ProductCategoryProcessDto productCategoryProcessDto = new ProductCategoryProcessDto();
+            productCategoryProcessDto.setProduct(id);
+            productCategoryProcessDto.setCategory(categoryList.get(0));
+            productService.addCategory(productCategoryProcessDto);
             return ResponseEntity.ok().build();
         } catch (Exception exception) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);

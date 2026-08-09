@@ -24,7 +24,9 @@ public class TenantController {
     @Autowired
     EncryptionService encryptionService;
     @Value("${jwt.secret}")
-    private String secret;
+    private String jwtSecret;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    private String encryptionSecret;
     Gson gson = new Gson();
 
 
@@ -32,8 +34,9 @@ public class TenantController {
     public ResponseEntity<?> postTenant(@RequestHeader HttpHeaders headers, @RequestBody TenantDto tenantDto) throws Exception {
         try {
             tenantDto = tenantService.create(tenantDto);
-            String password = encryptionService.encrypt(tenantDto.getDatabase_password(), secret);
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "jwt.secret", secret));
+            String password = encryptionService.encrypt(tenantDto.getDatabase_password(), encryptionSecret);
+            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "jwt.secret", jwtSecret));
+            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "mawa.encryption.secret", encryptionSecret));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.password", password));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.connection.url", tenantDto.getDatabase_url()));
@@ -41,11 +44,6 @@ public class TenantController {
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.dialect", "org.hibernate.dialect.MySQLDialect"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "hibernate.default_schema", "mawa"));
 
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.url", tenantDto.getDatabase_url()));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.user", tenantDto.getDatabase_username()));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "flyway.password", password));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.flyway.baseline-on-migrate", "true"));
-            tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.flyway.enabled", "false"));
 
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver"));
             tenantService.addProperty(new TenantPropertyDto(tenantDto.getId(), "spring.datasource.url", tenantDto.getDatabase_url()));

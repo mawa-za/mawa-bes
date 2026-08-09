@@ -14,5 +14,8 @@ import java.util.Date;
 public class RoleCreateDto {
    private String id;
    private String description;
+   private Boolean systemRole;
+   private Boolean protectedRole;
+   private Boolean accessAllWorkcentres;
 
 }

@@ -27,6 +27,15 @@ public class FuneralPickupRequestEntity {
     @Column(name = "pickup_location", nullable = false, length = 1000)
     private String pickupLocation;
 
+    @Column(name = "pickup_location_code", length = 100)
+    private String pickupLocationCode;
+
+    @Column(name = "corpse_injured", nullable = false)
+    private Boolean corpseInjured = false;
+
+    @Column(name = "injury_details", columnDefinition = "TEXT")
+    private String injuryDetails;
+
     @Column(name = "contact_person")
     private String contactPerson;
 
@@ -36,6 +45,12 @@ public class FuneralPickupRequestEntity {
     @Column(name = "assigned_staff_id")
     private String assignedStaffId;
 
+    @Column(name = "arrival_time")
+    private LocalDateTime arrivalTime;
+
+    @Column(name = "injury_assessed_at")
+    private LocalDateTime injuryAssessedAt;
+
     @Column(name = "completion_time")
     private LocalDateTime completionTime;
 
@@ -44,6 +59,15 @@ public class FuneralPickupRequestEntity {
 
     @Column(name = "mortuary_inventory_id")
     private String mortuaryInventoryId;
+
+    @Column(name = "storage_warehouse_id", length = 36)
+    private String storageWarehouseId;
+
+    @Column(name = "storage_location_id", length = 36)
+    private String storageLocationId;
+
+    @Column(name = "storage_bin_id", length = 36)
+    private String storageBinId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -57,6 +81,7 @@ public class FuneralPickupRequestEntity {
         createdAt = now;
         updatedAt = now;
         if (status == null) status = "PENDING";
+        if (corpseInjured == null) corpseInjured = false;
     }
 
     @PreUpdate

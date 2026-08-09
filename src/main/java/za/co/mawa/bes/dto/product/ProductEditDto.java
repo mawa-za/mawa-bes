@@ -14,5 +14,10 @@ public class ProductEditDto {
     private String code;
     private String description;
     private String category;
+    private String categoryId;
+    private Boolean availableForSale;
     private String baseUnitOfMeasure;
+    private String type;
+    private BigDecimal price;
+    private String pricingType;
 }

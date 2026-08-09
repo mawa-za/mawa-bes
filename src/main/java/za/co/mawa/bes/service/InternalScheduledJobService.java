@@ -1,0 +1,236 @@
+package za.co.mawa.bes.service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.controller.ClaimController;
+import za.co.mawa.bes.dto.payment.request.PaymentRequestQueryDto;
+import za.co.mawa.bes.dto.transaction.TransactionViewDto;
+import za.co.mawa.bes.entity.UserEntity;
+import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.TransactionType;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class InternalScheduledJobService {
+    private static final Logger log = LoggerFactory.getLogger(InternalScheduledJobService.class);
+    private static final String SYSTEM_USER = "system";
+    private static final Set<String> SYNTHETIC_SYSTEM_USER_TENANTS = ConcurrentHashMap.newKeySet();
+
+    private final UserService userService;
+    private final TransactionService transactionService;
+    private final MembershipService membershipService;
+    private final PaymentRequestService paymentRequestService;
+    private final ClaimController claimController;
+    private final za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService;
+    private final za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService;
+    private final za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService;
+
+    public InternalScheduledJobService(
+            UserService userService,
+            TransactionService transactionService,
+            MembershipService membershipService,
+            PaymentRequestService paymentRequestService,
+            ClaimController claimController,
+            za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService,
+            za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService,
+            za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService
+    ) {
+        this.userService = userService;
+        this.transactionService = transactionService;
+        this.membershipService = membershipService;
+        this.paymentRequestService = paymentRequestService;
+        this.claimController = claimController;
+        this.membershipChangeService = membershipChangeService;
+        this.premiumGenerationService = premiumGenerationService;
+        this.membershipLapseService = membershipLapseService;
+    }
+
+    public Map<String, Object> run(String jobCode) {
+        String normalizedJobCode = jobCode == null ? "" : jobCode.trim().toUpperCase();
+        establishSystemExecutionContext();
+        try {
+            Map<String, Object> result = switch (normalizedJobCode) {
+                case "CLAIM_PAYMENT_REQUESTS" -> processApprovedClaims(true);
+                case "MEMBERSHIP_STATUS_UPDATE" -> membershipStatusUpdate();
+                case "MEMBERSHIP_LAPSE" -> membershipLapse();
+                case "COMPLETE_PAYMENT_REQUESTS" -> completeApprovedPaymentRequests();
+                case "CLAIM_PROCESSING" -> processApprovedClaims(false);
+                case "PREMIUM_GENERATION" -> new LinkedHashMap<>(
+                        premiumGenerationService.runConfiguredAutomaticGeneration(SYSTEM_USER)
+                );
+                default -> throw new IllegalArgumentException("Unknown scheduled job: " + jobCode);
+            };
+            result.put("jobCode", normalizedJobCode);
+            Object failed = result.get("failed");
+            result.put("success", !(failed instanceof Number) || ((Number) failed).intValue() == 0);
+            return result;
+        } finally {
+            UserContext.clear();
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    private Map<String, Object> processApprovedClaims(boolean generatePaymentRequest) {
+        Set<String> claimIds = new LinkedHashSet<>();
+        TransactionViewDto query = new TransactionViewDto();
+        query.setType(TransactionType.CLAIM);
+        query.setStatus(String.valueOf(Status.APPROVED));
+        for (TransactionViewEntity claim : transactionService.searchV2(query)) {
+            if (claim != null && claim.getTransactionId() != null) {
+                claimIds.add(claim.getTransactionId());
+            }
+        }
+
+        int completed = 0;
+        List<String> failures = new ArrayList<>();
+        for (String claimId : claimIds) {
+            try {
+                if (generatePaymentRequest) {
+                    requireSuccess(
+                            claimController.generatePaymentRequests(claimId),
+                            "generate payment request",
+                            claimId
+                    );
+                }
+                requireSuccess(
+                        claimController.complete(
+                                claimId,
+                                "Processed by scheduled job",
+                                generatePaymentRequest
+                                        ? "Payment request generated and claim processed"
+                                        : "Claim processed"
+                        ),
+                        "process claim",
+                        claimId
+                );
+                completed++;
+            } catch (Exception ex) {
+                failures.add(claimId + ": " + safeMessage(ex));
+            }
+        }
+        return result(claimIds.size(), completed, failures);
+    }
+
+    private Map<String, Object> membershipStatusUpdate() {
+        int appliedPlanChanges = membershipChangeService.applyDuePlanChanges(java.time.LocalDate.now(), SYSTEM_USER);
+        String message = membershipService.scheduledStatusChange();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("attempted", 1);
+        result.put("completed", "Scheduling Error Occurred".equals(message) ? 0 : 1);
+        result.put("failed", "Scheduling Error Occurred".equals(message) ? 1 : 0);
+        result.put("message", message);
+        result.put("appliedMembershipPlanChanges", appliedPlanChanges);
+        return result;
+    }
+
+    private Map<String, Object> membershipLapse() {
+        za.co.mawa.bes.dto.v2.membership.lapse.MembershipLapseRunResultDto lapseResult =
+                membershipLapseService.runConfiguredAutomaticLapse(SYSTEM_USER);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("attempted", lapseResult.getEvaluatedMemberships());
+        result.put("completed", lapseResult.getLapsedMemberships());
+        result.put("failed", 0);
+        result.put("skipped", lapseResult.isSkipped());
+        result.put("reason", lapseResult.getReason());
+        result.put("threshold", lapseResult.getThreshold());
+        result.put("membershipsWithOverduePremiums", lapseResult.getMembershipsWithOverduePremiums());
+        result.put("lapsedMembershipIds", lapseResult.getLapsedMembershipIds());
+        result.put("runDate", lapseResult.getRunDate());
+        return result;
+    }
+
+    private Map<String, Object> completeApprovedPaymentRequests() {
+        PaymentRequestQueryDto query = new PaymentRequestQueryDto();
+        query.setStatus(String.valueOf(Status.APPROVED));
+        Set<String> ids = new LinkedHashSet<>();
+        for (PaymentRequestQueryDto paymentRequest : paymentRequestService.getAllUsingView(query)) {
+            if (paymentRequest != null && paymentRequest.getId() != null) {
+                ids.add(paymentRequest.getId());
+            }
+        }
+
+        int completed = 0;
+        List<String> failures = new ArrayList<>();
+        for (String id : ids) {
+            try {
+                paymentRequestService.complete(id);
+                completed++;
+            } catch (Exception ex) {
+                failures.add(id + ": " + safeMessage(ex));
+            }
+        }
+        return result(ids.size(), completed, failures);
+    }
+
+    private void establishSystemExecutionContext() {
+        UserEntity systemUser = null;
+        try {
+            systemUser = userService.getUserEntityByName(SYSTEM_USER);
+        } catch (Exception ex) {
+            log.warn("Unable to resolve tenant system user; scheduled execution will use the trusted synthetic system identity: {}",
+                    safeMessage(ex));
+        }
+
+        UserDetails principal = User.withUsername(SYSTEM_USER)
+                .password("")
+                .authorities("SYSTEM")
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        principal.getAuthorities()
+                )
+        );
+        UserContext.setCurrentUser(SYSTEM_USER);
+        UserContext.setCurrentUserId(systemUser == null ? SYSTEM_USER : systemUser.getId());
+        UserContext.setCurrentUserPartner(systemUser == null ? null : systemUser.getPartner());
+
+        if (systemUser == null) {
+            String tenantId = TenantContext.getCurrentTenant();
+            String warningKey = tenantId == null || tenantId.isBlank() ? "unknown" : tenantId;
+            if (SYNTHETIC_SYSTEM_USER_TENANTS.add(warningKey)) {
+                log.info("Tenant {} does not have a system user; scheduled jobs will use the trusted synthetic system identity",
+                        warningKey);
+            }
+        }
+    }
+
+    private void requireSuccess(ResponseEntity<?> response, String action, String id) {
+        if (response == null || !response.getStatusCode().is2xxSuccessful()) {
+            String body = response == null ? "no response" : String.valueOf(response.getBody());
+            throw new IllegalStateException(
+                    "Unable to " + action + " for " + id + ": " + body
+            );
+        }
+    }
+
+    private Map<String, Object> result(int attempted, int completed, List<String> failures) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("attempted", attempted);
+        result.put("completed", completed);
+        result.put("failed", failures.size());
+        result.put("failures", failures);
+        return result;
+    }
+
+    private String safeMessage(Exception ex) {
+        return ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+    }
+}

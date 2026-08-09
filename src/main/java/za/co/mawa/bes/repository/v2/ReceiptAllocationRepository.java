@@ -13,12 +13,20 @@ public interface ReceiptAllocationRepository extends JpaRepository<ReceiptAlloca
 
     List<ReceiptAllocationEntity> findByMembershipIdOrderByPeriodYYYYMMAsc(String membershipId);
 
+    List<ReceiptAllocationEntity> findByMembershipIdInOrderByCreatedAtDesc(List<String> membershipIds);
+
     Optional<ReceiptAllocationEntity> findByAllocationTypeAndReferenceId(
             ReceiptAllocationType allocationType,
             String referenceId
     );
 
     List<ReceiptAllocationEntity> findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
+            ReceiptAllocationType allocationType,
+            String referenceId
+    );
+
+    boolean existsByReceiptIdAndAllocationTypeAndReferenceId(
+            String receiptId,
             ReceiptAllocationType allocationType,
             String referenceId
     );

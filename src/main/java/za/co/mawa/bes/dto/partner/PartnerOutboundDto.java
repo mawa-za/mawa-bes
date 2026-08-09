@@ -16,6 +16,8 @@ public class PartnerOutboundDto implements Serializable {
 
     private String partnerNo;
 
+    private boolean existingPartner;
+
     private String partnerType;
 
     private String partnerRole;

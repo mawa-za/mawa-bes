@@ -24,6 +24,13 @@ public class ApiEndpointLogEntity {
     @Column(name = "request_id", length = 100)
     private String requestId;
 
+    @Builder.Default
+    @Column(name = "direction", nullable = false, length = 16)
+    private String direction = "INBOUND";
+
+    @Column(name = "integration_name", length = 100)
+    private String integrationName;
+
     @Column(name = "user_id")
     private String userId;
 

@@ -1,7 +1,12 @@
 package za.co.mawa.bes.repository.v2;
 
 
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+
+import jakarta.persistence.LockModeType;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 
 import java.time.LocalDate;
@@ -15,6 +20,26 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
     boolean existsByCashupNo(Long cashupNo);
 
     List<CashupEntity> findByDeviceIdOrderByCreatedAtDesc(String deviceId);
+
+    Optional<CashupEntity> findFirstByDeviceIdAndUserIdAndStatusOrderByCreatedAtDesc(
+            String deviceId,
+            String userId,
+            String status
+    );
+
+    Optional<CashupEntity> findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
+            String deviceId, String userId, String status, String source
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<CashupEntity> findBySourceAndReceiptBookNoIgnoreCaseOrderByCreatedAtAsc(
+            String source,
+            String receiptBookNo
+    );
+
+    Slice<CashupEntity> findAllByOrderByCashupDateDescCreatedAtDesc(Pageable pageable);
+
+    Slice<CashupEntity> findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(String status, Pageable pageable);
 
     List<CashupEntity> findByUserIdAndCashupDateBetweenOrderByCashupDateDesc(
             String userId,

@@ -1,0 +1,14 @@
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+COPY pom.xml ./
+COPY src ./src
+RUN mvn -B -ntp clean package -DskipTests -Pprod
+
+FROM eclipse-temurin:17-jre-jammy
+RUN groupadd --system --gid 10001 mawa && useradd --system --uid 10001 --gid mawa --home-dir /nonexistent --shell /usr/sbin/nologin mawa
+WORKDIR /app
+COPY --from=build --chown=mawa:mawa /workspace/target/mawa-bes.jar /app/app.jar
+USER 10001:10001
+ENV SPRING_PROFILES_ACTIVE=prod MAWA_ENVIRONMENT=prod
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

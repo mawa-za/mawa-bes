@@ -13,6 +13,8 @@ public interface ReceiptRepository extends JpaRepository<ReceiptEntity, String> 
 
     Optional<ReceiptEntity> findByReceiptNo(String receiptNo);
 
+    Optional<ReceiptEntity> findByTraceId(String traceId);
+
     List<ReceiptEntity> findByPaymentBatchId(String paymentBatchId);
 
     List<ReceiptEntity> findByMembershipIdOrderByReceiptDateDesc(String membershipId);
@@ -25,4 +27,6 @@ public interface ReceiptRepository extends JpaRepository<ReceiptEntity, String> 
     );
 
     boolean existsByReceiptNo(String receiptNo);
+
+    boolean existsByManualReceiptBookNoAndManualReceiptNo(String manualReceiptBookNo, String manualReceiptNo);
 }

@@ -12,6 +12,12 @@ public class XeroUtils {
         public static final String XERO_CLIENT_SECRET = "XERO-SECRET-KEY";
         public static final String XERO_REDIRECT_URL = "XERO-REDIRECT-URL";
         public static final String XERO_MAWA_SERVICE_PROVIDER_LINK = "XERO-MAWA-SERVICE-PROVIDER-LINK";
+        public static final String XERO_INVOICE_INTEGRATION_ENABLED = "XERO-INVOICE-INTEGRATION-ENABLED";
+        public static final String XERO_INTEGRATION_ENABLED = "XERO-INTEGRATION-ENABLED";
+        public static final String XERO_INVOICE_STATUS = "XERO-INVOICE-STATUS";
+        public static final String XERO_INVOICE_ACCOUNT_CODE = "XERO-INVOICE-ACCOUNT-CODE";
+        public static final String XERO_INVOICE_TAX_TYPE = "XERO-INVOICE-TAX-TYPE";
+        public static final String XERO_LINE_AMOUNT_TYPES = "XERO-LINE-AMOUNT-TYPES";
 
 
 }

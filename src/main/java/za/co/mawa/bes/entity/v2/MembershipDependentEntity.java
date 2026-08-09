@@ -7,7 +7,9 @@ import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import za.co.mawa.bes.enums.DependentType;
 import za.co.mawa.bes.enums.MembershipClaimType;
+import za.co.mawa.bes.enums.MembershipDependentStatus;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -43,6 +45,28 @@ public class MembershipDependentEntity {
     @NotNull
     private Boolean active = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private MembershipDependentStatus status = MembershipDependentStatus.ACTIVE;
+
+    @Column(name = "effective_from")
+    private LocalDate effectiveFrom;
+
+    @Column(name = "effective_to")
+    private LocalDate effectiveTo;
+
+    @Column(name = "deceased_date")
+    private LocalDate deceasedDate;
+
+    @Column(name = "status_reason", columnDefinition = "TEXT")
+    private String statusReason;
+
+    @Column(name = "source_change_request_id", length = 255)
+    private String sourceChangeRequestId;
+
+    @Column(name = "replaced_by_dependent_id", length = 255)
+    private String replacedByDependentId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -55,5 +79,16 @@ public class MembershipDependentEntity {
     @Column(name = "updated_by")
     private String updatedBy;
 
-    // Getters and Setters
+    @PrePersist
+    public void prePersist() {
+        if (active == null) active = true;
+        if (status == null) status = MembershipDependentStatus.ACTIVE;
+        if (effectiveFrom == null) effectiveFrom = LocalDate.now();
+        if (createdAt == null) createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

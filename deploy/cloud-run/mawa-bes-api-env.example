@@ -1,0 +1,13 @@
+# API service environment values for the long-term Flyway setup.
+# Add these to mawa-bes-dev / mawa-bes-prod Cloud Run services.
+# The API must not run migrations during normal startup.
+MAWA_FLYWAY_STARTUP_ENABLED=false
+MAWA_FLYWAY_STARTUP_MODE=disabled
+MAWA_FLYWAY_CONTINUE_ON_ERROR=false
+MAWA_FLYWAY_JOB_ENABLED=false
+
+# Central billing entitlement enforcement.
+MAWA_BILLING_BASE_URL=https://<billing-service-url>
+MAWA_INTERNAL_SERVICE_TOKEN=<same-internal-token-used-by-billing-and-admin-backends>
+MAWA_BILLING_ENTITLEMENT_ENFORCEMENT_ENABLED=true
+MAWA_BILLING_ENTITLEMENT_CACHE_SECONDS=30

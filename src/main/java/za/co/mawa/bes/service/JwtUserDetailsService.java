@@ -4,25 +4,26 @@ import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
-import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.user.UserDto;
-import za.co.mawa.bes.exception.UserLockedException;
 import za.co.mawa.bes.utils.Status;
 
 @Component
 public class JwtUserDetailsService implements UserDetailsService {
     @Autowired
     EncryptionService encryptionService;
-    @Value("${jwt.secret}")
-    private String secret;
+    @Value("${mawa.encryption.secret:${jwt.secret}}")
+    private String encryptionSecret;
     @Autowired
     UserService userService;
+    @Autowired
+    UserAccessService userAccessService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -33,19 +34,40 @@ public class JwtUserDetailsService implements UserDetailsService {
         try {
             UserDto userDto = userService.getUserByName(username);
             if (userDto != null) {
-                if (userDto.getStatus().equals(Status.LOCKED)){
+                za.co.mawa.bes.entity.UserEntity policyUser = userService.getUserEntityByName(username);
+                userAccessService.validateUser(policyUser);
+                if (Status.LOCKED.equals(userDto.getStatus())) {
                     accountNonLocked = false;
                 }
-                String decryptedPassword = encryptionService.decrypt(userDto.getPassword().toString(), secret);
-                User user = new User(userDto.getUsername(), new BCryptPasswordEncoder().encode(decryptedPassword),
-                enabled, accountNonExpired, credentialsNonExpired, accountNonLocked, new ArrayList<>());
-                return user;
-            } else {
-                throw new UsernameNotFoundException("User not found with username: " + username);
+
+                String encryptedPassword = userDto.getPassword();
+                if (encryptedPassword == null || encryptedPassword.isBlank()) {
+                    throw new IllegalStateException(
+                            "User password is not configured for username: " + username
+                    );
+                }
+
+                String decryptedPassword = encryptionService.decrypt(encryptedPassword, encryptionSecret);
+                return new User(
+                        userDto.getUsername(),
+                        new BCryptPasswordEncoder().encode(decryptedPassword),
+                        enabled,
+                        accountNonExpired,
+                        credentialsNonExpired,
+                        accountNonLocked,
+                        new ArrayList<>()
+                );
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new UsernameNotFoundException("User not found with username: " + username);
+        } catch (UsernameNotFoundException | DisabledException exception) {
+            throw exception;
+        } catch (SecurityException exception) {
+            throw new DisabledException(exception.getMessage(), exception);
+        } catch (Exception exception) {
+            throw new UsernameNotFoundException(
+                    "Unable to load user with username: " + username,
+                    exception
+            );
         }
     }
-
 }

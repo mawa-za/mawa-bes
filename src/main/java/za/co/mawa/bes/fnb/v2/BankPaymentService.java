@@ -3,11 +3,14 @@ package za.co.mawa.bes.fnb.v2;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
+import za.co.mawa.bes.configuration.gcp.GcpTenantSecretService;
 import za.co.mawa.bes.dto.OAuthTokenResponse;
 import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.fnb.FnbApiCallLogger;
 import za.co.mawa.bes.fnb.dto.*;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TransactionService;
@@ -37,6 +40,9 @@ public class BankPaymentService {
     private final SettingService settingService;
     private final TransactionService transactionService;
     private final ObjectMapper objectMapper;
+    private final GcpTenantSecretService gcpTenantSecretService;
+    private final FnbApiCallLogger fnbApiCallLogger;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String FNB_API_SETTING_GROUP = "FNB-API";
     private static final String TENANT_SETTING_GROUP = "TENANT";
@@ -50,7 +56,7 @@ public class BankPaymentService {
     private static final int REMITTANCE_MAX_LENGTH = 35;
 
     private String getBaseURL() {
-        String baseUrl = settingService.getSetting("BASE-URL", FNB_API_SETTING_GROUP);
+        String baseUrl = gcpTenantSecretService.resolveSetting("BASE-URL", FNB_API_SETTING_GROUP);
 
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new RuntimeException("FNB API base URL setting is missing");
@@ -61,17 +67,24 @@ public class BankPaymentService {
 
     public String getToken() {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /oauth2/token/v2";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
-            URL url = new URL(getBaseURL() + "/oauth2/token/v2");
+            endpoint = getBaseURL() + "/oauth2/token/v2";
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-            String clientId = settingService.getSetting("CLIENT-ID", FNB_API_SETTING_GROUP);
-            String clientSecret = settingService.getSetting("CLIENT-SECRET", FNB_API_SETTING_GROUP);
+            String clientId = gcpTenantSecretService.resolveSetting("CLIENT-ID", FNB_API_SETTING_GROUP);
+            String clientSecret = gcpTenantSecretService.resolveSetting("CLIENT-SECRET", FNB_API_SETTING_GROUP);
 
             if (isBlank(clientId) || isBlank(clientSecret)) {
                 throw new RuntimeException("FNB client credentials are missing");
@@ -89,8 +102,8 @@ public class BankPaymentService {
                 os.flush();
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 OAuthTokenResponse tokenResponse =
@@ -108,8 +121,19 @@ public class BankPaymentService {
             );
 
         } catch (Exception e) {
+            failure = e;
             throw new RuntimeException("Failed to retrieve FNB access token", e);
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    fnbApiCallLogger.tokenRequestSummary(),
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -118,9 +142,16 @@ public class BankPaymentService {
 
     public String sendPaymentRequest(String payload) throws IOException {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/initiate/v1";
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
-            URL url = new URL(getBaseURL() + "/paymentExecution/initiate/v1");
+            endpoint = getBaseURL() + "/paymentExecution/initiate/v1";
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("POST");
@@ -135,8 +166,8 @@ public class BankPaymentService {
                 os.flush();
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 BankPaymentResponse bankPaymentResponse =
@@ -150,10 +181,25 @@ public class BankPaymentService {
             );
 
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("FNB payment request timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to send FNB payment request: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "POST",
+                    endpoint,
+                    payload,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -162,13 +208,20 @@ public class BankPaymentService {
 
     public BankPaymentResponse getPaymentReport(String instructionId) throws IOException {
         HttpURLConnection connection = null;
+        String requestId = fnbApiCallLogger.newRequestId();
+        String endpoint = "FNB /paymentExecution/retrieveReport/v1/" + instructionId;
+        String responseBody = null;
+        Integer responseCode = null;
+        Throwable failure = null;
+        long startedAt = System.nanoTime();
 
         try {
             if (isBlank(instructionId)) {
                 throw new IOException("Instruction ID is required to retrieve FNB payment report");
             }
 
-            URL url = new URL(getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId);
+            endpoint = getBaseURL() + "/paymentExecution/retrieveReport/v1/" + instructionId;
+            URL url = new URL(endpoint);
             connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("GET");
@@ -176,8 +229,8 @@ public class BankPaymentService {
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponseBody(connection);
+            responseCode = connection.getResponseCode();
+            responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
                 return objectMapper.readValue(responseBody, BankPaymentResponse.class);
@@ -188,10 +241,25 @@ public class BankPaymentService {
             );
 
         } catch (SocketTimeoutException e) {
+            failure = e;
             throw new IOException("FNB report retrieval timed out: " + e.getMessage(), e);
         } catch (IOException e) {
+            failure = e;
             throw new IOException("Failed to retrieve FNB payment report: " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            failure = e;
+            throw e;
         } finally {
+            fnbApiCallLogger.logCall(
+                    requestId,
+                    "GET",
+                    endpoint,
+                    null,
+                    responseCode,
+                    responseBody,
+                    elapsedMillis(startedAt),
+                    failure
+            );
             if (connection != null) {
                 connection.disconnect();
             }
@@ -242,9 +310,9 @@ public class BankPaymentService {
         paymentInformation.setPaymentTypeInformationServiceLevelCode(SERVICE_LEVEL_CODE);
         paymentInformation.setRequestedExecutionDate(Conversion.dateToString(resolveExecutionDate(paymentRequest)));
 
-        paymentInformation.setDebtor(buildDebtor());
-        paymentInformation.setDebtorAccount(buildDebtorAccount());
-        paymentInformation.setDebtorAgent(buildDebtorAgent());
+        paymentInformation.setDebtor(buildDebtor(paymentRequest));
+        paymentInformation.setDebtorAccount(buildDebtorAccount(paymentRequest));
+        paymentInformation.setDebtorAgent(buildDebtorAgent(paymentRequest));
 
         CreditTransferTransactionInformation transactionInformation =
                 buildCreditTransferTransactionInformation(paymentRequest);
@@ -297,25 +365,38 @@ public class BankPaymentService {
         return transactionInformation;
     }
 
-    private Debtor buildDebtor() {
+    private java.util.Map<String,Object> debtorAccount(PaymentRequestEntity paymentRequest) {
+        if (isBlank(paymentRequest.getDebtorAccountId())) {
+            throw new RuntimeException("Configured debtor account is missing for payment request: " + paymentRequest.getRequestNo());
+        }
+        var rows = jdbcTemplate.queryForList("SELECT * FROM payment_bank_account WHERE id=? AND account_role='DEBTOR' AND active=1", paymentRequest.getDebtorAccountId());
+        if (rows.isEmpty()) throw new RuntimeException("Configured debtor account is inactive or missing: " + paymentRequest.getDebtorAccountId());
+        var row = rows.get(0);
+        if (!"FNB".equalsIgnoreCase(java.util.Objects.toString(row.get("bank_integration"), "")))
+            throw new RuntimeException("Only FNB debtor accounts can currently be automated");
+        return row;
+    }
+
+    private Debtor buildDebtor(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         Debtor debtor = new Debtor();
-        debtor.setName(requiredSetting("ACCOUNT-HOLDER", EFT_BANK_ACCOUNT_SETTING_GROUP));
-        debtor.setBicOrBEI(requiredSetting("BRANCH-CODE", EFT_BANK_ACCOUNT_SETTING_GROUP));
+        debtor.setName(java.util.Objects.toString(account.get("account_holder"), null));
+        debtor.setBicOrBEI(java.util.Objects.toString(account.get("branch_code"), null));
         return debtor;
     }
 
-    private DebtorAccount buildDebtorAccount() {
+    private DebtorAccount buildDebtorAccount(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         DebtorAccount debtorAccount = new DebtorAccount();
-        debtorAccount.setAccountNumber(requiredSetting("ACCOUNT-NUMBER", EFT_BANK_ACCOUNT_SETTING_GROUP));
-        debtorAccount.setAccountType(
-                toFnbAccountType(requiredSetting("ACCOUNT-TYPE", EFT_BANK_ACCOUNT_SETTING_GROUP))
-        );
+        debtorAccount.setAccountNumber(java.util.Objects.toString(account.get("account_number"), null));
+        debtorAccount.setAccountType(toFnbAccountType(java.util.Objects.toString(account.get("account_type"), null)));
         return debtorAccount;
     }
 
-    private DebtorAgent buildDebtorAgent() {
+    private DebtorAgent buildDebtorAgent(PaymentRequestEntity paymentRequest) {
+        var account = debtorAccount(paymentRequest);
         DebtorAgent debtorAgent = new DebtorAgent();
-        debtorAgent.setBranchId(requiredSetting("BRANCH-CODE", EFT_BANK_ACCOUNT_SETTING_GROUP));
+        debtorAgent.setBranchId(java.util.Objects.toString(account.get("branch_code"), null));
         return debtorAgent;
     }
 
@@ -381,7 +462,7 @@ public class BankPaymentService {
 
     private String resolveCreationDateTime() {
         try {
-            String dateSetting = settingService.getSetting("PAYMENT-CREATION-DATE", FNB_API_SETTING_GROUP);
+            String dateSetting = gcpTenantSecretService.resolveSetting("PAYMENT-CREATION-DATE", FNB_API_SETTING_GROUP);
 
             if (!isBlank(dateSetting)) {
                 return dateSetting;
@@ -399,7 +480,7 @@ public class BankPaymentService {
             return paymentRequest.getCurrency();
         }
 
-        String tenantCurrency = settingService.getSetting("CURRENCY", TENANT_SETTING_GROUP);
+        String tenantCurrency = gcpTenantSecretService.resolveSetting("CURRENCY", TENANT_SETTING_GROUP);
 
         if (!isBlank(tenantCurrency)) {
             return tenantCurrency;
@@ -507,10 +588,10 @@ public class BankPaymentService {
     }
 
     private String requiredSetting(String key, String group) {
-        String value = settingService.getSetting(key, group);
+        String value = gcpTenantSecretService.resolveSetting(key, group);
 
         if (isBlank(value)) {
-            throw new RuntimeException("Missing required setting: " + group + " / " + key);
+            throw new RuntimeException("Missing required setting: " + group + " / " + key + ". Store a Google Secret Manager reference in " + key + "-SECRET or configure the tenant setting.");
         }
 
         return value;
@@ -526,6 +607,10 @@ public class BankPaymentService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     private String readResponseBody(HttpURLConnection connection) throws IOException {

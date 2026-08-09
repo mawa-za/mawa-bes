@@ -7,30 +7,26 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import za.co.mawa.bes.dto.InvoiceOutboundDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
-import za.co.mawa.bes.repository.InvoiceRepository;
-import za.co.mawa.bes.service.InvoicePDFService;
 import za.co.mawa.bes.service.InvoiceService;
 
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @CrossOrigin
 @RequestMapping(value = "v2/invoice")
 public class InvoiceControllerV2 {
 
+    private static final Logger log = LoggerFactory.getLogger(InvoiceControllerV2.class);
+
     @Autowired
     private InvoiceService invoiceService;
-    @Autowired
-    private InvoiceRepository invoiceRepository;
-    @Autowired
-    private InvoicePDFService invoicePDFService;
 
     @PostMapping
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
@@ -39,42 +35,61 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok(responseDto);
 
     }
+    @PutMapping(value = "{id}")
+    public ResponseEntity<?> updateInvoice(@PathVariable String id, @RequestBody InvoiceEntity invoice) {
+        try {
+            return ResponseEntity.ok(invoiceService.updateInvoiceDto(id, invoice));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "INVALID_INVOICE_DETAILS",
+                    "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                    "code", "INVOICE_UPDATE_CONFLICT",
+                    "message", exception.getMessage()));
+        } catch (Exception exception) {
+            log.error("Unable to update invoice {}", id, exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "INVOICE_UPDATE_FAILED",
+                    "message", "The invoice could not be updated right now"));
+        }
+    }
+
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getInvoices(@RequestParam(required = false) String status,
                                          @RequestParam(required = false) String partnerId,
                                          @RequestParam(required = false) String invoiceDate) {
         try {
-            List<InvoiceEntity> invoices;
-            List<InvoiceOutboundDto> invoiceOutboundDtoList = new ArrayList<>();
-
-            // Check and apply filters if specified
-            if (status != null && !status.isEmpty()) {
-                invoices = invoiceService.getInvoicesByStatus(status);
-            } else if (partnerId != null && !partnerId.isEmpty()) {
-                invoices = invoiceService.getInvoicesByPartnerId(partnerId);
-            } else if (invoiceDate != null && !invoiceDate.isEmpty()) {
-                invoices = invoiceService.getInvoicesByDate(invoiceDate);
-            } else {
-                invoices = invoiceService.getAllInvoices(); // Fetch all invoices if no filters are provided
-            }
-            for (InvoiceEntity invoice : invoices) {
-                InvoiceOutboundDto invoiceOutboundDto = invoiceService.mapToDto(invoice);
-                invoiceOutboundDtoList.add(invoiceOutboundDto);
-            }
-            return ResponseEntity.ok(invoiceOutboundDtoList);
+            return ResponseEntity.ok(invoiceService.searchInvoiceDtos(status, partnerId, invoiceDate));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "INVALID_INVOICE_FILTER",
+                    "message", exception.getMessage()));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error retrieving invoices: " + exception.getMessage());
+            log.error("Unable to retrieve invoices", exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "INVOICE_LIST_UNAVAILABLE",
+                    "message", "Invoices could not be loaded right now"));
         }
     }
 
     @GetMapping(value = "{id}")
     public ResponseEntity<?> getInvoice(@PathVariable String id) {
-        Optional<InvoiceEntity> invoice = invoiceService.getInvoice(id);
-        if (invoice.isPresent()) {
-            InvoiceOutboundDto invoiceOutboundDto = invoiceService.mapToDto(invoice.get());
-            return ResponseEntity.ok(invoiceOutboundDto);
-        } else {
-            return ResponseEntity.status(404).body("Invoice not found");
+        try {
+            return invoiceService.getInvoiceDto(id)
+                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of(
+                            "code", "INVOICE_NOT_FOUND",
+                            "message", "Invoice could not be found")));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "INVALID_INVOICE_ID",
+                    "message", exception.getMessage()));
+        } catch (Exception exception) {
+            log.error("Unable to retrieve invoice {}", id, exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "INVOICE_UNAVAILABLE",
+                    "message", "The invoice could not be loaded right now"));
         }
     }
 
@@ -96,12 +111,19 @@ public class InvoiceControllerV2 {
         return ResponseEntity.ok("Invoice deleted successfully");
     }
 
+    @PostMapping(value = "{id}/send-to-xero")
+    public ResponseEntity<?> sendInvoiceToXero(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(invoiceService.queueInvoiceForXeroDto(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Failed to queue invoice for Xero: " + exception.getMessage());
+        }
+    }
+
     @GetMapping("{id}/pdf")
     public ResponseEntity<ByteArrayResource> generateInvoicePdf(@PathVariable String id) {
-        InvoiceEntity invoice = invoiceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + id));
-
-        ByteArrayOutputStream pdfOutput = invoicePDFService.generateInvoicePdf(invoice);
+        ByteArrayOutputStream pdfOutput = invoiceService.generateInvoicePdf(id);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice_" + id + ".pdf")

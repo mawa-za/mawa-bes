@@ -16,14 +16,26 @@ public class MembershipClaimResponse {
     private String id;
     private String claimNo;
     private String membershipId;
+    private String membershipNo;
+    private String memberName;
+    private String memberNumber;
+    private String memberIdentityNumber;
+    private String deceasedName;
+    private String deceasedNumber;
+    private String deceasedIdentityNumber;
+    private String claimantName;
 
     private MembershipClaimType claimType;
+    private String coveragePlanId;
+    private String coveragePlanName;
+    private LocalDate coverageEventDate;
     private MembershipClaimDeceasedType deceasedType;
 
     private String deceasedPartnerId;
 
     private LocalDate dateOfDeath;
     private LocalDate claimDate;
+    private LocalDate burialDate;
 
     private String causeOfDeath;
     private String deathCertificateNo;
@@ -31,6 +43,7 @@ public class MembershipClaimResponse {
     private String claimantPartnerId;
 
     private Long claimAmountCents;
+    private Long approvedAmountCents;
     private Long combinedClaimAmountCents;
 
     private MembershipClaimStatus status;
@@ -51,6 +64,10 @@ public class MembershipClaimResponse {
     private String approvedBy;
     private LocalDateTime approvedAt;
     private String paymentRequestId;
+    private String tombstoneOrderId;
+    private String settlementMethod;
+    private String settlementReference;
+    private LocalDateTime settledAt;
 
     private List<LinkedMembershipClaimResponse> linkedClaims = new ArrayList<>();
 
@@ -60,6 +77,23 @@ public class MembershipClaimResponse {
     private String accountNumber;
     private String branchCode;
     private BankAccountType accountType;
+
+
+    public String getCoveragePlanId() { return coveragePlanId; }
+    public MembershipClaimResponse setCoveragePlanId(String coveragePlanId) { this.coveragePlanId = coveragePlanId; return this; }
+    public String getCoveragePlanName() { return coveragePlanName; }
+    public MembershipClaimResponse setCoveragePlanName(String coveragePlanName) { this.coveragePlanName = coveragePlanName; return this; }
+    public LocalDate getCoverageEventDate() { return coverageEventDate; }
+    public MembershipClaimResponse setCoverageEventDate(LocalDate coverageEventDate) { this.coverageEventDate = coverageEventDate; return this; }
+
+    public Long getApprovedAmountCents() {
+        return approvedAmountCents;
+    }
+
+    public MembershipClaimResponse setApprovedAmountCents(Long approvedAmountCents) {
+        this.approvedAmountCents = approvedAmountCents;
+        return this;
+    }
 
     public String getApprovalRequestId() {
         return approvalRequestId;
@@ -90,6 +124,14 @@ public class MembershipClaimResponse {
         this.paymentRequestId = paymentRequestId;
         return this;
     }
+    public String getTombstoneOrderId() { return tombstoneOrderId; }
+    public MembershipClaimResponse setTombstoneOrderId(String tombstoneOrderId) { this.tombstoneOrderId = tombstoneOrderId; return this; }
+    public String getSettlementMethod() { return settlementMethod; }
+    public MembershipClaimResponse setSettlementMethod(String settlementMethod) { this.settlementMethod = settlementMethod; return this; }
+    public String getSettlementReference() { return settlementReference; }
+    public MembershipClaimResponse setSettlementReference(String settlementReference) { this.settlementReference = settlementReference; return this; }
+    public LocalDateTime getSettledAt() { return settledAt; }
+    public MembershipClaimResponse setSettledAt(LocalDateTime settledAt) { this.settledAt = settledAt; return this; }
     // Getters and setters for bank details
 
     public String getBankName() {
@@ -175,6 +217,23 @@ public class MembershipClaimResponse {
         return this;
     }
 
+    public String getMembershipNo() { return membershipNo; }
+    public MembershipClaimResponse setMembershipNo(String membershipNo) { this.membershipNo = membershipNo; return this; }
+    public String getMemberName() { return memberName; }
+    public MembershipClaimResponse setMemberName(String memberName) { this.memberName = memberName; return this; }
+    public String getMemberNumber() { return memberNumber; }
+    public MembershipClaimResponse setMemberNumber(String memberNumber) { this.memberNumber = memberNumber; return this; }
+    public String getMemberIdentityNumber() { return memberIdentityNumber; }
+    public MembershipClaimResponse setMemberIdentityNumber(String memberIdentityNumber) { this.memberIdentityNumber = memberIdentityNumber; return this; }
+    public String getDeceasedName() { return deceasedName; }
+    public MembershipClaimResponse setDeceasedName(String deceasedName) { this.deceasedName = deceasedName; return this; }
+    public String getDeceasedNumber() { return deceasedNumber; }
+    public MembershipClaimResponse setDeceasedNumber(String deceasedNumber) { this.deceasedNumber = deceasedNumber; return this; }
+    public String getDeceasedIdentityNumber() { return deceasedIdentityNumber; }
+    public MembershipClaimResponse setDeceasedIdentityNumber(String deceasedIdentityNumber) { this.deceasedIdentityNumber = deceasedIdentityNumber; return this; }
+    public String getClaimantName() { return claimantName; }
+    public MembershipClaimResponse setClaimantName(String claimantName) { this.claimantName = claimantName; return this; }
+
     public MembershipClaimType getClaimType() {
         return claimType;
     }
@@ -217,6 +276,13 @@ public class MembershipClaimResponse {
 
     public MembershipClaimResponse setClaimDate(LocalDate claimDate) {
         this.claimDate = claimDate;
+        return this;
+    }
+
+    public LocalDate getBurialDate() { return burialDate; }
+
+    public MembershipClaimResponse setBurialDate(LocalDate burialDate) {
+        this.burialDate = burialDate;
         return this;
     }
 

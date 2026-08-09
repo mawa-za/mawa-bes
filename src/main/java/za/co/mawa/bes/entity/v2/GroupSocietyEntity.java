@@ -23,6 +23,9 @@ public class GroupSocietyEntity {
     @Column(name = "partner_id", nullable = false, unique = true)
     private String partnerId;
 
+    @Column(name = "product_id")
+    private String productId;
+
     @Column(name = "group_no", nullable = false, unique = true)
     private String groupNo;
 
@@ -46,6 +49,45 @@ public class GroupSocietyEntity {
 
     @Column(name = "last_claim_date")
     private LocalDate lastClaimDate;
+
+    @Column(name = "legacy_transaction_id", length = 255)
+    private String legacyTransactionId;
+
+    @Column(name = "approval_request_id", length = 36)
+    private String approvalRequestId;
+
+    @Column(name = "pending_action", length = 40)
+    private String pendingAction;
+
+    @Column(name = "requested_status", length = 30)
+    private String requestedStatus;
+
+    @Column(name = "previous_status", length = 30)
+    private String previousStatus;
+
+    @Column(name = "agreement_print_count", nullable = false)
+    private Integer agreementPrintCount = 0;
+
+    @Column(name = "agreement_last_printed_at")
+    private Date agreementLastPrintedAt;
+
+    @Transient
+    private String displayName;
+
+    @Transient
+    private String partnerNumber;
+
+    @Transient
+    private Boolean partnerAvailable;
+
+    @Transient
+    private String productCode;
+
+    @Transient
+    private String productDescription;
+
+    @Transient
+    private Boolean productAvailable;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Date createdAt;

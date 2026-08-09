@@ -23,9 +23,13 @@ public class FuneralClaimDto {
     private Long approvedAmountCents;
     private String status;
     private String coverSource;
+    private String claimStorageScope;
     private String sourceTenantId;
     private String sourceTenantName;
     private String sourceMembershipId;
     private String sourceReference;
+    private Boolean claimFormPrinted;
+    private Integer claimFormPrintCount;
+    private LocalDateTime claimFormLastPrintedAt;
     private LocalDateTime approvedAt;
 }

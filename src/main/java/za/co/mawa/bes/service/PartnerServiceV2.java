@@ -2,11 +2,13 @@ package za.co.mawa.bes.service;
 
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.*;
 import za.co.mawa.bes.dto.partner.*;
 import za.co.mawa.bes.dto.prospect.ProspectDto;
@@ -18,12 +20,15 @@ import za.co.mawa.bes.exception.PartnerNotFoundException;
 import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.utils.*;
+import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class PartnerServiceV2 {
+    private static final int PARTNER_SEARCH_RESULT_LIMIT = 50;
+
 
     @Autowired
     PartnerRoleRepository partnerRoleRepository;
@@ -35,6 +40,8 @@ public class PartnerServiceV2 {
     PartnerRepository partnerRepository;
     @Autowired
     FieldOptionService fieldOptionService;
+    @Autowired
+    ReferenceDataValidationService referenceDataValidationService;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
     @Autowired
@@ -64,28 +71,47 @@ public class PartnerServiceV2 {
     @Autowired
     NumberAllocationService numberAllocationService;
 
+    @Transactional
     public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
 
         try {
-            PartnerIdentityDto partnerIdentityDto = partnerIdentityServiceV2.getIdentity(partnerInboundDto.getIdentityType(), partnerInboundDto.getIdentityNumber());
+            boolean hasIdentity = partnerInboundDto.getIdentityType() != null
+                    && !partnerInboundDto.getIdentityType().trim().isEmpty()
+                    && partnerInboundDto.getIdentityNumber() != null
+                    && !partnerInboundDto.getIdentityNumber().trim().isEmpty();
+            String identityType = hasIdentity
+                    ? PartnerIdentityServiceV2.normalizeIdentityType(partnerInboundDto.getIdentityType())
+                    : null;
+            String identityNumber = hasIdentity
+                    ? PartnerIdentityServiceV2.normalizeIdentityNumber(partnerInboundDto.getIdentityNumber())
+                    : null;
+
+            PartnerIdentityDto partnerIdentityDto = hasIdentity
+                    ? partnerIdentityServiceV2.getIdentity(identityType, identityNumber)
+                    : null;
+
             if (partnerIdentityDto == null) {
                 PartnerEntity entity = new PartnerEntity();
-                if (partnerInboundDto.getPartnerNo() == null) {
+                if (partnerInboundDto.getPartnerNo() == null
+                        || partnerInboundDto.getPartnerNo().trim().isEmpty()) {
                     String partnerNo = numberAllocationService.allocateNumber("PARTNER");
                     entity.setNo(partnerNo);
-                }else{
-                    entity.setNo(partnerInboundDto.getPartnerNo());
+                } else {
+                    entity.setNo(partnerInboundDto.getPartnerNo().trim());
                 }
 
-                entity.setType(partnerInboundDto.getPartnerType().toUpperCase());
+                String partnerType = partnerInboundDto.getPartnerType() == null || partnerInboundDto.getPartnerType().trim().isEmpty()
+                        ? PartnerType.INDIVIDUAL
+                        : partnerInboundDto.getPartnerType().trim().toUpperCase();
+                entity.setType(partnerType);
                 if (partnerInboundDto.getName1() != null) {
-                    entity.setName1(partnerInboundDto.getName1().toUpperCase());
+                    entity.setName1(partnerInboundDto.getName1().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getName2() != null) {
-                    entity.setName2(partnerInboundDto.getName2().toUpperCase());
+                    entity.setName2(partnerInboundDto.getName2().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getName3() != null) {
-                    entity.setName3(partnerInboundDto.getName3().toUpperCase());
+                    entity.setName3(partnerInboundDto.getName3().trim().toUpperCase());
                 }
                 if (partnerInboundDto.getBirthDate() != null) {
                     entity.setBirthDate(partnerInboundDto.getBirthDate());
@@ -107,15 +133,20 @@ public class PartnerServiceV2 {
                 entity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                 entity.setCreationDate(new Date());
                 entity.setCreatedBy(getUser());
-                entity = partnerRepository.save(entity);
+                // PartnerViewEntity is backed by a database view. A regular save may
+                // leave the INSERT queued in the persistence context, so an immediate
+                // lookup through partner_view cannot see the newly created partner.
+                // Flush before reading the view to keep partner creation atomic and
+                // prevent false "Partner not found" failures.
+                entity = partnerRepository.saveAndFlush(entity);
 
                 if(entity != null){
 
-                    if(partnerInboundDto.getIdentityType() != null && partnerInboundDto.getIdentityNumber() != null){
+                    if(hasIdentity){
                         PartnerIdentityInboundDto partnerIdentityInboundDto = new PartnerIdentityInboundDto();
                         partnerIdentityInboundDto.setPartner(entity.getId());
-                        partnerIdentityInboundDto.setType(partnerInboundDto.getIdentityType());
-                        partnerIdentityInboundDto.setNumber(partnerInboundDto.getIdentityNumber());
+                        partnerIdentityInboundDto.setType(identityType);
+                        partnerIdentityInboundDto.setNumber(identityNumber);
                         partnerIdentityServiceV2.add(partnerIdentityInboundDto);
                     }
 
@@ -126,7 +157,8 @@ public class PartnerServiceV2 {
                         addPartnersRole(rolePartnerDto);
                     }
 
-                    if(partnerInboundDto.getContactNumber() != null){
+                    if (partnerInboundDto.getContactNumber() != null
+                            && !partnerInboundDto.getContactNumber().trim().isEmpty()) {
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
                         contactInboundDto.setType("CELLPHONE");
@@ -134,22 +166,87 @@ public class PartnerServiceV2 {
                         addPartnerContact(contactInboundDto);
                     }
 
-                    if(partnerInboundDto.getEmail() != null){
+                    if (partnerInboundDto.getEmail() != null
+                            && !partnerInboundDto.getEmail().trim().isEmpty()) {
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
                         contactInboundDto.setPartner(entity.getId());
                         contactInboundDto.setType("EMAIL");
-                        contactInboundDto.setValue(partnerInboundDto.getEmail());
+                        contactInboundDto.setValue(partnerInboundDto.getEmail().trim());
                         addPartnerContact(contactInboundDto);
                     }
                 }
                 return getById(entity.getId());
-            }else{
-                return getById(partnerIdentityDto.getPartner());
+            } else {
+                return enrichExistingPartner(partnerIdentityDto.getPartner(), partnerInboundDto);
             }
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private PartnerViewEntity enrichExistingPartner(
+            String partnerId,
+            PartnerInboundDto partnerInboundDto
+    ) throws Exception {
+        PartnerEntity partner = partnerRepository.findById(partnerId)
+                .orElseThrow(() -> new IllegalArgumentException("Partner not found: " + partnerId));
+        boolean changed = false;
+
+        if (isBlank(partner.getName1()) && hasText(partnerInboundDto.getName1())) {
+            partner.setName1(partnerInboundDto.getName1().trim().toUpperCase());
+            changed = true;
+        }
+        if (isBlank(partner.getName2()) && hasText(partnerInboundDto.getName2())) {
+            partner.setName2(partnerInboundDto.getName2().trim().toUpperCase());
+            changed = true;
+        }
+        if (isBlank(partner.getName3()) && hasText(partnerInboundDto.getName3())) {
+            partner.setName3(partnerInboundDto.getName3().trim().toUpperCase());
+            changed = true;
+        }
+        if (changed) {
+            partnerRepository.save(partner);
+        }
+
+        if (hasText(partnerInboundDto.getPartnerRole())) {
+            RolePartnerDto rolePartnerDto = new RolePartnerDto();
+            rolePartnerDto.setPartner(partnerId);
+            rolePartnerDto.setRole(partnerInboundDto.getPartnerRole());
+            addPartnersRole(rolePartnerDto);
+        }
+        if (hasText(partnerInboundDto.getContactNumber())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("CELLPHONE");
+            contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+            addPartnerContact(contactInboundDto);
+        }
+        if (hasText(partnerInboundDto.getEmail())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("EMAIL");
+            contactInboundDto.setValue(partnerInboundDto.getEmail().trim());
+            addPartnerContact(contactInboundDto);
+        }
+
+        return getById(partnerId);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean isBlank(String value) {
+        return !hasText(value);
+    }
+
+    public boolean identityExists(String identityType, String identityNumber) {
+        if (identityType == null || identityType.trim().isEmpty()
+                || identityNumber == null || identityNumber.trim().isEmpty()) {
+            return false;
+        }
+        return partnerIdentityServiceV2.exists(identityType, identityNumber);
     }
 
     public void edit(PartnerEditDto partnerEditDto) {
@@ -265,13 +362,23 @@ public class PartnerServiceV2 {
     }
 
     public List<PartnerViewEntity> searchByString(String query) {
-        List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByString(query);
-        return partnerViewEntities;
+        return partnerViewRepository.findByString(
+                query,
+                PageRequest.of(0, PARTNER_SEARCH_RESULT_LIMIT)
+        );
     }
 
     public List<PartnerViewEntity> getByRole(String role) {
         List<PartnerViewEntity> partnerViewEntities = partnerViewRepository.findByRole(role);
         return partnerViewEntities;
+    }
+
+    public List<PartnerViewEntity> searchByStringAndRole(String query, String role) {
+        return partnerViewRepository.findByStringAndRole(
+                query,
+                role,
+                PageRequest.of(0, PARTNER_SEARCH_RESULT_LIMIT)
+        );
     }
 
     public List<PartnerViewEntity> getAll() {
@@ -280,8 +387,8 @@ public class PartnerServiceV2 {
     }
 
     public PartnerViewEntity getById(String id) {
-        PartnerViewEntity partnerViewEntity = partnerViewRepository.getReferenceById(id);
-        return partnerViewEntity;
+        return partnerViewRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Partner not found: " + id));
     }
 
     public List<PartnerViewEntity> getAllPartnersUsingView(PartnerQueryDto partnerQueryDto) {
@@ -371,7 +478,7 @@ public class PartnerServiceV2 {
 
             PartnerContactEntity partnerContact = new PartnerContactEntity();
             partnerContact.setPartnerContactPK(partnerContactPK);
-            partnerContact.setValue(contact.getValue());
+            partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             partnerContact.setValidFrom(new Date());
             partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             partnerContactRepository.save(partnerContact);
@@ -418,7 +525,7 @@ public class PartnerServiceV2 {
             if (partnerContact != null) {
 
                 if (contact.getValue() != null) {
-                    partnerContact.setValue(contact.getValue());
+                    partnerContact.setValue(validatedContactValue(contact.getType(), contact.getValue()));
                     partnerContact.setValidFrom(new Date());
                     partnerContact.setValidTo(Conversion.stringToDate(Constant.END_DATE));
                     partnerContactRepository.save(partnerContact);
@@ -868,7 +975,7 @@ public class PartnerServiceV2 {
             pk.setPartner(contact.getPartner());
             pk.setType(contact.getType());
             entity.setPartnerContactPK(pk);
-            entity.setValue(contact.getValue());
+            entity.setValue(validatedContactValue(contact.getType(), contact.getValue()));
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
             partnerContactRepository.save(entity);
@@ -994,7 +1101,7 @@ public class PartnerServiceV2 {
         try {
             PartnerContactEntity contactEntity = partnerContactRepository.getById(entity);
             if (editDto.getValue() != null && editDto.getValue() != "") {
-                contactEntity.setValue(editDto.getValue());
+                contactEntity.setValue(validatedContactValue(entity.getType(), editDto.getValue()));
             }
             if (editDto.getValidFrom() != null && editDto.getValidFrom() != "") {
                 contactEntity.setValidFrom(Conversion.stringToDate(editDto.getValidFrom()));
@@ -1180,6 +1287,14 @@ public class PartnerServiceV2 {
 
         // Joining names with a single space
         return String.join(" ", names).trim();
+    }
+
+
+    private String validatedContactValue(String type, String value) {
+        if (type != null && !type.toUpperCase().contains("EMAIL")) {
+            return referenceDataValidationService.requireContactNumber(value);
+        }
+        return value == null ? null : value.trim();
     }
 
 }

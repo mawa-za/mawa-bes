@@ -36,8 +36,20 @@ public class FuneralServiceInvoiceEntity {
     @Column(name = "membership_claim_id")
     private String membershipClaimId;
 
+    @Column(name = "group_society_claim_id")
+    private String groupSocietyClaimId;
+
     @Column(name = "amount_cents", nullable = false)
     private Long amountCents = 0L;
+
+
+    @Column(name = "membership_holder_name") private String membershipHolderName;
+    @Column(name = "membership_holder_identity") private String membershipHolderIdentity;
+    @Column(name = "deceased_name") private String deceasedName;
+    @Column(name = "deceased_identity") private String deceasedIdentity;
+    @Column(name = "provider_tenant_id") private String providerTenantId;
+    @Column(name = "cover_tenant_id") private String coverTenantId;
+    @Column(name = "payment_request_id") private String paymentRequestId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

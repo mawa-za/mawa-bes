@@ -29,6 +29,7 @@ public class MembershipMapper {
                 .createdBy(entity.getCreatedBy())
                 .updatedAt(entity.getUpdatedAt())
                 .updatedBy(entity.getUpdatedBy())
+                .approvalRequestId(entity.getApprovalRequestId())
                 .oldId(entity.getOldId())
                 .build();
     }

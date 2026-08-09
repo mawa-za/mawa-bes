@@ -7,6 +7,10 @@ public class InvoiceOutboundDto {
     private String id;
     private String invoiceNo;
     private String partnerId;
+    private String partnerName;
+    private String partnerNumber;
+    private String sourceType;
+    private String sourceId;
     private LocalDate invoiceDate;
     private LocalDate dueDate;
     private String status;
@@ -14,14 +18,44 @@ public class InvoiceOutboundDto {
     private Integer taxCents;
     private Integer discountCents;
     private Integer totalCents;
+    private Integer paidCents;
+    private Integer creditedCents;
+    private Integer balanceCents;
+    private String externalRef;
+    private String notes;
     private String currency;
+    private String xeroInvoiceId;
+    private String xeroInvoiceNo;
+    private String integrationStatus;
+    private String integrationError;
 
     private List<InvoiceLineDto> lines;
+    private List<InvoicePaymentDto> payments;
+
+    public static class InvoicePaymentDto {
+        private String id;
+        private java.time.LocalDateTime paymentDate;
+        private Integer amountCents;
+        private String paymentMethod;
+        private String referenceNo;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public java.time.LocalDateTime getPaymentDate() { return paymentDate; }
+        public void setPaymentDate(java.time.LocalDateTime paymentDate) { this.paymentDate = paymentDate; }
+        public Integer getAmountCents() { return amountCents; }
+        public void setAmountCents(Integer amountCents) { this.amountCents = amountCents; }
+        public String getPaymentMethod() { return paymentMethod; }
+        public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+        public String getReferenceNo() { return referenceNo; }
+        public void setReferenceNo(String referenceNo) { this.referenceNo = referenceNo; }
+    }
 
     public static class InvoiceLineDto {
         private String productId;
         private String description;
         private Integer quantity;
+        private Boolean showAmount;
         private Integer unitPriceCents;
         private Integer discountCents;
         private Integer taxCents;
@@ -51,6 +85,14 @@ public class InvoiceOutboundDto {
 
         public void setQuantity(Integer quantity) {
             this.quantity = quantity;
+        }
+
+        public Boolean getShowAmount() {
+            return showAmount;
+        }
+
+        public void setShowAmount(Boolean showAmount) {
+            this.showAmount = showAmount;
         }
 
         public Integer getUnitPriceCents() {
@@ -119,6 +161,38 @@ public class InvoiceOutboundDto {
         this.partnerId = partnerId;
     }
 
+    public String getPartnerName() {
+        return partnerName;
+    }
+
+    public void setPartnerName(String partnerName) {
+        this.partnerName = partnerName;
+    }
+
+    public String getPartnerNumber() {
+        return partnerNumber;
+    }
+
+    public void setPartnerNumber(String partnerNumber) {
+        this.partnerNumber = partnerNumber;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public String getSourceId() {
+        return sourceId;
+    }
+
+    public void setSourceId(String sourceId) {
+        this.sourceId = sourceId;
+    }
+
     public LocalDate getInvoiceDate() {
         return invoiceDate;
     }
@@ -175,12 +249,84 @@ public class InvoiceOutboundDto {
         this.totalCents = totalCents;
     }
 
+    public Integer getPaidCents() {
+        return paidCents;
+    }
+
+    public void setPaidCents(Integer paidCents) {
+        this.paidCents = paidCents;
+    }
+
+    public Integer getCreditedCents() {
+        return creditedCents;
+    }
+
+    public void setCreditedCents(Integer creditedCents) {
+        this.creditedCents = creditedCents;
+    }
+
+    public Integer getBalanceCents() {
+        return balanceCents;
+    }
+
+    public void setBalanceCents(Integer balanceCents) {
+        this.balanceCents = balanceCents;
+    }
+
+    public String getExternalRef() {
+        return externalRef;
+    }
+
+    public void setExternalRef(String externalRef) {
+        this.externalRef = externalRef;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
     public String getCurrency() {
         return currency;
     }
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getXeroInvoiceId() {
+        return xeroInvoiceId;
+    }
+
+    public void setXeroInvoiceId(String xeroInvoiceId) {
+        this.xeroInvoiceId = xeroInvoiceId;
+    }
+
+    public String getXeroInvoiceNo() {
+        return xeroInvoiceNo;
+    }
+
+    public void setXeroInvoiceNo(String xeroInvoiceNo) {
+        this.xeroInvoiceNo = xeroInvoiceNo;
+    }
+
+    public String getIntegrationStatus() {
+        return integrationStatus;
+    }
+
+    public void setIntegrationStatus(String integrationStatus) {
+        this.integrationStatus = integrationStatus;
+    }
+
+    public String getIntegrationError() {
+        return integrationError;
+    }
+
+    public void setIntegrationError(String integrationError) {
+        this.integrationError = integrationError;
     }
 
     public List<InvoiceLineDto> getLines() {
@@ -190,4 +336,8 @@ public class InvoiceOutboundDto {
     public void setLines(List<InvoiceLineDto> lines) {
         this.lines = lines;
     }
+    public List<InvoicePaymentDto> getPayments() { return payments; }
+
+    public void setPayments(List<InvoicePaymentDto> payments) { this.payments = payments; }
+
 }
