@@ -54,11 +54,9 @@ public class FnbIntegrationAdministrationService {
         if (Boolean.TRUE.equals(request.getEnabled())) {
             requireConfigured(clientIdSecret, request.getClientId(), "FNB Client ID");
             requireConfigured(clientSecretSecret, request.getClientSecret(), "FNB Client Secret");
-            if (!paymentAccountConfigurationService.hasActiveFnbDebtor()) {
-                throw new IllegalArgumentException(
-                    "Configure and activate an FNB debtor account in Payment Account Configuration before enabling FNB integration"
-                );
-            }
+            // Integration activation is independent from payment routing readiness.
+            // Approved payment requests are still protected by PaymentRequestFnbPaymentQueueService,
+            // which refuses to queue them until an active request-type debtor account is configured for FNB.
         }
 
         saveSecretValue(clientIdSecret, request.getClientId());
