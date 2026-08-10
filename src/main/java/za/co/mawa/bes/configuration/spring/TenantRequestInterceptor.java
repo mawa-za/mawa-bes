@@ -45,6 +45,14 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
+
+        // The JWT servlet filter establishes TenantContext before MVC
+        // interceptors run. Avoid decoding the same bearer token again on every
+        // authenticated request when the tenant is already known.
+        if (StringUtils.hasText(TenantContext.getCurrentTenant())) {
+            return true;
+        }
+
         if ("/error".equals(requestURI)
                 || requestURI.startsWith("/internal/admin/")
                 || "/v2/admin-handoff/exchange".equals(requestURI)

@@ -93,27 +93,31 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean isIssuedAfterPasswordChange(String token, Date passwordChangedAt) {
+        return isIssuedAfterPasswordChange(
+                getClaimFromToken(token, claims -> claims),
+                passwordChangedAt
+        );
+    }
+
+    public boolean isIssuedAfterPasswordChange(Claims claims, Date passwordChangedAt) {
         if (passwordChangedAt == null) {
             return true;
         }
-        Long issuedAtMs = getClaimFromToken(token, claims -> {
-            Object value = claims.get("issued_at_ms");
-            if (value instanceof Number number) {
-                return number.longValue();
+        Object value = claims.get("issued_at_ms");
+        Long issuedAtMs = null;
+        if (value instanceof Number number) {
+            issuedAtMs = number.longValue();
+        } else if (value != null) {
+            try {
+                issuedAtMs = Long.parseLong(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                // Fall back to the standard JWT issued-at value below.
             }
-            if (value != null) {
-                try {
-                    return Long.parseLong(String.valueOf(value));
-                } catch (NumberFormatException ignored) {
-                    // Fall back to the standard JWT issued-at value below.
-                }
-            }
-            return null;
-        });
+        }
         if (issuedAtMs != null) {
             return issuedAtMs >= passwordChangedAt.getTime();
         }
-        Date issuedAt = getIssuedAtDateFromToken(token);
+        Date issuedAt = claims.getIssuedAt();
         return issuedAt != null && !issuedAt.before(passwordChangedAt);
     }
 
@@ -249,13 +253,23 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateAccessToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
-        final String tokenTenant = getTenantIdFromToken(token);
-        final String currentTenant = TenantContext.getCurrentTenant();
+        return validateAccessToken(
+                getClaimFromToken(token, claims -> claims),
+                userDetails
+        );
+    }
 
-        return isAccessToken(token)
+    public boolean validateAccessToken(Claims claims, UserDetails userDetails) {
+        final String username = claims.getSubject();
+        final String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
+        final String currentTenant = TenantContext.getCurrentTenant();
+        final String tokenType = claims.get(CLAIM_TOKEN_TYPE, String.class);
+        final Date expiration = claims.getExpiration();
+
+        return ACCESS_TOKEN.equals(tokenType)
                 && username.equals(userDetails.getUsername())
-                && !isTokenExpired(token)
+                && expiration != null
+                && expiration.after(new Date())
                 && tokenTenant != null
                 && tokenTenant.equals(currentTenant);
     }
