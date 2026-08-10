@@ -285,8 +285,10 @@ public class UserService implements UserDao {
             Sort sort = Sort.by("id").descending();
             List<UserEntity> userEntities = userRepository.findAll(findByCriteria(query), sort);
             for (UserEntity userEntity : userEntities) {
-                UserDto user = new UserDto();
-                user = entityToDto(userEntity);
+                // User lists only need account metadata. Expanding each user into a
+                // full PartnerDto triggers several extra database lookups per row and
+                // makes the list endpoint increasingly slow as user volume grows.
+                UserDto user = entityToDto(userEntity, false);
                 user.setPassword(null);
                 userDtoList.add(user);
             }
@@ -657,6 +659,10 @@ public class UserService implements UserDao {
     }
 
     private UserDto entityToDto(UserEntity userEntity) {
+        return entityToDto(userEntity, true);
+    }
+
+    private UserDto entityToDto(UserEntity userEntity, boolean includePartner) {
         UserDto userDto = new UserDto();
         try {
             userDto.setId(userEntity.getId());
@@ -671,7 +677,7 @@ public class UserService implements UserDao {
             userDto.setPasswordStatus(userEntity.getPasswordStatus());
             userDto.setValidFrom(userEntity.getValidFrom());
             userDto.setValidTo(userEntity.getValidTo());
-            if (userEntity.getPartner() != null && !userEntity.getPartner().isBlank()) {
+            if (includePartner && userEntity.getPartner() != null && !userEntity.getPartner().isBlank()) {
                 try {
                     userDto.setPartner(partnerService.get(userEntity.getPartner()));
                 } catch (Exception ignored) {
