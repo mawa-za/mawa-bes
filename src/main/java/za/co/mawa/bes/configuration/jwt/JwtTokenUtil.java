@@ -93,10 +93,8 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean isIssuedAfterPasswordChange(String token, Date passwordChangedAt) {
-        return isIssuedAfterPasswordChange(
-                getClaimFromToken(token, claims -> claims),
-                passwordChangedAt
-        );
+        final Claims claims = getAllClaimsFromToken(token);
+        return isIssuedAfterPasswordChange(claims, passwordChangedAt);
     }
 
     public boolean isIssuedAfterPasswordChange(Claims claims, Date passwordChangedAt) {
@@ -253,10 +251,8 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateAccessToken(String token, UserDetails userDetails) {
-        return validateAccessToken(
-                getClaimFromToken(token, claims -> claims),
-                userDetails
-        );
+        final Claims claims = getAllClaimsFromToken(token);
+        return validateAccessToken(claims, userDetails);
     }
 
     public boolean validateAccessToken(Claims claims, UserDetails userDetails) {
