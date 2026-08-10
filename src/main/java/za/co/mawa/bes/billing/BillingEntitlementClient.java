@@ -1,6 +1,7 @@
 package za.co.mawa.bes.billing;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -20,7 +21,7 @@ public class BillingEntitlementClient {
 
     private static final String INTERNAL_TOKEN_HEADER = "X-Mawa-Internal-Token";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
     private final String baseUrl;
     private final String internalServiceToken;
@@ -28,14 +29,21 @@ public class BillingEntitlementClient {
     private final CloudRunIdTokenProvider cloudRunIdTokenProvider;
 
     public BillingEntitlementClient(
+            RestTemplateBuilder restTemplateBuilder,
             CloudRunIdTokenProvider cloudRunIdTokenProvider,
             @Value("${mawa.billing.base-url:http://localhost:8085}") String baseUrl,
             @Value("${mawa.internal.service-token:}") String internalServiceToken,
-            @Value("${mawa.billing.entitlement-cache-seconds:30}") long cacheSeconds) {
+            @Value("${mawa.billing.entitlement-cache-seconds:30}") long cacheSeconds,
+            @Value("${mawa.billing.connect-timeout-ms:2000}") long connectTimeoutMs,
+            @Value("${mawa.billing.read-timeout-ms:3000}") long readTimeoutMs) {
         this.cloudRunIdTokenProvider = cloudRunIdTokenProvider;
         this.baseUrl = stripTrailingSlash(baseUrl);
         this.internalServiceToken = internalServiceToken;
         this.cacheDuration = Duration.ofSeconds(Math.max(0, cacheSeconds));
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(Duration.ofMillis(Math.max(100, connectTimeoutMs)))
+                .setReadTimeout(Duration.ofMillis(Math.max(100, readTimeoutMs)))
+                .build();
     }
 
     public boolean isEnabled(String tenantId, String moduleCode) {
