@@ -21,6 +21,14 @@ if [[ -n "${STORAGE_BUCKET:-}" ]]; then
   gcloud storage buckets add-iam-policy-binding "gs://${STORAGE_BUCKET}"     --member="serviceAccount:${RUNTIME_SERVICE_ACCOUNT_EMAIL}"     --role="${STORAGE_ROLE:-roles/storage.objectAdmin}" --quiet >/dev/null
 fi
 
+# FNB/Xero self-service activation creates tenant-specific Secret Manager resources
+# and appends credential/token versions at runtime. Secret Accessor on the fixed
+# deployment secrets is not sufficient for that workflow.
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="serviceAccount:${RUNTIME_SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/secretmanager.admin" \
+  --condition=None --quiet >/dev/null
+
 bindings=()
 while IFS='|' read -r env_name secret_name requirement; do
   [[ -z "${env_name// }" || "${env_name}" =~ ^[[:space:]]*# ]] && continue
