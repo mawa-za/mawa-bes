@@ -9,4 +9,5 @@ public class ApprovalDecisionRequest {
 
     private String actionBy;
     private String comments;
+    private Integer arrearsMonths;
 }

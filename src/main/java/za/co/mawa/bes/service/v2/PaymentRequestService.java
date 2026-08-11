@@ -167,9 +167,9 @@ public class PaymentRequestService {
             throw new IllegalArgumentException("Payout method is required before approving a " + claimLabel + " claim");
         }
 
-        long payoutAmountCents = claim.getApprovedAmountCents() != null && claim.getApprovedAmountCents() > 0
-                ? claim.getApprovedAmountCents()
-                : (claim.getClaimAmountCents() == null ? 0L : claim.getClaimAmountCents());
+        long payoutAmountCents = claim.getApprovedAmountCents() != null
+                ? Math.max(0L, claim.getApprovedAmountCents())
+                : (claim.getClaimAmountCents() == null ? 0L : Math.max(0L, claim.getClaimAmountCents()));
         if (payoutAmountCents <= 0) {
             throw new IllegalArgumentException("Approved " + claimLabel + " claim amount must be greater than zero");
         }

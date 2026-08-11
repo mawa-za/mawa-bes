@@ -69,6 +69,12 @@ public class MembershipClaimEntity {
     @Column(name = "approved_amount_cents")
     private Long approvedAmountCents;
 
+    @Column(name = "arrears_months")
+    private Integer arrearsMonths;
+
+    @Column(name = "arrears_fine_cents", nullable = false)
+    private Long arrearsFineCents = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private MembershipClaimStatus status = MembershipClaimStatus.DRAFT;
@@ -152,6 +158,10 @@ public class MembershipClaimEntity {
 
         if (this.claimAmountCents == null) {
             this.claimAmountCents = 0L;
+        }
+
+        if (this.arrearsFineCents == null) {
+            this.arrearsFineCents = 0L;
         }
     }
 
