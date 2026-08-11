@@ -31,6 +31,7 @@ public class ApprovalService {
     private final ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
     private final JdbcTemplate jdbcTemplate;
     private final UserInboxService userInboxService;
+    private final MembershipClaimService membershipClaimService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -207,7 +208,7 @@ public class ApprovalService {
 
         if (approvedCount >= currentStep.getRequiredApprovals()) {
             userInboxService.resolveApprovalStep(approvalRequestId, actionedStepNo);
-            moveToNextStepOrComplete(approvalRequest, request.getActionBy());
+            moveToNextStepOrComplete(approvalRequest, request);
         } else {
             userInboxService.resolveApprovalStepForUser(
                     approvalRequestId, actionedStepNo, request.getActionBy());
@@ -336,13 +337,14 @@ public class ApprovalService {
         return approvalRequestRepository.findAllByOrderByCreatedAtDesc();
     }
 
-    private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, String actionBy) {
+    private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, ApprovalDecisionRequest decision) {
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdOrderByStepNoAsc(
                         approvalRequest.getWorkflowId()
                 );
 
         Integer currentStepNo = approvalRequest.getCurrentStepNo();
+        String actionBy = decision.getActionBy();
 
         ApprovalWorkflowStepEntity nextStep = steps.stream()
                 .filter(step -> step.getStepNo() > currentStepNo)
@@ -350,6 +352,14 @@ public class ApprovalService {
                 .orElse(null);
 
         if (nextStep == null) {
+            if (approvalRequest.getApprovalType() == ApprovalType.CLAIM) {
+                membershipClaimService.applyArrearsFineForApproval(
+                        approvalRequest.getReferenceId(),
+                        decision.getArrearsMonths(),
+                        actionBy
+                );
+            }
+
             approvalRequest.setStatus(ApprovalStatus.APPROVED);
             approvalRequest.setFinalActionBy(actionBy);
             approvalRequest.setFinalActionAt(new Date());

@@ -87,6 +87,28 @@ public class ProductController {
         }
     }
 
+    @RequestMapping(value = "maintenance", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getProductsForMaintenance(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean availableForSale,
+            @RequestParam(required = false) String query) {
+        try {
+            ProductQueryDto criteria = new ProductQueryDto();
+            if (code != null && !code.isBlank()) criteria.setCode(code);
+            if (category != null && !category.isBlank()) criteria.setCategory(category);
+            if (type != null && !type.isBlank()) criteria.setType(type);
+            criteria.setAvailableForSale(availableForSale);
+            if (query != null && !query.isBlank()) criteria.setDescription(query);
+            return ResponseEntity.ok(gson.toJson(productService.searchForMaintenance(criteria)));
+        } catch (Exception exception) {
+            log.warn("Unable to load Product Maintenance list: {}", exception.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("Unable to load products", HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
     @RequestMapping(value = "{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getProduct(@PathVariable String id) {
         try {

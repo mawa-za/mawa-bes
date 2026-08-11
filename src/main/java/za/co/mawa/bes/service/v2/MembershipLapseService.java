@@ -55,6 +55,8 @@ public class MembershipLapseService {
                 SELECT id,
                        enabled,
                        missed_premiums_before_lapse,
+                       one_month_arrears_fine_cents,
+                       two_month_arrears_fine_cents,
                        last_run_at,
                        last_lapsed_count,
                        updated_at,
@@ -67,6 +69,8 @@ public class MembershipLapseService {
                 .id(stringValue(row.get("id")))
                 .enabled(databaseBoolean(row.get("enabled")))
                 .missedPremiumsBeforeLapse(parseThreshold(row.get("missed_premiums_before_lapse")))
+                .oneMonthArrearsFineCents(nonNegativeLong(row.get("one_month_arrears_fine_cents")))
+                .twoMonthArrearsFineCents(nonNegativeLong(row.get("two_month_arrears_fine_cents")))
                 .lastRunAt(toIsoDateTime(row.get("last_run_at")))
                 .lastLapsedCount(number(row.get("last_lapsed_count")))
                 .updatedAt(toIsoDateTime(row.get("updated_at")))
@@ -83,16 +87,25 @@ public class MembershipLapseService {
                 request == null ? null : request.getMissedPremiumsBeforeLapse()
         );
         boolean enabled = request == null || request.isEnabled();
-
         ensureDefaultConfiguration();
+        MembershipLapseConfigurationDto current = configuration();
+        long oneMonthFine = request == null || request.getOneMonthArrearsFineCents() == null
+                ? nonNegativeLong(current.getOneMonthArrearsFineCents())
+                : nonNegativeLong(request.getOneMonthArrearsFineCents());
+        long twoMonthFine = request == null || request.getTwoMonthArrearsFineCents() == null
+                ? nonNegativeLong(current.getTwoMonthArrearsFineCents())
+                : nonNegativeLong(request.getTwoMonthArrearsFineCents());
+
         jdbc.update("""
                 UPDATE membership_lapse_configuration
                    SET enabled = ?,
                        missed_premiums_before_lapse = ?,
+                       one_month_arrears_fine_cents = ?,
+                       two_month_arrears_fine_cents = ?,
                        updated_at = CURRENT_TIMESTAMP,
                        updated_by = ?
                  WHERE id = 'DEFAULT'
-                """, enabled, threshold, actor(user));
+                """, enabled, threshold, oneMonthFine, twoMonthFine, actor(user));
         return configuration();
     }
 
@@ -100,6 +113,22 @@ public class MembershipLapseService {
      * Scheduler entry point. Disabled tenant policies are skipped without
      * changing membership data.
      */
+
+    public long claimArrearsFineCents(int monthsInArrears) {
+        if (monthsInArrears < 0) {
+            throw new IllegalArgumentException("Months in arrears cannot be negative");
+        }
+        if (monthsInArrears >= 3) {
+            throw new IllegalArgumentException(
+                    "Membership has lapsed at 3 months in arrears and the claim cannot be approved"
+            );
+        }
+        MembershipLapseConfigurationDto config = configuration();
+        if (monthsInArrears == 1) return nonNegativeLong(config.getOneMonthArrearsFineCents());
+        if (monthsInArrears == 2) return nonNegativeLong(config.getTwoMonthArrearsFineCents());
+        return 0L;
+    }
+
     @Transactional
     public MembershipLapseRunResultDto runConfiguredAutomaticLapse(String user) {
         ensureDefaultConfiguration();
@@ -376,11 +405,13 @@ public class MembershipLapseService {
                     id,
                     enabled,
                     missed_premiums_before_lapse,
+                    one_month_arrears_fine_cents,
+                    two_month_arrears_fine_cents,
                     last_lapsed_count,
                     updated_at,
                     updated_by
                 )
-                SELECT 'DEFAULT', ?, ?, 0, CURRENT_TIMESTAMP, 'SYSTEM'
+                SELECT 'DEFAULT', ?, ?, 0, 0, 0, CURRENT_TIMESTAMP, 'SYSTEM'
                 WHERE NOT EXISTS (
                     SELECT 1
                       FROM membership_lapse_configuration
@@ -451,6 +482,23 @@ public class MembershipLapseService {
                 || "1".equals(text)
                 || "y".equalsIgnoreCase(text)
                 || "yes".equalsIgnoreCase(text);
+    }
+
+
+    private long nonNegativeLong(Object value) {
+        if (value == null) return 0L;
+        long parsed;
+        try {
+            parsed = value instanceof Number number
+                    ? number.longValue()
+                    : Long.parseLong(String.valueOf(value).trim());
+        } catch (Exception ignored) {
+            throw new IllegalArgumentException("Arrears fine values must be valid amounts");
+        }
+        if (parsed < 0) {
+            throw new IllegalArgumentException("Arrears fine values cannot be negative");
+        }
+        return parsed;
     }
 
     private int number(Object value) {

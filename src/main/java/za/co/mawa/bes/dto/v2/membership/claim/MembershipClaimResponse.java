@@ -44,6 +44,8 @@ public class MembershipClaimResponse {
 
     private Long claimAmountCents;
     private Long approvedAmountCents;
+    private Integer arrearsMonths;
+    private Long arrearsFineCents;
     private Long combinedClaimAmountCents;
 
     private MembershipClaimStatus status;
@@ -92,6 +94,24 @@ public class MembershipClaimResponse {
 
     public MembershipClaimResponse setApprovedAmountCents(Long approvedAmountCents) {
         this.approvedAmountCents = approvedAmountCents;
+        return this;
+    }
+
+    public Integer getArrearsMonths() {
+        return arrearsMonths;
+    }
+
+    public MembershipClaimResponse setArrearsMonths(Integer arrearsMonths) {
+        this.arrearsMonths = arrearsMonths;
+        return this;
+    }
+
+    public Long getArrearsFineCents() {
+        return arrearsFineCents;
+    }
+
+    public MembershipClaimResponse setArrearsFineCents(Long arrearsFineCents) {
+        this.arrearsFineCents = arrearsFineCents;
         return this;
     }
 

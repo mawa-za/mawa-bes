@@ -15,6 +15,8 @@ public class MembershipLapseConfigurationDto {
     private String id;
     private boolean enabled;
     private int missedPremiumsBeforeLapse;
+    private Long oneMonthArrearsFineCents;
+    private Long twoMonthArrearsFineCents;
     private String lastRunAt;
     private int lastLapsedCount;
     private String updatedAt;
