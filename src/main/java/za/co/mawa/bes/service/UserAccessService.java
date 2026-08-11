@@ -53,8 +53,9 @@ public class UserAccessService {
         UserEntity user = StringUtils.hasText(username) ? userRepository.getByName(username) : null;
         if (user == null) throw new SecurityException("User is not authenticated");
         validateUser(user);
-        List<String> roles = activeRoleIds(user.getId());
-        boolean all = roles.stream().map(roleRepository::findById).filter(Optional::isPresent).map(Optional::get)
+        List<RoleEntity> activeRoles = activeRoles(user.getId());
+        List<String> roles = activeRoles.stream().map(RoleEntity::getId).toList();
+        boolean all = activeRoles.stream()
                 .anyMatch(r -> Boolean.TRUE.equals(r.getAccessAllWorkcentres()));
         return UserAccessProfileDto.builder().userId(user.getId()).username(user.getUsername()).email(user.getEmail())
                 .accountType(defaultText(user.getAccountType(), "STANDARD")).testUser(Boolean.TRUE.equals(user.getTestUser()))
@@ -103,8 +104,7 @@ public class UserAccessService {
         String username = currentUsername();
         UserEntity user = StringUtils.hasText(username) ? userRepository.getByName(username) : null;
         if (user == null) return false;
-        return activeRoleIds(user.getId()).stream()
-                .map(roleRepository::findById).filter(Optional::isPresent).map(Optional::get)
+        return activeRoles(user.getId()).stream()
                 .anyMatch(role -> Boolean.TRUE.equals(role.getAccessAllWorkcentres()));
     }
 
@@ -191,14 +191,22 @@ public class UserAccessService {
 
 
     private List<String> activeRoleIds(String userId) {
+        return activeRoles(userId).stream().map(RoleEntity::getId).toList();
+    }
+
+    private List<RoleEntity> activeRoles(String userId) {
         Date now = new Date();
-        return userRoleRepository.findUserRoles(userId).stream()
+        List<String> assignedRoleIds = userRoleRepository.findUserRoles(userId).stream()
                 .filter(assignment -> assignment.getValidFrom() == null || !assignment.getValidFrom().after(now))
                 .filter(assignment -> assignment.getValidTo() == null || !assignment.getValidTo().before(now))
                 .map(assignment -> assignment.getUserRolePKEntity().getRole())
-                .filter(roleId -> roleRepository.findById(roleId).map(role ->
-                        (role.getValidFrom() == null || !role.getValidFrom().after(now))
-                                && (role.getValidTo() == null || !role.getValidTo().before(now))).orElse(false))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (assignedRoleIds.isEmpty()) return List.of();
+        return roleRepository.findAllById(assignedRoleIds).stream()
+                .filter(role -> role.getValidFrom() == null || !role.getValidFrom().after(now))
+                .filter(role -> role.getValidTo() == null || !role.getValidTo().before(now))
                 .toList();
     }
 

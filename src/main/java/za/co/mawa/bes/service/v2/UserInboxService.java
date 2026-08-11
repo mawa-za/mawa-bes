@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.inbox.InboxCountsResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserInboxResponse;
@@ -135,14 +136,12 @@ public class UserInboxService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public InboxCountsResponse getCounts(String userIdentity) {
         String userId = requireCanonicalUser(userIdentity);
-        List<ApprovalRequestResponse> pending = assignedApprovals(userId);
-        reconcileRequiredNotifications(userId, pending);
         return InboxCountsResponse.builder()
                 .unreadCount(unreadCount(userId))
-                .pendingApprovalCount(pending.size())
+                .pendingApprovalCount(assignedApprovalCount(userId))
                 .build();
     }
 
@@ -290,6 +289,78 @@ public class UserInboxService {
                 .filter(java.util.Objects::nonNull)
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private long assignedApprovalCount(String userId) {
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(DISTINCT ar.id)
+                  FROM approval_request ar
+                  JOIN approval_workflow_step step
+                    ON step.workflow_id = ar.workflow_id
+                   AND step.step_no = ar.current_step_no
+                   AND step.active = 1
+                  JOIN approval_workflow_step_approver approver
+                    ON approver.workflow_step_id = step.id
+                   AND approver.active = 1
+                  JOIN `user` inbox_user ON inbox_user.id = ?
+                 WHERE ar.status IN ('PENDING', 'IN_PROGRESS')
+                   AND inbox_user.status = 'ACTIVE'
+                   AND (inbox_user.expires_at IS NULL OR inbox_user.expires_at > NOW())
+                   AND (
+                        (approver.approver_type = 'USER' AND (
+                            approver.approver_value = inbox_user.id OR
+                            approver.approver_value = inbox_user.username OR
+                            approver.approver_value = inbox_user.email
+                        ))
+                        OR
+                        (approver.approver_type = 'ROLE' AND EXISTS (
+                            SELECT 1
+                              FROM user_role ur
+                              JOIN role r ON r.id = ur.role
+                             WHERE ur.user = inbox_user.id
+                               AND (r.id = approver.approver_value OR
+                                    UPPER(r.description) = UPPER(approver.approver_value))
+                               AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
+                               AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
+                        ))
+                        OR
+                        (approver.approver_type = 'GROUP' AND EXISTS (
+                            SELECT 1
+                              FROM approval_group_member gm
+                             WHERE gm.user_id = inbox_user.id
+                               AND gm.group_code = approver.approver_value
+                               AND gm.active = 1
+                        ))
+                        OR
+                        (approver.approver_type = 'MANAGER' AND EXISTS (
+                            SELECT 1
+                              FROM approval_manager_assignment ma
+                              LEFT JOIN `user` requester_user ON requester_user.id = ma.requester_user_id
+                             WHERE ma.manager_user_id = inbox_user.id
+                               AND ma.active = 1
+                               AND (
+                                    ma.requester_user_id = ar.requester_id OR
+                                    requester_user.username = ar.requester_id OR
+                                    requester_user.email = ar.requester_id OR
+                                    requester_user.partner = ar.requester_id
+                               )
+                        ))
+                   )
+                   AND NOT EXISTS (
+                        SELECT 1
+                          FROM approval_action actioned
+                         WHERE actioned.approval_request_id = ar.id
+                           AND actioned.step_no = ar.current_step_no
+                           AND actioned.action IN ('APPROVED', 'REJECTED')
+                           AND (
+                                actioned.action_by = inbox_user.id OR
+                                actioned.action_by = inbox_user.username OR
+                                actioned.action_by = inbox_user.email OR
+                                actioned.action_by = inbox_user.partner
+                           )
+                   )
+                """, Long.class, userId);
+        return count == null ? 0 : count;
     }
 
     private void notifyApprovalRequiredForUser(ApprovalRequestEntity request, String userId) {
@@ -480,6 +551,12 @@ public class UserInboxService {
     }
 
     private String requireCanonicalUser(String identity) {
+        String authenticatedUserId = UserContext.getCurrentUserId();
+        if (authenticatedUserId != null
+                && !authenticatedUserId.isBlank()
+                && authenticatedUserId.equals(identity)) {
+            return authenticatedUserId;
+        }
         String userId = canonicalUserId(identity);
         if (userId == null || userId.isBlank()) {
             throw new RuntimeException("Current user could not be determined");

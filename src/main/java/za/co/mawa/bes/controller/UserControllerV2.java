@@ -63,18 +63,16 @@ public class UserControllerV2 {
     }
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getUsers(@RequestBody(required = false) UserQueryDto queryDto) {
+    public ResponseEntity<?> getUsers(@ModelAttribute UserQueryDto queryDto) {
         try {
-            List<UserDto> userDtoList = new ArrayList<>();
-            if (queryDto == null) {
-                UserQueryDto query = new UserQueryDto();
-                userDtoList = userService.getAll(query);
-            } else {
-                userDtoList = userService.getAll(queryDto);
-            }
-            return ResponseEntity.ok(gson.toJson(userDtoList));
+            // GET filters are query parameters, not a request body. Returning the DTO
+            // list directly also avoids serialising the response twice.
+            return ResponseEntity.ok(userService.getAll(queryDto));
         } catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+            log.error("Unable to load users", exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "USER_LIST_LOAD_FAILED",
+                    "message", "MAWA could not load the user list right now"));
         }
     }
 

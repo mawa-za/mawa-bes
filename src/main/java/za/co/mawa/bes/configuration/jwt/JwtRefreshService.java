@@ -2,11 +2,9 @@ package za.co.mawa.bes.configuration.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
-import za.co.mawa.bes.service.UserService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,16 +14,13 @@ public class JwtRefreshService {
 
     private final JwtTokenUtil jwtTokenUtil;
     private final JwtUserDetailsService jwtUserDetailsService;
-    private final UserService userService;
 
     public JwtRefreshService(
             JwtTokenUtil jwtTokenUtil,
-            JwtUserDetailsService jwtUserDetailsService,
-            UserService userService
+            JwtUserDetailsService jwtUserDetailsService
     ) {
         this.jwtTokenUtil = jwtTokenUtil;
         this.jwtUserDetailsService = jwtUserDetailsService;
-        this.userService = userService;
     }
 
     public JwtResponse refresh(String refreshToken) {
@@ -44,15 +39,11 @@ public class JwtRefreshService {
             // Refresh is a public endpoint, so JwtRequestFilter intentionally does not
             // establish tenant context. Set it before loading the tenant-scoped user.
             TenantContext.setCurrentTenant(tenantId);
-            UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
-
-            za.co.mawa.bes.entity.UserEntity authenticatedUser =
-                    userService.getUserEntityByName(username);
-            if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)
+            JwtUserDetailsService.AccessTokenUser authenticatedUser =
+                    jwtUserDetailsService.loadAccessTokenUser(username);
+            if (!jwtTokenUtil.validateRefreshToken(refreshToken, authenticatedUser.userDetails())
                     || !jwtTokenUtil.isIssuedAfterPasswordChange(
-                            refreshToken,
-                            authenticatedUser == null ? null : authenticatedUser.getPasswordChangedAt()
-                    )) {
+                            refreshToken, authenticatedUser.passwordChangedAt())) {
                 throw new JwtException("Invalid refresh token");
             }
 
