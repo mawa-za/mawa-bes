@@ -76,12 +76,12 @@ public class ApprovalService {
         approvalRequestRepository
                 .findByApprovalTypeAndReferenceId(request.getApprovalType(), request.getReferenceId())
                 .ifPresent(existing -> {
-                    throw new RuntimeException("Approval request already exists for reference: " + request.getReferenceId());
+                    throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
                 });
 
         ApprovalWorkflowEntity workflow = workflowRepository
                 .findByApprovalType(request.getApprovalType())
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new IllegalStateException(
                         "No approval workflow configured for type: " + request.getApprovalType()));
 
         if (!Boolean.TRUE.equals(workflow.getActive())) {
@@ -92,7 +92,7 @@ public class ApprovalService {
                 workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
 
         if (steps.isEmpty()) {
-            throw new RuntimeException("Approval workflow has no active steps");
+            throw new IllegalStateException("Approval workflow has no active steps");
         }
 
         Integer firstStepNo = steps.get(0).getStepNo();
@@ -386,11 +386,11 @@ public class ApprovalService {
         }
 
         if (actionBy == null || actionBy.isBlank()) {
-            throw new RuntimeException("Action user is required");
+            throw new IllegalArgumentException("Action user is required");
         }
 
         if (step.getApprovers() == null || step.getApprovers().isEmpty()) {
-            throw new RuntimeException("No approvers configured for this approval step");
+            throw new IllegalStateException("No approvers configured for this approval step");
         }
 
         boolean allowed = step.getApprovers()
@@ -399,7 +399,7 @@ public class ApprovalService {
                 .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy, request));
 
         if (!allowed) {
-            throw new RuntimeException("User is not allowed to approve this step");
+            throw new SecurityException("User is not allowed to approve this step");
         }
     }
 

@@ -71,6 +71,13 @@ public class BillingEntitlementInterceptor implements HandlerInterceptor {
             return true;
         }
         String path = request.getRequestURI();
+        if (isOperationalPrintAgentCall(path)) {
+            // The agent authenticates with its own secret and polls continuously.
+            // Billing is enforced when users configure/queue POS operations; making
+            // every heartbeat/claim callback re-check billing floods the billing
+            // service and adds seconds of latency to production.
+            return true;
+        }
         return path == null
                 || path.startsWith("/internal/")
                 || path.startsWith("/actuator/")
@@ -84,5 +91,13 @@ public class BillingEntitlementInterceptor implements HandlerInterceptor {
                 || path.equals("/v2/reset-password")
                 || path.equals("/refresh-token")
                 || path.equals("/v2/refresh-token");
+    }
+
+    private boolean isOperationalPrintAgentCall(String path) {
+        if (path == null || !path.startsWith("/v2/pos-print-agents/")) return false;
+        return path.endsWith("/heartbeat")
+                || path.endsWith("/printers")
+                || path.endsWith("/jobs/claim")
+                || path.contains("/jobs/");
     }
 }

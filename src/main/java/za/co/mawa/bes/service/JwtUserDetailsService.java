@@ -1,7 +1,12 @@
 package za.co.mawa.bes.service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +18,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import za.co.mawa.bes.entity.UserEntity;
-import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.configuration.context.TenantContext;
 
 @Component
 public class JwtUserDetailsService implements UserDetailsService {
@@ -26,6 +31,9 @@ public class JwtUserDetailsService implements UserDetailsService {
     UserService userService;
     @Autowired
     UserAccessService userAccessService;
+    @Value("${mawa.security.access-user-cache-seconds:5}")
+    private long accessUserCacheSeconds;
+    private final Map<String, AccessUserCacheEntry> accessUserCache = new ConcurrentHashMap<>();
 
     /**
      * Lightweight user snapshot for bearer-token authentication.
@@ -37,6 +45,13 @@ public class JwtUserDetailsService implements UserDetailsService {
      * duplicate database reads per request.
      */
     public AccessTokenUser loadAccessTokenUser(String username) throws UsernameNotFoundException {
+        String tenant = TenantContext.getCurrentTenant();
+        String cacheKey = (tenant == null ? "" : tenant) + "|" + username;
+        AccessUserCacheEntry cached = accessUserCache.get(cacheKey);
+        Instant now = Instant.now();
+        if (cached != null && cached.expiresAt().isAfter(now)) {
+            return cached.user();
+        }
         try {
             UserEntity user = userService.getUserEntityByName(username);
             if (user == null) {
@@ -56,12 +71,18 @@ public class JwtUserDetailsService implements UserDetailsService {
                     new ArrayList<>()
             );
 
-            return new AccessTokenUser(
+            AccessTokenUser accessTokenUser = new AccessTokenUser(
                     userDetails,
                     user.getId(),
                     user.getPartner(),
                     user.getPasswordChangedAt()
             );
+            long ttl = Math.max(0, accessUserCacheSeconds);
+            if (ttl > 0) {
+                accessUserCache.put(cacheKey, new AccessUserCacheEntry(
+                        accessTokenUser, now.plus(Duration.ofSeconds(ttl))));
+            }
+            return accessTokenUser;
         } catch (UsernameNotFoundException | DisabledException exception) {
             throw exception;
         } catch (SecurityException exception) {
@@ -81,24 +102,24 @@ public class JwtUserDetailsService implements UserDetailsService {
         boolean credentialsNonExpired = true;
         boolean accountNonLocked = true;
         try {
-            UserDto userDto = userService.getUserByName(username);
-            if (userDto != null) {
-                za.co.mawa.bes.entity.UserEntity policyUser = userService.getUserEntityByName(username);
+            UserEntity policyUser = userService.getUserEntityByName(username);
+            if (policyUser != null) {
                 userAccessService.validateUser(policyUser);
-                if (Status.LOCKED.equals(userDto.getStatus())) {
+                if (Status.LOCKED.equals(policyUser.getStatus())) {
                     accountNonLocked = false;
                 }
 
-                String encryptedPassword = userDto.getPassword();
-                if (encryptedPassword == null || encryptedPassword.isBlank()) {
+                byte[] passwordBytes = policyUser.getPassword();
+                if (passwordBytes == null || passwordBytes.length == 0) {
                     throw new IllegalStateException(
                             "User password is not configured for username: " + username
                     );
                 }
 
+                String encryptedPassword = new String(passwordBytes, StandardCharsets.UTF_8);
                 String decryptedPassword = encryptionService.decrypt(encryptedPassword, encryptionSecret);
                 return new User(
-                        userDto.getUsername(),
+                        policyUser.getUsername(),
                         new BCryptPasswordEncoder().encode(decryptedPassword),
                         enabled,
                         accountNonExpired,
@@ -118,6 +139,9 @@ public class JwtUserDetailsService implements UserDetailsService {
                     exception
             );
         }
+    }
+
+    private record AccessUserCacheEntry(AccessTokenUser user, Instant expiresAt) {
     }
 
     public record AccessTokenUser(

@@ -197,11 +197,14 @@ public class CashupService {
 
 
     @Transactional(readOnly = true)
-    public Slice<CashupListItemResponse> getPage(String status, Pageable pageable) {
+    public Slice<CashupListItemResponse> getPage(String status, String search, Pageable pageable) {
         final String normalizedStatus = clean(status);
-        Slice<CashupEntity> page = normalizedStatus == null || "ALL".equalsIgnoreCase(normalizedStatus)
-                ? cashupRepository.findAllByOrderByCashupDateDescCreatedAtDesc(pageable)
-                : cashupRepository.findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(normalizedStatus, pageable);
+        final String normalizedSearch = clean(search);
+        Slice<CashupEntity> page = normalizedSearch != null
+                ? cashupRepository.search(normalizedStatus, normalizedSearch, pageable)
+                : normalizedStatus == null || "ALL".equalsIgnoreCase(normalizedStatus)
+                    ? cashupRepository.findAllByOrderByCashupDateDescCreatedAtDesc(pageable)
+                    : cashupRepository.findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(normalizedStatus, pageable);
         Map<String, String> cashierNames = resolveCashierNames(page.getContent());
         return page.map(cashup -> toListItem(cashup, cashierNames.get(cashup.getUserId())));
     }
