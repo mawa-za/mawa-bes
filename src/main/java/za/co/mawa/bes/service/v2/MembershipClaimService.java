@@ -50,6 +50,7 @@ public class MembershipClaimService {
     private final ClaimTypeConfigurationService claimTypeConfigurationService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final UniversalBranchCodeService universalBranchCodeService;
+    private final MembershipLapseService membershipLapseService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
@@ -64,7 +65,8 @@ public class MembershipClaimService {
             MembershipPlanClaimPayoutService membershipPlanClaimPayoutService,
             ClaimTypeConfigurationService claimTypeConfigurationService,
             ReferenceDataValidationService referenceDataValidationService,
-            UniversalBranchCodeService universalBranchCodeService
+            UniversalBranchCodeService universalBranchCodeService,
+            MembershipLapseService membershipLapseService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
@@ -79,6 +81,7 @@ public class MembershipClaimService {
         this.claimTypeConfigurationService = claimTypeConfigurationService;
         this.referenceDataValidationService = referenceDataValidationService;
         this.universalBranchCodeService = universalBranchCodeService;
+        this.membershipLapseService = membershipLapseService;
     }
 
     @Transactional
@@ -316,6 +319,40 @@ public class MembershipClaimService {
     }
 
     @Transactional
+    public MembershipClaimResponse applyArrearsFineForApproval(
+            String id,
+            Integer monthsInArrears,
+            String userId
+    ) {
+        if (monthsInArrears == null) {
+            throw new IllegalArgumentException(
+                    "Specify the number of months the membership is in arrears before approving the claim"
+            );
+        }
+        if (monthsInArrears < 0) {
+            throw new IllegalArgumentException("Months in arrears cannot be negative");
+        }
+        if (monthsInArrears >= 3) {
+            throw new IllegalArgumentException(
+                    "Membership has lapsed at 3 months in arrears and the claim cannot be approved"
+            );
+        }
+
+        MembershipClaimEntity entity = getClaimEntity(id);
+        long grossAmount = entity.getClaimAmountCents() == null
+                ? 0L
+                : Math.max(0L, entity.getClaimAmountCents());
+        long configuredFine = membershipLapseService.claimArrearsFineCents(monthsInArrears);
+        long appliedFine = Math.min(grossAmount, Math.max(0L, configuredFine));
+
+        entity.setArrearsMonths(monthsInArrears);
+        entity.setArrearsFineCents(appliedFine);
+        entity.setApprovedAmountCents(grossAmount - appliedFine);
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
     public MembershipClaimResponse markApprovedFromWorkflow(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
         if (entity.getStatus() == MembershipClaimStatus.PAID
@@ -326,7 +363,7 @@ public class MembershipClaimService {
         entity.setStatus(entity.getClaimType() == MembershipClaimType.CASH
                 ? MembershipClaimStatus.PAYMENT_PENDING
                 : MembershipClaimStatus.APPROVED);
-        if (entity.getApprovedAmountCents() == null || entity.getApprovedAmountCents() <= 0) {
+        if (entity.getApprovedAmountCents() == null) {
             entity.setApprovedAmountCents(entity.getClaimAmountCents() == null ? 0L : entity.getClaimAmountCents());
         }
         entity.setApprovedBy(userId);
@@ -839,6 +876,8 @@ public class MembershipClaimService {
                 .setClaimantPartnerId(entity.getClaimantPartnerId())
                 .setClaimAmountCents(entity.getClaimAmountCents())
                 .setApprovedAmountCents(resolveApprovedAmount(entity))
+                .setArrearsMonths(entity.getArrearsMonths())
+                .setArrearsFineCents(entity.getArrearsFineCents() == null ? 0L : entity.getArrearsFineCents())
                 .setCombinedClaimAmountCents(entity.getClaimAmountCents() + linkedTotal)
                 .setStatus(entity.getStatus())
                 .setRejectionReason(entity.getRejectionReason())

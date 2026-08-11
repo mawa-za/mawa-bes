@@ -15,6 +15,9 @@ public interface ProductPricingRepository extends JpaRepository<ProductPricingEn
 {
     @Query("SELECT p FROM ProductPricingEntity p WHERE p.productPricingPKEntity.product = :productId")
     List<ProductPricingEntity>findByProduct(String productId);
+
+    @Query("SELECT p FROM ProductPricingEntity p WHERE p.productPricingPKEntity.product IN :productIds")
+    List<ProductPricingEntity> findByProductIds(@Param("productIds") List<String> productIds);
     @Modifying
     @Query("DELETE from ProductPricingEntity p WHERE p.productPricingPKEntity.product = :productId")
     void deleteByProductId(String productId);
