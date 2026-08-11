@@ -14,7 +14,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 @Component
 public class BillingEntitlementClient {
@@ -23,6 +25,7 @@ public class BillingEntitlementClient {
 
     private final RestTemplate restTemplate;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
     private final String baseUrl;
     private final String internalServiceToken;
     private final Duration cacheDuration;
@@ -54,6 +57,31 @@ public class BillingEntitlementClient {
             return cached.enabled();
         }
 
+        // Once a tenant/module decision has been observed, never put a normal ERP
+        // request behind the billing network call again. Refresh expired decisions
+        // in the background and serve the last-known value immediately. The first
+        // lookup for a tenant/module remains synchronous so enforcement still has a
+        // deterministic initial decision.
+        if (cached != null) {
+            refreshAsync(cacheKey, tenantId, moduleCode);
+            return cached.enabled();
+        }
+
+        return refresh(cacheKey, tenantId, moduleCode, true);
+    }
+
+    private void refreshAsync(String cacheKey, String tenantId, String moduleCode) {
+        if (!refreshInFlight.add(cacheKey)) return;
+        CompletableFuture.runAsync(() -> {
+            try {
+                refresh(cacheKey, tenantId, moduleCode, false);
+            } finally {
+                refreshInFlight.remove(cacheKey);
+            }
+        });
+    }
+
+    private boolean refresh(String cacheKey, String tenantId, String moduleCode, boolean failOpenWhenMissing) {
         HttpHeaders headers = new HttpHeaders();
         cloudRunIdTokenProvider.apply(headers);
         if (StringUtils.hasText(internalServiceToken)) {
@@ -69,14 +97,12 @@ public class BillingEntitlementClient {
                     new HttpEntity<>(headers),
                     Map.class
             ).getBody();
-
             boolean enabled = body != null && Boolean.parseBoolean(String.valueOf(body.get("enabled")));
-            cache.put(cacheKey, new CacheEntry(enabled, now.plus(cacheDuration)));
+            cache.put(cacheKey, new CacheEntry(enabled, Instant.now().plus(cacheDuration)));
             return enabled;
         } catch (Exception exception) {
-            // Use the last known decision when available. Otherwise remain fail-open
-            // so a billing outage cannot take down tenant operations.
-            return cached == null || cached.enabled();
+            CacheEntry previous = cache.get(cacheKey);
+            return previous != null ? previous.enabled() : failOpenWhenMissing;
         }
     }
 
