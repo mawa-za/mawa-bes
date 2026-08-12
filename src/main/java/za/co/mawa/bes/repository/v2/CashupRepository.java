@@ -43,6 +43,11 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
 
     Slice<CashupEntity> findByStatusIgnoreCaseOrderByCashupDateDescCreatedAtDesc(String status, Pageable pageable);
 
+    List<CashupEntity> findByStatusIgnoreCaseOrderByCashupDateAscCreatedAtAsc(String status);
+
+    List<CashupEntity> findByStatusIgnoreCaseAndCreatedAtLessThanEqualOrderByCashupDateAscCreatedAtAsc(
+            String status, java.time.LocalDateTime createdAt);
+
     @Query(value = """
             SELECT c.*
               FROM cashup c
