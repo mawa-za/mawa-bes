@@ -10,6 +10,7 @@ public class ManualPremiumReceiptCaptureRequest {
     private String membershipId;
     private Long amountCents;
     private String paymentMethod;
+    private String periodYYYYMM;
     private LocalDate originalReceiptDate;
     private String receiptBookNo;
     private String manualReceiptNo;
