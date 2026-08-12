@@ -115,10 +115,11 @@ public class MembershipControllerV2 {
     public ResponseEntity<Page<MembershipResponseDto>> listMemberships(
             Pageable pageable,
             @RequestParam(required = false) List<String> memberId,
+            @RequestParam(required = false) String query,
             @RequestParam(required = false) String status
     ) {
         return ResponseEntity.ok(
-                membershipService.getMembershipResponsesByMemberId(memberId, status, pageable)
+                membershipService.getMembershipResponsesByMemberId(memberId, query, status, pageable)
         );
     }
 
