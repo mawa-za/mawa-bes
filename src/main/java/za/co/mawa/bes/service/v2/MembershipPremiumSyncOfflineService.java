@@ -39,31 +39,27 @@ public class MembershipPremiumSyncOfflineService {
 
         if (existingBatch.isPresent()) {
             PaymentBatchEntity batch = existingBatch.get();
-
-            return PaymentSyncOfflineResponseDto.builder()
-                    .syncStatus("ALREADY_SYNCED")
-                    .paymentBatchId(batch.getId())
-                    .paymentBatchNo(batch.getPaymentBatchNo())
-                    .membershipId(batch.getMembershipId())
-                    .paidUpToPeriod(membershipService.recalculatePaidUpToPeriod(batch.getMembershipId()))
-                    .receipts(List.of())
-                    .warnings(List.of("Payment batch already synced"))
-                    .build();
+            validateExistingBatchIdentity(batch, request);
+            return syncIntoBatch(
+                    batch,
+                    request,
+                    batch.getMembershipId(),
+                    new ArrayList<>(List.of("Payment batch already existed; backend receipts were verified")),
+                    true
+            );
         }
 
         if (paymentBatchRepository.existsByPaymentBatchNo(request.getPaymentBatchNo())) {
             PaymentBatchEntity batch = paymentBatchRepository.findByPaymentBatchNo(request.getPaymentBatchNo())
                     .orElseThrow();
-
-            return PaymentSyncOfflineResponseDto.builder()
-                    .syncStatus("ALREADY_SYNCED")
-                    .paymentBatchId(batch.getId())
-                    .paymentBatchNo(batch.getPaymentBatchNo())
-                    .membershipId(batch.getMembershipId())
-                    .paidUpToPeriod(membershipService.recalculatePaidUpToPeriod(batch.getMembershipId()))
-                    .receipts(List.of())
-                    .warnings(List.of("Payment batch number already exists"))
-                    .build();
+            validateExistingBatchIdentity(batch, request);
+            return syncIntoBatch(
+                    batch,
+                    request,
+                    batch.getMembershipId(),
+                    new ArrayList<>(List.of("Payment batch number already existed; backend receipts were verified")),
+                    true
+            );
         }
 
         // MAWA Pay may still hold a legacy membership id from data that was migrated
@@ -71,20 +67,31 @@ public class MembershipPremiumSyncOfflineService {
         // ledger row against the canonical membership id so ERP and sync history point
         // at the same membership record.
         String canonicalMembershipId = membershipService.resolveMembership(request.getMembershipId()).getId();
-
         PaymentBatchEntity batch = createPaymentBatch(request, canonicalMembershipId);
+        return syncIntoBatch(batch, request, canonicalMembershipId, new ArrayList<>(), false);
+    }
 
+    private PaymentSyncOfflineResponseDto syncIntoBatch(
+            PaymentBatchEntity batch,
+            MembershipPremiumPaymentSyncOfflineRequest request,
+            String canonicalMembershipId,
+            List<String> warnings,
+            boolean recoveringExistingBatch
+    ) {
         List<ReceiptResponseDto> syncedReceipts = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
-
         Long monthlyPremiumCents = determineMonthlyPremiumCents(canonicalMembershipId);
 
         for (PremiumReceiptOfflineDto offlineReceipt : request.getReceipts()) {
-            if (receiptRepository.existsByReceiptNo(offlineReceipt.getReceiptNo())) {
-                ReceiptEntity existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo())
-                        .orElseThrow();
-
-                syncedReceipts.add(receiptService.getReceipt(existingReceipt.getId()));
+            var existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo());
+            if (existingReceipt.isPresent()) {
+                ReceiptEntity receipt = existingReceipt.get();
+                if (!batch.getId().equals(receipt.getPaymentBatchId())) {
+                    throw new IllegalStateException(
+                            "Receipt number " + offlineReceipt.getReceiptNo()
+                                    + " already belongs to a different payment batch"
+                    );
+                }
+                syncedReceipts.add(receiptService.getReceipt(receipt.getId()));
                 warnings.add("Receipt already existed: " + offlineReceipt.getReceiptNo());
                 continue;
             }
@@ -124,15 +131,17 @@ public class MembershipPremiumSyncOfflineService {
             }
 
             syncedReceipts.add(receiptMapper.toDto(receipt, List.of(allocation)));
+            if (recoveringExistingBatch) {
+                warnings.add("Recovered missing backend receipt: " + offlineReceipt.getReceiptNo());
+            }
         }
 
         String paidUpToPeriod = membershipService.recalculatePaidUpToPeriod(canonicalMembershipId);
         String syncStatus = warnings.isEmpty() ? "SYNCED" : "SYNCED_WITH_WARNINGS";
 
-        if (!warnings.isEmpty()) {
-            batch.setSyncStatus(SyncStatus.SYNCED_WITH_WARNINGS);
-            paymentBatchRepository.save(batch);
-        }
+        batch.setSyncStatus(warnings.isEmpty() ? SyncStatus.SYNCED : SyncStatus.SYNCED_WITH_WARNINGS);
+        batch.setUpdatedAt(LocalDateTime.now());
+        paymentBatchRepository.save(batch);
 
         return PaymentSyncOfflineResponseDto.builder()
                 .syncStatus(syncStatus)
@@ -143,6 +152,20 @@ public class MembershipPremiumSyncOfflineService {
                 .receipts(syncedReceipts)
                 .warnings(warnings)
                 .build();
+    }
+
+    private void validateExistingBatchIdentity(
+            PaymentBatchEntity batch,
+            MembershipPremiumPaymentSyncOfflineRequest request
+    ) {
+        if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM
+                || !request.getPaymentBatchNo().equals(batch.getPaymentBatchNo())
+                || !request.getDeviceId().equals(batch.getDeviceId())
+                || !request.getLocalPaymentBatchId().equals(batch.getLocalPaymentBatchId())) {
+            throw new IllegalStateException(
+                    "Payment batch number is already linked to a different MawaPay device transaction"
+            );
+        }
     }
 
     private PaymentBatchEntity createPaymentBatch(

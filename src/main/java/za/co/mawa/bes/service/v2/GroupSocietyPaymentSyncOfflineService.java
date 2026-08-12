@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -51,43 +52,53 @@ public class GroupSocietyPaymentSyncOfflineService {
 
         if (existingBatch.isPresent()) {
             PaymentBatchEntity batch = existingBatch.get();
-            return PaymentSyncOfflineResponseDto.builder()
-                    .syncStatus("ALREADY_SYNCED")
-                    .paymentBatchId(batch.getId())
-                    .paymentBatchNo(batch.getPaymentBatchNo())
-                    .groupSocietyId(request.getGroupSocietyId())
-                    .partnerId(society.getPartnerId())
-                    .receipts(List.of())
-                    .warnings(List.of("Group society payment batch already synced"))
-                    .build();
+            validateExistingBatchIdentity(batch, request, society);
+            return syncIntoBatch(
+                    batch,
+                    request,
+                    society,
+                    new ArrayList<>(List.of("Group society payment batch already existed; backend receipts were verified")),
+                    true
+            );
         }
 
         if (paymentBatchRepository.existsByPaymentBatchNo(request.getPaymentBatchNo())) {
             PaymentBatchEntity batch = paymentBatchRepository.findByPaymentBatchNo(request.getPaymentBatchNo())
                     .orElseThrow();
-
-            return PaymentSyncOfflineResponseDto.builder()
-                    .syncStatus("ALREADY_SYNCED")
-                    .paymentBatchId(batch.getId())
-                    .paymentBatchNo(batch.getPaymentBatchNo())
-                    .groupSocietyId(request.getGroupSocietyId())
-                    .partnerId(society.getPartnerId())
-                    .receipts(List.of())
-                    .warnings(List.of("Payment batch number already exists"))
-                    .build();
+            validateExistingBatchIdentity(batch, request, society);
+            return syncIntoBatch(
+                    batch,
+                    request,
+                    society,
+                    new ArrayList<>(List.of("Payment batch number already existed; backend receipts were verified")),
+                    true
+            );
         }
 
         PaymentBatchEntity batch = createPaymentBatch(request, society);
+        return syncIntoBatch(batch, request, society, new ArrayList<>(), false);
+    }
 
+    private PaymentSyncOfflineResponseDto syncIntoBatch(
+            PaymentBatchEntity batch,
+            GroupSocietyPaymentSyncOfflineRequest request,
+            GroupSocietyEntity society,
+            List<String> warnings,
+            boolean recoveringExistingBatch
+    ) {
         List<ReceiptResponseDto> syncedReceipts = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
 
         for (PremiumReceiptOfflineDto offlineReceipt : request.getReceipts()) {
-            if (receiptRepository.existsByReceiptNo(offlineReceipt.getReceiptNo())) {
-                ReceiptEntity existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo())
-                        .orElseThrow();
-
-                syncedReceipts.add(receiptService.getReceipt(existingReceipt.getId()));
+            var existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo());
+            if (existingReceipt.isPresent()) {
+                ReceiptEntity receipt = existingReceipt.get();
+                if (!batch.getId().equals(receipt.getPaymentBatchId())) {
+                    throw new IllegalStateException(
+                            "Receipt number " + offlineReceipt.getReceiptNo()
+                                    + " already belongs to a different payment batch"
+                    );
+                }
+                syncedReceipts.add(receiptService.getReceipt(receipt.getId()));
                 warnings.add("Receipt already existed: " + offlineReceipt.getReceiptNo());
                 continue;
             }
@@ -113,14 +124,15 @@ public class GroupSocietyPaymentSyncOfflineService {
             );
 
             syncedReceipts.add(receiptMapper.toDto(receipt, List.of(allocation)));
+            if (recoveringExistingBatch) {
+                warnings.add("Recovered missing backend receipt: " + offlineReceipt.getReceiptNo());
+            }
         }
 
         String syncStatus = warnings.isEmpty() ? "SYNCED" : "SYNCED_WITH_WARNINGS";
-
-        if (!warnings.isEmpty()) {
-            batch.setSyncStatus(SyncStatus.SYNCED_WITH_WARNINGS);
-            paymentBatchRepository.save(batch);
-        }
+        batch.setSyncStatus(warnings.isEmpty() ? SyncStatus.SYNCED : SyncStatus.SYNCED_WITH_WARNINGS);
+        batch.setUpdatedAt(LocalDateTime.now());
+        paymentBatchRepository.save(batch);
 
         return PaymentSyncOfflineResponseDto.builder()
                 .syncStatus(syncStatus)
@@ -132,6 +144,22 @@ public class GroupSocietyPaymentSyncOfflineService {
                 .receipts(syncedReceipts)
                 .warnings(warnings)
                 .build();
+    }
+
+    private void validateExistingBatchIdentity(
+            PaymentBatchEntity batch,
+            GroupSocietyPaymentSyncOfflineRequest request,
+            GroupSocietyEntity society
+    ) {
+        if (batch.getSourceType() != ReceiptSourceType.GROUP_SOCIETY
+                || !Objects.equals(batch.getReceivedFromPartnerId(), society.getPartnerId())
+                || !request.getPaymentBatchNo().equals(batch.getPaymentBatchNo())
+                || !request.getDeviceId().equals(batch.getDeviceId())
+                || !request.getLocalPaymentBatchId().equals(batch.getLocalPaymentBatchId())) {
+            throw new IllegalStateException(
+                    "Payment batch number is already linked to a different MawaPay device transaction"
+            );
+        }
     }
 
     private PaymentBatchEntity createPaymentBatch(
