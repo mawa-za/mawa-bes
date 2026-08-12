@@ -386,7 +386,7 @@ public class PaymentRequestService {
     }
 
     public List<PaymentRequestResponse> getAll() {
-        return paymentRequestRepository.findAll().stream().map(this::toResponse).toList();
+        return paymentRequestRepository.findAllByOrderByCreatedAtDesc().stream().map(this::toResponse).toList();
     }
 
     public PaymentRequestResponse getById(String id) {
