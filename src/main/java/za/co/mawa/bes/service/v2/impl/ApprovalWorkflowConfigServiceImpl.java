@@ -65,6 +65,10 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         entity.setUpdatedAt(LocalDateTime.now());
 
         entity.getSteps().clear();
+        // Flush orphan removals before recreating numbered steps. Without this flush,
+        // Hibernate may INSERT step 1 before deleting the old step 1 and violate
+        // uq_workflow_step_no (workflow_id, step_no).
+        workflowRepository.flush();
         applySteps(entity, request.getSteps());
         if (Boolean.TRUE.equals(entity.getActive())) {
             validateCanActivate(entity);

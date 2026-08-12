@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.supplier.SupplierOnboardingRequest;
 import za.co.mawa.bes.enums.ApprovalType;
+import za.co.mawa.bes.entity.PartnerViewEntity;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.service.PartnerServiceV2;
 import za.co.mawa.bes.service.PartnerBankAccountService;
@@ -136,7 +137,18 @@ public class SupplierApprovalService {
 
     private PartnerDto getSupplier(String partnerId) {
         try {
-            return partnerServiceV2.get(partnerId);
+            // Use the materialised partner view. PartnerServiceV2#get uses a legacy getById
+            // reference and can report an existing supplier as missing once the repository
+            // transaction has closed.
+            PartnerViewEntity partner = partnerServiceV2.getById(partnerId);
+            PartnerDto supplier = new PartnerDto();
+            supplier.setId(partner.getPartnerId());
+            supplier.setNumber(partner.getPartnerNo());
+            supplier.setName1(partner.getName1());
+            supplier.setName2(partner.getName2());
+            supplier.setName3(partner.getName3());
+            supplier.setBirthDate(partner.getBirthDate());
+            return supplier;
         } catch (Exception exception) {
             throw new IllegalArgumentException("Supplier was not found: " + partnerId, exception);
         }
