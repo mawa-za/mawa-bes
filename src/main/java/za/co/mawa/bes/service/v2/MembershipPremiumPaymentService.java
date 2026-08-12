@@ -24,6 +24,7 @@ import za.co.mawa.bes.entity.v2.ManualReceiptBookEntity;
 import za.co.mawa.bes.repository.v2.ManualPremiumReceiptRepository;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.service.NotificationService;
+import za.co.mawa.bes.service.SettingService;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -46,12 +47,14 @@ public class MembershipPremiumPaymentService {
     private final ManualReceiptCutoverConfigurationService cutoverConfigurationService;
     private final ManualReceiptBookService manualReceiptBookService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
+    private final SettingService settingService;
     @Autowired
     NumberAllocationService numberAllocationService;
 
     @Transactional
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
+        validatePremiumPaymentLimit(request);
 
         PaymentBatchEntity batch = createBatch(request);
 
@@ -384,8 +387,38 @@ public class MembershipPremiumPaymentService {
         return allocations.get(0).getPeriodYYYYMM();
     }
 
-    private Long determineMonthlyPremiumCents(String membershipId) {
-        return membershipService.getMembershipById(membershipId).get().getPremiumCents();
+    private long determineMonthlyPremiumCents(String membershipId) {
+        Long premiumCents = membershipService.getMembershipById(membershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId))
+                .getPremiumCents();
+        return premiumCents == null ? 0L : premiumCents;
+    }
+
+    private void validatePremiumPaymentLimit(MembershipPremiumPaymentCreateRequest request) {
+        long monthlyPremiumCents = determineMonthlyPremiumCents(request.getMembershipId());
+        if (monthlyPremiumCents <= 0) {
+            return;
+        }
+        int maxMonths = resolveMaxPremiumPaymentMonths();
+        long maximumCents = monthlyPremiumCents * (long) maxMonths;
+        if (request.getAmountCents() > maximumCents) {
+            throw new IllegalArgumentException(
+                    "Premium payment may not exceed " + maxMonths + " months (R "
+                            + String.format(java.util.Locale.ROOT, "%.2f", maximumCents / 100.0) + ").");
+        }
+    }
+
+    private int resolveMaxPremiumPaymentMonths() {
+        String configured = settingService.getSetting("MAX_PREMIUM_PAYMENT_MONTHS", "MEMBERSHIP");
+        if (configured == null || configured.isBlank()) {
+            return 3;
+        }
+        try {
+            int value = Integer.parseInt(configured.trim());
+            return value >= 1 && value <= 24 ? value : 3;
+        } catch (NumberFormatException ignored) {
+            return 3;
+        }
     }
 
     private void validate(MembershipPremiumPaymentCreateRequest request) {

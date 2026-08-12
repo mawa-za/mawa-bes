@@ -101,6 +101,23 @@ public class MembershipClaimService {
                 request.getDeceasedPartnerId()
         );
 
+        boolean previouslyApproved = claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndApprovedAtIsNotNull(
+                request.getMembershipId(),
+                request.getDeceasedPartnerId())
+                || claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
+                        request.getMembershipId(),
+                        request.getDeceasedPartnerId(),
+                        List.of(
+                                MembershipClaimStatus.APPROVED,
+                                MembershipClaimStatus.PAYMENT_PENDING,
+                                MembershipClaimStatus.PAYMENT_PROCESSING,
+                                MembershipClaimStatus.PAYMENT_FAILED,
+                                MembershipClaimStatus.PAID));
+        if (previouslyApproved) {
+            throw new IllegalStateException(
+                    "An approved claim already exists for this member/dependent on the selected membership.");
+        }
+
         MembershipClaimEntity entity = new MembershipClaimEntity();
         entity.setClaimNo(generateMembershipClaimNo());
         entity.setMembershipId(request.getMembershipId());
