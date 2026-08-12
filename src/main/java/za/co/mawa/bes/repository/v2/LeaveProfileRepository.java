@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface LeaveProfileRepository extends JpaRepository<LeaveProfileEntity, String> {
     Optional<LeaveProfileEntity> findByCodeIgnoreCase(String code);
     Optional<LeaveProfileEntity> findFirstByDefaultProfileTrueAndActiveTrueAndActiveFromLessThanEqualAndActiveToGreaterThanEqual(LocalDate from, LocalDate to);
+    Optional<LeaveProfileEntity> findFirstByDefaultProfileTrueAndActiveTrueOrderByActiveFromAsc();
     List<LeaveProfileEntity> findAllByOrderByNameAsc();
     boolean existsByCodeIgnoreCase(String code);
 }

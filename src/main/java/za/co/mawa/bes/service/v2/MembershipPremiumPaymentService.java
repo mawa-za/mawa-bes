@@ -193,7 +193,12 @@ public class MembershipPremiumPaymentService {
             String mode,
             ManualReceiptBookService.EmployeeReference collector,
             ManualReceiptBookService.AreaReference area) {
-        List<ReceiptResponseDto> responses = allocateAmountToPremiums(batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), null);
+        List<ReceiptResponseDto> responses = allocateAmountToPremiums(
+                batch,
+                request.getMembershipId(),
+                request.getAmountCents(),
+                request.getCreatedBy(),
+                List.of(request.getPeriodYYYYMM()));
         for (ReceiptResponseDto response : responses) {
             ReceiptEntity receipt = receiptRepository.findById(response.getId()).orElseThrow();
             receipt.setCaptureSource(mode); receipt.setManualReceiptBookNo(request.getReceiptBookNo().trim());
@@ -212,6 +217,7 @@ public class MembershipPremiumPaymentService {
         if (request == null || isBlank(request.getMembershipId())) throw new IllegalArgumentException("membershipId is required");
         if (request.getAmountCents() == null || request.getAmountCents() <= 0) throw new IllegalArgumentException("amountCents must be greater than zero");
         if (isBlank(request.getPaymentMethod())) throw new IllegalArgumentException("paymentMethod is required");
+        if (!PeriodUtil.isValidPeriod(request.getPeriodYYYYMM())) throw new IllegalArgumentException("periodYYYYMM is required and must use YYYYMM format");
         if (request.getOriginalReceiptDate() == null) throw new IllegalArgumentException("originalReceiptDate is required");
         if (request.getOriginalReceiptDate().isAfter(LocalDate.now())) throw new IllegalArgumentException("originalReceiptDate cannot be in the future");
         if (isBlank(request.getReceiptBookNo()) || isBlank(request.getManualReceiptNo())) throw new IllegalArgumentException("receiptBookNo and manualReceiptNo are required");
@@ -236,7 +242,43 @@ public class MembershipPremiumPaymentService {
 
         List<MembershipPremiumEntity> unpaidPremiums = membershipPremiumService.getUnpaidPremiums(membershipId);
 
+        List<String> requestedPeriods = preferredPeriods == null
+                ? List.of()
+                : preferredPeriods.stream()
+                        .filter(PeriodUtil::isValidPeriod)
+                        .distinct()
+                        .toList();
+
+        for (String period : requestedPeriods) {
+            if (remaining <= 0) {
+                break;
+            }
+            MembershipPremiumEntity premium = membershipPremiumService.findOrCreatePremium(
+                    membershipId, period, monthlyPremiumCents, createdBy);
+            long balance = premium.getBalanceCents() == null ? 0L : premium.getBalanceCents();
+            if (balance <= 0) {
+                throw new IllegalStateException("Selected payment period " + period + " is already fully paid");
+            }
+            long amountForPremium = Math.min(remaining, balance);
+            ReceiptEntity receipt = createPremiumReceipt(batch, premium, amountForPremium, createdBy, null);
+            MembershipPremiumEntity updatedPremium = membershipPremiumService.applyPayment(premium, amountForPremium, createdBy);
+            ReceiptAllocationEntity allocation = receiptService.createAllocation(
+                    receipt.getId(), ReceiptAllocationType.MEMBERSHIP_PREMIUM, updatedPremium.getId(),
+                    updatedPremium.getMembershipId() + "-" + updatedPremium.getPeriodYYYYMM(),
+                    updatedPremium.getPeriodYYYYMM(), updatedPremium.getMembershipId(), amountForPremium, createdBy);
+            receiptResponses.add(receiptMapper.toDto(receipt, List.of(allocation)));
+            remaining -= amountForPremium;
+        }
+
+        if (!requestedPeriods.isEmpty() && remaining > 0) {
+            throw new IllegalStateException(
+                    "The selected payment period outstanding balance is lower than the captured receipt amount");
+        }
+
         for (MembershipPremiumEntity premium : unpaidPremiums) {
+            if (requestedPeriods.contains(premium.getPeriodYYYYMM())) {
+                continue;
+            }
             if (remaining <= 0) {
                 break;
             }

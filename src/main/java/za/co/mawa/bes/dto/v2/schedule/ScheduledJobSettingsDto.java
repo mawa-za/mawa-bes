@@ -17,6 +17,7 @@ public class ScheduledJobSettingsDto {
     private String description;
     private boolean enabled;
     private int intervalMinutes;
+    private String runTime;
     private String lastRunAt;
     private String nextRunAt;
 }
