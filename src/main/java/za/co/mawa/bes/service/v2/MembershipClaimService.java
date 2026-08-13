@@ -26,6 +26,7 @@ import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -88,6 +89,9 @@ public class MembershipClaimService {
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
         validateCreateRequest(request);
         claimTypeConfigurationService.requireEnabled(request.getClaimType());
+        if (request.getClaimType() == MembershipClaimType.CASH && Boolean.TRUE.equals(request.getSubmit())) {
+            throw new IllegalArgumentException("CASH claims must be saved as DRAFT, the claim form downloaded, signed and attached before submission");
+        }
         String causeOfDeath = referenceDataValidationService.optionalOption(
                 "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death");
 
@@ -166,7 +170,8 @@ public class MembershipClaimService {
         MembershipClaimEntity saved = claimRepository.save(entity);
         markDeceasedOnMembership(saved, userId);
 
-        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED) {
+        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED
+                && saved.getClaimType() != MembershipClaimType.CASH) {
             claimFormGenerationService.generateForSubmittedClaim(saved.getId());
         }
 
@@ -315,6 +320,21 @@ public class MembershipClaimService {
     }
 
     @Transactional
+    public MembershipClaimResponse recordClaimFormDownload(String id, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(id);
+        if (entity.getClaimType() != MembershipClaimType.CASH) {
+            return toResponse(entity);
+        }
+        if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
+            throw new IllegalArgumentException("The CASH claim form can only be generated while the claim is DRAFT");
+        }
+        entity.setClaimFormDownloadCount((entity.getClaimFormDownloadCount() == null ? 0 : entity.getClaimFormDownloadCount()) + 1);
+        entity.setClaimFormDownloadedAt(LocalDateTime.now());
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
     public MembershipClaimResponse submit(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
 
@@ -325,12 +345,18 @@ public class MembershipClaimService {
         if (entity.getClaimType() == MembershipClaimType.COMBINATION) {
             validateCombinationReadyForSubmit(entity);
         }
+        if (entity.getClaimType() == MembershipClaimType.CASH
+                && (entity.getClaimFormDownloadCount() == null || entity.getClaimFormDownloadCount() < 1)) {
+            throw new IllegalArgumentException("Download the generated claim form at least once before submitting this CASH claim");
+        }
 
         entity.setStatus(MembershipClaimStatus.SUBMITTED);
         entity.setUpdatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
-        claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        if (saved.getClaimType() != MembershipClaimType.CASH) {
+            claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        }
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
     }
@@ -919,7 +945,9 @@ public class MembershipClaimService {
                 .setAccountHolderName(entity.getAccountHolderName())
                 .setAccountNumber(entity.getAccountNumber())
                 .setBranchCode(entity.getBranchCode())
-                .setAccountType(entity.getAccountType());
+                .setAccountType(entity.getAccountType())
+                .setClaimFormDownloadCount(entity.getClaimFormDownloadCount())
+                .setClaimFormDownloadedAt(entity.getClaimFormDownloadedAt());
 
     }
     private String coveragePlanName(String planId) {

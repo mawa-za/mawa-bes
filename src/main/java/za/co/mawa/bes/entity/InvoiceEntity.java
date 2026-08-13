@@ -37,7 +37,7 @@ public class InvoiceEntity {
     @Column(name = "source_id", length = 36)
     private String sourceId;
 
-    @Column(name = "partner_id", nullable = false)
+    @Column(name = "partner_id")
     private String partnerId;
 
     @Column(name = "invoice_date", nullable = false)
