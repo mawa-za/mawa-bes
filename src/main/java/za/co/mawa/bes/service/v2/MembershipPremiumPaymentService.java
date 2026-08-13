@@ -62,11 +62,15 @@ public class MembershipPremiumPaymentService {
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
         validatePremiumPaymentLimit(request);
+        validatePremiumPeriodSelection(request);
 
         PaymentBatchEntity batch = createBatch(request);
 
+        List<String> preferredPeriods = PeriodUtil.isValidPeriod(request.getPeriodYYYYMM())
+                ? List.of(request.getPeriodYYYYMM())
+                : null;
         List<ReceiptResponseDto> receipts = allocateAmountToPremiums(
-                batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), null);
+                batch, request.getMembershipId(), request.getAmountCents(), request.getCreatedBy(), preferredPeriods);
         onlineCashupService.addReceipts(
                 batch,
                 receipts.stream().map(ReceiptResponseDto::getId).toList(),
@@ -594,6 +598,36 @@ public class MembershipPremiumPaymentService {
             throw new IllegalArgumentException(
                     "Premium payment may not exceed " + maxMonths + " months (R "
                             + String.format(java.util.Locale.ROOT, "%.2f", maximumCents / 100.0) + ").");
+        }
+    }
+
+    private void validatePremiumPeriodSelection(MembershipPremiumPaymentCreateRequest request) {
+        List<MembershipPremiumEntity> unpaidPremiums = membershipPremiumService.getUnpaidPremiums(request.getMembershipId());
+        String selectedPeriod = request.getPeriodYYYYMM();
+
+        if (unpaidPremiums.size() <= 1) {
+            if (!isBlank(selectedPeriod) && !PeriodUtil.isValidPeriod(selectedPeriod)) {
+                throw new IllegalArgumentException("periodYYYYMM must use YYYYMM format");
+            }
+            return;
+        }
+
+        if (!PeriodUtil.isValidPeriod(selectedPeriod)) {
+            throw new IllegalArgumentException(
+                    "Select the outstanding premium month to process because this membership has more than one outstanding premium");
+        }
+
+        MembershipPremiumEntity selectedPremium = unpaidPremiums.stream()
+                .filter(premium -> selectedPeriod.equals(premium.getPeriodYYYYMM()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The selected premium month is not one of the membership's outstanding premiums"));
+
+        long balanceCents = selectedPremium.getBalanceCents() == null ? 0L : selectedPremium.getBalanceCents();
+        if (request.getAmountCents() > balanceCents) {
+            throw new IllegalArgumentException(
+                    "The payment amount may not exceed the outstanding balance for the selected premium month (R "
+                            + String.format(java.util.Locale.ROOT, "%.2f", balanceCents / 100.0) + ")");
         }
     }
 
