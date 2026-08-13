@@ -8,6 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumPaymentCreateRequest;
 import za.co.mawa.bes.dto.v2.ManualPremiumReceiptCaptureRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
+import za.co.mawa.bes.dto.v2.PremiumPaymentDeletionRequest;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.PremiumPaymentDeletionStatusResponse;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
@@ -41,9 +45,12 @@ public class MembershipPremiumPaymentService {
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
     private final ReceiptRepository receiptRepository;
+    private final za.co.mawa.bes.repository.v2.CashupReceiptRepository cashupReceiptRepository;
     private final ManualPremiumReceiptRepository manualPremiumReceiptRepository;
     private final AttachmentRepository attachmentRepository;
     private final OnlineCashupService onlineCashupService;
+    private final ApprovalService approvalService;
+    private final za.co.mawa.bes.repository.v2.ApprovalRequestRepository approvalRequestRepository;
     private final ManualReceiptCutoverConfigurationService cutoverConfigurationService;
     private final ManualReceiptBookService manualReceiptBookService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
@@ -156,6 +163,135 @@ public class MembershipPremiumPaymentService {
                 .status(batch.getStatus()).syncStatus(batch.getSyncStatus()).paidUpToPeriod(paidUpTo).receipts(receipts).build();
     }
 
+    @Transactional(readOnly = true)
+    public void validateDeletionAllowed(String paymentBatchId) {
+        PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+        if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM) {
+            throw new IllegalArgumentException("Only membership premium payments can be deleted");
+        }
+        if (batch.getStatus() != PaymentBatchStatus.POSTED) {
+            throw new IllegalStateException("Only POSTED premium payments can be deleted");
+        }
+        List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
+        if (receipts.isEmpty()) {
+            throw new IllegalStateException("No receipts were found for this premium payment");
+        }
+        boolean linkedToOpenCashup = false;
+        for (ReceiptEntity receipt : receipts) {
+            var links = new ArrayList<>(cashupReceiptRepository.findByReceiptId(receipt.getId()));
+            Long numericReceiptNo = numericReceiptNo(receipt.getReceiptNo());
+            if (numericReceiptNo != null) {
+                for (var legacyLink : cashupReceiptRepository.findByReceiptNo(numericReceiptNo)) {
+                    if (links.stream().noneMatch(existing -> existing.getId().equals(legacyLink.getId()))) {
+                        links.add(legacyLink);
+                    }
+                }
+            }
+            if (links.isEmpty()) {
+                throw new IllegalStateException("Receipt " + receipt.getReceiptNo() + " is not linked to an open cash-up");
+            }
+            for (var link : links) {
+                if (link.getCashup() == null || !"OPEN".equalsIgnoreCase(link.getCashup().getStatus())) {
+                    throw new IllegalStateException("Premium payments can only be deleted while the linked cash-up is OPEN");
+                }
+                linkedToOpenCashup = true;
+            }
+        }
+        if (!linkedToOpenCashup) {
+            throw new IllegalStateException("The premium payment is not linked to an open cash-up");
+        }
+    }
+
+    @Transactional
+    public ApprovalRequestResponse requestDeletion(String paymentBatchId, PremiumPaymentDeletionRequest request) {
+        if (request == null || isBlank(request.getRequesterId())) {
+            throw new IllegalArgumentException("requesterId is required");
+        }
+        if (isBlank(request.getReason())) {
+            throw new IllegalArgumentException("A deletion reason is required");
+        }
+
+        var existingApproval = approvalRequestRepository.findByApprovalTypeAndReferenceId(
+                ApprovalType.PREMIUM_PAYMENT_DELETION, paymentBatchId).orElse(null);
+        if (existingApproval != null) {
+            if (existingApproval.getStatus() == ApprovalStatus.PENDING
+                    || existingApproval.getStatus() == ApprovalStatus.IN_PROGRESS) {
+                return approvalService.getById(existingApproval.getId());
+            }
+            PaymentBatchEntity existingBatch = paymentBatchRepository.findById(paymentBatchId)
+                    .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+            if (existingApproval.getStatus() == ApprovalStatus.APPROVED
+                    && existingBatch.getStatus() == PaymentBatchStatus.REVERSED) {
+                return approvalService.getById(existingApproval.getId());
+            }
+            throw new IllegalStateException(
+                    "A premium payment deletion request already exists with status " + existingApproval.getStatus());
+        }
+
+        validateDeletionAllowed(paymentBatchId);
+        PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId).orElseThrow();
+
+        ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
+        approval.setApprovalType(ApprovalType.PREMIUM_PAYMENT_DELETION);
+        approval.setReferenceId(batch.getId());
+        approval.setReferenceNo(batch.getPaymentBatchNo());
+        approval.setTitle("Delete premium payment " + batch.getPaymentBatchNo());
+        approval.setDescription(request.getReason().trim());
+        approval.setRequesterId(request.getRequesterId().trim());
+        approval.setPayloadJson("{\"paymentBatchId\":\"" + batch.getId()
+                + "\",\"membershipId\":\"" + batch.getMembershipId()
+                + "\",\"amountCents\":" + batch.getTotalAmountCents() + "}");
+        return approvalService.submitForApproval(approval);
+    }
+
+    @Transactional(readOnly = true)
+    public PremiumPaymentDeletionStatusResponse deletionStatus(String paymentBatchId) {
+        PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+        var approval = approvalRequestRepository.findByApprovalTypeAndReferenceId(
+                ApprovalType.PREMIUM_PAYMENT_DELETION, paymentBatchId).orElse(null);
+        return PremiumPaymentDeletionStatusResponse.builder()
+                .paymentBatchId(batch.getId())
+                .paymentBatchStatus(batch.getStatus())
+                .approvalRequestId(approval == null ? null : approval.getId())
+                .approvalStatus(approval == null ? null : approval.getStatus())
+                .build();
+    }
+
+    @Transactional
+    public void reverseApprovedPayment(String paymentBatchId, String actionBy, String reason) {
+        validateDeletionAllowed(paymentBatchId);
+        PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+        List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
+        for (ReceiptEntity receipt : receipts) {
+            for (ReceiptAllocationEntity allocation : receiptAllocationRepository.findByReceiptId(receipt.getId())) {
+                if (allocation.getStatus() != ReceiptStatus.POSTED
+                        || allocation.getAllocationType() != ReceiptAllocationType.MEMBERSHIP_PREMIUM
+                        || isBlank(allocation.getReferenceId())) {
+                    continue;
+                }
+                MembershipPremiumEntity premium = membershipPremiumService.getById(allocation.getReferenceId());
+                membershipPremiumService.reversePayment(premium, allocation.getAmountCents(), actionBy);
+            }
+        }
+
+        String reversalReason = isBlank(reason) ? "Approved premium payment deletion" : reason.trim();
+        for (ReceiptEntity receipt : receipts) {
+            receiptService.reverseReceipt(receipt.getId(), reversalReason, actionBy);
+        }
+        onlineCashupService.removeReceipts(receipts, actionBy);
+
+        batch.setStatus(PaymentBatchStatus.REVERSED);
+        batch.setNotes((isBlank(batch.getNotes()) ? "" : batch.getNotes() + "\n")
+                + "Reversed after approved deletion: " + reversalReason);
+        paymentBatchRepository.save(batch);
+        if (!isBlank(batch.getMembershipId())) {
+            membershipService.recalculatePaidUpToPeriod(batch.getMembershipId());
+        }
+    }
+
     private PaymentBatchEntity createBatch(MembershipPremiumPaymentCreateRequest request) {
         PaymentBatchEntity batch = new PaymentBatchEntity();
         batch.setPaymentBatchNo(numberAllocationService.allocateNumber("PAYMENT_BATCH"));
@@ -224,6 +360,17 @@ public class MembershipPremiumPaymentService {
         if (isBlank(request.getOriginalCollectorEmployeeId())) throw new IllegalArgumentException("originalCollectorEmployeeId is required");
         if (isBlank(request.getLocationAreaCode())) throw new IllegalArgumentException("locationAreaCode is required");
         if (isBlank(request.getCaptureMode()) || isBlank(request.getCreatedBy())) throw new IllegalArgumentException("captureMode and createdBy are required");
+    }
+
+    private Long numericReceiptNo(String receiptNo) {
+        if (isBlank(receiptNo)) return null;
+        String digits = receiptNo.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return null;
+        try {
+            return Long.valueOf(digits);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private boolean isBlank(String value) { return value == null || value.isBlank(); }

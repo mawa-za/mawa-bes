@@ -144,6 +144,13 @@ public class MembershipClaimEntity {
     @Column(name = "account_type", length = 30)
     private BankAccountType accountType;
 
+    @Builder.Default
+    @Column(name = "claim_form_download_count", nullable = false)
+    private Integer claimFormDownloadCount = 0;
+
+    @Column(name = "claim_form_downloaded_at")
+    private LocalDateTime claimFormDownloadedAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -162,6 +169,10 @@ public class MembershipClaimEntity {
 
         if (this.arrearsFineCents == null) {
             this.arrearsFineCents = 0L;
+        }
+
+        if (this.claimFormDownloadCount == null) {
+            this.claimFormDownloadCount = 0;
         }
     }
 

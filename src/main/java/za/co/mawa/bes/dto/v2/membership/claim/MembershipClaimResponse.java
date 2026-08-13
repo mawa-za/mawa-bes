@@ -73,12 +73,19 @@ public class MembershipClaimResponse {
 
     private List<LinkedMembershipClaimResponse> linkedClaims = new ArrayList<>();
 
+    public Integer getClaimFormDownloadCount() { return claimFormDownloadCount; }
+    public MembershipClaimResponse setClaimFormDownloadCount(Integer claimFormDownloadCount) { this.claimFormDownloadCount = claimFormDownloadCount; return this; }
+    public LocalDateTime getClaimFormDownloadedAt() { return claimFormDownloadedAt; }
+    public MembershipClaimResponse setClaimFormDownloadedAt(LocalDateTime claimFormDownloadedAt) { this.claimFormDownloadedAt = claimFormDownloadedAt; return this; }
+
     // New fields for bank details
     private String bankName;
     private String accountHolderName;
     private String accountNumber;
     private String branchCode;
     private BankAccountType accountType;
+    private Integer claimFormDownloadCount;
+    private LocalDateTime claimFormDownloadedAt;
 
 
     public String getCoveragePlanId() { return coveragePlanId; }
