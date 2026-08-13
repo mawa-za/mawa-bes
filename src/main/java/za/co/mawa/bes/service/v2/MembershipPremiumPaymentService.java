@@ -93,7 +93,7 @@ public class MembershipPremiumPaymentService {
     public PaymentBatchResponseDto captureManualReceipt(ManualPremiumReceiptCaptureRequest request) {
         validateManual(request);
         ManualReceiptBookEntity receiptBook = manualReceiptBookService.requireActiveBookForReceipt(
-                request.getReceiptBookNo(), request.getManualReceiptNo());
+                request.getManualReceiptNo());
         ManualReceiptBookService.BookUsageReference bookUsage = manualReceiptBookService.validateBookUsage(
                 receiptBook, request.getOriginalCollectorEmployeeId(), request.getLocationAreaCode());
         ManualReceiptBookService.EmployeeReference collector = bookUsage.employee();
@@ -356,7 +356,7 @@ public class MembershipPremiumPaymentService {
         if (!PeriodUtil.isValidPeriod(request.getPeriodYYYYMM())) throw new IllegalArgumentException("periodYYYYMM is required and must use YYYYMM format");
         if (request.getOriginalReceiptDate() == null) throw new IllegalArgumentException("originalReceiptDate is required");
         if (request.getOriginalReceiptDate().isAfter(LocalDate.now())) throw new IllegalArgumentException("originalReceiptDate cannot be in the future");
-        if (isBlank(request.getReceiptBookNo()) || isBlank(request.getManualReceiptNo())) throw new IllegalArgumentException("receiptBookNo and manualReceiptNo are required");
+        if (isBlank(request.getManualReceiptNo())) throw new IllegalArgumentException("manualReceiptNo is required");
         if (isBlank(request.getOriginalCollectorEmployeeId())) throw new IllegalArgumentException("originalCollectorEmployeeId is required");
         if (isBlank(request.getLocationAreaCode())) throw new IllegalArgumentException("locationAreaCode is required");
         if (isBlank(request.getCaptureMode()) || isBlank(request.getCreatedBy())) throw new IllegalArgumentException("captureMode and createdBy are required");

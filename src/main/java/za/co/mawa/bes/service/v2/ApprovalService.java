@@ -89,6 +89,10 @@ public class ApprovalService {
             return autoApproveWithoutWorkflow(request, workflow);
         }
 
+        if (Boolean.TRUE.equals(workflow.getAutoApprove())) {
+            return autoApproveThroughWorkflow(request, workflow);
+        }
+
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
 
@@ -110,6 +114,40 @@ public class ApprovalService {
         );
         submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
         userInboxService.notifyApprovalRequired(entity);
+        return toResponse(entity);
+    }
+
+
+    private ApprovalRequestResponse autoApproveThroughWorkflow(
+            ApprovalSubmitRequest request,
+            ApprovalWorkflowEntity workflow
+    ) {
+        ApprovalRequestEntity entity = createApprovalRequest(request, workflow, 0);
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.SUBMITTED,
+                request.getRequesterId(),
+                "Submitted to auto-approval workflow"
+        );
+        submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
+
+        entity.setStatus(ApprovalStatus.APPROVED);
+        entity.setFinalActionBy(request.getRequesterId());
+        entity.setFinalActionAt(new Date());
+        entity.setUpdatedBy(request.getRequesterId());
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.APPROVED,
+                request.getRequesterId(),
+                "Automatically approved by workflow configuration"
+        );
+        completionHandlerRegistry.handleApproved(entity, request.getRequesterId());
         return toResponse(entity);
     }
 

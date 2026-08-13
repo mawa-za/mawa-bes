@@ -6,7 +6,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
-import za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 import za.co.mawa.bes.repository.v2.CashupRepository;
 import za.co.mawa.bes.service.SettingService;
@@ -128,14 +127,12 @@ public class CashupAutoSubmitService {
     }
 
     private Map<String, Object> submitCashups(List<CashupEntity> openCashups) {
-        int submitted = 0;
+        int movedToAwaitingDeposits = 0;
         int failed = 0;
         for (CashupEntity cashup : openCashups) {
             try {
-                CashupSubmitForApprovalRequest request = new CashupSubmitForApprovalRequest();
-                request.setRequesterId(cashup.getUserId());
-                cashupService.submitForApproval(cashup.getId(), request);
-                submitted++;
+                cashupService.moveToAwaitingDeposits(cashup.getId(), cashup.getUserId());
+                movedToAwaitingDeposits++;
             } catch (Exception ex) {
                 failed++;
                 log.error("Unable to auto-submit cashup {}: {}", cashup.getId(), ex.getMessage(), ex);
@@ -144,7 +141,9 @@ public class CashupAutoSubmitService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("openCashupsFound", openCashups.size());
-        result.put("submitted", submitted);
+        result.put("movedToAwaitingDeposits", movedToAwaitingDeposits);
+        // Keep the legacy key for scheduler clients that already display this field.
+        result.put("submitted", movedToAwaitingDeposits);
         result.put("failed", failed);
         return result;
     }

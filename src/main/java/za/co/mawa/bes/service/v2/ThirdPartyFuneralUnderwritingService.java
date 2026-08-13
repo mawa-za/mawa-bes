@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
 
 import java.util.LinkedHashMap;
@@ -289,6 +290,10 @@ public class ThirdPartyFuneralUnderwritingService {
         var response = approvalService.submitForApproval(request);
         jdbc.update("UPDATE funeral_cover_approval_action SET approval_request_id=? WHERE id=?",
                 response.getId(), actionId);
+        if (response.getStatus() == ApprovalStatus.APPROVED) {
+            // AUTO workflow completion already applied the final cover status.
+            return;
+        }
         String pending = "UNDERWRITE".equals(actionType)
                 ? "PENDING_UNDERWRITING"
                 : "PENDING_" + ("CANCELLED".equals(requestedStatus) ? "CANCELLATION" : requestedStatus);

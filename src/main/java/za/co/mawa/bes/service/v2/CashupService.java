@@ -429,6 +429,36 @@ public class CashupService {
     }
 
     @Transactional
+    public CashupResponse moveToAwaitingDeposits(String id, String actionBy) {
+        CashupEntity cashup = cashupRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + id));
+
+        if (STATUS_AWAITING_DEPOSITS.equalsIgnoreCase(cashup.getStatus())) {
+            return CashupResponse.builder()
+                    .status("IGNORED")
+                    .cashupId(cashup.getId())
+                    .cashupNo(cashup.getCashupNo())
+                    .message("Cashup is already awaiting deposits")
+                    .build();
+        }
+        if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())) {
+            throw new IllegalStateException("Only OPEN cashups can be moved to awaiting deposits");
+        }
+
+        recalculateDeposits(cashup);
+        cashup.setStatus(STATUS_AWAITING_DEPOSITS);
+        cashup.setUpdatedBy(clean(actionBy) == null ? cashup.getUserId() : actionBy.trim());
+        cashupRepository.save(cashup);
+
+        return CashupResponse.builder()
+                .status("SUCCESS")
+                .cashupId(cashup.getId())
+                .cashupNo(cashup.getCashupNo())
+                .message("Cashup moved to awaiting deposits")
+                .build();
+    }
+
+    @Transactional
     public CashupResponse submitForApproval(String id, CashupSubmitForApprovalRequest request) {
         CashupEntity cashup = cashupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + id));
@@ -467,11 +497,9 @@ public class CashupService {
 
         ApprovalRequestResponse approvalResponse = approvalService.submitForApproval(approvalRequest);
 
-        cashup.setStatus(STATUS_SUBMITTED);
-        cashup.setApprovalRequestId(approvalResponse.getId());
-        cashup.setUpdatedBy(requesterId);
-        cashupRepository.save(cashup);
-
+        // ApprovalSubmissionHandler owns the submitted state. In AUTO mode the same
+        // call may also complete the approval immediately, so do not overwrite the
+        // handler's final APPROVED state here.
         return CashupResponse.builder()
                 .status("SUCCESS")
                 .cashupId(cashup.getId())

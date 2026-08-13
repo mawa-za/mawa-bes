@@ -52,7 +52,7 @@ public class SchedulerConfigurationService {
         return ScheduledJobSettingsDto.builder()
                 .jobCode(CashupAutoSubmitService.CASHUP_AUTO_SUBMIT_JOB)
                 .name("Open cashup auto-submit")
-                .description("Automatically submits all OPEN cashups for approval once per day at the configured tenant time.")
+                .description("Automatically closes all OPEN cashups into AWAITING_DEPOSITS once per day at the configured tenant time, matching a manual/device cashup close.")
                 .enabled(cashupAutoSubmitService.isEnabled())
                 .runTime(cashupAutoSubmitService.getRunTime())
                 .lastRunAt(cashupAutoSubmitService.getLastRunAt() == null ? null : cashupAutoSubmitService.getLastRunAt().toString())

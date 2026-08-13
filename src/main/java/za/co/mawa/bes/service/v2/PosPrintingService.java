@@ -48,6 +48,7 @@ public class PosPrintingService {
     private static final int CLAIM_LEASE_SECONDS = 90;
     private static final int ONLINE_HEARTBEAT_SECONDS = 90;
     private static final int DEFAULT_PAPER_WIDTH = 42;
+    private static final long PRINTER_DISCOVERY_OFFLINE_GRACE_SECONDS = 120L;
 
     private final PosPrintAgentRepository agentRepository;
     private final PosPrinterRepository printerRepository;
@@ -157,10 +158,13 @@ public class PosPrintingService {
 
         for (PosPrinterEntity existing : printerRepository.findByAgentIdOrderByDisplayNameAsc(agentId)) {
             if (!seen.containsKey(existing.getWindowsQueueName())) {
-                existing.setStatus("OFFLINE");
-                existing.setDefaultPrinter(false);
-                existing.setUpdatedAt(now);
-                printerRepository.save(existing);
+                LocalDateTime offlineCutoff = now.minusSeconds(PRINTER_DISCOVERY_OFFLINE_GRACE_SECONDS);
+                if (existing.getLastSeenAt() == null || existing.getLastSeenAt().isBefore(offlineCutoff)) {
+                    existing.setStatus("OFFLINE");
+                    existing.setDefaultPrinter(false);
+                    existing.setUpdatedAt(now);
+                    printerRepository.save(existing);
+                }
             }
         }
 
