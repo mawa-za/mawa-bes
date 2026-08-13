@@ -112,8 +112,12 @@ public class MembershipClaimControllerV2 {
     }
 
     @PostMapping("/{id}/claim-form")
-    public ResponseEntity<byte[]> generateClaimForm(@PathVariable String id) {
+    public ResponseEntity<byte[]> generateClaimForm(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
         byte[] pdf = claimFormGenerationService.generatePdf(id);
+        membershipClaimService.recordClaimFormDownload(id, userId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=claim-form-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
@@ -121,8 +125,11 @@ public class MembershipClaimControllerV2 {
     }
 
     @GetMapping("/{id}/claim-form")
-    public ResponseEntity<byte[]> downloadClaimForm(@PathVariable String id) {
-        return generateClaimForm(id);
+    public ResponseEntity<byte[]> downloadClaimForm(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        return generateClaimForm(id, userId);
     }
 
     @PostMapping("/{id}/submit")

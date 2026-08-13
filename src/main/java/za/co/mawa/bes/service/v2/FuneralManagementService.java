@@ -80,16 +80,13 @@ public class FuneralManagementService {
     @Transactional
     public FuneralPickupRequestEntity createPickupRequest(CreatePickupRequestDto request) {
         validateRequired(request.getDeceasedName(), "deceasedName");
-        validateRequired(request.getPickupLocationCode(), "pickupLocationCode");
+        validateRequired(request.getPickupLocation(), "pickupLocation");
         validateRequired(request.getContactPerson(), "contactPerson");
         String contactNumber = referenceDataValidationService.requireContactNumber(request.getContactNumber());
-        String pickupLocationCode = referenceDataValidationService.requireOption(
-                "SALES-AREA", request.getPickupLocationCode(), "Pickup location");
         FuneralPickupRequestEntity entity = new FuneralPickupRequestEntity();
         entity.setDeceasedName(request.getDeceasedName().trim());
-        entity.setPickupLocation(StringUtils.hasText(request.getPickupLocation())
-                ? request.getPickupLocation().trim() : pickupLocationCode);
-        entity.setPickupLocationCode(pickupLocationCode);
+        entity.setPickupLocation(request.getPickupLocation().trim());
+        entity.setPickupLocationCode(null);
         entity.setContactPerson(request.getContactPerson().trim());
         entity.setContactNumber(contactNumber);
         // Injury assessment belongs to the driver arrival step, not request logging.
@@ -525,7 +522,13 @@ public class FuneralManagementService {
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
         validateRequired(request.getDeceasedName(), "deceasedName");
-        validateRequired(request.getFamilyRepId(), "familyRepId");
+        validateRequired(request.getFamilyRepresentativeNames(), "familyRepresentativeNames");
+        validateRequired(request.getFamilyRepresentativeSurname(), "familyRepresentativeSurname");
+        validateRequired(request.getFamilyRepresentativeContactDetails(), "familyRepresentativeContactDetails");
+        if (request.getDateOfDeath() == null) {
+            throw new IllegalArgumentException("dateOfDeath is required");
+        }
+        validateFuneralDates(request.getDateOfDeath(), request.getFuneralDate());
 
         FuneralPackageEntity packageEntity = null;
         if (request.getPackageId() != null && !request.getPackageId().isBlank()) {
@@ -540,7 +543,11 @@ public class FuneralManagementService {
         entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
         entity.setDeceasedPartnerId(resolveDeceasedPartnerId(request));
         entity.setPackageId(request.getPackageId());
-        entity.setFamilyRepId(request.getFamilyRepId());
+        entity.setFamilyRepId(trimToNull(request.getFamilyRepId()));
+        entity.setFamilyRepNames(request.getFamilyRepresentativeNames().trim());
+        entity.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim());
+        entity.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
+        entity.setDateOfDeath(request.getDateOfDeath());
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
         entity.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
@@ -557,12 +564,26 @@ public class FuneralManagementService {
     public FuneralServiceRequestResponseDto updateServiceRequestPackage(String funeralServiceId, FuneralServiceRequestDto request) {
         validateRequired(funeralServiceId, "funeralServiceId");
         validateRequired(request.getPackageId(), "packageId");
+        validateRequired(request.getFamilyRepresentativeNames(), "familyRepresentativeNames");
+        validateRequired(request.getFamilyRepresentativeSurname(), "familyRepresentativeSurname");
+        validateRequired(request.getFamilyRepresentativeContactDetails(), "familyRepresentativeContactDetails");
+        if (request.getDateOfDeath() == null) {
+            throw new IllegalArgumentException("dateOfDeath is required");
+        }
 
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        validateFuneralDates(
+                request.getDateOfDeath(),
+                request.getFuneralDate() == null ? service.getFuneralDate() : request.getFuneralDate());
         FuneralPackageEntity packageEntity = funeralPackageRepository.findById(request.getPackageId())
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
 
         service.setPackageId(request.getPackageId());
+        service.setFamilyRepId(trimToNull(request.getFamilyRepId()));
+        service.setFamilyRepNames(request.getFamilyRepresentativeNames().trim());
+        service.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim());
+        service.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
+        service.setDateOfDeath(request.getDateOfDeath());
         service.setExtrasJson(toJson(request.getExtras()));
         service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
@@ -610,7 +631,7 @@ public class FuneralManagementService {
             if (cover == null || remaining <= 0) continue;
             boolean externalClaim = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource());
             String claimTenantId = externalClaim ? cover.getSourceTenantId() : TenantContext.getCurrentTenant();
-            LocalDate coverageEventDate = service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate();
+            LocalDate coverageEventDate = service.getDateOfDeath() == null ? LocalDate.now() : service.getDateOfDeath();
             String membershipId = cover.getSourceMembershipId();
             String coveragePlanId = resolveEffectiveCoveragePlanId(
                     externalClaim ? claimTenantId : null,
@@ -795,7 +816,6 @@ public class FuneralManagementService {
         }
 
         validateRequired(request.getPackageId(), "packageId");
-        validateRequired(request.getFamilyRepId(), "familyRepId");
         FuneralPackageEntity packageEntity = funeralPackageRepository.findById(request.getPackageId())
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
         long total = defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras());
@@ -1408,7 +1428,7 @@ public class FuneralManagementService {
 
         if (remaining > 0) {
             splits.add(FuneralInvoiceSplitDto.builder()
-                    .entityName("Family Representative")
+                    .entityName(defaultString(familyRepresentativeDisplayName(service), "Family Representative"))
                     .entityType("FAMILY_REP")
                     .partnerId(service.getFamilyRepId())
                     .amountCents(remaining)
@@ -1707,7 +1727,7 @@ public class FuneralManagementService {
         FuneralClaimDto claim = readClaimDto(membershipClaimId);
         byte[] pdf = claimFormGenerationService.generateFuneralPdf(
                 claim.getClaimNo(), claim.getClaimType(), claim.getMembershipNumber(),
-                service.getDeceasedName(), resolvePartnerName(service.getFamilyRepId()),
+                service.getDeceasedName(), familyRepresentativeDisplayName(service),
                 claim.getClaimedAmountCents(), claim.getDateOfDeath() == null ? "" : claim.getDateOfDeath().toString(),
                 service.getCauseOfDeath(), service.getDeathCertificateNo(), "");
         link.setClaimFormPrintCount(defaultInt(link.getClaimFormPrintCount()) + 1);
@@ -1857,7 +1877,7 @@ public class FuneralManagementService {
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
         String table = tenantId == null ? "membership_claim" : qualifiedTable(tenantId, "membership_claim");
         String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
-        LocalDate coverageEventDate = service.getFuneralDate() == null ? LocalDate.now() : service.getFuneralDate();
+        LocalDate coverageEventDate = service.getDateOfDeath() == null ? LocalDate.now() : service.getDateOfDeath();
         String coveragePlanId = resolveEffectiveCoveragePlanId(tenantId, cover.getSourceMembershipId(), coverageEventDate);
         String coverageDependentType = resolveCoverageDependentType(
                 tenantId,
@@ -1888,7 +1908,7 @@ public class FuneralManagementService {
     private String resolveClaimantPartnerId(FuneralServiceEntity service, String claimTenantId) {
         String familyRepresentativeId = trimToNull(service.getFamilyRepId());
         if (familyRepresentativeId == null) {
-            throw new IllegalArgumentException("A family representative is required before claims can be created");
+            return null;
         }
         if (!StringUtils.hasText(claimTenantId)
                 || Objects.equals(claimTenantId, TenantContext.getCurrentTenant())) {
@@ -1987,9 +2007,18 @@ public class FuneralManagementService {
 
     private void prepareFuneralClaimForm(FuneralServiceEntity service, String claimId, String claimNo,
                                          String claimType, long amountCents) {
-        String claimantName = resolvePartnerName(service.getFamilyRepId());
+        String claimantName = familyRepresentativeDisplayName(service);
         claimFormGenerationService.generateForFuneralClaim(
                 claimId, claimNo, claimType, service.getDeceasedName(), claimantName, amountCents);
+    }
+
+    private String familyRepresentativeDisplayName(FuneralServiceEntity service) {
+        String names = trimToNull(service.getFamilyRepNames());
+        String surname = trimToNull(service.getFamilyRepSurname());
+        String typed = String.join(" ", java.util.stream.Stream.of(names, surname)
+                .filter(Objects::nonNull).toList()).trim();
+        if (!typed.isEmpty()) return typed;
+        return resolvePartnerName(service.getFamilyRepId());
     }
 
     private String resolvePartnerName(String partnerId) {
@@ -2122,6 +2151,10 @@ public class FuneralManagementService {
                 .deceasedPartnerId(entity.getDeceasedPartnerId())
                 .packageId(entity.getPackageId())
                 .familyRepId(entity.getFamilyRepId())
+                .familyRepresentativeNames(entity.getFamilyRepNames())
+                .familyRepresentativeSurname(entity.getFamilyRepSurname())
+                .familyRepresentativeContactDetails(entity.getFamilyRepContactDetails())
+                .dateOfDeath(entity.getDateOfDeath())
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
                 .deceasedDeliveryDirections(entity.getDeceasedDeliveryDirections())
@@ -2536,6 +2569,15 @@ public class FuneralManagementService {
             return Integer.parseInt(value.trim());
         } catch (NumberFormatException ignored) {
             return fallback;
+        }
+    }
+
+    private void validateFuneralDates(LocalDate dateOfDeath, LocalDate funeralDate) {
+        if (dateOfDeath != null && dateOfDeath.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("dateOfDeath cannot be in the future");
+        }
+        if (dateOfDeath != null && funeralDate != null && funeralDate.isBefore(dateOfDeath)) {
+            throw new IllegalArgumentException("funeralDate cannot be before dateOfDeath");
         }
     }
 

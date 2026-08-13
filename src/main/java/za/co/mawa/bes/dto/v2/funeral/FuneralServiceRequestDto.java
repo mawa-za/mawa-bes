@@ -18,6 +18,14 @@ public class FuneralServiceRequestDto {
     private String packageId;
     @JsonAlias({"familyRepPartnerId", "familyRepresentativePartnerId"})
     private String familyRepId;
+    @JsonAlias({"familyRepNames", "familyRepresentativeFirstNames", "familyRepresentativeNames"})
+    private String familyRepresentativeNames;
+    @JsonAlias({"familyRepSurname", "familyRepresentativeLastName", "familyRepresentativeSurname"})
+    private String familyRepresentativeSurname;
+    @JsonAlias({"familyRepContactDetails", "familyRepresentativeContact", "familyRepresentativeContactDetails"})
+    private String familyRepresentativeContactDetails;
+    @JsonAlias({"deathDate", "dateOfDeath"})
+    private LocalDate dateOfDeath;
     private LocalDate funeralDate;
     @JsonAlias({"funeralLocation", "serviceLocation"})
     private String funeralArea;

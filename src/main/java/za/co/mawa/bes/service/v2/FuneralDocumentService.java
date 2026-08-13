@@ -47,7 +47,7 @@ public class FuneralDocumentService {
 
     public byte[] generateConfirmationLetter(String funeralServiceId) {
         FuneralServiceEntity service = getService(funeralServiceId);
-        PartnerEntity familyRepresentative = partnerRepository.findById(service.getFamilyRepId()).orElse(null);
+        PartnerEntity familyRepresentative = hasText(service.getFamilyRepId()) ? partnerRepository.findById(service.getFamilyRepId()).orElse(null) : null;
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              PdfDocument pdf = new PdfDocument(new PdfWriter(out));
@@ -87,9 +87,10 @@ public class FuneralDocumentService {
             second.append(".");
             document.add(body(second.toString(), regular));
 
-            if (familyRepresentative != null) {
+            String representativeName = familyRepresentativeName(service, familyRepresentative);
+            if (hasText(representativeName)) {
                 document.add(body("The recorded family representative for these arrangements is "
-                        + partnerName(familyRepresentative) + ".", regular));
+                        + representativeName + ".", regular));
             }
 
             document.add(body("This confirmation is issued at the request of the family for administrative and supporting purposes.", regular));
@@ -114,7 +115,7 @@ public class FuneralDocumentService {
         FuneralPackageEntity funeralPackage = hasText(service.getPackageId())
                 ? funeralPackageRepository.findById(service.getPackageId()).orElse(null)
                 : null;
-        PartnerEntity familyRepresentative = partnerRepository.findById(service.getFamilyRepId()).orElse(null);
+        PartnerEntity familyRepresentative = hasText(service.getFamilyRepId()) ? partnerRepository.findById(service.getFamilyRepId()).orElse(null) : null;
         List<FuneralExtraDto> extras = parseExtras(service.getExtrasJson());
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -136,18 +137,21 @@ public class FuneralDocumentService {
             addSection(document, "DECEASED DETAILS", regular, bold, new String[][]{
                     {"Deceased name", value(service.getDeceasedName(), "")},
                     {"ID / Passport", value(service.getDeceasedIdentityNumber(), "")},
+                    {"Date of death", service.getDateOfDeath() == null ? "" : service.getDateOfDeath().toString()},
                     {"Death certificate no.", value(service.getDeathCertificateNo(), "")},
                     {"Cause of death", value(service.getCauseOfDeath(), "")},
                     {"Mortuary reference", value(service.getMortuaryInventoryId(), "")}
             });
 
-            String familyName = familyRepresentative == null ? "" : partnerName(familyRepresentative);
+            String familyName = familyRepresentativeName(service, familyRepresentative);
             String familyNumber = familyRepresentative == null ? "" : value(familyRepresentative.getNo(), "");
-            String familyContact = familyRepresentative == null ? "" : preferredContact(familyRepresentative.getId());
+            String familyContact = hasText(service.getFamilyRepContactDetails())
+                    ? service.getFamilyRepContactDetails().trim()
+                    : familyRepresentative == null ? "" : preferredContact(familyRepresentative.getId());
             addSection(document, "FAMILY REPRESENTATIVE", regular, bold, new String[][]{
                     {"Name", familyName},
                     {"Partner number", familyNumber},
-                    {"Contact number", familyContact}
+                    {"Contact details", familyContact}
             });
 
             addSection(document, "FUNERAL SERVICE DETAILS", regular, bold, new String[][]{
@@ -251,6 +255,14 @@ public class FuneralDocumentService {
                         "ORDER BY CASE WHEN UPPER(type) IN ('CELL','CELLPHONE','MOBILE','PHONE') THEN 0 ELSE 1 END, type LIMIT 1",
                 (rs, rowNum) -> rs.getString(1), partnerId);
         return contacts.isEmpty() ? "" : value(contacts.get(0), "");
+    }
+
+    private String familyRepresentativeName(FuneralServiceEntity service, PartnerEntity legacyPartner) {
+        String names = value(service.getFamilyRepNames(), "").trim();
+        String surname = value(service.getFamilyRepSurname(), "").trim();
+        String typed = (names + " " + surname).trim();
+        if (!typed.isEmpty()) return typed;
+        return legacyPartner == null ? "" : partnerName(legacyPartner);
     }
 
     private String partnerName(PartnerEntity partner) {
