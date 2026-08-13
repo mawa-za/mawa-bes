@@ -12,6 +12,7 @@ import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,9 +24,9 @@ public class MembershipPremiumSyncOfflineService {
 
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptRepository receiptRepository;
+    private final ReceiptAllocationRepository receiptAllocationRepository;
     private final MembershipPremiumService membershipPremiumService;
     private final ReceiptService receiptService;
-    private final ReceiptMapper receiptMapper;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
 
     @Transactional
@@ -40,10 +41,15 @@ public class MembershipPremiumSyncOfflineService {
         if (existingBatch.isPresent()) {
             PaymentBatchEntity batch = existingBatch.get();
             validateExistingBatchIdentity(batch, request);
+            String canonicalMembershipId = membershipService.resolveMembership(request.getMembershipId()).getId();
+            if (!canonicalMembershipId.equals(batch.getMembershipId())) {
+                batch.setMembershipId(canonicalMembershipId);
+                paymentBatchRepository.save(batch);
+            }
             return syncIntoBatch(
                     batch,
                     request,
-                    batch.getMembershipId(),
+                    canonicalMembershipId,
                     new ArrayList<>(List.of("Payment batch already existed; backend receipts were verified")),
                     true
             );
@@ -53,10 +59,15 @@ public class MembershipPremiumSyncOfflineService {
             PaymentBatchEntity batch = paymentBatchRepository.findByPaymentBatchNo(request.getPaymentBatchNo())
                     .orElseThrow();
             validateExistingBatchIdentity(batch, request);
+            String canonicalMembershipId = membershipService.resolveMembership(request.getMembershipId()).getId();
+            if (!canonicalMembershipId.equals(batch.getMembershipId())) {
+                batch.setMembershipId(canonicalMembershipId);
+                paymentBatchRepository.save(batch);
+            }
             return syncIntoBatch(
                     batch,
                     request,
-                    batch.getMembershipId(),
+                    canonicalMembershipId,
                     new ArrayList<>(List.of("Payment batch number already existed; backend receipts were verified")),
                     true
             );
@@ -82,20 +93,6 @@ public class MembershipPremiumSyncOfflineService {
         Long monthlyPremiumCents = determineMonthlyPremiumCents(canonicalMembershipId);
 
         for (PremiumReceiptOfflineDto offlineReceipt : request.getReceipts()) {
-            var existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo());
-            if (existingReceipt.isPresent()) {
-                ReceiptEntity receipt = existingReceipt.get();
-                if (!batch.getId().equals(receipt.getPaymentBatchId())) {
-                    throw new IllegalStateException(
-                            "Receipt number " + offlineReceipt.getReceiptNo()
-                                    + " already belongs to a different payment batch"
-                    );
-                }
-                syncedReceipts.add(receiptService.getReceipt(receipt.getId()));
-                warnings.add("Receipt already existed: " + offlineReceipt.getReceiptNo());
-                continue;
-            }
-
             MembershipPremiumEntity premium = membershipPremiumService.findOrCreatePremium(
                     canonicalMembershipId,
                     offlineReceipt.getPeriodYYYYMM(),
@@ -103,35 +100,50 @@ public class MembershipPremiumSyncOfflineService {
                     request.getCreatedBy()
             );
 
-            if (premium.getStatus() == PremiumStatus.PAID) {
-                warnings.add("Period already paid: " + offlineReceipt.getPeriodYYYYMM());
+            ReceiptEntity receipt;
+            boolean recoveredReceipt = false;
+            var existingReceipt = receiptRepository.findByReceiptNo(offlineReceipt.getReceiptNo());
+            if (existingReceipt.isPresent()) {
+                receipt = existingReceipt.get();
+                if (!batch.getId().equals(receipt.getPaymentBatchId())) {
+                    throw new IllegalStateException(
+                            "Receipt number " + offlineReceipt.getReceiptNo()
+                                    + " already belongs to a different payment batch"
+                    );
+                }
+                if (!canonicalMembershipId.equals(receipt.getMembershipId())) {
+                    receipt.setMembershipId(canonicalMembershipId);
+                    receipt = receiptService.saveReceipt(receipt);
+                }
+            } else {
+                receipt = createReceiptFromOfflineRequest(batch, request, offlineReceipt, canonicalMembershipId);
+                recoveredReceipt = recoveringExistingBatch;
             }
 
-            ReceiptEntity receipt = createReceiptFromOfflineRequest(
-                    batch, request, offlineReceipt, canonicalMembershipId
-            );
-
-            ReceiptAllocationEntity allocation = receiptService.createAllocation(
-                    receipt.getId(),
-                    ReceiptAllocationType.MEMBERSHIP_PREMIUM,
-                    premium.getId(),
-                    canonicalMembershipId + "-" + offlineReceipt.getPeriodYYYYMM(),
-                    offlineReceipt.getPeriodYYYYMM(),
-                    canonicalMembershipId,
-                    offlineReceipt.getAmountCents(),
-                    request.getCreatedBy()
-            );
-
-            if (premium.getStatus() != PremiumStatus.PAID) {
-                membershipPremiumService.applyPayment(
-                        premium,
+            boolean allocationExists = receiptAllocationRepository
+                    .existsByReceiptIdAndAllocationTypeAndReferenceId(
+                            receipt.getId(), ReceiptAllocationType.MEMBERSHIP_PREMIUM, premium.getId());
+            if (!allocationExists) {
+                receiptService.createAllocation(
+                        receipt.getId(),
+                        ReceiptAllocationType.MEMBERSHIP_PREMIUM,
+                        premium.getId(),
+                        canonicalMembershipId + "-" + offlineReceipt.getPeriodYYYYMM(),
+                        offlineReceipt.getPeriodYYYYMM(),
+                        canonicalMembershipId,
                         offlineReceipt.getAmountCents(),
                         request.getCreatedBy()
                 );
+                if (existingReceipt.isPresent()) {
+                    warnings.add("Recovered missing premium allocation for receipt: " + offlineReceipt.getReceiptNo());
+                }
             }
 
-            syncedReceipts.add(receiptMapper.toDto(receipt, List.of(allocation)));
-            if (recoveringExistingBatch) {
+            reconcilePremiumFromAllocations(premium, request.getCreatedBy());
+            syncedReceipts.add(receiptService.getReceipt(receipt.getId()));
+            if (existingReceipt.isPresent() && allocationExists) {
+                warnings.add("Receipt already existed and premium allocation was verified: " + offlineReceipt.getReceiptNo());
+            } else if (recoveredReceipt) {
                 warnings.add("Recovered missing backend receipt: " + offlineReceipt.getReceiptNo());
             }
         }
@@ -219,6 +231,24 @@ public class MembershipPremiumSyncOfflineService {
         receipt.setCreatedBy(request.getCreatedBy());
 
         return receiptService.saveReceipt(receipt);
+    }
+
+    private void reconcilePremiumFromAllocations(MembershipPremiumEntity premium, String updatedBy) {
+        long allocatedCents = receiptAllocationRepository
+                .findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
+                        ReceiptAllocationType.MEMBERSHIP_PREMIUM, premium.getId())
+                .stream()
+                .map(ReceiptAllocationEntity::getAmountCents)
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+        long premiumAmountCents = premium.getAmountCents() == null ? allocatedCents : premium.getAmountCents();
+        long targetPaidCents = Math.min(allocatedCents, premiumAmountCents);
+        long recordedPaidCents = premium.getPaidAmountCents() == null ? 0L : premium.getPaidAmountCents();
+        if (targetPaidCents > recordedPaidCents) {
+            membershipPremiumService.applyPayment(
+                    premium, targetPaidCents - recordedPaidCents, updatedBy);
+        }
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

@@ -80,6 +80,11 @@ public class MembershipChangeService {
         if (newMemberId == null) throw new IllegalArgumentException("New member is required");
         if (newMemberId.equals(membership.getMemberId())) throw new IllegalArgumentException("The selected partner is already the membership holder");
         if (!partnerRepository.existsById(newMemberId)) throw new IllegalArgumentException("New member partner was not found: " + newMemberId);
+        if (!membershipDependentRepository.existsByMembershipIdAndDependentPartnerIdAndStatus(
+                membershipId, newMemberId, MembershipDependentStatus.ACTIVE)) {
+            throw new IllegalArgumentException(
+                    "Membership can only be transferred to an active dependent on the same membership");
+        }
 
         String reason = requireReason(request.getReason());
         String actionBy = actor(actor);
