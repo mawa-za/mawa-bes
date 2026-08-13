@@ -26,6 +26,8 @@ public class ApprovalWorkflowResponseDto {
 
     private Boolean active;
 
+    private Boolean autoApprove;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

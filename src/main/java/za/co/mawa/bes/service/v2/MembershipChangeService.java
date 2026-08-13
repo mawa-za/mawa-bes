@@ -160,7 +160,6 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
-        requireNoOpenDependentChange(membershipId);
         String partnerId = clean(request == null ? null : request.getDependentPartnerId());
         if (partnerId == null) throw new IllegalArgumentException("Dependent is required");
         DependentType dependentType = request == null ? null : request.getDependentType();
@@ -168,6 +167,7 @@ public class MembershipChangeService {
             throw new IllegalArgumentException("A valid dependent relationship is required");
         }
         validateDependentPartner(membership, partnerId, null);
+        requireNoConflictingDependentChange(membershipId, null, partnerId);
         if (membershipDependentRepository.existsVisibleByMembershipIdAndPartnerId(
                 membershipId, partnerId,
                 Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
@@ -208,11 +208,11 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
-        requireNoOpenDependentChange(membershipId);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
         if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
             throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
         }
+        requireNoConflictingDependentChange(membershipId, existing.getId(), null);
 
         String actionBy = actor(actor);
         MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
@@ -251,7 +251,6 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
-        requireNoOpenDependentChange(membershipId);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
         if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
             throw new IllegalArgumentException("A deceased dependent cannot be replaced");
@@ -267,6 +266,7 @@ public class MembershipChangeService {
             throw new IllegalArgumentException("Replacement dependent must be a different person");
         }
         validateDependentPartner(membership, partnerId, existing.getDependentPartnerId());
+        requireNoConflictingDependentChange(membershipId, existing.getId(), partnerId);
         if (membershipDependentRepository.existsVisibleByMembershipIdAndPartnerId(
                         membershipId, partnerId,
                         Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
@@ -786,16 +786,33 @@ public class MembershipChangeService {
         }
     }
 
-    private void requireNoOpenDependentChange(String membershipId) {
-        if (changeRequestRepository.existsByMembershipIdAndChangeTypeInAndStatusIn(
-                membershipId,
-                List.of(
-                        MembershipChangeType.ADD_DEPENDENT,
-                        MembershipChangeType.REMOVE_DEPENDENT,
-                        MembershipChangeType.REPLACE_DEPENDENT
-                ),
-                List.of(MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED))) {
-            throw new IllegalStateException("This membership already has a pending dependent change");
+    private void requireNoConflictingDependentChange(
+            String membershipId,
+            String oldDependentId,
+            String newDependentPartnerId
+    ) {
+        List<MembershipChangeStatus> openStatuses = List.of(
+                MembershipChangeStatus.PENDING_APPROVAL,
+                MembershipChangeStatus.APPROVED_SCHEDULED
+        );
+        List<MembershipChangeType> dependentChanges = List.of(
+                MembershipChangeType.ADD_DEPENDENT,
+                MembershipChangeType.REMOVE_DEPENDENT,
+                MembershipChangeType.REPLACE_DEPENDENT
+        );
+
+        if (newDependentPartnerId != null
+                && changeRequestRepository.existsByMembershipIdAndNewDependentPartnerIdAndChangeTypeInAndStatusIn(
+                        membershipId, newDependentPartnerId, dependentChanges, openStatuses)) {
+            throw new IllegalStateException("The selected person already has a pending dependent change on this membership");
+        }
+
+        if (oldDependentId != null
+                && changeRequestRepository.existsByMembershipIdAndOldDependentIdAndChangeTypeInAndStatusIn(
+                        membershipId, oldDependentId,
+                        List.of(MembershipChangeType.REMOVE_DEPENDENT, MembershipChangeType.REPLACE_DEPENDENT),
+                        openStatuses)) {
+            throw new IllegalStateException("The selected dependent already has a pending removal or replacement");
         }
     }
 
