@@ -18,6 +18,18 @@ public interface MembershipChangeRequestRepository extends JpaRepository<Members
             Collection<MembershipChangeType> changeTypes,
             Collection<MembershipChangeStatus> statuses
     );
+    boolean existsByMembershipIdAndNewDependentPartnerIdAndChangeTypeInAndStatusIn(
+            String membershipId,
+            String newDependentPartnerId,
+            Collection<MembershipChangeType> changeTypes,
+            Collection<MembershipChangeStatus> statuses
+    );
+    boolean existsByMembershipIdAndOldDependentIdAndChangeTypeInAndStatusIn(
+            String membershipId,
+            String oldDependentId,
+            Collection<MembershipChangeType> changeTypes,
+            Collection<MembershipChangeStatus> statuses
+    );
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
       select r from MembershipChangeRequestEntity r

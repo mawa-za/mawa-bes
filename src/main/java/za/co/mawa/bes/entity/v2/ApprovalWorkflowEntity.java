@@ -43,6 +43,9 @@ public class ApprovalWorkflowEntity {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "auto_approve", nullable = false)
+    private Boolean autoApprove = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

@@ -169,9 +169,13 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         entity.setMinAmount(request.getMinAmount());
         entity.setMaxAmount(request.getMaxAmount());
         entity.setActive(request.getActive() == null || request.getActive());
+        entity.setAutoApprove(Boolean.TRUE.equals(request.getAutoApprove()));
     }
 
     private void applySteps(ApprovalWorkflowEntity workflow, List<ApprovalWorkflowStepRequestDto> stepRequests) {
+        if (stepRequests == null || stepRequests.isEmpty()) {
+            return;
+        }
         validateStepNumbers(stepRequests);
 
         for (ApprovalWorkflowStepRequestDto stepRequest : stepRequests) {
@@ -223,8 +227,9 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
             }
         }
 
-        if (request.getSteps() == null || request.getSteps().isEmpty()) {
-            throw new RuntimeException("At least one workflow step is required");
+        if (!Boolean.TRUE.equals(request.getAutoApprove())
+                && (request.getSteps() == null || request.getSteps().isEmpty())) {
+            throw new RuntimeException("At least one workflow step is required unless auto approval is enabled");
         }
     }
 
@@ -271,6 +276,10 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
     }
 
     private void validateCanActivate(ApprovalWorkflowEntity workflow) {
+        if (Boolean.TRUE.equals(workflow.getAutoApprove())) {
+            return;
+        }
+
         List<ApprovalWorkflowStepEntity> activeSteps = workflow.getSteps() == null
                 ? List.of()
                 : workflow.getSteps().stream()
@@ -319,6 +328,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         dto.setMinAmount(entity.getMinAmount());
         dto.setMaxAmount(entity.getMaxAmount());
         dto.setActive(entity.getActive());
+        dto.setAutoApprove(Boolean.TRUE.equals(entity.getAutoApprove()));
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
 

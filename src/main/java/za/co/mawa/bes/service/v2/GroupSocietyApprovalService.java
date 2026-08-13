@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.v2.group.GroupSocietyStatusChangeRequest;
 import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyAccountTxnEntity;
 import za.co.mawa.bes.entity.v2.GroupSocietyEntity;
+import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.v2.GroupSocietyAccountTxnRepository;
@@ -79,6 +80,11 @@ public class GroupSocietyApprovalService {
 
         jdbcTemplate.update("UPDATE group_society_approval_action SET approval_request_id=? WHERE id=?",
                 response.getId(), actionId);
+        if (response.getStatus() == ApprovalStatus.APPROVED) {
+            // AUTO workflow completion already applied the requested status.
+            return groupSocietyRepository.findByIdForUpdate(groupSocietyId)
+                    .orElseThrow(() -> new IllegalArgumentException("Group society not found: " + groupSocietyId));
+        }
         society.setPreviousStatus(society.getStatus());
         society.setRequestedStatus(target);
         society.setPendingAction("STATUS_CHANGE");

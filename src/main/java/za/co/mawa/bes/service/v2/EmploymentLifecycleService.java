@@ -245,16 +245,21 @@ public class EmploymentLifecycleService {
         String employeeNumber = employeeNumberRepository.findByPartnerId(action.getPartnerId())
                 .map(EmployeeNumberAssignmentEntity::getEmployeeNumber)
                 .orElseGet(() -> allocateEmployeeNumber(action.getPartnerId(), actionBy));
+        LocalDate startDate = action.getProposedStartDate() != null
+                ? action.getProposedStartDate()
+                : action.getEffectiveDate() != null ? action.getEffectiveDate() : LocalDate.now();
+        LocalDate endDate = action.getProposedEndDate() == null ? MAX_DATE : action.getProposedEndDate();
+        LocalDate effectiveDate = action.getEffectiveDate() == null ? startDate : action.getEffectiveDate();
         EmploymentEntity employment = EmploymentEntity.builder()
                 .partnerId(action.getPartnerId()).employeeNumber(employeeNumber).type(action.getProposedType())
-                .startDate(Date.valueOf(action.getProposedStartDate())).endDate(Date.valueOf(action.getProposedEndDate()))
+                .startDate(Date.valueOf(startDate)).endDate(Date.valueOf(endDate))
                 .position(action.getProposedPosition()).branch(action.getProposedBranch()).department(action.getProposedDepartment())
                 .status(Status.ACTIVE).createdBy(actionBy).updatedBy(actionBy).build();
         employment = employmentRepository.save(employment);
         ensureEmployeeRole(employment.getPartnerId());
-        recordHistory(employment, action, "HIRE", null, Status.ACTIVE, action.getEffectiveDate(), action.getReason(), null, snapshot(employment), actionBy);
-        leaveConfigurationService.assignResolvedProfileOnHire(employment, action.getEffectiveDate());
-        leaveBalanceService.initialiseForEmployment(employment, action.getEffectiveDate());
+        recordHistory(employment, action, "HIRE", null, Status.ACTIVE, effectiveDate, action.getReason(), null, snapshot(employment), actionBy);
+        leaveConfigurationService.assignResolvedProfileOnHire(employment, effectiveDate);
+        leaveBalanceService.initialiseForEmployment(employment, effectiveDate);
         restoreSystemAccessIfAppropriate(employment.getPartnerId(), actionBy);
         return employment;
     }
