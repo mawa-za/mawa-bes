@@ -31,6 +31,7 @@ public class ApprovalService {
     private final ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
     private final JdbcTemplate jdbcTemplate;
     private final UserInboxService userInboxService;
+    private final MembershipClaimService membershipClaimService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -76,23 +77,27 @@ public class ApprovalService {
         approvalRequestRepository
                 .findByApprovalTypeAndReferenceId(request.getApprovalType(), request.getReferenceId())
                 .ifPresent(existing -> {
-                    throw new RuntimeException("Approval request already exists for reference: " + request.getReferenceId());
+                    throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
                 });
 
         ApprovalWorkflowEntity workflow = workflowRepository
                 .findByApprovalType(request.getApprovalType())
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new IllegalStateException(
                         "No approval workflow configured for type: " + request.getApprovalType()));
 
         if (!Boolean.TRUE.equals(workflow.getActive())) {
             return autoApproveWithoutWorkflow(request, workflow);
         }
 
+        if (Boolean.TRUE.equals(workflow.getAutoApprove())) {
+            return autoApproveThroughWorkflow(request, workflow);
+        }
+
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
 
         if (steps.isEmpty()) {
-            throw new RuntimeException("Approval workflow has no active steps");
+            throw new IllegalStateException("Approval workflow has no active steps");
         }
 
         Integer firstStepNo = steps.get(0).getStepNo();
@@ -109,6 +114,40 @@ public class ApprovalService {
         );
         submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
         userInboxService.notifyApprovalRequired(entity);
+        return toResponse(entity);
+    }
+
+
+    private ApprovalRequestResponse autoApproveThroughWorkflow(
+            ApprovalSubmitRequest request,
+            ApprovalWorkflowEntity workflow
+    ) {
+        ApprovalRequestEntity entity = createApprovalRequest(request, workflow, 0);
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.SUBMITTED,
+                request.getRequesterId(),
+                "Submitted to auto-approval workflow"
+        );
+        submissionHandlerRegistry.handleSubmit(entity, request.getRequesterId());
+
+        entity.setStatus(ApprovalStatus.APPROVED);
+        entity.setFinalActionBy(request.getRequesterId());
+        entity.setFinalActionAt(new Date());
+        entity.setUpdatedBy(request.getRequesterId());
+        entity = approvalRequestRepository.save(entity);
+
+        recordAction(
+                entity.getId(),
+                0,
+                ApprovalActionType.APPROVED,
+                request.getRequesterId(),
+                "Automatically approved by workflow configuration"
+        );
+        completionHandlerRegistry.handleApproved(entity, request.getRequesterId());
         return toResponse(entity);
     }
 
@@ -207,7 +246,7 @@ public class ApprovalService {
 
         if (approvedCount >= currentStep.getRequiredApprovals()) {
             userInboxService.resolveApprovalStep(approvalRequestId, actionedStepNo);
-            moveToNextStepOrComplete(approvalRequest, request.getActionBy());
+            moveToNextStepOrComplete(approvalRequest, request);
         } else {
             userInboxService.resolveApprovalStepForUser(
                     approvalRequestId, actionedStepNo, request.getActionBy());
@@ -336,13 +375,14 @@ public class ApprovalService {
         return approvalRequestRepository.findAllByOrderByCreatedAtDesc();
     }
 
-    private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, String actionBy) {
+    private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, ApprovalDecisionRequest decision) {
         List<ApprovalWorkflowStepEntity> steps =
                 workflowStepRepository.findByWorkflowIdOrderByStepNoAsc(
                         approvalRequest.getWorkflowId()
                 );
 
         Integer currentStepNo = approvalRequest.getCurrentStepNo();
+        String actionBy = decision.getActionBy();
 
         ApprovalWorkflowStepEntity nextStep = steps.stream()
                 .filter(step -> step.getStepNo() > currentStepNo)
@@ -350,6 +390,14 @@ public class ApprovalService {
                 .orElse(null);
 
         if (nextStep == null) {
+            if (approvalRequest.getApprovalType() == ApprovalType.CLAIM) {
+                membershipClaimService.applyArrearsFineForApproval(
+                        approvalRequest.getReferenceId(),
+                        decision.getArrearsMonths(),
+                        actionBy
+                );
+            }
+
             approvalRequest.setStatus(ApprovalStatus.APPROVED);
             approvalRequest.setFinalActionBy(actionBy);
             approvalRequest.setFinalActionAt(new Date());
@@ -386,11 +434,11 @@ public class ApprovalService {
         }
 
         if (actionBy == null || actionBy.isBlank()) {
-            throw new RuntimeException("Action user is required");
+            throw new IllegalArgumentException("Action user is required");
         }
 
         if (step.getApprovers() == null || step.getApprovers().isEmpty()) {
-            throw new RuntimeException("No approvers configured for this approval step");
+            throw new IllegalStateException("No approvers configured for this approval step");
         }
 
         boolean allowed = step.getApprovers()
@@ -399,7 +447,7 @@ public class ApprovalService {
                 .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy, request));
 
         if (!allowed) {
-            throw new RuntimeException("User is not allowed to approve this step");
+            throw new SecurityException("User is not allowed to approve this step");
         }
     }
 

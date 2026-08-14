@@ -34,6 +34,11 @@ public class MembershipPremiumService {
     private final MembershipPremiumMapper membershipPremiumMapper;
     private final ReceiptMapper receiptMapper;
 
+    public MembershipPremiumEntity getById(String premiumId) {
+        return membershipPremiumRepository.findById(premiumId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership premium not found: " + premiumId));
+    }
+
     public List<MembershipPremiumEntity> getPremiumsForMembership(String membershipId) {
         return membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(
                 membershipService.membershipIdentifiers(membershipId)

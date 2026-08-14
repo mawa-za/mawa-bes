@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
 import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.fnb.FnbApiCallLogger;
 import za.co.mawa.bes.fnb.dto.*;
 import za.co.mawa.bes.service.SettingService;
@@ -518,6 +519,34 @@ public class BankPaymentService {
     }
 
     private String resolvePaymentReference(PaymentRequestEntity paymentRequest) {
+        if (paymentRequest.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE
+                && !isBlank(paymentRequest.getPayeePartnerId())) {
+            List<String> accountNumberIdentities = jdbcTemplate.queryForList(
+                    """
+                    SELECT pi.value
+                      FROM partner_identity pi
+                     WHERE pi.partner = ?
+                       AND UPPER(TRIM(pi.type)) = 'ACCOUNT-NUMBER'
+                       AND (pi.valid_from IS NULL OR pi.valid_from <= CURRENT_DATE)
+                       AND (pi.valid_to IS NULL OR pi.valid_to >= CURRENT_DATE)
+                     ORDER BY pi.valid_to DESC, pi.valid_from DESC
+                     LIMIT 1
+                    """,
+                    String.class,
+                    paymentRequest.getPayeePartnerId()
+            );
+            if (!accountNumberIdentities.isEmpty() && !isBlank(accountNumberIdentities.get(0))) {
+                return accountNumberIdentities.get(0).trim();
+            }
+
+            // For supplier payments, the reference captured on the payment request
+            // is the explicit fallback when no ACCOUNT-NUMBER identity is maintained.
+            if (!isBlank(paymentRequest.getExternalReference())) {
+                return paymentRequest.getExternalReference();
+            }
+            return paymentRequest.getRequestNo();
+        }
+
         if (!isBlank(paymentRequest.getExternalReference())) {
             return paymentRequest.getExternalReference();
         }

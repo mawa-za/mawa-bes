@@ -127,6 +127,133 @@ public class ProductService implements ProductDao {
         return productDtoList;
     }
 
+    public List<ProductDto> searchForMaintenance(ProductQueryDto productQueryDto) {
+        Sort sort = Sort.by("id").descending();
+        List<ProductEntity> entities = productRepository.findAll(findByCriteria(productQueryDto), sort);
+        if (entities.isEmpty()) return new ArrayList<>();
+
+        List<String> productIds = entities.stream().map(ProductEntity::getId).toList();
+        Map<String, List<ProductPricingDto>> pricingByProduct = loadMaintenancePricings(productIds);
+        Map<String, List<String>> barcodesByProduct = loadMaintenanceBarcodes(productIds);
+        Map<String, String> funeralPackageByProduct = loadMaintenanceFuneralPackages(productIds);
+        Map<String, ProductCategoryDefinitionDto> categoryCache = new HashMap<>();
+        Map<String, FieldOptionDto> uomCache = new HashMap<>();
+
+        List<ProductDto> result = new ArrayList<>(entities.size());
+        for (ProductEntity entity : entities) {
+            ProductDto dto = new ProductDto();
+            dto.setId(entity.getId());
+            dto.setCode(entity.getCode() == null ? "" : entity.getCode());
+            dto.setDescription(entity.getDescription());
+            dto.setType(resolveProductTypeOption(entity.getType()));
+            ProductTypeCode.find(entity.getType()).ifPresent(type -> dto.setTypeBehaviour(type.toDto()));
+            dto.setAvailableForSale(Boolean.TRUE.equals(entity.getAvailableForSale()));
+            dto.setValidFrom(entity.getValidFrom());
+            dto.setValidTo(entity.getValidTo());
+
+            String categoryId = entity.getCategoryId();
+            if (categoryId != null && !categoryId.isBlank()) {
+                if (!categoryCache.containsKey(categoryId)) {
+                    try {
+                        categoryCache.put(categoryId, productClassificationService.getCategory(categoryId));
+                    } catch (Exception ignored) {
+                        categoryCache.put(categoryId, null);
+                    }
+                }
+                dto.setPrimaryCategory(categoryCache.get(categoryId));
+            }
+
+            String uom = entity.getUom();
+            if (uom != null && !uom.isBlank()) {
+                if (!uomCache.containsKey(uom)) {
+                    try {
+                        uomCache.put(uom, fieldOptionService.getFieldOption(Field.UOM, uom));
+                    } catch (Exception ignored) {
+                        uomCache.put(uom, null);
+                    }
+                }
+                dto.setBaseUnitOfMeasure(uomCache.get(uom));
+            }
+
+            dto.setPricings(pricingByProduct.getOrDefault(entity.getId(), List.of()));
+            dto.setAttributes(List.of());
+            dto.setCategories(List.of());
+            dto.setBarcodes(barcodesByProduct.getOrDefault(entity.getId(), List.of()));
+            String packageId = funeralPackageByProduct.get(entity.getId());
+            dto.setManagedByFuneralPackage(packageId != null);
+            dto.setFuneralPackageId(packageId);
+            result.add(dto);
+        }
+        return result;
+    }
+
+    private Map<String, List<ProductPricingDto>> loadMaintenancePricings(List<String> productIds) {
+        Map<String, List<ProductPricingDto>> result = new HashMap<>();
+        Map<String, FieldOptionDto> pricingOptionCache = new HashMap<>();
+        try {
+            for (ProductPricingEntity entity : productPricingRepository.findByProductIds(productIds)) {
+                ProductPricingDto dto = new ProductPricingDto();
+                String productId = entity.getProductPricingPKEntity().getProduct();
+                String pricingCode = entity.getProductPricingPKEntity().getPricing();
+                dto.setProduct(productId);
+                if (!pricingOptionCache.containsKey(pricingCode)) {
+                    pricingOptionCache.put(pricingCode, fieldOptionService.getFieldOption(Field.PRICING_TYPE, pricingCode));
+                }
+                dto.setPricing(pricingOptionCache.get(pricingCode));
+                dto.setValue(entity.getValue());
+                dto.setValidFrom(entity.getValidFrom());
+                dto.setValidTo(entity.getValidTo());
+                result.computeIfAbsent(productId, ignored -> new ArrayList<>()).add(dto);
+            }
+        } catch (Exception ignored) {
+            // Product list remains available even when optional legacy pricing data is malformed.
+        }
+        return result;
+    }
+
+    private Map<String, List<String>> loadMaintenanceBarcodes(List<String> productIds) {
+        Map<String, List<String>> result = new HashMap<>();
+        try {
+            String placeholders = String.join(",", Collections.nCopies(productIds.size(), "?"));
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT product_id, barcode FROM product_barcode WHERE product_id IN (" + placeholders + ") "
+                            + "ORDER BY product_id, is_primary DESC, created_at ASC",
+                    productIds.toArray()
+            );
+            for (Map<String, Object> row : rows) {
+                String productId = Objects.toString(row.get("product_id"), "");
+                String barcode = Objects.toString(row.get("barcode"), "").trim();
+                if (!productId.isBlank() && !barcode.isBlank()) {
+                    result.computeIfAbsent(productId, ignored -> new ArrayList<>()).add(barcode);
+                }
+            }
+        } catch (Exception ignored) {
+            // Tenant may still be awaiting the barcode migration.
+        }
+        return result;
+    }
+
+    private Map<String, String> loadMaintenanceFuneralPackages(List<String> productIds) {
+        Map<String, String> result = new HashMap<>();
+        try {
+            String placeholders = String.join(",", Collections.nCopies(productIds.size(), "?"));
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT product_id, id FROM funeral_package WHERE product_id IN (" + placeholders + ")",
+                    productIds.toArray()
+            );
+            for (Map<String, Object> row : rows) {
+                String productId = Objects.toString(row.get("product_id"), "");
+                String packageId = Objects.toString(row.get("id"), "");
+                if (!productId.isBlank() && !packageId.isBlank()) {
+                    result.putIfAbsent(productId, packageId);
+                }
+            }
+        } catch (Exception ignored) {
+            // Keeps Product Maintenance independent from Funeral Package availability.
+        }
+        return result;
+    }
+
     @Override
     public ProductDto get(String id) throws ProductNotFoundException {
         try {

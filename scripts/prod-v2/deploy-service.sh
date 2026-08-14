@@ -16,6 +16,9 @@ PROJECT_ID="${PROJECT_ID}" RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT}" 
 
 cp deploy/prod-v2/service.env "/workspace/${SERVICE_NAME}.env"
 {
+  # Tenant integration credentials (FNB/Xero) are stored in Secret Manager at runtime.
+  # The application cannot derive plain secret names without the owning GCP project id.
+  echo "GCP_PROJECT_ID=${PROJECT_ID}"
   echo "MAWA_RELEASE_TAG=${TAG_NAME}"
   echo "MAWA_RELEASE_COMMIT=${COMMIT_SHA:-unknown}"
   [[ -n "${STORAGE_BUCKET:-}" ]] && echo "MAWA_ATTACHMENT_BUCKET=${STORAGE_BUCKET}"
@@ -38,9 +41,9 @@ args=(
   --port=8080
   --cpu="${CPU:-1}"
   --memory="${MEMORY:-1Gi}"
-  --min-instances="${MIN_INSTANCES:-0}"
+  --min-instances="${MIN_INSTANCES:-1}"
   --max-instances="${MAX_INSTANCES:-10}"
-  --concurrency="${CONCURRENCY:-80}"
+  --concurrency="${CONCURRENCY:-20}"
   --timeout="${REQUEST_TIMEOUT:-300s}"
   --execution-environment=gen2
   --env-vars-file="/workspace/${SERVICE_NAME}.env"

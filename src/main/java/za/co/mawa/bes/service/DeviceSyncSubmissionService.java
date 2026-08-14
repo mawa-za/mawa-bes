@@ -33,25 +33,49 @@ public class DeviceSyncSubmissionService {
     public DeviceSyncSubmissionDto submit(DeviceSyncSubmitRequest request, String userId) {
         validate(request);
         String key = request.getIdempotencyKey().trim();
-        return repository.findByIdempotencyKey(key).map(this::dto).orElseGet(() -> {
-            LocalDateTime now = LocalDateTime.now();
-            DeviceSyncSubmissionEntity entity = DeviceSyncSubmissionEntity.builder()
-                    .submissionId(blank(request.getSubmissionId()) ? UUID.randomUUID().toString() : request.getSubmissionId().trim())
-                    .idempotencyKey(key)
-                    .deviceId(trimToNull(request.getDeviceId()))
-                    .deviceSerialNumber(trimToNull(request.getDeviceSerialNumber()))
-                    .syncTime(parseDeviceTime(request.getSyncTime(), now))
-                    .submittedBy(userId)
-                    .httpMethod(request.getMethod().toUpperCase(Locale.ROOT))
-                    .targetPath(request.getPath())
-                    .requestPayload(json(request.getPayload()))
-                    .status("RECEIVED")
-                    .attemptCount(0)
-                    .createdAt(now)
-                    .updatedAt(now)
-                    .build();
-            return dto(repository.save(entity));
-        });
+        LocalDateTime now = LocalDateTime.now();
+        Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKey(key);
+        if (existing.isPresent()) {
+            DeviceSyncSubmissionEntity entity = existing.get();
+            if (!"COMPLETED".equals(entity.getStatus())) {
+                // The same durable operation may be retried after the device user
+                // corrected local data. Keep the idempotency identity, but refresh
+                // the payload and device metadata so reprocessing never replays the
+                // stale request that originally failed.
+                entity.setDeviceId(trimToNull(request.getDeviceId()));
+                entity.setDeviceSerialNumber(trimToNull(request.getDeviceSerialNumber()));
+                entity.setSyncTime(parseDeviceTime(request.getSyncTime(), now));
+                entity.setSubmittedBy(userId);
+                entity.setHttpMethod(request.getMethod().toUpperCase(Locale.ROOT));
+                entity.setTargetPath(request.getPath());
+                entity.setRequestPayload(json(request.getPayload()));
+                entity.setResponsePayload(null);
+                entity.setResponseStatus(null);
+                entity.setErrorMessage(null);
+                entity.setStatus("RECEIVED");
+                entity.setProcessedAt(null);
+                entity.setUpdatedAt(now);
+                return dto(repository.save(entity));
+            }
+            return dto(entity);
+        }
+
+        DeviceSyncSubmissionEntity entity = DeviceSyncSubmissionEntity.builder()
+                .submissionId(blank(request.getSubmissionId()) ? UUID.randomUUID().toString() : request.getSubmissionId().trim())
+                .idempotencyKey(key)
+                .deviceId(trimToNull(request.getDeviceId()))
+                .deviceSerialNumber(trimToNull(request.getDeviceSerialNumber()))
+                .syncTime(parseDeviceTime(request.getSyncTime(), now))
+                .submittedBy(userId)
+                .httpMethod(request.getMethod().toUpperCase(Locale.ROOT))
+                .targetPath(request.getPath())
+                .requestPayload(json(request.getPayload()))
+                .status("RECEIVED")
+                .attemptCount(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        return dto(repository.save(entity));
     }
 
     public DeviceSyncSubmissionDto get(String id) {
@@ -61,7 +85,14 @@ public class DeviceSyncSubmissionService {
     public Page<DeviceSyncSubmissionDto> list(String status, String search, int page, int size) {
         Specification<DeviceSyncSubmissionEntity> spec = Specification.where(null);
         if (!blank(status) && !"ALL".equalsIgnoreCase(status)) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status.toUpperCase(Locale.ROOT)));
+            if ("ATTENTION_REQUIRED".equalsIgnoreCase(status)) {
+                spec = spec.and((root, query, cb) -> root.get("status").in(
+                        "CORRECTION_REQUIRED",
+                        "PROCESSING_FAILED"
+                ));
+            } else {
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status.toUpperCase(Locale.ROOT)));
+            }
         }
         if (!blank(search)) {
             String term = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";

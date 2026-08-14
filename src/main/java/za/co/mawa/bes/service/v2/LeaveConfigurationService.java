@@ -414,6 +414,7 @@ public class LeaveConfigurationService {
         }
         LeaveProfileEntity defaultProfile = profileRepository
                 .findFirstByDefaultProfileTrueAndActiveTrueAndActiveFromLessThanEqualAndActiveToGreaterThanEqual(onDate, onDate)
+                .or(() -> profileRepository.findFirstByDefaultProfileTrueAndActiveTrueOrderByActiveFromAsc())
                 .orElseThrow(() -> new IllegalStateException("No active default leave profile is configured"));
         return new ResolvedProfile(defaultProfile, "DEFAULT", null);
     }

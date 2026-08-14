@@ -94,6 +94,35 @@ public class ManualReceiptBookService {
         return book;
     }
 
+    /**
+     * Resolves the active receipt book from the captured receipt number.  Manual
+     * capture must not rely on a user selecting the book because that permits a
+     * perfectly valid receipt number to be posted against the wrong book.
+     */
+    @Transactional(readOnly = true)
+    public ManualReceiptBookEntity requireActiveBookForReceipt(String receiptNo) {
+        BigInteger number = parseNumber(receiptNo, "manualReceiptNo");
+        LocalDate today = LocalDate.now();
+        List<ManualReceiptBookEntity> matches = repository.findByActiveTrueOrderByReceiptBookNoAsc().stream()
+                .filter(book -> "ACTIVE".equalsIgnoreCase(book.getStatus()))
+                .filter(book -> book.getEffectiveFrom() == null || !book.getEffectiveFrom().isAfter(today))
+                .filter(book -> book.getEffectiveTo() == null || !book.getEffectiveTo().isBefore(today))
+                .filter(book -> isWithinConfiguredRange(book, number))
+                .toList();
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No active manual receipt book contains receipt number " + receiptNo.trim());
+        }
+        if (matches.size() > 1) {
+            String books = matches.stream().map(ManualReceiptBookEntity::getReceiptBookNo)
+                    .reduce((left, right) -> left + ", " + right).orElse("");
+            throw new IllegalStateException(
+                    "Receipt number " + receiptNo.trim() + " matches more than one active receipt book ("
+                            + books + "). Correct the configured receipt ranges before capturing it");
+        }
+        return matches.get(0);
+    }
+
     @Transactional(readOnly = true)
     public ManualReceiptBookEntity requireActiveBookForRange(String receiptBookNo, String fromReceiptNo, String toReceiptNo) {
         ManualReceiptBookEntity book = requireActiveBook(receiptBookNo);
@@ -236,6 +265,15 @@ public class ManualReceiptBookService {
     private ManualReceiptBookEntity require(String id) {
         return repository.findById(requireText(id, "Manual receipt book id is required"))
                 .orElseThrow(() -> new IllegalArgumentException("Manual receipt book was not found: " + id));
+    }
+
+    private boolean isWithinConfiguredRange(ManualReceiptBookEntity book, BigInteger number) {
+        if (!StringUtils.hasText(book.getReceiptFromNo()) || !StringUtils.hasText(book.getReceiptToNo())) {
+            return false;
+        }
+        BigInteger from = new BigInteger(book.getReceiptFromNo());
+        BigInteger to = new BigInteger(book.getReceiptToNo());
+        return number.compareTo(from) >= 0 && number.compareTo(to) <= 0;
     }
 
     private void validateWithinConfiguredRange(ManualReceiptBookEntity book, BigInteger number, String label) {

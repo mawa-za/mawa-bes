@@ -40,8 +40,20 @@ public class FuneralServiceEntity {
     @Column(name = "package_id", nullable = false)
     private String packageId;
 
-    @Column(name = "family_rep_id", nullable = false)
+    @Column(name = "family_rep_id")
     private String familyRepId;
+
+    @Column(name = "family_rep_names")
+    private String familyRepNames;
+
+    @Column(name = "family_rep_surname")
+    private String familyRepSurname;
+
+    @Column(name = "family_rep_contact_details", length = 500)
+    private String familyRepContactDetails;
+
+    @Column(name = "date_of_death")
+    private LocalDate dateOfDeath;
 
     @Column(name = "funeral_date")
     private LocalDate funeralDate;

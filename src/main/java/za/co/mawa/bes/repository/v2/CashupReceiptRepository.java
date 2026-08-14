@@ -11,5 +11,9 @@ public interface CashupReceiptRepository extends JpaRepository<CashupReceiptEnti
 
     boolean existsByCashupIdAndReceiptId(String cashupId, String receiptId);
 
+    List<CashupReceiptEntity> findByReceiptId(String receiptId);
+
+    List<CashupReceiptEntity> findByReceiptNo(Long receiptNo);
+
     void deleteByCashupId(String cashupId);
 }

@@ -60,6 +60,7 @@ public class WebSecurityConfig {
             "/authenticate",
             "/v2/authenticate",
             "/v2/membership/master-data/**",
+            "/v2/inbox/counts",
             "/v2/company-logo/content"
             // other public endpoints of your API may be appended to this array
     };
