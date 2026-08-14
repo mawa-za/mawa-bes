@@ -16,6 +16,8 @@ import za.co.mawa.bes.repository.v2.ReceiptRepository;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -118,6 +120,69 @@ public class OnlineCashupService {
         cashupPaymentSummaryRepository.save(summary);
     }
 
+    @Transactional
+    public void removeReceipts(Collection<ReceiptEntity> receipts, String actor) {
+        if (receipts == null || receipts.isEmpty()) return;
+
+        Map<String, CashupEntity> affectedCashups = new LinkedHashMap<>();
+        Map<String, CashupReceiptEntity> linksById = new LinkedHashMap<>();
+        for (ReceiptEntity receipt : receipts) {
+            if (receipt == null || receipt.getId() == null) continue;
+            for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(receipt.getId())) {
+                linksById.put(link.getId(), link);
+            }
+            Long numericReceiptNo = numericReceiptNo(receipt.getReceiptNo());
+            if (numericReceiptNo != null) {
+                for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptNo(numericReceiptNo)) {
+                    linksById.put(link.getId(), link);
+                }
+            }
+        }
+        List<CashupReceiptEntity> links = List.copyOf(linksById.values());
+
+        if (links.isEmpty()) {
+            throw new IllegalStateException("The payment is not linked to an open cash-up");
+        }
+
+        for (CashupReceiptEntity link : links) {
+            CashupEntity cashup = link.getCashup();
+            if (cashup == null || !STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())) {
+                throw new IllegalStateException("Premium payments can only be deleted while every linked cash-up is OPEN");
+            }
+            affectedCashups.put(cashup.getId(), cashup);
+        }
+
+        cashupReceiptRepository.deleteAll(links);
+        cashupReceiptRepository.flush();
+
+        String user = firstNonBlank(actor, DEFAULT_USER);
+        for (CashupEntity cashup : affectedCashups.values()) {
+            List<CashupReceiptEntity> remaining = cashupReceiptRepository.findByCashupId(cashup.getId());
+            long total = remaining.stream().mapToLong(item -> value(item.getAmountCents())).sum();
+            cashup.setTotalCents(total);
+            cashup.setReceiptCount(remaining.size());
+            cashup.setUpdatedBy(user);
+            cashupRepository.save(cashup);
+
+            cashupPaymentSummaryRepository.deleteByCashupId(cashup.getId());
+            cashupPaymentSummaryRepository.flush();
+            Map<String, List<CashupReceiptEntity>> byMethod = remaining.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(
+                            item -> firstNonBlank(item.getPaymentMethod(), "OTHER").toUpperCase(Locale.ROOT),
+                            LinkedHashMap::new,
+                            java.util.stream.Collectors.toList()));
+            for (Map.Entry<String, List<CashupReceiptEntity>> entry : byMethod.entrySet()) {
+                CashupPaymentSummaryEntity summary = new CashupPaymentSummaryEntity();
+                summary.setCashup(cashup);
+                summary.setPaymentMethod(entry.getKey());
+                summary.setAmountCents(entry.getValue().stream()
+                        .mapToLong(item -> value(item.getAmountCents())).sum());
+                summary.setPaymentCount(entry.getValue().size());
+                cashupPaymentSummaryRepository.save(summary);
+            }
+        }
+    }
+
     private CashupEntity createCashup(String device, String user) {
         CashupEntity cashup = new CashupEntity();
         cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
@@ -132,6 +197,17 @@ public class OnlineCashupService {
         cashup.setDepositTotalCents(0L);
         cashup.setDepositCount(0);
         return cashupRepository.save(cashup);
+    }
+
+    private static Long numericReceiptNo(String receiptNo) {
+        if (receiptNo == null || receiptNo.isBlank()) return null;
+        String digits = receiptNo.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return null;
+        try {
+            return Long.valueOf(digits);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static long value(Long amount) {

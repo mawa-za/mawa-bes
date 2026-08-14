@@ -30,7 +30,7 @@ public class FuneralServiceInvoiceEntity {
     @Column(name = "entity_type", nullable = false)
     private String entityType;
 
-    @Column(name = "partner_id", nullable = false)
+    @Column(name = "partner_id")
     private String partnerId;
 
     @Column(name = "membership_claim_id")

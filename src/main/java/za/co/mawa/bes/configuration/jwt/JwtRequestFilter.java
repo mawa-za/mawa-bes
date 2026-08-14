@@ -19,8 +19,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
+import za.co.mawa.bes.configuration.security.model.JwtClaim;
 import za.co.mawa.bes.service.JwtUserDetailsService;
-import za.co.mawa.bes.service.UserService;
 
 import java.io.IOException;
 import java.util.Date;
@@ -36,9 +36,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
-
-    @Autowired
-    private UserService userService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -70,12 +67,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String jwtToken = authHeader.substring(7);
 
-                String username = jwtTokenUtil.getUsernameFromToken(jwtToken);
-                String tenantId = jwtTokenUtil.getTenantIdFromToken(jwtToken);
+                Claims tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
+                String username = tokenClaims.getSubject();
+                String tenantId = tokenClaims.get(JwtClaim.TENANT_ID.getValue(), String.class);
 
                 TenantContext.setCurrentTenant(tenantId);
                 UserContext.setCurrentUser(username);
-                Claims tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
                 boolean platformSession = Boolean.TRUE.equals(tokenClaims.get("platform_session", Boolean.class));
                 UserContext.setPlatformSession(platformSession);
                 if (platformSession) {
@@ -98,14 +95,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 }
 
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
-                    za.co.mawa.bes.entity.UserEntity authenticatedUser =
-                            userService.getUserEntityByName(username);
+                    JwtUserDetailsService.AccessTokenUser accessTokenUser =
+                            jwtUserDetailsService.loadAccessTokenUser(username);
+                    UserDetails userDetails = accessTokenUser.userDetails();
 
-                    if (jwtTokenUtil.validateAccessToken(jwtToken, userDetails)
+                    if (jwtTokenUtil.validateAccessToken(tokenClaims, userDetails)
                             && jwtTokenUtil.isIssuedAfterPasswordChange(
-                                    jwtToken,
-                                    authenticatedUser == null ? null : authenticatedUser.getPasswordChangedAt()
+                                    tokenClaims,
+                                    accessTokenUser.passwordChangedAt()
                             )) {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
@@ -119,13 +116,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         );
 
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                        try {
-                            UserContext.setCurrentUserPartner(userService.getCurrentUserPartnerId());
-                            UserContext.setCurrentUserId(userService.getCurrentUserId());
-                        } catch (Exception e) {
-                            log.warn("Unable to resolve partner for user {}", username, e);
-                        }
+                        UserContext.setCurrentUserPartner(accessTokenUser.partnerId());
+                        UserContext.setCurrentUserId(accessTokenUser.userId());
                     }
                 }
             }

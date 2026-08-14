@@ -468,8 +468,11 @@ public class FuneralClaimSettlementService {
     }
 
     private long approvedAmount(Map<String, Object> claim) {
-        long approved = number(claim.get("approved_amount_cents"));
-        return approved > 0 ? approved : number(claim.get("claim_amount_cents"));
+        Object approvedValue = claim.get("approved_amount_cents");
+        if (approvedValue != null) {
+            return Math.max(0L, number(approvedValue));
+        }
+        return Math.max(0L, number(claim.get("claim_amount_cents")));
     }
 
     private long number(Object value) {

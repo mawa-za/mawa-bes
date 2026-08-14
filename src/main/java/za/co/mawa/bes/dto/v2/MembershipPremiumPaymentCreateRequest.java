@@ -15,6 +15,12 @@ public class MembershipPremiumPaymentCreateRequest {
 
     private Long amountCents;
 
+    /**
+     * Explicit premium period selected by the ERP user when more than one
+     * outstanding premium exists. Uses YYYYMM format.
+     */
+    private String periodYYYYMM;
+
     private LocalDateTime paymentDate;
 
     private String location;

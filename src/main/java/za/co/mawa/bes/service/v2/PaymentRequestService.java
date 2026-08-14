@@ -167,9 +167,9 @@ public class PaymentRequestService {
             throw new IllegalArgumentException("Payout method is required before approving a " + claimLabel + " claim");
         }
 
-        long payoutAmountCents = claim.getApprovedAmountCents() != null && claim.getApprovedAmountCents() > 0
-                ? claim.getApprovedAmountCents()
-                : (claim.getClaimAmountCents() == null ? 0L : claim.getClaimAmountCents());
+        long payoutAmountCents = claim.getApprovedAmountCents() != null
+                ? Math.max(0L, claim.getApprovedAmountCents())
+                : (claim.getClaimAmountCents() == null ? 0L : Math.max(0L, claim.getClaimAmountCents()));
         if (payoutAmountCents <= 0) {
             throw new IllegalArgumentException("Approved " + claimLabel + " claim amount must be greater than zero");
         }
@@ -289,6 +289,9 @@ public class PaymentRequestService {
             throw new IllegalArgumentException("Recipient selection is only available for manually creatable payment request types");
         }
         String q = query == null ? "" : query.trim();
+        if (type == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
+            return java.util.List.of();
+        }
         if (type == PaymentRequestType.SUPPLIER_INVOICE) {
             return jdbcTemplate.queryForList("""
                 SELECT DISTINCT
@@ -386,7 +389,7 @@ public class PaymentRequestService {
     }
 
     public List<PaymentRequestResponse> getAll() {
-        return paymentRequestRepository.findAll().stream().map(this::toResponse).toList();
+        return paymentRequestRepository.findAllByOrderByCreatedAtDesc().stream().map(this::toResponse).toList();
     }
 
     public PaymentRequestResponse getById(String id) {
@@ -901,7 +904,19 @@ public class PaymentRequestService {
             request.setPaymentMethod(PaymentMethod.EFT);
         } else if (request.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT) {
             var creditor = paymentAccountConfigurationService.activeCreditor("PETTY_CASH_CREDITOR");
-            if (creditor.isPresent()) applyCreditor(request, creditor.get()); else request.setPaymentMethod(PaymentMethod.MANUAL);
+            request.setPayeePartnerId(null);
+            request.setPayeeName("Petty Cash");
+            if (creditor.isPresent()) {
+                java.util.Map<String, Object> account = creditor.get();
+                request.setPayeeName(java.util.Objects.toString(account.get("account_holder"), "Petty Cash"));
+                String configuredPartnerId = java.util.Objects.toString(account.get("partner_id"), null);
+                request.setPayeePartnerId(
+                        configuredPartnerId == null || configuredPartnerId.isBlank() ? null : configuredPartnerId
+                );
+                applyCreditor(request, account);
+            } else {
+                request.setPaymentMethod(PaymentMethod.MANUAL);
+            }
         }
         var debtor = paymentAccountConfigurationService.activeDebtor(request.getRequestType().name());
         if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {

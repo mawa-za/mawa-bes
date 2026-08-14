@@ -90,7 +90,7 @@ public class MembershipService {
     }
 
     public Page<MembershipEntity> getAllMemberships(String status, Pageable pageable) {
-        return getMembershipsByMemberId(null, status, pageable);
+        return getMembershipsByMemberId(null, null, status, pageable);
     }
 
     public Page<MembershipResponseDto> getAllMembershipResponses(String status, Pageable pageable) {
@@ -99,29 +99,33 @@ public class MembershipService {
 
     public Page<MembershipResponseDto> getMembershipResponsesByMemberId(
             List<String> memberIds,
+            String searchQuery,
             String status,
             Pageable pageable
     ) {
-        return enrichMembershipPage(getMembershipsByMemberId(memberIds, status, pageable));
+        return enrichMembershipPage(getMembershipsByMemberId(memberIds, searchQuery, status, pageable));
     }
 
     public Page<MembershipEntity> getMembershipsByMemberId(
             List<String> memberIds,
+            String searchQuery,
             String status,
             Pageable pageable
     ) {
         Specification<MembershipEntity> spec = (root, queryObj, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Add query filter (if provided)
-//            if (query != null && !query.isEmpty()) {
-//                predicates.add(
-//                        criteriaBuilder.like(root.get("membershipNo"), "%" + query + "%")
-//                );
-//            }
-
-            // Add memberId filters (if provided)
-            if (memberIds != null && !memberIds.isEmpty()) {
+            String normalizedQuery = searchQuery == null ? "" : searchQuery.trim();
+            boolean hasMemberIds = memberIds != null && !memberIds.isEmpty();
+            if (!normalizedQuery.isEmpty()) {
+                Predicate membershipNumberMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("membershipNo")),
+                        "%" + normalizedQuery.toLowerCase() + "%"
+                );
+                predicates.add(hasMemberIds
+                        ? criteriaBuilder.or(membershipNumberMatch, root.get("memberId").in(memberIds))
+                        : membershipNumberMatch);
+            } else if (hasMemberIds) {
                 predicates.add(root.get("memberId").in(memberIds));
             }
             if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {

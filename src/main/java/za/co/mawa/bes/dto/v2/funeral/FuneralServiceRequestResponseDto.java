@@ -18,6 +18,10 @@ public class FuneralServiceRequestResponseDto {
     private String deceasedPartnerId;
     private String packageId;
     private String familyRepId;
+    private String familyRepresentativeNames;
+    private String familyRepresentativeSurname;
+    private String familyRepresentativeContactDetails;
+    private LocalDate dateOfDeath;
     private LocalDate funeralDate;
     private String funeralArea;
     private String deceasedDeliveryDirections;

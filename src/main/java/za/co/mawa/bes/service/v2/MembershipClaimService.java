@@ -26,6 +26,7 @@ import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,6 +51,7 @@ public class MembershipClaimService {
     private final ClaimTypeConfigurationService claimTypeConfigurationService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final UniversalBranchCodeService universalBranchCodeService;
+    private final MembershipLapseService membershipLapseService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
@@ -64,7 +66,8 @@ public class MembershipClaimService {
             MembershipPlanClaimPayoutService membershipPlanClaimPayoutService,
             ClaimTypeConfigurationService claimTypeConfigurationService,
             ReferenceDataValidationService referenceDataValidationService,
-            UniversalBranchCodeService universalBranchCodeService
+            UniversalBranchCodeService universalBranchCodeService,
+            MembershipLapseService membershipLapseService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
@@ -79,12 +82,16 @@ public class MembershipClaimService {
         this.claimTypeConfigurationService = claimTypeConfigurationService;
         this.referenceDataValidationService = referenceDataValidationService;
         this.universalBranchCodeService = universalBranchCodeService;
+        this.membershipLapseService = membershipLapseService;
     }
 
     @Transactional
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
         validateCreateRequest(request);
         claimTypeConfigurationService.requireEnabled(request.getClaimType());
+        if (request.getClaimType() == MembershipClaimType.CASH && Boolean.TRUE.equals(request.getSubmit())) {
+            throw new IllegalArgumentException("CASH claims must be saved as DRAFT, the claim form downloaded, signed and attached before submission");
+        }
         String causeOfDeath = referenceDataValidationService.optionalOption(
                 "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death");
 
@@ -97,6 +104,23 @@ public class MembershipClaimService {
                 request.getDeceasedType(),
                 request.getDeceasedPartnerId()
         );
+
+        boolean previouslyApproved = claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndApprovedAtIsNotNull(
+                request.getMembershipId(),
+                request.getDeceasedPartnerId())
+                || claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
+                        request.getMembershipId(),
+                        request.getDeceasedPartnerId(),
+                        List.of(
+                                MembershipClaimStatus.APPROVED,
+                                MembershipClaimStatus.PAYMENT_PENDING,
+                                MembershipClaimStatus.PAYMENT_PROCESSING,
+                                MembershipClaimStatus.PAYMENT_FAILED,
+                                MembershipClaimStatus.PAID));
+        if (previouslyApproved) {
+            throw new IllegalStateException(
+                    "An approved claim already exists for this member/dependent on the selected membership.");
+        }
 
         MembershipClaimEntity entity = new MembershipClaimEntity();
         entity.setClaimNo(generateMembershipClaimNo());
@@ -146,7 +170,8 @@ public class MembershipClaimService {
         MembershipClaimEntity saved = claimRepository.save(entity);
         markDeceasedOnMembership(saved, userId);
 
-        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED) {
+        if (saved.getStatus() == MembershipClaimStatus.SUBMITTED
+                && saved.getClaimType() != MembershipClaimType.CASH) {
             claimFormGenerationService.generateForSubmittedClaim(saved.getId());
         }
 
@@ -295,6 +320,21 @@ public class MembershipClaimService {
     }
 
     @Transactional
+    public MembershipClaimResponse recordClaimFormDownload(String id, String userId) {
+        MembershipClaimEntity entity = getClaimEntity(id);
+        if (entity.getClaimType() != MembershipClaimType.CASH) {
+            return toResponse(entity);
+        }
+        if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
+            throw new IllegalArgumentException("The CASH claim form can only be generated while the claim is DRAFT");
+        }
+        entity.setClaimFormDownloadCount((entity.getClaimFormDownloadCount() == null ? 0 : entity.getClaimFormDownloadCount()) + 1);
+        entity.setClaimFormDownloadedAt(LocalDateTime.now());
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
+    }
+
+    @Transactional
     public MembershipClaimResponse submit(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
 
@@ -305,14 +345,54 @@ public class MembershipClaimService {
         if (entity.getClaimType() == MembershipClaimType.COMBINATION) {
             validateCombinationReadyForSubmit(entity);
         }
+        if (entity.getClaimType() == MembershipClaimType.CASH
+                && (entity.getClaimFormDownloadCount() == null || entity.getClaimFormDownloadCount() < 1)) {
+            throw new IllegalArgumentException("Download the generated claim form at least once before submitting this CASH claim");
+        }
 
         entity.setStatus(MembershipClaimStatus.SUBMITTED);
         entity.setUpdatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
-        claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        if (saved.getClaimType() != MembershipClaimType.CASH) {
+            claimFormGenerationService.generateForSubmittedClaim(saved.getId());
+        }
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
+    }
+
+    @Transactional
+    public MembershipClaimResponse applyArrearsFineForApproval(
+            String id,
+            Integer monthsInArrears,
+            String userId
+    ) {
+        if (monthsInArrears == null) {
+            throw new IllegalArgumentException(
+                    "Specify the number of months the membership is in arrears before approving the claim"
+            );
+        }
+        if (monthsInArrears < 0) {
+            throw new IllegalArgumentException("Months in arrears cannot be negative");
+        }
+        if (monthsInArrears >= 3) {
+            throw new IllegalArgumentException(
+                    "Membership has lapsed at 3 months in arrears and the claim cannot be approved"
+            );
+        }
+
+        MembershipClaimEntity entity = getClaimEntity(id);
+        long grossAmount = entity.getClaimAmountCents() == null
+                ? 0L
+                : Math.max(0L, entity.getClaimAmountCents());
+        long configuredFine = membershipLapseService.claimArrearsFineCents(monthsInArrears);
+        long appliedFine = Math.min(grossAmount, Math.max(0L, configuredFine));
+
+        entity.setArrearsMonths(monthsInArrears);
+        entity.setArrearsFineCents(appliedFine);
+        entity.setApprovedAmountCents(grossAmount - appliedFine);
+        entity.setUpdatedBy(userId);
+        return toResponse(claimRepository.save(entity));
     }
 
     @Transactional
@@ -326,7 +406,7 @@ public class MembershipClaimService {
         entity.setStatus(entity.getClaimType() == MembershipClaimType.CASH
                 ? MembershipClaimStatus.PAYMENT_PENDING
                 : MembershipClaimStatus.APPROVED);
-        if (entity.getApprovedAmountCents() == null || entity.getApprovedAmountCents() <= 0) {
+        if (entity.getApprovedAmountCents() == null) {
             entity.setApprovedAmountCents(entity.getClaimAmountCents() == null ? 0L : entity.getClaimAmountCents());
         }
         entity.setApprovedBy(userId);
@@ -839,6 +919,8 @@ public class MembershipClaimService {
                 .setClaimantPartnerId(entity.getClaimantPartnerId())
                 .setClaimAmountCents(entity.getClaimAmountCents())
                 .setApprovedAmountCents(resolveApprovedAmount(entity))
+                .setArrearsMonths(entity.getArrearsMonths())
+                .setArrearsFineCents(entity.getArrearsFineCents() == null ? 0L : entity.getArrearsFineCents())
                 .setCombinedClaimAmountCents(entity.getClaimAmountCents() + linkedTotal)
                 .setStatus(entity.getStatus())
                 .setRejectionReason(entity.getRejectionReason())
@@ -863,7 +945,9 @@ public class MembershipClaimService {
                 .setAccountHolderName(entity.getAccountHolderName())
                 .setAccountNumber(entity.getAccountNumber())
                 .setBranchCode(entity.getBranchCode())
-                .setAccountType(entity.getAccountType());
+                .setAccountType(entity.getAccountType())
+                .setClaimFormDownloadCount(entity.getClaimFormDownloadCount())
+                .setClaimFormDownloadedAt(entity.getClaimFormDownloadedAt());
 
     }
     private String coveragePlanName(String planId) {

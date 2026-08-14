@@ -69,6 +69,12 @@ public class MembershipClaimEntity {
     @Column(name = "approved_amount_cents")
     private Long approvedAmountCents;
 
+    @Column(name = "arrears_months")
+    private Integer arrearsMonths;
+
+    @Column(name = "arrears_fine_cents", nullable = false)
+    private Long arrearsFineCents = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private MembershipClaimStatus status = MembershipClaimStatus.DRAFT;
@@ -138,6 +144,13 @@ public class MembershipClaimEntity {
     @Column(name = "account_type", length = 30)
     private BankAccountType accountType;
 
+    @Builder.Default
+    @Column(name = "claim_form_download_count", nullable = false)
+    private Integer claimFormDownloadCount = 0;
+
+    @Column(name = "claim_form_downloaded_at")
+    private LocalDateTime claimFormDownloadedAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -152,6 +165,14 @@ public class MembershipClaimEntity {
 
         if (this.claimAmountCents == null) {
             this.claimAmountCents = 0L;
+        }
+
+        if (this.arrearsFineCents == null) {
+            this.arrearsFineCents = 0L;
+        }
+
+        if (this.claimFormDownloadCount == null) {
+            this.claimFormDownloadCount = 0;
         }
     }
 
