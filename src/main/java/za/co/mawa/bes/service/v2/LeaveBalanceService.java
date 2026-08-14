@@ -302,6 +302,12 @@ public class LeaveBalanceService {
     private EmployeeLeaveLedgerEntity ledger(EmployeeLeaveBalanceEntity balance, String type, LocalDate date,
                                                BigDecimal amount, String referenceType, String referenceId,
                                                String description, String actor) {
+        if (hasText(referenceType) && hasText(referenceId)) {
+            Optional<EmployeeLeaveLedgerEntity> existing = ledgerRepository
+                    .findByEmploymentIdAndReferenceTypeAndReferenceIdAndTransactionType(
+                            balance.getEmploymentId(), referenceType, referenceId, type);
+            if (existing.isPresent()) return existing.get();
+        }
         EmployeeLeaveLedgerEntity entity = EmployeeLeaveLedgerEntity.builder()
                 .employeeLeaveBalanceId(balance.getId()).employmentId(balance.getEmploymentId())
                 .leaveTypeId(balance.getLeaveTypeId()).transactionType(type).transactionDate(date)
