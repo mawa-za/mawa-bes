@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface EmployeeLeaveLedgerRepository extends JpaRepository<EmployeeLeaveLedgerEntity, String> {
     List<EmployeeLeaveLedgerEntity> findByEmploymentIdOrderByTransactionDateDescCreatedAtDesc(String employmentId);
     Optional<EmployeeLeaveLedgerEntity> findByReferenceTypeAndReferenceIdAndTransactionType(String referenceType, String referenceId, String transactionType);
+    Optional<EmployeeLeaveLedgerEntity> findByEmploymentIdAndReferenceTypeAndReferenceIdAndTransactionType(
+            String employmentId, String referenceType, String referenceId, String transactionType);
 }
