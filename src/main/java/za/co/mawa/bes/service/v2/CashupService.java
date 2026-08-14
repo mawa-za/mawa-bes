@@ -252,7 +252,7 @@ public class CashupService {
         validateManualCashupRequest(request);
 
         var receiptBook = manualReceiptBookService.requireActiveBookForRange(
-                request.getReceiptBookNo(), request.getReceiptFromNo(), request.getReceiptToNo());
+                request.getReceiptFromNo(), request.getReceiptToNo());
         var bookUsage = manualReceiptBookService.validateBookUsage(
                 receiptBook, request.getEmployeeResponsibleId(), request.getAreaCode());
         String receiptBookNo = receiptBook.getReceiptBookNo();
@@ -814,7 +814,6 @@ public class CashupService {
 
     private void validateManualCashupRequest(ManualCashupCreateRequest request) {
         if (request == null) throw new IllegalArgumentException("Manual cashup request is required");
-        if (clean(request.getReceiptBookNo()) == null) throw new IllegalArgumentException("receiptBookNo is required");
         if (clean(request.getReceiptFromNo()) == null) throw new IllegalArgumentException("receiptFromNo is required");
         if (clean(request.getReceiptToNo()) == null) throw new IllegalArgumentException("receiptToNo is required");
         if (clean(request.getUserId()) == null) throw new IllegalArgumentException("userId is required");

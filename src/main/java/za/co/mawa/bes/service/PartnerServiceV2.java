@@ -249,46 +249,44 @@ public class PartnerServiceV2 {
         return partnerIdentityServiceV2.exists(identityType, identityNumber);
     }
 
+    @Transactional
     public void edit(PartnerEditDto partnerEditDto) {
-
-        try {
-            PartnerEntity partner = partnerRepository.getById(partnerEditDto.getId());
-            if (partner != null) {
-                if (partnerEditDto.getName1() != null) {
-                    partner.setName1(partnerEditDto.getName1().toUpperCase());
-                }
-                if (partnerEditDto.getName2() != null) {
-                    partner.setName2(partnerEditDto.getName2().toUpperCase());
-                }
-
-                if (partnerEditDto.getName3() != null) {
-                    partner.setName3(partnerEditDto.getName3().toUpperCase());
-                }
-                if (partnerEditDto.getBirthDate() != null) {
-                    partner.setBirthDate(partnerEditDto.getBirthDate());
-                }
-                if (partnerEditDto.getGender() != null) {
-                    partner.setGender(partnerEditDto.getGender());
-                }
-                if (partnerEditDto.getLanguage() != null) {
-                    partner.setLanguage(partnerEditDto.getLanguage());
-                }
-                if (partnerEditDto.getMaritalStatus() != null) {
-                    partner.setMaritalStatus(partnerEditDto.getMaritalStatus());
-                }
-                if (partnerEditDto.getTitle() != null) {
-                    partner.setTitle(partnerEditDto.getTitle());
-                }
-                if (partnerEditDto.getStatus() != null) {
-                    partner.setStatus(partnerEditDto.getStatus());
-                }
-                partnerRepository.save(partner);
-            } else {
-            }
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (partnerEditDto == null || !hasText(partnerEditDto.getId())) {
+            throw new IllegalArgumentException("Partner id is required");
         }
+
+        PartnerEntity partner = partnerRepository.findById(partnerEditDto.getId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Partner was not found: " + partnerEditDto.getId()));
+
+        if (partnerEditDto.getName1() != null) {
+            partner.setName1(partnerEditDto.getName1().trim().toUpperCase());
+        }
+        if (partnerEditDto.getName2() != null) {
+            partner.setName2(partnerEditDto.getName2().trim().toUpperCase());
+        }
+        if (partnerEditDto.getName3() != null) {
+            partner.setName3(partnerEditDto.getName3().trim().toUpperCase());
+        }
+        if (partnerEditDto.getBirthDate() != null) {
+            partner.setBirthDate(partnerEditDto.getBirthDate());
+        }
+        if (partnerEditDto.getGender() != null) {
+            partner.setGender(partnerEditDto.getGender());
+        }
+        if (partnerEditDto.getLanguage() != null) {
+            partner.setLanguage(partnerEditDto.getLanguage());
+        }
+        if (partnerEditDto.getMaritalStatus() != null) {
+            partner.setMaritalStatus(partnerEditDto.getMaritalStatus());
+        }
+        if (partnerEditDto.getTitle() != null) {
+            partner.setTitle(partnerEditDto.getTitle());
+        }
+        if (partnerEditDto.getStatus() != null) {
+            partner.setStatus(partnerEditDto.getStatus());
+        }
+        partnerRepository.saveAndFlush(partner);
     }
 
     public PartnerDto get(String id) throws PartnerNotFoundException {

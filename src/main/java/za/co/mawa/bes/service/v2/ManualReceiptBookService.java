@@ -17,6 +17,7 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -132,6 +133,28 @@ public class ManualReceiptBookService {
         validateWithinConfiguredRange(book, from, "receiptFromNo");
         validateWithinConfiguredRange(book, to, "receiptToNo");
         return book;
+    }
+
+    /**
+     * Resolves a manual receipt book from the entered range. Both ends of the
+     * range must resolve to the same active book, so callers never need to ask
+     * the operator to select a book manually.
+     */
+    @Transactional(readOnly = true)
+    public ManualReceiptBookEntity requireActiveBookForRange(String fromReceiptNo, String toReceiptNo) {
+        BigInteger from = parseNumber(fromReceiptNo, "receiptFromNo");
+        BigInteger to = parseNumber(toReceiptNo, "receiptToNo");
+        if (from.compareTo(to) > 0) {
+            throw new IllegalArgumentException("receiptFromNo cannot be greater than receiptToNo");
+        }
+
+        ManualReceiptBookEntity fromBook = requireActiveBookForReceipt(fromReceiptNo);
+        ManualReceiptBookEntity toBook = requireActiveBookForReceipt(toReceiptNo);
+        if (!Objects.equals(fromBook.getId(), toBook.getId())) {
+            throw new IllegalArgumentException(
+                    "Receipt From and Receipt To must belong to the same active receipt book");
+        }
+        return fromBook;
     }
 
     @Transactional(readOnly = true)
