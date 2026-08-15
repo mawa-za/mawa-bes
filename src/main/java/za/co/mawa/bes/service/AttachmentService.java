@@ -120,7 +120,10 @@ public class AttachmentService implements AttachmentDao {
     public AttachmentOutboundDto getDocumentByType(AttachmentInboundDto attachmentInboundDto) throws DoesNotExist {
         AttachmentEntity attachmentEntity = null;
         for (String candidateObjectId : legacyAttachmentObjectIdResolver.resolveObjectIds(attachmentInboundDto.getObjectId())) {
-            attachmentEntity = attachmentRepository.findByObjectDocumentType(candidateObjectId, attachmentInboundDto.getDocumentType());
+            attachmentEntity = attachmentRepository
+                    .findFirstByObjectIdAndDocumentTypeOrderByUploadDateDescUploadTimeDescIdDesc(
+                            candidateObjectId, attachmentInboundDto.getDocumentType())
+                    .orElse(null);
             if (attachmentEntity != null) {
                 break;
             }
