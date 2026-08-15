@@ -32,7 +32,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class CompanyPdfBrandingService {
-    private static final float PDFBOX_HEADER_HEIGHT = 62f;
+    private static final float PDFBOX_HEADER_HEIGHT = 82f;
 
     private final CompanyInfoService companyInfoService;
     private final CompanyLogoService companyLogoService;
@@ -80,8 +80,12 @@ public class CompanyPdfBrandingService {
             try {
                 PDImageXObject image = PDImageXObject.createFromByteArray(
                         document, logo.get().getContent(), "company-logo");
-                content.drawImage(image, left, topY - CompanyLogoService.PDF_HEIGHT_PT,
-                        CompanyLogoService.PDF_WIDTH_PT, CompanyLogoService.PDF_HEIGHT_PT);
+                float scale = Math.min(
+                        CompanyLogoService.PDF_WIDTH_PT / image.getWidth(),
+                        CompanyLogoService.PDF_HEIGHT_PT / image.getHeight());
+                float width = image.getWidth() * scale;
+                float height = image.getHeight() * scale;
+                content.drawImage(image, left, topY - height, width, height);
             } catch (Exception ignored) {
                 // Continue with textual branding if the stored image cannot be decoded.
             }
