@@ -355,6 +355,20 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @PostMapping(value = "/service-request/{id}/claims/submit-for-approval")
+    public ResponseEntity<?> submitClaimsForApproval(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    ) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.submitClaimsForApproval(id, userId));
+        } catch (Exception exception) {
+            log.warn("Unable to submit funeral service {} claims for approval: {}",
+                    id, exception.getMessage(), exception);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PostMapping(value = "/invoice-preview", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> previewInvoice(@RequestBody FuneralInvoicePreviewRequestDto request) {
         try {
