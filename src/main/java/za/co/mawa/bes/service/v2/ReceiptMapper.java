@@ -30,6 +30,8 @@ public class ReceiptMapper {
                 .syncStatus(receipt.getSyncStatus())
                 .printed(receipt.getPrinted())
                 .printCount(receipt.getPrintCount())
+                .externalReceiptNo(receipt.getExternalReceiptNo())
+                .legacyPremiumPaymentId(receipt.getLegacyPremiumPaymentId())
                 .captureSource(receipt.getCaptureSource())
                 .manualReceiptBookNo(receipt.getManualReceiptBookNo())
                 .manualReceiptNo(receipt.getManualReceiptNo())

@@ -297,9 +297,15 @@ public class MembershipPremiumPaymentService {
             throw new IllegalStateException("Only POSTED premium payments can be transferred");
         }
 
-        ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository.findByPaymentBatchId(paymentBatchId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Only manually captured premium payments can be transferred"));
+        ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository
+                .findByPaymentBatchId(paymentBatchId)
+                .orElse(null);
+        List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
+        boolean migratedLegacyManualReceipt = isMigratedLegacyManualReceipt(batch, receipts);
+        if (manualReceipt == null && !migratedLegacyManualReceipt) {
+            throw new IllegalStateException(
+                    "Only manually captured premium payments can be transferred");
+        }
 
         String sourceMembershipId = batch.getMembershipId();
         String targetMembershipId = request.getTargetMembershipId().trim();
@@ -313,7 +319,6 @@ public class MembershipPremiumPaymentService {
         membershipService.getMembershipById(targetMembershipId)
                 .orElseThrow(() -> new IllegalArgumentException("Target membership not found: " + targetMembershipId));
 
-        List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
         if (receipts.isEmpty()) {
             throw new IllegalStateException("No receipts were found for this premium payment");
         }
@@ -390,9 +395,11 @@ public class MembershipPremiumPaymentService {
         batch.setUpdatedBy(actor);
         paymentBatchRepository.save(batch);
 
-        manualReceipt.setMembershipId(targetMembershipId);
-        manualReceipt.setNotes(appendNote(manualReceipt.getNotes(), auditNote));
-        manualPremiumReceiptRepository.save(manualReceipt);
+        if (manualReceipt != null) {
+            manualReceipt.setMembershipId(targetMembershipId);
+            manualReceipt.setNotes(appendNote(manualReceipt.getNotes(), auditNote));
+            manualPremiumReceiptRepository.save(manualReceipt);
+        }
 
         membershipService.recalculatePaidUpToPeriod(sourceMembershipId);
         String targetPaidUpTo = membershipService.recalculatePaidUpToPeriod(targetMembershipId);
@@ -413,6 +420,21 @@ public class MembershipPremiumPaymentService {
                 .paidUpToPeriod(targetPaidUpTo)
                 .receipts(responseReceipts)
                 .build();
+    }
+
+    private boolean isMigratedLegacyManualReceipt(
+            PaymentBatchEntity batch,
+            List<ReceiptEntity> receipts
+    ) {
+        if (batch == null || isBlank(batch.getLegacyPremiumPaymentId()) || receipts == null || receipts.isEmpty()) {
+            return false;
+        }
+        String legacyPaymentId = batch.getLegacyPremiumPaymentId().trim();
+        return receipts.stream().anyMatch(receipt ->
+                receipt != null
+                        && !isBlank(receipt.getLegacyPremiumPaymentId())
+                        && legacyPaymentId.equals(receipt.getLegacyPremiumPaymentId().trim())
+                        && !isBlank(receipt.getExternalReceiptNo()));
     }
 
     @Transactional
