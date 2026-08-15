@@ -31,7 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ExternalFuneralClaimApprovalService {
 
-    private static final String SIGNED_CLAIM_FORM = "CLAIM-FORM-SIGNED";
+    private static final String GENERATED_CLAIM_FORM = "CLAIM-FORM";
 
     private final JdbcTemplate jdbcTemplate;
     private final ApprovalService approvalService;
@@ -64,7 +64,7 @@ public class ExternalFuneralClaimApprovalService {
                     sourceTenantId,
                     request.getReferenceId(),
                     submission.providerAttachmentObjectIds());
-            requireSignedClaimForm(request.getReferenceId());
+            requireSupportingDocument(request.getReferenceId());
         }
 
         List<String> submittedClaimIds = new ArrayList<>();
@@ -259,15 +259,16 @@ public class ExternalFuneralClaimApprovalService {
         return null;
     }
 
-    private void requireSignedClaimForm(String claimId) {
-        Integer signedForms = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM attachment WHERE object_id = ? AND UPPER(document_type) = ?",
+    private void requireSupportingDocument(String claimId) {
+        Integer supportingDocuments = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM attachment WHERE object_id = ? "
+                        + "AND UPPER(COALESCE(document_type, '')) <> ?",
                 Integer.class,
                 claimId,
-                SIGNED_CLAIM_FORM);
-        if (signedForms == null || signedForms == 0) {
+                GENERATED_CLAIM_FORM);
+        if (supportingDocuments == null || supportingDocuments == 0) {
             throw new IllegalArgumentException(
-                    "Upload a signed claim form in Claim Documentation before submitting the funeral claims for approval");
+                    "Attach at least one supporting document in Claim Documentation before submitting the funeral claims for approval");
         }
     }
 
