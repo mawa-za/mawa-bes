@@ -39,6 +39,9 @@ public class ReceiptResponseDto {
     private Boolean printed;
     private Integer printCount;
     private String legacyPremiumPaymentId;
+    private String captureSource;
+    private String manualReceiptBookNo;
+    private String manualReceiptNo;
     private String notes;
     private LocalDateTime createdAt;
     private String createdBy;

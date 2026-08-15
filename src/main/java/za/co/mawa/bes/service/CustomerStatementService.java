@@ -32,7 +32,7 @@ import java.util.Map;
 public class CustomerStatementService {
     private final JdbcTemplate jdbcTemplate;
     private final PartnerRepository partnerRepository;
-    private final CompanyInfoService companyInfoService;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
 
     public Map<String, Object> generate(String partnerId, LocalDate fromDate, LocalDate toDate) {
         if (fromDate == null) fromDate = LocalDate.now().minusMonths(3).withDayOfMonth(1);
@@ -91,10 +91,9 @@ public class CustomerStatementService {
              Document document = new Document(pdf)) {
             PdfFont bold = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
             PdfFont regular = PdfFontFactory.createFont(StandardFonts.HELVETICA);
-            Table header = new Table(UnitValue.createPercentArray(new float[]{60, 40})).useAllAvailableWidth();
-            header.addCell(cell(companyInfoService.getCompanyName(), bold, 14, TextAlignment.LEFT));
-            header.addCell(cell("CUSTOMER STATEMENT", bold, 18, TextAlignment.RIGHT));
-            document.add(header);
+            companyPdfBrandingService.addITextHeader(document, regular, bold);
+            document.add(new Paragraph("CUSTOMER STATEMENT").setFont(bold).setFontSize(18)
+                    .setTextAlignment(TextAlignment.RIGHT).setMarginBottom(8));
             document.add(new Paragraph(statement.get("partnerName") + "  " + defaultString(statement.get("partnerNo"), ""))
                     .setFont(bold).setFontSize(11));
             document.add(new Paragraph("Period: " + statement.get("fromDate") + " to " + statement.get("toDate"))

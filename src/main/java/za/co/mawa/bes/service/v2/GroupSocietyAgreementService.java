@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.entity.v2.GroupSocietyEntity;
 import za.co.mawa.bes.repository.v2.GroupSocietyRepository;
+import za.co.mawa.bes.service.CompanyPdfBrandingService;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import java.util.*;
 public class GroupSocietyAgreementService {
     private final GroupSocietyRepository groupSocietyRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
 
     @Transactional
     public byte[] generate(String groupSocietyId) {
@@ -45,7 +47,8 @@ public class GroupSocietyAgreementService {
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                float y = 790;
+                float y = companyPdfBrandingService.drawPdfBoxHeader(
+                        document, content, regular, bold, 50, page.getMediaBox().getWidth() - 50, 790);
                 text(content, bold, 18, 50, y, "GROUP SOCIETY COVER AGREEMENT");
                 y -= 22;
                 text(content, regular, 9, 50, y, "Agreement generated " + LocalDate.now());

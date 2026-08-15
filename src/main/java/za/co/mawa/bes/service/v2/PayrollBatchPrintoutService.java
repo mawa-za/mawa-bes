@@ -14,6 +14,7 @@ import za.co.mawa.bes.entity.v2.PayrollPaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.PayrollPaymentItemEntity;
 import za.co.mawa.bes.repository.v2.PayrollPaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.PayrollPaymentItemRepository;
+import za.co.mawa.bes.service.CompanyPdfBrandingService;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ public class PayrollBatchPrintoutService {
     private final PayrollPaymentItemRepository itemRepository;
     private final PaymentAccountConfigurationService paymentAccountService;
     private final JdbcTemplate jdbcTemplate;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
 
     public byte[] generate(String batchId) {
         PayrollPaymentBatchEntity batch = batchRepository.findById(batchId)
@@ -41,7 +43,8 @@ public class PayrollBatchPrintoutService {
             PDPage page = new PDPage(landscapeA4());
             document.addPage(page);
             PDPageContentStream content = new PDPageContentStream(document, page);
-            float y = 560;
+            float y = companyPdfBrandingService.drawPdfBoxHeader(
+                    document, content, regular, bold, 35, page.getMediaBox().getWidth() - 35, 560);
             text(content, bold, 17, 35, y, "Payroll Payment Verification");
             y -= 22;
             text(content, regular, 9, 35, y, "Batch: " + safe(batch.getBatchNo())
@@ -68,7 +71,8 @@ public class PayrollBatchPrintoutService {
                     page = new PDPage(landscapeA4());
                     document.addPage(page);
                     content = new PDPageContentStream(document, page);
-                    y = 560;
+                    y = companyPdfBrandingService.drawPdfBoxHeader(
+                            document, content, regular, bold, 35, page.getMediaBox().getWidth() - 35, 560);
                     header(content, bold, y);
                     y -= 16;
                 }

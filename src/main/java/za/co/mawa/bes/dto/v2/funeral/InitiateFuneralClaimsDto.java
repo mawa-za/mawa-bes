@@ -56,12 +56,10 @@ public class InitiateFuneralClaimsDto {
     }
 
     public String getEffectiveClaimType(int selectedCoverCount) {
-        String value = claimType == null ? "" : claimType.trim().toUpperCase();
-        if ("COMBINATION".equals(value)) return "COMBINATION";
-        if ("FUNERAL".equals(value)) return "FUNERAL";
-        // Multiple funding memberships are still separate funeral-cover claims.
-        // COMBINATION is a benefit/claim type and must be requested explicitly;
-        // it must not be inferred from how many memberships are selected.
+        // A funeral funded by more than one membership cover is, by definition,
+        // a combination benefit. Do not allow an older client to force FUNERAL
+        // and accidentally pay the wrong plan benefit.
+        if (selectedCoverCount > 1) return "COMBINATION";
         return "FUNERAL";
     }
 

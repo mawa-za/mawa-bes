@@ -74,14 +74,22 @@ public class ApprovalService {
 
     @Transactional
     public ApprovalRequestResponse submitForApproval(ApprovalSubmitRequest request) {
-        approvalRequestRepository
-                .findByApprovalTypeAndReferenceId(request.getApprovalType(), request.getReferenceId())
-                .ifPresent(existing -> {
-                    throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
-                });
+        if (request.getApprovalType() != null && request.getApprovalType().isMembershipClaimApproval()) {
+            boolean existingClaimApproval = approvalRequestRepository.findByReferenceId(request.getReferenceId()).stream()
+                    .anyMatch(existing -> existing.getApprovalType() != null
+                            && existing.getApprovalType().isMembershipClaimApproval());
+            if (existingClaimApproval) {
+                throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
+            }
+        } else {
+            approvalRequestRepository
+                    .findByApprovalTypeAndReferenceId(request.getApprovalType(), request.getReferenceId())
+                    .ifPresent(existing -> {
+                        throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
+                    });
+        }
 
-        ApprovalWorkflowEntity workflow = workflowRepository
-                .findByApprovalType(request.getApprovalType())
+        ApprovalWorkflowEntity workflow = resolveWorkflow(request.getApprovalType())
                 .orElseThrow(() -> new IllegalStateException(
                         "No approval workflow configured for type: " + request.getApprovalType()));
 
@@ -390,7 +398,8 @@ public class ApprovalService {
                 .orElse(null);
 
         if (nextStep == null) {
-            if (approvalRequest.getApprovalType() == ApprovalType.CLAIM) {
+            if (approvalRequest.getApprovalType() != null
+                    && approvalRequest.getApprovalType().isMembershipClaimApproval()) {
                 membershipClaimService.applyArrearsFineForApproval(
                         approvalRequest.getReferenceId(),
                         decision.getArrearsMonths(),
@@ -409,6 +418,16 @@ public class ApprovalService {
         }
 
         approvalRequest.setUpdatedBy(actionBy);
+    }
+
+    private java.util.Optional<ApprovalWorkflowEntity> resolveWorkflow(ApprovalType approvalType) {
+        if (approvalType == null) return java.util.Optional.empty();
+        java.util.Optional<ApprovalWorkflowEntity> exact = workflowRepository.findByApprovalType(approvalType);
+        if (exact.isPresent()) return exact;
+        if (approvalType != null && approvalType.isMembershipClaimApproval() && approvalType != ApprovalType.CLAIM) {
+            return workflowRepository.findByApprovalType(ApprovalType.CLAIM);
+        }
+        return java.util.Optional.empty();
     }
 
     private void validateCanAction(ApprovalRequestEntity approvalRequest) {

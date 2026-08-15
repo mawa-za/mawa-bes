@@ -44,7 +44,7 @@ public class FuneralMembershipCoverDto {
 
     public Long amountForClaimType(String claimType) {
         if ("COMBINATION".equalsIgnoreCase(claimType)) {
-            return firstPositive(combinationAmountCents, coverAmountCents, funeralAmountCents);
+            return combinationAmountCents == null ? 0L : Math.max(0L, combinationAmountCents);
         }
         return firstPositive(funeralAmountCents, coverAmountCents, combinationAmountCents);
     }
