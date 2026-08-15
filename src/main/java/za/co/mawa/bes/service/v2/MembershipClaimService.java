@@ -343,7 +343,7 @@ public class MembershipClaimService {
         }
 
         if (entity.getClaimType() == MembershipClaimType.COMBINATION
-                && !StringUtils.hasText(entity.getFuneralServiceId())) {
+                && !isFuneralArrangementClaim(entity.getId())) {
             validateCombinationReadyForSubmit(entity);
         }
         if (entity.getClaimType() == MembershipClaimType.CASH
@@ -659,6 +659,23 @@ public class MembershipClaimService {
             return entity.getApprovedAmountCents() == null ? entity.getClaimAmountCents() : entity.getApprovedAmountCents();
         }
         return entity.getApprovedAmountCents() == null ? 0L : entity.getApprovedAmountCents();
+    }
+
+    private boolean isFuneralArrangementClaim(String membershipClaimId) {
+        if (!StringUtils.hasText(membershipClaimId)) {
+            return false;
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM funeral_service_claim
+                     WHERE membership_claim_id = ?
+                    """, Integer.class, membershipClaimId);
+            return count != null && count > 0;
+        } catch (Exception ignored) {
+            // Normal membership claims are not required to have funeral linkage.
+            return false;
+        }
     }
 
     private void refreshLinkedFuneralServiceStatus(String membershipClaimId) {
