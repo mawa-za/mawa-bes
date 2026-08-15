@@ -86,6 +86,8 @@ public class ClaimService {
 
     @Autowired
     SettingService settingService;
+    @Autowired
+    CompanyPdfBrandingService companyPdfBrandingService;
 
     List<String> voucherClaimTypeList = Arrays.asList("FUNERAL", "GROUP-FUNERAL");
     List<String> autoApprovalTypeList = new ArrayList<>();
@@ -576,10 +578,11 @@ public class ClaimService {
 
                 // margins and spacing
                 float marginX = 50;
-                float marginY = 750;
+                float pageWidth = page.getMediaBox().getWidth();
+                float marginY = companyPdfBrandingService.drawPdfBoxHeader(
+                        document, contentStream, fontRegular, fontBold, marginX, pageWidth - marginX, 790);
                 float lineHeight = 14;
                 float tableRowHeight = 19;
-                float pageWidth = page.getMediaBox().getWidth();
                 float tableWidth = pageWidth - 100;
 
                 // title

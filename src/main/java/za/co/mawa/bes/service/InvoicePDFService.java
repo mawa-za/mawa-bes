@@ -110,8 +110,10 @@ public class InvoicePDFService {
         company.add(new Paragraph(blankDefault(companyInfoService.getCompanyName(), "Company Name"))
                 .setFont(bold).setFontSize(13).setMarginBottom(4));
         addRightLine(company, companyInfoService.getCompanyAddress(), regular);
-        addRightLine(company, prefixed("Tel: ", companyInfoService.getCompanyTelephoneNumber()), regular);
+        addRightLine(company, prefixed("Reg No: ", companyInfoService.getCompanyRegistrationNumber()), regular);
         addRightLine(company, prefixed("VAT No: ", companyInfoService.getVATNumber()), regular);
+        addRightLine(company, prefixed("FSP No: ", companyInfoService.getFspNumber()), regular);
+        addRightLine(company, companyInfoService.getContactDetails(), regular);
         header.addCell(company);
         document.add(header);
         document.add(new Paragraph("").setMarginBottom(2));

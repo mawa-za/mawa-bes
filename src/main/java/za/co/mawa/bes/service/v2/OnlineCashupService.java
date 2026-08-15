@@ -122,6 +122,15 @@ public class OnlineCashupService {
 
     @Transactional
     public void removeReceipts(Collection<ReceiptEntity> receipts, String actor) {
+        removeReceipts(receipts, actor, true);
+    }
+
+    @Transactional
+    public void removeReceipts(
+            Collection<ReceiptEntity> receipts,
+            String actor,
+            boolean validateCashupStatus
+    ) {
         if (receipts == null || receipts.isEmpty()) return;
 
         Map<String, CashupEntity> affectedCashups = new LinkedHashMap<>();
@@ -141,12 +150,21 @@ public class OnlineCashupService {
         List<CashupReceiptEntity> links = List.copyOf(linksById.values());
 
         if (links.isEmpty()) {
-            throw new IllegalStateException("The payment is not linked to an open cash-up");
+            if (validateCashupStatus) {
+                throw new IllegalStateException("The payment is not linked to an open cash-up");
+            }
+            return;
         }
 
         for (CashupReceiptEntity link : links) {
             CashupEntity cashup = link.getCashup();
-            if (cashup == null || !STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())) {
+            if (cashup == null) {
+                if (validateCashupStatus) {
+                    throw new IllegalStateException("The payment has an invalid cash-up link");
+                }
+                continue;
+            }
+            if (validateCashupStatus && !STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())) {
                 throw new IllegalStateException("Premium payments can only be deleted while every linked cash-up is OPEN");
             }
             affectedCashups.put(cashup.getId(), cashup);

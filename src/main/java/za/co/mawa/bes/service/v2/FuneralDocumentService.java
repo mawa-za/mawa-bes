@@ -26,9 +26,11 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.FuneralPackageRepository;
 import za.co.mawa.bes.repository.v2.FuneralServiceRepository;
 import za.co.mawa.bes.service.CompanyInfoService;
+import za.co.mawa.bes.service.CompanyPdfBrandingService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +44,7 @@ public class FuneralDocumentService {
     private final FuneralPackageRepository funeralPackageRepository;
     private final PartnerRepository partnerRepository;
     private final CompanyInfoService companyInfoService;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
@@ -79,7 +82,7 @@ public class FuneralDocumentService {
                     .append(" has been appointed to conduct the funeral service and burial arrangements");
             if (service.getFuneralDate() != null) {
                 second.append(" scheduled for ")
-                        .append(service.getFuneralDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")));
+                        .append(formatDayDate(service.getFuneralDate()));
             }
             if (hasText(service.getFuneralArea())) {
                 second.append(" in ").append(service.getFuneralArea().trim());
@@ -137,7 +140,7 @@ public class FuneralDocumentService {
             addSection(document, "DECEASED DETAILS", regular, bold, new String[][]{
                     {"Deceased name", value(service.getDeceasedName(), "")},
                     {"ID / Passport", value(service.getDeceasedIdentityNumber(), "")},
-                    {"Date of death", service.getDateOfDeath() == null ? "" : service.getDateOfDeath().toString()},
+                    {"Date of death", formatDayDate(service.getDateOfDeath())},
                     {"Death certificate no.", value(service.getDeathCertificateNo(), "")},
                     {"Cause of death", value(service.getCauseOfDeath(), "")},
                     {"Mortuary reference", value(service.getMortuaryInventoryId(), "")}
@@ -155,7 +158,8 @@ public class FuneralDocumentService {
             });
 
             addSection(document, "FUNERAL SERVICE DETAILS", regular, bold, new String[][]{
-                    {"Funeral date", service.getFuneralDate() == null ? "" : service.getFuneralDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy"))},
+                    {"Funeral date", formatDayDate(service.getFuneralDate())},
+                    {"Deceased delivery date / time", formatDayDateTime(service.getDeceasedDeliveryDateTime())},
                     {"Delivery location / area", value(service.getFuneralArea(), "")},
                     {"Directions to deceased delivery location", value(service.getDeceasedDeliveryDirections(), "")}
             });
@@ -202,17 +206,16 @@ public class FuneralDocumentService {
                 .orElseThrow(() -> new IllegalArgumentException("Funeral service request not found: " + id));
     }
 
+    private String formatDayDate(LocalDate date) {
+        return date == null ? "" : date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Locale.ENGLISH));
+    }
+
+    private String formatDayDateTime(LocalDateTime dateTime) {
+        return dateTime == null ? "" : dateTime.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy HH:mm", Locale.ENGLISH));
+    }
+
     private void addCompanyHeader(Document document, PdfFont regular, PdfFont bold) {
-        Table header = new Table(UnitValue.createPercentArray(new float[]{62, 38})).useAllAvailableWidth();
-        header.addCell(new Cell().setBorder(Border.NO_BORDER)
-                .add(new Paragraph(value(companyInfoService.getCompanyName(), "FUNERAL SERVICE PROVIDER"))
-                        .setFont(bold).setFontSize(14))
-                .add(new Paragraph(value(companyInfoService.getCompanyAddress(), ""))
-                        .setFont(regular).setFontSize(8)));
-        header.addCell(new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.RIGHT)
-                .add(new Paragraph(value(companyInfoService.getContactDetails(), ""))
-                        .setFont(regular).setFontSize(8)));
-        document.add(header);
+        companyPdfBrandingService.addITextHeader(document, regular, bold);
     }
 
     private Paragraph body(String text, PdfFont font) {

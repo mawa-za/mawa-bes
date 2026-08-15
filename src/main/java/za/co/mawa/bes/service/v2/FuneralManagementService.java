@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
@@ -28,6 +29,7 @@ import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
+import za.co.mawa.bes.enums.MembershipClaimType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -65,6 +67,8 @@ public class FuneralManagementService {
     private final ObjectMapper objectMapper;
     private final ClaimFormGenerationService claimFormGenerationService;
     private final ApprovalService approvalService;
+    private final CrossTenantExecutionService crossTenantExecutionService;
+    private final ExternalFuneralClaimApprovalService externalFuneralClaimApprovalService;
     private final FuneralClaimSettlementService funeralClaimSettlementService;
     private final NumberAllocationService numberAllocationService;
     private final NumberRangeService numberRangeService;
@@ -551,6 +555,7 @@ public class FuneralManagementService {
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
         entity.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
+        entity.setDeceasedDeliveryDateTime(request.getDeceasedDeliveryDateTime());
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
@@ -590,6 +595,9 @@ public class FuneralManagementService {
         if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) service.setFuneralArea(request.getFuneralArea());
         if (request.getDeceasedDeliveryDirections() != null) {
             service.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
+        }
+        if (request.getDeceasedDeliveryDateTime() != null) {
+            service.setDeceasedDeliveryDateTime(request.getDeceasedDeliveryDateTime());
         }
         if (request.getDeathCertificateNo() != null && !request.getDeathCertificateNo().isBlank()) service.setDeathCertificateNo(request.getDeathCertificateNo());
         if (request.getCauseOfDeath() != null && !request.getCauseOfDeath().isBlank()) service.setCauseOfDeath(request.getCauseOfDeath());
@@ -724,38 +732,145 @@ public class FuneralManagementService {
 
     @Transactional
     public FuneralClaimDto submitClaimForApproval(String membershipClaimId, String userId) {
-        Optional<FuneralServiceClaimEntity> link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId);
-        if (link.isPresent() && isExternalClaimStorage(link.get())) {
-            throw new IllegalArgumentException(
-                    "External claims must be reviewed and submitted from the source membership tenant");
+        List<FuneralClaimDto> submitted = submitClaimIdsForApproval(List.of(membershipClaimId), userId);
+        return submitted.stream()
+                .filter(claim -> membershipClaimId.equals(claim.getMembershipClaimId()))
+                .findFirst()
+                .orElseGet(() -> readClaimDto(membershipClaimId));
+    }
+
+    /**
+     * Submits every DRAFT membership claim for the funeral in one operation.
+     * Local claims remain in this tenant's transaction. External claims are
+     * submitted as one source-tenant transaction so multiple external covers
+     * do not end up partially submitted when a later claim fails validation.
+     */
+    @Transactional
+    public List<FuneralClaimDto> submitClaimsForApproval(String funeralServiceId, String userId) {
+        getFuneralServiceOrThrow(funeralServiceId);
+        List<String> claimIds = funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)
+                .stream()
+                .map(FuneralServiceClaimEntity::getMembershipClaimId)
+                .filter(StringUtils::hasText)
+                .filter(claimId -> "DRAFT".equalsIgnoreCase(readClaimDto(claimId).getStatus()))
+                .toList();
+        if (claimIds.isEmpty()) {
+            return getClaims(funeralServiceId);
         }
-        if (link.isPresent() && defaultInt(link.get().getClaimFormPrintCount()) < 1) {
-            throw new IllegalArgumentException("Print or download this claim form at least once before continuing");
+        submitClaimIdsForApproval(claimIds, userId);
+        return getClaims(funeralServiceId);
+    }
+
+    private List<FuneralClaimDto> submitClaimIdsForApproval(List<String> membershipClaimIds, String userId) {
+        if (membershipClaimIds == null || membershipClaimIds.isEmpty()) {
+            return List.of();
         }
 
-        Map<String, Object> claim = jdbcTemplate.queryForMap("SELECT id, claim_no, claim_type, claim_amount_cents, status FROM membership_claim WHERE id = ?", membershipClaimId);
-        String status = String.valueOf(claim.get("status"));
-        List<String> attachmentObjectIds = attachmentObjectIdResolver.resolveObjectIds(membershipClaimId);
-        boolean hasSignedClaimForm = attachmentRepository.findByObjectIdIn(attachmentObjectIds).stream()
-                .anyMatch(attachment -> "CLAIM-FORM-SIGNED".equalsIgnoreCase(attachment.getDocumentType()));
-        if (!hasSignedClaimForm) {
-            throw new IllegalArgumentException(
-                    "Upload a signed claim form in Claim Documentation before submitting the funeral claims for approval");
-        }
-        if (!"DRAFT".equalsIgnoreCase(status)) {
-            throw new IllegalArgumentException("Only DRAFT claims can be submitted for approval. Current status: " + status);
+        String providerTenantId = defaultString(TenantContext.getCurrentTenant(), "mawa");
+        String requesterId = effectiveClaimRequesterId(userId, providerTenantId);
+        String requesterUsername = UserContext.getCurrentUser();
+        List<ClaimApprovalSubmissionContext> localSubmissions = new ArrayList<>();
+        List<ClaimApprovalSubmissionContext> externalSubmissions = new ArrayList<>();
+
+        for (String membershipClaimId : membershipClaimIds.stream().filter(StringUtils::hasText).distinct().toList()) {
+            FuneralServiceClaimEntity link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Funeral claim link was not found: " + membershipClaimId));
+            if (defaultInt(link.getClaimFormPrintCount()) < 1) {
+                throw new IllegalArgumentException(
+                        "Print or download every claim form at least once before continuing");
+            }
+
+            FuneralClaimDto claimDetails = readClaimDto(membershipClaimId);
+            if (!"DRAFT".equalsIgnoreCase(defaultString(claimDetails.getStatus(), ""))) {
+                throw new IllegalArgumentException(
+                        "Only DRAFT claims can be submitted for approval. Current status: " + claimDetails.getStatus());
+            }
+
+            List<String> providerAttachmentObjectIds = attachmentObjectIdResolver.resolveObjectIds(membershipClaimId);
+            boolean hasSignedClaimForm = !providerAttachmentObjectIds.isEmpty()
+                    && attachmentRepository.findByObjectIdIn(providerAttachmentObjectIds).stream()
+                    .anyMatch(attachment -> "CLAIM-FORM-SIGNED".equalsIgnoreCase(attachment.getDocumentType()));
+            if (!hasSignedClaimForm) {
+                throw new IllegalArgumentException(
+                        "Upload a signed claim form in Claim Documentation before submitting the funeral claims for approval");
+            }
+
+            boolean external = isExternalClaimStorage(link);
+            String claimOwnerTenantId = external ? requireExternalClaimTenant(link) : providerTenantId;
+            if (external) {
+                // Submission is an extension of the trusted claim-creation
+                // capability; approval authority remains entirely in the source tenant.
+                ensureExternalClaimCreationAllowed(claimOwnerTenantId);
+            }
+
+            ApprovalSubmitRequest request = buildFuneralClaimApprovalRequest(
+                    claimDetails,
+                    link,
+                    requesterId,
+                    providerTenantId,
+                    external ? List.of(membershipClaimId) : providerAttachmentObjectIds);
+            ClaimApprovalSubmissionContext context = new ClaimApprovalSubmissionContext(
+                    link,
+                    claimDetails,
+                    request,
+                    providerAttachmentObjectIds,
+                    claimOwnerTenantId);
+            if (external) externalSubmissions.add(context);
+            else localSubmissions.add(context);
         }
 
-        FuneralClaimDto claimDetails = readClaimDto(membershipClaimId);
-        FuneralServiceEntity funeralService = link
-                .map(item -> getFuneralServiceOrThrow(item.getFuneralServiceId()))
-                .orElse(null);
-        String deceasedName = funeralService != null && StringUtils.hasText(funeralService.getDeceasedName())
+        // Keep all local mutations pending in the request transaction. If the
+        // source-tenant batch later fails, Spring rolls these local submissions back.
+        for (ClaimApprovalSubmissionContext context : localSubmissions) {
+            approvalService.submitForApproval(context.approvalRequest());
+        }
+
+        Set<String> sourceTenants = externalSubmissions.stream()
+                .map(ClaimApprovalSubmissionContext::claimOwnerTenantId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (sourceTenants.size() > 1) {
+            throw new IllegalArgumentException(
+                    "A funeral arrangement cannot submit claims to more than one external source tenant in one approval batch");
+        }
+        if (!externalSubmissions.isEmpty()) {
+            String sourceTenantId = sourceTenants.iterator().next();
+            List<ExternalFuneralClaimApprovalService.ExternalClaimSubmission> sourceRequests = externalSubmissions.stream()
+                    .map(context -> new ExternalFuneralClaimApprovalService.ExternalClaimSubmission(
+                            context.approvalRequest(),
+                            context.providerAttachmentObjectIds()))
+                    .toList();
+            crossTenantExecutionService.execute(
+                    sourceTenantId,
+                    requesterUsername,
+                    requesterId,
+                    () -> externalFuneralClaimApprovalService.submitBatch(providerTenantId, sourceRequests));
+        }
+
+        for (String membershipClaimId : membershipClaimIds) {
+            try {
+                updateFuneralServiceClaimStatus(membershipClaimId);
+            } catch (RuntimeException exception) {
+                log.warn("Claim {} was submitted, but the funeral summary status could not be refreshed: {}",
+                        membershipClaimId, exception.getMessage(), exception);
+            }
+        }
+        return membershipClaimIds.stream().map(this::readClaimDto).toList();
+    }
+
+    private ApprovalSubmitRequest buildFuneralClaimApprovalRequest(
+            FuneralClaimDto claimDetails,
+            FuneralServiceClaimEntity link,
+            String requesterId,
+            String providerTenantId,
+            List<String> approvalAttachmentObjectIds
+    ) {
+        FuneralServiceEntity funeralService = getFuneralServiceOrThrow(link.getFuneralServiceId());
+        String deceasedName = StringUtils.hasText(funeralService.getDeceasedName())
                 ? funeralService.getDeceasedName().trim()
                 : "Deceased not identified";
-        String deceasedIdentity = funeralService != null
-                ? funeralService.getDeceasedIdentityNumber()
-                : null;
+        String deceasedIdentity = funeralService.getDeceasedIdentityNumber();
+
         Map<String, Object> payload = new LinkedHashMap<>();
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("claimNumber", claimDetails.getClaimNo());
@@ -766,31 +881,60 @@ public class FuneralManagementService {
         summary.put("claimedAmountCents", claimDetails.getClaimedAmountCents());
         summary.put("dateOfDeath", claimDetails.getDateOfDeath());
         summary.put("coverSource", claimDetails.getCoverSource());
+        summary.put("funeralProviderTenantId", providerTenantId);
+        if (isExternalClaimStorage(link)) {
+            summary.put("claimOwnerTenantId", requireExternalClaimTenant(link));
+            summary.put("sourceTenantName", link.getSourceTenantName());
+        }
         payload.put("claimSummary", summary);
-        payload.put("membershipClaimId", membershipClaimId);
+        payload.put("membershipClaimId", claimDetails.getMembershipClaimId());
         payload.put("membershipId", claimDetails.getMembershipId());
         payload.put("deceasedPartnerId", claimDetails.getDeceasedPartnerId());
         payload.put("claimantPartnerId", claimDetails.getClaimantPartnerId());
-        payload.put("attachmentObjectIds", attachmentObjectIds);
+        payload.put("funeralServiceId", link.getFuneralServiceId());
+        payload.put("funeralProviderTenantId", providerTenantId);
+        payload.put("attachmentObjectIds", approvalAttachmentObjectIds);
+
+        MembershipClaimType membershipClaimType;
+        try {
+            membershipClaimType = MembershipClaimType.valueOf(
+                    claimDetails.getClaimType().toUpperCase(Locale.ROOT));
+        } catch (Exception ignored) {
+            membershipClaimType = MembershipClaimType.FUNERAL;
+        }
 
         ApprovalSubmitRequest request = new ApprovalSubmitRequest();
-        request.setApprovalType(ApprovalType.CLAIM);
-        request.setReferenceId(membershipClaimId);
+        request.setApprovalType(ApprovalType.forMembershipClaimType(membershipClaimType));
+        request.setReferenceId(claimDetails.getMembershipClaimId());
         request.setReferenceNo(claimDetails.getClaimNo());
         request.setTitle("Funeral claim - " + claimDetails.getClaimNo() + " - " + deceasedName
                 + (StringUtils.hasText(claimDetails.getMembershipNumber())
                 ? " - Membership " + claimDetails.getMembershipNumber() : ""));
-        request.setDescription("Review the deceased, membership, claim amount, signed form, and supporting documents before approval.");
-        request.setRequesterId(userId);
+        request.setDescription(
+                "Review the deceased, membership, claim amount, signed form, and supporting documents before approval.");
+        request.setRequesterId(requesterId);
         try {
             request.setPayloadJson(objectMapper.writeValueAsString(payload));
         } catch (JsonProcessingException ignored) {
             request.setPayloadJson("{}");
         }
-        approvalService.submitForApproval(request);
-        updateFuneralServiceClaimStatus(membershipClaimId);
-        return readClaimDto(membershipClaimId);
+        return request;
     }
+
+    private String effectiveClaimRequesterId(String userId, String providerTenantId) {
+        if (StringUtils.hasText(userId)) return userId.trim();
+        if (StringUtils.hasText(UserContext.getCurrentUserId())) return UserContext.getCurrentUserId().trim();
+        if (StringUtils.hasText(UserContext.getCurrentUser())) return UserContext.getCurrentUser().trim();
+        return "EXTERNAL-FUNERAL@" + providerTenantId;
+    }
+
+    private record ClaimApprovalSubmissionContext(
+            FuneralServiceClaimEntity link,
+            FuneralClaimDto claimDetails,
+            ApprovalSubmitRequest approvalRequest,
+            List<String> providerAttachmentObjectIds,
+            String claimOwnerTenantId
+    ) {}
 
     public List<FuneralClaimDto> getClaims(String funeralServiceId) {
         List<FuneralClaimDto> claims = funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)
@@ -2158,6 +2302,7 @@ public class FuneralManagementService {
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
                 .deceasedDeliveryDirections(entity.getDeceasedDeliveryDirections())
+                .deceasedDeliveryDateTime(entity.getDeceasedDeliveryDateTime())
                 .deathCertificateNo(entity.getDeathCertificateNo())
                 .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
@@ -2551,7 +2696,7 @@ public class FuneralManagementService {
 
     private int getMaxSelectableCovers() {
         String value = settingService.getSetting(MAX_SELECTED_COVERS_ATTRIBUTE, FUNERAL_SERVICE_SETTING);
-        return normalizeMaxSelectableCovers(parseInteger(value, 0));
+        return normalizeMaxSelectableCovers(parseInteger(value, 3));
     }
 
     private int normalizeMaxSelectableCovers(Integer value) {

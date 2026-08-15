@@ -27,7 +27,14 @@ public class ApprovalCompletionHandlerRegistry {
 
     private Optional<ApprovalCompletionHandler> findHandler(ApprovalRequestEntity approvalRequest) {
         return handlers.orderedStream()
-                .filter(handler -> handler.supports() == approvalRequest.getApprovalType())
+                .filter(handler -> supports(handler, approvalRequest))
                 .findFirst();
+    }
+
+    private boolean supports(ApprovalCompletionHandler handler, ApprovalRequestEntity request) {
+        if (handler.supports() == request.getApprovalType()) return true;
+        return request.getApprovalType() != null
+                && request.getApprovalType().isMembershipClaimApproval()
+                && handler.supports() == za.co.mawa.bes.enums.ApprovalType.CLAIM;
     }
 }

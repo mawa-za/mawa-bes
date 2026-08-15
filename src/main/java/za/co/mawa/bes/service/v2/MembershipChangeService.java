@@ -14,6 +14,7 @@ import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.*;
 import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.utils.Status;
 
 import java.time.LocalDate;
@@ -43,6 +44,7 @@ public class MembershipChangeService {
     private final MembershipPlanPremiumRuleService membershipPlanPremiumRuleService;
     private final MembershipUpdateHandlerRegistry membershipUpdateHandlerRegistry;
     private final PartnerService partnerService;
+    private final SettingService settingService;
     private final ObjectProvider<ApprovalService> approvalServiceProvider;
     private final ObjectMapper objectMapper;
 
@@ -438,9 +440,21 @@ public class MembershipChangeService {
         var partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new IllegalArgumentException("Dependent partner was not found: " + partnerId));
         if (Status.DECEASED.equalsIgnoreCase(partner.getStatus())
-                && !partnerId.equals(currentPartnerId)) {
-            throw new IllegalArgumentException("A deceased partner cannot be added as a new dependent");
+                && !partnerId.equals(currentPartnerId)
+                && !(currentPartnerId == null && allowDeceasedDependentAdd())) {
+            throw new IllegalArgumentException(
+                    "A deceased partner cannot be added as a new dependent unless the membership policy override is enabled");
         }
+    }
+
+    private boolean allowDeceasedDependentAdd() {
+        String configured = settingService.getSetting("ALLOW_DECEASED_DEPENDENT_ADD", "MEMBERSHIP");
+        if (configured == null) return false;
+        String value = configured.trim();
+        return "1".equals(value)
+                || "true".equalsIgnoreCase(value)
+                || "yes".equalsIgnoreCase(value)
+                || "on".equalsIgnoreCase(value);
     }
 
     private MembershipDependentEntity getVisibleDependent(String membershipId, String dependentId) {
