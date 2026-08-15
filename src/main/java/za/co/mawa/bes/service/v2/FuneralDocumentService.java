@@ -26,6 +26,7 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.FuneralPackageRepository;
 import za.co.mawa.bes.repository.v2.FuneralServiceRepository;
 import za.co.mawa.bes.service.CompanyInfoService;
+import za.co.mawa.bes.service.CompanyPdfBrandingService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
@@ -42,6 +43,7 @@ public class FuneralDocumentService {
     private final FuneralPackageRepository funeralPackageRepository;
     private final PartnerRepository partnerRepository;
     private final CompanyInfoService companyInfoService;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
@@ -203,16 +205,7 @@ public class FuneralDocumentService {
     }
 
     private void addCompanyHeader(Document document, PdfFont regular, PdfFont bold) {
-        Table header = new Table(UnitValue.createPercentArray(new float[]{62, 38})).useAllAvailableWidth();
-        header.addCell(new Cell().setBorder(Border.NO_BORDER)
-                .add(new Paragraph(value(companyInfoService.getCompanyName(), "FUNERAL SERVICE PROVIDER"))
-                        .setFont(bold).setFontSize(14))
-                .add(new Paragraph(value(companyInfoService.getCompanyAddress(), ""))
-                        .setFont(regular).setFontSize(8)));
-        header.addCell(new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.RIGHT)
-                .add(new Paragraph(value(companyInfoService.getContactDetails(), ""))
-                        .setFont(regular).setFontSize(8)));
-        document.add(header);
+        companyPdfBrandingService.addITextHeader(document, regular, bold);
     }
 
     private Paragraph body(String text, PdfFont font) {

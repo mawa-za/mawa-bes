@@ -37,7 +37,7 @@ public class CreditNoteService {
     private final InvoiceRepository invoiceRepository;
     private final JdbcTemplate jdbcTemplate;
     private final NumberAllocationService numberAllocationService;
-    private final CompanyInfoService companyInfoService;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
 
     @Transactional
     public Map<String, Object> issue(String invoiceId, CreditNoteIssueRequestDto request, String userId) {
@@ -108,10 +108,9 @@ public class CreditNoteService {
              Document document = new Document(pdf)) {
             PdfFont bold = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
             PdfFont regular = PdfFontFactory.createFont(StandardFonts.HELVETICA);
-            Table header = new Table(UnitValue.createPercentArray(new float[]{55, 45})).useAllAvailableWidth();
-            header.addCell(cell(defaultString(companyInfoService.getCompanyName(), "Company"), bold, 14, TextAlignment.LEFT));
-            header.addCell(cell("CREDIT NOTE", bold, 20, TextAlignment.RIGHT));
-            document.add(header);
+            companyPdfBrandingService.addITextHeader(document, regular, bold);
+            document.add(new Paragraph("CREDIT NOTE").setFont(bold).setFontSize(20)
+                    .setTextAlignment(TextAlignment.RIGHT).setMarginBottom(8));
             document.add(new Paragraph("Credit Note Number: " + note.get("credit_note_no")).setFont(bold).setFontSize(10));
             document.add(new Paragraph("Date: " + note.get("credit_note_date")).setFont(regular).setFontSize(9));
             document.add(new Paragraph("Customer: " + defaultString(note.get("partner_name"), "")).setFont(regular).setFontSize(9));
