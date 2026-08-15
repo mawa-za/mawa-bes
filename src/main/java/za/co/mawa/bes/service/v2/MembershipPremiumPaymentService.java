@@ -12,6 +12,7 @@ import za.co.mawa.bes.dto.v2.PremiumPaymentDeletionRequest;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.PremiumPaymentDeletionStatusResponse;
+import za.co.mawa.bes.dto.v2.PremiumPaymentTransferRequest;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
@@ -181,6 +182,9 @@ public class MembershipPremiumPaymentService {
         if (receipts.isEmpty()) {
             throw new IllegalStateException("No receipts were found for this premium payment");
         }
+        if (allowPremiumPaymentDeletionWithoutCashupValidation()) {
+            return;
+        }
         boolean linkedToOpenCashup = false;
         for (ReceiptEntity receipt : receipts) {
             var links = new ArrayList<>(cashupReceiptRepository.findByReceiptId(receipt.getId()));
@@ -264,6 +268,154 @@ public class MembershipPremiumPaymentService {
     }
 
     @Transactional
+    public PaymentBatchResponseDto transferManualPayment(
+            String paymentBatchId,
+            PremiumPaymentTransferRequest request
+    ) {
+        if (!allowPremiumPaymentTransfer()) {
+            throw new IllegalStateException("Premium payment transfer is disabled in Premium Payment Settings");
+        }
+        if (request == null || isBlank(request.getTargetMembershipId())) {
+            throw new IllegalArgumentException("targetMembershipId is required");
+        }
+        if (!PeriodUtil.isValidPeriod(request.getTargetPeriodYYYYMM())) {
+            throw new IllegalArgumentException("targetPeriodYYYYMM is required and must use YYYYMM format");
+        }
+        if (isBlank(request.getRequestedBy())) {
+            throw new IllegalArgumentException("requestedBy is required");
+        }
+        if (isBlank(request.getReason())) {
+            throw new IllegalArgumentException("A transfer reason is required");
+        }
+
+        PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+        if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM) {
+            throw new IllegalArgumentException("Only membership premium payments can be transferred");
+        }
+        if (batch.getStatus() != PaymentBatchStatus.POSTED) {
+            throw new IllegalStateException("Only POSTED premium payments can be transferred");
+        }
+
+        ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository.findByPaymentBatchId(paymentBatchId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Only manually captured premium payments can be transferred"));
+
+        String sourceMembershipId = batch.getMembershipId();
+        String targetMembershipId = request.getTargetMembershipId().trim();
+        if (isBlank(sourceMembershipId)) {
+            throw new IllegalStateException("The payment does not have a source membership");
+        }
+        if (sourceMembershipId.equals(targetMembershipId)) {
+            throw new IllegalArgumentException("Select a different target membership");
+        }
+
+        membershipService.getMembershipById(targetMembershipId)
+                .orElseThrow(() -> new IllegalArgumentException("Target membership not found: " + targetMembershipId));
+
+        List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
+        if (receipts.isEmpty()) {
+            throw new IllegalStateException("No receipts were found for this premium payment");
+        }
+
+        List<ReceiptAllocationEntity> allocations = new ArrayList<>();
+        for (ReceiptEntity receipt : receipts) {
+            if (receipt.getStatus() != ReceiptStatus.POSTED) {
+                throw new IllegalStateException("All receipts in the payment batch must be POSTED before transfer");
+            }
+            List<ReceiptAllocationEntity> receiptAllocations = receiptAllocationRepository.findByReceiptId(receipt.getId())
+                    .stream()
+                    .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED
+                            && allocation.getAllocationType() == ReceiptAllocationType.MEMBERSHIP_PREMIUM)
+                    .toList();
+            if (receiptAllocations.isEmpty()) {
+                throw new IllegalStateException("Receipt " + receipt.getReceiptNo() + " has no posted premium allocation");
+            }
+            allocations.addAll(receiptAllocations);
+        }
+
+        long allocationTotalCents = allocations.stream()
+                .mapToLong(allocation -> allocation.getAmountCents() == null ? 0L : allocation.getAmountCents())
+                .sum();
+        if (allocationTotalCents <= 0L) {
+            throw new IllegalStateException("The payment has no transferable premium amount");
+        }
+        if (batch.getTotalAmountCents() != null && allocationTotalCents != batch.getTotalAmountCents()) {
+            throw new IllegalStateException("The payment allocation total does not match the payment batch total");
+        }
+
+        long targetMonthlyPremiumCents = determineMonthlyPremiumCents(targetMembershipId);
+        MembershipPremiumEntity targetPremium = membershipPremiumService.findOrCreatePremium(
+                targetMembershipId, request.getTargetPeriodYYYYMM(), targetMonthlyPremiumCents, request.getRequestedBy().trim());
+        long targetBalanceCents = targetPremium.getBalanceCents() == null ? 0L : targetPremium.getBalanceCents();
+        if (allocationTotalCents > targetBalanceCents) {
+            throw new IllegalArgumentException(
+                    "The target premium month does not have enough outstanding balance for this payment (R "
+                            + String.format(java.util.Locale.ROOT, "%.2f", targetBalanceCents / 100.0) + ")");
+        }
+
+        String actor = request.getRequestedBy().trim();
+        String reason = request.getReason().trim();
+        String targetPeriod = request.getTargetPeriodYYYYMM();
+        for (ReceiptAllocationEntity allocation : allocations) {
+            if (!sourceMembershipId.equals(allocation.getMembershipId())) {
+                throw new IllegalStateException("The payment contains an allocation for a different source membership");
+            }
+            MembershipPremiumEntity sourcePremium = membershipPremiumService.getById(allocation.getReferenceId());
+            membershipPremiumService.reversePayment(sourcePremium, allocation.getAmountCents(), actor);
+            targetPremium = membershipPremiumService.applyPayment(targetPremium, allocation.getAmountCents(), actor);
+
+            allocation.setReferenceId(targetPremium.getId());
+            allocation.setReferenceNo(targetMembershipId + "-" + targetPeriod);
+            allocation.setPeriodYYYYMM(targetPeriod);
+            allocation.setMembershipId(targetMembershipId);
+            allocation.setUpdatedAt(LocalDateTime.now());
+            allocation.setUpdatedBy(actor);
+            receiptAllocationRepository.save(allocation);
+        }
+
+        String auditNote = "Premium payment transferred from membership " + sourceMembershipId
+                + " to " + targetMembershipId + " for period " + targetPeriod + ". Reason: " + reason;
+        for (ReceiptEntity receipt : receipts) {
+            receipt.setMembershipId(targetMembershipId);
+            receipt.setNotes(appendNote(receipt.getNotes(), auditNote));
+            receipt.setUpdatedAt(LocalDateTime.now());
+            receipt.setUpdatedBy(actor);
+            receiptRepository.save(receipt);
+        }
+
+        batch.setMembershipId(targetMembershipId);
+        batch.setNotes(appendNote(batch.getNotes(), auditNote));
+        batch.setUpdatedAt(LocalDateTime.now());
+        batch.setUpdatedBy(actor);
+        paymentBatchRepository.save(batch);
+
+        manualReceipt.setMembershipId(targetMembershipId);
+        manualReceipt.setNotes(appendNote(manualReceipt.getNotes(), auditNote));
+        manualPremiumReceiptRepository.save(manualReceipt);
+
+        membershipService.recalculatePaidUpToPeriod(sourceMembershipId);
+        String targetPaidUpTo = membershipService.recalculatePaidUpToPeriod(targetMembershipId);
+
+        List<ReceiptResponseDto> responseReceipts = receipts.stream()
+                .map(receipt -> receiptService.getReceipt(receipt.getId()))
+                .toList();
+        return PaymentBatchResponseDto.builder()
+                .id(batch.getId())
+                .paymentBatchNo(batch.getPaymentBatchNo())
+                .sourceType(batch.getSourceType())
+                .membershipId(batch.getMembershipId())
+                .paymentMethod(batch.getPaymentMethod())
+                .totalAmountCents(batch.getTotalAmountCents())
+                .paymentDate(batch.getPaymentDate())
+                .status(batch.getStatus())
+                .syncStatus(batch.getSyncStatus())
+                .paidUpToPeriod(targetPaidUpTo)
+                .receipts(responseReceipts)
+                .build();
+    }
+
+    @Transactional
     public void reverseApprovedPayment(String paymentBatchId, String actionBy, String reason) {
         validateDeletionAllowed(paymentBatchId);
         PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
@@ -285,7 +437,10 @@ public class MembershipPremiumPaymentService {
         for (ReceiptEntity receipt : receipts) {
             receiptService.reverseReceipt(receipt.getId(), reversalReason, actionBy);
         }
-        onlineCashupService.removeReceipts(receipts, actionBy);
+        onlineCashupService.removeReceipts(
+                receipts,
+                actionBy,
+                !allowPremiumPaymentDeletionWithoutCashupValidation());
 
         batch.setStatus(PaymentBatchStatus.REVERSED);
         batch.setNotes((isBlank(batch.getNotes()) ? "" : batch.getNotes() + "\n")
@@ -629,6 +784,28 @@ public class MembershipPremiumPaymentService {
                     "The payment amount may not exceed the outstanding balance for the selected premium month (R "
                             + String.format(java.util.Locale.ROOT, "%.2f", balanceCents / 100.0) + ")");
         }
+    }
+
+    private boolean allowPremiumPaymentDeletionWithoutCashupValidation() {
+        return settingEnabled("ALLOW_PREMIUM_PAYMENT_DELETE_WITHOUT_CASHUP_VALIDATION");
+    }
+
+    private boolean allowPremiumPaymentTransfer() {
+        return settingEnabled("ALLOW_PREMIUM_PAYMENT_TRANSFER");
+    }
+
+    private boolean settingEnabled(String attribute) {
+        String configured = settingService.getSetting(attribute, "MEMBERSHIP");
+        if (configured == null) return false;
+        String value = configured.trim();
+        return "1".equals(value)
+                || "true".equalsIgnoreCase(value)
+                || "yes".equalsIgnoreCase(value)
+                || "on".equalsIgnoreCase(value);
+    }
+
+    private String appendNote(String existing, String note) {
+        return isBlank(existing) ? note : existing + "\n" + note;
     }
 
     private int resolveMaxPremiumPaymentMonths() {

@@ -30,6 +30,9 @@ public class ReceiptMapper {
                 .syncStatus(receipt.getSyncStatus())
                 .printed(receipt.getPrinted())
                 .printCount(receipt.getPrintCount())
+                .captureSource(receipt.getCaptureSource())
+                .manualReceiptBookNo(receipt.getManualReceiptBookNo())
+                .manualReceiptNo(receipt.getManualReceiptNo())
                 .allocations(allocations.stream().map(this::toAllocationDto).toList())
                 .build();
     }

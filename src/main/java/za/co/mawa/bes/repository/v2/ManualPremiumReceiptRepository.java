@@ -8,9 +8,12 @@ import org.springframework.data.repository.query.Param;
 import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ManualPremiumReceiptRepository extends JpaRepository<ManualPremiumReceiptEntity, String> {
     boolean existsByReceiptBookNoAndManualReceiptNo(String receiptBookNo, String manualReceiptNo);
+
+    Optional<ManualPremiumReceiptEntity> findByPaymentBatchId(String paymentBatchId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
