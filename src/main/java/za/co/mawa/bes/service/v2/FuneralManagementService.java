@@ -49,6 +49,7 @@ public class FuneralManagementService {
     private static final String INTEGRATION_CONFIG_ID = "DEFAULT";
     private static final String FUNERAL_SERVICE_SETTING = "FUNERAL-SERVICE";
     private static final String MAX_SELECTED_COVERS_ATTRIBUTE = "MAX-SELECTED-COVERS";
+    private static final String GENERATED_CLAIM_FORM_DOCUMENT_TYPE = "CLAIM-FORM";
 
     private final FuneralPickupRequestRepository pickupRequestRepository;
     private final FuneralMortuaryInventoryRepository mortuaryInventoryRepository;
@@ -787,13 +788,13 @@ public class FuneralManagementService {
                         "Only DRAFT claims can be submitted for approval. Current status: " + claimDetails.getStatus());
             }
 
-            List<String> providerAttachmentObjectIds = attachmentObjectIdResolver.resolveObjectIds(membershipClaimId);
-            boolean hasSignedClaimForm = !providerAttachmentObjectIds.isEmpty()
+            List<String> providerAttachmentObjectIds = resolveFuneralClaimAttachmentObjectIds(link, membershipClaimId);
+            boolean hasSupportingDocument = !providerAttachmentObjectIds.isEmpty()
                     && attachmentRepository.findByObjectIdIn(providerAttachmentObjectIds).stream()
-                    .anyMatch(attachment -> "CLAIM-FORM-SIGNED".equalsIgnoreCase(attachment.getDocumentType()));
-            if (!hasSignedClaimForm) {
+                    .anyMatch(this::isSupportingClaimAttachment);
+            if (!hasSupportingDocument) {
                 throw new IllegalArgumentException(
-                        "Upload a signed claim form in Claim Documentation before submitting the funeral claims for approval");
+                        "Attach at least one supporting document in Claim Documentation before submitting the funeral claims for approval");
             }
 
             boolean external = isExternalClaimStorage(link);
@@ -858,6 +859,24 @@ public class FuneralManagementService {
         return membershipClaimIds.stream().map(this::readClaimDto).toList();
     }
 
+    private List<String> resolveFuneralClaimAttachmentObjectIds(
+            FuneralServiceClaimEntity link,
+            String membershipClaimId
+    ) {
+        LinkedHashSet<String> objectIds = new LinkedHashSet<>();
+        if (link != null && StringUtils.hasText(link.getFuneralServiceId())) {
+            objectIds.add(link.getFuneralServiceId().trim());
+        }
+        objectIds.addAll(attachmentObjectIdResolver.resolveObjectIds(membershipClaimId));
+        return objectIds.stream().filter(StringUtils::hasText).toList();
+    }
+
+    private boolean isSupportingClaimAttachment(AttachmentEntity attachment) {
+        if (attachment == null) return false;
+        String documentType = defaultString(attachment.getDocumentType(), "").trim();
+        return !GENERATED_CLAIM_FORM_DOCUMENT_TYPE.equalsIgnoreCase(documentType);
+    }
+
     private ApprovalSubmitRequest buildFuneralClaimApprovalRequest(
             FuneralClaimDto claimDetails,
             FuneralServiceClaimEntity link,
@@ -911,7 +930,7 @@ public class FuneralManagementService {
                 + (StringUtils.hasText(claimDetails.getMembershipNumber())
                 ? " - Membership " + claimDetails.getMembershipNumber() : ""));
         request.setDescription(
-                "Review the deceased, membership, claim amount, signed form, and supporting documents before approval.");
+                "Review the deceased, membership, claim amount, and supporting documents before approval.");
         request.setRequesterId(requesterId);
         try {
             request.setPayloadJson(objectMapper.writeValueAsString(payload));

@@ -47,7 +47,7 @@ public class ClaimFormGenerationService {
     public AttachmentEntity generateForSubmittedClaim(String claimId) {
         MembershipClaimEntity claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new IllegalArgumentException("Claim not found: " + claimId));
-        AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
+        AttachmentEntity existing = latestGeneratedClaimForm(claimId);
         if (existing != null) return existing;
         return attachmentService.saveBytes(generatePdf(claim), "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
     }
@@ -55,11 +55,19 @@ public class ClaimFormGenerationService {
     @Transactional
     public AttachmentEntity generateForFuneralClaim(String claimId, String claimNo, String claimType,
                                                      String deceasedName, String claimantName, Long amountCents) {
-        AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
+        AttachmentEntity existing = latestGeneratedClaimForm(claimId);
         if (existing != null) return existing;
         byte[] pdf = generateFuneralPdf(claimNo, claimType, "", deceasedName, claimantName, amountCents,
                 "", "", "", "");
         return attachmentService.saveBytes(pdf, "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+    }
+
+
+    private AttachmentEntity latestGeneratedClaimForm(String claimId) {
+        return attachmentRepository
+                .findFirstByObjectIdAndDocumentTypeOrderByUploadDateDescUploadTimeDescIdDesc(
+                        claimId, DOCUMENT_TYPE)
+                .orElse(null);
     }
 
     /** Generates a fresh printable form for local or externally-owned funeral claims. */
