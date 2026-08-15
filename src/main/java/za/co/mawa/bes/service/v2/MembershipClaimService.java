@@ -665,6 +665,26 @@ public class MembershipClaimService {
         if (!StringUtils.hasText(membershipClaimId)) {
             return false;
         }
+
+        // External funeral claims are stored in the source membership tenant,
+        // while funeral_service_claim remains in the provider tenant. The
+        // source claim therefore identifies its funeral linkage through the
+        // portable funeral_service_id column rather than a local link row.
+        try {
+            Integer directLink = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM membership_claim
+                     WHERE id = ?
+                       AND funeral_service_id IS NOT NULL
+                       AND TRIM(funeral_service_id) <> ''
+                    """, Integer.class, membershipClaimId);
+            if (directLink != null && directLink > 0) {
+                return true;
+            }
+        } catch (Exception ignored) {
+            // Older schemas may not have the portable funeral_service_id column.
+        }
+
         try {
             Integer count = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*)
