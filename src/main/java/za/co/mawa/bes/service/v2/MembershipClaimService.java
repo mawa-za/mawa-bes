@@ -342,7 +342,8 @@ public class MembershipClaimService {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted.");
         }
 
-        if (entity.getClaimType() == MembershipClaimType.COMBINATION) {
+        if (entity.getClaimType() == MembershipClaimType.COMBINATION
+                && !StringUtils.hasText(entity.getFuneralServiceId())) {
             validateCombinationReadyForSubmit(entity);
         }
         if (entity.getClaimType() == MembershipClaimType.CASH

@@ -28,6 +28,7 @@ import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
+import za.co.mawa.bes.enums.MembershipClaimType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -551,6 +552,7 @@ public class FuneralManagementService {
         entity.setFuneralDate(request.getFuneralDate());
         entity.setFuneralArea(request.getFuneralArea());
         entity.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
+        entity.setDeceasedDeliveryDateTime(request.getDeceasedDeliveryDateTime());
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
         entity.setCauseOfDeath(request.getCauseOfDeath());
         entity.setExtrasJson(toJson(request.getExtras()));
@@ -590,6 +592,9 @@ public class FuneralManagementService {
         if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) service.setFuneralArea(request.getFuneralArea());
         if (request.getDeceasedDeliveryDirections() != null) {
             service.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
+        }
+        if (request.getDeceasedDeliveryDateTime() != null) {
+            service.setDeceasedDeliveryDateTime(request.getDeceasedDeliveryDateTime());
         }
         if (request.getDeathCertificateNo() != null && !request.getDeathCertificateNo().isBlank()) service.setDeathCertificateNo(request.getDeathCertificateNo());
         if (request.getCauseOfDeath() != null && !request.getCauseOfDeath().isBlank()) service.setCauseOfDeath(request.getCauseOfDeath());
@@ -774,7 +779,13 @@ public class FuneralManagementService {
         payload.put("attachmentObjectIds", attachmentObjectIds);
 
         ApprovalSubmitRequest request = new ApprovalSubmitRequest();
-        request.setApprovalType(ApprovalType.CLAIM);
+        MembershipClaimType membershipClaimType;
+        try {
+            membershipClaimType = MembershipClaimType.valueOf(claimDetails.getClaimType().toUpperCase(Locale.ROOT));
+        } catch (Exception ignored) {
+            membershipClaimType = MembershipClaimType.FUNERAL;
+        }
+        request.setApprovalType(ApprovalType.forMembershipClaimType(membershipClaimType));
         request.setReferenceId(membershipClaimId);
         request.setReferenceNo(claimDetails.getClaimNo());
         request.setTitle("Funeral claim - " + claimDetails.getClaimNo() + " - " + deceasedName
@@ -2158,6 +2169,7 @@ public class FuneralManagementService {
                 .funeralDate(entity.getFuneralDate())
                 .funeralArea(entity.getFuneralArea())
                 .deceasedDeliveryDirections(entity.getDeceasedDeliveryDirections())
+                .deceasedDeliveryDateTime(entity.getDeceasedDeliveryDateTime())
                 .deathCertificateNo(entity.getDeathCertificateNo())
                 .causeOfDeath(entity.getCauseOfDeath())
                 .totalAmountCents(entity.getTotalAmountCents())
@@ -2551,7 +2563,7 @@ public class FuneralManagementService {
 
     private int getMaxSelectableCovers() {
         String value = settingService.getSetting(MAX_SELECTED_COVERS_ATTRIBUTE, FUNERAL_SERVICE_SETTING);
-        return normalizeMaxSelectableCovers(parseInteger(value, 0));
+        return normalizeMaxSelectableCovers(parseInteger(value, 3));
     }
 
     private int normalizeMaxSelectableCovers(Integer value) {
