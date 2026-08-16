@@ -413,7 +413,7 @@ public class MembershipClaimService {
         entity.setApprovedBy(userId);
         entity.setApprovedAt(java.time.LocalDateTime.now());
         entity.setUpdatedBy(userId);
-        MembershipClaimEntity saved = claimRepository.save(entity);
+        MembershipClaimEntity saved = claimRepository.saveAndFlush(entity);
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
     }
