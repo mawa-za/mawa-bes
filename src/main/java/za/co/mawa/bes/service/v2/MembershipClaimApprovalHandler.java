@@ -44,9 +44,11 @@ public class MembershipClaimApprovalHandler implements ApprovalCompletionHandler
                 || claim.getClaimType() == MembershipClaimType.COMBINATION) {
             PaymentRequestResponse paymentRequest = funeralClaimSettlementService
                     .settleApprovedClaim(claim.getId(), actionBy);
-            if (paymentRequest != null) {
-                membershipClaimService.linkPaymentRequest(paymentRequest, actionBy);
+            if (paymentRequest == null || paymentRequest.getId() == null || paymentRequest.getId().isBlank()) {
+                throw new IllegalStateException(
+                        "Approved funeral claim did not create or reuse a payment request: " + claim.getId());
             }
+            membershipClaimService.linkPaymentRequest(paymentRequest, actionBy);
             return;
         }
 

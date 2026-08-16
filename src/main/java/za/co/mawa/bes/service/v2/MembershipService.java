@@ -21,6 +21,7 @@ import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
 import za.co.mawa.bes.repository.PremiumRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
+import za.co.mawa.bes.repository.PartnerViewRepository;
 import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
 import za.co.mawa.bes.repository.v2.MembershipMasterDataProjection;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
@@ -60,6 +61,8 @@ public class MembershipService {
     PartnerRepository partnerRepository;
     @Autowired
     PartnerIdentityRepository partnerIdentityRepository;
+    @Autowired
+    PartnerViewRepository partnerViewRepository;
     @Autowired
     MembershipMapper membershipMapper;
 
@@ -112,21 +115,39 @@ public class MembershipService {
             String status,
             Pageable pageable
     ) {
+        String normalizedQuery = searchQuery == null ? "" : searchQuery.trim();
+        LinkedHashSet<String> effectiveMemberIds = new LinkedHashSet<>();
+        if (memberIds != null) {
+            memberIds.stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .map(String::trim)
+                    .forEach(effectiveMemberIds::add);
+        }
+        if (!normalizedQuery.isEmpty()) {
+            partnerViewRepository.findByString(
+                            "%" + normalizedQuery + "%",
+                            PageRequest.of(0, 500))
+                    .stream()
+                    .map(partner -> partner.getPartnerId())
+                    .filter(id -> id != null && !id.isBlank())
+                    .forEach(effectiveMemberIds::add);
+        }
+        List<String> resolvedMemberIds = List.copyOf(effectiveMemberIds);
+
         Specification<MembershipEntity> spec = (root, queryObj, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            String normalizedQuery = searchQuery == null ? "" : searchQuery.trim();
-            boolean hasMemberIds = memberIds != null && !memberIds.isEmpty();
+            boolean hasMemberIds = !resolvedMemberIds.isEmpty();
             if (!normalizedQuery.isEmpty()) {
                 Predicate membershipNumberMatch = criteriaBuilder.like(
                         criteriaBuilder.lower(root.get("membershipNo")),
                         "%" + normalizedQuery.toLowerCase() + "%"
                 );
                 predicates.add(hasMemberIds
-                        ? criteriaBuilder.or(membershipNumberMatch, root.get("memberId").in(memberIds))
+                        ? criteriaBuilder.or(membershipNumberMatch, root.get("memberId").in(resolvedMemberIds))
                         : membershipNumberMatch);
             } else if (hasMemberIds) {
-                predicates.add(root.get("memberId").in(memberIds));
+                predicates.add(root.get("memberId").in(resolvedMemberIds));
             }
             if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
                 predicates.add(criteriaBuilder.equal(
