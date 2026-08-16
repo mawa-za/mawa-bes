@@ -47,6 +47,7 @@ public class FuneralDocumentService {
     private final CompanyPdfBrandingService companyPdfBrandingService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ReferenceDataValidationService referenceDataValidationService;
 
     public byte[] generateConfirmationLetter(String funeralServiceId) {
         FuneralServiceEntity service = getService(funeralServiceId);
@@ -85,7 +86,7 @@ public class FuneralDocumentService {
                         .append(formatDayDate(service.getFuneralDate()));
             }
             if (hasText(service.getFuneralArea())) {
-                second.append(" in ").append(service.getFuneralArea().trim());
+                second.append(" in ").append(funeralAreaLabel(service.getFuneralArea()));
             }
             second.append(".");
             document.add(body(second.toString(), regular));
@@ -160,7 +161,7 @@ public class FuneralDocumentService {
             addSection(document, "FUNERAL SERVICE DETAILS", regular, bold, new String[][]{
                     {"Funeral date", formatDayDate(service.getFuneralDate())},
                     {"Deceased delivery date / time", formatDayDateTime(service.getDeceasedDeliveryDateTime())},
-                    {"Delivery location / area", value(service.getFuneralArea(), "")},
+                    {"Delivery location / area", funeralAreaLabel(service.getFuneralArea())},
                     {"Directions to deceased delivery location", value(service.getDeceasedDeliveryDirections(), "")}
             });
 
@@ -277,6 +278,12 @@ public class FuneralDocumentService {
     private String formatCents(Long cents) {
         long amount = cents == null ? 0L : cents;
         return "R " + String.format(Locale.US, "%,.2f", amount / 100.0);
+    }
+
+    private String funeralAreaLabel(String value) {
+        if (!hasText(value)) return "";
+        String description = referenceDataValidationService.description("SALES-AREA", value.trim());
+        return hasText(description) ? description.trim() : value.trim();
     }
 
     private boolean hasText(String value) {

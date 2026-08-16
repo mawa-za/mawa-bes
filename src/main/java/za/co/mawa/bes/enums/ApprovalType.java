@@ -35,7 +35,9 @@ public enum ApprovalType {
     GROUP_SOCIETY_STATUS_CHANGE,
     GROUP_SOCIETY_BALANCE_ADJUSTMENT,
     GROUP_SOCIETY_FUNERAL_CLAIM,
-    PREMIUM_PAYMENT_DELETION;
+    PREMIUM_PAYMENT_DELETION,
+    PREMIUM_PAYMENT_EDIT,
+    MEMBERSHIP_STATUS_CHANGE;
 
     public boolean isMembershipClaimApproval() {
         return this == CLAIM
