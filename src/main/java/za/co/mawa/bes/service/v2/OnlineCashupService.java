@@ -131,7 +131,18 @@ public class OnlineCashupService {
             String actor,
             boolean validateCashupStatus
     ) {
-        if (receipts == null || receipts.isEmpty()) return;
+        removeReceipts(receipts, List.of(), actor, validateCashupStatus);
+    }
+
+    @Transactional
+    public void removeReceipts(
+            Collection<ReceiptEntity> receipts,
+            Collection<String> additionalReceiptIds,
+            String actor,
+            boolean validateCashupStatus
+    ) {
+        if ((receipts == null || receipts.isEmpty())
+                && (additionalReceiptIds == null || additionalReceiptIds.isEmpty())) return;
 
         Map<String, CashupEntity> affectedCashups = new LinkedHashMap<>();
         Map<String, CashupReceiptEntity> linksById = new LinkedHashMap<>();
@@ -147,6 +158,15 @@ public class OnlineCashupService {
                 }
             }
         }
+        if (additionalReceiptIds != null) {
+            for (String additionalReceiptId : additionalReceiptIds) {
+                if (additionalReceiptId == null || additionalReceiptId.isBlank()) continue;
+                for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(additionalReceiptId.trim())) {
+                    linksById.put(link.getId(), link);
+                }
+            }
+        }
+
         List<CashupReceiptEntity> links = List.copyOf(linksById.values());
 
         if (links.isEmpty()) {
@@ -175,29 +195,84 @@ public class OnlineCashupService {
 
         String user = firstNonBlank(actor, DEFAULT_USER);
         for (CashupEntity cashup : affectedCashups.values()) {
-            List<CashupReceiptEntity> remaining = cashupReceiptRepository.findByCashupId(cashup.getId());
-            long total = remaining.stream().mapToLong(item -> value(item.getAmountCents())).sum();
-            cashup.setTotalCents(total);
-            cashup.setReceiptCount(remaining.size());
-            cashup.setUpdatedBy(user);
-            cashupRepository.save(cashup);
+            rebuildCashupFromLinks(cashup, user);
+        }
+    }
 
-            cashupPaymentSummaryRepository.deleteByCashupId(cashup.getId());
-            cashupPaymentSummaryRepository.flush();
-            Map<String, List<CashupReceiptEntity>> byMethod = remaining.stream()
-                    .collect(java.util.stream.Collectors.groupingBy(
-                            item -> firstNonBlank(item.getPaymentMethod(), "OTHER").toUpperCase(Locale.ROOT),
-                            LinkedHashMap::new,
-                            java.util.stream.Collectors.toList()));
-            for (Map.Entry<String, List<CashupReceiptEntity>> entry : byMethod.entrySet()) {
-                CashupPaymentSummaryEntity summary = new CashupPaymentSummaryEntity();
-                summary.setCashup(cashup);
-                summary.setPaymentMethod(entry.getKey());
-                summary.setAmountCents(entry.getValue().stream()
-                        .mapToLong(item -> value(item.getAmountCents())).sum());
-                summary.setPaymentCount(entry.getValue().size());
-                cashupPaymentSummaryRepository.save(summary);
+    @Transactional
+    public void refreshReceiptAmount(
+            ReceiptEntity receipt,
+            String additionalReceiptId,
+            String actor
+    ) {
+        if (receipt == null || receipt.getId() == null) return;
+
+        Map<String, CashupReceiptEntity> linksById = new LinkedHashMap<>();
+        for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(receipt.getId())) {
+            linksById.put(link.getId(), link);
+        }
+        if (additionalReceiptId != null && !additionalReceiptId.isBlank()) {
+            for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(additionalReceiptId.trim())) {
+                linksById.put(link.getId(), link);
             }
+        }
+        if (linksById.isEmpty()) return;
+
+        Map<String, CashupEntity> affectedCashups = new LinkedHashMap<>();
+        long amount = value(receipt.getTotalAmountCents());
+        for (CashupReceiptEntity link : linksById.values()) {
+            link.setAmountCents(amount);
+            if (receipt.getPaymentMethod() != null && !receipt.getPaymentMethod().isBlank()) {
+                link.setPaymentMethod(receipt.getPaymentMethod().trim());
+            }
+            cashupReceiptRepository.save(link);
+            if (link.getCashup() != null) affectedCashups.put(link.getCashup().getId(), link.getCashup());
+        }
+        cashupReceiptRepository.flush();
+
+        String user = firstNonBlank(actor, DEFAULT_USER);
+        for (CashupEntity cashup : affectedCashups.values()) {
+            rebuildCashupFromLinks(cashup, user);
+        }
+    }
+
+    private void rebuildCashupFromLinks(CashupEntity cashup, String actor) {
+        List<CashupReceiptEntity> remaining = cashupReceiptRepository.findByCashupId(cashup.getId());
+        long receiptTotal = remaining.stream().mapToLong(item -> value(item.getAmountCents())).sum();
+        boolean manual = "MANUAL_RECEIPT_BOOK".equalsIgnoreCase(cashup.getSource());
+        if (manual) {
+            long declared = value(cashup.getManualAmountCents());
+            cashup.setTotalCents(declared);
+            int declaredCount = value(cashup.getReceiptCount());
+            if (declaredCount > 0 && remaining.size() == declaredCount) {
+                cashup.setReceiptTotalCents(receiptTotal);
+                cashup.setVarianceCents(declared - receiptTotal);
+            } else {
+                cashup.setReceiptTotalCents(declared);
+                cashup.setVarianceCents(0L);
+            }
+        } else {
+            cashup.setTotalCents(receiptTotal);
+            cashup.setReceiptCount(remaining.size());
+        }
+        cashup.setUpdatedBy(actor);
+        cashupRepository.save(cashup);
+
+        cashupPaymentSummaryRepository.deleteByCashupId(cashup.getId());
+        cashupPaymentSummaryRepository.flush();
+        Map<String, List<CashupReceiptEntity>> byMethod = remaining.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        item -> firstNonBlank(item.getPaymentMethod(), "OTHER").toUpperCase(Locale.ROOT),
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
+        for (Map.Entry<String, List<CashupReceiptEntity>> entry : byMethod.entrySet()) {
+            CashupPaymentSummaryEntity summary = new CashupPaymentSummaryEntity();
+            summary.setCashup(cashup);
+            summary.setPaymentMethod(entry.getKey());
+            summary.setAmountCents(entry.getValue().stream()
+                    .mapToLong(item -> value(item.getAmountCents())).sum());
+            summary.setPaymentCount(entry.getValue().size());
+            cashupPaymentSummaryRepository.save(summary);
         }
     }
 

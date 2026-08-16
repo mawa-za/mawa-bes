@@ -138,7 +138,7 @@ public class MembershipPremiumPaymentService {
             throw new IllegalArgumentException("captureMode must be LEGACY_CATCH_UP or MANUAL_EMERGENCY");
         }
 
-        if (manualPremiumReceiptRepository.existsByReceiptBookNoAndManualReceiptNo(request.getReceiptBookNo().trim(), request.getManualReceiptNo().trim())) {
+        if (manualPremiumReceiptRepository.existsByReceiptBookNoAndManualReceiptNoAndVoidedAtIsNull(request.getReceiptBookNo().trim(), request.getManualReceiptNo().trim())) {
             throw new IllegalStateException("This receipt book and receipt number have already been captured");
         }
 
@@ -189,6 +189,24 @@ public class MembershipPremiumPaymentService {
         boolean linkedToOpenCashup = false;
         for (ReceiptEntity receipt : receipts) {
             var links = new ArrayList<>(cashupReceiptRepository.findByReceiptId(receipt.getId()));
+            manualPremiumReceiptRepository.findByPaymentBatchId(paymentBatchId).ifPresent(manualReceipt -> {
+                for (var manualLink : cashupReceiptRepository.findByReceiptId(manualReceipt.getId())) {
+                    if (links.stream().noneMatch(existing -> existing.getId().equals(manualLink.getId()))) {
+                        links.add(manualLink);
+                    }
+                }
+            });
+            for (String physicalReceiptNo : List.of(
+                    receipt.getManualReceiptNo() == null ? "" : receipt.getManualReceiptNo(),
+                    receipt.getExternalReceiptNo() == null ? "" : receipt.getExternalReceiptNo())) {
+                Long physicalNo = numericReceiptNo(physicalReceiptNo);
+                if (physicalNo == null) continue;
+                for (var physicalLink : cashupReceiptRepository.findByReceiptNo(physicalNo)) {
+                    if (links.stream().noneMatch(existing -> existing.getId().equals(physicalLink.getId()))) {
+                        links.add(physicalLink);
+                    }
+                }
+            }
             Long numericReceiptNo = numericReceiptNo(receipt.getReceiptNo());
             if (numericReceiptNo != null) {
                 for (var legacyLink : cashupReceiptRepository.findByReceiptNo(numericReceiptNo)) {
@@ -460,10 +478,21 @@ public class MembershipPremiumPaymentService {
         for (ReceiptEntity receipt : receipts) {
             receiptService.reverseReceipt(receipt.getId(), reversalReason, actionBy);
         }
+        ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository
+                .findByPaymentBatchId(paymentBatchId)
+                .orElse(null);
         onlineCashupService.removeReceipts(
                 receipts,
+                manualReceipt == null ? List.of() : List.of(manualReceipt.getId()),
                 actionBy,
                 !allowPremiumPaymentDeletionWithoutCashupValidation());
+
+        if (manualReceipt != null && manualReceipt.getVoidedAt() == null) {
+            manualReceipt.setVoidedAt(LocalDateTime.now());
+            manualReceipt.setVoidedBy(actionBy);
+            manualReceipt.setVoidReason(isBlank(reason) ? "Approved premium payment deletion" : reason.trim());
+            manualPremiumReceiptRepository.save(manualReceipt);
+        }
 
         batch.setStatus(PaymentBatchStatus.REVERSED);
         batch.setNotes((isBlank(batch.getNotes()) ? "" : batch.getNotes() + "\n")
