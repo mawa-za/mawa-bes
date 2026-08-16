@@ -96,6 +96,7 @@ public class MembershipPremiumPaymentService {
 
     @Transactional
     public PaymentBatchResponseDto captureManualReceipt(ManualPremiumReceiptCaptureRequest request) {
+        applyAuthoritativeLegacyReceiptAmount(request);
         validateManual(request);
         ManualReceiptBookEntity receiptBook = manualReceiptBookService.requireActiveBookForReceipt(
                 request.getManualReceiptNo());
@@ -527,6 +528,27 @@ public class MembershipPremiumPaymentService {
             receiptRepository.save(receipt);
         }
         return responses.stream().map(r -> receiptService.getReceipt(r.getId())).toList();
+    }
+
+
+    private void applyAuthoritativeLegacyReceiptAmount(ManualPremiumReceiptCaptureRequest request) {
+        if (request == null
+                || isBlank(request.getMembershipId())
+                || isBlank(request.getCaptureMode())
+                || !"LEGACY_CATCH_UP".equalsIgnoreCase(request.getCaptureMode().trim())) {
+            return;
+        }
+
+        long membershipPremiumCents = determineMonthlyPremiumCents(request.getMembershipId());
+        if (membershipPremiumCents <= 0) {
+            throw new IllegalStateException(
+                    "The membership does not have a valid premium amount for legacy receipt capture");
+        }
+
+        // Legacy physical receipts represent the membership's monthly premium.
+        // Do not trust a user-entered/client-supplied historical amount here: older
+        // clients and previously editable screens could submit an incorrect value.
+        request.setAmountCents(membershipPremiumCents);
     }
 
 
