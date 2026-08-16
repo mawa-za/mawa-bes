@@ -446,10 +446,15 @@ public class MembershipService {
                     if (membership.getPlanId() != null && !membership.getPlanId().equals(existingMembership.getPlanId())) {
                         throw new IllegalArgumentException("Membership plan changes require an approved plan-change request");
                     }
+                    if (membership.getStatus() != null
+                            && !membership.getStatus().equalsIgnoreCase(existingMembership.getStatus())) {
+                        throw new IllegalArgumentException(
+                                "Membership status changes require an approved Reactivate, Deactivate, Suspend or Cancel action");
+                    }
                     existingMembership.setMembershipNo(membership.getMembershipNo());
                     existingMembership.setStartDate(membership.getStartDate());
                     existingMembership.setEndDate(membership.getEndDate());
-                    existingMembership.setStatus(membership.getStatus());
+                    // Membership status is changed only by the approval-backed status action flow.
                     // Paid Up To is derived exclusively from PAID premium rows.
                     existingMembership.setJoinDate(membership.getJoinDate());
                     MembershipEntity savedMembership = membershipRepository.save(existingMembership);

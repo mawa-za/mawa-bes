@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity
-@Table(name = "manual_premium_receipt", uniqueConstraints = @UniqueConstraint(name = "uq_manual_premium_receipt_book_no", columnNames = {"receipt_book_no", "manual_receipt_no"}))
+@Table(name = "manual_premium_receipt")
 public class ManualPremiumReceiptEntity {
     @Id @GeneratedValue(generator = "system-uuid") @GenericGenerator(name = "system-uuid", strategy = "uuid")
     @Column(length = 255) private String id;
@@ -31,4 +31,7 @@ public class ManualPremiumReceiptEntity {
     @Column(name = "captured_at", nullable = false) private LocalDateTime capturedAt;
     @Column(name = "captured_by", nullable = false, length = 255) private String capturedBy;
     @Column(name = "notes", columnDefinition = "TEXT") private String notes;
+    @Column(name = "voided_at") private LocalDateTime voidedAt;
+    @Column(name = "voided_by", length = 255) private String voidedBy;
+    @Column(name = "void_reason", columnDefinition = "TEXT") private String voidReason;
 }

@@ -554,7 +554,8 @@ public class FuneralManagementService {
         entity.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
         entity.setDateOfDeath(request.getDateOfDeath());
         entity.setFuneralDate(request.getFuneralDate());
-        entity.setFuneralArea(request.getFuneralArea());
+        entity.setFuneralArea(referenceDataValidationService.requireOption(
+                "SALES-AREA", request.getFuneralArea(), "Funeral location / area"));
         entity.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
         entity.setDeceasedDeliveryDateTime(request.getDeceasedDeliveryDateTime());
         entity.setDeathCertificateNo(request.getDeathCertificateNo());
@@ -593,7 +594,10 @@ public class FuneralManagementService {
         service.setExtrasJson(toJson(request.getExtras()));
         service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
-        if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) service.setFuneralArea(request.getFuneralArea());
+        if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) {
+            service.setFuneralArea(referenceDataValidationService.requireOption(
+                    "SALES-AREA", request.getFuneralArea(), "Funeral location / area"));
+        }
         if (request.getDeceasedDeliveryDirections() != null) {
             service.setDeceasedDeliveryDirections(trimToNull(request.getDeceasedDeliveryDirections()));
         }
