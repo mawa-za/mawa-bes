@@ -342,7 +342,8 @@ public class MembershipClaimService {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted.");
         }
 
-        if (entity.getClaimType() == MembershipClaimType.COMBINATION) {
+        if (entity.getClaimType() == MembershipClaimType.COMBINATION
+                && !isFuneralArrangementClaim(entity.getId())) {
             validateCombinationReadyForSubmit(entity);
         }
         if (entity.getClaimType() == MembershipClaimType.CASH
@@ -412,7 +413,7 @@ public class MembershipClaimService {
         entity.setApprovedBy(userId);
         entity.setApprovedAt(java.time.LocalDateTime.now());
         entity.setUpdatedBy(userId);
-        MembershipClaimEntity saved = claimRepository.save(entity);
+        MembershipClaimEntity saved = claimRepository.saveAndFlush(entity);
         refreshLinkedFuneralServiceStatus(saved.getId());
         return toResponse(saved);
     }
@@ -658,6 +659,43 @@ public class MembershipClaimService {
             return entity.getApprovedAmountCents() == null ? entity.getClaimAmountCents() : entity.getApprovedAmountCents();
         }
         return entity.getApprovedAmountCents() == null ? 0L : entity.getApprovedAmountCents();
+    }
+
+    private boolean isFuneralArrangementClaim(String membershipClaimId) {
+        if (!StringUtils.hasText(membershipClaimId)) {
+            return false;
+        }
+
+        // External funeral claims are stored in the source membership tenant,
+        // while funeral_service_claim remains in the provider tenant. The
+        // source claim therefore identifies its funeral linkage through the
+        // portable funeral_service_id column rather than a local link row.
+        try {
+            Integer directLink = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM membership_claim
+                     WHERE id = ?
+                       AND funeral_service_id IS NOT NULL
+                       AND TRIM(funeral_service_id) <> ''
+                    """, Integer.class, membershipClaimId);
+            if (directLink != null && directLink > 0) {
+                return true;
+            }
+        } catch (Exception ignored) {
+            // Older schemas may not have the portable funeral_service_id column.
+        }
+
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM funeral_service_claim
+                     WHERE membership_claim_id = ?
+                    """, Integer.class, membershipClaimId);
+            return count != null && count > 0;
+        } catch (Exception ignored) {
+            // Normal membership claims are not required to have funeral linkage.
+            return false;
+        }
     }
 
     private void refreshLinkedFuneralServiceStatus(String membershipClaimId) {

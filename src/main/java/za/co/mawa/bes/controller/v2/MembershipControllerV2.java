@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.dto.v2.MembershipResponseDto;
+import za.co.mawa.bes.dto.v2.MembershipStatusChangeRequest;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
@@ -24,6 +26,7 @@ import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipChangeService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
+import za.co.mawa.bes.service.v2.MembershipStatusChangeService;
 import za.co.mawa.bes.service.v2.MigrateService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
@@ -39,6 +42,8 @@ public class MembershipControllerV2 {
     MigrateService migrateService;
     @Autowired
     MembershipRepository membershipRepository;
+    @Autowired
+    MembershipStatusChangeService membershipStatusChangeService;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -178,6 +183,16 @@ public class MembershipControllerV2 {
     public ResponseEntity<MembershipEntity> createMembership(@RequestBody MembershipEntity membership) {
         MembershipEntity createdMembership = membershipService.createMembership(membership);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdMembership);
+    }
+
+    @PostMapping("/{id}/status-actions/{action}")
+    public ResponseEntity<ApprovalRequestResponse> requestMembershipStatusChange(
+            @PathVariable String id,
+            @PathVariable String action,
+            @RequestBody MembershipStatusChangeRequest request,
+            Principal principal) {
+        return ResponseEntity.ok(membershipStatusChangeService.request(
+                id, action, request, actor(principal)));
     }
 
     @PutMapping("/{id}")

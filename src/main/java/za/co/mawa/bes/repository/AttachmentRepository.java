@@ -30,6 +30,6 @@ public interface AttachmentRepository extends JpaRepository<AttachmentEntity,Str
     @Query("SELECT a FROM AttachmentEntity a WHERE a.objectId IN :objectIds ORDER BY a.uploadDate DESC, a.uploadTime DESC, a.id DESC")
     List<AttachmentEntity> findByObjectIdIn(@Param("objectIds") List<String> objectIds);
 
-    @Query("SELECT a FROM AttachmentEntity a WHERE a.objectId = :objectId AND a.documentType = :documentType")
-    AttachmentEntity findByObjectDocumentType(String objectId, String documentType);
+    Optional<AttachmentEntity> findFirstByObjectIdAndDocumentTypeOrderByUploadDateDescUploadTimeDescIdDesc(
+            String objectId, String documentType);
 }

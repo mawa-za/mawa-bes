@@ -2,6 +2,11 @@ package za.co.mawa.bes.enums;
 
 public enum ApprovalType {
     CLAIM,
+    CLAIM_CASH,
+    CLAIM_TOMBSTONE,
+    CLAIM_FUNERAL,
+    CLAIM_COMBINATION,
+    CLAIM_GROCERY,
     PAYMENT,
     LEAVE,
     CASHUP,
@@ -31,5 +36,27 @@ public enum ApprovalType {
     GROUP_SOCIETY_BALANCE_ADJUSTMENT,
     GROUP_SOCIETY_FUNERAL_CLAIM,
     PREMIUM_PAYMENT_DELETION,
+    PREMIUM_PAYMENT_EDIT,
+    MEMBERSHIP_STATUS_CHANGE;
+
+    public boolean isMembershipClaimApproval() {
+        return this == CLAIM
+                || this == CLAIM_CASH
+                || this == CLAIM_TOMBSTONE
+                || this == CLAIM_FUNERAL
+                || this == CLAIM_COMBINATION
+                || this == CLAIM_GROCERY;
+    }
+
+    public static ApprovalType forMembershipClaimType(MembershipClaimType claimType) {
+        if (claimType == null) return CLAIM;
+        return switch (claimType) {
+            case CASH -> CLAIM_CASH;
+            case TOMBSTONE -> CLAIM_TOMBSTONE;
+            case FUNERAL -> CLAIM_FUNERAL;
+            case COMBINATION -> CLAIM_COMBINATION;
+            case GROCERY -> CLAIM_GROCERY;
+        };
+    }
 }
 

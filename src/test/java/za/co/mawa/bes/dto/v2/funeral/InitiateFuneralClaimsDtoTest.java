@@ -15,29 +15,48 @@ class InitiateFuneralClaimsDtoTest {
     }
 
     @Test
-    void groceryCannotReplaceThePrimaryFuneralArrangementClaimType() {
+    void primaryFuneralClaimTypeIsDerivedFromSelectedCoverCount() {
         InitiateFuneralClaimsDto request = new InitiateFuneralClaimsDto();
         request.setClaimType("GROCERY");
 
         assertEquals("FUNERAL", request.getEffectiveClaimType(1));
-        assertEquals("FUNERAL", request.getEffectiveClaimType(2));
+        assertEquals("COMBINATION", request.getEffectiveClaimType(2));
+        assertEquals("COMBINATION", request.getEffectiveClaimType(3));
     }
 
     @Test
-    void combinationMustBeRequestedExplicitly() {
+    void olderClientsCannotForceCombinationForASingleCoverOrFuneralForMultipleCovers() {
         InitiateFuneralClaimsDto request = new InitiateFuneralClaimsDto();
-        request.setClaimType("COMBINATION");
 
-        assertEquals("COMBINATION", request.getEffectiveClaimType(1));
+        request.setClaimType("COMBINATION");
+        assertEquals("FUNERAL", request.getEffectiveClaimType(1));
+
+        request.setClaimType("FUNERAL");
         assertEquals("COMBINATION", request.getEffectiveClaimType(2));
     }
 
     @Test
-    void invoicePreviewAlsoDefaultsMultipleMembershipsToFuneral() {
+    void invoicePreviewUsesCombinationForMultipleSelectedCovers() {
         FuneralInvoicePreviewRequestDto request = new FuneralInvoicePreviewRequestDto();
 
         assertEquals("FUNERAL", request.getEffectiveClaimType(1));
-        assertEquals("FUNERAL", request.getEffectiveClaimType(2));
+        assertEquals("COMBINATION", request.getEffectiveClaimType(2));
+        assertEquals("COMBINATION", request.getEffectiveClaimType(3));
+    }
+
+    @Test
+    void combinationUsesTheConfiguredCombinationBenefitWithoutFuneralFallback() {
+        FuneralMembershipCoverDto noCombinationBenefit = FuneralMembershipCoverDto.builder()
+                .funeralAmountCents(100_000L)
+                .combinationAmountCents(null)
+                .build();
+        FuneralMembershipCoverDto combinationBenefit = FuneralMembershipCoverDto.builder()
+                .funeralAmountCents(100_000L)
+                .combinationAmountCents(75_000L)
+                .build();
+
+        assertEquals(0L, noCombinationBenefit.amountForClaimType("COMBINATION"));
+        assertEquals(75_000L, combinationBenefit.amountForClaimType("COMBINATION"));
     }
 
     @Test

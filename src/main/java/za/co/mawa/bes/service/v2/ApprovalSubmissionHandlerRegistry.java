@@ -13,7 +13,10 @@ public class ApprovalSubmissionHandlerRegistry {
 
     public void handleSubmit(ApprovalRequestEntity approvalRequest, String actionBy) {
         handlers.orderedStream()
-                .filter(handler -> handler.supports() == approvalRequest.getApprovalType())
+                .filter(handler -> handler.supports() == approvalRequest.getApprovalType()
+                        || (approvalRequest.getApprovalType() != null
+                        && approvalRequest.getApprovalType().isMembershipClaimApproval()
+                        && handler.supports() == za.co.mawa.bes.enums.ApprovalType.CLAIM))
                 .findFirst()
                 .ifPresent(handler -> handler.onSubmit(approvalRequest, actionBy));
     }

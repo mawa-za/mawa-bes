@@ -5,9 +5,9 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.entity.AttachmentEntity;
@@ -20,8 +20,7 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.AttachmentService;
-import za.co.mawa.bes.service.CompanyInfoService;
-import za.co.mawa.bes.service.CompanyLogoService;
+import za.co.mawa.bes.service.CompanyPdfBrandingService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
@@ -42,14 +41,13 @@ public class ClaimFormGenerationService {
     private final PartnerRepository partnerRepository;
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
-    private final CompanyLogoService companyLogoService;
-    private final CompanyInfoService companyInfoService;
+    private final CompanyPdfBrandingService companyPdfBrandingService;
 
     @Transactional
     public AttachmentEntity generateForSubmittedClaim(String claimId) {
         MembershipClaimEntity claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new IllegalArgumentException("Claim not found: " + claimId));
-        AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
+        AttachmentEntity existing = latestGeneratedClaimForm(claimId);
         if (existing != null) return existing;
         return attachmentService.saveBytes(generatePdf(claim), "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
     }
@@ -57,11 +55,19 @@ public class ClaimFormGenerationService {
     @Transactional
     public AttachmentEntity generateForFuneralClaim(String claimId, String claimNo, String claimType,
                                                      String deceasedName, String claimantName, Long amountCents) {
-        AttachmentEntity existing = attachmentRepository.findByObjectDocumentType(claimId, DOCUMENT_TYPE);
+        AttachmentEntity existing = latestGeneratedClaimForm(claimId);
         if (existing != null) return existing;
         byte[] pdf = generateFuneralPdf(claimNo, claimType, "", deceasedName, claimantName, amountCents,
                 "", "", "", "");
         return attachmentService.saveBytes(pdf, "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+    }
+
+
+    private AttachmentEntity latestGeneratedClaimForm(String claimId) {
+        return attachmentRepository
+                .findFirstByObjectIdAndDocumentTypeOrderByUploadDateDescUploadTimeDescIdDesc(
+                        claimId, DOCUMENT_TYPE)
+                .orElse(null);
     }
 
     /** Generates a fresh printable form for local or externally-owned funeral claims. */
@@ -127,27 +133,20 @@ public class ClaimFormGenerationService {
     }
 
     private float drawHeader(PDDocument document, PDPageContentStream content, float y, ClaimFormData data) throws Exception {
-        float logoWidth = CompanyLogoService.PDF_WIDTH_PT;
-        float logoHeight = CompanyLogoService.PDF_HEIGHT_PT;
-        if (companyLogoService.getActiveLogo().isPresent()) {
-            PDImageXObject image = PDImageXObject.createFromByteArray(document,
-                    companyLogoService.getActiveLogo().get().getContent(), "company-logo");
-            content.drawImage(image, LEFT, y - logoHeight, logoWidth, logoHeight);
-        } else {
-            content.addRect(LEFT, y - logoHeight, logoWidth, logoHeight);
-            content.stroke();
-            write(content, "COMPANY LOGO", LEFT + 25, y - 25, 9, true);
-        }
-        writeRight(content, clean(companyInfoService.getCompanyName()), RIGHT, y - 10, 14, true);
-        writeRight(content, clean(companyInfoService.getCompanyAddress()), RIGHT, y - 27, 8, false);
-        writeRight(content, "Generated " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")), RIGHT, y - 43, 8, false);
-        y -= logoHeight + 16;
-        content.setLineWidth(1.2f);
-        content.moveTo(LEFT, y); content.lineTo(RIGHT, y); content.stroke();
-        y -= 28;
+        y = companyPdfBrandingService.drawPdfBoxHeader(document, content, regularFont(), boldFont(), LEFT, RIGHT, y);
+        writeRight(content, "Generated " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")), RIGHT, y + 2, 8, false);
+        y -= 24;
         write(content, "MEMBERSHIP CLAIM FORM", LEFT, y, 18, true);
         writeRight(content, clean(data.claimNo), RIGHT, y, 11, true);
         return y - 24;
+    }
+
+    private PDFont regularFont() {
+        return new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+    }
+
+    private PDFont boldFont() {
+        return new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
     }
 
     private float drawSection(PDPageContentStream content, String title, float y, String[][] rows) throws Exception {
