@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -31,6 +32,8 @@ public class FuneralServiceRequestDto {
     private String funeralArea;
     @JsonAlias({"deliveryDirections", "directionsToDeliveryLocation", "deceasedDeliveryLocationDirections"})
     private String deceasedDeliveryDirections;
+    @JsonAlias({"deliveryDateTime", "deceasedDeliveryDateTime"})
+    private LocalDateTime deceasedDeliveryDateTime;
     @JsonAlias({"certificateNumber", "deathCertificateNumber", "deathCertificateNo"})
     private String deathCertificateNo;
     private String causeOfDeath;

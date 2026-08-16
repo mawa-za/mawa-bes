@@ -8,15 +8,22 @@ import org.springframework.data.repository.query.Param;
 import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ManualPremiumReceiptRepository extends JpaRepository<ManualPremiumReceiptEntity, String> {
-    boolean existsByReceiptBookNoAndManualReceiptNo(String receiptBookNo, String manualReceiptNo);
+    boolean existsByReceiptBookNoAndManualReceiptNoAndVoidedAtIsNull(String receiptBookNo, String manualReceiptNo);
+
+    Optional<ManualPremiumReceiptEntity> findFirstByReceiptBookNoAndManualReceiptNoAndVoidedAtIsNotNullOrderByVoidedAtDesc(
+            String receiptBookNo, String manualReceiptNo);
+
+    Optional<ManualPremiumReceiptEntity> findByPaymentBatchId(String paymentBatchId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select receipt
               from ManualPremiumReceiptEntity receipt
              where receipt.receiptBookNo = :receiptBookNo
+               and receipt.voidedAt is null
              order by receipt.originalReceiptDate asc, receipt.manualReceiptNo asc
             """)
     List<ManualPremiumReceiptEntity> findByReceiptBookNoForUpdate(
