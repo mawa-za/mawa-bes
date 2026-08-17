@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.service.v2.LeaveBalanceAdjustmentService;
 import za.co.mawa.bes.service.v2.LeaveBalanceService;
+import za.co.mawa.bes.service.v2.LeaveAccessService;
 
 import java.util.List;
 import java.util.Map;
@@ -17,19 +18,50 @@ import java.util.NoSuchElementException;
 public class LeaveBalanceControllerV2 {
     private final LeaveBalanceService balanceService;
     private final LeaveBalanceAdjustmentService adjustmentService;
+    private final LeaveAccessService leaveAccessService;
 
-    public LeaveBalanceControllerV2(LeaveBalanceService balanceService, LeaveBalanceAdjustmentService adjustmentService) {
+    public LeaveBalanceControllerV2(
+            LeaveBalanceService balanceService,
+            LeaveBalanceAdjustmentService adjustmentService,
+            LeaveAccessService leaveAccessService) {
         this.balanceService = balanceService;
         this.adjustmentService = adjustmentService;
+        this.leaveAccessService = leaveAccessService;
     }
 
     @GetMapping
-    public ResponseEntity<List<LeaveBalanceDto>> balances(@RequestParam(required = false) String employmentId) {
-        return ResponseEntity.ok(balanceService.listBalances(employmentId));
+    public ResponseEntity<List<LeaveBalanceDto>> balances(
+            @RequestParam(required = false) String employmentId,
+            @RequestParam(required = false) String view) {
+        if ("APPROVER".equalsIgnoreCase(view)) {
+            if (employmentId != null && !employmentId.isBlank()) {
+                leaveAccessService.assertCanApproveEmployment(employmentId);
+                return ResponseEntity.ok(balanceService.listBalances(employmentId));
+            }
+            List<LeaveBalanceDto> balances = leaveAccessService.approvableEmploymentIds().stream()
+                    .flatMap(id -> balanceService.listBalances(id).stream())
+                    .toList();
+            return ResponseEntity.ok(balances);
+        }
+
+        String ownEmploymentId = employmentId;
+        if (ownEmploymentId == null || ownEmploymentId.isBlank()) {
+            ownEmploymentId = leaveAccessService.currentEmployment(java.time.LocalDate.now()).getId();
+        } else {
+            leaveAccessService.assertOwnEmployment(ownEmploymentId);
+        }
+        return ResponseEntity.ok(balanceService.listBalances(ownEmploymentId));
     }
 
     @GetMapping("/ledger")
-    public ResponseEntity<List<LeaveLedgerDto>> ledger(@RequestParam String employmentId) {
+    public ResponseEntity<List<LeaveLedgerDto>> ledger(
+            @RequestParam String employmentId,
+            @RequestParam(required = false) String view) {
+        if ("APPROVER".equalsIgnoreCase(view)) {
+            leaveAccessService.assertCanApproveEmployment(employmentId);
+        } else {
+            leaveAccessService.assertOwnEmployment(employmentId);
+        }
         return ResponseEntity.ok(balanceService.listLedger(employmentId));
     }
 

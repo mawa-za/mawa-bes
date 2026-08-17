@@ -34,12 +34,16 @@ public class LeaveRequestControllerV2 {
     @GetMapping
     public ResponseEntity<List<LeaveRequestV2ResponseDto>> search(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String employeePartnerId,
-            @RequestParam(required = false) String approverPartnerId,
+            @RequestParam(required = false) String view,
             @RequestParam(required = false) String leaveType,
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate) {
-        return ResponseEntity.ok(service.search(status, employeePartnerId, approverPartnerId, leaveType, fromDate, toDate));
+        return ResponseEntity.ok(service.search(status, view, leaveType, fromDate, toDate));
+    }
+
+    @GetMapping("/access")
+    public ResponseEntity<Map<String, Object>> access() {
+        return ResponseEntity.ok(service.access());
     }
 
     @GetMapping("/{id}")

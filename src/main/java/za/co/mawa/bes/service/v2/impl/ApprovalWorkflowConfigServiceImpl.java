@@ -9,6 +9,7 @@ import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepApproverEntity;
 import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepEntity;
 import za.co.mawa.bes.enums.ApprovalMode;
 import za.co.mawa.bes.enums.ApprovalType;
+import za.co.mawa.bes.enums.ApproverType;
 import za.co.mawa.bes.repository.v2.ApprovalWorkflowRepository;
 import za.co.mawa.bes.service.v2.ApprovalWorkflowConfigService;
 
@@ -189,7 +190,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
             step.setActive(stepRequest.getActive() == null || stepRequest.getActive());
             step.setCreatedAt(LocalDateTime.now());
 
-            validateStepRequest(stepRequest);
+            validateStepRequest(stepRequest, workflow.getApprovalType());
 
             for (ApprovalWorkflowStepApproverRequestDto approverRequest : stepRequest.getApprovers()) {
                 ApprovalWorkflowStepApproverEntity approver = new ApprovalWorkflowStepApproverEntity();
@@ -198,6 +199,9 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
                 approver.setApproverType(approverRequest.getApproverType());
                 approver.setApproverValue(approverRequest.getApproverValue());
                 approver.setApproverName(approverRequest.getApproverName());
+                approver.setAssignmentScopeType(normaliseScopeType(approverRequest.getAssignmentScopeType()));
+                approver.setAssignmentScopeValue(normaliseScopeValue(
+                        approver.getAssignmentScopeType(), approverRequest.getAssignmentScopeValue()));
                 approver.setActive(approverRequest.getActive() == null || approverRequest.getActive());
                 approver.setCreatedAt(LocalDateTime.now());
 
@@ -233,7 +237,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         }
     }
 
-    private void validateStepRequest(ApprovalWorkflowStepRequestDto stepRequest) {
+    private void validateStepRequest(ApprovalWorkflowStepRequestDto stepRequest, ApprovalType approvalType) {
         if (stepRequest.getStepNo() == null) {
             throw new RuntimeException("Step number is required");
         }
@@ -257,6 +261,21 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
 
             if (approver.getApproverValue() == null || approver.getApproverValue().isBlank()) {
                 throw new RuntimeException("Approver value is required for step " + stepRequest.getStepNo());
+            }
+
+            if (approvalType == ApprovalType.LEAVE) {
+                if (!Set.of(ApproverType.ROLE, ApproverType.USER).contains(approver.getApproverType())) {
+                    throw new RuntimeException("Leave approvers must be configured by role or specific employee");
+                }
+
+                String scopeType = normaliseScopeType(approver.getAssignmentScopeType());
+                if (!Set.of("ALL", "POSITION", "EMPLOYEE").contains(scopeType)) {
+                    throw new RuntimeException("Leave approver assignment scope must be ALL, POSITION or EMPLOYEE");
+                }
+                if (!"ALL".equals(scopeType)
+                        && (approver.getAssignmentScopeValue() == null || approver.getAssignmentScopeValue().isBlank())) {
+                    throw new RuntimeException("Assignment scope value is required for " + scopeType.toLowerCase(Locale.ROOT));
+                }
             }
         }
     }
@@ -369,6 +388,16 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         return dto;
     }
 
+    private String normaliseScopeType(String value) {
+        if (value == null || value.isBlank()) return "ALL";
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normaliseScopeValue(String scopeType, String value) {
+        if ("ALL".equals(scopeType)) return null;
+        return value == null ? null : value.trim();
+    }
+
     private ApprovalWorkflowStepApproverResponseDto toApproverDto(ApprovalWorkflowStepApproverEntity entity) {
         ApprovalWorkflowStepApproverResponseDto dto = new ApprovalWorkflowStepApproverResponseDto();
 
@@ -376,6 +405,8 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         dto.setApproverType(entity.getApproverType());
         dto.setApproverValue(entity.getApproverValue());
         dto.setApproverName(entity.getApproverName());
+        dto.setAssignmentScopeType(normaliseScopeType(entity.getAssignmentScopeType()));
+        dto.setAssignmentScopeValue(entity.getAssignmentScopeValue());
         dto.setActive(entity.getActive());
 
         return dto;
