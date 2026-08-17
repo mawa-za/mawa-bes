@@ -32,6 +32,7 @@ public class ApprovalService {
     private final JdbcTemplate jdbcTemplate;
     private final UserInboxService userInboxService;
     private final MembershipClaimService membershipClaimService;
+    private final ApprovalApproverScopeService approverScopeService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -463,6 +464,7 @@ public class ApprovalService {
         boolean allowed = step.getApprovers()
                 .stream()
                 .filter(approver -> approver.getActive() == null || approver.getActive())
+                .filter(approver -> approverScopeService.appliesToRequest(approver, request))
                 .anyMatch(approver -> isUserAllowedForApproverRule(approver, actionBy, request));
 
         if (!allowed) {

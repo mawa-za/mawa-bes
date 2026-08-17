@@ -35,6 +35,12 @@ public class ApprovalWorkflowStepApproverEntity {
     @Column(name = "approver_name")
     private String approverName;
 
+    @Column(name = "assignment_scope_type")
+    private String assignmentScopeType;
+
+    @Column(name = "assignment_scope_value")
+    private String assignmentScopeValue;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
