@@ -19,6 +19,7 @@ import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.fnb.dto.OriginalPaymentInformation;
 import za.co.mawa.bes.fnb.dto.StatusReasonInformation;
 import za.co.mawa.bes.fnb.dto.TransactionInfoAndStatus;
+import za.co.mawa.bes.service.v2.BackgroundExecutionContextService;
 import za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService;
 import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
@@ -62,6 +63,8 @@ public class MessageConsumerService {
     PayrollPaymentBatchService payrollPaymentBatchService;
     @Autowired
     SettingService settingService;
+    @Autowired
+    BackgroundExecutionContextService backgroundExecutionContextService;
     Gson gson = new Gson();
 
     private static final String QUEUE_GROUP = "MESSAGE-QUEUE";
@@ -100,6 +103,7 @@ public class MessageConsumerService {
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
+                backgroundExecutionContextService.establish();
                 if (!isSchedulerEnabled() || !isDueToRun()) {
                     return;
                 }
@@ -128,6 +132,7 @@ public class MessageConsumerService {
                         tenantLabel(tenant), rootMessage(ex), ex);
                 return;
             } finally {
+                backgroundExecutionContextService.clear();
                 TenantContext.clear();
             }
         }
@@ -605,20 +610,20 @@ public class MessageConsumerService {
 
     private String resolveSystemUserId() {
         try {
-            var backgroundUser = userService.getUserByName("BGUSER");
+            var backgroundUser = userService.getUserByName(BackgroundExecutionContextService.BACKGROUND_USERNAME);
             if (backgroundUser != null
                     && backgroundUser.getId() != null
                     && !backgroundUser.getId().isBlank()) {
                 return backgroundUser.getId();
             }
-            log.debug("BGUSER is not configured; using SYSTEM for FNB queue audit updates");
+            log.debug("BGUSER is not configured; using the synthetic BGUSER id for FNB queue audit updates");
         } catch (Exception exception) {
             log.warn(
-                    "BGUSER lookup failed; using SYSTEM for FNB queue audit updates: {}",
+                    "BGUSER lookup failed; using the synthetic BGUSER id for FNB queue audit updates: {}",
                     rootMessage(exception)
             );
         }
-        return "SYSTEM";
+        return BackgroundExecutionContextService.BACKGROUND_USERNAME;
     }
 
     private String resolveInvoiceId(MessageQueueEntity msg) {

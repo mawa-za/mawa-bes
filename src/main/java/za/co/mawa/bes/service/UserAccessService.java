@@ -163,6 +163,7 @@ public class UserAccessService {
     }
 
     public boolean hasInteractiveSession() {
+        if (UserContext.isBackgroundSession()) return false;
         if (UserContext.isPlatformSession()) return true;
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && authentication.isAuthenticated()
