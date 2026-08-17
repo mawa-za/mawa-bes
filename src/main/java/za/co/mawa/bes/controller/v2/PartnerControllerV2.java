@@ -145,16 +145,30 @@ public class PartnerControllerV2 {
     }
 
     @RequestMapping(value = "{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PartnerEditDto> editPartner(@PathVariable String id, @RequestBody PartnerEditDto partnerEditDto) {
+    public ResponseEntity<?> editPartner(@PathVariable String id, @RequestBody PartnerEditDto partnerEditDto) {
         try {
             // The resource identifier is authoritative in the URL. The ERP edit payload does not
             // include the legacy DTO id field, so always bind it from the path before saving.
             partnerEditDto.setId(id);
+            // PartnerService.edit is transactional and loads the entity with findById, avoiding
+            // Hibernate lazy proxies escaping the persistence context before field updates.
             partnerService.edit(partnerEditDto);
             return ResponseEntity.ok(partnerEditDto);
         } catch (Exception exception) {
-            log.error("Unable to edit partner {}: {}", id, exception.getMessage(), exception);
-            return ResponseEntity.badRequest().build();
+            Throwable root = exception;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            log.error("Unable to edit partner {}: {}", id, root.getMessage(), exception);
+            String message = root instanceof IllegalArgumentException
+                    ? root.getMessage()
+                    : "Unable to save partner changes";
+            if (message == null || message.isBlank()) {
+                message = "Unable to save partner changes";
+            }
+            return ResponseEntity.badRequest().body(
+                    new ErrorResponse(message, HttpStatus.BAD_REQUEST.value())
+            );
         }
     }
 
