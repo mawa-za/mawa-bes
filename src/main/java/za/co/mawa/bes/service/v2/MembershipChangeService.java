@@ -48,6 +48,7 @@ public class MembershipChangeService {
     private final SettingService settingService;
     private final ObjectProvider<ApprovalService> approvalServiceProvider;
     private final ObjectMapper objectMapper;
+    private final MembershipActionGuardService membershipActionGuardService;
 
     @Transactional(readOnly = true)
     public MembershipChangeConfigurationDto getConfiguration() {
@@ -78,6 +79,7 @@ public class MembershipChangeService {
     @Transactional
     public MembershipChangeResponse requestTransfer(String membershipId, MembershipTransferRequest request, String actor) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
         requireNoOpenChange(membershipId);
         String newMemberId = clean(request == null ? null : request.getNewMemberId());
         if (newMemberId == null) throw new IllegalArgumentException("New member is required");
@@ -117,6 +119,7 @@ public class MembershipChangeService {
     @Transactional
     public MembershipChangeResponse requestPlanChange(String membershipId, MembershipPlanChangeRequest request, String actor) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
         synchronizeEffectiveChanges(membership.getId(), LocalDate.now(), actor(actor));
         membership = getMembershipForUpdate(membershipId);
         requireNoOpenChange(membershipId);
@@ -163,6 +166,7 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
         String partnerId = clean(request == null ? null : request.getDependentPartnerId());
         if (partnerId == null) throw new IllegalArgumentException("Dependent is required");
         DependentType dependentType = request == null ? null : request.getDependentType();
@@ -211,6 +215,7 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
         if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
             throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
@@ -254,6 +259,7 @@ public class MembershipChangeService {
             String actor
     ) {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
         if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
             throw new IllegalArgumentException("A deceased dependent cannot be replaced");
@@ -322,6 +328,7 @@ public class MembershipChangeService {
     public void approved(String changeRequestId, String actionBy) {
         MembershipChangeRequestEntity change = getChange(changeRequestId);
         if (change.getStatus() != MembershipChangeStatus.PENDING_APPROVAL) return;
+        membershipActionGuardService.requireActionable(change.getMembershipId());
         String actor = actor(actionBy);
         change.setApprovedAt(LocalDateTime.now());
         change.setApprovedBy(actor);

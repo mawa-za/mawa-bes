@@ -20,6 +20,7 @@ import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.exception.DoesNotExist;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.utils.Field;
+import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -52,6 +53,9 @@ public class AttachmentService implements AttachmentDao {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    MembershipActionGuardService membershipActionGuardService;
+
     @Override
     @Transactional
     public void save(AttachmentCreateDto attachmentCreateDto) throws Exception {
@@ -74,6 +78,7 @@ public class AttachmentService implements AttachmentDao {
 
     @Transactional
     public AttachmentEntity saveBytes(byte[] bytes, String extension, String objectType, String objectId, String documentType) {
+        membershipActionGuardService.requireActionableForObject(objectId);
         AttachmentStorageService.StoredAttachment stored = attachmentStorageService.store(bytes, extension, objectType, objectId, documentType);
 
         AttachmentEntity attachmentEntity = new AttachmentEntity();
@@ -163,6 +168,7 @@ public class AttachmentService implements AttachmentDao {
     @Transactional
     public void delete(String id) throws DoesNotExist {
         AttachmentEntity attachmentEntity = attachmentRepository.findById(id).orElseThrow(DoesNotExist::new);
+        membershipActionGuardService.requireActionableForObject(attachmentEntity.getObjectId());
         validateBusinessAttachmentDeletion(attachmentEntity);
         if (StringUtils.hasText(attachmentEntity.getFilePath())) {
             attachmentStorageService.delete(attachmentEntity.getStorageBucket(), attachmentEntity.getFilePath());

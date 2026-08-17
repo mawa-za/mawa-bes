@@ -56,12 +56,14 @@ public class MembershipPremiumPaymentService {
     private final ManualReceiptBookService manualReceiptBookService;
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
     private final SettingService settingService;
+    private final MembershipActionGuardService membershipActionGuardService;
     @Autowired
     NumberAllocationService numberAllocationService;
 
     @Transactional
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
+        membershipActionGuardService.requireActionable(request.getMembershipId());
         validatePremiumPaymentLimit(request);
         validatePremiumPeriodSelection(request);
 
@@ -96,6 +98,7 @@ public class MembershipPremiumPaymentService {
 
     @Transactional
     public PaymentBatchResponseDto captureManualReceipt(ManualPremiumReceiptCaptureRequest request) {
+        membershipActionGuardService.requireActionable(request == null ? null : request.getMembershipId());
         applyAuthoritativeLegacyReceiptAmount(request);
         validateManual(request);
         ManualReceiptBookEntity receiptBook = manualReceiptBookService.requireActiveBookForReceipt(
@@ -173,6 +176,7 @@ public class MembershipPremiumPaymentService {
     public void validateDeletionAllowed(String paymentBatchId) {
         PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
+        membershipActionGuardService.requireActionable(batch.getMembershipId());
         if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM) {
             throw new IllegalArgumentException("Only membership premium payments can be deleted");
         }
@@ -327,7 +331,9 @@ public class MembershipPremiumPaymentService {
         }
 
         String sourceMembershipId = batch.getMembershipId();
+        membershipActionGuardService.requireActionable(sourceMembershipId);
         String targetMembershipId = request.getTargetMembershipId().trim();
+        membershipActionGuardService.requireActionable(targetMembershipId);
         if (isBlank(sourceMembershipId)) {
             throw new IllegalStateException("The payment does not have a source membership");
         }
