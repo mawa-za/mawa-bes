@@ -27,7 +27,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FuneralClaimSettlementService {
-    private static final String FUNERAL_CLAIM_PAYMENT_SETTING = "FUNERAL_CLAIM_PAYMENT";
+    private static final String FUNERAL_CLAIM_PAY_SETTING = "FUNERAL_CLAIM_PAY";
     private static final String FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE = "SUPPLIER_PARTNER_ID";
 
     private final JdbcTemplate jdbc;
@@ -425,7 +425,7 @@ public class FuneralClaimSettlementService {
 
     private String resolveConfiguredFuneralClaimSupplierId() {
         String supplierPartnerId = settingService.getSetting(
-                FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE, FUNERAL_CLAIM_PAYMENT_SETTING);
+                FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE, FUNERAL_CLAIM_PAY_SETTING);
         if (isBlank(supplierPartnerId)) {
             throw new IllegalStateException(
                     "Funeral claim payment supplier is not configured. Configure it under System Configuration > Funeral Claim Payments.");
