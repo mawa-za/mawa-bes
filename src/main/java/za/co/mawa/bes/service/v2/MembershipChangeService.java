@@ -38,6 +38,7 @@ public class MembershipChangeService {
     private final MembershipChangeConfigurationRepository configurationRepository;
     private final MembershipChangeRequestRepository changeRequestRepository;
     private final MembershipPlanHistoryRepository planHistoryRepository;
+    private final MembershipPremiumPlanHistoryRepository premiumPlanHistoryRepository;
     private final MembershipChangeAuditRepository auditRepository;
     private final PartnerRepository partnerRepository;
     private final MembershipDependentRepository membershipDependentRepository;
@@ -342,12 +343,46 @@ public class MembershipChangeService {
                     "Membership dependent change approved", actor);
             applyDependentChange(change, actor);
         } else {
-            int waitingMonths = change.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : change.getWaitingPeriodMonths();
-            change.setEffectiveDate(LocalDate.now().plusMonths(waitingMonths));
+            MembershipEntity membership = getMembershipForUpdate(change.getMembershipId());
+            MembershipPlanEntity newPlan = membershipPlanRepository.findById(change.getNewPlanId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Approved membership plan no longer exists: " + change.getNewPlanId()));
+            LocalDate today = LocalDate.now();
+            ensureBaselineHistory(membership, actor);
+            ensureBaselinePremiumHistory(membership, actor);
+
+            long currentPremium = membership.getPremiumCents() == null ? 0L : membership.getPremiumCents();
+            long newPremium = calculateTotalPremiumCents(membership.getId(), newPlan, today);
+            boolean downgrade = isPlanDowngrade(change.getOldPlanId(), newPlan);
+
+            applyPremiumPlanChange(change, membership, newPlan, today, actor);
+
+            int waitingMonths = downgrade
+                    ? 0
+                    : (change.getWaitingPeriodMonths() == null
+                        ? DEFAULT_WAITING_PERIOD_MONTHS : change.getWaitingPeriodMonths());
+            change.setWaitingPeriodMonths(waitingMonths);
+            change.setEffectiveDate(today.plusMonths(waitingMonths));
             change.setStatus(MembershipChangeStatus.APPROVED_SCHEDULED);
+            change.setUpdatedAt(LocalDateTime.now());
+            change.setUpdatedBy(actor);
             changeRequestRepository.save(change);
-            audit(change, "APPROVED", Map.of("planId", change.getOldPlanId()), Map.of("planId", change.getNewPlanId(), "effectiveDate", change.getEffectiveDate().toString()), "Plan change approved and scheduled", actor);
-            if (!change.getEffectiveDate().isAfter(LocalDate.now())) applyPlanChange(change, actor);
+
+            Map<String, Object> approvedValues = new LinkedHashMap<>();
+            approvedValues.put("planId", change.getNewPlanId());
+            approvedValues.put("premiumCents", newPremium);
+            approvedValues.put("premiumEffectiveDate", today.toString());
+            approvedValues.put("benefitEffectiveDate", change.getEffectiveDate().toString());
+            approvedValues.put("changeDirection", downgrade ? "DOWNGRADE" : "UPGRADE");
+            audit(change, "APPROVED",
+                    Map.of("planId", change.getOldPlanId(), "premiumCents", currentPremium),
+                    approvedValues,
+                    downgrade
+                            ? "Membership downgrade approved; premium and benefits are effective immediately"
+                            : "Membership upgrade approved; premium is effective immediately and upgraded benefits are waiting-period controlled",
+                    actor);
+
+            if (!change.getEffectiveDate().isAfter(today)) applyPlanChange(change, actor);
         }
     }
 
@@ -400,6 +435,19 @@ public class MembershipChangeService {
         planHistoryRepository.save(MembershipPlanHistoryEntity.builder()
                 .membershipId(membership.getId()).planId(membership.getPlanId()).effectiveFrom(from)
                 .createdAt(LocalDateTime.now()).createdBy(actor(actor)).build());
+    }
+
+    private void ensureBaselinePremiumHistory(MembershipEntity membership, String actor) {
+        if (!premiumPlanHistoryRepository.findByMembershipIdOrderByEffectiveFromAsc(membership.getId()).isEmpty()) return;
+        LocalDate from = membership.getStartDate() != null ? membership.getStartDate()
+                : membership.getJoinDate() != null ? membership.getJoinDate() : LocalDate.now();
+        premiumPlanHistoryRepository.save(MembershipPremiumPlanHistoryEntity.builder()
+                .membershipId(membership.getId())
+                .planId(membership.getPlanId())
+                .effectiveFrom(from)
+                .createdAt(LocalDateTime.now())
+                .createdBy(actor(actor))
+                .build());
     }
 
 
@@ -634,21 +682,67 @@ public class MembershipChangeService {
                     .effectiveFrom(effectiveDate).sourceChangeRequestId(change.getId())
                     .createdAt(LocalDateTime.now()).createdBy(actor).build());
         }
-        MembershipPlanEntity plan = membershipPlanRepository.findById(change.getNewPlanId())
-                .orElseThrow(() -> new IllegalStateException("Approved membership plan no longer exists: " + change.getNewPlanId()));
-        String previousPlan = membership.getPlanId();
-        membership.setPlanId(plan.getId());
-        membership.setPremiumCents(calculateTotalPremiumCents(membership.getId(), plan, effectiveDate));
-        membership.setUpdatedAt(LocalDateTime.now());
-        membership.setUpdatedBy(actor);
-        membershipRepository.save(membership);
+
+        // Deployments upgrading from the earlier all-at-once implementation may
+        // still have scheduled requests whose premium was not changed on approval.
+        // Apply that premium defensively before marking the benefit change complete.
+        if (!change.getNewPlanId().equals(membership.getPlanId())) {
+            MembershipPlanEntity plan = membershipPlanRepository.findById(change.getNewPlanId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Approved membership plan no longer exists: " + change.getNewPlanId()));
+            ensureBaselinePremiumHistory(membership, actor);
+            applyPremiumPlanChange(change, membership, plan, LocalDate.now(), actor);
+        }
+
         change.setStatus(MembershipChangeStatus.APPLIED);
         change.setAppliedAt(LocalDateTime.now());
         change.setAppliedBy(actor);
         change.setUpdatedAt(LocalDateTime.now());
         change.setUpdatedBy(actor);
         changeRequestRepository.save(change);
-        audit(change, "APPLIED", Map.of("planId", previousPlan), Map.of("planId", plan.getId(), "effectiveDate", effectiveDate.toString()), "Approved plan change became effective", actor);
+        audit(change, "APPLIED",
+                Map.of("coveragePlanId", change.getOldPlanId()),
+                Map.of("coveragePlanId", change.getNewPlanId(), "benefitEffectiveDate", effectiveDate.toString()),
+                "Approved membership plan benefits became effective",
+                actor);
+    }
+
+    private void applyPremiumPlanChange(
+            MembershipChangeRequestEntity change,
+            MembershipEntity membership,
+            MembershipPlanEntity newPlan,
+            LocalDate effectiveDate,
+            String actor
+    ) {
+        MembershipPremiumPlanHistoryEntity current = premiumPlanHistoryRepository
+                .findFirstByMembershipIdAndEffectiveToIsNullOrderByEffectiveFromDesc(membership.getId())
+                .orElse(null);
+        if (current != null && current.getPlanId().equals(newPlan.getId())) {
+            // Idempotent replay after a partially completed approval.
+        } else if (current != null && effectiveDate.equals(current.getEffectiveFrom())) {
+            current.setPlanId(newPlan.getId());
+            current.setSourceChangeRequestId(change.getId());
+            premiumPlanHistoryRepository.save(current);
+        } else {
+            if (current != null) {
+                current.setEffectiveTo(effectiveDate.minusDays(1));
+                premiumPlanHistoryRepository.save(current);
+            }
+            premiumPlanHistoryRepository.save(MembershipPremiumPlanHistoryEntity.builder()
+                    .membershipId(membership.getId())
+                    .planId(newPlan.getId())
+                    .effectiveFrom(effectiveDate)
+                    .sourceChangeRequestId(change.getId())
+                    .createdAt(LocalDateTime.now())
+                    .createdBy(actor)
+                    .build());
+        }
+
+        membership.setPlanId(newPlan.getId());
+        membership.setPremiumCents(calculateTotalPremiumCents(membership.getId(), newPlan, effectiveDate));
+        membership.setUpdatedAt(LocalDateTime.now());
+        membership.setUpdatedBy(actor);
+        membershipRepository.save(membership);
     }
 
     private ApprovalRequestResponse submit(MembershipChangeRequestEntity change, MembershipEntity membership, ApprovalType approvalType, String actor) {
@@ -687,8 +781,9 @@ public class MembershipChangeService {
             ApprovalType approvalType
     ) {
         if (approvalType == ApprovalType.MEMBERSHIP_PLAN_CHANGE) {
-            return "Review the current and proposed membership plans, premium impact, waiting period, " +
-                    "expected effective date, and request reason before actioning. Reason: " + change.getReason();
+            return "Review the current and proposed membership plans and premium impact. " +
+                    "On approval the new premium is immediate; downgrades also apply benefits immediately, " +
+                    "while upgrades apply the configured benefit waiting period. Reason: " + change.getReason();
         }
         if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
             return "Review the current and proposed membership holders before actioning. Reason: " + change.getReason();
@@ -726,7 +821,12 @@ public class MembershipChangeService {
             MembershipPlanEntity newPlan = membershipPlanRepository.findById(change.getNewPlanId()).orElse(null);
             int waitingMonths = change.getWaitingPeriodMonths() == null
                     ? DEFAULT_WAITING_PERIOD_MONTHS : change.getWaitingPeriodMonths();
-            LocalDate expectedEffectiveDate = LocalDate.now().plusMonths(waitingMonths);
+            LocalDate premiumEffectiveDate = LocalDate.now();
+            Long estimatedNewPremium = estimatedPremiumCents(membership.getId(), newPlan, premiumEffectiveDate);
+            boolean downgrade = isPlanDowngrade(change.getOldPlanId(), newPlan);
+            LocalDate benefitEffectiveDate = downgrade
+                    ? premiumEffectiveDate
+                    : premiumEffectiveDate.plusMonths(waitingMonths);
 
             current.put("planId", change.getOldPlanId());
             current.put("planCode", currentPlan == null ? null : currentPlan.getPlanCode());
@@ -738,14 +838,15 @@ public class MembershipChangeService {
             proposed.put("planCode", newPlan == null ? null : newPlan.getPlanCode());
             proposed.put("planName", planName(change.getNewPlanId()));
             proposed.put("basePremiumCents", newPlan == null ? null : newPlan.getPremiumCents());
-            proposed.put("estimatedMonthlyPremiumCents",
-                    estimatedPremiumCents(membership.getId(), newPlan, expectedEffectiveDate));
+            proposed.put("estimatedMonthlyPremiumCents", estimatedNewPremium);
             proposed.put("maximumDependents", newPlan == null ? null : newPlan.getMaxDependents());
 
-            impact.put("waitingPeriodMonths", waitingMonths);
-            impact.put("estimatedEffectiveDateIfApprovedToday", expectedEffectiveDate);
-            impact.put("coverBeforeEffectiveDate", planName(change.getOldPlanId()));
-            impact.put("coverFromEffectiveDate", planName(change.getNewPlanId()));
+            impact.put("changeDirection", downgrade ? "DOWNGRADE" : "UPGRADE");
+            impact.put("premiumEffectiveDateIfApprovedToday", premiumEffectiveDate);
+            impact.put("benefitWaitingPeriodMonths", downgrade ? 0 : waitingMonths);
+            impact.put("benefitEffectiveDateIfApprovedToday", benefitEffectiveDate);
+            impact.put("coverBeforeBenefitEffectiveDate", planName(change.getOldPlanId()));
+            impact.put("coverFromBenefitEffectiveDate", planName(change.getNewPlanId()));
         } else if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
             current.put("memberId", change.getOldMemberId());
             current.put("memberName", partnerName(change.getOldMemberId()));
@@ -778,6 +879,15 @@ public class MembershipChangeService {
             if (value != null && !value.isBlank()) return value.trim();
         }
         return "Not specified";
+    }
+
+    private boolean isPlanDowngrade(String oldPlanId, MembershipPlanEntity newPlan) {
+        if (newPlan == null) return false;
+        MembershipPlanEntity currentPlan = membershipPlanRepository.findById(oldPlanId).orElse(null);
+        if (currentPlan == null) return false;
+        long oldBasePremium = currentPlan.getPremiumCents() == null ? 0L : currentPlan.getPremiumCents();
+        long newBasePremium = newPlan.getPremiumCents() == null ? 0L : newPlan.getPremiumCents();
+        return newBasePremium < oldBasePremium;
     }
 
     private Long estimatedPremiumCents(
