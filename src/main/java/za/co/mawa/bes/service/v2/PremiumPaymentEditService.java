@@ -46,11 +46,13 @@ public class PremiumPaymentEditService {
     private final ApprovalService approvalService;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final MembershipActionGuardService membershipActionGuardService;
 
     @Transactional
     public ApprovalRequestResponse requestEdit(String paymentBatchId, PremiumPaymentEditRequest request) {
         validateRequest(request);
         PaymentContext context = paymentContext(paymentBatchId, request.getReceiptId());
+        membershipActionGuardService.requireActionable(context.batch().getMembershipId());
         long proposedAmount = request.getAmountCents();
         String proposedPeriod = request.getPeriodYYYYMM().trim();
         long currentAmount = value(context.allocation().getAmountCents());
@@ -143,6 +145,7 @@ public class PremiumPaymentEditService {
         String batchId = Objects.toString(edit.get("payment_batch_id"), "");
         String receiptId = Objects.toString(edit.get("receipt_id"), "");
         PaymentContext context = paymentContext(batchId, receiptId);
+        membershipActionGuardService.requireActionable(context.batch().getMembershipId());
         long previousAmount = longValue(edit.get("previous_amount_cents"));
         long requestedAmount = longValue(edit.get("requested_amount_cents"));
         String previousPeriod = Objects.toString(edit.get("previous_period_yyyymm"), "");

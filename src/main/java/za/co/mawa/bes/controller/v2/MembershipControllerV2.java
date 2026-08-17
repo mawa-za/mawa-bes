@@ -26,6 +26,7 @@ import za.co.mawa.bes.service.v2.MembershipDependentService;
 import za.co.mawa.bes.service.v2.MembershipChangeService;
 import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
+import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 import za.co.mawa.bes.service.v2.MembershipStatusChangeService;
 import za.co.mawa.bes.service.v2.MigrateService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
@@ -44,6 +45,8 @@ public class MembershipControllerV2 {
     MembershipRepository membershipRepository;
     @Autowired
     MembershipStatusChangeService membershipStatusChangeService;
+    @Autowired
+    MembershipActionGuardService membershipActionGuardService;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -185,6 +188,11 @@ public class MembershipControllerV2 {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdMembership);
     }
 
+    @GetMapping("/{id}/status-actions/pending")
+    public ResponseEntity<java.util.Map<String, Object>> getPendingMembershipStatusChange(@PathVariable String id) {
+        return ResponseEntity.ok(membershipStatusChangeService.pending(id));
+    }
+
     @PostMapping("/{id}/status-actions/{action}")
     public ResponseEntity<ApprovalRequestResponse> requestMembershipStatusChange(
             @PathVariable String id,
@@ -199,6 +207,7 @@ public class MembershipControllerV2 {
     public ResponseEntity<MembershipEntity> updateMembership(
             @PathVariable String id,
             @Valid @RequestBody MembershipEntity membership) {
+        membershipActionGuardService.requireActionable(id);
         return membershipService.updateMembership(id, membership)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -206,6 +215,7 @@ public class MembershipControllerV2 {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMembership(@PathVariable String id) {
+        membershipActionGuardService.requireActionable(id);
         if (membershipService.deleteMembership(id)) {
             return ResponseEntity.noContent().build();
         }

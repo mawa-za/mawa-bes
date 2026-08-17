@@ -52,6 +52,7 @@ public class MembershipClaimService {
     private final ReferenceDataValidationService referenceDataValidationService;
     private final UniversalBranchCodeService universalBranchCodeService;
     private final MembershipLapseService membershipLapseService;
+    private final MembershipActionGuardService membershipActionGuardService;
 
     public MembershipClaimService(
             MembershipClaimRepository claimRepository,
@@ -67,7 +68,8 @@ public class MembershipClaimService {
             ClaimTypeConfigurationService claimTypeConfigurationService,
             ReferenceDataValidationService referenceDataValidationService,
             UniversalBranchCodeService universalBranchCodeService,
-            MembershipLapseService membershipLapseService
+            MembershipLapseService membershipLapseService,
+            MembershipActionGuardService membershipActionGuardService
     ) {
         this.claimRepository = claimRepository;
         this.claimLinkRepository = claimLinkRepository;
@@ -83,6 +85,7 @@ public class MembershipClaimService {
         this.referenceDataValidationService = referenceDataValidationService;
         this.universalBranchCodeService = universalBranchCodeService;
         this.membershipLapseService = membershipLapseService;
+        this.membershipActionGuardService = membershipActionGuardService;
     }
 
     @Transactional
@@ -97,6 +100,7 @@ public class MembershipClaimService {
 
         MembershipEntity membership = membershipRepository.findById(request.getMembershipId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + request.getMembershipId()));
+        membershipActionGuardService.requireActionable(membership);
 
         validateDeceasedAgainstMembership(
                 request.getMembershipId(),
@@ -269,6 +273,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse update(String id, MembershipClaimUpdateRequest request, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
 
         if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
             throw new IllegalArgumentException("Only DRAFT claims can be updated.");
@@ -322,6 +327,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse recordClaimFormDownload(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         if (entity.getClaimType() != MembershipClaimType.CASH) {
             return toResponse(entity);
         }
@@ -337,6 +343,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse submit(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
 
         if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
             throw new IllegalArgumentException("Only DRAFT claims can be submitted.");
@@ -368,6 +375,8 @@ public class MembershipClaimService {
             Integer monthsInArrears,
             String userId
     ) {
+        MembershipClaimEntity claim = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(claim.getMembershipId());
         if (monthsInArrears == null) {
             throw new IllegalArgumentException(
                     "Specify the number of months the membership is in arrears before approving the claim"
@@ -382,7 +391,7 @@ public class MembershipClaimService {
             );
         }
 
-        MembershipClaimEntity entity = getClaimEntity(id);
+        MembershipClaimEntity entity = claim;
         long grossAmount = entity.getClaimAmountCents() == null
                 ? 0L
                 : Math.max(0L, entity.getClaimAmountCents());
@@ -399,6 +408,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse markApprovedFromWorkflow(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         if (entity.getStatus() == MembershipClaimStatus.PAID
                 || entity.getStatus() == MembershipClaimStatus.PAYMENT_PROCESSING
                 || entity.getStatus() == MembershipClaimStatus.PAYMENT_PENDING) {
@@ -421,6 +431,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse linkApproval(ApprovalRequestEntity approvalRequest, String userId) {
         MembershipClaimEntity entity = getClaimEntity(approvalRequest.getReferenceId());
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         entity.setApprovalRequestId(approvalRequest.getId());
         entity.setUpdatedBy(userId);
         return toResponse(claimRepository.save(entity));
@@ -429,6 +440,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse linkPaymentRequest(PaymentRequestResponse paymentRequestResponse, String userId) {
         MembershipClaimEntity entity = getClaimEntity(paymentRequestResponse.getSourceId());
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         entity.setPaymentRequestId(paymentRequestResponse.getId());
         entity.setUpdatedBy(userId);
         return toResponse(claimRepository.save(entity));
@@ -437,6 +449,7 @@ public class MembershipClaimService {
     @Transactional
     public void markPaymentProcessing(String claimId, String userId) {
         MembershipClaimEntity entity = getClaimEntity(claimId);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         if (entity.getStatus() == MembershipClaimStatus.PAID) return;
         entity.setStatus(MembershipClaimStatus.PAYMENT_PROCESSING);
         entity.setUpdatedBy(userId);
@@ -447,6 +460,7 @@ public class MembershipClaimService {
     @Transactional
     public void markPaymentPaid(String claimId, String userId) {
         MembershipClaimEntity entity = getClaimEntity(claimId);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         entity.setStatus(MembershipClaimStatus.PAID);
         entity.setUpdatedBy(userId);
         claimRepository.save(entity);
@@ -456,6 +470,7 @@ public class MembershipClaimService {
     @Transactional
     public void markPaymentFailed(String claimId, String reason, String userId) {
         MembershipClaimEntity entity = getClaimEntity(claimId);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         if (entity.getStatus() == MembershipClaimStatus.PAID) return;
         entity.setStatus(MembershipClaimStatus.PAYMENT_FAILED);
         entity.setNotes(appendNote(entity.getNotes(), "Payment failed: " + (reason == null ? "Unknown bank response" : reason)));
@@ -501,6 +516,7 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse cancel(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
 
         if (entity.getStatus() == MembershipClaimStatus.APPROVED
                 || entity.getStatus() == MembershipClaimStatus.PAYMENT_PENDING
@@ -531,6 +547,7 @@ public class MembershipClaimService {
             String userId
     ) {
         MembershipClaimEntity parentClaim = getClaimEntity(parentClaimId);
+        membershipActionGuardService.requireActionable(parentClaim.getMembershipId());
 
         if (parentClaim.getClaimType() != MembershipClaimType.COMBINATION) {
             throw new IllegalArgumentException("Only COMBINATION claims can have linked claims.");
@@ -560,6 +577,7 @@ public class MembershipClaimService {
             String linkedClaimId
     ) {
         MembershipClaimEntity parentClaim = getClaimEntity(parentClaimId);
+        membershipActionGuardService.requireActionable(parentClaim.getMembershipId());
 
         if (parentClaim.getClaimType() != MembershipClaimType.COMBINATION) {
             throw new IllegalArgumentException("Only COMBINATION claims can have linked claims.");
@@ -585,6 +603,7 @@ public class MembershipClaimService {
         }
 
         MembershipClaimEntity linkedClaim = getClaimEntity(linkedClaimId);
+        membershipActionGuardService.requireActionable(linkedClaim.getMembershipId());
 
         if (linkedClaim.getClaimType() != MembershipClaimType.COMBINATION) {
             throw new IllegalArgumentException("Only COMBINATION claims can be attached to a COMBINATION claim.");
