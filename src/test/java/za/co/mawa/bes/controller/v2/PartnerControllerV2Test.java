@@ -21,7 +21,7 @@ class PartnerControllerV2Test {
         PartnerEditDto request = new PartnerEditDto();
         request.setName1("Updated supplier");
 
-        ResponseEntity<PartnerEditDto> response = controller.editPartner("partner-1", request);
+        ResponseEntity<?> response = controller.editPartner("partner-1", request);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("partner-1", request.getId());

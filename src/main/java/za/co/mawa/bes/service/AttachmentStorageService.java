@@ -172,10 +172,7 @@ public class AttachmentStorageService {
             String extension,
             String attachmentId
     ) {
-        String tenant = StringUtils.hasText(TenantContext.getCurrentTenantURL())
-                ? TenantContext.getCurrentTenantURL()
-                : TenantContext.getCurrentTenant();
-        String safeTenant = sanitisePathPart(StringUtils.hasText(tenant) ? tenant : "unknown-tenant");
+        String safeTenant = resolveTenantPathScope();
         String safeModule = sanitisePathPart(resolveModuleOrType(objectType, documentType));
         String safeObjectId = sanitisePathPart(StringUtils.hasText(objectId) ? objectId : "unlinked");
         String safeAttachmentId = sanitisePathPart(attachmentId);
@@ -185,14 +182,19 @@ public class AttachmentStorageService {
     }
 
     private String buildObjectPath(String objectType, String objectId, String documentType, String extension, String originalFileName) {
-        String tenant = StringUtils.hasText(TenantContext.getCurrentTenantURL())
-                ? TenantContext.getCurrentTenantURL()
-                : TenantContext.getCurrentTenant();
-        String safeTenant = sanitisePathPart(StringUtils.hasText(tenant) ? tenant : "unknown-tenant");
+        String safeTenant = resolveTenantPathScope();
         String safeModule = sanitisePathPart(resolveModuleOrType(objectType, documentType));
         String safeObjectId = sanitisePathPart(StringUtils.hasText(objectId) ? objectId : "unlinked");
         String safeFileName = buildSafeFileName(originalFileName, documentType, extension);
         return prefix + "/" + safeTenant + "/" + safeModule + "/" + safeObjectId + "/" + safeFileName;
+    }
+
+    String resolveTenantPathScope() {
+        String tenantId = TenantContext.getCurrentTenant();
+        if (!StringUtils.hasText(tenantId)) {
+            throw new IllegalStateException("Tenant id is not available for attachment storage");
+        }
+        return sanitisePathPart(tenantId);
     }
 
     private String resolveModuleOrType(String objectType, String documentType) {
