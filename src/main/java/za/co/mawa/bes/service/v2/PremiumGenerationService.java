@@ -444,7 +444,7 @@ public class PremiumGenerationService {
                        plan_id,
                        effective_from,
                        effective_to
-                  FROM membership_plan_history
+                  FROM membership_premium_plan_history
                  WHERE effective_from <= ?
                    AND (effective_to IS NULL OR effective_to >= ?)
                  ORDER BY membership_id, effective_from DESC, id DESC
