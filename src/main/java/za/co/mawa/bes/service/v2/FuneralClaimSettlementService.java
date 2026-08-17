@@ -14,7 +14,6 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.v2.FuneralServiceClaimRepository;
 import za.co.mawa.bes.service.NumberRangeService;
-import za.co.mawa.bes.service.SettingService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,7 +26,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FuneralClaimSettlementService {
-    private static final String FUNERAL_CLAIM_PAY_SETTING = "FUNERAL_CLAIM_PAY";
+    private static final String FUNERAL_CLAIM_PAYMENT_SETTING = "FUNERAL_CLAIM_PAY";
     private static final String FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE = "SUPPLIER_PARTNER_ID";
 
     private final JdbcTemplate jdbc;
@@ -35,7 +34,6 @@ public class FuneralClaimSettlementService {
     private final PaymentRequestService payments;
     private final MembershipClaimService membershipClaims;
     private final PaymentRequestFnbPaymentQueueService paymentQueue;
-    private final SettingService settingService;
     private final NumberRangeService numberRangeService;
 
     @Transactional
@@ -101,15 +99,23 @@ public class FuneralClaimSettlementService {
             throw new IllegalStateException("Approved funeral claim amount must be greater than zero");
         }
 
-        String supplierPartnerId = resolveConfiguredFuneralClaimSupplierId();
+        // The funeral initiator/provider chooses the supplier identity, but a
+        // payment request is owned and executed by the cover owner's tenant.
+        // Never place a foreign-tenant partner id/bank row directly on the local
+        // payment request. Resolve/create the supplier representation in this
+        // cover tenant and use only this tenant's approved banking details.
+        String providerSupplierPartnerId = resolveConfiguredFuneralClaimSupplierId(providerTenant);
+        String coverTenant = TenantContext.getCurrentTenant();
+        String supplierPartnerId = ensureSupplierAvailableInCoverTenant(
+                providerTenant, providerSupplierPartnerId, coverTenant);
         String paymentInvoiceNo = Objects.toString(invoice.get("invoice_no"), null);
         PaymentRequestCreateRequest request = new PaymentRequestCreateRequest();
         request.setRequestType(PaymentRequestType.FUNERAL_SERVICE_PAYMENT);
         request.setSourceType(PaymentRequestSourceType.MEMBERSHIP_CLAIM);
         request.setSourceId(claimId);
         request.setPayeePartnerId(supplierPartnerId);
-        request.setPayeeName(resolvePartnerName(TenantContext.getCurrentTenant(), supplierPartnerId));
-        applySupplierBanking(TenantContext.getCurrentTenant(), supplierPartnerId, request);
+        request.setPayeeName(resolvePartnerName(coverTenant, supplierPartnerId));
+        applySupplierBanking(coverTenant, supplierPartnerId, request);
         request.setAmount(BigDecimal.valueOf(amountCents, 2));
         request.setCurrency("ZAR");
         request.setInvoiceNo(paymentInvoiceNo);
@@ -126,13 +132,15 @@ public class FuneralClaimSettlementService {
             localLink.setServiceInvoiceId(Objects.toString(invoice.get("invoice_id"), null));
             localLink.setServicePaymentRequestId(response.getId());
             localLink.setProviderTenantId(providerTenant);
-            localLink.setProviderPartnerId(supplierPartnerId);
+            // Keep the provider-side supplier id for traceability. The payment
+            // request itself contains the cover owner's local supplier id.
+            localLink.setProviderPartnerId(providerSupplierPartnerId);
             links.save(localLink);
         }
         jdbc.update("UPDATE " + providerLinkTable
                         + " SET service_invoice_id=?, service_payment_request_id=?, provider_tenant_id=?, provider_partner_id=?"
                         + " WHERE membership_claim_id=?",
-                invoice.get("invoice_id"), response.getId(), providerTenant, supplierPartnerId, claimId);
+                invoice.get("invoice_id"), response.getId(), providerTenant, providerSupplierPartnerId, claimId);
         jdbc.update("UPDATE " + qualified(providerTenant, "funeral_service_invoice")
                         + " SET payment_request_id=?, provider_tenant_id=?, cover_tenant_id=? WHERE invoice_id=?",
                 response.getId(), providerTenant, TenantContext.getCurrentTenant(), invoice.get("invoice_id"));
@@ -214,7 +222,7 @@ public class FuneralClaimSettlementService {
 
         Map<String, Object> invoice = ensureGroupSocietyCoverageInvoice(serviceId, claimId, claim, amountCents);
         String tenant = TenantContext.getCurrentTenant();
-        String supplierPartnerId = resolveConfiguredFuneralClaimSupplierId();
+        String supplierPartnerId = resolveConfiguredFuneralClaimSupplierId(tenant);
         String paymentInvoiceNo = Objects.toString(invoice.get("invoice_no"), null);
 
         PaymentRequestCreateRequest request = new PaymentRequestCreateRequest();
@@ -423,22 +431,151 @@ public class FuneralClaimSettlementService {
         throw new IllegalStateException("Burial society partner mapping is missing for claim " + claimId);
     }
 
-    private String resolveConfiguredFuneralClaimSupplierId() {
-        String supplierPartnerId = settingService.getSetting(
-                FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE, FUNERAL_CLAIM_PAY_SETTING);
+    public String resolveConfiguredProviderSupplierId(String providerTenant) {
+        return resolveConfiguredFuneralClaimSupplierId(providerTenant);
+    }
+
+    private String resolveConfiguredFuneralClaimSupplierId(String providerTenant) {
+        String settingsTable = qualified(providerTenant, "settings");
+        List<String> configured = jdbc.query(
+                "SELECT value FROM " + settingsTable
+                        + " WHERE attribute=? AND setting=? LIMIT 1",
+                (rs, rowNum) -> rs.getString(1),
+                FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE,
+                FUNERAL_CLAIM_PAYMENT_SETTING);
+        String supplierPartnerId = configured.isEmpty() ? null : configured.get(0);
         if (isBlank(supplierPartnerId)) {
             throw new IllegalStateException(
-                    "Funeral claim payment supplier is not configured. Configure it under System Configuration > Funeral Claim Payments.");
+                    "Funeral claim payment supplier is not configured in funeral provider tenant "
+                            + providerTenant
+                            + ". Configure it under System Configuration > Funeral Claim Payments in the tenant that initiates the funeral.");
         }
         supplierPartnerId = supplierPartnerId.trim();
         Integer supplierCount = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM partner_role WHERE partner=? AND UPPER(TRIM(role))='SUPPLIER'",
+                "SELECT COUNT(*) FROM " + qualified(providerTenant, "partner_role")
+                        + " WHERE partner=? AND UPPER(TRIM(role))='SUPPLIER'",
                 Integer.class, supplierPartnerId);
         if (supplierCount == null || supplierCount == 0) {
             throw new IllegalStateException(
-                    "Configured funeral claim payment partner is no longer an approved supplier. Update System Configuration > Funeral Claim Payments.");
+                    "Configured funeral claim payment partner is no longer a supplier in funeral provider tenant "
+                            + providerTenant
+                            + ". Update System Configuration > Funeral Claim Payments.");
         }
         return supplierPartnerId;
+    }
+
+    /**
+     * Resolves the provider-configured funeral supplier to a partner that exists
+     * in the cover owner's tenant. Existing partner ids are reused first, then
+     * identity matches, otherwise the provider partner core/identities are
+     * replicated with the globally generated partner id. Banking is deliberately
+     * not copied or auto-approved: the cover owner must have approved banking on
+     * its local supplier record before an EFT can be created.
+     */
+    public String ensureSupplierAvailableInCoverTenant(
+            String providerTenant,
+            String providerSupplierPartnerId,
+            String coverTenant
+    ) {
+        if (isBlank(providerSupplierPartnerId)) {
+            throw new IllegalStateException("Funeral provider supplier id is missing");
+        }
+        if (isBlank(coverTenant)) {
+            throw new IllegalStateException("Cover owner tenant is missing");
+        }
+        if (coverTenant.equals(providerTenant)) {
+            ensureSupplierRole(coverTenant, providerSupplierPartnerId);
+            return providerSupplierPartnerId;
+        }
+
+        String targetPartner = qualified(coverTenant, "partner");
+        String targetIdentity = qualified(coverTenant, "partner_identity");
+
+        Integer existingById = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM " + targetPartner + " WHERE id=?",
+                Integer.class,
+                providerSupplierPartnerId);
+        if (existingById != null && existingById > 0) {
+            ensureSupplierRole(coverTenant, providerSupplierPartnerId);
+            return providerSupplierPartnerId;
+        }
+
+        List<Map<String, Object>> sourceIdentities = jdbc.queryForList(
+                "SELECT type,value,valid_from,valid_to FROM "
+                        + qualified(providerTenant, "partner_identity")
+                        + " WHERE partner=? ORDER BY type,value",
+                providerSupplierPartnerId);
+        for (Map<String, Object> identity : sourceIdentities) {
+            List<String> matches = jdbc.query(
+                    "SELECT partner FROM " + targetIdentity
+                            + " WHERE type=? AND value=? LIMIT 1",
+                    (rs, rowNum) -> rs.getString(1),
+                    identity.get("type"),
+                    identity.get("value"));
+            if (!matches.isEmpty() && !isBlank(matches.get(0))) {
+                String localPartnerId = matches.get(0).trim();
+                ensureSupplierRole(coverTenant, localPartnerId);
+                return localPartnerId;
+            }
+        }
+
+        List<Map<String, Object>> sourcePartners = jdbc.queryForList(
+                "SELECT birth_date,gender,language,marital_status,name1,name2,name3,"
+                        + "status,status_reason,title,type,valid_from,valid_to FROM "
+                        + qualified(providerTenant, "partner") + " WHERE id=?",
+                providerSupplierPartnerId);
+        if (sourcePartners.isEmpty()) {
+            throw new IllegalStateException(
+                    "Configured funeral supplier " + providerSupplierPartnerId
+                            + " does not exist in funeral provider tenant " + providerTenant);
+        }
+        Map<String, Object> source = sourcePartners.get(0);
+        jdbc.update("INSERT IGNORE INTO " + targetPartner
+                        + " (id,birth_date,gender,language,marital_status,name1,name2,name3,number,"
+                        + "status,status_reason,title,type,valid_from,valid_to)"
+                        + " VALUES (?,?,?,?,?,?,?,?,NULL,?,?,?,?,?,?)",
+                providerSupplierPartnerId,
+                source.get("birth_date"),
+                source.get("gender"),
+                source.get("language"),
+                source.get("marital_status"),
+                source.get("name1"),
+                source.get("name2"),
+                source.get("name3"),
+                firstNonBlank(Objects.toString(source.get("status"), null), "ACTIVE"),
+                source.get("status_reason"),
+                source.get("title"),
+                firstNonBlank(Objects.toString(source.get("type"), null), "ORGANISATION"),
+                source.get("valid_from"),
+                source.get("valid_to"));
+
+        Integer copied = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM " + targetPartner + " WHERE id=?",
+                Integer.class,
+                providerSupplierPartnerId);
+        if (copied == null || copied == 0) {
+            throw new IllegalStateException(
+                    "Funeral initiator supplier could not be made available in cover owner tenant "
+                            + coverTenant);
+        }
+
+        for (Map<String, Object> identity : sourceIdentities) {
+            jdbc.update("INSERT IGNORE INTO " + targetIdentity
+                            + " (type,value,partner,valid_from,valid_to) VALUES (?,?,?,?,?)",
+                    identity.get("type"),
+                    identity.get("value"),
+                    providerSupplierPartnerId,
+                    identity.get("valid_from"),
+                    identity.get("valid_to"));
+        }
+        ensureSupplierRole(coverTenant, providerSupplierPartnerId);
+        return providerSupplierPartnerId;
+    }
+
+    private void ensureSupplierRole(String tenant, String partnerId) {
+        jdbc.update("INSERT IGNORE INTO " + qualified(tenant, "partner_role")
+                        + " (partner,role,valid_from,valid_to) VALUES (?,'SUPPLIER',CURRENT_DATE,NULL)",
+                partnerId);
     }
 
     private String resolvePartnerName(String tenant, String partnerId) {
@@ -461,7 +598,8 @@ public class FuneralClaimSettlementService {
                 partnerId);
         if (rows.isEmpty()) {
             throw new IllegalStateException(
-                    "Configured funeral claim supplier banking details are missing, unapproved, expired or not yet valid.");
+                    "Funeral initiator supplier " + partnerId + " exists in cover owner tenant " + tenant
+                            + " but has no active approved banking details. Capture and approve the supplier banking details in the cover owner before settlement.");
         }
         Map<String, Object> bank = rows.get(0);
         String bankName = Objects.toString(bank.get("bank_name"), null);
@@ -469,7 +607,8 @@ public class FuneralClaimSettlementService {
         String accountType = Objects.toString(bank.get("account_type"), null);
         if (isBlank(bankName) || isBlank(accountNumber) || isBlank(accountType)) {
             throw new IllegalStateException(
-                    "Configured funeral claim supplier banking details are incomplete. Complete and approve the supplier banking details before settling funeral claims.");
+                    "Funeral initiator supplier " + partnerId + " has incomplete banking details in cover owner tenant "
+                            + tenant + ". Complete and approve the local supplier banking details before settlement.");
         }
         request.setPaymentMethod(PaymentMethod.EFT);
         request.setBankName(bankName);

@@ -632,16 +632,23 @@ public class FuneralManagementService {
         }
 
         String claimType = request.getEffectiveClaimType(selectedMemberships.size());
+        boolean combinationClaim = "COMBINATION".equalsIgnoreCase(claimType);
         long arrangementTotal = defaultLong(service.getTotalAmountCents());
-        // Without an arrangement total each selected cover contributes its full
-        // effective-dated benefit. Do not cap historical cover with the amount
-        // shown by an earlier current-plan lookup.
+        // remaining is an allocation guard for a single FUNERAL claim only.
+        // A COMBINATION claim represents each selected policy's independent
+        // combination entitlement; it must not be suppressed because another
+        // selected cover already equals/exceeds the funeral arrangement total.
         long remaining = arrangementTotal > 0 ? arrangementTotal : Long.MAX_VALUE;
         List<FuneralClaimDto> response = new ArrayList<>();
 
+        if (combinationClaim && coverMap.size() != selectedMemberships.size()) {
+            throw new IllegalArgumentException(
+                    "Every selected cover must resolve before combination claims can be created");
+        }
+
         for (String selectionId : selectedMemberships) {
             FuneralMembershipCoverDto cover = coverMap.get(selectionId);
-            if (cover == null || remaining <= 0) continue;
+            if (cover == null || (!combinationClaim && remaining <= 0)) continue;
             boolean externalClaim = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource());
             String claimTenantId = externalClaim ? cover.getSourceTenantId() : TenantContext.getCurrentTenant();
             LocalDate coverageEventDate = service.getDateOfDeath() == null ? LocalDate.now() : service.getDateOfDeath();
@@ -658,12 +665,22 @@ public class FuneralManagementService {
             long coverAmount = defaultLong(externalClaim
                     ? findExternalMembershipPlanPayout(claimTenantId, coveragePlanId, claimType, coverageDependentType)
                     : findMembershipPlanPayout(coveragePlanId, claimType, coverageDependentType));
-            long claimAmount = arrangementTotal > 0 ? Math.min(coverAmount, remaining) : coverAmount;
+            if (combinationClaim && coverAmount <= 0) {
+                throw new IllegalArgumentException(
+                        "Selected cover " + defaultString(cover.getMembershipNumber(), selectionId)
+                                + " does not have an active COMBINATION benefit for " + coverageDependentType);
+            }
+            long claimAmount = claimAmountForSelectedCover(
+                    claimType, coverAmount, arrangementTotal, remaining);
             if (claimAmount <= 0) continue;
 
             String membershipClaimId = UUID.randomUUID().toString();
             if (externalClaim) {
                 ensureExternalClaimCreationAllowed(claimTenantId);
+                String providerSupplierPartnerId = funeralClaimSettlementService
+                        .resolveConfiguredProviderSupplierId(TenantContext.getCurrentTenant());
+                funeralClaimSettlementService.ensureSupplierAvailableInCoverTenant(
+                        TenantContext.getCurrentTenant(), providerSupplierPartnerId, claimTenantId);
             }
             String claimNo = externalClaim
                     ? generateExternalMembershipClaimNo(claimTenantId)
@@ -715,7 +732,14 @@ public class FuneralManagementService {
             prepareFuneralClaimForm(service, membershipClaimId, claimNo, claimType, claimAmount);
 
             response.add(readClaimDto(membershipClaimId));
-            remaining -= claimAmount;
+            if (!combinationClaim) {
+                remaining -= claimAmount;
+            }
+        }
+
+        if (combinationClaim && response.size() != selectedMemberships.size()) {
+            throw new IllegalStateException(
+                    "Combination claim creation did not create one claim for every selected cover");
         }
 
         String grocerySelection = trimToNull(request.getGroceryCoverSelectionId());
@@ -825,22 +849,23 @@ public class FuneralManagementService {
             else localSubmissions.add(context);
         }
 
-        // Keep all local mutations pending in the request transaction. If the
-        // source-tenant batch later fails, Spring rolls these local submissions back.
+        // Keep local submissions in the provider request transaction. External
+        // submissions are executed as one batch per cover-owner tenant below.
         for (ClaimApprovalSubmissionContext context : localSubmissions) {
             approvalService.submitForApproval(context.approvalRequest());
         }
 
-        Set<String> sourceTenants = externalSubmissions.stream()
-                .map(ClaimApprovalSubmissionContext::claimOwnerTenantId)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (sourceTenants.size() > 1) {
-            throw new IllegalArgumentException(
-                    "A funeral arrangement cannot submit claims to more than one external source tenant in one approval batch");
-        }
-        if (!externalSubmissions.isEmpty()) {
-            String sourceTenantId = sourceTenants.iterator().next();
-            List<ExternalFuneralClaimApprovalService.ExternalClaimSubmission> sourceRequests = externalSubmissions.stream()
+        // A combination funeral can contain covers owned by different tenants.
+        // Submit one transactional batch per cover owner rather than rejecting
+        // the arrangement merely because there is more than one source tenant.
+        Map<String, List<ClaimApprovalSubmissionContext>> externalByTenant = externalSubmissions.stream()
+                .collect(Collectors.groupingBy(
+                        ClaimApprovalSubmissionContext::claimOwnerTenantId,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+        for (Map.Entry<String, List<ClaimApprovalSubmissionContext>> entry : externalByTenant.entrySet()) {
+            String sourceTenantId = entry.getKey();
+            List<ExternalFuneralClaimApprovalService.ExternalClaimSubmission> sourceRequests = entry.getValue().stream()
                     .map(context -> new ExternalFuneralClaimApprovalService.ExternalClaimSubmission(
                             context.approvalRequest(),
                             context.providerAttachmentObjectIds()))
@@ -1524,6 +1549,19 @@ public class FuneralManagementService {
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
                 .build();
+    }
+
+    static long claimAmountForSelectedCover(
+            String claimType,
+            long coverAmount,
+            long arrangementTotal,
+            long remaining
+    ) {
+        if (coverAmount <= 0) return 0L;
+        if ("COMBINATION".equalsIgnoreCase(claimType)) {
+            return coverAmount;
+        }
+        return arrangementTotal > 0 ? Math.min(coverAmount, Math.max(0L, remaining)) : coverAmount;
     }
 
     private Long findMembershipPlanPayout(Object planId, String claimType, String dependentType) {
