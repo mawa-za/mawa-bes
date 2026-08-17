@@ -184,11 +184,7 @@ public class ReceiptService {
                 .paymentMethod(receipt.getPaymentMethod())
                 .receiptDate(receipt.getReceiptDate())
                 .location(firstNonBlank(receipt.getLocationName(), receipt.getLocation()))
-                .employeeResponsible(firstNonBlank(
-                        receipt.getOriginalCollector(),
-                        receipt.getEmployeeResponsible(),
-                        receipt.getCapturedBy(),
-                        receipt.getCreatedBy()))
+                .employeeResponsible(resolveCashierDisplayName(receipt))
                 .deviceId(receipt.getDeviceId())
                 .terminalId(receipt.getTerminalId())
                 .syncStatus(receipt.getSyncStatus() == null ? null : receipt.getSyncStatus().name())
@@ -197,6 +193,52 @@ public class ReceiptService {
                 .build();
     }
 
+    private String resolveCashierDisplayName(ReceiptEntity receipt) {
+        String explicitCollector = firstNonBlank(receipt.getOriginalCollector());
+        if (!explicitCollector.isBlank()) {
+            String resolved = resolveUserDisplayName(explicitCollector);
+            if (!resolved.isBlank()) return resolved;
+            if (!looksLikeUserIdentifier(explicitCollector)) return explicitCollector;
+        }
+
+        for (String candidate : List.of(
+                firstNonBlank(receipt.getEmployeeResponsible()),
+                firstNonBlank(receipt.getCapturedBy()),
+                firstNonBlank(receipt.getCreatedBy()))) {
+            if (candidate.isBlank()) continue;
+            String resolved = resolveUserDisplayName(candidate);
+            if (!resolved.isBlank()) return resolved;
+            if (!looksLikeUserIdentifier(candidate)) return candidate;
+        }
+        return "System";
+    }
+
+    private String resolveUserDisplayName(String userReference) {
+        if (userReference == null || userReference.isBlank()) return "";
+        try {
+            var rows = jdbcTemplate.queryForList("""
+                    SELECT TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) display_name,
+                           u.username
+                      FROM `user` u
+                 LEFT JOIN partner p ON p.id=u.partner
+                     WHERE u.id=? OR LOWER(TRIM(u.username))=LOWER(TRIM(?))
+                     LIMIT 1
+                    """, userReference, userReference);
+            if (rows.isEmpty()) return "";
+            String display = java.util.Objects.toString(rows.get(0).get("display_name"), "").trim();
+            if (!display.isBlank()) return display;
+            return java.util.Objects.toString(rows.get(0).get("username"), "").trim();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private boolean looksLikeUserIdentifier(String value) {
+        if (value == null) return false;
+        String normalized = value.trim();
+        return normalized.matches("(?i)^[0-9a-f]{32}$")
+                || normalized.matches("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+    }
 
     private String firstNonBlank(String... values) {
         for (String value : values) {
@@ -206,6 +248,7 @@ public class ReceiptService {
         }
         return "";
     }
+
 
     private String formatPeriodDescription(String rawPeriods) {
         if (rawPeriods == null || rawPeriods.isBlank()) {
