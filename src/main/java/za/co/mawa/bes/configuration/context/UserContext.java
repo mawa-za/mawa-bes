@@ -7,6 +7,7 @@ public class UserContext {
     private static final ThreadLocal<String> currentUserId = new ThreadLocal<>();
     private static final ThreadLocal<String> currentUserPartner = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> platformSession = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> backgroundSession = new ThreadLocal<>();
     private static final ThreadLocal<String> platformUserId = new ThreadLocal<>();
     private static final ThreadLocal<String> platformUsername = new ThreadLocal<>();
     private static final ThreadLocal<String> platformDisplayName = new ThreadLocal<>();
@@ -31,6 +32,8 @@ public class UserContext {
     public static String getCurrentUserId() { return currentUserId.get(); }
     public static void setPlatformSession(Boolean value) { platformSession.set(value); }
     public static Boolean isPlatformSession() { return Boolean.TRUE.equals(platformSession.get()); }
+    public static void setBackgroundSession(Boolean value) { backgroundSession.set(value); }
+    public static Boolean isBackgroundSession() { return Boolean.TRUE.equals(backgroundSession.get()); }
     public static void setPlatformUserId(String value) { platformUserId.set(value); }
     public static String getPlatformUserId() { return platformUserId.get(); }
     public static void setPlatformUsername(String value) { platformUsername.set(value); }
@@ -64,7 +67,7 @@ public class UserContext {
 
     public static void clear() {
         currentUser.remove(); currentUserPartner.remove(); currentUserId.remove();
-        platformSession.remove(); platformUserId.remove(); platformUsername.remove(); platformDisplayName.remove();
+        platformSession.remove(); backgroundSession.remove(); platformUserId.remove(); platformUsername.remove(); platformDisplayName.remove();
         platformEmail.remove(); accountType.remove(); accessScope.remove(); testUser.remove(); protectedUser.remove();
         externalTransactionsBlocked.remove(); accessExpiresAt.remove(); handoffId.remove(); accessReason.remove(); ticketReference.remove();
         handoffRoleId.remove(); handoffRoleDescription.remove();

@@ -74,6 +74,8 @@ public class MigrateService {
     MembershipPlanService membershipPlanService;
     @Autowired
     PremiumService premiumService;
+    @Autowired
+    BackgroundExecutionContextService backgroundExecutionContextService;
 
     public void migrateMembershipPlans() {
         migrateMembershipPlans(null);
@@ -199,6 +201,7 @@ public class MigrateService {
                 }
 
                 TenantContext.setCurrentTenant(tenant.getId());
+                backgroundExecutionContextService.establish();
                 migrateMembershipPlans(tenantResult);
 
                 List<TransactionViewEntity> transactionViewEntities = transactionService.searchV2(transactionViewDto);
@@ -215,6 +218,7 @@ public class MigrateService {
             } catch (Exception e) {
                 tenantResult.addError("Tenant migration failed: " + e.getMessage());
             } finally {
+                backgroundExecutionContextService.clear();
                 TenantContext.clear();
                 result.rollup(tenantResult);
             }

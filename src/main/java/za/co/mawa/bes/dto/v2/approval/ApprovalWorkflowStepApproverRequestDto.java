@@ -14,5 +14,9 @@ public class ApprovalWorkflowStepApproverRequestDto {
 
     private String approverName;
 
+    private String assignmentScopeType;
+
+    private String assignmentScopeValue;
+
     private Boolean active = true;
 }

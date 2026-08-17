@@ -33,6 +33,7 @@ public class UserInboxService {
     private final JdbcTemplate jdbcTemplate;
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ApprovalWorkflowStepRepository workflowStepRepository;
+    private final ApprovalApproverScopeService approverScopeService;
 
     @Transactional
     public void notifyApprovalRequired(ApprovalRequestEntity request) {
@@ -225,6 +226,25 @@ public class UserInboxService {
                    AND inbox_user.status = 'ACTIVE'
                    AND (inbox_user.expires_at IS NULL OR inbox_user.expires_at > NOW())
                    AND (
+                        ar.approval_type <> 'LEAVE'
+                        OR approver.assignment_scope_type IS NULL
+                        OR approver.assignment_scope_type = ''
+                        OR UPPER(approver.assignment_scope_type) = 'ALL'
+                        OR (UPPER(approver.assignment_scope_type) = 'POSITION' AND EXISTS (
+                            SELECT 1 FROM leave_request scoped_lr
+                            JOIN employment scoped_e ON scoped_e.id = scoped_lr.employment_id
+                            WHERE scoped_lr.id = ar.reference_id
+                              AND UPPER(scoped_e.position) = UPPER(approver.assignment_scope_value)
+                        ))
+                        OR (UPPER(approver.assignment_scope_type) = 'EMPLOYEE' AND EXISTS (
+                            SELECT 1 FROM leave_request scoped_lr
+                            JOIN employment scoped_e ON scoped_e.id = scoped_lr.employment_id
+                            WHERE scoped_lr.id = ar.reference_id
+                              AND (scoped_e.id = approver.assignment_scope_value
+                                   OR scoped_e.partner_id = approver.assignment_scope_value)
+                        ))
+                   )
+                   AND (
                         (approver.approver_type = 'USER' AND (
                             approver.approver_value = inbox_user.id OR
                             approver.approver_value = inbox_user.username OR
@@ -306,6 +326,25 @@ public class UserInboxService {
                  WHERE ar.status IN ('PENDING', 'IN_PROGRESS')
                    AND inbox_user.status = 'ACTIVE'
                    AND (inbox_user.expires_at IS NULL OR inbox_user.expires_at > NOW())
+                   AND (
+                        ar.approval_type <> 'LEAVE'
+                        OR approver.assignment_scope_type IS NULL
+                        OR approver.assignment_scope_type = ''
+                        OR UPPER(approver.assignment_scope_type) = 'ALL'
+                        OR (UPPER(approver.assignment_scope_type) = 'POSITION' AND EXISTS (
+                            SELECT 1 FROM leave_request scoped_lr
+                            JOIN employment scoped_e ON scoped_e.id = scoped_lr.employment_id
+                            WHERE scoped_lr.id = ar.reference_id
+                              AND UPPER(scoped_e.position) = UPPER(approver.assignment_scope_value)
+                        ))
+                        OR (UPPER(approver.assignment_scope_type) = 'EMPLOYEE' AND EXISTS (
+                            SELECT 1 FROM leave_request scoped_lr
+                            JOIN employment scoped_e ON scoped_e.id = scoped_lr.employment_id
+                            WHERE scoped_lr.id = ar.reference_id
+                              AND (scoped_e.id = approver.assignment_scope_value
+                                   OR scoped_e.partner_id = approver.assignment_scope_value)
+                        ))
+                   )
                    AND (
                         (approver.approver_type = 'USER' AND (
                             approver.approver_value = inbox_user.id OR
@@ -471,6 +510,7 @@ public class UserInboxService {
         if (step.getApprovers() == null) return users;
         for (ApprovalWorkflowStepApproverEntity approver : step.getApprovers()) {
             if (Boolean.FALSE.equals(approver.getActive()) || approver.getApproverType() == null) continue;
+            if (!approverScopeService.appliesToRequest(approver, request)) continue;
             String value = approver.getApproverValue();
             if (value == null || value.isBlank()) continue;
             switch (approver.getApproverType()) {
