@@ -38,6 +38,7 @@ public class CashupAutoSubmitService {
     private final SettingService settingService;
     private final CashupRepository cashupRepository;
     private final CashupService cashupService;
+    private final BackgroundExecutionContextService backgroundExecutionContextService;
 
     @Scheduled(fixedDelayString = "${mawa.scheduler.dispatcher-delay-ms:30000}")
     public void submitOpenCashupsForAllTenants() {
@@ -55,6 +56,7 @@ public class CashupAutoSubmitService {
             }
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
+                backgroundExecutionContextService.establish();
                 if (isEnabled() && isDue()) {
                     Map<String, Object> result = submitCurrentTenantOpenCashups(scheduledCutoff());
                     markRun();
@@ -63,6 +65,7 @@ public class CashupAutoSubmitService {
             } catch (Exception ex) {
                 log.error("Cashup auto-submit failed for tenant {}: {}", tenant.getId(), ex.getMessage(), ex);
             } finally {
+                backgroundExecutionContextService.clear();
                 TenantContext.clear();
             }
         }

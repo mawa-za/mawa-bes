@@ -48,6 +48,7 @@ public class LeaveRequestV2Service {
     private final ApprovalService approvalService;
     private final PartnerService partnerService;
     private final FieldOptionService fieldOptionService;
+    private final LeaveAccessService leaveAccessService;
     private final ObjectMapper objectMapper;
 
     public LeaveRequestV2Service(
@@ -61,6 +62,7 @@ public class LeaveRequestV2Service {
             ApprovalService approvalService,
             PartnerService partnerService,
             FieldOptionService fieldOptionService,
+            LeaveAccessService leaveAccessService,
             ObjectMapper objectMapper) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.historyRepository = historyRepository;
@@ -72,11 +74,13 @@ public class LeaveRequestV2Service {
         this.approvalService = approvalService;
         this.partnerService = partnerService;
         this.fieldOptionService = fieldOptionService;
+        this.leaveAccessService = leaveAccessService;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     public LeaveRequestV2ResponseDto create(LeaveRequestV2CreateRequestDto request) {
+        request = scopeToCurrentEmployee(request);
         PreparedLeave prepared = prepare(request, null);
         String actor = currentActor();
         LocalDateTime now = LocalDateTime.now();
@@ -106,6 +110,7 @@ public class LeaveRequestV2Service {
     @Transactional
     public LeaveRequestPreviewDto preview(LeaveRequestV2CreateRequestDto request) {
         try {
+            request = scopeToCurrentEmployee(request);
             PreparedLeave prepared = prepare(request, null);
             return LeaveRequestPreviewDto.builder()
                     .employmentId(prepared.employment().getId())
@@ -133,21 +138,55 @@ public class LeaveRequestV2Service {
 
     @Transactional
     public LeaveRequestV2ResponseDto get(String id) {
-        return toResponse(require(id), true);
+        LeaveRequestEntity entity = require(id);
+        assertCanView(entity);
+        return toResponse(entity, true);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> access() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        EmploymentEntity employment = null;
+        try {
+            employment = leaveAccessService.currentEmployment(LocalDate.now());
+        } catch (NoSuchElementException | SecurityException ignored) {
+            // A non-employee user can still be a leave approver by role.
+        }
+        result.put("hasEmployment", employment != null);
+        if (employment != null) {
+            PartnerDto employee = resolvePartner(employment.getPartnerId());
+            result.put("employmentId", employment.getId());
+            result.put("employeePartnerId", employment.getPartnerId());
+            result.put("employeeNumber", employment.getEmployeeNumber());
+            result.put("employeeName", partnerName(employee));
+            result.put("position", employment.getPosition());
+        }
+        result.put("leaveApprover", leaveAccessService.isLeaveApprover());
+        return result;
     }
 
     @Transactional
     public List<LeaveRequestV2ResponseDto> search(
             String status,
-            String employeePartnerId,
-            String approverPartnerId,
+            String view,
             String leaveType,
             LocalDate fromDate,
             LocalDate toDate) {
+        final boolean approverView = "APPROVER".equalsIgnoreCase(view);
+        final List<String> approvableEmploymentIds = approverView
+                ? leaveAccessService.approvableEmploymentIds()
+                : List.of();
+        if (approverView && approvableEmploymentIds.isEmpty()) return List.of();
+        final String ownPartnerId = approverView ? null : leaveAccessService.currentPartnerId();
+
         Specification<LeaveRequestEntity> specification = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (approverView) {
+                predicates.add(root.get("employmentId").in(approvableEmploymentIds));
+            } else {
+                predicates.add(cb.equal(root.get("employeePartnerId"), ownPartnerId));
+            }
             if (hasText(status)) predicates.add(cb.equal(root.get("status"), normalize(status)));
-            if (hasText(employeePartnerId)) predicates.add(cb.equal(root.get("employeePartnerId"), employeePartnerId.trim()));
             if (hasText(leaveType)) {
                 String normalized = normalize(leaveType);
                 predicates.add(cb.or(cb.equal(root.get("leaveType"), normalized), cb.equal(root.get("leaveTypeId"), leaveType.trim())));
@@ -163,8 +202,9 @@ public class LeaveRequestV2Service {
     @Transactional
     public LeaveRequestV2ResponseDto update(String id, LeaveRequestV2UpdateRequestDto request) {
         LeaveRequestEntity entity = require(id);
+        assertOwnRequest(entity);
         requireStatus(entity, Status.PENDING, "Only pending leave requests can be edited");
-        LeaveRequestV2CreateRequestDto merged = merge(entity, request);
+        LeaveRequestV2CreateRequestDto merged = scopeToCurrentEmployee(merge(entity, request));
         PreparedLeave prepared = prepare(merged, id);
         entity.setEmployeePartnerId(prepared.employment().getPartnerId());
         entity.setEmploymentId(prepared.employment().getId());
@@ -186,6 +226,7 @@ public class LeaveRequestV2Service {
     @Transactional
     public LeaveRequestV2ResponseDto submit(String id) {
         LeaveRequestEntity entity = require(id);
+        assertOwnRequest(entity);
         if (Status.AWAITING_APPROVAL.equalsIgnoreCase(entity.getStatus()) || Status.APPROVED.equalsIgnoreCase(entity.getStatus())) {
             return toResponse(entity, true);
         }
@@ -296,12 +337,15 @@ public class LeaveRequestV2Service {
 
     @Transactional
     public LeaveRequestV2ResponseDto cancel(String id, String reason) {
+        LeaveRequestEntity entity = require(id);
+        assertOwnRequest(entity);
         return cancelFromApproval(id, reason, currentActor());
     }
 
     @Transactional
     public void delete(String id) {
         LeaveRequestEntity entity = require(id);
+        assertOwnRequest(entity);
         requireStatus(entity, Status.PENDING, "Only pending leave requests can be deleted");
         historyRepository.deleteAll(historyRepository.findByLeaveRequestIdOrderByChangedAtDesc(id));
         leaveRequestRepository.delete(entity);
@@ -515,6 +559,27 @@ public class LeaveRequestV2Service {
         historyRepository.save(LeaveRequestStatusHistoryEntity.builder()
                 .leaveRequestId(requestId).oldStatus(oldStatus).newStatus(newStatus)
                 .reason(trim(reason, 1000)).changedAt(LocalDateTime.now()).changedBy(actor).build());
+    }
+
+    private LeaveRequestV2CreateRequestDto scopeToCurrentEmployee(LeaveRequestV2CreateRequestDto request) {
+        if (request == null) throw new IllegalArgumentException("Leave request is required");
+        EmploymentEntity employment = leaveAccessService.currentEmployment(request.getStartDate());
+        request.setEmploymentId(employment.getId());
+        request.setEmployee(employment.getPartnerId());
+        return request;
+    }
+
+    private void assertOwnRequest(LeaveRequestEntity entity) {
+        if (entity == null || !leaveAccessService.currentPartnerId().equals(entity.getEmployeePartnerId())) {
+            throw new SecurityException("You can only capture, change and track your own leave requests");
+        }
+    }
+
+    private void assertCanView(LeaveRequestEntity entity) {
+        if (entity == null) throw new SecurityException("Leave request access is not allowed");
+        if (leaveAccessService.ownsEmployment(entity.getEmploymentId())) return;
+        if (leaveAccessService.canApproveEmployment(entity.getEmploymentId())) return;
+        throw new SecurityException("You can only view your own leave requests or leave for employees assigned to you for approval");
     }
 
     private LeaveRequestEntity require(String id) {

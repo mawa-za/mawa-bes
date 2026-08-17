@@ -3,7 +3,6 @@ package za.co.mawa.bes.service.v2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
-import za.co.mawa.bes.configuration.context.UserContext;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -18,20 +17,30 @@ import java.util.function.Supplier;
  * request does not retarget the EntityManager that was already opened for the
  * request tenant. A fresh worker thread is therefore required before invoking
  * another transactional Spring bean for a different tenant.</p>
+ *
+ * <p>Cross-tenant work runs as the protected BGUSER background identity. The
+ * initiating user's tenant roles are intentionally not propagated into the
+ * target tenant. Business requests that need to retain the human initiator
+ * should carry that value in their request/audit payload.</p>
  */
 @Service
 public class CrossTenantExecutionService {
 
     private final Executor executor;
+    private final BackgroundExecutionContextService backgroundExecutionContextService;
 
-    public CrossTenantExecutionService(@Qualifier("crossTenantTaskExecutor") Executor executor) {
+    public CrossTenantExecutionService(
+            @Qualifier("crossTenantTaskExecutor") Executor executor,
+            BackgroundExecutionContextService backgroundExecutionContextService
+    ) {
         this.executor = executor;
+        this.backgroundExecutionContextService = backgroundExecutionContextService;
     }
 
     public <T> T execute(
             String tenantId,
-            String username,
-            String userId,
+            String initiatingUsername,
+            String initiatingUserId,
             Supplier<T> operation
     ) {
         if (tenantId == null || !tenantId.matches("[A-Za-z0-9_-]{1,128}")) {
@@ -45,15 +54,10 @@ public class CrossTenantExecutionService {
             return CompletableFuture.supplyAsync(() -> {
                 try {
                     TenantContext.setCurrentTenant(tenantId);
-                    if (username != null && !username.isBlank()) {
-                        UserContext.setCurrentUser(username);
-                    }
-                    if (userId != null && !userId.isBlank()) {
-                        UserContext.setCurrentUserId(userId);
-                    }
+                    backgroundExecutionContextService.establish();
                     return operation.get();
                 } finally {
-                    UserContext.clear();
+                    backgroundExecutionContextService.clear();
                     TenantContext.clear();
                 }
             }, executor).join();
