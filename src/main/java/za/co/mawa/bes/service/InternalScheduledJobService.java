@@ -114,7 +114,7 @@ public class InternalScheduledJobService {
     }
 
     private Map<String, Object> membershipStatusUpdate() {
-        int appliedPlanChanges = membershipChangeService.applyDuePlanChanges(java.time.LocalDate.now(), SYSTEM_USER);
+        int appliedPlanChanges = membershipChangeService.applyDuePlanChanges(java.time.LocalDate.now(), BackgroundExecutionContextService.BACKGROUND_USERNAME);
         String message = membershipService.scheduledStatusChange();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("attempted", 1);
@@ -127,7 +127,7 @@ public class InternalScheduledJobService {
 
     private Map<String, Object> membershipLapse() {
         za.co.mawa.bes.dto.v2.membership.lapse.MembershipLapseRunResultDto lapseResult =
-                membershipLapseService.runConfiguredAutomaticLapse(SYSTEM_USER);
+                membershipLapseService.runConfiguredAutomaticLapse(BackgroundExecutionContextService.BACKGROUND_USERNAME);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("attempted", lapseResult.getEvaluatedMemberships());
         result.put("completed", lapseResult.getLapsedMemberships());
