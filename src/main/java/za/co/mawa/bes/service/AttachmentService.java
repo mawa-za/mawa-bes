@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,6 +48,9 @@ public class AttachmentService implements AttachmentDao {
 
     @Autowired
     PlatformTransactionManager transactionManager;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
@@ -159,10 +163,42 @@ public class AttachmentService implements AttachmentDao {
     @Transactional
     public void delete(String id) throws DoesNotExist {
         AttachmentEntity attachmentEntity = attachmentRepository.findById(id).orElseThrow(DoesNotExist::new);
+        validateBusinessAttachmentDeletion(attachmentEntity);
         if (StringUtils.hasText(attachmentEntity.getFilePath())) {
             attachmentStorageService.delete(attachmentEntity.getStorageBucket(), attachmentEntity.getFilePath());
         }
         attachmentRepository.deleteById(id);
+    }
+
+    private void validateBusinessAttachmentDeletion(AttachmentEntity attachment) {
+        if (attachment == null || !StringUtils.hasText(attachment.getObjectId())) return;
+        String objectId = attachment.getObjectId().trim();
+        String paymentStatus = findStatus("payment_request", objectId);
+        if (paymentStatus != null && !isPreApprovalStatus(paymentStatus)) {
+            throw new IllegalStateException("Payment request attachments can only be deleted before approval is completed");
+        }
+        String claimStatus = findStatus("membership_claim", objectId);
+        if (claimStatus != null && !isPreApprovalStatus(claimStatus)) {
+            throw new IllegalStateException("Membership claim attachments can only be deleted before approval is completed");
+        }
+    }
+
+    private String findStatus(String table, String objectId) {
+        try {
+            List<String> rows = jdbcTemplate.query(
+                    "SELECT status FROM `" + table + "` WHERE id=? LIMIT 1",
+                    (rs, rowNum) -> rs.getString("status"), objectId);
+            return rows.isEmpty() ? null : rows.get(0);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean isPreApprovalStatus(String status) {
+        if (status == null) return false;
+        String normalized = status.trim().toUpperCase(java.util.Locale.ROOT);
+        return java.util.Set.of("DRAFT", "PENDING", "PENDING_APPROVAL", "AWAITING_APPROVAL", "SUBMITTED")
+                .contains(normalized);
     }
 
     public int migrateLegacyDatabaseFilesToGcp() {
