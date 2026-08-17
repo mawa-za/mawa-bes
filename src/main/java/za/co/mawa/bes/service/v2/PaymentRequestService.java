@@ -46,6 +46,7 @@ public class PaymentRequestService {
     private final PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService;
     private final JdbcTemplate jdbcTemplate;
     private final za.co.mawa.bes.repository.AttachmentRepository attachmentRepository;
+    private final MembershipActionGuardService membershipActionGuardService;
 
     @Autowired
     SettingService settingService;
@@ -61,7 +62,8 @@ public class PaymentRequestService {
             UniversalBranchCodeService universalBranchCodeService,
             PaymentRequestInvoiceEmailService paymentRequestInvoiceEmailService,
             JdbcTemplate jdbcTemplate,
-            za.co.mawa.bes.repository.AttachmentRepository attachmentRepository
+            za.co.mawa.bes.repository.AttachmentRepository attachmentRepository,
+            MembershipActionGuardService membershipActionGuardService
     ) {
         this.paymentRequestRepository = paymentRequestRepository;
         this.statusHistoryRepository = statusHistoryRepository;
@@ -74,6 +76,7 @@ public class PaymentRequestService {
         this.paymentRequestInvoiceEmailService = paymentRequestInvoiceEmailService;
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentRepository = attachmentRepository;
+        this.membershipActionGuardService = membershipActionGuardService;
     }
 
     private static final java.util.Set<PaymentRequestType> MANUALLY_CREATABLE_TYPES = java.util.Set.of(
@@ -96,6 +99,7 @@ public class PaymentRequestService {
     public PaymentRequestResponse create(PaymentRequestCreateRequest request, String currentUser) {
         applyTypeRules(request);
         validateCreateRequest(request);
+        requireSourceMembershipActionable(request.getSourceType(), request.getSourceId());
 
         String idempotencyKey = request.getIdempotencyKey() == null ? null : request.getIdempotencyKey().trim();
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
@@ -147,6 +151,7 @@ public class PaymentRequestService {
         if (claim == null || claim.getId() == null) {
             throw new IllegalArgumentException("Approved claim is required");
         }
+        membershipActionGuardService.requireActionableForObject(claim.getId());
         if (claim.getClaimType() != MembershipClaimType.CASH
                 && claim.getClaimType() != MembershipClaimType.GROCERY) {
             throw new IllegalArgumentException("Direct claim payout is supported only for CASH and GROCERY claims");
@@ -411,6 +416,7 @@ public class PaymentRequestService {
     @Transactional
     public PaymentRequestResponse update(String id, PaymentRequestUpdateRequest request, String currentUser) {
         PaymentRequestEntity entity = findById(id);
+        requireSourceMembershipActionable(entity);
 
         if (entity.getStatus() != PaymentRequestStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT payment requests can be updated.");
@@ -447,6 +453,7 @@ public class PaymentRequestService {
     @Transactional
     public PaymentRequestResponse submit(String id, String currentUser) {
         PaymentRequestEntity entity = findById(id);
+        requireSourceMembershipActionable(entity);
 
         if (entity.getStatus() != PaymentRequestStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT payment requests can be submitted.");
@@ -468,6 +475,7 @@ public class PaymentRequestService {
     @Transactional
     public PaymentRequestResponse updateStatus(String id, PaymentRequestStatusUpdateRequest request, String currentUser) {
         PaymentRequestEntity entity = findById(id);
+        requireSourceMembershipActionable(entity);
         PaymentRequestStatus oldStatus = entity.getStatus();
         PaymentRequestStatus newStatus = request.getStatus();
 
@@ -495,6 +503,7 @@ public class PaymentRequestService {
     @Transactional
     public PaymentRequestResponse cancel(String id, String comment, String currentUser) {
         PaymentRequestEntity entity = findById(id);
+        requireSourceMembershipActionable(entity);
 
         if (entity.getStatus() == PaymentRequestStatus.PAID) {
             throw new IllegalStateException("Paid payment requests cannot be cancelled.");
@@ -518,6 +527,7 @@ public class PaymentRequestService {
     @Transactional
     public PaymentRequestResponse markPaid(String id, MarkPaymentRequestPaidRequest request, String currentUser) {
         PaymentRequestEntity proofEntity = findById(id);
+        requireSourceMembershipActionable(proofEntity);
         if (proofEntity.getPaymentMethod() == PaymentMethod.MANUAL) {
             za.co.mawa.bes.entity.AttachmentEntity proof;
             if (request.getProofAttachmentId() == null || request.getProofAttachmentId().isBlank()) {
@@ -571,6 +581,7 @@ public class PaymentRequestService {
     public void markApproved(String paymentRequestId, String approvedBy) {
         PaymentRequestEntity entity = paymentRequestRepository.findById(paymentRequestId)
                 .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestId));
+        requireSourceMembershipActionable(entity);
 
         if (entity.getStatus() == PaymentRequestStatus.APPROVED) {
             return;
@@ -604,6 +615,7 @@ public class PaymentRequestService {
     public void markQueuedForPayment(String paymentRequestId, String updatedBy) {
         PaymentRequestEntity entity = paymentRequestRepository.findById(paymentRequestId)
                 .orElseThrow(() -> new RuntimeException("Payment request not found: " + paymentRequestId));
+        requireSourceMembershipActionable(entity);
 
         if (entity.getStatus() == PaymentRequestStatus.QUEUED_FOR_PAYMENT) {
             return;
@@ -620,6 +632,17 @@ public class PaymentRequestService {
         paymentRequestRepository.save(entity);
         saveHistory(entity.getId(), oldStatus, PaymentRequestStatus.QUEUED_FOR_PAYMENT,
                 "Payment request queued for FNB EFT payment", updatedBy);
+    }
+
+    private void requireSourceMembershipActionable(PaymentRequestEntity entity) {
+        if (entity == null) return;
+        requireSourceMembershipActionable(entity.getSourceType(), entity.getSourceId());
+    }
+
+    private void requireSourceMembershipActionable(PaymentRequestSourceType sourceType, String sourceId) {
+        if (sourceType == PaymentRequestSourceType.MEMBERSHIP_CLAIM && sourceId != null && !sourceId.isBlank()) {
+            membershipActionGuardService.requireActionableForObject(sourceId);
+        }
     }
 
     public String getFnbInstructionId(String paymentRequestIdOrRequestNo) {

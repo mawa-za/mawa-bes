@@ -31,6 +31,29 @@ public class MembershipStatusChangeService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    public Map<String, Object> pending(String membershipId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT action_type,requested_status,reason,requested_by,created_at,approval_request_id
+                  FROM membership_status_change_request
+                 WHERE membership_id=? AND status='PENDING_APPROVAL'
+                 ORDER BY created_at DESC
+                 LIMIT 1
+                """, membershipId);
+        if (rows.isEmpty()) {
+            return Map.of("pending", false);
+        }
+        Map<String, Object> row = rows.get(0);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("pending", true);
+        response.put("action", Objects.toString(row.get("action_type"), ""));
+        response.put("requestedStatus", Objects.toString(row.get("requested_status"), ""));
+        response.put("reason", Objects.toString(row.get("reason"), ""));
+        response.put("requestedBy", Objects.toString(row.get("requested_by"), ""));
+        response.put("createdAt", row.get("created_at"));
+        response.put("approvalRequestId", row.get("approval_request_id"));
+        return response;
+    }
+
     @Transactional
     public ApprovalRequestResponse request(
             String membershipId,
@@ -183,8 +206,11 @@ public class MembershipStatusChangeService {
         if (current.startsWith("PENDING_")) {
             throw new IllegalStateException("Membership status cannot be changed while another membership approval is pending");
         }
+        if ("LAPSED".equals(current) && !"REACTIVATE".equals(action)) {
+            throw new IllegalStateException("A lapsed membership can only be reactivated");
+        }
         boolean allowed = switch (action) {
-            case "REACTIVATE" -> Set.of("INACTIVE", "SUSPENDED", "CANCELLED").contains(current);
+            case "REACTIVATE" -> Set.of("INACTIVE", "SUSPENDED", "CANCELLED", "LAPSED").contains(current);
             case "DEACTIVATE" -> Set.of("ACTIVE", "SUSPENDED").contains(current);
             case "SUSPEND" -> Set.of("ACTIVE", "INACTIVE").contains(current);
             case "CANCEL" -> !"CANCELLED".equals(current);

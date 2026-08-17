@@ -55,15 +55,17 @@ The endpoint returns:
 New attachments are stored using this tenant-scoped object path format:
 
 ```text
-{prefix}/{tenant-host-normalised}/{module-or-type}/{record-id}/{uuid}-{safe-document-name}.{extension}
+{prefix}/{tenant-id}/{module-or-type}/{record-id}/{uuid}-{safe-document-name}.{extension}
 ```
 
 Examples:
 
 ```text
-attachments/dev-app-mawa-co-za/deposits/DEP-000001/5f1d...-proof-of-payment.pdf
-attachments/dev-app-mawa-co-za/partners/PAR-000001/8a4c...-id-copy.pdf
-attachments/dev-app-mawa-co-za/invoices/INV-000001/0b62...-invoice.pdf
+attachments/<tenant-id>/deposits/DEP-000001/5f1d...-proof-of-payment.pdf
+attachments/<tenant-id>/partners/PAR-000001/8a4c...-id-copy.pdf
+attachments/<tenant-id>/invoices/INV-000001/0b62...-invoice.pdf
 ```
+
+The tenant id is the canonical storage partition. Tenant URL/host values are never used to create attachment folders. Existing records continue to read from the exact object path stored in the database.
 
 The UUID prefix makes every upload unique. Uploads use a Google Cloud Storage `doesNotExist` precondition so an existing object is never overwritten. Re-uploading a replacement creates a new object path and the database points to the new path.
