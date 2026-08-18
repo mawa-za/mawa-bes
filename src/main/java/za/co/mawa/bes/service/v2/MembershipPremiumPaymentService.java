@@ -177,7 +177,8 @@ public class MembershipPremiumPaymentService {
     public void validateDeletionAllowed(String paymentBatchId) {
         PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
-        membershipActionGuardService.requireActionable(batch.getMembershipId());
+        String resolvedMembershipId = resolveCurrentMembershipId(batch.getMembershipId());
+        membershipActionGuardService.requireActionable(resolvedMembershipId);
         if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM) {
             throw new IllegalArgumentException("Only membership premium payments can be deleted");
         }
@@ -261,8 +262,9 @@ public class MembershipPremiumPaymentService {
         approval.setTitle("Delete premium payment " + batch.getPaymentBatchNo());
         approval.setDescription(request.getReason().trim());
         approval.setRequesterId(request.getRequesterId().trim());
+        String resolvedMembershipId = resolveCurrentMembershipId(batch.getMembershipId());
         approval.setPayloadJson("{\"paymentBatchId\":\"" + batch.getId()
-                + "\",\"membershipId\":\"" + batch.getMembershipId()
+                + "\",\"membershipId\":\"" + resolvedMembershipId
                 + "\",\"amountCents\":" + batch.getTotalAmountCents() + "}");
         return approvalService.submitForApproval(approval);
     }
@@ -560,8 +562,15 @@ public class MembershipPremiumPaymentService {
                 + "Reversed after approved deletion: " + reversalReason);
         paymentBatchRepository.save(batch);
         if (!isBlank(batch.getMembershipId())) {
-            membershipService.recalculatePaidUpToPeriod(batch.getMembershipId());
+            membershipService.recalculatePaidUpToPeriod(resolveCurrentMembershipId(batch.getMembershipId()));
         }
+    }
+
+    private String resolveCurrentMembershipId(String membershipId) {
+        if (isBlank(membershipId)) {
+            throw new IllegalArgumentException("Membership id is required for this premium payment");
+        }
+        return membershipService.resolveMembership(membershipId.trim()).getId();
     }
 
     private PaymentBatchEntity createBatch(MembershipPremiumPaymentCreateRequest request) {
