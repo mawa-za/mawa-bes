@@ -677,10 +677,6 @@ public class FuneralManagementService {
             String membershipClaimId = UUID.randomUUID().toString();
             if (externalClaim) {
                 ensureExternalClaimCreationAllowed(claimTenantId);
-                String providerSupplierPartnerId = funeralClaimSettlementService
-                        .resolveConfiguredProviderSupplierId(TenantContext.getCurrentTenant());
-                funeralClaimSettlementService.ensureSupplierAvailableInCoverTenant(
-                        TenantContext.getCurrentTenant(), providerSupplierPartnerId, claimTenantId);
             }
             String claimNo = externalClaim
                     ? generateExternalMembershipClaimNo(claimTenantId)
@@ -2038,8 +2034,25 @@ public class FuneralManagementService {
 
     private String resolveInvoicePartnerForClaim(FuneralClaimDto claim) {
         Optional<FuneralServiceClaimEntity> link = funeralServiceClaimRepository.findByMembershipClaimId(claim.getMembershipClaimId());
-        if (link.isPresent() && link.get().getBurialSocietyPartnerId() != null && !link.get().getBurialSocietyPartnerId().isBlank()) {
-            return link.get().getBurialSocietyPartnerId();
+        if (link.isPresent()) {
+            FuneralServiceClaimEntity claimLink = link.get();
+            if (isExternalClaimStorage(claimLink)) {
+                FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+                if (Boolean.TRUE.equals(config.getActive())
+                        && includesExternalSource(config)
+                        && Objects.equals(config.getExternalTenantId(), claimLink.getSourceTenantId())
+                        && StringUtils.hasText(config.getExternalTenantPartnerId())) {
+                    // The funeral tenant is the invoicing tenant. For an external
+                    // cover it invoices the local partner mapped to the external
+                    // cover-owner tenant in Funeral Tenant Integration.
+                    return config.getExternalTenantPartnerId().trim();
+                }
+            }
+            if (StringUtils.hasText(claimLink.getBurialSocietyPartnerId())) {
+                // Historical claims keep the invoicing-partner snapshot that was
+                // captured when the cover was selected.
+                return claimLink.getBurialSocietyPartnerId().trim();
+            }
         }
         // Fallback: invoice the membership owner for same-tenant records until group society partner mapping is added.
         return jdbcTemplate.queryForObject("SELECT member_id FROM membership WHERE id = ?", String.class, claim.getMembershipId());
