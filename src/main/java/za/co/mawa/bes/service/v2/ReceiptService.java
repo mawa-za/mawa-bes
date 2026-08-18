@@ -155,6 +155,19 @@ public class ReceiptService {
                 """, firstAllocation.getReferenceId());
             if (!rows.isEmpty()) invoice = rows.get(0);
         }
+        java.util.Map<String,Object> layby = new java.util.HashMap<>();
+        if (receipt.getSourceType() == ReceiptSourceType.LAYBY && firstAllocation != null
+                && firstAllocation.getReferenceId() != null && !firstAllocation.getReferenceId().isBlank()) {
+            var rows = jdbcTemplate.queryForList("""
+                SELECT l.id layby_id, l.layby_no,
+                       p.number customer_number,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))) customer_name
+                  FROM layby_agreement l
+             LEFT JOIN partner p ON p.id=l.customer_partner_id
+                 WHERE l.id=?
+                """, firstAllocation.getReferenceId());
+            if (!rows.isEmpty()) layby = rows.get(0);
+        }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
                 .traceId(receipt.getTraceId())
@@ -175,8 +188,12 @@ public class ReceiptService {
                         firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.INVOICE
                                 ? firstAllocation.getReferenceNo() : ""))
                 .invoiceReference(java.util.Objects.toString(invoice.get("external_ref"), ""))
-                .customerName(java.util.Objects.toString(invoice.get("customer_name"), ""))
-                .customerNumber(java.util.Objects.toString(invoice.get("customer_number"), ""))
+                .customerName(firstNonBlank(
+                        java.util.Objects.toString(invoice.get("customer_name"), ""),
+                        java.util.Objects.toString(layby.get("customer_name"), "")))
+                .customerNumber(firstNonBlank(
+                        java.util.Objects.toString(invoice.get("customer_number"), ""),
+                        java.util.Objects.toString(layby.get("customer_number"), "")))
                 .groupSocietyId(java.util.Objects.toString(groupSociety.get("group_society_id"), ""))
                 .groupSocietyNo(java.util.Objects.toString(groupSociety.get("group_society_no"),
                         firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.GROUP_SOCIETY_BALANCE

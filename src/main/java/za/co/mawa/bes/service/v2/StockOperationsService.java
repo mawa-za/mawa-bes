@@ -535,6 +535,16 @@ public class StockOperationsService {
 
     @Transactional
     public Map<String, Object> reserveSalesOrder(String id, String userId) {
+        ensureSalesOrderNotControlledByLayby(id);
+        return reserveSalesOrderInternal(id, userId);
+    }
+
+    @Transactional
+    public Map<String, Object> reserveSalesOrderForLayby(String id, String userId) {
+        return reserveSalesOrderInternal(id, userId);
+    }
+
+    private Map<String, Object> reserveSalesOrderInternal(String id, String userId) {
         Map<String, Object> order = getSalesOrder(id);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> lines = (List<Map<String, Object>>) order.get("lines");
@@ -546,7 +556,7 @@ public class StockOperationsService {
             String productId = text(line.get("product_id"));
             ProductProfile product = productProfile(productId);
             BigDecimal actuallyReserved = product.type().isStockControlled()
-                    ? reserveStock(productId, text(order.get("warehouse_id")), toReserve, userId)
+                    ? reserveStock(id, text(line.get("id")), productId, text(order.get("warehouse_id")), toReserve, userId)
                     : toReserve;
             BigDecimal newReserved = reserved.add(actuallyReserved);
             String status = newReserved.compareTo(quantity) >= 0 ? "RESERVED" : (newReserved.compareTo(BigDecimal.ZERO) > 0 ? "PARTIAL" : "BACKORDER");
@@ -558,7 +568,37 @@ public class StockOperationsService {
     }
 
     @Transactional
+    public Map<String, Object> releaseSalesOrderReservation(String id, String userId) {
+        Map<String, Object> order = getSalesOrder(id);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) order.get("lines");
+        for (Map<String, Object> line : lines) {
+            BigDecimal reserved = decimal(line.get("reserved_qty"));
+            if (reserved.compareTo(BigDecimal.ZERO) <= 0) continue;
+            String productId = text(line.get("product_id"));
+            ProductProfile product = productProfile(productId);
+            if (product.type().isStockControlled()) {
+                releaseStockReservation(text(line.get("id")), productId, reserved, userId);
+            }
+            jdbcTemplate.update("UPDATE sales_order_line SET reserved_qty = 0, allocated_qty = GREATEST(issued_qty, 0), status = CASE WHEN issued_qty >= quantity THEN 'ISSUED' ELSE 'AVAILABLE' END WHERE id = ?", line.get("id"));
+        }
+        jdbcTemplate.update("UPDATE sales_order SET status = CASE WHEN status='ISSUED' THEN status ELSE 'CANCELLED' END, updated_at = ?, updated_by = ? WHERE id = ?", nowTs(), userId, id);
+        audit("SALES_ORDER", id, "RELEASE_RESERVATION", null, null, userId, null);
+        return getSalesOrder(id);
+    }
+
+    @Transactional
     public Map<String, Object> issueSalesOrder(String id, StockDtos.SalesOrderIssueRequest request, String userId) {
+        ensureSalesOrderNotControlledByLayby(id);
+        return issueSalesOrderInternal(id, request, userId);
+    }
+
+    @Transactional
+    public Map<String, Object> issueSalesOrderForLayby(String id, StockDtos.SalesOrderIssueRequest request, String userId) {
+        return issueSalesOrderInternal(id, request, userId);
+    }
+
+    private Map<String, Object> issueSalesOrderInternal(String id, StockDtos.SalesOrderIssueRequest request, String userId) {
         Map<String, Object> order = getSalesOrder(id);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> lines = (List<Map<String, Object>>) order.get("lines");
@@ -584,7 +624,7 @@ public class StockOperationsService {
             String productId = text(line.get("product_id"));
             ProductProfile product = productProfile(productId);
             if (product.type().isStockControlled()) {
-                issueStock(productId, warehouseId, request == null ? null : request.getStorageLocationId(), toIssue, userId);
+                issueStock(text(line.get("id")), productId, warehouseId, request == null ? null : request.getStorageLocationId(), toIssue, userId);
                 createMovement(product.type().isConsumedOnIssue() ? "CONSUMPTION_ISSUE" : "SALES_ISSUE", id, issueNo, productId, warehouseId, request == null ? null : request.getStorageLocationId(), null, toIssue, defaultText(text(line.get("uom")), "EA"), null, userId, request == null ? null : request.getNotes());
             }
             jdbcTemplate.update("UPDATE sales_order_line SET issued_qty = issued_qty + ?, reserved_qty = GREATEST(reserved_qty - ?, 0), status = CASE WHEN issued_qty + ? >= quantity THEN 'ISSUED' ELSE 'PARTIAL' END WHERE id = ?", toIssue, toIssue, toIssue, line.get("id"));
@@ -596,6 +636,7 @@ public class StockOperationsService {
 
     @Transactional
     public Map<String, Object> updateSalesOrderStatus(String id, StockDtos.StatusUpdateRequest request, String userId) {
+        ensureSalesOrderNotControlledByLayby(id);
         String status = required(request.getStatus(), "status").trim().toUpperCase();
         jdbcTemplate.update("UPDATE sales_order SET status = ?, updated_at = ?, updated_by = ? WHERE id = ?", status, nowTs(), userId, id);
         audit("SALES_ORDER", id, "STATUS", null, status, userId, request.getNotes());
@@ -645,12 +686,12 @@ public class StockOperationsService {
         jdbcTemplate.update("UPDATE sales_order SET status = ?, updated_at = ?, updated_by = ? WHERE id = ?", status, nowTs(), userId, salesOrderId);
     }
 
-    private BigDecimal reserveStock(String productId, String warehouseId, BigDecimal quantity, String userId) {
+    private BigDecimal reserveStock(String salesOrderId, String salesOrderLineId, String productId, String warehouseId, BigDecimal quantity, String userId) {
         StringBuilder sql = new StringBuilder("SELECT b.id, b.available_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_reservation=1 AND t.available_for_sale=1 WHERE b.product_id = ? AND b.available_qty > 0");
         List<Object> args = new ArrayList<>();
         args.add(productId);
         if (hasText(warehouseId)) { sql.append(" AND b.warehouse_id = ?"); args.add(warehouseId); }
-        sql.append(" ORDER BY available_qty DESC");
+        sql.append(" ORDER BY available_qty DESC FOR UPDATE");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         BigDecimal remaining = quantity;
         BigDecimal reserved = BigDecimal.ZERO;
@@ -659,33 +700,93 @@ public class StockOperationsService {
             BigDecimal available = decimal(row.get("available_qty"));
             BigDecimal take = available.min(remaining);
             jdbcTemplate.update("UPDATE stock_balance SET reserved_qty = reserved_qty + ?, available_qty = GREATEST(available_qty - ?, 0), updated_at = ?, updated_by = ? WHERE id = ?", take, take, nowTs(), userId, row.get("id"));
+            jdbcTemplate.update("""
+                    INSERT INTO sales_order_stock_reservation(
+                        id, sales_order_id, sales_order_line_id, stock_balance_id, reserved_qty, created_at, created_by, updated_at, updated_by
+                    ) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP,?,CURRENT_TIMESTAMP,?)
+                    ON DUPLICATE KEY UPDATE reserved_qty=reserved_qty+VALUES(reserved_qty), updated_at=CURRENT_TIMESTAMP, updated_by=VALUES(updated_by)
+                    """, uuid(), salesOrderId, salesOrderLineId, row.get("id"), take, userId, userId);
             remaining = remaining.subtract(take);
             reserved = reserved.add(take);
         }
         return reserved;
     }
 
-    private void issueStock(String productId, String warehouseId, String storageLocationId, BigDecimal quantity, String userId) {
-        StringBuilder sql = new StringBuilder("SELECT b.id, b.on_hand_qty, b.reserved_qty, b.available_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_picking=1 AND t.available_for_issue=1 WHERE b.product_id = ? AND b.warehouse_id = ? AND b.on_hand_qty > 0");
+    private void releaseStockReservation(String salesOrderLineId, String productId, BigDecimal quantity, String userId) {
+        List<Map<String, Object>> allocations = jdbcTemplate.queryForList("""
+                SELECT r.id, r.stock_balance_id, r.reserved_qty
+                  FROM sales_order_stock_reservation r
+                 WHERE r.sales_order_line_id=? AND r.reserved_qty>0
+                 ORDER BY r.created_at, r.id
+                 FOR UPDATE
+                """, salesOrderLineId);
+        BigDecimal remaining = quantity;
+        for (Map<String, Object> allocation : allocations) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal mapped = decimal(allocation.get("reserved_qty"));
+            BigDecimal release = mapped.min(remaining);
+            int updated = jdbcTemplate.update("""
+                    UPDATE stock_balance
+                       SET reserved_qty=GREATEST(reserved_qty-?,0),
+                           available_qty=available_qty+?,
+                           updated_at=?, updated_by=?
+                     WHERE id=? AND product_id=?
+                    """, release, release, nowTs(), userId, allocation.get("stock_balance_id"), productId);
+            if (updated != 1) throw new IllegalStateException("Unable to locate reserved stock for product " + productId);
+            BigDecimal mappedRemaining = mapped.subtract(release);
+            if (mappedRemaining.compareTo(BigDecimal.ZERO) <= 0) {
+                jdbcTemplate.update("DELETE FROM sales_order_stock_reservation WHERE id=?", allocation.get("id"));
+            } else {
+                jdbcTemplate.update("UPDATE sales_order_stock_reservation SET reserved_qty=?, updated_at=?, updated_by=? WHERE id=?", mappedRemaining, nowTs(), userId, allocation.get("id"));
+            }
+            remaining = remaining.subtract(release);
+        }
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Unable to release the layby's full reserved quantity for product " + productId);
+        }
+    }
+
+    private void issueStock(String salesOrderLineId, String productId, String warehouseId, String storageLocationId, BigDecimal quantity, String userId) {
+        boolean hasMappedReservations = queryInt(
+                "SELECT COUNT(*) FROM sales_order_stock_reservation WHERE sales_order_line_id=? AND reserved_qty>0",
+                salesOrderLineId) > 0;
+        StringBuilder sql = new StringBuilder("SELECT b.id, b.on_hand_qty, b.reserved_qty, b.available_qty, COALESCE(r.reserved_qty,0) AS order_reserved_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_picking=1 AND t.available_for_issue=1 LEFT JOIN sales_order_stock_reservation r ON r.stock_balance_id=b.id AND r.sales_order_line_id=? WHERE b.product_id = ? AND b.warehouse_id = ? AND b.on_hand_qty > 0");
         List<Object> args = new ArrayList<>();
+        args.add(salesOrderLineId);
         args.add(productId);
         args.add(warehouseId);
         if (hasText(storageLocationId)) { sql.append(" AND b.storage_location_id = ?"); args.add(storageLocationId); }
-        sql.append(" ORDER BY reserved_qty DESC, available_qty DESC");
+        sql.append(" ORDER BY order_reserved_qty DESC, available_qty DESC, reserved_qty DESC");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         BigDecimal remaining = quantity;
         for (Map<String, Object> row : rows) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
             BigDecimal onHand = decimal(row.get("on_hand_qty"));
             BigDecimal reserved = decimal(row.get("reserved_qty"));
-            BigDecimal take = onHand.min(remaining);
-            BigDecimal reservedTake = reserved.min(take);
+            BigDecimal available = decimal(row.get("available_qty"));
+            BigDecimal orderReserved = decimal(row.get("order_reserved_qty")).min(reserved);
+            BigDecimal eligible = hasMappedReservations ? orderReserved.add(available) : onHand;
+            BigDecimal take = eligible.min(onHand).min(remaining);
+            if (take.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal reservedTake = hasMappedReservations ? orderReserved.min(take) : reserved.min(take);
             BigDecimal availableTake = take.subtract(reservedTake);
             jdbcTemplate.update("UPDATE stock_balance SET on_hand_qty = GREATEST(on_hand_qty - ?, 0), reserved_qty = GREATEST(reserved_qty - ?, 0), available_qty = GREATEST(available_qty - ?, 0), last_movement_at = ?, updated_at = ?, updated_by = ? WHERE id = ?",
                     take, reservedTake, availableTake, nowTs(), nowTs(), userId, row.get("id"));
             remaining = remaining.subtract(take);
         }
-        if (remaining.compareTo(BigDecimal.ZERO) > 0) throw new IllegalArgumentException("Insufficient stock to issue product " + productId);
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) throw new IllegalArgumentException("Insufficient unreserved or layby-reserved stock to issue product " + productId);
+        jdbcTemplate.update("DELETE FROM sales_order_stock_reservation WHERE sales_order_line_id=?", salesOrderLineId);
+    }
+
+    private void ensureSalesOrderNotControlledByLayby(String salesOrderId) {
+        List<Map<String, Object>> laybys = jdbcTemplate.queryForList(
+                "SELECT layby_no, status FROM layby_agreement WHERE sales_order_id=? LIMIT 1", salesOrderId);
+        if (!laybys.isEmpty()) {
+            Map<String, Object> layby = laybys.get(0);
+            throw new IllegalStateException(
+                    "Sales order is controlled by layby " + text(layby.get("layby_no"))
+                            + " (" + text(layby.get("status")) + "). Manage it from Sales & Customers > Laybys.");
+        }
     }
 
     private ProductProfile requireSaleable(String productId) {
