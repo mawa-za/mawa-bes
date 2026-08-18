@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.v2.PremiumPaymentDeletionStatusResponse;
 import za.co.mawa.bes.dto.v2.PremiumPaymentTransferRequest;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptAllocationResponseDto;
+import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
@@ -183,53 +184,43 @@ public class MembershipPremiumPaymentService {
         if (batch.getStatus() != PaymentBatchStatus.POSTED) {
             throw new IllegalStateException("Only POSTED premium payments can be deleted");
         }
+
         List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
         if (receipts.isEmpty()) {
             throw new IllegalStateException("No receipts were found for this premium payment");
         }
+
+        ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository
+                .findByPaymentBatchId(paymentBatchId)
+                .orElse(null);
+        boolean legacyManualPayment = isLegacyManualReceiptPayment(batch, receipts, manualReceipt);
         if (allowPremiumPaymentDeletionWithoutCashupValidation()) {
             return;
         }
+
         boolean linkedToOpenCashup = false;
         for (ReceiptEntity receipt : receipts) {
-            var links = new ArrayList<>(cashupReceiptRepository.findByReceiptId(receipt.getId()));
-            manualPremiumReceiptRepository.findByPaymentBatchId(paymentBatchId).ifPresent(manualReceipt -> {
-                for (var manualLink : cashupReceiptRepository.findByReceiptId(manualReceipt.getId())) {
-                    if (links.stream().noneMatch(existing -> existing.getId().equals(manualLink.getId()))) {
-                        links.add(manualLink);
-                    }
-                }
-            });
-            for (String physicalReceiptNo : List.of(
-                    receipt.getManualReceiptNo() == null ? "" : receipt.getManualReceiptNo(),
-                    receipt.getExternalReceiptNo() == null ? "" : receipt.getExternalReceiptNo())) {
-                Long physicalNo = numericReceiptNo(physicalReceiptNo);
-                if (physicalNo == null) continue;
-                for (var physicalLink : cashupReceiptRepository.findByReceiptNo(physicalNo)) {
-                    if (links.stream().noneMatch(existing -> existing.getId().equals(physicalLink.getId()))) {
-                        links.add(physicalLink);
-                    }
-                }
-            }
-            Long numericReceiptNo = numericReceiptNo(receipt.getReceiptNo());
-            if (numericReceiptNo != null) {
-                for (var legacyLink : cashupReceiptRepository.findByReceiptNo(numericReceiptNo)) {
-                    if (links.stream().noneMatch(existing -> existing.getId().equals(legacyLink.getId()))) {
-                        links.add(legacyLink);
-                    }
-                }
-            }
+            var links = cashupLinksForPayment(paymentBatchId, receipt, manualReceipt);
             if (links.isEmpty()) {
-                throw new IllegalStateException("Receipt " + receipt.getReceiptNo() + " is not linked to an open cash-up");
+                // LEGACY_CATCH_UP receipts are intentionally kept outside the automatic
+                // ERP online cashup. Migrated legacy manual receipts can therefore have
+                // no cashup row at all, and that must not prevent an approval-based void.
+                if (legacyManualPayment) {
+                    continue;
+                }
+                throw new IllegalStateException(
+                        "Receipt " + receipt.getReceiptNo() + " is not linked to an open cash-up");
             }
             for (var link : links) {
                 if (link.getCashup() == null || !"OPEN".equalsIgnoreCase(link.getCashup().getStatus())) {
-                    throw new IllegalStateException("Premium payments can only be deleted while the linked cash-up is OPEN");
+                    throw new IllegalStateException(
+                            "Premium payments can only be deleted while the linked cash-up is OPEN");
                 }
                 linkedToOpenCashup = true;
             }
         }
-        if (!linkedToOpenCashup) {
+
+        if (!linkedToOpenCashup && !legacyManualPayment) {
             throw new IllegalStateException("The premium payment is not linked to an open cash-up");
         }
     }
@@ -447,6 +438,68 @@ public class MembershipPremiumPaymentService {
                 .build();
     }
 
+    private boolean isLegacyManualReceiptPayment(
+            PaymentBatchEntity batch,
+            List<ReceiptEntity> receipts,
+            ManualPremiumReceiptEntity manualReceipt
+    ) {
+        if (manualReceipt != null
+                && "LEGACY_CATCH_UP".equalsIgnoreCase(
+                        manualReceipt.getCaptureMode() == null ? "" : manualReceipt.getCaptureMode().trim())) {
+            return true;
+        }
+        return isMigratedLegacyManualReceipt(batch, receipts);
+    }
+
+    private List<CashupReceiptEntity> cashupLinksForPayment(
+            String paymentBatchId,
+            ReceiptEntity receipt,
+            ManualPremiumReceiptEntity manualReceipt
+    ) {
+        List<CashupReceiptEntity> links = new ArrayList<>();
+        if (receipt != null && !isBlank(receipt.getId())) {
+            addUniqueCashupLinks(links, cashupReceiptRepository.findByReceiptId(receipt.getId()));
+        }
+        if (manualReceipt != null && !isBlank(manualReceipt.getId())) {
+            addUniqueCashupLinks(links, cashupReceiptRepository.findByReceiptId(manualReceipt.getId()));
+        }
+        if (!isBlank(paymentBatchId)) {
+            addUniqueCashupLinks(
+                    links,
+                    cashupReceiptRepository.findByLegacyTransactionId(paymentBatchId.trim()));
+        }
+
+        if (receipt != null) {
+            for (String receiptNumber : List.of(
+                    receipt.getReceiptNo() == null ? "" : receipt.getReceiptNo(),
+                    receipt.getManualReceiptNo() == null ? "" : receipt.getManualReceiptNo(),
+                    receipt.getExternalReceiptNo() == null ? "" : receipt.getExternalReceiptNo())) {
+                Long numericReceiptNo = numericReceiptNo(receiptNumber);
+                if (numericReceiptNo != null) {
+                    addUniqueCashupLinks(links, cashupReceiptRepository.findByReceiptNo(numericReceiptNo));
+                }
+            }
+        }
+        return links;
+    }
+
+    private void addUniqueCashupLinks(
+            List<CashupReceiptEntity> target,
+            List<CashupReceiptEntity> candidates
+    ) {
+        if (candidates == null || candidates.isEmpty()) {
+            return;
+        }
+        for (var candidate : candidates) {
+            if (candidate == null || candidate.getId() == null) {
+                continue;
+            }
+            if (target.stream().noneMatch(existing -> candidate.getId().equals(existing.getId()))) {
+                target.add(candidate);
+            }
+        }
+    }
+
     private boolean isMigratedLegacyManualReceipt(
             PaymentBatchEntity batch,
             List<ReceiptEntity> receipts
@@ -487,11 +540,13 @@ public class MembershipPremiumPaymentService {
         ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository
                 .findByPaymentBatchId(paymentBatchId)
                 .orElse(null);
+        boolean legacyManualPayment = isLegacyManualReceiptPayment(batch, receipts, manualReceipt);
         onlineCashupService.removeReceipts(
                 receipts,
                 manualReceipt == null ? List.of() : List.of(manualReceipt.getId()),
                 actionBy,
-                !allowPremiumPaymentDeletionWithoutCashupValidation());
+                !allowPremiumPaymentDeletionWithoutCashupValidation(),
+                legacyManualPayment);
 
         if (manualReceipt != null && manualReceipt.getVoidedAt() == null) {
             manualReceipt.setVoidedAt(LocalDateTime.now());

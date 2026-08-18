@@ -141,18 +141,41 @@ public class OnlineCashupService {
             String actor,
             boolean validateCashupStatus
     ) {
+        removeReceipts(receipts, additionalReceiptIds, actor, validateCashupStatus, false);
+    }
+
+    @Transactional
+    public void removeReceipts(
+            Collection<ReceiptEntity> receipts,
+            Collection<String> additionalReceiptIds,
+            String actor,
+            boolean validateCashupStatus,
+            boolean allowMissingCashupLink
+    ) {
         if ((receipts == null || receipts.isEmpty())
                 && (additionalReceiptIds == null || additionalReceiptIds.isEmpty())) return;
 
         Map<String, CashupEntity> affectedCashups = new LinkedHashMap<>();
         Map<String, CashupReceiptEntity> linksById = new LinkedHashMap<>();
         for (ReceiptEntity receipt : receipts) {
-            if (receipt == null || receipt.getId() == null) continue;
-            for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(receipt.getId())) {
-                linksById.put(link.getId(), link);
+            if (receipt == null) continue;
+            if (receipt.getId() != null) {
+                for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(receipt.getId())) {
+                    linksById.put(link.getId(), link);
+                }
             }
-            Long numericReceiptNo = numericReceiptNo(receipt.getReceiptNo());
-            if (numericReceiptNo != null) {
+            if (receipt.getPaymentBatchId() != null && !receipt.getPaymentBatchId().isBlank()) {
+                for (CashupReceiptEntity link : cashupReceiptRepository
+                        .findByLegacyTransactionId(receipt.getPaymentBatchId().trim())) {
+                    linksById.put(link.getId(), link);
+                }
+            }
+            for (String receiptNumber : List.of(
+                    receipt.getReceiptNo() == null ? "" : receipt.getReceiptNo(),
+                    receipt.getManualReceiptNo() == null ? "" : receipt.getManualReceiptNo(),
+                    receipt.getExternalReceiptNo() == null ? "" : receipt.getExternalReceiptNo())) {
+                Long numericReceiptNo = numericReceiptNo(receiptNumber);
+                if (numericReceiptNo == null) continue;
                 for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptNo(numericReceiptNo)) {
                     linksById.put(link.getId(), link);
                 }
@@ -170,7 +193,7 @@ public class OnlineCashupService {
         List<CashupReceiptEntity> links = List.copyOf(linksById.values());
 
         if (links.isEmpty()) {
-            if (validateCashupStatus) {
+            if (validateCashupStatus && !allowMissingCashupLink) {
                 throw new IllegalStateException("The payment is not linked to an open cash-up");
             }
             return;
