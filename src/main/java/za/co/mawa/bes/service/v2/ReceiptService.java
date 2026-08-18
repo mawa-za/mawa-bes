@@ -108,15 +108,22 @@ public class ReceiptService {
         ReceiptAllocationEntity firstAllocation = allocations.isEmpty() ? null : allocations.get(0);
 
         java.util.Map<String,Object> member = new java.util.HashMap<>();
-        if (receipt.getMembershipId() != null) {
+        if (receipt.getMembershipId() != null && !receipt.getMembershipId().isBlank()) {
+            String membershipReference = receipt.getMembershipId().trim();
             var rows=jdbcTemplate.queryForList("""
-                SELECT m.membership_no,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
+                SELECT m.id membership_id,m.membership_no,
+                       TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
                        (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
                          AND UPPER(TRIM(pi.type)) IN ('SA-ID','PASSPORT')
                          ORDER BY CASE WHEN UPPER(TRIM(pi.type))='SA-ID' THEN 0 ELSE 1 END, pi.type, pi.value LIMIT 1) identity_number,
                        mp.name plan_name
-                  FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
-                """,receipt.getMembershipId());
+                  FROM membership m
+                  JOIN partner p ON p.id=m.member_id
+             LEFT JOIN membership_plan mp ON mp.id=m.plan_id
+                 WHERE m.id=? OR m.old_id=?
+                 ORDER BY CASE WHEN m.id=? THEN 0 ELSE 1 END
+                 LIMIT 1
+                """, membershipReference, membershipReference, membershipReference);
             if(!rows.isEmpty()) member=rows.get(0);
         }
 
@@ -153,7 +160,7 @@ public class ReceiptService {
                 .traceId(receipt.getTraceId())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
                 .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
-                .membershipId(receipt.getMembershipId())
+                .membershipId(java.util.Objects.toString(member.get("membership_id"), receipt.getMembershipId()))
                 .memberName(java.util.Objects.toString(member.get("member_name"),""))
                 .membershipNo(java.util.Objects.toString(member.get("membership_no"), receipt.getMembershipId() == null ? "" : receipt.getMembershipId()))
                 .identityNumber(java.util.Objects.toString(member.get("identity_number"),""))

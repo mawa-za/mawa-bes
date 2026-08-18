@@ -323,19 +323,20 @@ public class MembershipPremiumPaymentService {
                     "Only manually captured premium payments can be transferred");
         }
 
-        String sourceMembershipId = batch.getMembershipId();
-        membershipActionGuardService.requireActionable(sourceMembershipId);
-        String targetMembershipId = request.getTargetMembershipId().trim();
-        membershipActionGuardService.requireActionable(targetMembershipId);
-        if (isBlank(sourceMembershipId)) {
+        if (isBlank(batch.getMembershipId())) {
             throw new IllegalStateException("The payment does not have a source membership");
         }
+        var sourceMembership = membershipService.resolveMembership(batch.getMembershipId());
+        String sourceMembershipId = sourceMembership.getId();
+        membershipActionGuardService.requireActionable(sourceMembership);
+
+        var targetMembership = membershipService.resolveMembership(request.getTargetMembershipId().trim());
+        String targetMembershipId = targetMembership.getId();
+        membershipActionGuardService.requireActionable(targetMembership);
         if (sourceMembershipId.equals(targetMembershipId)) {
             throw new IllegalArgumentException("Select a different target membership");
         }
-
-        membershipService.getMembershipById(targetMembershipId)
-                .orElseThrow(() -> new IllegalArgumentException("Target membership not found: " + targetMembershipId));
+        List<String> sourceMembershipIdentifiers = membershipService.membershipIdentifiers(sourceMembershipId);
 
         if (receipts.isEmpty()) {
             throw new IllegalStateException("No receipts were found for this premium payment");
@@ -381,7 +382,10 @@ public class MembershipPremiumPaymentService {
         String reason = request.getReason().trim();
         String targetPeriod = request.getTargetPeriodYYYYMM();
         for (ReceiptAllocationEntity allocation : allocations) {
-            if (!sourceMembershipId.equals(allocation.getMembershipId())) {
+            String allocationMembershipId = allocation.getMembershipId() == null
+                    ? ""
+                    : allocation.getMembershipId().trim();
+            if (!sourceMembershipIdentifiers.contains(allocationMembershipId)) {
                 throw new IllegalStateException("The payment contains an allocation for a different source membership");
             }
             MembershipPremiumEntity sourcePremium = membershipPremiumService.getById(allocation.getReferenceId());
