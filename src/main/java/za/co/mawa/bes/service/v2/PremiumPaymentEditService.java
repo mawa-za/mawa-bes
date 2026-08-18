@@ -52,7 +52,8 @@ public class PremiumPaymentEditService {
     public ApprovalRequestResponse requestEdit(String paymentBatchId, PremiumPaymentEditRequest request) {
         validateRequest(request);
         PaymentContext context = paymentContext(paymentBatchId, request.getReceiptId());
-        membershipActionGuardService.requireActionable(context.batch().getMembershipId());
+        MembershipEntity membership = membershipService.resolveMembership(context.batch().getMembershipId());
+        membershipActionGuardService.requireActionable(membership);
         long proposedAmount = request.getAmountCents();
         String proposedPeriod = request.getPeriodYYYYMM().trim();
         long currentAmount = value(context.allocation().getAmountCents());
@@ -90,7 +91,7 @@ public class PremiumPaymentEditService {
                 actionId,
                 context.batch().getId(),
                 context.receipt().getId(),
-                context.batch().getMembershipId(),
+                membership.getId(),
                 currentAmount,
                 proposedAmount,
                 currentPeriod,
@@ -103,7 +104,7 @@ public class PremiumPaymentEditService {
         payload.put("paymentBatchNumber", context.batch().getPaymentBatchNo());
         payload.put("receiptId", context.receipt().getId());
         payload.put("receiptNumber", context.receipt().getReceiptNo());
-        payload.put("membershipId", context.batch().getMembershipId());
+        payload.put("membershipId", membership.getId());
         payload.put("currentValues", Map.of(
                 "amountCents", currentAmount,
                 "periodYYYYMM", currentPeriod));
@@ -111,9 +112,7 @@ public class PremiumPaymentEditService {
                 "amountCents", proposedAmount,
                 "periodYYYYMM", proposedPeriod));
         payload.put("reason", reason);
-        payload.put("attachmentObjectIds", clean(context.batch().getMembershipId()) == null
-                ? List.of()
-                : List.of(context.batch().getMembershipId()));
+        payload.put("attachmentObjectIds", List.of(membership.getId()));
 
         ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
         approval.setApprovalType(ApprovalType.PREMIUM_PAYMENT_EDIT);
@@ -145,7 +144,8 @@ public class PremiumPaymentEditService {
         String batchId = Objects.toString(edit.get("payment_batch_id"), "");
         String receiptId = Objects.toString(edit.get("receipt_id"), "");
         PaymentContext context = paymentContext(batchId, receiptId);
-        membershipActionGuardService.requireActionable(context.batch().getMembershipId());
+        MembershipEntity membership = membershipService.resolveMembership(context.batch().getMembershipId());
+        membershipActionGuardService.requireActionable(membership);
         long previousAmount = longValue(edit.get("previous_amount_cents"));
         long requestedAmount = longValue(edit.get("requested_amount_cents"));
         String previousPeriod = Objects.toString(edit.get("previous_period_yyyymm"), "");
@@ -161,7 +161,6 @@ public class PremiumPaymentEditService {
         MembershipPremiumEntity sourcePremium = membershipPremiumService.getById(context.allocation().getReferenceId());
         membershipPremiumService.reversePayment(sourcePremium, currentAmount, completedBy);
 
-        MembershipEntity membership = membershipService.resolveMembership(context.batch().getMembershipId());
         long monthlyPremiumCents = value(membership.getPremiumCents());
         MembershipPremiumEntity targetPremium = membershipPremiumService.findOrCreatePremium(
                 membership.getId(), requestedPeriod, monthlyPremiumCents, completedBy);
