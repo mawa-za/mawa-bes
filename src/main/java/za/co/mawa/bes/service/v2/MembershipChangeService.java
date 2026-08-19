@@ -968,13 +968,19 @@ public class MembershipChangeService {
                 throw new IllegalStateException(
                         "Dependent birth date is required before the approved plan change can take effect: " + partner.getId());
             }
-            LocalDate birthDate = partner.getBirthDate().toInstant()
-                    .atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate birthDate = toLocalDate(partner.getBirthDate());
             int age = Period.between(birthDate, ageDate).getYears();
             total += membershipPlanPremiumRuleService.resolveAdditionalPremiumCents(
                     plan.getId(), dependent.getDependentType(), age);
         }
         return total;
+    }
+
+    private LocalDate toLocalDate(java.util.Date value) {
+        if (value instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        return value.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     private MembershipChangeRequestEntity getChange(String id) {
