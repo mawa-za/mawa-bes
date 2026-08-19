@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.v2.appointment.AppointmentRequest;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentResponse;
 import za.co.mawa.bes.dto.v2.purple.PurpleDtos;
 import za.co.mawa.bes.service.PartnerService;
+import za.co.mawa.bes.service.PurplePlatformClient;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.service.TransactionService;
 import za.co.mawa.bes.utils.Status;
@@ -32,6 +33,7 @@ import java.util.*;
 public class PurpleTenantService {
     private final JdbcTemplate jdbc;
     private final TenantAdminService tenantAdminService;
+    private final PurplePlatformClient purplePlatformClient;
     private final AppointmentService appointmentService;
     private final PartnerService partnerService;
     private final TransactionService transactionService;
@@ -40,6 +42,7 @@ public class PurpleTenantService {
     public PurpleTenantService(
             JdbcTemplate jdbc,
             TenantAdminService tenantAdminService,
+            PurplePlatformClient purplePlatformClient,
             AppointmentService appointmentService,
             PartnerService partnerService,
             TransactionService transactionService,
@@ -47,6 +50,7 @@ public class PurpleTenantService {
     ) {
         this.jdbc = jdbc;
         this.tenantAdminService = tenantAdminService;
+        this.purplePlatformClient = purplePlatformClient;
         this.appointmentService = appointmentService;
         this.partnerService = partnerService;
         this.transactionService = transactionService;
@@ -94,9 +98,16 @@ public class PurpleTenantService {
                 actor, actor
         );
         Map<String, Object> saved = provider();
+        String tenantId = requireText(TenantContext.getCurrentTenant(), "Tenant is required");
+        za.co.mawa.bes.dto.TenantDto tenant = tenantAdminService.getAll().stream()
+                .filter(item -> tenantId.equals(item.getId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Tenant metadata was not found for Purple provider synchronization"));
         Map<String, Object> sync = new LinkedHashMap<>(saved);
         sync.put("actor", actor);
-        tenantAdminService.upsertPurpleProvider(requireText(TenantContext.getCurrentTenant(), "Tenant is required"), sync);
+        sync.put("tenantHost", requireText(tenant.getHost(), "Tenant host is required for Purple provider synchronization"));
+        sync.put("tenantUrl", tenant.getUrl());
+        purplePlatformClient.upsertProvider(tenantId, sync);
         return saved;
     }
 

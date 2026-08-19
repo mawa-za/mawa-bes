@@ -108,15 +108,22 @@ public class ReceiptService {
         ReceiptAllocationEntity firstAllocation = allocations.isEmpty() ? null : allocations.get(0);
 
         java.util.Map<String,Object> member = new java.util.HashMap<>();
-        if (receipt.getMembershipId() != null) {
+        if (receipt.getMembershipId() != null && !receipt.getMembershipId().isBlank()) {
+            String membershipReference = receipt.getMembershipId().trim();
             var rows=jdbcTemplate.queryForList("""
-                SELECT m.membership_no,TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
+                SELECT m.id membership_id,m.membership_no,
+                       TRIM(CONCAT_WS(' ', NULLIF(p.name2,''), NULLIF(p.name3,''), NULLIF(p.name1,''))) member_name,
                        (SELECT pi.value FROM partner_identity pi WHERE pi.partner=p.id
                          AND UPPER(TRIM(pi.type)) IN ('SA-ID','PASSPORT')
                          ORDER BY CASE WHEN UPPER(TRIM(pi.type))='SA-ID' THEN 0 ELSE 1 END, pi.type, pi.value LIMIT 1) identity_number,
                        mp.name plan_name
-                  FROM membership m JOIN partner p ON p.id=m.member_id LEFT JOIN membership_plan mp ON mp.id=m.plan_id WHERE m.id=?
-                """,receipt.getMembershipId());
+                  FROM membership m
+                  JOIN partner p ON p.id=m.member_id
+             LEFT JOIN membership_plan mp ON mp.id=m.plan_id
+                 WHERE m.id=? OR m.old_id=?
+                 ORDER BY CASE WHEN m.id=? THEN 0 ELSE 1 END
+                 LIMIT 1
+                """, membershipReference, membershipReference, membershipReference);
             if(!rows.isEmpty()) member=rows.get(0);
         }
 
@@ -148,12 +155,25 @@ public class ReceiptService {
                 """, firstAllocation.getReferenceId());
             if (!rows.isEmpty()) invoice = rows.get(0);
         }
+        java.util.Map<String,Object> layby = new java.util.HashMap<>();
+        if (receipt.getSourceType() == ReceiptSourceType.LAYBY && firstAllocation != null
+                && firstAllocation.getReferenceId() != null && !firstAllocation.getReferenceId().isBlank()) {
+            var rows = jdbcTemplate.queryForList("""
+                SELECT l.id layby_id, l.layby_no,
+                       p.number customer_number,
+                       TRIM(CONCAT_WS(' ',NULLIF(p.name2,''),NULLIF(p.name3,''),NULLIF(p.name1,''))) customer_name
+                  FROM layby_agreement l
+             LEFT JOIN partner p ON p.id=l.customer_partner_id
+                 WHERE l.id=?
+                """, firstAllocation.getReferenceId());
+            if (!rows.isEmpty()) layby = rows.get(0);
+        }
         return ReceiptPrintDto.builder()
                 .receiptNo(receipt.getReceiptNo())
                 .traceId(receipt.getTraceId())
                 .paymentBatchNo(receipt.getPaymentBatchNo())
                 .sourceType(receipt.getSourceType() == null ? null : receipt.getSourceType().name())
-                .membershipId(receipt.getMembershipId())
+                .membershipId(java.util.Objects.toString(member.get("membership_id"), receipt.getMembershipId()))
                 .memberName(java.util.Objects.toString(member.get("member_name"),""))
                 .membershipNo(java.util.Objects.toString(member.get("membership_no"), receipt.getMembershipId() == null ? "" : receipt.getMembershipId()))
                 .identityNumber(java.util.Objects.toString(member.get("identity_number"),""))
@@ -168,8 +188,12 @@ public class ReceiptService {
                         firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.INVOICE
                                 ? firstAllocation.getReferenceNo() : ""))
                 .invoiceReference(java.util.Objects.toString(invoice.get("external_ref"), ""))
-                .customerName(java.util.Objects.toString(invoice.get("customer_name"), ""))
-                .customerNumber(java.util.Objects.toString(invoice.get("customer_number"), ""))
+                .customerName(firstNonBlank(
+                        java.util.Objects.toString(invoice.get("customer_name"), ""),
+                        java.util.Objects.toString(layby.get("customer_name"), "")))
+                .customerNumber(firstNonBlank(
+                        java.util.Objects.toString(invoice.get("customer_number"), ""),
+                        java.util.Objects.toString(layby.get("customer_number"), "")))
                 .groupSocietyId(java.util.Objects.toString(groupSociety.get("group_society_id"), ""))
                 .groupSocietyNo(java.util.Objects.toString(groupSociety.get("group_society_no"),
                         firstAllocation != null && firstAllocation.getAllocationType() == za.co.mawa.bes.enums.ReceiptAllocationType.GROUP_SOCIETY_BALANCE

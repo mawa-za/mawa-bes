@@ -15,5 +15,7 @@ public interface CashupReceiptRepository extends JpaRepository<CashupReceiptEnti
 
     List<CashupReceiptEntity> findByReceiptNo(Long receiptNo);
 
+    List<CashupReceiptEntity> findByLegacyTransactionId(String legacyTransactionId);
+
     void deleteByCashupId(String cashupId);
 }

@@ -812,8 +812,10 @@ public class PaymentRequestService {
         if (entity.getPayeeName() == null || entity.getPayeeName().isBlank()) throw new IllegalArgumentException("Payee name is required.");
         if (entity.getAmount() == null || entity.getAmount().compareTo(BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("Amount must be greater than zero.");
         if (entity.getPaymentMethod() == null) throw new IllegalArgumentException("Payment method is required.");
-        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE && entity.getPaymentMethod() != PaymentMethod.EFT) {
-            throw new IllegalArgumentException("Supplier Invoice payment requests must use EFT.");
+        if ((entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE
+                || entity.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT)
+                && entity.getPaymentMethod() != PaymentMethod.EFT) {
+            throw new IllegalArgumentException(entity.getRequestType() + " payment requests must use EFT.");
         }
         if (entity.getPaymentMethod() == PaymentMethod.EFT) {
             validateBankingDetails(entity.getBankName(), entity.getAccountHolder(), entity.getAccountNumber(), entity.getBranchCode(), entity.getAccountType());
@@ -878,11 +880,13 @@ public class PaymentRequestService {
         } else {
             entity.setDebtorAccountId(null);
             entity.setBankIntegration(null);
-            if (entity.getRequestType() != PaymentRequestType.SUPPLIER_INVOICE) {
+            if (entity.getRequestType() != PaymentRequestType.SUPPLIER_INVOICE
+                    && entity.getRequestType() != PaymentRequestType.FUNERAL_SERVICE_PAYMENT) {
                 entity.setPaymentMethod(PaymentMethod.MANUAL);
             }
         }
-        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+        if (entity.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE
+                || entity.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT) {
             entity.setPaymentMethod(PaymentMethod.EFT);
         }
         String creditorRole = entity.getRequestType() == PaymentRequestType.PETTY_CASH_REPLENISHMENT
@@ -942,20 +946,17 @@ public class PaymentRequestService {
             }
         }
         var debtor = paymentAccountConfigurationService.activeDebtor(request.getRequestType().name());
-        if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE) {
+        if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE
+                || request.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT) {
+            // Supplier-backed payments are EFT by definition. A missing automated
+            // debtor/FNB route may prevent queueing, but must not misclassify the
+            // payment request itself as MANUAL.
             request.setPaymentMethod(PaymentMethod.EFT);
             return;
         }
         if (debtor.isEmpty()) { request.setPaymentMethod(PaymentMethod.MANUAL); return; }
         String integration = java.util.Objects.toString(debtor.get().get("bank_integration"), "");
         boolean fnb = "FNB".equalsIgnoreCase(integration) && isFnbEnabled();
-        if (request.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT
-                && request.getPaymentMethod() == PaymentMethod.MANUAL) {
-            // A funeral/provider payment must still be created when no approved
-            // provider banking details exist. FNB automation is used only when
-            // both the debtor integration and the provider banking are ready.
-            return;
-        }
         request.setPaymentMethod(fnb ? PaymentMethod.EFT : PaymentMethod.MANUAL);
     }
 
