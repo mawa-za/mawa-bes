@@ -32,6 +32,7 @@ import java.util.Objects;
 public class OnlineCashupService {
 
     private static final String SOURCE = "ERP_ONLINE";
+    private static final String SOURCE_ELECTRONIC = "ERP_ONLINE_ELECTRONIC";
     private static final String STATUS_OPEN = "OPEN";
     private static final String DEFAULT_DEVICE = "ERP-ONLINE";
     private static final String DEFAULT_USER = "SYSTEM";
@@ -41,6 +42,7 @@ public class OnlineCashupService {
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final ReceiptRepository receiptRepository;
     private final NumberAllocationService numberAllocationService;
+    private final CashupService cashupService;
 
     @Transactional
     public void addReceipts(
@@ -72,6 +74,11 @@ public class OnlineCashupService {
         String device = firstNonBlank(deviceId, batch.getDeviceId(), DEFAULT_DEVICE);
         String paymentMethod = firstNonBlank(batch.getPaymentMethod(), receipts.get(0).getPaymentMethod(), "OTHER")
                 .toUpperCase(Locale.ROOT);
+
+        if (isIndividualElectronicPayment(paymentMethod)) {
+            addElectronicPaymentCashup(batch, receipts, user, device, paymentMethod);
+            return;
+        }
 
         CashupEntity cashup = cashupRepository
                 .findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
@@ -118,6 +125,86 @@ public class OnlineCashupService {
         summary.setAmountCents(value(summary.getAmountCents()) + addedAmountCents);
         summary.setPaymentCount(value(summary.getPaymentCount()) + addedReceiptCount);
         cashupPaymentSummaryRepository.save(summary);
+    }
+
+    private void addElectronicPaymentCashup(
+            PaymentBatchEntity batch,
+            List<ReceiptEntity> receipts,
+            String user,
+            String device,
+            String paymentMethod
+    ) {
+        CashupEntity cashup = cashupRepository
+                .findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(batch.getId(), SOURCE_ELECTRONIC)
+                .orElseGet(() -> createElectronicCashup(batch, device, user));
+
+        // A retry of the payment-posting call must not create a second cashup or approval request.
+        // Add any missing receipt links first, then rebuild the totals from the authoritative links.
+        for (ReceiptEntity receipt : receipts) {
+            if (receipt == null || receipt.getId() == null
+                    || cashupReceiptRepository.existsByCashupIdAndReceiptId(cashup.getId(), receipt.getId())) {
+                continue;
+            }
+
+            CashupReceiptEntity cashupReceipt = new CashupReceiptEntity();
+            cashupReceipt.setCashup(cashup);
+            cashupReceipt.setReceiptId(receipt.getId());
+            cashupReceipt.setAmountCents(value(receipt.getTotalAmountCents()));
+            cashupReceipt.setPaymentMethod(firstNonBlank(receipt.getPaymentMethod(), paymentMethod));
+            cashupReceipt.setLegacyTransactionId(batch.getId());
+            cashupReceiptRepository.save(cashupReceipt);
+        }
+
+        List<CashupReceiptEntity> links = cashupReceiptRepository.findByCashupId(cashup.getId());
+        long totalCents = links.stream().mapToLong(item -> value(item.getAmountCents())).sum();
+        cashup.setTotalCents(totalCents);
+        cashup.setReceiptCount(links.size());
+        cashup.setDepositTotalCents(0L);
+        cashup.setDepositCount(0);
+        cashup.setUpdatedBy(user);
+        cashupRepository.save(cashup);
+
+        cashupPaymentSummaryRepository.deleteByCashupId(cashup.getId());
+        cashupPaymentSummaryRepository.flush();
+        CashupPaymentSummaryEntity summary = new CashupPaymentSummaryEntity();
+        summary.setCashup(cashup);
+        summary.setPaymentMethod(paymentMethod);
+        summary.setAmountCents(totalCents);
+        // This cashup represents one processed payment, even when that payment allocated to multiple receipts.
+        summary.setPaymentCount(1);
+        cashupPaymentSummaryRepository.save(summary);
+
+        if (cashup.getApprovalRequestId() == null || cashup.getApprovalRequestId().isBlank()) {
+            za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest submitRequest =
+                    new za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest();
+            submitRequest.setRequesterId(user);
+            submitRequest.setComments("Automatically submitted after " + paymentMethod
+                    + " payment " + batch.getPaymentBatchNo() + " was processed. Deposit not required.");
+            cashupService.submitForApproval(cashup.getId(), submitRequest);
+        }
+    }
+
+    private CashupEntity createElectronicCashup(PaymentBatchEntity batch, String device, String user) {
+        CashupEntity cashup = new CashupEntity();
+        cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
+        cashup.setDeviceId(device);
+        cashup.setUserId(user);
+        cashup.setCashupDate(batch.getPaymentDate() == null ? LocalDate.now() : batch.getPaymentDate().toLocalDate());
+        cashup.setStatus(STATUS_OPEN);
+        cashup.setSource(SOURCE_ELECTRONIC);
+        cashup.setLegacyTransactionId(batch.getId());
+        cashup.setNotes("Individual electronic-payment cashup for payment batch " + batch.getPaymentBatchNo()
+                + ". Deposit not required.");
+        cashup.setCreatedBy(user);
+        cashup.setTotalCents(0L);
+        cashup.setReceiptCount(0);
+        cashup.setDepositTotalCents(0L);
+        cashup.setDepositCount(0);
+        return cashupRepository.save(cashup);
+    }
+
+    private boolean isIndividualElectronicPayment(String paymentMethod) {
+        return "CARD".equalsIgnoreCase(paymentMethod) || "EFT".equalsIgnoreCase(paymentMethod);
     }
 
     @Transactional

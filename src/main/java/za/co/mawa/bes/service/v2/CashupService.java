@@ -54,6 +54,7 @@ public class CashupService {
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String SOURCE_MANUAL_RECEIPT_BOOK = "MANUAL_RECEIPT_BOOK";
+    private static final String SOURCE_ERP_ONLINE_ELECTRONIC = "ERP_ONLINE_ELECTRONIC";
 
     private final CashupRepository cashupRepository;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
@@ -355,6 +356,9 @@ public class CashupService {
         CashupEntity cashup = cashupRepository.findById(cashupId)
                 .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
 
+        if (isDepositExempt(cashup)) {
+            throw new IllegalStateException("Deposits are not applicable to individual EFT/Card cashups");
+        }
         if (!canCaptureDeposit(cashup)) {
             throw new IllegalStateException("Deposits can only be created before the cashup is submitted for approval");
         }
@@ -441,6 +445,9 @@ public class CashupService {
                     .message("Cashup is already awaiting deposits")
                     .build();
         }
+        if (isDepositExempt(cashup)) {
+            throw new IllegalStateException("This EFT/Card cashup does not require a deposit stage");
+        }
         if (!STATUS_OPEN.equalsIgnoreCase(cashup.getStatus())) {
             throw new IllegalStateException("Only OPEN cashups can be moved to awaiting deposits");
         }
@@ -489,9 +496,12 @@ public class CashupService {
         String cashierName = resolveCashierName(cashup.getUserId());
         approvalRequest.setTitle("Cashup " + cashup.getCashupNo() + " - " + cashierName
                 + " - " + cashup.getCashupDate());
-        approvalRequest.setDescription("Cashup submitted for approval. Total collected: "
-                + defaultLong(cashup.getTotalCents())
-                + " cents, deposits: " + defaultLong(cashup.getDepositTotalCents()) + " cents.");
+        approvalRequest.setDescription(isDepositExempt(cashup)
+                ? "Cashup submitted for approval. Total collected: "
+                    + defaultLong(cashup.getTotalCents()) + " cents. EFT/Card payment - deposit not required."
+                : "Cashup submitted for approval. Total collected: "
+                    + defaultLong(cashup.getTotalCents())
+                    + " cents, deposits: " + defaultLong(cashup.getDepositTotalCents()) + " cents.");
         approvalRequest.setRequesterId(requesterId);
         approvalRequest.setPayloadJson(toJson(toSummary(cashup)));
 
@@ -1015,7 +1025,17 @@ public class CashupService {
     }
 
     private boolean canCaptureDeposit(CashupEntity cashup) {
+        if (isDepositExempt(cashup)) return false;
         String status = cashup.getStatus() == null ? "" : cashup.getStatus().trim().toUpperCase(Locale.ROOT);
+        return isPreApprovalStatus(status);
+    }
+
+    private boolean canSubmitForApproval(CashupEntity cashup) {
+        String status = cashup.getStatus() == null ? "" : cashup.getStatus().trim().toUpperCase(Locale.ROOT);
+        return isPreApprovalStatus(status);
+    }
+
+    private boolean isPreApprovalStatus(String status) {
         return STATUS_AWAITING_DEPOSITS.equals(status)
                 || STATUS_COMPLETED.equals(status) // Legacy compatibility for already-synced cashups
                 || STATUS_OPEN.equals(status)
@@ -1023,8 +1043,8 @@ public class CashupService {
                 || "NEW".equals(status);
     }
 
-    private boolean canSubmitForApproval(CashupEntity cashup) {
-        return canCaptureDeposit(cashup);
+    private boolean isDepositExempt(CashupEntity cashup) {
+        return cashup != null && SOURCE_ERP_ONLINE_ELECTRONIC.equalsIgnoreCase(clean(cashup.getSource()));
     }
 
     private LocalDate parseDate(String value) {
