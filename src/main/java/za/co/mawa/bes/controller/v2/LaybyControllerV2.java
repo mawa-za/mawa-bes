@@ -107,6 +107,25 @@ public class LaybyControllerV2 {
         return ResponseEntity.ok(laybyService.requestCancellation(id, request, userId));
     }
 
+
+    @GetMapping("/laybys/{id}/cancellation-form-pdf")
+    public ResponseEntity<byte[]> cancellationFormPdf(@PathVariable String id) {
+        Map<String, Object> layby = laybyService.get(id);
+        String filename = String.valueOf(layby.getOrDefault("layby_no", "layby")) + "-cancellation-form.pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(laybyPdfService.cancellationForm(id));
+    }
+
+    @PostMapping("/laybys/{id}/cancellation-form")
+    public ResponseEntity<Map<String, Object>> attachSignedCancellationForm(
+            @PathVariable String id,
+            @RequestBody LaybyDtos.SignedCancellationFormRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        return ResponseEntity.ok(laybyService.attachSignedCancellationForm(id, request, userId));
+    }
+
     @PostMapping("/laybys/{id}/refund/request-approval")
     public ResponseEntity<Map<String, Object>> requestRefundApproval(
             @PathVariable String id,
