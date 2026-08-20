@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 public class PaymentRequestInvoiceEmailService {
     private static final Logger log = LoggerFactory.getLogger(PaymentRequestInvoiceEmailService.class);
     private static final String CONFIG_ID = "DEFAULT";
+    private static final String DEFAULT_DOCUMENT_TYPE = "SUPPLIER-INVOICE";
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
     private final JdbcTemplate jdbcTemplate;
@@ -59,13 +60,16 @@ public class PaymentRequestInvoiceEmailService {
                 "SELECT * FROM payment_request_invoice_email_configuration WHERE id = ?", CONFIG_ID);
         if (rows.isEmpty()) {
             jdbcTemplate.update("""
-                    INSERT INTO payment_request_invoice_email_configuration(id, enabled, subject_template)
-                    VALUES(?, 0, 'Approved supplier invoice payment request {{requestNo}}')
-                    """, CONFIG_ID);
+                    INSERT INTO payment_request_invoice_email_configuration(id, enabled, subject_template, document_types)
+                    VALUES(?, 0, 'Approved supplier invoice payment request {{requestNo}}', ?)
+                    """, CONFIG_ID, DEFAULT_DOCUMENT_TYPE);
             rows = jdbcTemplate.queryForList(
                     "SELECT * FROM payment_request_invoice_email_configuration WHERE id = ?", CONFIG_ID);
         }
         Map<String, Object> response = new LinkedHashMap<>(rows.get(0));
+        List<String> documentTypes = configuredDocumentTypes(response.get("document_types"));
+        response.put("document_types", String.join(";", documentTypes));
+        response.put("documentTypes", documentTypes);
         response.put("deliverySummary", deliverySummary());
         return response;
     }
@@ -83,17 +87,27 @@ public class PaymentRequestInvoiceEmailService {
                 "Approved supplier invoice payment request {{requestNo}}"
         );
         String body = text(request, "bodyMessage");
+        boolean documentTypesSupplied = request != null && request.containsKey("documentTypes");
+        List<String> documentTypes = documentTypesSupplied
+                ? normalizeDocumentTypes(request.get("documentTypes"))
+                : configuredDocumentTypes(getConfiguration().get("document_types"));
+        if (enabled && documentTypes.isEmpty()) {
+            throw new IllegalArgumentException("At least one payment request document type is required before enabling the feature");
+        }
+        validateDocumentTypes(documentTypes);
+        String storedDocumentTypes = String.join(";", documentTypes.isEmpty() ? List.of(DEFAULT_DOCUMENT_TYPE) : documentTypes);
         jdbcTemplate.update("""
                 INSERT INTO payment_request_invoice_email_configuration(
-                    id, enabled, recipient_emails, subject_template, body_message, created_by, updated_by
-                ) VALUES(?, ?, ?, ?, ?, ?, ?)
+                    id, enabled, recipient_emails, subject_template, body_message, document_types, created_by, updated_by
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     enabled = VALUES(enabled),
                     recipient_emails = VALUES(recipient_emails),
                     subject_template = VALUES(subject_template),
                     body_message = VALUES(body_message),
+                    document_types = VALUES(document_types),
                     updated_by = VALUES(updated_by)
-                """, CONFIG_ID, enabled, recipients, subject, body, actor(userId), actor(userId));
+                """, CONFIG_ID, enabled, recipients, subject, body, storedDocumentTypes, actor(userId), actor(userId));
         return getConfiguration();
     }
 
@@ -189,11 +203,14 @@ public class PaymentRequestInvoiceEmailService {
             return result(paymentRequestId, "ALREADY_SENT", "Invoice was already emailed");
         }
 
-        AttachmentEntity invoice = findInvoiceAttachment(paymentRequestId);
-        if (invoice == null) {
+        List<String> configuredTypes = configuredDocumentTypes(config.get("document_types"));
+        List<AttachmentEntity> documents = findConfiguredAttachments(paymentRequestId, configuredTypes);
+        if (documents.isEmpty()) {
+            String configuredLabel = String.join(", ", configuredTypes);
             record(payment, null, string(config.get("recipient_emails")), "MISSING_ATTACHMENT", triggeredBy,
-                    "No supplier invoice attachment was found", allowRetry);
-            return result(paymentRequestId, "MISSING_ATTACHMENT", "Attach a supplier invoice before retrying");
+                    "No attachment matched configured document types: " + configuredLabel, allowRetry);
+            return result(paymentRequestId, "MISSING_ATTACHMENT",
+                    "Attach at least one configured document type before retrying: " + configuredLabel);
         }
 
         try {
@@ -208,20 +225,30 @@ public class PaymentRequestInvoiceEmailService {
                     property("invoiceNo", payment.getInvoiceNo()),
                     property("amount", payment.getAmount() == null ? "R 0.00" : "R " + payment.getAmount().setScale(2, RoundingMode.HALF_UP)),
                     property("paymentReason", payment.getPaymentReason()),
-                    property("bodyMessage", string(config.get("body_message")))
+                    property("bodyMessage", string(config.get("body_message"))),
+                    property("attachmentCount", String.valueOf(documents.size()))
             ));
-            String extension = firstNonBlank(invoice.getExtension(), extensionFromContentType(invoice.getContentType()), "pdf");
-            File file = new File();
-            file.setOwner(payment.getPayeeName());
-            file.setName(safeFileName("supplier-invoice-" + firstNonBlank(payment.getInvoiceNo(), payment.getRequestNo(), payment.getId())));
-            file.setType(extension.replace(".", ""));
-            file.setContent(Base64.getEncoder().encodeToString(attachmentService.getBytes(invoice)));
-            email.setFiles(List.of(file));
+            List<File> files = new ArrayList<>();
+            for (int i = 0; i < documents.size(); i++) {
+                AttachmentEntity document = documents.get(i);
+                String extension = firstNonBlank(document.getExtension(), extensionFromContentType(document.getContentType()), "pdf")
+                        .replace(".", "");
+                File file = new File();
+                file.setOwner(payment.getPayeeName());
+                file.setName(attachmentFileName(document, payment, i, documents.size()));
+                file.setType(extension);
+                file.setContent(Base64.getEncoder().encodeToString(attachmentService.getBytes(document)));
+                files.add(file);
+            }
+            email.setFiles(files);
             emailService.send(email);
-            record(payment, invoice, recipients, "SENT", triggeredBy, null, true);
-            return result(paymentRequestId, "SENT", "Invoice emailed to " + recipients);
+            record(payment, documents.get(0), recipients, "SENT", triggeredBy, null, true);
+            Map<String, Object> sent = result(paymentRequestId, "SENT", documents.size() + " document(s) emailed to " + recipients);
+            sent.put("attachmentCount", documents.size());
+            sent.put("documentTypes", configuredTypes);
+            return sent;
         } catch (Exception ex) {
-            record(payment, invoice, string(config.get("recipient_emails")), "FAILED", triggeredBy, rootMessage(ex), true);
+            record(payment, documents.get(0), string(config.get("recipient_emails")), "FAILED", triggeredBy, rootMessage(ex), true);
             if (ex instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
@@ -229,12 +256,12 @@ public class PaymentRequestInvoiceEmailService {
         }
     }
 
-    private AttachmentEntity findInvoiceAttachment(String paymentRequestId) {
-        List<AttachmentEntity> attachments = attachmentRepository.findByObjectId(paymentRequestId);
-        return attachments.stream()
-                .filter(a -> containsIgnoreCase(a.getDocumentType(), "INVOICE"))
-                .findFirst()
-                .orElseGet(() -> attachments.size() == 1 ? attachments.get(0) : null);
+    private List<AttachmentEntity> findConfiguredAttachments(String paymentRequestId, List<String> configuredTypes) {
+        if (configuredTypes.isEmpty()) return List.of();
+        return attachmentRepository.findByObjectId(paymentRequestId).stream()
+                .filter(attachment -> configuredTypes.stream()
+                        .anyMatch(type -> type.equalsIgnoreCase(firstNonBlank(attachment.getDocumentType(), ""))))
+                .toList();
     }
 
     private void record(PaymentRequestEntity payment,
@@ -334,8 +361,49 @@ public class PaymentRequestInvoiceEmailService {
         return String.join(";", result);
     }
 
-    private boolean containsIgnoreCase(String value, String fragment) {
-        return value != null && value.toUpperCase(Locale.ROOT).contains(fragment.toUpperCase(Locale.ROOT));
+
+    private List<String> configuredDocumentTypes(Object raw) {
+        List<String> configured = normalizeDocumentTypes(raw);
+        return configured.isEmpty() ? List.of(DEFAULT_DOCUMENT_TYPE) : configured;
+    }
+
+    private List<String> normalizeDocumentTypes(Object raw) {
+        List<String> result = new ArrayList<>();
+        if (raw instanceof Iterable<?> values) {
+            for (Object value : values) addDocumentType(result, value);
+        } else if (raw != null) {
+            for (String value : raw.toString().split("[,;\n\r]+")) addDocumentType(result, value);
+        }
+        return result;
+    }
+
+    private void addDocumentType(List<String> result, Object raw) {
+        String value = string(raw);
+        if (!StringUtils.hasText(value)) return;
+        String normalized = value.toUpperCase(Locale.ROOT);
+        if (!result.contains(normalized)) result.add(normalized);
+    }
+
+    private void validateDocumentTypes(List<String> documentTypes) {
+        if (documentTypes.isEmpty()) return;
+        List<String> available = jdbcTemplate.queryForList("""
+                SELECT UPPER(code)
+                  FROM field_option
+                 WHERE field = 'DOCUMENT-TYPE-PAYMENT-REQUEST'
+                   AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
+                   AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
+                """, String.class);
+        for (String documentType : documentTypes) {
+            if (!available.contains(documentType)) {
+                throw new IllegalArgumentException("Invalid payment request document type: " + documentType);
+            }
+        }
+    }
+
+    private String attachmentFileName(AttachmentEntity attachment, PaymentRequestEntity payment, int index, int total) {
+        String base = safeFileName(firstNonBlank(attachment.getDocumentType(), DEFAULT_DOCUMENT_TYPE).toLowerCase(Locale.ROOT));
+        String reference = safeFileName(firstNonBlank(payment.getInvoiceNo(), payment.getRequestNo(), payment.getId()));
+        return total > 1 ? base + "-" + reference + "-" + (index + 1) : base + "-" + reference;
     }
 
     private boolean booleanValue(Object value) {

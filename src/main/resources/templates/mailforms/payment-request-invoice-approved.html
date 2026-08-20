@@ -11,6 +11,6 @@
     <tr><td style="padding:4px 16px 4px 0"><strong>Amount</strong></td><td th:text="${amount}"></td></tr>
     <tr><td style="padding:4px 16px 4px 0"><strong>Reason</strong></td><td th:text="${paymentReason}"></td></tr>
   </table>
-  <p>The supplier invoice is attached.</p>
+  <p th:text="${attachmentCount == '1' ? 'The configured document is attached.' : 'The configured documents are attached.'}"></p>
 </body>
 </html>
