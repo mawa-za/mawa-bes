@@ -142,11 +142,7 @@ public class PaymentRequestInvoiceEmailService {
                     ON d.payment_request_id = pr.id
                  WHERE pr.request_type = 'SUPPLIER_INVOICE'
                    AND pr.status IN ('APPROVED', 'QUEUED_FOR_PAYMENT', 'PROCESSED', 'PAID')
-                   AND (
-                        d.id IS NULL
-                        OR d.status IN ('NOT_CONFIGURED', 'MISSING_ATTACHMENT')
-                        OR (? = 1 AND d.status = 'FAILED')
-                   )
+                   AND (d.id IS NULL OR (? = 1 AND d.status IN ('FAILED', 'MISSING_ATTACHMENT', 'NOT_CONFIGURED')))
                  ORDER BY COALESCE(pr.approved_at, pr.created_at), pr.id
                  LIMIT ?
                 """;
