@@ -5,6 +5,9 @@ import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.v2.inbox.InboxCountsResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserInboxResponse;
+import za.co.mawa.bes.dto.v2.inbox.UserNotificationResponse;
+
+import java.util.List;
 import za.co.mawa.bes.service.v2.UserInboxService;
 
 @CrossOrigin
@@ -21,6 +24,16 @@ public class UserInboxControllerV2 {
             @RequestParam(defaultValue = "50") int limit
     ) {
         return inboxService.getInbox(currentUser(headerUserId), limit);
+    }
+
+
+    @GetMapping("/notifications")
+    public List<UserNotificationResponse> getNotifications(
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "true") boolean unreadOnly
+    ) {
+        return inboxService.getNotifications(currentUser(headerUserId), limit, unreadOnly);
     }
 
     @GetMapping("/counts")
