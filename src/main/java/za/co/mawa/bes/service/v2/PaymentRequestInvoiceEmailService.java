@@ -12,7 +12,6 @@ import za.co.mawa.bes.dto.PropertyDto;
 import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
-import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.service.AttachmentService;
@@ -119,7 +118,7 @@ public class PaymentRequestInvoiceEmailService {
         try {
             return deliver(paymentRequestId, triggeredBy, false);
         } catch (Exception ex) {
-            log.error("Approved supplier invoice email failed for payment request {}", paymentRequestId, ex);
+            log.error("Approved payment request document email failed for payment request {}", paymentRequestId, ex);
             return Map.of(
                     "paymentRequestId", paymentRequestId,
                     "status", "FAILED",
@@ -135,23 +134,9 @@ public class PaymentRequestInvoiceEmailService {
     public Map<String, Object> runBackfill(Integer requestedLimit, Boolean retryFailed, String triggeredBy) {
         int limit = Math.max(1, Math.min(requestedLimit == null ? 250 : requestedLimit, 1000));
         boolean includeFailed = Boolean.TRUE.equals(retryFailed);
-        String sql = """
-                SELECT pr.id
-                  FROM payment_request pr
-                  LEFT JOIN payment_request_invoice_email_delivery d
-                    ON d.payment_request_id = pr.id
-                 WHERE pr.request_type = 'SUPPLIER_INVOICE'
-                   AND pr.status IN ('APPROVED', 'QUEUED_FOR_PAYMENT', 'PROCESSED', 'PAID')
-                   AND (d.id IS NULL OR (? = 1 AND d.status IN ('FAILED', 'MISSING_ATTACHMENT', 'NOT_CONFIGURED')))
-                 ORDER BY COALESCE(pr.approved_at, pr.created_at), pr.id
-                 LIMIT ?
-                """;
-        List<String> ids = jdbcTemplate.query(
-                sql,
-                (rs, rowNum) -> rs.getString(1),
-                includeFailed ? 1 : 0,
-                limit
-        );
+        List<String> configuredTypes = configuredDocumentTypes(getConfiguration().get("document_types"));
+        List<String> ids = findBackfillCandidates(configuredTypes, limit, includeFailed);
+
         int sent = 0;
         int skipped = 0;
         int failed = 0;
@@ -176,52 +161,109 @@ public class PaymentRequestInvoiceEmailService {
         response.put("skipped", skipped);
         response.put("failed", failed);
         response.put("limit", limit);
+        response.put("documentTypes", configuredTypes);
         response.put("results", results);
         response.put("deliverySummary", deliverySummary());
         return response;
     }
 
+    private List<String> findBackfillCandidates(List<String> configuredTypes, int limit, boolean includeFailed) {
+        if (configuredTypes.isEmpty()) return List.of();
+
+        String placeholders = String.join(",", java.util.Collections.nCopies(configuredTypes.size(), "?"));
+        String sql = """
+                SELECT pr.id
+                  FROM payment_request pr
+                 WHERE pr.status IN ('APPROVED', 'QUEUED_FOR_PAYMENT', 'PROCESSED', 'PAID')
+                   AND EXISTS (
+                       SELECT 1
+                         FROM attachment a
+                        WHERE a.object_id = pr.id
+                          AND UPPER(COALESCE(a.document_type, '')) IN (%s)
+                   )
+                 ORDER BY COALESCE(pr.approved_at, pr.created_at), pr.id
+                 LIMIT ? OFFSET ?
+                """.formatted(placeholders);
+
+        List<String> selected = new ArrayList<>();
+        int pageSize = Math.min(500, Math.max(100, limit));
+        int offset = 0;
+        while (selected.size() < limit) {
+            List<Object> args = new ArrayList<>(configuredTypes.size() + 2);
+            configuredTypes.stream().map(value -> value.toUpperCase(Locale.ROOT)).forEach(args::add);
+            args.add(pageSize);
+            args.add(offset);
+
+            List<String> page = jdbcTemplate.query(
+                    sql,
+                    (rs, rowNum) -> rs.getString(1),
+                    args.toArray()
+            );
+            if (page.isEmpty()) break;
+            offset += page.size();
+
+            for (String id : page) {
+                if (isBackfillDeliveryEligible(id, includeFailed)) {
+                    selected.add(id);
+                    if (selected.size() >= limit) break;
+                }
+            }
+            if (page.size() < pageSize) break;
+        }
+        return selected;
+    }
+
+    private boolean isBackfillDeliveryEligible(String paymentRequestId, boolean includeFailed) {
+        Map<String, Object> existing = existingDelivery(paymentRequestId);
+        if (existing == null) return true;
+        String status = string(existing.get("status"));
+        if (!StringUtils.hasText(status)) return false;
+        status = status.toUpperCase(Locale.ROOT);
+        if ("SENT".equals(status)) return false;
+        return includeFailed && ("FAILED".equals(status)
+                || "MISSING_ATTACHMENT".equals(status)
+                || "NOT_CONFIGURED".equals(status));
+    }
+
     private Map<String, Object> deliver(String paymentRequestId, String triggeredBy, boolean allowRetry) {
         PaymentRequestEntity payment = paymentRequestRepository.findById(paymentRequestId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment request not found: " + paymentRequestId));
-        if (payment.getRequestType() != PaymentRequestType.SUPPLIER_INVOICE) {
-            return result(paymentRequestId, "NOT_APPLICABLE", "Only Supplier Invoice payment requests are emailed");
-        }
         if (!isApprovedOrLater(payment.getStatus())) {
             return result(paymentRequestId, "NOT_APPROVED", "Payment request has not been approved");
         }
 
         Map<String, Object> config = getConfiguration();
-        if (!booleanValue(config.get("enabled")) || !StringUtils.hasText(string(config.get("recipient_emails")))) {
-            record(payment, null, string(config.get("recipient_emails")), "NOT_CONFIGURED", triggeredBy,
-                    "Approved invoice email is disabled or no recipient email is configured", allowRetry);
-            return result(paymentRequestId, "NOT_CONFIGURED", "Email configuration is not enabled");
+        List<String> configuredTypes = configuredDocumentTypes(config.get("document_types"));
+        List<AttachmentEntity> documents = findConfiguredAttachments(paymentRequestId, configuredTypes);
+        // Eligibility is document-driven only. Request type is deliberately not used.
+        if (documents.isEmpty()) {
+            return result(paymentRequestId, "NOT_APPLICABLE",
+                    "No attachment matches the configured payment request document types");
         }
 
         Map<String, Object> existing = existingDelivery(paymentRequestId);
         if (!allowRetry && existing != null && "SENT".equals(string(existing.get("status")))) {
-            return result(paymentRequestId, "ALREADY_SENT", "Invoice was already emailed");
+            return result(paymentRequestId, "ALREADY_SENT", "Configured documents were already emailed");
         }
 
-        List<String> configuredTypes = configuredDocumentTypes(config.get("document_types"));
-        List<AttachmentEntity> documents = findConfiguredAttachments(paymentRequestId, configuredTypes);
-        if (documents.isEmpty()) {
-            String configuredLabel = String.join(", ", configuredTypes);
-            record(payment, null, string(config.get("recipient_emails")), "MISSING_ATTACHMENT", triggeredBy,
-                    "No attachment matched configured document types: " + configuredLabel, allowRetry);
-            return result(paymentRequestId, "MISSING_ATTACHMENT",
-                    "Attach at least one configured document type before retrying: " + configuredLabel);
+        if (!booleanValue(config.get("enabled")) || !StringUtils.hasText(string(config.get("recipient_emails")))) {
+            record(payment, documents.isEmpty() ? null : documents.get(0), string(config.get("recipient_emails")),
+                    "NOT_CONFIGURED", triggeredBy,
+                    "Approved payment request document email is disabled or no recipient email is configured", allowRetry);
+            return result(paymentRequestId, "NOT_CONFIGURED", "Email configuration is not enabled");
         }
 
         try {
             String recipients = string(config.get("recipient_emails"));
             EmailDto email = new EmailDto();
             email.setTo(recipients);
-            email.setSubject(render(string(config.get("subject_template")), payment));
+            email.setSubject(render(string(config.get("subject_template")), payment, configuredTypes));
             email.setTemplate("payment-request-invoice-approved");
             email.setProperties(List.of(
                     property("requestNo", payment.getRequestNo()),
+                    property("payeeName", payment.getPayeeName()),
                     property("supplierName", payment.getPayeeName()),
+                    property("documentTypes", String.join(", ", configuredTypes)),
                     property("invoiceNo", payment.getInvoiceNo()),
                     property("amount", payment.getAmount() == null ? "R 0.00" : "R " + payment.getAmount().setScale(2, RoundingMode.HALF_UP)),
                     property("paymentReason", payment.getPaymentReason()),
@@ -252,7 +294,7 @@ public class PaymentRequestInvoiceEmailService {
             if (ex instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            throw new IllegalStateException("Unable to email approved supplier invoice", ex);
+            throw new IllegalStateException("Unable to email approved payment request documents", ex);
         }
     }
 
@@ -334,12 +376,20 @@ public class PaymentRequestInvoiceEmailService {
         return property;
     }
 
-    private String render(String template, PaymentRequestEntity payment) {
+    private String render(String template, PaymentRequestEntity payment, List<String> configuredTypes) {
         String value = firstNonBlank(template, "Approved supplier invoice payment request {{requestNo}}");
+        boolean supplierInvoiceOnly = configuredTypes.size() == 1
+                && DEFAULT_DOCUMENT_TYPE.equalsIgnoreCase(configuredTypes.get(0));
+        if (!supplierInvoiceOnly
+                && "Approved supplier invoice payment request {{requestNo}}".equals(value)) {
+            value = "Approved payment request {{requestNo}}";
+        }
         return value
                 .replace("{{requestNo}}", firstNonBlank(payment.getRequestNo(), payment.getId()))
                 .replace("{{invoiceNo}}", firstNonBlank(payment.getInvoiceNo(), ""))
-                .replace("{{supplierName}}", firstNonBlank(payment.getPayeeName(), "Supplier"));
+                .replace("{{supplierName}}", firstNonBlank(payment.getPayeeName(), "Payee"))
+                .replace("{{payeeName}}", firstNonBlank(payment.getPayeeName(), "Payee"))
+                .replace("{{documentTypes}}", String.join(", ", configuredTypes));
     }
 
     private void validateRecipients(String recipients) {
