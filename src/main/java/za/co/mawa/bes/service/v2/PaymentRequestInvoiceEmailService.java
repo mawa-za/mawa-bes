@@ -16,6 +16,7 @@ import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.EmailService;
+import za.co.mawa.bes.service.LegacyAttachmentObjectIdResolver;
 
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -40,18 +41,21 @@ public class PaymentRequestInvoiceEmailService {
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
     private final EmailService emailService;
+    private final LegacyAttachmentObjectIdResolver legacyAttachmentObjectIdResolver;
 
     public PaymentRequestInvoiceEmailService(
             JdbcTemplate jdbcTemplate,
             PaymentRequestRepository paymentRequestRepository,
             AttachmentRepository attachmentRepository,
             AttachmentService attachmentService,
-            EmailService emailService) {
+            EmailService emailService,
+            LegacyAttachmentObjectIdResolver legacyAttachmentObjectIdResolver) {
         this.jdbcTemplate = jdbcTemplate;
         this.paymentRequestRepository = paymentRequestRepository;
         this.attachmentRepository = attachmentRepository;
         this.attachmentService = attachmentService;
         this.emailService = emailService;
+        this.legacyAttachmentObjectIdResolver = legacyAttachmentObjectIdResolver;
     }
 
     public Map<String, Object> getConfiguration() {
@@ -180,7 +184,8 @@ public class PaymentRequestInvoiceEmailService {
                    AND EXISTS (
                        SELECT 1
                          FROM attachment a
-                        WHERE a.object_id = pr.id
+                        WHERE (a.object_id = pr.id
+                               OR a.object_id = pr.legacy_transaction_id)
                           AND UPPER(COALESCE(a.document_type, '')) IN (%s)
                    )
                  ORDER BY COALESCE(pr.approved_at, pr.created_at), pr.id
@@ -303,7 +308,9 @@ public class PaymentRequestInvoiceEmailService {
 
     private List<AttachmentEntity> findConfiguredAttachments(String paymentRequestId, List<String> configuredTypes) {
         if (configuredTypes.isEmpty()) return List.of();
-        return attachmentRepository.findByObjectId(paymentRequestId).stream()
+        List<String> objectIds = legacyAttachmentObjectIdResolver.resolveObjectIds(paymentRequestId);
+        if (objectIds.isEmpty()) return List.of();
+        return attachmentRepository.findByObjectIdIn(objectIds).stream()
                 .filter(attachment -> configuredTypes.stream()
                         .anyMatch(type -> type.equalsIgnoreCase(firstNonBlank(attachment.getDocumentType(), ""))))
                 .toList();
