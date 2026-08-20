@@ -70,6 +70,7 @@ public class PaymentRequestInvoiceEmailService {
         response.put("document_types", String.join(";", documentTypes));
         response.put("documentTypes", documentTypes);
         response.put("deliverySummary", deliverySummary());
+        response.put("recentFailures", recentFailures());
         return response;
     }
 
@@ -151,6 +152,7 @@ public class PaymentRequestInvoiceEmailService {
                 else skipped++;
             } catch (Exception ex) {
                 failed++;
+                log.error("Payment request document email backfill failed for payment request {}", id, ex);
                 results.add(Map.of("paymentRequestId", id, "status", "FAILED", "message", rootMessage(ex)));
             }
         }
@@ -290,6 +292,7 @@ public class PaymentRequestInvoiceEmailService {
             sent.put("documentTypes", configuredTypes);
             return sent;
         } catch (Exception ex) {
+            log.error("Payment request document email delivery failed for payment request {}", paymentRequestId, ex);
             record(payment, documents.get(0), string(config.get("recipient_emails")), "FAILED", triggeredBy, rootMessage(ex), true);
             if (ex instanceof RuntimeException runtimeException) {
                 throw runtimeException;
@@ -352,6 +355,23 @@ public class PaymentRequestInvoiceEmailService {
             summary.put(string(row.get("status")), row.get("total"));
         }
         return summary;
+    }
+
+    private List<Map<String, Object>> recentFailures() {
+        return jdbcTemplate.queryForList("""
+                SELECT d.payment_request_id AS paymentRequestId,
+                       pr.request_no AS requestNo,
+                       d.attachment_id AS attachmentId,
+                       d.recipient_emails AS recipientEmails,
+                       d.attempt_count AS attemptCount,
+                       d.last_attempt_at AS lastAttemptAt,
+                       d.error_message AS errorMessage
+                  FROM payment_request_invoice_email_delivery d
+                  LEFT JOIN payment_request pr ON pr.id = d.payment_request_id
+                 WHERE d.status = 'FAILED'
+                 ORDER BY d.last_attempt_at DESC
+                 LIMIT 20
+                """);
     }
 
     private boolean isApprovedOrLater(PaymentRequestStatus status) {
