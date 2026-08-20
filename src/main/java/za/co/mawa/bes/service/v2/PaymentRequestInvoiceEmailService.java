@@ -398,18 +398,24 @@ public class PaymentRequestInvoiceEmailService {
 
     private String render(String template, PaymentRequestEntity payment, List<String> configuredTypes) {
         String value = firstNonBlank(template, "Approved supplier invoice payment request {{requestNo}}");
-        boolean supplierInvoiceOnly = configuredTypes.size() == 1
+        boolean supplierInvoiceOnly = configuredTypes != null
+                && configuredTypes.size() == 1
                 && DEFAULT_DOCUMENT_TYPE.equalsIgnoreCase(configuredTypes.get(0));
         if (!supplierInvoiceOnly
                 && "Approved supplier invoice payment request {{requestNo}}".equals(value)) {
             value = "Approved payment request {{requestNo}}";
         }
         return value
-                .replace("{{requestNo}}", firstNonBlank(payment.getRequestNo(), payment.getId()))
-                .replace("{{invoiceNo}}", firstNonBlank(payment.getInvoiceNo(), ""))
-                .replace("{{supplierName}}", firstNonBlank(payment.getPayeeName(), "Payee"))
-                .replace("{{payeeName}}", firstNonBlank(payment.getPayeeName(), "Payee"))
-                .replace("{{documentTypes}}", String.join(", ", configuredTypes));
+                .replace("{{requestNo}}", templateValue(payment.getRequestNo(), payment.getId()))
+                .replace("{{invoiceNo}}", templateValue(payment.getInvoiceNo()))
+                .replace("{{supplierName}}", templateValue(payment.getPayeeName(), "Payee"))
+                .replace("{{payeeName}}", templateValue(payment.getPayeeName(), "Payee"))
+                .replace("{{documentTypes}}", configuredTypes == null ? "" : String.join(", ", configuredTypes));
+    }
+
+    private String templateValue(String... values) {
+        String value = firstNonBlank(values);
+        return value == null ? "" : value;
     }
 
     private void validateRecipients(String recipients) {
