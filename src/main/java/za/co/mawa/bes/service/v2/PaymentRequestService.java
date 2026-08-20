@@ -881,7 +881,8 @@ public class PaymentRequestService {
             entity.setDebtorAccountId(null);
             entity.setBankIntegration(null);
             if (entity.getRequestType() != PaymentRequestType.SUPPLIER_INVOICE
-                    && entity.getRequestType() != PaymentRequestType.FUNERAL_SERVICE_PAYMENT) {
+                    && entity.getRequestType() != PaymentRequestType.FUNERAL_SERVICE_PAYMENT
+                    && entity.getRequestType() != PaymentRequestType.CUSTOMER_REFUND) {
                 entity.setPaymentMethod(PaymentMethod.MANUAL);
             }
         }
@@ -946,6 +947,12 @@ public class PaymentRequestService {
             }
         }
         var debtor = paymentAccountConfigurationService.activeDebtor(request.getRequestType().name());
+        if (request.getRequestType() == PaymentRequestType.CUSTOMER_REFUND) {
+            if (request.getPaymentMethod() != PaymentMethod.CASH && request.getPaymentMethod() != PaymentMethod.EFT) {
+                throw new IllegalArgumentException("Customer refund payment method must be CASH or EFT.");
+            }
+            return;
+        }
         if (request.getRequestType() == PaymentRequestType.SUPPLIER_INVOICE
                 || request.getRequestType() == PaymentRequestType.FUNERAL_SERVICE_PAYMENT) {
             // Supplier-backed payments are EFT by definition. A missing automated
