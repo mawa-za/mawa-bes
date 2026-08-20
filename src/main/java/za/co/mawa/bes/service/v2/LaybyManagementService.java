@@ -1190,9 +1190,9 @@ public class LaybyManagementService {
         return clean(actor) == null ? "SYSTEM" : actor.trim();
     }
 
-    private String clean(String value) {
+    private String clean(Object value) {
         if (value == null) return null;
-        String result = value.trim();
+        String result = Objects.toString(value, "").trim();
         return result.isEmpty() ? null : result;
     }
 
