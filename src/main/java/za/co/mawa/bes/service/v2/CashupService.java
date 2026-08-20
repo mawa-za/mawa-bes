@@ -55,6 +55,7 @@ public class CashupService {
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String SOURCE_MANUAL_RECEIPT_BOOK = "MANUAL_RECEIPT_BOOK";
     private static final String SOURCE_ERP_ONLINE_ELECTRONIC = "ERP_ONLINE_ELECTRONIC";
+    private static final String SOURCE_MAWA_PAY_ELECTRONIC = "MAWA_PAY_ELECTRONIC";
 
     private final CashupRepository cashupRepository;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
@@ -90,7 +91,8 @@ public class CashupService {
                 .orElseGet(CashupEntity::new);
 
         boolean created = cashup.getId() == null;
-        String requestedStatus = resolveStatus(request);
+        boolean mawaPayElectronic = isMawaPayIndividualElectronicCashup(request);
+        String requestedStatus = resolveStatus(request, mawaPayElectronic);
 
         if (!created && isLocked(cashup)) {
             return CashupResponse.builder()
@@ -101,7 +103,11 @@ public class CashupService {
                     .build();
         }
 
-        if (!created && isClosedForDeviceSync(cashup) && STATUS_OPEN.equals(requestedStatus)) {
+        boolean recoverableElectronicAwaitingDeposits = mawaPayElectronic
+                && STATUS_AWAITING_DEPOSITS.equalsIgnoreCase(cashup.getStatus())
+                && clean(cashup.getApprovalRequestId()) == null;
+        if (!created && isClosedForDeviceSync(cashup) && STATUS_OPEN.equals(requestedStatus)
+                && !recoverableElectronicAwaitingDeposits) {
             return CashupResponse.builder()
                     .status("IGNORED")
                     .cashupId(cashup.getId())
@@ -111,10 +117,24 @@ public class CashupService {
         }
 
         applyRequestToCashup(cashup, request, requestedStatus, created);
+        if (mawaPayElectronic) {
+            cashup.setSource(SOURCE_MAWA_PAY_ELECTRONIC);
+            cashup.setDepositTotalCents(0L);
+            cashup.setDepositCount(0);
+        }
         cashup = cashupRepository.save(cashup);
 
         replacePaymentSummaries(cashup, request.getAmountByMethod(), request.getCountByMethod());
         replaceReceipts(cashup, request.getReceipts());
+
+        if (mawaPayElectronic) {
+            CashupSubmitForApprovalRequest submitRequest = new CashupSubmitForApprovalRequest();
+            submitRequest.setRequesterId(request.getUserId());
+            submitRequest.setComments("Automatically submitted after the MawaPay "
+                    + electronicPaymentMethod(request)
+                    + " payment was processed. Deposit not required.");
+            return submitForApproval(cashup.getId(), submitRequest);
+        }
 
         return CashupResponse.builder()
                 .status("SUCCESS")
@@ -974,7 +994,7 @@ public class CashupService {
         }
     }
 
-    private String resolveStatus(CashupRequest request) {
+    private String resolveStatus(CashupRequest request, boolean mawaPayElectronic) {
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             String status = request.getStatus().trim().toUpperCase();
             if (STATUS_OPEN.equals(status)) {
@@ -989,6 +1009,12 @@ public class CashupService {
                 return STATUS_AWAITING_DEPOSITS;
             }
             if (STATUS_SUBMITTED.equals(status)) {
+                if (mawaPayElectronic) {
+                    // The new MawaPay CARD/EFT flow creates one cashup per payment and
+                    // explicitly marks it as deposit-exempt. Keep it OPEN just long
+                    // enough for submitCashup() to create the normal CASHUP approval.
+                    return STATUS_OPEN;
+                }
                 // Backwards compatibility: older MAWAPay clients used SUBMITTED to mean
                 // "cashier closed the device cashup". In ERP this must still be editable
                 // for deposits before it is submitted for approval.
@@ -1044,7 +1070,45 @@ public class CashupService {
     }
 
     private boolean isDepositExempt(CashupEntity cashup) {
-        return cashup != null && SOURCE_ERP_ONLINE_ELECTRONIC.equalsIgnoreCase(clean(cashup.getSource()));
+        if (cashup == null) return false;
+        String source = clean(cashup.getSource());
+        return SOURCE_ERP_ONLINE_ELECTRONIC.equalsIgnoreCase(source)
+                || SOURCE_MAWA_PAY_ELECTRONIC.equalsIgnoreCase(source);
+    }
+
+    private boolean isMawaPayIndividualElectronicCashup(CashupRequest request) {
+        if (request == null || request.getReceiptCount() == null || request.getReceiptCount() <= 0) {
+            return false;
+        }
+
+        String notes = request.getNotes() == null
+                ? ""
+                : request.getNotes().trim().toUpperCase(Locale.ROOT);
+        if (!notes.contains("SOURCE: MAWA_PAY_ELECTRONIC")) {
+            return false;
+        }
+
+        String method = electronicPaymentMethod(request);
+        if (!"CARD".equals(method) && !"EFT".equals(method)) {
+            return false;
+        }
+
+        Integer paymentCount = resolvePaymentCount(
+                request.getCountByMethod(),
+                method,
+                method
+        );
+        return paymentCount != null && paymentCount == 1;
+    }
+
+    private String electronicPaymentMethod(CashupRequest request) {
+        if (request == null || request.getAmountByMethod() == null
+                || request.getAmountByMethod().size() != 1) {
+            return null;
+        }
+        return normalizePaymentMethod(
+                request.getAmountByMethod().keySet().iterator().next()
+        );
     }
 
     private LocalDate parseDate(String value) {
