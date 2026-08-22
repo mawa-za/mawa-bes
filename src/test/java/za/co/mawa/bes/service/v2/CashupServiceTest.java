@@ -74,7 +74,7 @@ class CashupServiceTest {
                 .status("AWAITING_DEPOSITS")
                 .depositTotalCents(0L)
                 .depositCount(0)
-                .source("MAWAPAY")
+                .source("ERP_ONLINE_EFT")
                 .build();
 
         when(cashupRepository.findById("cashup-1")).thenReturn(Optional.of(cashup));

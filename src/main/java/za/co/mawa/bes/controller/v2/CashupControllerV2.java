@@ -146,6 +146,15 @@ PosPrintingService posPrintingService;
         return ResponseEntity.ok(cashupService.submitForApproval(id, request));
     }
 
+    @PostMapping("/{id}/close")
+    public ResponseEntity<CashupResponse> closeCashup(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body
+    ) {
+        String actionBy = body != null ? body.get("actionBy") : null;
+        return ResponseEntity.ok(cashupService.moveToAwaitingDeposits(id, actionBy));
+    }
+
     @PostMapping("/{id}/print-jobs")
     public ResponseEntity<PrintJobResponse> queueCashupPrint(
             @PathVariable String id,
