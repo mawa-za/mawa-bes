@@ -31,6 +31,9 @@ public class MembershipMapper {
                 .updatedBy(entity.getUpdatedBy())
                 .approvalRequestId(entity.getApprovalRequestId())
                 .oldId(entity.getOldId())
+                .mergedIntoMembershipId(entity.getMergedIntoMembershipId())
+                .mergedAt(entity.getMergedAt())
+                .mergedBy(entity.getMergedBy())
                 .build();
     }
 

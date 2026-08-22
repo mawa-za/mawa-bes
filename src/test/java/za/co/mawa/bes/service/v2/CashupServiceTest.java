@@ -11,6 +11,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest;
 import za.co.mawa.bes.entity.v2.CashupEntity;
@@ -25,10 +26,14 @@ import za.co.mawa.bes.service.AttachmentService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,7 +74,7 @@ class CashupServiceTest {
                 .status("AWAITING_DEPOSITS")
                 .depositTotalCents(0L)
                 .depositCount(0)
-                .source("MAWAPAY")
+                .source("ERP_ONLINE_EFT")
                 .build();
 
         when(cashupRepository.findById("cashup-1")).thenReturn(Optional.of(cashup));
@@ -91,4 +96,39 @@ class CashupServiceTest {
         assertEquals("approval-1", response.getApprovalRequestId());
         assertTrue(approvalCaptor.getValue().getPayloadJson().contains("\"cashupDate\":\"2026-08-03\""));
     }
+    @Test
+    void mawaPayCardCashupRemainsDepositRequiredEvenWithEftMarker() {
+        CashupRequest request = new CashupRequest();
+        request.setCashupNo(2001L);
+        request.setDeviceId("device-card");
+        request.setUserId("cashier-card");
+        request.setDate("2026-08-22");
+        request.setStatus("SUBMITTED");
+        request.setTotalCents(15_000L);
+        request.setReceiptCount(1);
+        request.setAmountByMethod(Map.of("CARD", 15_000L));
+        request.setCountByMethod(Map.of("CARD", 1));
+        request.setNotes("SOURCE: MAWA_PAY_EFT; CARD payment should still require a deposit");
+
+        when(cashupRepository.findByCashupNo(2001L)).thenReturn(Optional.empty());
+        when(cashupRepository.save(any(CashupEntity.class))).thenAnswer(invocation -> {
+            CashupEntity saved = invocation.getArgument(0);
+            if (saved.getId() == null) saved.setId("cashup-card");
+            return saved;
+        });
+        when(cashupPaymentSummaryRepository.findByCashupId("cashup-card")).thenReturn(List.of());
+        when(cashupReceiptRepository.findByCashupId("cashup-card")).thenReturn(List.of());
+
+        CashupResponse response = service.submitCashup(request);
+
+        ArgumentCaptor<CashupEntity> cashupCaptor = ArgumentCaptor.forClass(CashupEntity.class);
+        verify(cashupRepository).save(cashupCaptor.capture());
+        CashupEntity saved = cashupCaptor.getValue();
+
+        assertEquals("SUCCESS", response.getStatus());
+        assertEquals("AWAITING_DEPOSITS", saved.getStatus());
+        assertNotEquals("MAWA_PAY_EFT", saved.getSource());
+        verify(approvalService, never()).submitForApproval(any());
+    }
+
 }

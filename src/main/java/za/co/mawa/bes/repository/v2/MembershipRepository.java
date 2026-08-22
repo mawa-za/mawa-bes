@@ -80,6 +80,7 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
                 p.status AS partnerStatus
             FROM membership m
             INNER JOIN partner p ON p.id = m.member_id
+            WHERE m.status <> 'MERGED'
             ORDER BY m.id
             """, nativeQuery = true)
     List<MembershipMasterDataProjection> findMasterData(Pageable pageable);

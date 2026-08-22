@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Approved supplier invoice</title></head>
+<head><meta charset="UTF-8"><title>Approved payment request</title></head>
 <body style="font-family:Arial,sans-serif;color:#202124;line-height:1.5">
-  <h2>Approved supplier invoice payment request</h2>
+  <h2>Approved payment request</h2>
   <p th:if="${bodyMessage != null and !#strings.isEmpty(bodyMessage)}" th:text="${bodyMessage}"></p>
   <table style="border-collapse:collapse">
     <tr><td style="padding:4px 16px 4px 0"><strong>Payment request</strong></td><td th:text="${requestNo}"></td></tr>
-    <tr><td style="padding:4px 16px 4px 0"><strong>Supplier</strong></td><td th:text="${supplierName}"></td></tr>
-    <tr><td style="padding:4px 16px 4px 0"><strong>Invoice number</strong></td><td th:text="${invoiceNo}"></td></tr>
+    <tr><td style="padding:4px 16px 4px 0"><strong>Document type(s)</strong></td><td th:text="${documentTypes}"></td></tr>
+    <tr><td style="padding:4px 16px 4px 0"><strong>Payee</strong></td><td th:text="${payeeName}"></td></tr>
+    <tr th:if="${invoiceNo != null and !#strings.isEmpty(invoiceNo)}"><td style="padding:4px 16px 4px 0"><strong>Invoice number</strong></td><td th:text="${invoiceNo}"></td></tr>
     <tr><td style="padding:4px 16px 4px 0"><strong>Amount</strong></td><td th:text="${amount}"></td></tr>
     <tr><td style="padding:4px 16px 4px 0"><strong>Reason</strong></td><td th:text="${paymentReason}"></td></tr>
   </table>
-  <p>The supplier invoice is attached.</p>
+  <p th:text="${attachmentCount == '1' ? 'The configured document is attached.' : 'The configured documents are attached.'}"></p>
 </body>
 </html>

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class MembershipChangeResponse {
     private String id;
     private String membershipId;
+    private String sourceMembershipId;
     private MembershipChangeType changeType;
     private MembershipChangeStatus status;
 

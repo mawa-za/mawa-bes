@@ -21,6 +21,9 @@ public class MembershipChangeRequestEntity {
     @Column(name = "membership_id", nullable = false, length = 255)
     private String membershipId;
 
+    @Column(name = "source_membership_id", length = 255)
+    private String sourceMembershipId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "change_type", nullable = false, length = 30)
     private MembershipChangeType changeType;

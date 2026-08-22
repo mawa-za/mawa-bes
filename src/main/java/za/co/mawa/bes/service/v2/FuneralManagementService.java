@@ -524,6 +524,20 @@ public class FuneralManagementService {
     }
 
     @Transactional
+    public FuneralServiceRequestResponseDto cancelServiceRequest(String id) {
+        FuneralServiceEntity service = getFuneralServiceOrThrow(id);
+        String status = defaultString(service.getStatus(), "").toUpperCase(Locale.ROOT);
+        if ("CANCELLED".equals(status)) {
+            return toServiceResponse(service);
+        }
+        if ("INVOICED".equals(status)) {
+            throw new IllegalStateException("An invoiced funeral service request cannot be cancelled");
+        }
+        service.setStatus("CANCELLED");
+        return toServiceResponse(funeralServiceRepository.save(service));
+    }
+
+    @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
         validateRequired(request.getDeceasedName(), "deceasedName");
