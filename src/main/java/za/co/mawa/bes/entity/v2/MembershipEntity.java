@@ -77,6 +77,15 @@ public class MembershipEntity {
 
     @Column(name = "old_id")
     private String oldId;
+
+    @Column(name = "merged_into_membership_id", length = 36)
+    private String mergedIntoMembershipId;
+
+    @Column(name = "merged_at")
+    private LocalDateTime mergedAt;
+
+    @Column(name = "merged_by", length = 255)
+    private String mergedBy;
 //
 //    @ToString.Exclude
 //    @OneToMany(mappedBy = "membershipId", cascade = CascadeType.ALL, orphanRemoval = true)
