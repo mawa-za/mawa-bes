@@ -33,6 +33,11 @@ public class MembershipChangeControllerV2 {
         return service.requestPlanChange(membershipId, request, actor(principal));
     }
 
+    @PostMapping("/{membershipId}/merge")
+    public MembershipChangeResponse requestMerge(@PathVariable String membershipId, @RequestBody MembershipMergeRequest request, Principal principal){
+        return service.requestMerge(membershipId, request, actor(principal));
+    }
+
     @GetMapping("/{membershipId}")
     public List<MembershipChangeResponse> list(@PathVariable String membershipId){ return service.listChanges(membershipId); }
 
