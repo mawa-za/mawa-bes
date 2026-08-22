@@ -501,10 +501,13 @@ public class CashupService {
         }
 
         if (!canSubmitForApproval(cashup)) {
-            throw new IllegalStateException("Only cashups awaiting deposits/open/draft cashups can be submitted for approval");
+            throw new IllegalStateException("Only cashups awaiting deposits can be submitted for approval");
         }
 
         recalculateDeposits(cashup);
+        if (!isDepositExempt(cashup) && defaultInt(cashup.getDepositCount()) < 1) {
+            throw new IllegalStateException("At least one deposit must be captured before the cashup can be submitted for approval");
+        }
         String requesterId = request != null && request.getRequesterId() != null && !request.getRequesterId().isBlank()
                 ? request.getRequesterId()
                 : cashup.getUserId();
@@ -1053,12 +1056,14 @@ public class CashupService {
     private boolean canCaptureDeposit(CashupEntity cashup) {
         if (isDepositExempt(cashup)) return false;
         String status = cashup.getStatus() == null ? "" : cashup.getStatus().trim().toUpperCase(Locale.ROOT);
-        return isPreApprovalStatus(status);
+        return STATUS_AWAITING_DEPOSITS.equals(status) || STATUS_COMPLETED.equals(status);
     }
 
     private boolean canSubmitForApproval(CashupEntity cashup) {
         String status = cashup.getStatus() == null ? "" : cashup.getStatus().trim().toUpperCase(Locale.ROOT);
-        return isPreApprovalStatus(status);
+        return isDepositExempt(cashup)
+                ? isPreApprovalStatus(status)
+                : STATUS_AWAITING_DEPOSITS.equals(status) || STATUS_COMPLETED.equals(status);
     }
 
     private boolean isPreApprovalStatus(String status) {
