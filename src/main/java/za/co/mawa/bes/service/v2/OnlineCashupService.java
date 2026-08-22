@@ -32,7 +32,7 @@ import java.util.Objects;
 public class OnlineCashupService {
 
     private static final String SOURCE = "ERP_ONLINE";
-    private static final String SOURCE_ELECTRONIC = "ERP_ONLINE_ELECTRONIC";
+    private static final String SOURCE_EFT = "ERP_ONLINE_EFT";
     private static final String STATUS_OPEN = "OPEN";
     private static final String DEFAULT_DEVICE = "ERP-ONLINE";
     private static final String DEFAULT_USER = "SYSTEM";
@@ -75,8 +75,8 @@ public class OnlineCashupService {
         String paymentMethod = firstNonBlank(batch.getPaymentMethod(), receipts.get(0).getPaymentMethod(), "OTHER")
                 .toUpperCase(Locale.ROOT);
 
-        if (isIndividualElectronicPayment(paymentMethod)) {
-            addElectronicPaymentCashup(batch, receipts, user, device, paymentMethod);
+        if (isIndividualEftPayment(paymentMethod)) {
+            addEftPaymentCashup(batch, receipts, user, device, paymentMethod);
             return;
         }
 
@@ -127,7 +127,7 @@ public class OnlineCashupService {
         cashupPaymentSummaryRepository.save(summary);
     }
 
-    private void addElectronicPaymentCashup(
+    private void addEftPaymentCashup(
             PaymentBatchEntity batch,
             List<ReceiptEntity> receipts,
             String user,
@@ -135,8 +135,8 @@ public class OnlineCashupService {
             String paymentMethod
     ) {
         CashupEntity cashup = cashupRepository
-                .findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(batch.getId(), SOURCE_ELECTRONIC)
-                .orElseGet(() -> createElectronicCashup(batch, device, user));
+                .findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(batch.getId(), SOURCE_EFT)
+                .orElseGet(() -> createEftCashup(batch, device, user));
 
         // A retry of the payment-posting call must not create a second cashup or approval request.
         // Add any missing receipt links first, then rebuild the totals from the authoritative links.
@@ -184,16 +184,16 @@ public class OnlineCashupService {
         }
     }
 
-    private CashupEntity createElectronicCashup(PaymentBatchEntity batch, String device, String user) {
+    private CashupEntity createEftCashup(PaymentBatchEntity batch, String device, String user) {
         CashupEntity cashup = new CashupEntity();
         cashup.setCashupNo(Long.parseLong(numberAllocationService.allocateNumber("CASHUP")));
         cashup.setDeviceId(device);
         cashup.setUserId(user);
         cashup.setCashupDate(batch.getPaymentDate() == null ? LocalDate.now() : batch.getPaymentDate().toLocalDate());
         cashup.setStatus(STATUS_OPEN);
-        cashup.setSource(SOURCE_ELECTRONIC);
+        cashup.setSource(SOURCE_EFT);
         cashup.setLegacyTransactionId(batch.getId());
-        cashup.setNotes("Individual electronic-payment cashup for payment batch " + batch.getPaymentBatchNo()
+        cashup.setNotes("Individual EFT cashup for payment batch " + batch.getPaymentBatchNo()
                 + ". Deposit not required.");
         cashup.setCreatedBy(user);
         cashup.setTotalCents(0L);
@@ -203,8 +203,8 @@ public class OnlineCashupService {
         return cashupRepository.save(cashup);
     }
 
-    private boolean isIndividualElectronicPayment(String paymentMethod) {
-        return "CARD".equalsIgnoreCase(paymentMethod) || "EFT".equalsIgnoreCase(paymentMethod);
+    private boolean isIndividualEftPayment(String paymentMethod) {
+        return "EFT".equalsIgnoreCase(paymentMethod);
     }
 
     @Transactional
