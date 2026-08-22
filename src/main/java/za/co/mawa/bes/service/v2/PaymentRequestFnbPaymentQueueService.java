@@ -82,6 +82,15 @@ public class PaymentRequestFnbPaymentQueueService {
             );
         }
 
+        if (paymentRequest.getPaymentMethod() != PaymentMethod.EFT) {
+            if (failWhenNotQueueable) {
+                throw new IllegalStateException(
+                        "Only EFT payment requests can be sent to FNB: " + paymentRequest.getRequestNo()
+                );
+            }
+            return;
+        }
+
         String actor = defaultActor(actionBy);
         if (!prepareFnbRouting(paymentRequest, actor, failWhenNotQueueable)) {
             return;

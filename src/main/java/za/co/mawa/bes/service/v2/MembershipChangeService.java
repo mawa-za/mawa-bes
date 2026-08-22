@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.membership.change.*;
@@ -49,6 +50,7 @@ public class MembershipChangeService {
     private final ObjectProvider<ApprovalService> approvalServiceProvider;
     private final ObjectMapper objectMapper;
     private final MembershipActionGuardService membershipActionGuardService;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public MembershipChangeConfigurationDto getConfiguration() {
@@ -155,6 +157,47 @@ public class MembershipChangeService {
         ApprovalRequestResponse approval = submit(change, membership, ApprovalType.MEMBERSHIP_PLAN_CHANGE, actionBy);
         change.setApprovalRequestId(approval.getId());
         change.setUpdatedAt(LocalDateTime.now());
+        return toResponse(changeRequestRepository.save(change));
+    }
+
+    @Transactional
+    public MembershipChangeResponse requestMerge(String primaryMembershipId, MembershipMergeRequest request, String actor) {
+        MembershipEntity primary = getMembershipForUpdate(primaryMembershipId);
+        membershipActionGuardService.requireActionable(primary);
+        String sourceId = clean(request == null ? null : request.getSourceMembershipId());
+        if (sourceId == null) throw new IllegalArgumentException("Source membership is required");
+        if (sourceId.equals(primaryMembershipId)) throw new IllegalArgumentException("A membership cannot be merged into itself");
+        MembershipEntity source = getMembershipForUpdate(sourceId);
+        membershipActionGuardService.requireActionable(source);
+        if ("MERGED".equalsIgnoreCase(primary.getStatus()) || "MERGED".equalsIgnoreCase(source.getStatus())) {
+            throw new IllegalArgumentException("A membership that has already been merged cannot be used in another merge");
+        }
+        requireNoOpenChange(primaryMembershipId);
+        requireNoOpenChange(sourceId);
+        requireNoPendingMergeBlockers(primaryMembershipId);
+        requireNoPendingMergeBlockers(sourceId);
+
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
+                .membershipId(primaryMembershipId)
+                .sourceMembershipId(sourceId)
+                .changeType(MembershipChangeType.MERGE)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(source.getMemberId())
+                .newMemberId(primary.getMemberId())
+                .oldPlanId(source.getPlanId())
+                .newPlanId(primary.getPlanId())
+                .effectiveDate(LocalDate.now())
+                .reason(requireReason(request == null ? null : request.getReason()))
+                .requestedAt(LocalDateTime.now()).requestedBy(actionBy)
+                .updatedAt(LocalDateTime.now()).updatedBy(actionBy).build();
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED",
+                Map.of("membershipId", sourceId, "membershipNumber", source.getMembershipNo()),
+                Map.of("membershipId", primaryMembershipId, "membershipNumber", primary.getMembershipNo()),
+                change.getReason(), actionBy);
+        ApprovalRequestResponse approval = submit(change, primary, ApprovalType.MEMBERSHIP_MERGE, actionBy);
+        change.setApprovalRequestId(approval.getId());
         return toResponse(changeRequestRepository.save(change));
     }
 
@@ -334,7 +377,11 @@ public class MembershipChangeService {
         change.setApprovedBy(actor);
         change.setUpdatedAt(LocalDateTime.now());
         change.setUpdatedBy(actor);
-        if (change.getChangeType() == MembershipChangeType.TRANSFER) {
+        if (change.getChangeType() == MembershipChangeType.MERGE) {
+            change.setEffectiveDate(LocalDate.now());
+            changeRequestRepository.save(change);
+            applyMerge(change, actor);
+        } else if (change.getChangeType() == MembershipChangeType.TRANSFER) {
             change.setEffectiveDate(LocalDate.now());
             changeRequestRepository.save(change);
             audit(change, "APPROVED",
@@ -391,6 +438,81 @@ public class MembershipChangeService {
 
             if (!change.getEffectiveDate().isAfter(today)) applyPlanChange(change, actor);
         }
+    }
+
+    private void applyMerge(MembershipChangeRequestEntity change, String actor) {
+        MembershipEntity primary = getMembershipForUpdate(change.getMembershipId());
+        MembershipEntity source = getMembershipForUpdate(change.getSourceMembershipId());
+        if ("MERGED".equalsIgnoreCase(source.getStatus())) {
+            if (primary.getId().equals(source.getMergedIntoMembershipId())) return;
+            throw new IllegalStateException("Source membership has already been merged elsewhere");
+        }
+
+        // Move non-conflicting dependants. Duplicate people remain on the source as
+        // historical rows and are visible through the permanent merge relationship.
+        jdbcTemplate.update("""
+            UPDATE membership_dependent s
+            LEFT JOIN membership_dependent p
+              ON p.membership_id = ?
+             AND p.dependent_partner_id = s.dependent_partner_id
+             AND p.status IN ('ACTIVE','DECEASED')
+               SET s.membership_id = ?
+             WHERE s.membership_id = ? AND p.id IS NULL
+            """, primary.getId(), primary.getId(), source.getId());
+
+        // Preserve one obligation per period. Non-conflicting premiums move to the
+        // primary membership; conflicting periods remain immutable on the source.
+        jdbcTemplate.update("""
+            UPDATE membership_premium s
+            LEFT JOIN membership_premium p
+              ON p.membership_id = ? AND p.period_yyyymm = s.period_yyyymm
+               SET s.membership_id = ?
+             WHERE s.membership_id = ? AND p.id IS NULL
+            """, primary.getId(), primary.getId(), source.getId());
+
+        updateMembershipReference("payment_batch", primary.getId(), source.getId());
+        updateMembershipReference("receipt", primary.getId(), source.getId());
+        updateMembershipReference("receipt_allocation", primary.getId(), source.getId());
+        updateMembershipReference("manual_premium_receipt", primary.getId(), source.getId());
+        updateMembershipReference("membership_claim", primary.getId(), source.getId());
+
+        String paidUpTo = jdbcTemplate.queryForObject("""
+            SELECT MAX(period_yyyymm) FROM membership_premium
+             WHERE membership_id IN (?, ?) AND status = 'PAID'
+            """, String.class, primary.getId(), source.getId());
+        primary.setPaidUpToPeriod(paidUpTo);
+        primary.setUpdatedAt(LocalDateTime.now());
+        primary.setUpdatedBy(actor);
+        membershipRepository.save(primary);
+
+        source.setStatus("MERGED");
+        source.setEndDate(LocalDate.now());
+        source.setMergedIntoMembershipId(primary.getId());
+        source.setMergedAt(LocalDateTime.now());
+        source.setMergedBy(actor);
+        source.setUpdatedAt(LocalDateTime.now());
+        source.setUpdatedBy(actor);
+        membershipRepository.save(source);
+
+        change.setStatus(MembershipChangeStatus.APPLIED);
+        change.setAppliedAt(LocalDateTime.now());
+        change.setAppliedBy(actor);
+        change.setUpdatedAt(LocalDateTime.now());
+        change.setUpdatedBy(actor);
+        changeRequestRepository.save(change);
+        audit(change, "APPLIED",
+                Map.of("sourceMembershipId", source.getId(), "sourceMembershipNumber", source.getMembershipNo()),
+                Map.of("primaryMembershipId", primary.getId(), "primaryMembershipNumber", primary.getMembershipNo(),
+                       "paidUpToPeriod", paidUpTo == null ? "" : paidUpTo),
+                "Membership merge applied", actor);
+        membershipUpdateHandlerRegistry.handleUpdate(primary.getId());
+    }
+
+    private void updateMembershipReference(String table, String primaryId, String sourceId) {
+        Set<String> allowed = Set.of("payment_batch", "receipt", "receipt_allocation",
+                "manual_premium_receipt", "membership_claim");
+        if (!allowed.contains(table)) throw new IllegalArgumentException("Unsupported membership reference table");
+        jdbcTemplate.update("UPDATE " + table + " SET membership_id = ? WHERE membership_id = ?", primaryId, sourceId);
     }
 
     @Transactional
@@ -774,6 +896,7 @@ public class MembershipChangeService {
                     partnerName(change.getNewDependentPartnerId()),
                     partnerName(change.getOldDependentPartnerId()),
                     membershipHolder);
+            case MEMBERSHIP_MERGE -> "Membership merge - " + membership.getMembershipNo();
             default -> "Membership change - " + membership.getMembershipNo() + " - " + membershipHolder;
         });
         request.setDescription(approvalDescription(change, membership, approvalType));
@@ -798,6 +921,10 @@ public class MembershipChangeService {
         if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
             return "Review the dependent change, relationship, effective date, and request reason before actioning. " +
                     "Reason: " + change.getReason();
+        }
+        if (approvalType == ApprovalType.MEMBERSHIP_MERGE) {
+            return "Review the primary and source memberships, dependants, premium periods, payments and claims before actioning. " +
+                    "The source membership will become a read-only merged alias. Reason: " + change.getReason();
         }
         return change.getReason();
     }
@@ -869,6 +996,20 @@ public class MembershipChangeService {
             proposed.put("dependentName", partnerName(change.getNewDependentPartnerId()));
             proposed.put("dependentType", change.getNewDependentType());
             impact.put("effectiveDate", change.getEffectiveDate() == null ? "On final approval" : change.getEffectiveDate());
+        } else if (approvalType == ApprovalType.MEMBERSHIP_MERGE) {
+            MembershipEntity source = membershipRepository.findById(change.getSourceMembershipId()).orElse(null);
+            current.put("sourceMembershipId", change.getSourceMembershipId());
+            current.put("sourceMembershipNumber", source == null ? null : source.getMembershipNo());
+            current.put("sourceMember", source == null ? null : partnerName(source.getMemberId()));
+            current.put("sourceStatus", source == null ? null : source.getStatus());
+            current.put("sourcePlan", source == null ? null : planName(source.getPlanId()));
+            proposed.put("primaryMembershipId", membership.getId());
+            proposed.put("primaryMembershipNumber", membership.getMembershipNo());
+            proposed.put("primaryMember", partnerName(membership.getMemberId()));
+            proposed.put("primaryStatus", membership.getStatus());
+            proposed.put("primaryPlan", planName(membership.getPlanId()));
+            impact.put("sourceStatusAfterApproval", "MERGED");
+            impact.put("effectiveDate", "On final approval");
         } else {
             payload.put("change", toResponse(change));
         }
@@ -911,9 +1052,29 @@ public class MembershipChangeService {
     }
 
     private void requireNoOpenChange(String membershipId) {
-        if (changeRequestRepository.existsByMembershipIdAndStatusIn(membershipId,
-                List.of(MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED))) {
+        List<MembershipChangeStatus> open = List.of(
+                MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED);
+        if (changeRequestRepository.existsByMembershipIdAndStatusIn(membershipId, open)
+                || changeRequestRepository.existsBySourceMembershipIdAndStatusIn(membershipId, open)) {
             throw new IllegalStateException("This membership already has a pending or scheduled change");
+        }
+    }
+
+    private void requireNoPendingMergeBlockers(String membershipId) {
+        Integer pendingStatusActions = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM membership_status_change_request
+             WHERE membership_id = ? AND status = 'PENDING_APPROVAL'
+            """, Integer.class, membershipId);
+        Integer pendingClaims = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+              FROM membership_claim c
+              JOIN approval_request a ON a.reference_id = c.id
+             WHERE c.membership_id = ? AND a.status = 'PENDING'
+            """, Integer.class, membershipId);
+        if ((pendingStatusActions != null && pendingStatusActions > 0)
+                || (pendingClaims != null && pendingClaims > 0)) {
+            throw new IllegalStateException(
+                    "Complete the membership's pending status changes or claims before requesting a merge");
         }
     }
 
@@ -1011,6 +1172,7 @@ public class MembershipChangeService {
 
     private MembershipChangeResponse toResponse(MembershipChangeRequestEntity e) {
         return MembershipChangeResponse.builder().id(e.getId()).membershipId(e.getMembershipId())
+                .sourceMembershipId(e.getSourceMembershipId())
                 .changeType(e.getChangeType()).status(e.getStatus())
                 .oldMemberId(e.getOldMemberId()).oldMemberName(partnerName(e.getOldMemberId()))
                 .newMemberId(e.getNewMemberId()).newMemberName(partnerName(e.getNewMemberId()))
