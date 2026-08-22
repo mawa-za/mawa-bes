@@ -59,6 +59,11 @@ public class MembershipActionGuardService {
 
     public void requireActionable(MembershipEntity membership) {
         if (membership == null) return;
+        if (membership.getStatus() != null && "MERGED".equalsIgnoreCase(membership.getStatus().trim())) {
+            throw new IllegalStateException("This membership was merged into " +
+                    (membership.getMergedIntoMembershipId() == null ? "another membership" : membership.getMergedIntoMembershipId()) +
+                    " and is read-only.");
+        }
         if (isLapsed(membership.getStatus())) {
             throw new IllegalStateException(
                     "This membership is LAPSED. Reactivate the membership and wait for approval before performing any other action.");

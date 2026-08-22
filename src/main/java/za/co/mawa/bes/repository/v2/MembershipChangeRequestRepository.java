@@ -13,6 +13,7 @@ import java.util.List;
 public interface MembershipChangeRequestRepository extends JpaRepository<MembershipChangeRequestEntity, String> {
     List<MembershipChangeRequestEntity> findByMembershipIdOrderByRequestedAtDesc(String membershipId);
     boolean existsByMembershipIdAndStatusIn(String membershipId, Collection<MembershipChangeStatus> statuses);
+    boolean existsBySourceMembershipIdAndStatusIn(String membershipId, Collection<MembershipChangeStatus> statuses);
     boolean existsByMembershipIdAndChangeTypeInAndStatusIn(
             String membershipId,
             Collection<MembershipChangeType> changeTypes,

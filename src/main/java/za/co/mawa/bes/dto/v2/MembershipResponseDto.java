@@ -34,4 +34,7 @@ public class MembershipResponseDto {
     private String updatedBy;
     private String approvalRequestId;
     private String oldId;
+    private String mergedIntoMembershipId;
+    private LocalDateTime mergedAt;
+    private String mergedBy;
 }

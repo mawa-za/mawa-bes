@@ -341,6 +341,15 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @PostMapping(value = "/service-request/{id}/cancel")
+    public ResponseEntity<?> cancelServiceRequest(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(funeralManagementService.cancelServiceRequest(id));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @PostMapping(value = "/claims/{membershipClaimId}/submit-for-approval")
     public ResponseEntity<?> submitClaimForApproval(
             @PathVariable String membershipClaimId,

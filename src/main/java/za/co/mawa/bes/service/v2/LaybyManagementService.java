@@ -11,6 +11,9 @@ import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.PaymentBatchResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.layby.LaybyDtos;
+import za.co.mawa.bes.dto.v2.payment.MarkPaymentRequestPaidRequest;
+import za.co.mawa.bes.dto.v2.payment.PaymentRequestCreateRequest;
+import za.co.mawa.bes.dto.v2.payment.PaymentRequestResponse;
 import za.co.mawa.bes.dto.v2.stock.StockDtos;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
@@ -19,12 +22,17 @@ import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.PaymentBatchStatus;
+import za.co.mawa.bes.enums.PaymentMethod;
+import za.co.mawa.bes.enums.PaymentRequestSourceType;
+import za.co.mawa.bes.enums.PaymentRequestStatus;
+import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.enums.ReceiptAllocationType;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.SyncStatus;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.InvoiceService;
 
 import java.math.BigDecimal;
@@ -33,6 +41,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +66,8 @@ public class LaybyManagementService {
     private final NumberAllocationService numberAllocationService;
     private final InvoiceService invoiceService;
     private final ApprovalService approvalService;
+    private final PaymentRequestService paymentRequestService;
+    private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
 
     public Map<String, Object> getConfiguration() {
@@ -86,6 +97,7 @@ public class LaybyManagementService {
                    SET enabled=?, default_payment_frequency=?, default_duration_months=?,
                        deposit_required=?, minimum_deposit_percent=?, cancellation_penalty_percent=?,
                        default_grace_business_days=?, require_cancellation_approval=?, require_refund_approval=?,
+                       create_refund_payment_request_on_cancellation=?,
                        automatically_reserve_stock=?, allow_stock_short_layby=?, updated_at=CURRENT_TIMESTAMP, updated_by=?
                  WHERE id=1
                 """,
@@ -93,6 +105,7 @@ public class LaybyManagementService {
                 bool(request.getDepositRequired(), current.get("deposit_required")), depositPercent, penaltyPercent,
                 graceDays, bool(request.getRequireCancellationApproval(), current.get("require_cancellation_approval")),
                 bool(request.getRequireRefundApproval(), current.get("require_refund_approval")),
+                bool(request.getCreateRefundPaymentRequestOnCancellation(), current.get("create_refund_payment_request_on_cancellation")),
                 bool(request.getAutomaticallyReserveStock(), current.get("automatically_reserve_stock")),
                 bool(request.getAllowStockShortLayby(), current.get("allow_stock_short_layby")), actor(actor));
         return getConfiguration();
@@ -253,10 +266,27 @@ public class LaybyManagementService {
                   FROM receipt_allocation a
                   JOIN receipt r ON r.id=a.receipt_id
                  WHERE a.allocation_type='LAYBY' AND a.reference_id=?
-                 ORDER BY r.receipt_date, r.created_at
+                 ORDER BY r.receipt_date DESC, r.created_at DESC
                 """, id));
-        List<Map<String, Object>> refunds = jdbcTemplate.queryForList("SELECT * FROM layby_refund WHERE layby_agreement_id=?", id);
-        result.put("refund", refunds.isEmpty() ? null : refunds.get(0));
+        List<Map<String, Object>> refunds = jdbcTemplate.queryForList("""
+                SELECT lr.*, pr.request_no AS payment_request_no, pr.status AS payment_request_status,
+                       pr.approval_request_id AS payment_request_linked_approval_id
+                  FROM layby_refund lr
+                  LEFT JOIN payment_request pr ON pr.id=lr.payment_request_id
+                 WHERE lr.layby_agreement_id=?
+                """, id);
+        if (refunds.isEmpty()) {
+            result.put("refund", null);
+        } else {
+            Map<String, Object> refund = new LinkedHashMap<>(refunds.get(0));
+            String paymentRequestStatus = upper(refund.get("payment_request_status"));
+            if ("PENDING_APPROVAL".equals(paymentRequestStatus)) refund.put("status", "PENDING_APPROVAL");
+            else if (List.of("APPROVED", "QUEUED_FOR_PAYMENT", "PROCESSED").contains(paymentRequestStatus)) refund.put("status", "APPROVED");
+            else if ("PAID".equals(paymentRequestStatus)) refund.put("status", "PAID");
+            else if ("REJECTED".equals(paymentRequestStatus)) refund.put("status", "REJECTED");
+            else if ("CANCELLED".equals(paymentRequestStatus)) refund.put("status", "CANCELLED");
+            result.put("refund", refund);
+        }
         result.put("statusHistory", jdbcTemplate.queryForList("SELECT * FROM layby_status_history WHERE layby_agreement_id=? ORDER BY changed_at DESC", id));
         result.put("salesOrder", stockOperationsService.getSalesOrder(text(result.get("sales_order_id"))));
         addOperationalFlags(result, loadBusinessCalendar());
@@ -378,6 +408,7 @@ public class LaybyManagementService {
     @Transactional
     public Map<String, Object> requestCancellation(String id, LaybyDtos.CancellationRequest request, String fallbackActor) {
         if (request == null || clean(request.getReason()) == null) throw new IllegalArgumentException("Cancellation reason is required");
+        String refundMethod = normalizeRefundMethod(request.getRefundMethod());
         Map<String, Object> agreement = lockAgreement(id);
         String current = upper(agreement.get("status"));
         if (!List.of("DRAFT", "ACTIVE", "IN_ARREARS", "PAID_UP").contains(current)) {
@@ -388,7 +419,8 @@ public class LaybyManagementService {
         long penalty = ("DEATH".equals(reasonCode) || "HOSPITALISATION".equals(reasonCode) || "HOSPITALIZATION".equals(reasonCode))
                 ? 0L : Math.min(longValue(agreement.get("paid_cents")), percentOf(longValue(agreement.get("total_cents")), decimal(agreement.get("cancellation_penalty_percent"))));
         long refund = Math.max(0L, longValue(agreement.get("paid_cents")) - penalty);
-        boolean approvalRequired = booleanValue(getConfiguration().get("require_cancellation_approval"));
+        Map<String, Object> configuration = getConfiguration();
+        boolean approvalRequired = booleanValue(configuration.get("require_cancellation_approval"));
         String requestedStatus = approvalRequired ? "CANCELLATION_PENDING" : "CANCELLED";
         String cancellationRequestId = approvalRequired ? uuid() : null;
 
@@ -402,6 +434,7 @@ public class LaybyManagementService {
                 """, current, clean(request.getReasonCode()), request.getReason().trim(), actor, cancellationRequestId,
                 penalty, refund, requestedStatus, actor, id);
         history(id, current, requestedStatus, request.getReason().trim(), actor);
+        ensureRefund(id, refundMethod, actor);
         if (approvalRequired) {
             ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
             approval.setApprovalType(ApprovalType.LAYBY_CANCELLATION);
@@ -417,6 +450,7 @@ public class LaybyManagementService {
                     "paidCents", longValue(agreement.get("paid_cents")),
                     "penaltyCents", penalty,
                     "refundDueCents", refund,
+                    "refundMethod", refundMethod,
                     "reasonCode", firstNonBlank(clean(request.getReasonCode()), "OTHER"),
                     "reason", request.getReason().trim())));
             ApprovalRequestResponse response = approvalService.submitForApproval(approval);
@@ -447,6 +481,7 @@ public class LaybyManagementService {
         String restored = firstNonBlank(text(agreement.get("cancellation_previous_status")), "ACTIVE").toUpperCase(Locale.ROOT);
         jdbcTemplate.update("UPDATE layby_agreement SET status=?, updated_at=CURRENT_TIMESTAMP, updated_by=? WHERE id=?", restored, actor, id);
         history(id, "CANCELLATION_PENDING", restored, firstNonBlank(reason, "Cancellation rejected"), actor);
+        cancelDraftRefundPaymentRequest(id, actor);
     }
 
     @Transactional
@@ -484,6 +519,12 @@ public class LaybyManagementService {
         if (longValue(refund.get("refund_amount_cents")) <= 0) {
             throw new IllegalStateException("There is no refund amount to approve");
         }
+        if (clean(refund.get("payment_request_id")) != null) {
+            throw new IllegalStateException("This layby refund uses the Customer Refund Payment Request approval process");
+        }
+        if (clean(refund.get("signed_cancellation_attachment_id")) == null) {
+            throw new IllegalStateException("Signed cancellation form must be attached before refund approval");
+        }
         String actor = actor(actorValue);
         if (!booleanValue(getConfiguration().get("require_refund_approval"))) {
             jdbcTemplate.update("UPDATE layby_refund SET status='APPROVED', approved_at=CURRENT_TIMESTAMP, approved_by=? WHERE id=?",
@@ -502,10 +543,31 @@ public class LaybyManagementService {
         Map<String, Object> agreement = lockAgreement(id);
         if (!"CANCELLED".equals(upper(agreement.get("status")))) throw new IllegalStateException("Layby is not cancelled");
         Map<String, Object> refund = refund(id);
-        if (!"APPROVED".equals(upper(refund.get("status")))) throw new IllegalStateException("Refund must be approved before it can be marked paid");
         String actor = actor(firstNonBlank(request == null ? null : request.getActionBy(), fallbackActor));
         String paymentReference = clean(request == null ? null : request.getPaymentReference());
         if (paymentReference == null) throw new IllegalArgumentException("paymentReference is required when marking a layby refund paid");
+
+        String paymentRequestId = clean(refund.get("payment_request_id"));
+        if (paymentRequestId != null) {
+            PaymentRequestResponse paymentRequest = paymentRequestService.getById(paymentRequestId);
+            if (paymentRequest.getPaymentMethod() != PaymentMethod.CASH) {
+                throw new IllegalStateException("Only Cash layby refunds are marked paid from the Layby. EFT refunds are updated by the payment process.");
+            }
+            if (paymentRequest.getStatus() != PaymentRequestStatus.APPROVED) {
+                throw new IllegalStateException("Refund payment request must be approved before the Cash refund can be marked paid");
+            }
+            MarkPaymentRequestPaidRequest paid = new MarkPaymentRequestPaidRequest();
+            paid.setPaidDate(LocalDate.now());
+            paid.setPaidReference(paymentReference);
+            paid.setComment(firstNonBlank(clean(request == null ? null : request.getNotes()),
+                    "Cash customer refund completed from layby " + text(agreement.get("layby_no"))));
+            paymentRequestService.markPaid(paymentRequestId, paid, actor);
+            jdbcTemplate.update("UPDATE layby_refund SET status='PAID', paid_at=CURRENT_TIMESTAMP, paid_by=?, payment_reference=?, notes=COALESCE(?,notes) WHERE id=?",
+                    actor, paymentReference, clean(request == null ? null : request.getNotes()), refund.get("id"));
+            return get(id);
+        }
+
+        if (!"APPROVED".equals(upper(refund.get("status")))) throw new IllegalStateException("Refund must be approved before it can be marked paid");
         jdbcTemplate.update("UPDATE layby_refund SET status='PAID', paid_at=CURRENT_TIMESTAMP, paid_by=?, payment_reference=?, notes=COALESCE(?,notes) WHERE id=?",
                 actor, paymentReference, clean(request == null ? null : request.getNotes()), refund.get("id"));
         return get(id);
@@ -573,31 +635,263 @@ public class LaybyManagementService {
         jdbcTemplate.update("UPDATE layby_agreement SET status='CANCELLED', cancellation_approved_at=CURRENT_TIMESTAMP, cancellation_approved_by=?, updated_at=CURRENT_TIMESTAMP, updated_by=? WHERE id=?",
                 actor, actor, id);
         if (!"CANCELLED".equals(current)) history(id, current, "CANCELLED", "Cancellation approved", actor);
-        ensureRefund(id, actor);
+        Map<String, Object> existingRefund = refundOrNull(id);
+        if (existingRefund == null) {
+            throw new IllegalStateException("Layby refund was not prepared during cancellation request");
+        }
+        // Use the workflow selected when cancellation was requested. Configuration may be
+        // changed later, but an in-flight cancellation must not switch approval mechanisms.
+        if (clean(existingRefund.get("payment_request_id")) != null) {
+            submitRefundPaymentRequestIfReady(id, actor);
+        } else {
+            submitManualRefundIfReady(id, actor);
+        }
     }
 
-    private void ensureRefund(String laybyId, String actor) {
+    private void ensureRefund(String laybyId, String refundMethod, String actor) {
         Map<String, Object> agreement = lockAgreement(laybyId);
         long refundAmount = longValue(agreement.get("refund_due_cents"));
-        Integer existing = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM layby_refund WHERE layby_agreement_id=?", Integer.class, laybyId);
-        if (existing != null && existing > 0) return;
-        boolean approvalRequired = refundAmount > 0 && booleanValue(getConfiguration().get("require_refund_approval"));
-        String status = refundAmount <= 0 ? "NOT_REQUIRED" : (approvalRequired ? "PENDING_APPROVAL" : "APPROVED");
+        boolean paymentRequestEnabled = refundPaymentRequestEnabled();
+        Map<String, Object> existingRefund = refundOrNull(laybyId);
+        if (existingRefund != null) {
+            if (clean(existingRefund.get("refund_method")) == null) {
+                jdbcTemplate.update("UPDATE layby_refund SET refund_method=? WHERE id=?", refundMethod, existingRefund.get("id"));
+            }
+            if (paymentRequestEnabled && refundAmount > 0 && clean(existingRefund.get("payment_request_id")) == null) {
+                PaymentRequestResponse paymentRequest = createCustomerRefundPaymentRequest(agreement, refundMethod, refundAmount, actor);
+                jdbcTemplate.update("UPDATE layby_refund SET payment_request_id=?, status='PENDING_SIGNATURE' WHERE id=?",
+                        paymentRequest.getId(), existingRefund.get("id"));
+            } else if (!paymentRequestEnabled && refundAmount > 0 && clean(existingRefund.get("payment_request_id")) == null
+                    && !"PENDING_SIGNATURE".equals(upper(existingRefund.get("status")))) {
+                jdbcTemplate.update("UPDATE layby_refund SET status='PENDING_SIGNATURE' WHERE id=?", existingRefund.get("id"));
+            }
+            return;
+        }
+
         String refundId = uuid();
-        String approvalReferenceId = approvalRequired ? uuid() : null;
+        String status = refundAmount <= 0 ? "NOT_REQUIRED" : "PENDING_SIGNATURE";
+        PaymentRequestResponse paymentRequest = paymentRequestEnabled && refundAmount > 0
+                ? createCustomerRefundPaymentRequest(agreement, refundMethod, refundAmount, actor)
+                : null;
+
         jdbcTemplate.update("""
                 INSERT INTO layby_refund(id,layby_agreement_id,status,gross_paid_cents,penalty_cents,refund_amount_cents,
-                                         cancellation_previous_status,cancellation_reason_code,reason,approval_reference_id,requested_at,requested_by,approved_at,approved_by)
-                VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,?,?,?)
+                                         cancellation_previous_status,cancellation_reason_code,reason,refund_method,payment_request_id,
+                                         requested_at,requested_by)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,?)
                 """, refundId, laybyId, status, longValue(agreement.get("paid_cents")), longValue(agreement.get("cancellation_penalty_cents")),
                 refundAmount, text(agreement.get("cancellation_previous_status")), text(agreement.get("cancellation_reason_code")),
-                text(agreement.get("cancellation_reason")), approvalReferenceId, actor,
-                "APPROVED".equals(status) ? java.sql.Timestamp.valueOf(LocalDateTime.now()) : null,
-                "APPROVED".equals(status) ? actor : null);
-        if (approvalRequired) {
-            submitRefundApproval(agreement, refundId, approvalReferenceId, refundAmount, actor);
+                text(agreement.get("cancellation_reason")), refundMethod, paymentRequest == null ? null : paymentRequest.getId(), actor);
+    }
+
+    private boolean refundPaymentRequestEnabled() {
+        return booleanValue(getConfiguration().get("create_refund_payment_request_on_cancellation"));
+    }
+
+    private PaymentRequestResponse createCustomerRefundPaymentRequest(
+            Map<String, Object> agreement, String refundMethod, long refundAmount, String actor) {
+        String laybyId = text(agreement.get("id"));
+        String customerId = text(agreement.get("customer_partner_id"));
+        String customerName = customerName(customerId);
+
+        PaymentRequestCreateRequest request = new PaymentRequestCreateRequest();
+        request.setRequestType(PaymentRequestType.CUSTOMER_REFUND);
+        request.setSourceType(PaymentRequestSourceType.LAYBY);
+        request.setSourceId(laybyId);
+        request.setPayeePartnerId(customerId);
+        request.setPayeeName(customerName);
+        request.setAmount(BigDecimal.valueOf(refundAmount, 2));
+        request.setCurrency(firstNonBlank(text(agreement.get("currency")), "ZAR"));
+        request.setPaymentMethod(PaymentMethod.valueOf(refundMethod));
+        request.setExternalReference(text(agreement.get("layby_no")));
+        request.setPaymentReason("LAYBY-CANCELLATION-REFUND");
+        request.setIdempotencyKey("LAYBY:" + laybyId + ":CUSTOMER_REFUND");
+        request.setNotes("Customer refund for cancelled layby " + text(agreement.get("layby_no")));
+        request.setRequestedPaymentDate(LocalDate.now());
+
+        if (request.getPaymentMethod() == PaymentMethod.EFT) {
+            Map<String, Object> banking = activeCustomerBanking(customerId);
+            request.setBankName(text(banking.get("bank_name")));
+            request.setAccountHolder(text(banking.get("account_holder")));
+            request.setAccountNumber(text(banking.get("account_number")));
+            request.setBranchCode(text(banking.get("branch_code")));
+            request.setAccountType(text(banking.get("account_type")));
         }
+        return paymentRequestService.create(request, actor);
+    }
+
+    private Map<String, Object> activeCustomerBanking(String customerId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT bank_name, account_holder, account_number, branch_code, account_type
+                  FROM partner_bank_account
+                 WHERE partner=? AND UPPER(COALESCE(status,''))='ACTIVE'
+                   AND (valid_from IS NULL OR valid_from<=CURRENT_DATE)
+                   AND (valid_to IS NULL OR valid_to>=CURRENT_DATE)
+                 ORDER BY valid_from DESC, id DESC
+                 LIMIT 1
+                """, customerId);
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "EFT refund requires approved active banking details for the layby customer.");
+        }
+        return rows.get(0);
+    }
+
+    private String customerName(String customerId) {
+        List<String> rows = jdbcTemplate.queryForList("""
+                SELECT TRIM(CONCAT_WS(' ', NULLIF(name2,''), NULLIF(name3,''), NULLIF(name1,'')))
+                  FROM partner WHERE id=?
+                """, String.class, customerId);
+        if (rows.isEmpty() || clean(rows.get(0)) == null) return "Layby Customer";
+        return rows.get(0);
+    }
+
+    @Transactional
+    public Map<String, Object> attachSignedCancellationForm(
+            String laybyId, LaybyDtos.SignedCancellationFormRequest request, String actorValue) {
+        if (request == null || clean(request.getFile()) == null) {
+            throw new IllegalArgumentException("Signed cancellation form file is required");
+        }
+        Map<String, Object> agreement = lockAgreement(laybyId);
+        if (!List.of("CANCELLATION_PENDING", "CANCELLED").contains(upper(agreement.get("status")))) {
+            throw new IllegalStateException("A cancellation must be requested before the signed cancellation form can be attached");
+        }
+        Map<String, Object> refund = refund(laybyId);
+        String paymentRequestId = clean(refund.get("payment_request_id"));
+
+        byte[] bytes;
+        try {
+            String file = request.getFile().trim();
+            int comma = file.indexOf(',');
+            if (file.startsWith("data:") && comma >= 0) file = file.substring(comma + 1);
+            bytes = Base64.getDecoder().decode(file);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Signed cancellation form is not valid base64 content", ex);
+        }
+        if (bytes.length == 0) throw new IllegalArgumentException("Signed cancellation form is empty");
+
+        String extension = firstNonBlank(clean(request.getExtension()), "pdf").replace(".", "").toLowerCase(Locale.ROOT);
+        String actor = actor(actorValue);
+
+        // The signed cancellation form is always retained against the Layby for a complete
+        // cancellation audit trail. When automatic Payment Request creation is enabled,
+        // store the same signed document against the generated Payment Request as well.
+        var laybyAttachment = attachmentService.saveBytes(
+                bytes, extension, "LAYBY", laybyId, "LAYBY-CANCELLATION-FORM-SIGNED");
+        if (paymentRequestId != null) {
+            attachmentService.saveBytes(
+                    bytes, extension, "PAYMENT-REQUEST", paymentRequestId, "LAYBY-CANCELLATION-FORM-SIGNED");
+        }
+
+        String refundStatus = longValue(refund.get("refund_amount_cents")) <= 0
+                ? "NOT_REQUIRED" : "READY_FOR_APPROVAL";
+        jdbcTemplate.update("UPDATE layby_refund SET signed_cancellation_attachment_id=?, status=? WHERE id=?",
+                laybyAttachment.getId(), refundStatus, refund.get("id"));
+        if (paymentRequestId == null) {
+            submitManualRefundIfReady(laybyId, actor);
+        } else {
+            submitRefundPaymentRequestIfReady(laybyId, actor);
+        }
+        return get(laybyId);
+    }
+
+    private void submitManualRefundIfReady(String laybyId, String actorValue) {
+        Map<String, Object> agreement = lockAgreement(laybyId);
+        if (!"CANCELLED".equals(upper(agreement.get("status")))) return;
+        Map<String, Object> refund = refund(laybyId);
+        if (clean(refund.get("payment_request_id")) != null) return;
+        if (longValue(refund.get("refund_amount_cents")) <= 0) {
+            jdbcTemplate.update("UPDATE layby_refund SET status='NOT_REQUIRED' WHERE id=?", refund.get("id"));
+            return;
+        }
+        if (clean(refund.get("signed_cancellation_attachment_id")) == null) return;
+
+        String currentStatus = upper(refund.get("status"));
+        if (List.of("PENDING_APPROVAL", "APPROVED", "PAID").contains(currentStatus)) return;
+
+        String actor = actor(actorValue);
+        if (!booleanValue(getConfiguration().get("require_refund_approval"))) {
+            jdbcTemplate.update("UPDATE layby_refund SET status='APPROVED', approved_at=CURRENT_TIMESTAMP, approved_by=? WHERE id=?",
+                    actor, refund.get("id"));
+            return;
+        }
+
+        String approvalReferenceId = uuid();
+        jdbcTemplate.update("UPDATE layby_refund SET status='PENDING_APPROVAL', approval_reference_id=?, approval_request_id=NULL, requested_at=CURRENT_TIMESTAMP, requested_by=?, approved_at=NULL, approved_by=NULL WHERE id=?",
+                approvalReferenceId, actor, refund.get("id"));
+        submitRefundApproval(agreement, text(refund.get("id")), approvalReferenceId,
+                longValue(refund.get("refund_amount_cents")), actor);
+    }
+
+    private void submitRefundPaymentRequestIfReady(String laybyId, String actorValue) {
+        Map<String, Object> agreement = lockAgreement(laybyId);
+        if (!"CANCELLED".equals(upper(agreement.get("status")))) return;
+        Map<String, Object> refund = refund(laybyId);
+        if (longValue(refund.get("refund_amount_cents")) <= 0) return;
+        if (clean(refund.get("signed_cancellation_attachment_id")) == null) return;
+        String paymentRequestId = clean(refund.get("payment_request_id"));
+        if (paymentRequestId == null) return;
+
+        PaymentRequestResponse paymentRequest = paymentRequestService.getById(paymentRequestId);
+        if (paymentRequest.getStatus() != PaymentRequestStatus.DRAFT) {
+            syncRefundFromPaymentRequest(refund, paymentRequest);
+            return;
+        }
+
+        String actor = actor(actorValue);
+        ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
+        approval.setApprovalType(ApprovalType.PAYMENT_REQUEST);
+        approval.setReferenceId(paymentRequestId);
+        approval.setReferenceNo(paymentRequest.getRequestNo());
+        approval.setTitle("Layby refund " + text(agreement.get("layby_no")) + " - " + paymentRequest.getPayeeName());
+        approval.setDescription("Customer refund for cancelled layby " + text(agreement.get("layby_no"))
+                + ". Signed cancellation form is attached to the payment request.");
+        approval.setRequesterId(actor);
+        approval.setPayloadJson(toJson(paymentRequest));
+        ApprovalRequestResponse response = approvalService.submitForApproval(approval);
+        jdbcTemplate.update("UPDATE layby_refund SET status='PENDING_APPROVAL', payment_request_approval_id=? WHERE id=?",
+                response.getId(), refund.get("id"));
+    }
+
+    private void syncRefundFromPaymentRequest(Map<String, Object> refund, PaymentRequestResponse paymentRequest) {
+        String status = switch (paymentRequest.getStatus()) {
+            case APPROVED, QUEUED_FOR_PAYMENT, PROCESSED -> "APPROVED";
+            case PAID -> "PAID";
+            case REJECTED -> "REJECTED";
+            case CANCELLED -> "CANCELLED";
+            case PENDING_APPROVAL -> "PENDING_APPROVAL";
+            default -> clean(refund.get("signed_cancellation_attachment_id")) == null ? "PENDING_SIGNATURE" : "READY_FOR_APPROVAL";
+        };
+        jdbcTemplate.update("UPDATE layby_refund SET status=? WHERE id=?", status, refund.get("id"));
+    }
+
+    private void cancelDraftRefundPaymentRequest(String laybyId, String actor) {
+        Map<String, Object> refund = refundOrNull(laybyId);
+        if (refund == null) return;
+        String paymentRequestId = clean(refund.get("payment_request_id"));
+        if (paymentRequestId != null) {
+            PaymentRequestResponse paymentRequest = paymentRequestService.getById(paymentRequestId);
+            if (paymentRequest.getStatus() == PaymentRequestStatus.DRAFT
+                    || paymentRequest.getStatus() == PaymentRequestStatus.PENDING_APPROVAL) {
+                paymentRequestService.cancel(paymentRequestId, "Layby cancellation rejected", actor);
+            }
+        }
+        jdbcTemplate.update("UPDATE layby_refund SET status='CANCELLED', notes=? WHERE id=?",
+                "Layby cancellation rejected", refund.get("id"));
+    }
+
+    private Map<String, Object> refundOrNull(String laybyId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT * FROM layby_refund WHERE layby_agreement_id=?", laybyId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private String normalizeRefundMethod(String value) {
+        String method = upper(value);
+        if (!List.of("CASH", "EFT").contains(method)) {
+            throw new IllegalArgumentException("Refund method must be CASH or EFT");
+        }
+        return method;
     }
 
     private void submitRefundApproval(Map<String, Object> agreement, String refundId, String approvalReferenceId, long refundAmount, String actor) {
@@ -812,8 +1106,8 @@ public class LaybyManagementService {
             jdbcTemplate.update("""
                     INSERT INTO layby_configuration(id,enabled,default_payment_frequency,default_duration_months,deposit_required,
                         minimum_deposit_percent,cancellation_penalty_percent,default_grace_business_days,require_cancellation_approval,
-                        require_refund_approval,automatically_reserve_stock,allow_stock_short_layby)
-                    VALUES(1,1,'MONTHLY',3,0,0,1,60,1,1,1,0)
+                        require_refund_approval,create_refund_payment_request_on_cancellation,automatically_reserve_stock,allow_stock_short_layby)
+                    VALUES(1,1,'MONTHLY',3,0,0,1,60,1,1,1,1,0)
                     """);
         }
     }
@@ -896,9 +1190,9 @@ public class LaybyManagementService {
         return clean(actor) == null ? "SYSTEM" : actor.trim();
     }
 
-    private String clean(String value) {
+    private String clean(Object value) {
         if (value == null) return null;
-        String result = value.trim();
+        String result = Objects.toString(value, "").trim();
         return result.isEmpty() ? null : result;
     }
 

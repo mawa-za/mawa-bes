@@ -126,7 +126,7 @@ public class UserInboxService {
         String userId = requireCanonicalUser(userIdentity);
         List<ApprovalRequestResponse> pending = assignedApprovals(userId);
         reconcileRequiredNotifications(userId, pending);
-        List<UserNotificationResponse> notifications = getNotifications(userId, normaliseLimit(limit));
+        List<UserNotificationResponse> notifications = queryNotifications(userId, normaliseLimit(limit), false);
         long unread = unreadCount(userId);
         return UserInboxResponse.builder()
                 .userId(userId)
@@ -417,7 +417,13 @@ public class UserInboxService {
         );
     }
 
-    private List<UserNotificationResponse> getNotifications(String userId, int limit) {
+    @Transactional(readOnly = true)
+    public List<UserNotificationResponse> getNotifications(String userIdentity, int limit, boolean unreadOnly) {
+        String userId = requireCanonicalUser(userIdentity);
+        return queryNotifications(userId, normaliseLimit(limit), unreadOnly);
+    }
+
+    private List<UserNotificationResponse> queryNotifications(String userId, int limit, boolean unreadOnly) {
         return jdbcTemplate.query("""
                 SELECT n.id, n.notification_type, n.title, n.message,
                        n.approval_request_id, n.approval_step_no, n.approval_type,
@@ -427,6 +433,10 @@ public class UserInboxService {
                   FROM user_notification n
                   LEFT JOIN `user` u ON u.id = n.action_by
                  WHERE n.user_id = ?
+                   AND (? = 0 OR (
+                         n.read_at IS NULL
+                         AND (n.notification_type <> 'APPROVAL_REQUIRED' OR n.resolved_at IS NULL)
+                       ))
                  ORDER BY n.created_at DESC
                  LIMIT ?
                 """, (rs, rowNum) -> UserNotificationResponse.builder()
@@ -446,7 +456,7 @@ public class UserInboxService {
                 .readAt(toLocalDateTime(rs.getTimestamp("read_at")))
                 .resolvedAt(toLocalDateTime(rs.getTimestamp("resolved_at")))
                 .createdAt(toLocalDateTime(rs.getTimestamp("created_at")))
-                .build(), userId, limit);
+                .build(), userId, unreadOnly ? 1 : 0, limit);
     }
 
     private long unreadCount(String userId) {

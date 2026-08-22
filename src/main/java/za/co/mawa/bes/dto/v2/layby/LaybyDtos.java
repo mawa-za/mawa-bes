@@ -21,6 +21,7 @@ public final class LaybyDtos {
         private Integer defaultGraceBusinessDays;
         private Boolean requireCancellationApproval;
         private Boolean requireRefundApproval;
+        private Boolean createRefundPaymentRequestOnCancellation;
         private Boolean automaticallyReserveStock;
         private Boolean allowStockShortLayby;
     }
@@ -73,7 +74,14 @@ public final class LaybyDtos {
     public static class CancellationRequest {
         private String reasonCode;
         private String reason;
+        private String refundMethod;
         private String requestedBy;
+    }
+
+    @Data
+    public static class SignedCancellationFormRequest {
+        private String file;
+        private String extension;
     }
 
     @Data
