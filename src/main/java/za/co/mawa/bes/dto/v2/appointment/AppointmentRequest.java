@@ -18,6 +18,7 @@ public class AppointmentRequest {
     private String responsibleUserId;
     private String productId;
     private String serviceProductId;
+    private String serviceLocationId;
     private LocalDate appointmentDate;
     private String bookDate;
     private LocalTime startTime;

@@ -48,6 +48,24 @@ public class InternalPurpleController {
         return execute(headers, tenant, () -> purpleService.createServiceRequest(request), HttpStatus.CREATED);
     }
 
+    @PostMapping("/customer/locations")
+    public ResponseEntity<?> locations(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
+                                       @RequestBody PurpleDtos.CustomerRequest request) {
+        return execute(headers, tenant, () -> purpleService.customerLocations(request), HttpStatus.OK);
+    }
+
+    @PostMapping("/customer/locations/save")
+    public ResponseEntity<?> saveLocation(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
+                                          @RequestBody PurpleDtos.ServiceLocationRequest request) {
+        return execute(headers, tenant, () -> purpleService.saveCustomerLocation(request), HttpStatus.OK);
+    }
+
+    @PostMapping("/customer/contracts")
+    public ResponseEntity<?> contracts(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
+                                       @RequestBody PurpleDtos.CustomerRequest request) {
+        return execute(headers, tenant, () -> purpleService.customerContracts(request), HttpStatus.OK);
+    }
+
     @PostMapping("/customer/bookings")
     public ResponseEntity<?> bookings(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
                                       @RequestBody PurpleDtos.CustomerRequest request) {

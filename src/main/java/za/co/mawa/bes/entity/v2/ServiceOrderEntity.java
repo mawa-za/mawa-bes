@@ -34,6 +34,12 @@ public class ServiceOrderEntity {
     @Column(name = "sales_area_id", length = 36)
     private String salesAreaId;
 
+    @Column(name = "service_contract_id", length = 36)
+    private String serviceContractId;
+
+    @Column(name = "service_location_id", length = 36)
+    private String serviceLocationId;
+
     @Column(name = "service_date", nullable = false)
     private LocalDate orderDate;
 
