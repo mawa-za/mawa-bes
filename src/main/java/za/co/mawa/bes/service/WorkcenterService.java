@@ -36,7 +36,15 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("finance-management","Finance Management",""));
         workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management",""));
         workcenterDtoList.add(new WorkcenterDto("scheduling","Calendar & Appointments",""));
-        workcenterDtoList.add(new WorkcenterDto("service-management","Service Management",""));
+        // Service Management business objects are independent workcentres.
+        // The ERP groups them for navigation only; access is always role-based
+        // per object.
+        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-order","Service Orders","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-contract","Service Contracts","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-appointment","Service Appointments","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-catalogue","Services","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-resource","Service Resources","search"));
         workcenterDtoList.add(new WorkcenterDto("partner-management","Partner Management",""));
         workcenterDtoList.add(new WorkcenterDto("administration","Administration",""));
         workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
