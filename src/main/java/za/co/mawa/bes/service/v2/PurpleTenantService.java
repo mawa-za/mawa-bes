@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.transaction.TransactionDto;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentRequest;
 import za.co.mawa.bes.dto.v2.appointment.AppointmentResponse;
 import za.co.mawa.bes.dto.v2.purple.PurpleDtos;
+import za.co.mawa.bes.dto.v2.servicemanagement.ServiceManagementDtos;
 import za.co.mawa.bes.service.PartnerService;
 import za.co.mawa.bes.service.PurplePlatformClient;
 import za.co.mawa.bes.service.TenantAdminService;
@@ -38,6 +39,7 @@ public class PurpleTenantService {
     private final PartnerService partnerService;
     private final TransactionService transactionService;
     private final ObjectMapper objectMapper;
+    private final ServiceManagementService serviceManagementService;
 
     public PurpleTenantService(
             JdbcTemplate jdbc,
@@ -46,7 +48,8 @@ public class PurpleTenantService {
             AppointmentService appointmentService,
             PartnerService partnerService,
             TransactionService transactionService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ServiceManagementService serviceManagementService
     ) {
         this.jdbc = jdbc;
         this.tenantAdminService = tenantAdminService;
@@ -55,6 +58,7 @@ public class PurpleTenantService {
         this.partnerService = partnerService;
         this.transactionService = transactionService;
         this.objectMapper = objectMapper;
+        this.serviceManagementService = serviceManagementService;
     }
 
     public PurpleDtos.ProviderConfigurationResponse configuration() {
@@ -269,14 +273,15 @@ public class PurpleTenantService {
         Map<String, Object> chosen = available.stream()
                 .filter(slot -> date.toString().equals(Objects.toString(slot.get("date"))))
                 .filter(slot -> start.toString().substring(0,5).equals(Objects.toString(slot.get("startTime"))))
-                .filter(slot -> !StringUtils.hasText(request.getEmployeePartnerId()) || Objects.equals(request.getEmployeePartnerId(), slot.get("employeePartnerId")))
                 .findFirst().orElseThrow(() -> new IllegalStateException("The selected time is no longer available"));
 
         String partnerId = ensureCustomer(request);
+        validateCustomerLocation(partnerId, request.getServiceLocationId());
         AppointmentRequest appointment = new AppointmentRequest();
         appointment.setCustomerPartnerId(partnerId);
-        appointment.setEmployeePartnerId(firstNonBlank(request.getEmployeePartnerId(), Objects.toString(chosen.get("employeePartnerId"), null)));
+        appointment.setEmployeePartnerId(Objects.toString(chosen.get("employeePartnerId"), null));
         appointment.setServiceProductId(Objects.toString(service.get("productId")));
+        appointment.setServiceLocationId(trimToNull(request.getServiceLocationId()));
         appointment.setAppointmentDate(date);
         appointment.setStartTime(start);
         appointment.setDurationMinutes(asInt(service.get("durationMinutes"), 30));
@@ -285,7 +290,8 @@ public class PurpleTenantService {
         appointment.setSourceType("PURPLE");
         appointment.setSourceId(request.getPurpleCustomerId());
         AppointmentResponse saved = appointmentService.create(appointment, "purple:" + request.getPurpleCustomerId());
-        String employeeKey = firstNonBlank(request.getEmployeePartnerId(), Objects.toString(chosen.get("employeePartnerId"), null));
+        serviceManagementService.reserveResources(saved.getId(), Objects.toString(service.get("productId")), date, start, asInt(service.get("durationMinutes"), 30));
+        String employeeKey = Objects.toString(chosen.get("employeePartnerId"), null);
         if (employeeKey == null) employeeKey = "";
         try {
             jdbc.update("""
@@ -309,6 +315,7 @@ public class PurpleTenantService {
             if (!asBoolean(service.get("serviceRequestEnabled"))) throw new IllegalStateException("This service is not enabled for Purple service requests");
         }
         String partnerId = ensureCustomer(request);
+        validateCustomerLocation(partnerId, request.getServiceLocationId());
         String summary = requireText(firstNonBlank(request.getSummary(), service == null ? null : Objects.toString(service.get("displayName"), null)), "Service request summary is required");
         String description = requireText(request.getDescription(), "Service request description is required");
         if (request.getAdditionalDetails() != null && !request.getAdditionalDetails().isEmpty()) {
@@ -325,6 +332,18 @@ public class PurpleTenantService {
         create.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
         TransactionDto saved = transactionService.create(create);
         jdbc.update("INSERT INTO purple_service_request_link(service_request_id,purple_customer_id) VALUES(?,?)", saved.getId(), request.getPurpleCustomerId());
+        ServiceManagementDtos.RequestMetadataRequest metadata = new ServiceManagementDtos.RequestMetadataRequest();
+        metadata.setServiceRequestId(saved.getId());
+        metadata.setProductId(service == null ? null : Objects.toString(service.get("productId"), null));
+        metadata.setServiceLocationId(trimToNull(request.getServiceLocationId()));
+        metadata.setSourceChannel("PURPLE");
+        metadata.setExternalRequestId(request.getPurpleCustomerId() + ":" + saved.getId());
+        metadata.setPreferredDate(request.getPreferredDate());
+        metadata.setPreferredStartTime(request.getPreferredStartTime());
+        metadata.setRecurringRequested(request.getRecurringRequested());
+        metadata.setRecurrenceFrequency(request.getRecurrenceFrequency());
+        metadata.setRecurrenceInterval(request.getRecurrenceInterval());
+        serviceManagementService.saveRequestMetadata(metadata);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", saved.getId());
         result.put("number", saved.getNumber());
@@ -333,6 +352,40 @@ public class PurpleTenantService {
         result.put("status", saved.getStatus());
         result.put("serviceId", request.getServiceId());
         return result;
+    }
+
+    public List<Map<String, Object>> customerLocations(PurpleDtos.CustomerRequest customer) {
+        String partnerId = ensureCustomer(customer);
+        return serviceManagementService.locations(partnerId).stream().filter(row -> asBoolean(row.get("active"))).toList();
+    }
+
+    @Transactional
+    public Map<String, Object> saveCustomerLocation(PurpleDtos.ServiceLocationRequest request) {
+        String partnerId = ensureCustomer(request);
+        if (StringUtils.hasText(request.getId())) {
+            Map<String, Object> existing = serviceManagementService.locations(partnerId).stream()
+                    .filter(row -> Objects.equals(request.getId(), Objects.toString(row.get("id"))))
+                    .findFirst().orElseThrow(() -> new IllegalArgumentException("Service location was not found for this customer"));
+        }
+        ServiceManagementDtos.LocationRequest location = new ServiceManagementDtos.LocationRequest();
+        location.setId(request.getId()); location.setCustomerPartnerId(partnerId); location.setName(request.getName());
+        location.setAddressLine1(request.getAddressLine1()); location.setAddressLine2(request.getAddressLine2());
+        location.setSuburb(request.getSuburb()); location.setCity(request.getCity()); location.setProvince(request.getProvince());
+        location.setPostalCode(request.getPostalCode()); location.setContactName(request.getContactName());
+        location.setContactNumber(request.getContactNumber()); location.setContactEmail(request.getContactEmail());
+        location.setAccessInstructions(request.getAccessInstructions()); location.setServiceNotes(request.getServiceNotes());
+        location.setLatitude(request.getLatitude()); location.setLongitude(request.getLongitude()); location.setActive(request.getActive());
+        return serviceManagementService.saveLocation(location);
+    }
+
+    public List<Map<String, Object>> customerContracts(PurpleDtos.CustomerRequest customer) {
+        String partnerId = linkedPartner(customer);
+        if (partnerId == null) return List.of();
+        return serviceManagementService.contracts("ALL", partnerId).stream().map(row -> {
+            Map<String, Object> item = new LinkedHashMap<>(row);
+            item.remove("billing_partner_id");
+            return item;
+        }).toList();
     }
 
     public List<Map<String, Object>> customerBookings(PurpleDtos.CustomerRequest customer) {
@@ -431,6 +484,12 @@ public class PurpleTenantService {
                     LocalTime slotEnd = slotStart.plusMinutes(duration);
                     if (isException(serviceId, employee, date, slotStart, slotEnd)) continue;
                     if (isBooked(productId, employee, date, slotStart.minusMinutes(before), slotEnd.plusMinutes(after))) continue;
+                    ServiceManagementDtos.AvailabilityRequest resourceAvailability = new ServiceManagementDtos.AvailabilityRequest();
+                    resourceAvailability.setProductId(productId);
+                    resourceAvailability.setDate(date);
+                    resourceAvailability.setStartTime(slotStart);
+                    resourceAvailability.setDurationMinutes(duration);
+                    if (!asBoolean(serviceManagementService.availability(resourceAvailability).get("available"))) continue;
                     Map<String, Object> slot = new LinkedHashMap<>();
                     slot.put("serviceId", serviceId);
                     slot.put("date", date.toString());
@@ -500,6 +559,13 @@ public class PurpleTenantService {
     private String linkedPartner(PurpleDtos.CustomerRequest customer) {
         requireCustomerId(customer);
         return jdbc.query("SELECT partner_id FROM purple_customer_link WHERE purple_customer_id=?", rs -> rs.next() ? rs.getString(1) : null, customer.getPurpleCustomerId());
+    }
+
+    private void validateCustomerLocation(String partnerId, String serviceLocationId) {
+        if (!StringUtils.hasText(serviceLocationId)) return;
+        boolean owned = serviceManagementService.locations(partnerId).stream()
+                .anyMatch(row -> serviceLocationId.trim().equals(Objects.toString(row.get("id"))));
+        if (!owned) throw new IllegalArgumentException("Service location was not found for this customer");
     }
 
     private void requireCustomerId(PurpleDtos.CustomerRequest customer) {

@@ -27,6 +27,7 @@ public class InternalScheduledJobService {
     private final za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService;
     private final za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService;
     private final za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService;
+    private final za.co.mawa.bes.service.v2.ServiceManagementService serviceManagementService;
 
     public InternalScheduledJobService(
             BackgroundExecutionContextService backgroundExecutionContextService,
@@ -36,7 +37,8 @@ public class InternalScheduledJobService {
             ClaimController claimController,
             za.co.mawa.bes.service.v2.MembershipChangeService membershipChangeService,
             za.co.mawa.bes.service.v2.PremiumGenerationService premiumGenerationService,
-            za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService
+            za.co.mawa.bes.service.v2.MembershipLapseService membershipLapseService,
+            za.co.mawa.bes.service.v2.ServiceManagementService serviceManagementService
     ) {
         this.backgroundExecutionContextService = backgroundExecutionContextService;
         this.transactionService = transactionService;
@@ -46,6 +48,7 @@ public class InternalScheduledJobService {
         this.membershipChangeService = membershipChangeService;
         this.premiumGenerationService = premiumGenerationService;
         this.membershipLapseService = membershipLapseService;
+        this.serviceManagementService = serviceManagementService;
     }
 
     public Map<String, Object> run(String jobCode) {
@@ -61,6 +64,7 @@ public class InternalScheduledJobService {
                 case "PREMIUM_GENERATION" -> new LinkedHashMap<>(
                         premiumGenerationService.runConfiguredAutomaticGeneration(BackgroundExecutionContextService.BACKGROUND_USERNAME)
                 );
+                case "SERVICE_RECURRING_GENERATION" -> new LinkedHashMap<>(serviceManagementService.generateRecurring());
                 default -> throw new IllegalArgumentException("Unknown scheduled job: " + jobCode);
             };
             result.put("jobCode", normalizedJobCode);

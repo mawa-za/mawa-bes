@@ -50,6 +50,7 @@ public class AppointmentService {
                 .employeePartnerId(firstNonBlank(request.getEmployeePartnerId(), request.getEmployeeId()))
                 .responsibleUserId(trimToNull(request.getResponsibleUserId()))
                 .serviceProductId(firstNonBlank(request.getServiceProductId(), request.getProductId()))
+                .serviceLocationId(trimToNull(request.getServiceLocationId()))
                 .appointmentDate(resolveDate(request))
                 .startTime(resolveStartTime(request))
                 .endTime(request.getEndTime())
@@ -102,6 +103,7 @@ public class AppointmentService {
         if (hasText(firstNonBlank(request.getServiceProductId(), request.getProductId()))) {
             entity.setServiceProductId(firstNonBlank(request.getServiceProductId(), request.getProductId()));
         }
+        if (request.getServiceLocationId() != null) entity.setServiceLocationId(trimToNull(request.getServiceLocationId()));
         LocalDate appointmentDate = resolveDate(request);
         if (appointmentDate != null) entity.setAppointmentDate(appointmentDate);
         LocalTime startTime = resolveStartTime(request);
@@ -171,6 +173,7 @@ public class AppointmentService {
                 .employeePartnerId(entity.getEmployeePartnerId())
                 .responsibleUserId(entity.getResponsibleUserId())
                 .serviceProductId(entity.getServiceProductId())
+                .serviceLocationId(entity.getServiceLocationId())
                 .customer(customer)
                 .customerPartner(customer)
                 .employeeResponsible(employee)

@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -77,6 +78,7 @@ public final class PurpleDtos {
         private String startTime;
         private String notes;
         private String location;
+        private String serviceLocationId;
     }
 
     @Getter @Setter @NoArgsConstructor
@@ -87,6 +89,32 @@ public final class PurpleDtos {
         private String category;
         private String priority;
         private Map<String, Object> additionalDetails;
+        private String serviceLocationId;
+        private LocalDate preferredDate;
+        private LocalTime preferredStartTime;
+        private Boolean recurringRequested;
+        private String recurrenceFrequency;
+        private Integer recurrenceInterval;
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class ServiceLocationRequest extends CustomerRequest {
+        private String id;
+        private String name;
+        private String addressLine1;
+        private String addressLine2;
+        private String suburb;
+        private String city;
+        private String province;
+        private String postalCode;
+        private String contactName;
+        private String contactNumber;
+        private String contactEmail;
+        private String accessInstructions;
+        private String serviceNotes;
+        private Double latitude;
+        private Double longitude;
+        private Boolean active;
     }
 
     @Getter @Setter @NoArgsConstructor
