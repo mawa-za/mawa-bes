@@ -36,6 +36,15 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("finance-management","Finance Management",""));
         workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management",""));
         workcenterDtoList.add(new WorkcenterDto("scheduling","Calendar & Appointments",""));
+        // Service Management business objects are independent workcentres.
+        // The ERP groups them for navigation only; access is always role-based
+        // per object.
+        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-order","Service Orders","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-contract","Service Contracts","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-appointment","Service Appointments","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-catalogue","Services","search"));
+        workcenterDtoList.add(new WorkcenterDto("service-resource","Service Resources","search"));
         workcenterDtoList.add(new WorkcenterDto("partner-management","Partner Management",""));
         workcenterDtoList.add(new WorkcenterDto("administration","Administration",""));
         workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
@@ -113,6 +122,14 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("management-memberships-by-plan-report","Memberships by Plan","search"));
         workcenterDtoList.add(new WorkcenterDto("operational-premium-performance-report","Premium Performance","search"));
         workcenterDtoList.add(new WorkcenterDto("operational-claims-activity-report","Claims by Month & Type","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-customer-money-received-report","Customer Money Received","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-cashier-collections-report","Cashier Collections","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-deposits-summary-report","Deposits Summary","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-undeposited-collections-report","Undeposited Collections","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-collections-deposits-reconciliation-report","Collections & Deposits Reconciliation","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-supplier-payments-summary-report","Supplier Payments Summary","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-payments-by-service-report","Payments by Service","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-supplier-payment-detail-report","Supplier Payment Detail","search"));
         return workcenterDtoList;
     }
 

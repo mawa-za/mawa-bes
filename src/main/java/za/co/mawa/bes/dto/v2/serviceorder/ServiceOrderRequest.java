@@ -16,6 +16,8 @@ public class ServiceOrderRequest {
     private LocalDateTime scheduledEndAt;
     private String assignedEmployeePartnerId;
     private String salesAreaId;
+    private String serviceContractId;
+    private String serviceLocationId;
     private String status;
     private String location;
     private String notes;
