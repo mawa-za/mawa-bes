@@ -122,6 +122,14 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("management-memberships-by-plan-report","Memberships by Plan","search"));
         workcenterDtoList.add(new WorkcenterDto("operational-premium-performance-report","Premium Performance","search"));
         workcenterDtoList.add(new WorkcenterDto("operational-claims-activity-report","Claims by Month & Type","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-customer-money-received-report","Customer Money Received","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-cashier-collections-report","Cashier Collections","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-deposits-summary-report","Deposits Summary","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-undeposited-collections-report","Undeposited Collections","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-collections-deposits-reconciliation-report","Collections & Deposits Reconciliation","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-supplier-payments-summary-report","Supplier Payments Summary","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-payments-by-service-report","Payments by Service","search"));
+        workcenterDtoList.add(new WorkcenterDto("operational-supplier-payment-detail-report","Supplier Payment Detail","search"));
         return workcenterDtoList;
     }
 
