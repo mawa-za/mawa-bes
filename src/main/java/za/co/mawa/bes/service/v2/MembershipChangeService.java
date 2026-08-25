@@ -476,6 +476,11 @@ public class MembershipChangeService {
         updateMembershipReference("manual_premium_receipt", primary.getId(), source.getId());
         updateMembershipReference("membership_claim", primary.getId(), source.getId());
 
+        // Receipt allocations are reassigned during the merge, so rebuild the
+        // destination obligations from the posted allocations. Without this,
+        // a moved payment remains visible but its premium incorrectly stays UNPAID.
+        recalculateMergedPremiumStatuses(primary.getId());
+
         String paidUpTo = jdbcTemplate.queryForObject("""
             SELECT MAX(period_yyyymm) FROM membership_premium
              WHERE membership_id IN (?, ?) AND status = 'PAID'
@@ -506,6 +511,34 @@ public class MembershipChangeService {
                        "paidUpToPeriod", paidUpTo == null ? "" : paidUpTo),
                 "Membership merge applied", actor);
         membershipUpdateHandlerRegistry.handleUpdate(primary.getId());
+    }
+
+    private void recalculateMergedPremiumStatuses(String membershipId) {
+        jdbcTemplate.update("""
+            UPDATE membership_premium premium
+            LEFT JOIN (
+                SELECT allocation.membership_id, allocation.period_yyyymm,
+                       SUM(allocation.amount_cents) paid_cents
+                  FROM receipt_allocation allocation
+                  JOIN receipt r ON r.id = allocation.receipt_id
+                 WHERE allocation.membership_id = ?
+                   AND UPPER(allocation.status) = 'POSTED'
+                   AND UPPER(r.status) = 'POSTED'
+                 GROUP BY allocation.membership_id, allocation.period_yyyymm
+            ) paid ON paid.membership_id = premium.membership_id
+                  AND paid.period_yyyymm = premium.period_yyyymm
+               SET premium.paid_amount_cents = LEAST(premium.amount_cents, COALESCE(paid.paid_cents, 0)),
+                   premium.balance_cents = GREATEST(premium.amount_cents - COALESCE(paid.paid_cents, 0), 0),
+                   premium.status = CASE
+                       WHEN COALESCE(paid.paid_cents, 0) >= premium.amount_cents THEN 'PAID'
+                       WHEN COALESCE(paid.paid_cents, 0) > 0 THEN 'PARTIALLY_PAID'
+                       ELSE 'UNPAID'
+                   END,
+                   premium.updated_at = CURRENT_TIMESTAMP,
+                   premium.updated_by = 'MEMBERSHIP_MERGE'
+             WHERE premium.membership_id = ?
+               AND UPPER(premium.status) NOT IN ('CANCELLED','WRITTEN_OFF','REVERSED')
+            """, membershipId, membershipId);
     }
 
     private void updateMembershipReference(String table, String primaryId, String sourceId) {

@@ -17,6 +17,8 @@ public class ServiceOrderResponse {
     private String assignedEmployeePartnerId;
     private String assignedEmployeeName;
     private String salesAreaId;
+    private String serviceContractId;
+    private String serviceLocationId;
     private LocalDate orderDate;
     private LocalDateTime scheduledStartAt;
     private LocalDateTime scheduledEndAt;

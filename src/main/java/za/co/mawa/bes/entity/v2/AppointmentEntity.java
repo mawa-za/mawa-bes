@@ -36,6 +36,9 @@ public class AppointmentEntity {
     @Column(name = "service_product_id", length = 36)
     private String serviceProductId;
 
+    @Column(name = "service_location_id", length = 36)
+    private String serviceLocationId;
+
     @Column(name = "appointment_date", nullable = false)
     private LocalDate appointmentDate;
 

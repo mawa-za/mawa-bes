@@ -32,7 +32,7 @@ import java.util.*;
 @Service
 public class ServiceOrderService {
     private static final Set<String> ALLOWED_STATUSES = Set.of(
-            "DRAFT", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "INVOICED"
+            "DRAFT", "READY", "CONFIRMED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "INVOICED"
     );
     private static final Set<String> ALLOWED_ITEM_TYPES = Set.of(
             "SERVICE", "PRODUCT", "CONSUMABLE", "PACKAGE", "ASSET", "CHARGE"
@@ -88,6 +88,8 @@ public class ServiceOrderService {
                 .customerPartnerId(customerId)
                 .assignedEmployeePartnerId(trimToNull(request.getAssignedEmployeePartnerId()))
                 .salesAreaId(trimToNull(request.getSalesAreaId()))
+                .serviceContractId(trimToNull(request.getServiceContractId()))
+                .serviceLocationId(trimToNull(request.getServiceLocationId()))
                 .orderDate(request.getOrderDate() == null ? LocalDate.now() : request.getOrderDate())
                 .scheduledStartAt(request.getScheduledStartAt())
                 .scheduledEndAt(request.getScheduledEndAt())
@@ -129,6 +131,7 @@ public class ServiceOrderService {
                 .serviceOrderNo(generateServiceOrderNo())
                 .customerPartnerId(appointment.getCustomerPartnerId())
                 .assignedEmployeePartnerId(appointment.getEmployeePartnerId())
+                .serviceLocationId(appointment.getServiceLocationId())
                 .orderDate(serviceDate)
                 .scheduledStartAt(start)
                 .scheduledEndAt(end)
@@ -304,6 +307,8 @@ public class ServiceOrderService {
         if (request.getAssignedEmployeePartnerId() != null) {
             order.setAssignedEmployeePartnerId(trimToNull(request.getAssignedEmployeePartnerId()));
         }
+        if (request.getServiceContractId() != null) order.setServiceContractId(trimToNull(request.getServiceContractId()));
+        if (request.getServiceLocationId() != null) order.setServiceLocationId(trimToNull(request.getServiceLocationId()));
         if (request.getSalesAreaId() != null) order.setSalesAreaId(trimToNull(request.getSalesAreaId()));
         if (request.getLocation() != null) order.setLocation(trimToNull(request.getLocation()));
         if (request.getNotes() != null) order.setNotes(trimToNull(request.getNotes()));
@@ -505,6 +510,8 @@ public class ServiceOrderService {
                 .assignedEmployeePartnerId(order.getAssignedEmployeePartnerId())
                 .assignedEmployeeName(fullName(employee))
                 .salesAreaId(order.getSalesAreaId())
+                .serviceContractId(order.getServiceContractId())
+                .serviceLocationId(order.getServiceLocationId())
                 .orderDate(order.getOrderDate())
                 .scheduledStartAt(order.getScheduledStartAt())
                 .scheduledEndAt(order.getScheduledEndAt())

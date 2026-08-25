@@ -25,7 +25,15 @@ public class RoleService implements RoleDao {
             "management-membership-overview-report",
             "management-memberships-by-plan-report",
             "operational-premium-performance-report",
-            "operational-claims-activity-report"
+            "operational-claims-activity-report",
+            "operational-customer-money-received-report",
+            "operational-cashier-collections-report",
+            "operational-deposits-summary-report",
+            "operational-undeposited-collections-report",
+            "management-collections-deposits-reconciliation-report",
+            "management-supplier-payments-summary-report",
+            "management-payments-by-service-report",
+            "operational-supplier-payment-detail-report"
     );
     @Autowired
     RoleRepository roleRepository;

@@ -30,6 +30,7 @@ public class AppointmentResponse {
     private String employeePartnerId;
     private String responsibleUserId;
     private String serviceProductId;
+    private String serviceLocationId;
     private PartnerDto customer;
     private PartnerDto customerPartner;
     private PartnerDto employeeResponsible;
