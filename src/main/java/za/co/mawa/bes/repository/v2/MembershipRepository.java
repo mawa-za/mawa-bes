@@ -18,6 +18,7 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
 
     Optional<MembershipEntity> findByOldId(String oldId);
     Optional<MembershipEntity> findByMembershipNo(String membershipNo);
+    List<MembershipEntity> findByMergedIntoMembershipId(String mergedIntoMembershipId);
     boolean existsByMemberId(String memberId);
     long countByMemberId(String memberId);
     Optional<MembershipEntity> findFirstByMemberIdOrderByCreatedAtDesc(String memberId);
@@ -39,16 +40,18 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
                 m.id AS membershipId,
                 m.membership_no AS membershipNo,
                 m.member_id AS partnerId,
-                m.plan_id AS planId,
-                m.premium_cents AS premiumCents,
-                m.start_date AS startDate,
-                m.join_date AS joinDate,
-                m.status AS membershipStatus,
+                COALESCE(primary_membership.plan_id, m.plan_id) AS planId,
+                COALESCE(primary_membership.premium_cents, m.premium_cents) AS premiumCents,
+                COALESCE(primary_membership.start_date, m.start_date) AS startDate,
+                COALESCE(primary_membership.join_date, m.join_date) AS joinDate,
+                CASE WHEN m.status = 'MERGED' THEN 'ACTIVE' ELSE m.status END AS membershipStatus,
                 COALESCE(
+                    NULLIF(primary_membership.paid_up_to_period, ''),
                     NULLIF(m.paid_up_to_period, ''),
                     (SELECT MAX(mp.period_yyyymm)
                        FROM membership_premium mp
-                      WHERE (mp.membership_id = m.id OR mp.membership_id = m.old_id)
+                      WHERE (mp.membership_id = COALESCE(primary_membership.id, m.id)
+                             OR mp.membership_id = COALESCE(primary_membership.old_id, m.old_id))
                         AND mp.status = 'PAID')
                 ) AS paidUpToPeriod,
                 m.created_at AS createdAt,
@@ -79,8 +82,9 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, St
                 p.gender AS gender,
                 p.status AS partnerStatus
             FROM membership m
+            LEFT JOIN membership primary_membership
+              ON primary_membership.id = m.merged_into_membership_id
             INNER JOIN partner p ON p.id = m.member_id
-            WHERE m.status <> 'MERGED'
             ORDER BY m.id
             """, nativeQuery = true)
     List<MembershipMasterDataProjection> findMasterData(Pageable pageable);
