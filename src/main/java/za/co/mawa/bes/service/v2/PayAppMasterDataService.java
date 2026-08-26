@@ -408,13 +408,19 @@ public class PayAppMasterDataService {
                 SELECT m.id membership_id,
                        m.membership_no,
                        m.member_id partner_id,
-                       m.plan_id,
-                       m.status membership_status,
-                       m.paid_up_to_period,
-                       m.start_date,
-                       m.join_date,
-                       COALESCE(m.updated_at, m.created_at) updated_at
+                       COALESCE(primary_membership.plan_id, m.plan_id) plan_id,
+                       CASE WHEN m.status = 'MERGED' THEN 'ACTIVE' ELSE m.status END membership_status,
+                       COALESCE(NULLIF(primary_membership.paid_up_to_period, ''), m.paid_up_to_period) paid_up_to_period,
+                       COALESCE(primary_membership.start_date, m.start_date) start_date,
+                       COALESCE(primary_membership.join_date, m.join_date) join_date,
+                       GREATEST(
+                           COALESCE(m.updated_at, m.created_at),
+                           COALESCE(primary_membership.updated_at, primary_membership.created_at,
+                                    m.updated_at, m.created_at)
+                       ) updated_at
                   FROM membership m
+                  LEFT JOIN membership primary_membership
+                    ON primary_membership.id = m.merged_into_membership_id
                 """;
     }
 

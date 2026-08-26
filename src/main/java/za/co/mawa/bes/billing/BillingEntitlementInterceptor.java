@@ -89,7 +89,6 @@ public class BillingEntitlementInterceptor implements HandlerInterceptor {
                 || path.equals("/v2/forgot-password")
                 || path.equals("/reset-password")
                 || path.equals("/v2/reset-password")
-                || path.equals("/refresh-token")
                 || path.equals("/v2/refresh-token");
     }
 

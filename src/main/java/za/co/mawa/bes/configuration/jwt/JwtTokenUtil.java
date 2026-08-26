@@ -29,6 +29,8 @@ public class JwtTokenUtil implements Serializable {
     private static final String ACCESS_TOKEN = "access";
     private static final String REFRESH_TOKEN = "refresh";
     private static final String ADMIN_HANDOFF_TOKEN = "admin_handoff";
+    private static final String DEVICE_SYNC_TOKEN = "device_sync";
+    private static final long DEVICE_SYNC_EXPIRY_MS = 90L * 24 * 60 * 60 * 1000;
 
     private long jwtExpirationInMs;
     private long refreshExpirationDateInMs;
@@ -176,6 +178,22 @@ public class JwtTokenUtil implements Serializable {
         claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
         claims.put(CLAIM_TOKEN_TYPE, REFRESH_TOKEN);
         return doGenerateToken(claims, username, tenantId, refreshExpirationDateInMs);
+    }
+
+    public String generateDeviceSyncToken(String deviceId, int tokenVersion) {
+        String tenantId = TenantContext.getCurrentTenant();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(JwtClaim.TENANT_ID.getValue(), tenantId);
+        claims.put(CLAIM_TOKEN_TYPE, DEVICE_SYNC_TOKEN);
+        claims.put("device_id", deviceId);
+        claims.put("token_version", tokenVersion);
+        return doGenerateToken(claims, "device:" + deviceId, tenantId, DEVICE_SYNC_EXPIRY_MS);
+    }
+
+    public boolean isDeviceSyncToken(Claims claims) {
+        return DEVICE_SYNC_TOKEN.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))
+                && claims.getExpiration() != null
+                && claims.getExpiration().after(new Date());
     }
 
     public String generateAdminHandoffToken(

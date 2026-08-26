@@ -56,7 +56,6 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
         if ("/error".equals(requestURI)
                 || requestURI.startsWith("/internal/admin/")
                 || "/v2/admin-handoff/exchange".equals(requestURI)
-                || "/refresh-token".equals(requestURI)
                 || "/v2/refresh-token".equals(requestURI)) {
             // Refresh tokens are validated by JwtRefreshService. That service reads
             // the tenant claim and establishes TenantContext before tenant-scoped

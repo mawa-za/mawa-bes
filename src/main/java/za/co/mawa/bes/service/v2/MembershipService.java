@@ -507,7 +507,20 @@ public class MembershipService {
                 .or(() -> membershipRepository.findByOldId(membershipId))
                 .orElseThrow(() -> new RuntimeException("Membership not found: " + membershipId));
         membershipChangeService.synchronizeEffectiveChanges(resolved.getId(), LocalDate.now(), "SYSTEM");
-        return membershipRepository.findById(resolved.getId()).orElse(resolved);
+        resolved = membershipRepository.findById(resolved.getId()).orElse(resolved);
+
+        Set<String> visited = new LinkedHashSet<>();
+        while (resolved.getMergedIntoMembershipId() != null
+                && !resolved.getMergedIntoMembershipId().isBlank()) {
+            if (!visited.add(resolved.getId())) {
+                throw new IllegalStateException("Circular merged membership reference detected");
+            }
+            String primaryId = resolved.getMergedIntoMembershipId();
+            resolved = membershipRepository.findById(primaryId)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Primary membership for merged membership was not found: " + primaryId));
+        }
+        return resolved;
     }
 
     public List<String> membershipIdentifiers(String membershipId) {
@@ -521,6 +534,14 @@ public class MembershipService {
         }
         if (membership.getOldId() != null && !membership.getOldId().isBlank()) {
             identifiers.add(membership.getOldId());
+        }
+        for (MembershipEntity alias : membershipRepository.findByMergedIntoMembershipId(membership.getId())) {
+            if (alias.getId() != null && !alias.getId().isBlank()) {
+                identifiers.add(alias.getId());
+            }
+            if (alias.getOldId() != null && !alias.getOldId().isBlank()) {
+                identifiers.add(alias.getOldId());
+            }
         }
         return List.copyOf(identifiers);
     }

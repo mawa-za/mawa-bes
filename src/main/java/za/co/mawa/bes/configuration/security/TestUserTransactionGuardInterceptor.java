@@ -78,7 +78,6 @@ public class TestUserTransactionGuardInterceptor implements HandlerInterceptor {
                 || path.equals("/v2/forgot-password")
                 || path.equals("/reset-password")
                 || path.equals("/v2/reset-password")
-                || path.equals("/refresh-token")
                 || path.equals("/v2/refresh-token")
                 || path.equals("/v2/company-logo/content")
                 || path.equals("/v2/admin-handoff/exchange")
