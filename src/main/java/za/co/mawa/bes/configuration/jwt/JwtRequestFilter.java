@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -21,6 +22,7 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.configuration.security.model.JwtClaim;
 import za.co.mawa.bes.service.JwtUserDetailsService;
+import za.co.mawa.bes.service.MawaPayDeviceIdentityService;
 
 import java.io.IOException;
 import java.util.Date;
@@ -36,6 +38,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
+    @Autowired
+    private MawaPayDeviceIdentityService deviceIdentityService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -46,7 +50,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || "/v2/forgot-password".equals(path)
                 || "/reset-password".equals(path)
                 || "/v2/reset-password".equals(path)
-                || "/refresh-token".equals(path)
                 || "/v2/refresh-token".equals(path)
                 || "/v2/company-logo/content".equals(path)
                 || "/v2/admin-handoff/exchange".equals(path)
@@ -73,6 +76,24 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
                 TenantContext.setCurrentTenant(tenantId);
                 UserContext.setCurrentUser(username);
+                if (jwtTokenUtil.isDeviceSyncToken(tokenClaims)) {
+                    String deviceId = tokenClaims.get("device_id", String.class);
+                    Integer tokenVersion = tokenClaims.get("token_version", Integer.class);
+                    deviceIdentityService.requireActive(deviceId, tokenVersion == null ? 0 : tokenVersion);
+                    if (!isDeviceSyncPath(request.getServletPath())) {
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                                "Device identity is restricted to MawaPay synchronization");
+                        return;
+                    }
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(username, null,
+                                    java.util.List.of(new SimpleGrantedAuthority("ROLE_DEVICE_SYNC")));
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UserContext.setBackgroundSession(true);
+                    chain.doFilter(request, response);
+                    return;
+                }
                 boolean platformSession = Boolean.TRUE.equals(tokenClaims.get("platform_session", Boolean.class));
                 UserContext.setPlatformSession(platformSession);
                 if (platformSession) {
@@ -141,6 +162,19 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private String textClaim(Claims claims, String key) {
         Object value = claims.get(key);
         return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean isDeviceSyncPath(String path) {
+        if (path == null) return false;
+        return path.equals("/v2/pay-app/device-identity/renew")
+                || path.startsWith("/v2/sync/")
+                || path.startsWith("/v2/device-sync/")
+                || path.startsWith("/v2/cashup")
+                || path.startsWith("/v2/partner")
+                || path.startsWith("/v2/membership")
+                || path.startsWith("/v2/number-allocations")
+                || path.startsWith("/v2/receipt")
+                || path.equals("/pay-app/receipt-sync");
     }
 
     private Boolean booleanClaim(Claims claims, String key) {

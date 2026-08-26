@@ -43,7 +43,6 @@ public class WebSecurityConfig {
             "/v2/forgot-password",
             "/reset-password",
             "/v2/reset-password",
-            "/refresh-token",
             "/v2/refresh-token",
             "/v2/company-logo/content",
             "/v2/admin-handoff/exchange",
