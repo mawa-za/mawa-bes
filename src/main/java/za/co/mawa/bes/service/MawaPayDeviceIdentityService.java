@@ -43,8 +43,11 @@ public class MawaPayDeviceIdentityService {
     public MawaPayDeviceIdentityEntity requireActive(String deviceId, int tokenVersion) {
         MawaPayDeviceIdentityEntity identity = repository.findByDeviceId(required(deviceId))
                 .orElseThrow(() -> new IllegalArgumentException("Device is not enrolled"));
-        if (!"ACTIVE".equals(identity.getStatus()) || identity.getTokenVersion() != tokenVersion) {
-            throw new IllegalArgumentException("Device sync identity is revoked");
+        if (!"ACTIVE".equals(identity.getStatus())) {
+            throw new IllegalArgumentException("device identity is not active");
+        }
+        if (identity.getTokenVersion() != tokenVersion) {
+            throw new IllegalArgumentException("device token version is stale");
         }
         return identity;
     }
