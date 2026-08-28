@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.dto.v2.MembershipResponseDto;
+import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
 import za.co.mawa.bes.dto.v2.MembershipStatusChangeRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
@@ -18,7 +19,6 @@ import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentReplaceRequest;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
-import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
@@ -227,8 +227,8 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping("/{membershipId}/dependents")
-    public ResponseEntity<List<MembershipDependentEntity>> listDependents(@PathVariable String membershipId) {
-        return ResponseEntity.ok(membershipDependentService.getDependentsByMembershipId(membershipId));
+    public ResponseEntity<List<MembershipDependentResponseDto>> listDependents(@PathVariable String membershipId) {
+        return ResponseEntity.ok(membershipDependentService.getDependentResponsesByMembershipId(membershipId));
     }
 
     @PostMapping("/{membershipId}/dependents")
