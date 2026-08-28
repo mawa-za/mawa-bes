@@ -3,6 +3,10 @@ package za.co.mawa.bes.service.v2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
+import za.co.mawa.bes.mapper.v2.MembershipDependentMapper;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.enums.MembershipDependentStatus;
 
@@ -10,6 +14,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class MembershipDependentService {
@@ -17,10 +24,17 @@ public class MembershipDependentService {
     MembershipUpdateHandlerRegistry membershipHandlerRegistry;
 
     private final MembershipDependentRepository membershipDependentRepository;
+    private final PartnerRepository partnerRepository;
+    private final MembershipDependentMapper membershipDependentMapper;
 
     @Autowired
-    public MembershipDependentService(MembershipDependentRepository membershipDependentRepository) {
+    public MembershipDependentService(
+            MembershipDependentRepository membershipDependentRepository,
+            PartnerRepository partnerRepository,
+            MembershipDependentMapper membershipDependentMapper) {
         this.membershipDependentRepository = membershipDependentRepository;
+        this.partnerRepository = partnerRepository;
+        this.membershipDependentMapper = membershipDependentMapper;
     }
 
     public List<MembershipDependentEntity> getDependentsByMembershipId(String membershipId) {
@@ -28,6 +42,23 @@ public class MembershipDependentService {
                 membershipId,
                 Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED)
         );
+    }
+
+    public List<MembershipDependentResponseDto> getDependentResponsesByMembershipId(String membershipId) {
+        List<MembershipDependentEntity> dependents = getDependentsByMembershipId(membershipId);
+        Map<String, PartnerEntity> partners = partnerRepository.findAllById(
+                        dependents.stream()
+                                .map(MembershipDependentEntity::getDependentPartnerId)
+                                .filter(id -> id != null && !id.isBlank())
+                                .collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(PartnerEntity::getId, Function.identity()));
+
+        return dependents.stream()
+                .map(dependent -> membershipDependentMapper.toResponse(
+                        dependent,
+                        partners.get(dependent.getDependentPartnerId())))
+                .toList();
     }
 
     public MembershipDependentEntity addDependent(String membershipId, MembershipDependentEntity dependent) {
