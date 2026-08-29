@@ -7,9 +7,11 @@ import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.dto.product.ProductDto;
+import za.co.mawa.bes.dto.product.pricing.ProductPricingDto;
 import za.co.mawa.bes.dto.transaction.TransactionViewDto;
 import za.co.mawa.bes.entity.transaction.TransactionPartnerEntity;
 import za.co.mawa.bes.entity.transaction.TransactionPartnerPKEntity;
+import za.co.mawa.bes.entity.transaction.TransactionItemEntity;
 import za.co.mawa.bes.entity.transaction.TransactionViewEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
@@ -17,6 +19,7 @@ import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.enums.DependentType;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.TransactionPartnerRepository;
+import za.co.mawa.bes.repository.TransactionItemRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
@@ -30,6 +33,7 @@ import za.co.mawa.bes.utils.TransactionType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
@@ -60,6 +64,8 @@ public class MigrateService {
     MembershipDependentRepository membershipDependentRepository;
     @Autowired
     TransactionPartnerRepository transactionPartnerRepository;
+    @Autowired
+    TransactionItemRepository transactionItemRepository;
     @Autowired
     PartnerRepository partnerRepository;
     @Autowired
@@ -101,7 +107,7 @@ public class MigrateService {
                         membershipPlanEntity.setCurrency("ZAR");
                         membershipPlanEntity.setMaxDependents(15);
                         membershipPlanEntity.setActive(true);
-                        membershipPlanEntity.setPremiumCents(19000L);
+                        membershipPlanEntity.setPremiumCents(resolveLegacyPlanPremiumCents(productDto));
                         membershipPlanService.createPlan(membershipPlanEntity);
                         if (tenantResult != null) {
                             tenantResult.setPlansCreated(tenantResult.getPlansCreated() + 1);
@@ -240,16 +246,20 @@ public class MigrateService {
             return;
         }
 
-        if (isBlank(oldMembership.getProductId())) {
+        TransactionItemEntity currentItem = transactionItemRepository
+                .findCurrentMembershipItem(oldMembership.getTransactionId())
+                .orElse(null);
+        String currentProductId = currentItem == null ? null : currentItem.getProduct();
+        if (isBlank(currentProductId)) {
             tenantResult.setMembershipsSkipped(tenantResult.getMembershipsSkipped() + 1);
             tenantResult.addError("Membership " + oldMembership.getTransactionId() + " skipped because product is missing");
             return;
         }
 
-        MembershipPlanEntity membershipPlanEntity = membershipPlanRepository.findByOldId(oldMembership.getProductId()).orElse(null);
+        MembershipPlanEntity membershipPlanEntity = membershipPlanRepository.findByOldId(currentProductId).orElse(null);
         if (membershipPlanEntity == null) {
             tenantResult.setMembershipsSkipped(tenantResult.getMembershipsSkipped() + 1);
-            tenantResult.addError("Membership " + oldMembership.getTransactionId() + " skipped because plan was not migrated for old product " + oldMembership.getProductId());
+            tenantResult.addError("Membership " + oldMembership.getTransactionId() + " skipped because plan was not migrated for old product " + currentProductId);
             return;
         }
 
@@ -270,8 +280,13 @@ public class MigrateService {
 
         membership.setOldId(firstNonBlank(membership.getOldId(), oldMembership.getTransactionId()));
         membership.setMemberId(oldMembership.getMainPartnerId());
-        membership.setPlanId(membershipPlanEntity.getId());
-        membership.setPremiumCents(membershipPlanEntity.getPremiumCents());
+        // Existing memberships may have an approved v2 plan/premium change. The legacy
+        // migration owns plan assignment only when it creates the membership; the
+        // one-time Flyway repair handles memberships affected by the old selector.
+        if (created) {
+            membership.setPlanId(membershipPlanEntity.getId());
+            membership.setPremiumCents(membershipPlanEntity.getPremiumCents());
+        }
         membership.setStatus(firstNonBlank(oldMembership.getTransactionStatus(), "ACTIVE"));
         membership.setStartDate(toLocalDate(oldMembership.getCreationDate(), LocalDate.now()));
         membership.setJoinDate(toLocalDate(oldMembership.getCreationDate(), membership.getStartDate()));
@@ -298,6 +313,21 @@ public class MigrateService {
         }
 
         migrateDependentsForMembership(oldMembership, savedMembership, tenantResult);
+    }
+
+    private long resolveLegacyPlanPremiumCents(ProductDto product) {
+        if (product == null || product.getPricings() == null) return 0L;
+        return product.getPricings().stream()
+                .filter(p -> p != null && p.getValue() != null && p.getPricing() != null)
+                .filter(p -> {
+                    String code = safe(p.getPricing().getCode()).trim().toUpperCase(Locale.ROOT).replace('_', '-');
+                    return Set.of("SELLING-PRICE", "MONTHLY-PREMIUM").contains(code);
+                })
+                .map(ProductPricingDto::getValue)
+                .max(java.math.BigDecimal::compareTo)
+                .map(value -> value.multiply(java.math.BigDecimal.valueOf(100))
+                        .setScale(0, RoundingMode.HALF_UP).longValue())
+                .orElse(0L);
     }
 
     private void migrateDependentsForMembership(TransactionViewEntity oldMembership,

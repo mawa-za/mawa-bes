@@ -7,26 +7,26 @@ import za.co.mawa.bes.enums.ApprovalType;
 
 @Component
 @RequiredArgsConstructor
-public class MembershipPremiumAmountChangeApprovalHandler implements ApprovalCompletionHandler {
-    private final MembershipChangeService service;
+public class MembershipPremiumEditApprovalHandler implements ApprovalCompletionHandler {
+    private final MembershipPremiumEditService service;
 
     @Override
     public ApprovalType supports() {
-        return ApprovalType.MEMBERSHIP_PREMIUM_AMOUNT_CHANGE;
+        return ApprovalType.MEMBERSHIP_PREMIUM_EDIT;
     }
 
     @Override
     public void onApproved(ApprovalRequestEntity request, String actor) {
-        service.approved(request.getReferenceId(), actor);
+        service.complete(request.getReferenceId(), true, actor, "APPROVED");
     }
 
     @Override
     public void onRejected(ApprovalRequestEntity request, String actor) {
-        service.rejected(request.getReferenceId(), actor, false);
+        service.complete(request.getReferenceId(), false, actor, "REJECTED");
     }
 
     @Override
     public void onCancelled(ApprovalRequestEntity request, String actor) {
-        service.rejected(request.getReferenceId(), actor, true);
+        service.complete(request.getReferenceId(), false, actor, "CANCELLED");
     }
 }
