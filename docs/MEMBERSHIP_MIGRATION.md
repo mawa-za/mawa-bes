@@ -2,13 +2,12 @@
 
 The membership migration endpoint migrates legacy membership transactions into the v2 membership tables and now migrates dependents directly from `transaction_partner`.
 
-## Endpoint
+## Execution
 
-```http
-POST /v2/membership/migrate
-```
-
-`GET /v2/membership/migrate` is still supported for backward compatibility.
+Legacy membership migration is not exposed as an HTTP endpoint. In particular,
+`POST /v2/membership/migrate` and its former `GET` compatibility route are no
+longer available. Migration execution is restricted to the configured internal
+scheduler while it remains enabled.
 
 ## What is migrated
 
