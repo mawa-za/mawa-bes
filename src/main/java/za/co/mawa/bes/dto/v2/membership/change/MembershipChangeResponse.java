@@ -27,8 +27,6 @@ public class MembershipChangeResponse {
     private String oldPlanName;
     private String newPlanId;
     private String newPlanName;
-    private Long oldPremiumCents;
-    private Long newPremiumCents;
 
     private String oldDependentId;
     private String oldDependentPartnerId;

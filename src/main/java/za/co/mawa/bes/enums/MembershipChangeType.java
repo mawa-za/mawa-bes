@@ -3,7 +3,6 @@ package za.co.mawa.bes.enums;
 public enum MembershipChangeType {
     TRANSFER,
     PLAN_CHANGE,
-    PREMIUM_AMOUNT_CHANGE,
     ADD_DEPENDENT,
     REMOVE_DEPENDENT,
     REPLACE_DEPENDENT,
