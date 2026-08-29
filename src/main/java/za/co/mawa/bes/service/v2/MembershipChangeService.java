@@ -161,48 +161,6 @@ public class MembershipChangeService {
     }
 
     @Transactional
-    public MembershipChangeResponse requestPremiumAmountChange(
-            String membershipId,
-            MembershipPremiumAmountChangeRequest request,
-            String actor) {
-        MembershipEntity membership = getMembershipForUpdate(membershipId);
-        membershipActionGuardService.requireActionable(membership);
-        requireNoOpenChange(membershipId);
-        Long newPremium = request == null ? null : request.getPremiumCents();
-        if (newPremium == null || newPremium <= 0) {
-            throw new IllegalArgumentException("Premium amount must be greater than zero");
-        }
-        long oldPremium = membership.getPremiumCents() == null ? 0L : membership.getPremiumCents();
-        if (newPremium == oldPremium) {
-            throw new IllegalArgumentException("Enter a premium amount different from the current amount");
-        }
-
-        String actionBy = actor(actor);
-        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
-                .membershipId(membership.getId())
-                .changeType(MembershipChangeType.PREMIUM_AMOUNT_CHANGE)
-                .status(MembershipChangeStatus.PENDING_APPROVAL)
-                .oldMemberId(membership.getMemberId())
-                .newMemberId(membership.getMemberId())
-                .oldPlanId(membership.getPlanId())
-                .newPlanId(membership.getPlanId())
-                .oldPremiumCents(oldPremium)
-                .newPremiumCents(newPremium)
-                .effectiveDate(LocalDate.now())
-                .reason(requireReason(request.getReason()))
-                .requestedAt(LocalDateTime.now()).requestedBy(actionBy)
-                .updatedAt(LocalDateTime.now()).updatedBy(actionBy)
-                .build();
-        change = changeRequestRepository.save(change);
-        audit(change, "REQUESTED", Map.of("premiumCents", oldPremium),
-                Map.of("premiumCents", newPremium), change.getReason(), actionBy);
-        ApprovalRequestResponse approval = submit(
-                change, membership, ApprovalType.MEMBERSHIP_PREMIUM_AMOUNT_CHANGE, actionBy);
-        change.setApprovalRequestId(approval.getId());
-        return toResponse(changeRequestRepository.save(change));
-    }
-
-    @Transactional
     public MembershipChangeResponse requestMerge(String primaryMembershipId, MembershipMergeRequest request, String actor) {
         MembershipEntity primary = getMembershipForUpdate(primaryMembershipId);
         membershipActionGuardService.requireActionable(primary);
@@ -432,8 +390,6 @@ public class MembershipChangeService {
                     "Membership transfer approved",
                     actor);
             applyTransfer(change, actor);
-        } else if (change.getChangeType() == MembershipChangeType.PREMIUM_AMOUNT_CHANGE) {
-            applyPremiumAmountChange(change, actor);
         } else if (isDependentChange(change.getChangeType())) {
             change.setEffectiveDate(LocalDate.now());
             changeRequestRepository.save(change);
@@ -913,34 +869,6 @@ public class MembershipChangeService {
                 actor);
     }
 
-    private void applyPremiumAmountChange(MembershipChangeRequestEntity change, String actor) {
-        MembershipEntity membership = getMembershipForUpdate(change.getMembershipId());
-        long currentPremium = membership.getPremiumCents() == null ? 0L : membership.getPremiumCents();
-        if (change.getOldPremiumCents() == null || currentPremium != change.getOldPremiumCents()) {
-            throw new IllegalStateException(
-                    "The membership premium changed after this request was submitted. Submit a new request.");
-        }
-        long newPremium = change.getNewPremiumCents() == null ? 0L : change.getNewPremiumCents();
-        if (newPremium <= 0) throw new IllegalStateException("Approved premium amount must be greater than zero");
-
-        membership.setPremiumCents(newPremium);
-        membership.setUpdatedAt(LocalDateTime.now());
-        membership.setUpdatedBy(actor);
-        membershipRepository.save(membership);
-        change.setEffectiveDate(LocalDate.now());
-        change.setStatus(MembershipChangeStatus.APPLIED);
-        change.setApprovedAt(LocalDateTime.now());
-        change.setApprovedBy(actor);
-        change.setAppliedAt(LocalDateTime.now());
-        change.setAppliedBy(actor);
-        change.setUpdatedAt(LocalDateTime.now());
-        change.setUpdatedBy(actor);
-        changeRequestRepository.save(change);
-        audit(change, "APPLIED", Map.of("premiumCents", currentPremium),
-                Map.of("premiumCents", newPremium, "effectiveDate", change.getEffectiveDate()),
-                "Membership premium amount changed after approval", actor);
-    }
-
     private void applyPremiumPlanChange(
             MembershipChangeRequestEntity change,
             MembershipEntity membership,
@@ -994,8 +922,6 @@ public class MembershipChangeService {
             case MEMBERSHIP_PLAN_CHANGE -> "Membership plan change - " + membership.getMembershipNo()
                     + " - " + membershipHolder + " - " + planName(change.getOldPlanId())
                     + " to " + planName(change.getNewPlanId());
-            case MEMBERSHIP_PREMIUM_AMOUNT_CHANGE -> "Membership premium amount change - "
-                    + membership.getMembershipNo() + " - " + membershipHolder;
             case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership dependent "
                     + changeLabel
                     + " - " + membership.getMembershipNo() + " - "
@@ -1021,10 +947,6 @@ public class MembershipChangeService {
             return "Review the current and proposed membership plans and premium impact. " +
                     "On approval the new premium is immediate; downgrades also apply benefits immediately, " +
                     "while upgrades apply the configured benefit waiting period. Reason: " + change.getReason();
-        }
-        if (approvalType == ApprovalType.MEMBERSHIP_PREMIUM_AMOUNT_CHANGE) {
-            return "Review the current and proposed recurring membership premium amount before actioning. " +
-                    "The new amount takes effect only after final approval. Reason: " + change.getReason();
         }
         if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
             return "Review the current and proposed membership holders before actioning. Reason: " + change.getReason();
@@ -1092,10 +1014,6 @@ public class MembershipChangeService {
             impact.put("benefitEffectiveDateIfApprovedToday", benefitEffectiveDate);
             impact.put("coverBeforeBenefitEffectiveDate", planName(change.getOldPlanId()));
             impact.put("coverFromBenefitEffectiveDate", planName(change.getNewPlanId()));
-        } else if (approvalType == ApprovalType.MEMBERSHIP_PREMIUM_AMOUNT_CHANGE) {
-            current.put("monthlyPremiumCents", change.getOldPremiumCents());
-            proposed.put("monthlyPremiumCents", change.getNewPremiumCents());
-            impact.put("effectiveDate", "On final approval");
         } else if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
             current.put("memberId", change.getOldMemberId());
             current.put("memberName", partnerName(change.getOldMemberId()));
@@ -1293,7 +1211,6 @@ public class MembershipChangeService {
                 .newMemberId(e.getNewMemberId()).newMemberName(partnerName(e.getNewMemberId()))
                 .oldPlanId(e.getOldPlanId()).oldPlanName(planName(e.getOldPlanId()))
                 .newPlanId(e.getNewPlanId()).newPlanName(planName(e.getNewPlanId()))
-                .oldPremiumCents(e.getOldPremiumCents()).newPremiumCents(e.getNewPremiumCents())
                 .oldDependentId(e.getOldDependentId())
                 .oldDependentPartnerId(e.getOldDependentPartnerId())
                 .oldDependentName(partnerName(e.getOldDependentPartnerId()))

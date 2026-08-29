@@ -33,11 +33,6 @@ public class MembershipChangeControllerV2 {
         return service.requestPlanChange(membershipId, request, actor(principal));
     }
 
-    @PostMapping("/{membershipId}/premium-amount")
-    public MembershipChangeResponse requestPremiumAmountChange(@PathVariable String membershipId, @RequestBody MembershipPremiumAmountChangeRequest request, Principal principal){
-        return service.requestPremiumAmountChange(membershipId, request, actor(principal));
-    }
-
     @PostMapping("/{membershipId}/merge")
     public MembershipChangeResponse requestMerge(@PathVariable String membershipId, @RequestBody MembershipMergeRequest request, Principal principal){
         return service.requestMerge(membershipId, request, actor(principal));
