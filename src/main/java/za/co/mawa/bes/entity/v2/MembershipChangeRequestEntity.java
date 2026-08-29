@@ -44,12 +44,6 @@ public class MembershipChangeRequestEntity {
     @Column(name = "new_plan_id", length = 255)
     private String newPlanId;
 
-    @Column(name = "old_premium_cents")
-    private Long oldPremiumCents;
-
-    @Column(name = "new_premium_cents")
-    private Long newPremiumCents;
-
     @Column(name = "old_dependent_id", length = 255)
     private String oldDependentId;
 
