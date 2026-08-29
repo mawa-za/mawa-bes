@@ -28,7 +28,6 @@ import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 import za.co.mawa.bes.service.v2.MembershipStatusChangeService;
-import za.co.mawa.bes.service.v2.MigrateService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
 
 import java.security.Principal;
@@ -39,8 +38,6 @@ import za.co.mawa.bes.configuration.context.UserContext;
 @RestController
 @RequestMapping("v2/membership")
 public class MembershipControllerV2 {
-    @Autowired
-    MigrateService migrateService;
     @Autowired
     MembershipRepository membershipRepository;
     @Autowired
@@ -70,16 +67,6 @@ public class MembershipControllerV2 {
     // ------------------------------------------
     // Membership Plan Endpoints
     // ------------------------------------------
-    @PostMapping("migrate")
-    public ResponseEntity<?> migrate() {
-        return ResponseEntity.ok(migrateService.migrateMemberships());
-    }
-
-    @GetMapping("migrate")
-    public ResponseEntity<?> migrateLegacyGet() {
-        return ResponseEntity.ok(migrateService.migrateMemberships());
-    }
-
     @GetMapping("/plans")
     public ResponseEntity<Page<MembershipPlanEntity>> listMembershipPlans(Pageable pageable) {
         return ResponseEntity.ok(membershipPlanService.getAllPlans(pageable));
