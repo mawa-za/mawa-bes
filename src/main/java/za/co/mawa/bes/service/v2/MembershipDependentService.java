@@ -4,9 +4,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
 import za.co.mawa.bes.mapper.v2.MembershipDependentMapper;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.enums.MembershipDependentStatus;
 
@@ -26,15 +28,18 @@ public class MembershipDependentService {
     private final MembershipDependentRepository membershipDependentRepository;
     private final PartnerRepository partnerRepository;
     private final MembershipDependentMapper membershipDependentMapper;
+    private final PartnerIdentityRepository partnerIdentityRepository;
 
     @Autowired
     public MembershipDependentService(
             MembershipDependentRepository membershipDependentRepository,
             PartnerRepository partnerRepository,
-            MembershipDependentMapper membershipDependentMapper) {
+            MembershipDependentMapper membershipDependentMapper,
+            PartnerIdentityRepository partnerIdentityRepository) {
         this.membershipDependentRepository = membershipDependentRepository;
         this.partnerRepository = partnerRepository;
         this.membershipDependentMapper = membershipDependentMapper;
+        this.partnerIdentityRepository = partnerIdentityRepository;
     }
 
     public List<MembershipDependentEntity> getDependentsByMembershipId(String membershipId) {
@@ -53,12 +58,29 @@ public class MembershipDependentService {
                                 .collect(Collectors.toSet()))
                 .stream()
                 .collect(Collectors.toMap(PartnerEntity::getId, Function.identity()));
+        Map<String, PartnerIdentityEntity> identities = new java.util.LinkedHashMap<>();
+        if (!partners.isEmpty()) {
+            for (PartnerIdentityEntity identity : partnerIdentityRepository.findByPartnerIn(partners.keySet().stream().toList())) {
+                if (identity == null || identity.getPartner() == null || identity.getPartnerIdentityPK() == null) continue;
+                identities.merge(identity.getPartner(), identity, this::preferredIdentity);
+            }
+        }
 
         return dependents.stream()
                 .map(dependent -> membershipDependentMapper.toResponse(
                         dependent,
-                        partners.get(dependent.getDependentPartnerId())))
+                        partners.get(dependent.getDependentPartnerId()),
+                        identities.get(dependent.getDependentPartnerId())))
                 .toList();
+    }
+
+    private PartnerIdentityEntity preferredIdentity(PartnerIdentityEntity current, PartnerIdentityEntity candidate) {
+        return identityPriority(candidate) < identityPriority(current) ? candidate : current;
+    }
+
+    private int identityPriority(PartnerIdentityEntity identity) {
+        if (identity == null || identity.getPartnerIdentityPK() == null || identity.getPartnerIdentityPK().getType() == null) return 99;
+        return "SA-ID".equalsIgnoreCase(identity.getPartnerIdentityPK().getType()) ? 0 : 10;
     }
 
     public MembershipDependentEntity addDependent(String membershipId, MembershipDependentEntity dependent) {
