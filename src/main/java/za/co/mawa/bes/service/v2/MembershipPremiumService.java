@@ -2,6 +2,7 @@ package za.co.mawa.bes.service.v2;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
@@ -272,6 +273,62 @@ public class MembershipPremiumService {
             premium.setStatus(PremiumStatus.PAID);
         }
 
+        premium.setUpdatedAt(LocalDateTime.now());
+        premium.setUpdatedBy(updatedBy);
+
+        MembershipPremiumEntity saved = membershipPremiumRepository.saveAndFlush(premium);
+        membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
+        return saved;
+    }
+
+    /**
+     * Rebuilds a premium's paid state from the receipt ledger. Only allocations
+     * backed by a POSTED receipt are financial activity; reversed or cancelled
+     * rows remain in the ledger for audit purposes but must not settle a period.
+     */
+    @Transactional
+    public MembershipPremiumEntity reconcileFromPostedAllocations(
+            MembershipPremiumEntity premium,
+            String updatedBy
+    ) {
+        if (premium.getStatus() == PremiumStatus.CANCELLED
+                || premium.getStatus() == PremiumStatus.WRITTEN_OFF
+                || premium.getStatus() == PremiumStatus.REVERSED) {
+            return premium;
+        }
+
+        List<ReceiptAllocationEntity> postedAllocations = receiptAllocationRepository
+                .findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
+                        za.co.mawa.bes.enums.ReceiptAllocationType.MEMBERSHIP_PREMIUM,
+                        premium.getId())
+                .stream()
+                .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                .toList();
+
+        Map<String, ReceiptStatus> receiptStatuses = receiptRepository
+                .findAllById(postedAllocations.stream()
+                        .map(ReceiptAllocationEntity::getReceiptId)
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(ReceiptEntity::getId, ReceiptEntity::getStatus));
+
+        long allocatedCents = postedAllocations.stream()
+                .filter(allocation -> receiptStatuses.get(allocation.getReceiptId()) == ReceiptStatus.POSTED)
+                .map(ReceiptAllocationEntity::getAmountCents)
+                .filter(Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+        long premiumAmountCents = safe(premium.getAmountCents());
+        long paidAmountCents = Math.min(allocatedCents, premiumAmountCents);
+        long balanceCents = Math.max(premiumAmountCents - paidAmountCents, 0L);
+
+        premium.setPaidAmountCents(paidAmountCents);
+        premium.setBalanceCents(balanceCents);
+        premium.setStatus(paidAmountCents <= 0
+                ? PremiumStatus.UNPAID
+                : balanceCents > 0 ? PremiumStatus.PARTIALLY_PAID : PremiumStatus.PAID);
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(updatedBy);
 

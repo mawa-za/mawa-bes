@@ -6,8 +6,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.dto.v2.devicesync.DeviceSyncSubmitRequest;
+import za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCancellationRequest;
 import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
+import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -23,10 +25,14 @@ class DeviceSyncSubmissionServiceTest {
     @Mock
     private DeviceSyncSubmissionRepository repository;
 
+    @Mock
+    private PaymentBatchRepository paymentBatchRepository;
+
     @Test
     void retryOfFailedSubmissionRefreshesCorrectedPayloadInsteadOfReplayingStaleRequest() {
         ObjectMapper mapper = new ObjectMapper();
-        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(repository, mapper);
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(7L)
@@ -77,7 +83,8 @@ class DeviceSyncSubmissionServiceTest {
     @Test
     void completedSubmissionRemainsIdempotentAndIsNotOverwritten() {
         ObjectMapper mapper = new ObjectMapper();
-        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(repository, mapper);
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(8L)
@@ -111,5 +118,42 @@ class DeviceSyncSubmissionServiceTest {
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(existing.getRequestPayload()).contains("ACCEPTED");
         assertThat(existing.getRequestPayload()).doesNotContain("SHOULD-NOT-REPLACE");
+    }
+
+    @Test
+    void orphanedPaymentSubmissionCanBeCancelledWithoutDeletingAuditHistory() {
+        ObjectMapper mapper = new ObjectMapper();
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, mapper);
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .id(9L)
+                .submissionId("submission-3")
+                .idempotencyKey("payment-batch:device-1:44")
+                .deviceId("device-1")
+                .syncTime(LocalDateTime.now())
+                .submittedBy("cashier")
+                .httpMethod("POST")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .requestPayload("{\"deviceId\":\"device-1\",\"localPaymentBatchId\":\"44\"}")
+                .status("CORRECTION_REQUIRED")
+                .attemptCount(2)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        DeviceSyncCancellationRequest request = new DeviceSyncCancellationRequest();
+        request.setDeviceId("device-1");
+        request.setReason("Local receipt deleted before successful synchronization");
+
+        when(repository.findBySubmissionId("submission-3")).thenReturn(Optional.of(existing));
+        when(paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId("device-1", "44"))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.cancel("submission-3", request, "cashier");
+
+        assertThat(result.getStatus()).isEqualTo("CANCELLED");
+        assertThat(existing.getErrorMessage()).contains("cashier");
+        assertThat(existing.getProcessedAt()).isNotNull();
     }
 }

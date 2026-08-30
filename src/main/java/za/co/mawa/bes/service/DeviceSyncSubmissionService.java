@@ -14,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 import za.co.mawa.bes.dto.v2.devicesync.*;
 import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
+import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 
 import java.time.*;
 import java.util.*;
@@ -22,6 +23,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DeviceSyncSubmissionService {
     private final DeviceSyncSubmissionRepository repository;
+    private final PaymentBatchRepository paymentBatchRepository;
     private final ObjectMapper mapper;
 
     @Value("${device-sync.internal-base-url:http://127.0.0.1:${server.port:8080}}")
@@ -37,6 +39,7 @@ public class DeviceSyncSubmissionService {
         Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKey(key);
         if (existing.isPresent()) {
             DeviceSyncSubmissionEntity entity = existing.get();
+            if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
             if (!"COMPLETED".equals(entity.getStatus())) {
                 // The same durable operation may be retried after the device user
                 // corrected local data. Keep the idempotency identity, but refresh
@@ -117,7 +120,7 @@ public class DeviceSyncSubmissionService {
     @Transactional
     public DeviceSyncSubmissionDto process(String id, HttpHeaders incoming) {
         DeviceSyncSubmissionEntity entity = find(id);
-        if ("COMPLETED".equals(entity.getStatus())) return dto(entity);
+        if (Set.of("COMPLETED", "CANCELLED").contains(entity.getStatus())) return dto(entity);
 
         entity.setStatus("PROCESSING");
         entity.setAttemptCount(entity.getAttemptCount() + 1);
@@ -159,6 +162,9 @@ public class DeviceSyncSubmissionService {
     @Transactional
     public DeviceSyncSubmissionDto correct(String id, DeviceSyncCorrectionRequest request, String userId) {
         DeviceSyncSubmissionEntity entity = find(id);
+        if ("CANCELLED".equals(entity.getStatus())) {
+            throw new IllegalStateException("A cancelled device sync submission cannot be corrected");
+        }
         entity.setRequestPayload(json(request.getPayload()));
         entity.setResponsePayload(null);
         entity.setResponseStatus(null);
@@ -168,6 +174,62 @@ public class DeviceSyncSubmissionService {
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setProcessedAt(null);
         return dto(repository.save(entity));
+    }
+
+    @Transactional
+    public DeviceSyncSubmissionDto cancel(String id, DeviceSyncCancellationRequest request, String userId) {
+        DeviceSyncSubmissionEntity entity = find(id);
+        if (!blank(request == null ? null : request.getIdempotencyKey()) &&
+                !entity.getIdempotencyKey().equals(request.getIdempotencyKey().trim())) {
+            throw new IllegalStateException("The queued operation identity does not match");
+        }
+        if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+        if ("COMPLETED".equals(entity.getStatus())) {
+            throw new IllegalStateException("A completed device sync submission cannot be cancelled");
+        }
+        if (request == null || blank(request.getDeviceId()) || blank(request.getReason())) {
+            throw new IllegalArgumentException("deviceId and cancellation reason are required");
+        }
+        if (blank(entity.getDeviceId()) || !entity.getDeviceId().equals(request.getDeviceId().trim())) {
+            throw new IllegalStateException("The submission does not belong to this device");
+        }
+        if (!isPaymentBatchSubmission(entity.getTargetPath())) {
+            throw new IllegalStateException("Only an orphaned payment-batch submission can be cancelled from MawaPay");
+        }
+
+        Map<String, Object> payload = payloadMap(entity.getRequestPayload());
+        String payloadDeviceId = text(payload.get("deviceId"));
+        String localPaymentBatchId = text(payload.get("localPaymentBatchId"));
+        if (blank(payloadDeviceId) || blank(localPaymentBatchId) ||
+                !entity.getDeviceId().equals(payloadDeviceId)) {
+            throw new IllegalStateException("The queued payment identity is incomplete or does not match this device");
+        }
+        if (paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(
+                payloadDeviceId, localPaymentBatchId).isPresent()) {
+            throw new IllegalStateException(
+                    "The payment batch already exists on the backend and cannot be discarded");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        entity.setStatus("CANCELLED");
+        entity.setErrorMessage("Cancelled by " + userId + ": " + request.getReason().trim());
+        entity.setResponsePayload(null);
+        entity.setResponseStatus(null);
+        entity.setProcessedAt(now);
+        entity.setUpdatedAt(now);
+        return dto(repository.save(entity));
+    }
+
+    @Transactional
+    public DeviceSyncSubmissionDto cancelByKey(DeviceSyncCancellationRequest request, String userId) {
+        if (request == null || blank(request.getIdempotencyKey())) {
+            throw new IllegalArgumentException("idempotencyKey is required");
+        }
+        DeviceSyncSubmissionEntity entity = repository
+                .findByIdempotencyKey(request.getIdempotencyKey().trim())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Device sync submission was not found for the supplied operation"));
+        return cancel(entity.getSubmissionId(), request, userId);
     }
 
     private DeviceSyncSubmissionEntity find(String id) {
@@ -236,6 +298,24 @@ public class DeviceSyncSubmissionService {
         } catch (Exception exception) {
             return value;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> payloadMap(String value) {
+        Object parsed = parse(value);
+        if (!(parsed instanceof Map<?, ?> raw)) return Collections.emptyMap();
+        Map<String, Object> result = new LinkedHashMap<>();
+        raw.forEach((key, item) -> result.put(String.valueOf(key), item));
+        return result;
+    }
+
+    private boolean isPaymentBatchSubmission(String path) {
+        return path != null && (path.startsWith("/v2/sync/payment-batches/") ||
+                path.startsWith("v2/sync/payment-batches/"));
+    }
+
+    private String text(Object value) {
+        return value == null ? null : value.toString().trim();
     }
 
     private String json(Object value) {
