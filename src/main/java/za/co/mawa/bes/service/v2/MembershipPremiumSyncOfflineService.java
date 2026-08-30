@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.*;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
-import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
 import za.co.mawa.bes.enums.*;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
@@ -139,7 +138,7 @@ public class MembershipPremiumSyncOfflineService {
                 }
             }
 
-            reconcilePremiumFromAllocations(premium, request.getCreatedBy());
+            membershipPremiumService.reconcileFromPostedAllocations(premium, request.getCreatedBy());
             syncedReceipts.add(receiptService.getReceipt(receipt.getId()));
             if (existingReceipt.isPresent() && allocationExists) {
                 warnings.add("Receipt already existed and premium allocation was verified: " + offlineReceipt.getReceiptNo());
@@ -231,24 +230,6 @@ public class MembershipPremiumSyncOfflineService {
         receipt.setCreatedBy(request.getCreatedBy());
 
         return receiptService.saveReceipt(receipt);
-    }
-
-    private void reconcilePremiumFromAllocations(MembershipPremiumEntity premium, String updatedBy) {
-        long allocatedCents = receiptAllocationRepository
-                .findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
-                        ReceiptAllocationType.MEMBERSHIP_PREMIUM, premium.getId())
-                .stream()
-                .map(ReceiptAllocationEntity::getAmountCents)
-                .filter(java.util.Objects::nonNull)
-                .mapToLong(Long::longValue)
-                .sum();
-        long premiumAmountCents = premium.getAmountCents() == null ? allocatedCents : premium.getAmountCents();
-        long targetPaidCents = Math.min(allocatedCents, premiumAmountCents);
-        long recordedPaidCents = premium.getPaidAmountCents() == null ? 0L : premium.getPaidAmountCents();
-        if (targetPaidCents > recordedPaidCents) {
-            membershipPremiumService.applyPayment(
-                    premium, targetPaidCents - recordedPaidCents, updatedBy);
-        }
     }
 
     private Long determineMonthlyPremiumCents(String membershipId) {

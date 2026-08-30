@@ -32,6 +32,7 @@ public class ReceiptService {
     private final ReceiptAllocationRepository receiptAllocationRepository;
     private final ReceiptMapper receiptMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final MembershipPremiumService membershipPremiumService;
 
     public ReceiptEntity saveReceipt(ReceiptEntity receipt) {
         return receiptRepository.save(receipt);
@@ -323,11 +324,22 @@ public class ReceiptService {
         receiptRepository.save(receipt);
 
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository.findByReceiptId(receiptId);
+        java.util.Set<String> affectedPremiumIds = new java.util.HashSet<>();
         for (ReceiptAllocationEntity allocation : allocations) {
             allocation.setStatus(ReceiptStatus.REVERSED);
             allocation.setUpdatedAt(LocalDateTime.now());
             allocation.setUpdatedBy(reversedBy);
             receiptAllocationRepository.save(allocation);
+            if (allocation.getAllocationType() == ReceiptAllocationType.MEMBERSHIP_PREMIUM
+                    && allocation.getReferenceId() != null
+                    && !allocation.getReferenceId().isBlank()) {
+                affectedPremiumIds.add(allocation.getReferenceId());
+            }
+        }
+
+        for (String premiumId : affectedPremiumIds) {
+            membershipPremiumService.reconcileFromPostedAllocations(
+                    membershipPremiumService.getById(premiumId), reversedBy);
         }
 
         return receiptMapper.toDto(receipt, allocations);
