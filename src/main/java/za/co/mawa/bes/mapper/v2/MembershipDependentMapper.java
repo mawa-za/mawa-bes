@@ -1,6 +1,8 @@
 package za.co.mawa.bes.mapper.v2;
 
 import org.springframework.stereotype.Component;
+import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.dto.v2.MembershipDependentCreateRequestDto;
 import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
@@ -10,6 +12,15 @@ import za.co.mawa.bes.dto.v2.MembershipDependentUpdateRequestDto;
 public class MembershipDependentMapper {
 
     public MembershipDependentResponseDto toResponse(MembershipDependentEntity entity) {
+        return toResponse(entity, null);
+    }
+
+    public MembershipDependentResponseDto toResponse(MembershipDependentEntity entity, PartnerEntity partner) {
+        return toResponse(entity, partner, null);
+    }
+
+    public MembershipDependentResponseDto toResponse(MembershipDependentEntity entity, PartnerEntity partner,
+                                                       PartnerIdentityEntity identity) {
         if (entity == null) {
             return null;
         }
@@ -18,6 +29,11 @@ public class MembershipDependentMapper {
                 .id(entity.getId())
                 .membershipId(entity.getMembershipId())
                 .dependentPartnerId(entity.getDependentPartnerId())
+                .firstName(partner == null ? null : partner.getName2())
+                .lastName(partner == null ? null : partner.getName1())
+                .number(partner == null ? null : partner.getNo())
+                .identityType(identity == null || identity.getPartnerIdentityPK() == null ? null : identity.getPartnerIdentityPK().getType())
+                .identityNumber(identity == null || identity.getPartnerIdentityPK() == null ? null : identity.getPartnerIdentityPK().getValue())
                 .dependentType(entity.getDependentType())
                 .active(entity.getActive())
                 .status(entity.getStatus())

@@ -2,13 +2,12 @@
 
 The membership migration endpoint migrates legacy membership transactions into the v2 membership tables and now migrates dependents directly from `transaction_partner`.
 
-## Endpoint
+## Execution
 
-```http
-POST /v2/membership/migrate
-```
-
-`GET /v2/membership/migrate` is still supported for backward compatibility.
+Legacy membership migration is not exposed as an HTTP endpoint. In particular,
+`POST /v2/membership/migrate` and its former `GET` compatibility route are no
+longer available. Migration execution is restricted to the configured internal
+scheduler while it remains enabled.
 
 ## What is migrated
 
@@ -26,6 +25,14 @@ The migration is idempotent. Running it more than once will not duplicate depend
 - Memberships are saved directly with the old transaction number and `old_id`.
 - Dependents are read directly from `transaction_partner` instead of `DependentService.get(...)`, which previously swallowed partner lookup errors.
 - One failed membership no longer stops the full tenant migration.
+- The current legacy plan is selected deterministically from the newest
+  `transaction_item` (`valid_from DESC, item DESC`), rather than from the
+  non-deterministic item exposed by the legacy transaction view.
+- Re-running the migration does not overwrite the plan or premium of an
+  existing v2 membership. This protects approved plan and premium changes.
+- `V202608290001__repair_migrated_membership_plan_selection.sql` repairs
+  affected migrated memberships, excludes memberships with v2 plan-change
+  requests, and writes each correction to `membership_change_audit`.
 - The response includes counts and warnings per tenant.
 
 ## Response example

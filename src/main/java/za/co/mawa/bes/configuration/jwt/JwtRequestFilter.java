@@ -79,7 +79,16 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 if (jwtTokenUtil.isDeviceSyncToken(tokenClaims)) {
                     String deviceId = tokenClaims.get("device_id", String.class);
                     Integer tokenVersion = tokenClaims.get("token_version", Integer.class);
-                    deviceIdentityService.requireActive(deviceId, tokenVersion == null ? 0 : tokenVersion);
+                    try {
+                        deviceIdentityService.requireActive(deviceId, tokenVersion == null ? 0 : tokenVersion);
+                    } catch (IllegalArgumentException ex) {
+                        log.warn("Device sync authentication rejected: deviceId={}, path={}, reason={}",
+                                deviceId, request.getServletPath(), ex.getMessage());
+                        SecurityContextHolder.clearContext();
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                                "Device sync identity must be re-enrolled");
+                        return;
+                    }
                     if (!isDeviceSyncPath(request.getServletPath())) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN,
                                 "Device identity is restricted to MawaPay synchronization");

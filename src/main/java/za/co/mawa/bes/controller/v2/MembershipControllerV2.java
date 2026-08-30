@@ -10,15 +10,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.dto.v2.MembershipResponseDto;
+import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
 import za.co.mawa.bes.dto.v2.MembershipStatusChangeRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.MembershipPartnerIdentityCorrectionRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentReplaceRequest;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
-import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
@@ -28,8 +29,8 @@ import za.co.mawa.bes.service.v2.MembershipPlanService;
 import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 import za.co.mawa.bes.service.v2.MembershipStatusChangeService;
-import za.co.mawa.bes.service.v2.MigrateService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
+import za.co.mawa.bes.service.v2.MembershipPartnerIdentityCorrectionService;
 
 import java.security.Principal;
 import java.util.List;
@@ -40,13 +41,13 @@ import za.co.mawa.bes.configuration.context.UserContext;
 @RequestMapping("v2/membership")
 public class MembershipControllerV2 {
     @Autowired
-    MigrateService migrateService;
-    @Autowired
     MembershipRepository membershipRepository;
     @Autowired
     MembershipStatusChangeService membershipStatusChangeService;
     @Autowired
     MembershipActionGuardService membershipActionGuardService;
+    @Autowired
+    MembershipPartnerIdentityCorrectionService membershipPartnerIdentityCorrectionService;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -70,16 +71,6 @@ public class MembershipControllerV2 {
     // ------------------------------------------
     // Membership Plan Endpoints
     // ------------------------------------------
-    @PostMapping("migrate")
-    public ResponseEntity<?> migrate() {
-        return ResponseEntity.ok(migrateService.migrateMemberships());
-    }
-
-    @GetMapping("migrate")
-    public ResponseEntity<?> migrateLegacyGet() {
-        return ResponseEntity.ok(migrateService.migrateMemberships());
-    }
-
     @GetMapping("/plans")
     public ResponseEntity<Page<MembershipPlanEntity>> listMembershipPlans(Pageable pageable) {
         return ResponseEntity.ok(membershipPlanService.getAllPlans(pageable));
@@ -227,8 +218,17 @@ public class MembershipControllerV2 {
     // ------------------------------------------
 
     @GetMapping("/{membershipId}/dependents")
-    public ResponseEntity<List<MembershipDependentEntity>> listDependents(@PathVariable String membershipId) {
-        return ResponseEntity.ok(membershipDependentService.getDependentsByMembershipId(membershipId));
+    public ResponseEntity<List<MembershipDependentResponseDto>> listDependents(@PathVariable String membershipId) {
+        return ResponseEntity.ok(membershipDependentService.getDependentResponsesByMembershipId(membershipId));
+    }
+
+    @PostMapping("/{membershipId}/identity-corrections")
+    public ResponseEntity<ApprovalRequestResponse> requestIdentityCorrection(
+            @PathVariable String membershipId,
+            @Valid @RequestBody MembershipPartnerIdentityCorrectionRequest request,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                membershipPartnerIdentityCorrectionService.request(membershipId, request, actor(principal)));
     }
 
     @PostMapping("/{membershipId}/dependents")

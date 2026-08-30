@@ -19,6 +19,11 @@ public class MembershipDependentResponseDto {
     private String id;
     private String membershipId;
     private String dependentPartnerId;
+    private String firstName;
+    private String lastName;
+    private String number;
+    private String identityType;
+    private String identityNumber;
     private DependentType dependentType;
     private Boolean active;
     private MembershipDependentStatus status;
