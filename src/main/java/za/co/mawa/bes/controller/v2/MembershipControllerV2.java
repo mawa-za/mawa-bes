@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.v2.MembershipResponseDto;
 import za.co.mawa.bes.dto.v2.MembershipDependentResponseDto;
 import za.co.mawa.bes.dto.v2.MembershipStatusChangeRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.MembershipPartnerIdentityCorrectionRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
@@ -29,6 +30,7 @@ import za.co.mawa.bes.service.v2.MembershipService;
 import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 import za.co.mawa.bes.service.v2.MembershipStatusChangeService;
 import za.co.mawa.bes.service.v2.PayAppMasterDataService;
+import za.co.mawa.bes.service.v2.MembershipPartnerIdentityCorrectionService;
 
 import java.security.Principal;
 import java.util.List;
@@ -44,6 +46,8 @@ public class MembershipControllerV2 {
     MembershipStatusChangeService membershipStatusChangeService;
     @Autowired
     MembershipActionGuardService membershipActionGuardService;
+    @Autowired
+    MembershipPartnerIdentityCorrectionService membershipPartnerIdentityCorrectionService;
     private final MembershipPlanService membershipPlanService;
     private final MembershipService membershipService;
     private final MembershipDependentService membershipDependentService;
@@ -216,6 +220,15 @@ public class MembershipControllerV2 {
     @GetMapping("/{membershipId}/dependents")
     public ResponseEntity<List<MembershipDependentResponseDto>> listDependents(@PathVariable String membershipId) {
         return ResponseEntity.ok(membershipDependentService.getDependentResponsesByMembershipId(membershipId));
+    }
+
+    @PostMapping("/{membershipId}/identity-corrections")
+    public ResponseEntity<ApprovalRequestResponse> requestIdentityCorrection(
+            @PathVariable String membershipId,
+            @Valid @RequestBody MembershipPartnerIdentityCorrectionRequest request,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                membershipPartnerIdentityCorrectionService.request(membershipId, request, actor(principal)));
     }
 
     @PostMapping("/{membershipId}/dependents")
