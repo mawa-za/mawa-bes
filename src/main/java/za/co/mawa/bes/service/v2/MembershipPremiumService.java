@@ -50,7 +50,7 @@ public class MembershipPremiumService {
     public List<MembershipPremiumResponseDto> getPremiumHistory(String membershipId) {
         List<String> membershipIds = membershipService.membershipIdentifiers(membershipId);
         List<MembershipPremiumEntity> premiums =
-                membershipPremiumRepository.findForReconciliation(membershipIds);
+                membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds);
         if (premiums.isEmpty()) {
             return List.of();
         }
@@ -359,7 +359,7 @@ public class MembershipPremiumService {
         var membership = membershipService.resolveMembership(membershipId);
         List<String> membershipIds = membershipService.membershipIdentifiers(membership.getId());
         List<MembershipPremiumEntity> premiums =
-                membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds);
+                membershipPremiumRepository.findForReconciliation(membershipIds);
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository
                 .findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
                 .filter(allocation -> allocation.getAllocationType()
