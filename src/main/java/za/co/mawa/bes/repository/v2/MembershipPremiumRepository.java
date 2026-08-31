@@ -1,6 +1,10 @@
 package za.co.mawa.bes.repository.v2;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
 
@@ -24,6 +28,13 @@ public interface MembershipPremiumRepository extends JpaRepository<MembershipPre
 
     List<MembershipPremiumEntity> findByMembershipIdInOrderByPeriodYYYYMMAsc(
             Collection<String> membershipIds
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select premium from MembershipPremiumEntity premium "
+            + "where premium.membershipId in :membershipIds order by premium.periodYYYYMM asc")
+    List<MembershipPremiumEntity> findForReconciliation(
+            @Param("membershipIds") Collection<String> membershipIds
     );
 
     List<MembershipPremiumEntity> findByMembershipIdAndStatusInOrderByPeriodYYYYMMAsc(

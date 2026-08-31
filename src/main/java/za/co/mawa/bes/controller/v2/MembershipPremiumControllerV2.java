@@ -6,6 +6,7 @@ import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.MembershipPremiumEditRequest;
+import za.co.mawa.bes.dto.v2.MembershipPremiumRecalculationResponse;
 import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.service.v2.MembershipPremiumService;
@@ -52,6 +53,14 @@ public class MembershipPremiumControllerV2 {
             @PathVariable String membershipId
     ) {
         return membershipPremiumService.getUnpaidPremiums(membershipId);
+    }
+
+    @PostMapping("/recalculate")
+    public MembershipPremiumRecalculationResponse recalculatePremiums(
+            @PathVariable String membershipId,
+            Principal principal
+    ) {
+        return membershipPremiumService.reconcileMembership(membershipId, actor(principal));
     }
 
 
