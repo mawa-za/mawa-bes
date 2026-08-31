@@ -216,7 +216,7 @@ public class PremiumPaymentEditService {
                 receipt,
                 manualReceipt == null ? null : manualReceipt.getId(),
                 completedBy);
-        membershipService.recalculatePaidUpToPeriod(membership.getId());
+        membershipPremiumService.reconcileMembership(membership.getId(), completedBy);
         markComplete(actionId, completionStatus, completedBy);
     }
 
