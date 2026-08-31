@@ -21,6 +21,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +34,19 @@ class MembershipPremiumServiceTest {
     @Mock MembershipPremiumMapper premiumMapper;
     @Mock ReceiptMapper receiptMapper;
     @InjectMocks MembershipPremiumService service;
+
+    @Test
+    void premiumHistoryUsesReadOnlyRepositoryQuery() {
+        when(membershipService.membershipIdentifiers("membership-1"))
+                .thenReturn(List.of("membership-1"));
+        when(premiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(List.of("membership-1")))
+                .thenReturn(List.of());
+
+        assertEquals(List.of(), service.getPremiumHistory("membership-1"));
+
+        verify(premiumRepository).findByMembershipIdInOrderByPeriodYYYYMMAsc(List.of("membership-1"));
+        verify(premiumRepository, never()).findForReconciliation(any());
+    }
 
     @Test
     void reversedReceiptAndAllocationDoNotSettlePremium() {
