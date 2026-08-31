@@ -324,7 +324,7 @@ public class ReceiptService {
         receiptRepository.save(receipt);
 
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository.findByReceiptId(receiptId);
-        java.util.Set<String> affectedPremiumIds = new java.util.HashSet<>();
+        java.util.Set<String> affectedMembershipIds = new java.util.HashSet<>();
         for (ReceiptAllocationEntity allocation : allocations) {
             allocation.setStatus(ReceiptStatus.REVERSED);
             allocation.setUpdatedAt(LocalDateTime.now());
@@ -333,13 +333,20 @@ public class ReceiptService {
             if (allocation.getAllocationType() == ReceiptAllocationType.MEMBERSHIP_PREMIUM
                     && allocation.getReferenceId() != null
                     && !allocation.getReferenceId().isBlank()) {
-                affectedPremiumIds.add(allocation.getReferenceId());
+                affectedMembershipIds.add(
+                        membershipPremiumService.getById(allocation.getReferenceId()).getMembershipId());
+            }
+            if (allocation.getAllocationType() == ReceiptAllocationType.MEMBERSHIP_PREMIUM
+                    && allocation.getMembershipId() != null
+                    && !allocation.getMembershipId().isBlank()) {
+                affectedMembershipIds.add(allocation.getMembershipId());
             }
         }
 
-        for (String premiumId : affectedPremiumIds) {
-            membershipPremiumService.reconcileFromPostedAllocations(
-                    membershipPremiumService.getById(premiumId), reversedBy);
+        // Membership-wide reconciliation also covers migrated allocations that
+        // have no premium reference_id.
+        for (String membershipId : affectedMembershipIds) {
+            membershipPremiumService.reconcileMembership(membershipId, reversedBy);
         }
 
         return receiptMapper.toDto(receipt, allocations);

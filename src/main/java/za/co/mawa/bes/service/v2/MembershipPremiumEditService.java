@@ -25,6 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MembershipPremiumEditService {
     private final MembershipPremiumRepository premiumRepository;
+    private final MembershipPremiumService membershipPremiumService;
     private final MembershipService membershipService;
     private final MembershipActionGuardService membershipActionGuardService;
     private final ApprovalService approvalService;
@@ -133,7 +134,7 @@ public class MembershipPremiumEditService {
         premium.setUpdatedAt(LocalDateTime.now());
         premium.setUpdatedBy(actionBy);
         premiumRepository.saveAndFlush(premium);
-        membershipService.recalculatePaidUpToPeriod(membership.getId());
+        membershipPremiumService.reconcileMembership(membership.getId(), actionBy);
         markComplete(requestId, completionStatus, actionBy);
     }
 
