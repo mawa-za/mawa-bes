@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.dto.v2.MembershipPremiumResponseDto;
+import za.co.mawa.bes.dto.v2.MembershipPremiumRecalculationResponse;
 import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
@@ -49,7 +50,7 @@ public class MembershipPremiumService {
     public List<MembershipPremiumResponseDto> getPremiumHistory(String membershipId) {
         List<String> membershipIds = membershipService.membershipIdentifiers(membershipId);
         List<MembershipPremiumEntity> premiums =
-                membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds);
+                membershipPremiumRepository.findForReconciliation(membershipIds);
         if (premiums.isEmpty()) {
             return List.of();
         }
@@ -303,7 +304,19 @@ public class MembershipPremiumService {
                         premium.getId())
                 .stream()
                 .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
-                .toList();
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
+
+        // Migrated manual receipts may pre-date reference_id. Preserve the
+        // membership + period fallback used by the ledger repair migration.
+        List<String> membershipIds = membershipService.membershipIdentifiers(premium.getMembershipId());
+        receiptAllocationRepository.findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
+                .filter(allocation -> allocation.getAllocationType()
+                        == za.co.mawa.bes.enums.ReceiptAllocationType.MEMBERSHIP_PREMIUM)
+                .filter(allocation -> trim(allocation.getReferenceId()).isEmpty())
+                .filter(allocation -> Objects.equals(trim(allocation.getPeriodYYYYMM()), trim(premium.getPeriodYYYYMM())))
+                .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                .filter(allocation -> postedAllocations.stream().noneMatch(existing -> Objects.equals(existing.getId(), allocation.getId())))
+                .forEach(postedAllocations::add);
 
         Map<String, ReceiptStatus> receiptStatuses = receiptRepository
                 .findAllById(postedAllocations.stream()
@@ -335,6 +348,70 @@ public class MembershipPremiumService {
         MembershipPremiumEntity saved = membershipPremiumRepository.saveAndFlush(premium);
         membershipService.recalculatePaidUpToPeriod(saved.getMembershipId());
         return saved;
+    }
+
+    /** Rebuild every premium for one logical membership from its posted receipt ledger. */
+    @Transactional
+    public MembershipPremiumRecalculationResponse reconcileMembership(
+            String membershipId,
+            String updatedBy
+    ) {
+        var membership = membershipService.resolveMembership(membershipId);
+        List<String> membershipIds = membershipService.membershipIdentifiers(membership.getId());
+        List<MembershipPremiumEntity> premiums =
+                membershipPremiumRepository.findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds);
+        List<ReceiptAllocationEntity> allocations = receiptAllocationRepository
+                .findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
+                .filter(allocation -> allocation.getAllocationType()
+                        == za.co.mawa.bes.enums.ReceiptAllocationType.MEMBERSHIP_PREMIUM)
+                .filter(allocation -> allocation.getStatus() == ReceiptStatus.POSTED)
+                .toList();
+        Map<String, ReceiptStatus> receiptStatuses = receiptRepository.findAllById(
+                        allocations.stream().map(ReceiptAllocationEntity::getReceiptId)
+                                .filter(Objects::nonNull).distinct().toList())
+                .stream().collect(Collectors.toMap(ReceiptEntity::getId, ReceiptEntity::getStatus));
+
+        int corrected = 0;
+        LocalDateTime now = LocalDateTime.now();
+        String actor = trim(updatedBy).isEmpty() ? "SYSTEM" : updatedBy.trim();
+        for (MembershipPremiumEntity premium : premiums) {
+            if (premium.getStatus() == PremiumStatus.CANCELLED
+                    || premium.getStatus() == PremiumStatus.WRITTEN_OFF
+                    || premium.getStatus() == PremiumStatus.REVERSED) {
+                continue;
+            }
+            long allocated = allocations.stream()
+                    .filter(allocation -> receiptStatuses.get(allocation.getReceiptId()) == ReceiptStatus.POSTED)
+                    .filter(allocation -> Objects.equals(trim(allocation.getReferenceId()), premium.getId())
+                            || (trim(allocation.getReferenceId()).isEmpty()
+                                && membershipIds.contains(trim(allocation.getMembershipId()))
+                                && Objects.equals(trim(allocation.getPeriodYYYYMM()), trim(premium.getPeriodYYYYMM()))))
+                    .map(ReceiptAllocationEntity::getAmountCents).filter(Objects::nonNull)
+                    .mapToLong(Long::longValue).sum();
+            long paid = Math.min(allocated, safe(premium.getAmountCents()));
+            long balance = Math.max(safe(premium.getAmountCents()) - paid, 0L);
+            PremiumStatus status = paid <= 0 ? PremiumStatus.UNPAID
+                    : balance > 0 ? PremiumStatus.PARTIALLY_PAID : PremiumStatus.PAID;
+            if (safe(premium.getPaidAmountCents()) != paid
+                    || safe(premium.getBalanceCents()) != balance
+                    || premium.getStatus() != status) {
+                premium.setPaidAmountCents(paid);
+                premium.setBalanceCents(balance);
+                premium.setStatus(status);
+                premium.setUpdatedAt(now);
+                premium.setUpdatedBy(actor);
+                membershipPremiumRepository.save(premium);
+                corrected++;
+            }
+        }
+        membershipPremiumRepository.flush();
+        String paidUpTo = membershipService.recalculatePaidUpToPeriod(membership.getId());
+        return MembershipPremiumRecalculationResponse.builder()
+                .membershipId(membership.getId())
+                .premiumsChecked(premiums.size())
+                .premiumsCorrected(corrected)
+                .paidUpToPeriod(paidUpTo)
+                .build();
     }
 
     private long safe(Long value) {

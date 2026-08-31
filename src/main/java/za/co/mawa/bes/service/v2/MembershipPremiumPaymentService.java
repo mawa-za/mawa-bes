@@ -80,7 +80,9 @@ public class MembershipPremiumPaymentService {
                 receipts.stream().map(ReceiptResponseDto::getId).toList(),
                 request.getCreatedBy(),
                 request.getDeviceId());
-        String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
+        String paidUpTo = membershipPremiumService
+                .reconcileMembership(request.getMembershipId(), request.getCreatedBy())
+                .getPaidUpToPeriod();
 
         return PaymentBatchResponseDto.builder()
                 .id(batch.getId())
@@ -162,7 +164,9 @@ public class MembershipPremiumPaymentService {
         PaymentBatchEntity batch = createBatch(payment);
         List<ReceiptResponseDto> receipts = allocateManualAmountToPremiums(batch, request, mode, collector, area);
         saveManualReceiptRegister(batch, request, mode, collector, area);
-        String paidUpTo = membershipService.recalculatePaidUpToPeriod(request.getMembershipId());
+        String paidUpTo = membershipPremiumService
+                .reconcileMembership(request.getMembershipId(), request.getCreatedBy())
+                .getPaidUpToPeriod();
 
         // Receipt-book captures are reconciled through the dedicated manual cashup flow.
         // They must not be added to the automatic ERP online cashup.
@@ -423,8 +427,9 @@ public class MembershipPremiumPaymentService {
             manualPremiumReceiptRepository.save(manualReceipt);
         }
 
-        membershipService.recalculatePaidUpToPeriod(sourceMembershipId);
-        String targetPaidUpTo = membershipService.recalculatePaidUpToPeriod(targetMembershipId);
+        membershipPremiumService.reconcileMembership(sourceMembershipId, actor);
+        String targetPaidUpTo = membershipPremiumService
+                .reconcileMembership(targetMembershipId, actor).getPaidUpToPeriod();
 
         List<ReceiptResponseDto> responseReceipts = receipts.stream()
                 .map(receipt -> receiptService.getReceipt(receipt.getId()))
@@ -566,7 +571,8 @@ public class MembershipPremiumPaymentService {
                 + "Reversed after approved deletion: " + reversalReason);
         paymentBatchRepository.save(batch);
         if (!isBlank(batch.getMembershipId())) {
-            membershipService.recalculatePaidUpToPeriod(resolveCurrentMembershipId(batch.getMembershipId()));
+            membershipPremiumService.reconcileMembership(
+                    resolveCurrentMembershipId(batch.getMembershipId()), actionBy);
         }
     }
 

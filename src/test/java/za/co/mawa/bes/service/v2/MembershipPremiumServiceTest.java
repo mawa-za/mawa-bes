@@ -74,6 +74,35 @@ class MembershipPremiumServiceTest {
         assertEquals(PremiumStatus.PAID, premium.getStatus());
     }
 
+    @Test
+    void legacyAllocationWithoutReferenceUsesMembershipAndPeriod() {
+        MembershipPremiumEntity premium = premium("premium-1");
+        premium.setPaidAmountCents(0L);
+        premium.setBalanceCents(10_000L);
+        premium.setStatus(PremiumStatus.UNPAID);
+        ReceiptAllocationEntity legacy = allocation("allocation-legacy", "receipt-legacy", ReceiptStatus.POSTED);
+        legacy.setReferenceId(null);
+        legacy.setMembershipId("membership-1");
+        legacy.setPeriodYYYYMM("202608");
+
+        when(membershipService.membershipIdentifiers("membership-1"))
+                .thenReturn(List.of("membership-1"));
+        when(allocationRepository.findByAllocationTypeAndReferenceIdOrderByCreatedAtAsc(
+                ReceiptAllocationType.MEMBERSHIP_PREMIUM, premium.getId()))
+                .thenReturn(List.of());
+        when(allocationRepository.findByMembershipIdInOrderByCreatedAtDesc(List.of("membership-1")))
+                .thenReturn(List.of(legacy));
+        when(receiptRepository.findAllById(any()))
+                .thenReturn(List.of(receipt("receipt-legacy", ReceiptStatus.POSTED)));
+        when(premiumRepository.saveAndFlush(premium)).thenReturn(premium);
+
+        service.reconcileFromPostedAllocations(premium, "tester");
+
+        assertEquals(10_000L, premium.getPaidAmountCents());
+        assertEquals(0L, premium.getBalanceCents());
+        assertEquals(PremiumStatus.PAID, premium.getStatus());
+    }
+
     private MembershipPremiumEntity premium(String id) {
         MembershipPremiumEntity premium = new MembershipPremiumEntity();
         premium.setId(id);
