@@ -12,6 +12,14 @@ import za.co.mawa.bes.entity.v2.FuneralServiceEntity;
 public interface FuneralServiceRepository extends JpaRepository<FuneralServiceEntity, String> {
 
     @Query("""
+            SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END
+              FROM FuneralServiceEntity f
+             WHERE f.mortuaryInventoryId = :mortuaryInventoryId
+               AND UPPER(COALESCE(f.status, '')) <> 'CANCELLED'
+            """)
+    boolean existsActiveByMortuaryInventoryId(@Param("mortuaryInventoryId") String mortuaryInventoryId);
+
+    @Query("""
             SELECT f
               FROM FuneralServiceEntity f
              WHERE (:status IS NULL OR :status = '' OR UPPER(f.status) = UPPER(:status))
