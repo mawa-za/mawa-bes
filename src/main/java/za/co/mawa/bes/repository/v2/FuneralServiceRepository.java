@@ -23,7 +23,7 @@ public interface FuneralServiceRepository extends JpaRepository<FuneralServiceEn
                     OR LOWER(COALESCE(f.deathCertificateNo, '')) LIKE LOWER(CONCAT('%', :query, '%'))
                     OR LOWER(COALESCE(f.causeOfDeath, '')) LIKE LOWER(CONCAT('%', :query, '%'))
                     OR LOWER(COALESCE(f.status, '')) LIKE LOWER(CONCAT('%', :query, '%')))
-             ORDER BY f.createdAt DESC
+             ORDER BY f.serviceRequestNo DESC
             """)
     List<FuneralServiceEntity> search(@Param("query") String query, @Param("status") String status);
 }

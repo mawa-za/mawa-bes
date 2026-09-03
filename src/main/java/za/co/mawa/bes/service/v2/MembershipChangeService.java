@@ -223,6 +223,15 @@ public class MembershipChangeService {
                 Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
             throw new IllegalArgumentException("The selected person is already linked to this membership");
         }
+        MembershipPlanEntity plan = membershipPlanRepository.findById(membership.getPlanId())
+                .orElseThrow(() -> new IllegalArgumentException("Membership plan not found"));
+        int maximum = plan.getMaxDependents() == null ? 0 : plan.getMaxDependents();
+        long current = membershipDependentRepository.countByMembershipIdAndStatusIn(
+                membershipId, Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED));
+        if (maximum > 0 && current >= maximum) {
+            throw new IllegalStateException("The plan allows a maximum of " + maximum
+                    + " dependents. Deceased dependents with finalised claims remain part of this count.");
+        }
 
         String actionBy = actor(actor);
         MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
@@ -235,8 +244,8 @@ public class MembershipChangeService {
                 .newPlanId(membership.getPlanId())
                 .newDependentPartnerId(partnerId)
                 .newDependentType(dependentType.name())
-                .waitingPeriodMonths(0)
-                .effectiveDate(LocalDate.now())
+                .waitingPeriodMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths())
+                .effectiveDate(LocalDate.now().plusMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths()))
                 .reason(requireReason(request == null ? null : request.getReason()))
                 .requestedAt(LocalDateTime.now())
                 .requestedBy(actionBy)
