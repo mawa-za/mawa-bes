@@ -351,10 +351,16 @@ public class MembershipService {
                 throw new IllegalArgumentException("Membership start date is required");
             }
             if (membership.getStatus() == null || membership.getStatus().isBlank()) {
-                membership.setStatus((selectedPlan.getWaitingPeriodMonths() == null ? 3 : selectedPlan.getWaitingPeriodMonths()) > 0
+                int waitingMonths = selectedPlan.getWaitingPeriodMonths() == null ? 3 : selectedPlan.getWaitingPeriodMonths();
+                membership.setBenefitEligibleFrom(membership.getStartDate().plusMonths(waitingMonths));
+                membership.setStatus(waitingMonths > 0
                         ? "WAITING_PERIOD" : "ACTIVE");
             } else {
                 membership.setStatus(membership.getStatus().trim().toUpperCase());
+                if (membership.getBenefitEligibleFrom() == null) {
+                    int waitingMonths = selectedPlan.getWaitingPeriodMonths() == null ? 3 : selectedPlan.getWaitingPeriodMonths();
+                    membership.setBenefitEligibleFrom(membership.getStartDate().plusMonths(waitingMonths));
+                }
             }
 
             boolean approvalRequired = additionalMembership
