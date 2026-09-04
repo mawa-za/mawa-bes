@@ -1236,7 +1236,15 @@ public class MembershipChangeService {
     private MembershipChangeAuditResponse toAuditResponse(MembershipChangeAuditEntity e) {
         return MembershipChangeAuditResponse.builder().id(e.getId()).membershipId(e.getMembershipId()).changeRequestId(e.getChangeRequestId())
                 .eventType(e.getEventType()).oldValuesJson(e.getOldValuesJson()).newValuesJson(e.getNewValuesJson())
-                .details(e.getDetails()).performedBy(e.getPerformedBy()).performedAt(e.getPerformedAt()).build();
+                .details(e.getDetails()).performedBy(username(e.getPerformedBy())).performedAt(e.getPerformedAt()).build();
+    }
+
+    private String username(String userId) {
+        if (clean(userId) == null) return "SYSTEM";
+        List<String> names = jdbcTemplate.query(
+                "SELECT username FROM `user` WHERE id=? OR partner=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1",
+                (rs, rowNum) -> rs.getString(1), userId, userId, userId);
+        return names.isEmpty() || clean(names.get(0)) == null ? userId : names.get(0);
     }
 
 
