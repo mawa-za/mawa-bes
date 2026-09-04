@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
