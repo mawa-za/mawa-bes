@@ -10,6 +10,8 @@ import za.co.mawa.bes.mapper.v2.MembershipDependentMapper;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
+import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
+import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipDependentStatus;
 
 import java.time.LocalDate;
@@ -29,17 +31,20 @@ public class MembershipDependentService {
     private final PartnerRepository partnerRepository;
     private final MembershipDependentMapper membershipDependentMapper;
     private final PartnerIdentityRepository partnerIdentityRepository;
+    private final MembershipClaimRepository membershipClaimRepository;
 
     @Autowired
     public MembershipDependentService(
             MembershipDependentRepository membershipDependentRepository,
             PartnerRepository partnerRepository,
             MembershipDependentMapper membershipDependentMapper,
-            PartnerIdentityRepository partnerIdentityRepository) {
+            PartnerIdentityRepository partnerIdentityRepository,
+            MembershipClaimRepository membershipClaimRepository) {
         this.membershipDependentRepository = membershipDependentRepository;
         this.partnerRepository = partnerRepository;
         this.membershipDependentMapper = membershipDependentMapper;
         this.partnerIdentityRepository = partnerIdentityRepository;
+        this.membershipClaimRepository = membershipClaimRepository;
     }
 
     public List<MembershipDependentEntity> getDependentsByMembershipId(String membershipId) {
@@ -119,8 +124,12 @@ public class MembershipDependentService {
 
         if (dependent.isPresent()) {
             MembershipDependentEntity existing = dependent.get();
-            if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
-                throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
+            if (membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
+                    membershipId, existing.getDependentPartnerId(),
+                    List.of(MembershipClaimStatus.APPROVED, MembershipClaimStatus.PAYMENT_PENDING,
+                            MembershipClaimStatus.PAYMENT_PROCESSING, MembershipClaimStatus.PAYMENT_FAILED,
+                            MembershipClaimStatus.PAID))) {
+                throw new IllegalArgumentException("A dependent with a finalised claim cannot be removed from membership history");
             }
             existing.setActive(false);
             existing.setStatus(MembershipDependentStatus.REMOVED);

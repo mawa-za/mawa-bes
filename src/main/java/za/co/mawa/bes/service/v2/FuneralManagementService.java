@@ -648,6 +648,13 @@ public class FuneralManagementService {
         if (coverMap.isEmpty()) {
             throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
         }
+        service.setMembershipNo(coverMap.values().stream()
+                .map(FuneralMembershipCoverDto::getMembershipNumber)
+                .filter(StringUtils::hasText)
+                .sorted(java.util.Comparator.reverseOrder())
+                .findFirst()
+                .orElse(null));
+        funeralServiceRepository.save(service);
         boolean hasLocalCover = coverMap.values().stream()
                 .anyMatch(cover -> COVER_SOURCE_LOCAL.equals(cover.getCoverSource()));
         if (hasLocalCover && !StringUtils.hasText(service.getDeceasedPartnerId())) {
@@ -2386,6 +2393,7 @@ public class FuneralManagementService {
         return FuneralServiceRequestResponseDto.builder()
                 .id(entity.getId())
                 .serviceRequestNo(entity.getServiceRequestNo())
+                .membershipNo(entity.getMembershipNo())
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())
