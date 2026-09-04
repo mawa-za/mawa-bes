@@ -166,6 +166,14 @@ public class PartnerServiceV2 {
                         addPartnerContact(contactInboundDto);
                     }
 
+                    if (hasText(partnerInboundDto.getAlternativeContactNumber())) {
+                        ContactInboundDto contactInboundDto = new ContactInboundDto();
+                        contactInboundDto.setPartner(entity.getId());
+                        contactInboundDto.setType("ALTERNATIVE-CELLPHONE");
+                        contactInboundDto.setValue(partnerInboundDto.getAlternativeContactNumber());
+                        addPartnerContact(contactInboundDto);
+                    }
+
                     if (partnerInboundDto.getEmail() != null
                             && !partnerInboundDto.getEmail().trim().isEmpty()) {
                         ContactInboundDto contactInboundDto = new ContactInboundDto();
@@ -220,6 +228,13 @@ public class PartnerServiceV2 {
             contactInboundDto.setPartner(partnerId);
             contactInboundDto.setType("CELLPHONE");
             contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+            addPartnerContact(contactInboundDto);
+        }
+        if (hasText(partnerInboundDto.getAlternativeContactNumber())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("ALTERNATIVE-CELLPHONE");
+            contactInboundDto.setValue(partnerInboundDto.getAlternativeContactNumber());
             addPartnerContact(contactInboundDto);
         }
         if (hasText(partnerInboundDto.getEmail())) {

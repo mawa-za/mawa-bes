@@ -102,6 +102,14 @@ public class MembershipClaimService {
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + request.getMembershipId()));
         membershipActionGuardService.requireActionable(membership);
 
+        LocalDate coverageEventDate = request.getDateOfDeath() != null ? request.getDateOfDeath()
+                : request.getClaimDate() != null ? request.getClaimDate() : LocalDate.now();
+        if (membership.getBenefitEligibleFrom() != null
+                && coverageEventDate.isBefore(membership.getBenefitEligibleFrom())) {
+            throw new IllegalStateException("Membership benefits are in a waiting period until "
+                    + membership.getBenefitEligibleFrom() + ". Claims before this date are not eligible.");
+        }
+
         validateDeceasedAgainstMembership(
                 request.getMembershipId(),
                 membership.getMemberId(),
@@ -130,8 +138,16 @@ public class MembershipClaimService {
         entity.setClaimNo(generateMembershipClaimNo());
         entity.setMembershipId(request.getMembershipId());
         entity.setClaimType(request.getClaimType());
-        LocalDate coverageEventDate = request.getDateOfDeath() != null ? request.getDateOfDeath()
-                : request.getClaimDate() != null ? request.getClaimDate() : LocalDate.now();
+        if (request.getDeceasedType() == MembershipClaimDeceasedType.DEPENDENT) {
+            MembershipDependentEntity dependent = membershipDependentRepository
+                    .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
+                            request.getMembershipId(), request.getDeceasedPartnerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Deceased partner is not linked as a dependent on this membership."));
+            if (dependent.getEffectiveFrom() != null && coverageEventDate.isBefore(dependent.getEffectiveFrom())) {
+                throw new IllegalStateException("Dependent benefits are in a waiting period until "
+                        + dependent.getEffectiveFrom() + ". Claims before this date are not eligible.");
+            }
+        }
         String coveragePlanId = membershipChangeService.resolveCoveragePlanId(
                 request.getMembershipId(), coverageEventDate, userId);
         entity.setCoveragePlanId(coveragePlanId);
