@@ -227,7 +227,16 @@ public class NumberRangeConfigurationService {
         if (text(sourceType)) { sql.append(" AND source_type=?"); args.add(sourceType.trim().toUpperCase(Locale.ROOT)); }
         if (text(rangeKey)) { sql.append(" AND range_key=?"); args.add(rangeKey.trim().toUpperCase(Locale.ROOT)); }
         sql.append(" ORDER BY changed_at DESC,id DESC LIMIT 200");
-        return jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        for (Map<String, Object> row : rows) {
+            Object actor = row.get("changed_by");
+            if (actor == null) continue;
+            List<String> usernames = jdbcTemplate.query(
+                    "SELECT username FROM user WHERE id=? OR username=? LIMIT 1",
+                    (rs, index) -> rs.getString(1), actor.toString(), actor.toString());
+            if (!usernames.isEmpty()) row.put("changed_by", usernames.get(0));
+        }
+        return rows;
     }
 
     private NumberSequenceEntity requireSequence(Long id) {
