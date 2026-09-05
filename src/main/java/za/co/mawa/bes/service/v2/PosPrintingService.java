@@ -59,6 +59,7 @@ public class PosPrintingService {
     private final ReceiptService receiptService;
     private final CompanyInfoService companyInfoService;
     private final @Qualifier("CashupServiceV2") CashupService cashupService;
+    private final UserTimeZoneService userTimeZoneService;
 
     @Transactional
     public EnrollmentResponse createEnrollment(EnrollmentCreateRequest request) {
@@ -378,7 +379,7 @@ public class PosPrintingService {
                 + "Queue: " + selectedPrinter.getWindowsQueueName() + "\n"
                 + "Width: " + width + " characters\n"
                 + "Cutter: " + (selectedPrinter.isSupportsCut() ? "enabled" : "disabled") + "\n"
-                + "Time: " + LocalDateTime.now() + "\n"
+                + "Time: " + userTimeZoneService.now() + "\n"
                 + separator + "\n";
         return queueContent("TEST_PRINT", terminalId, null, content, destination);
     }
@@ -737,7 +738,7 @@ public class PosPrintingService {
         line(receipt, "Trace ID", data.getTraceId(), width);
         line(receipt, "Date", data.getReceiptDate() == null
                 ? ""
-                : data.getReceiptDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), width);
+                : userTimeZoneService.display(data.getReceiptDate()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), width);
         receipt.append('\n');
         if ("INVOICE".equalsIgnoreCase(data.getSourceType())) {
             line(receipt, "Customer", data.getCustomerName(), width);
