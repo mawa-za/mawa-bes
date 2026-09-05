@@ -61,6 +61,17 @@ public class StockOperationsService {
         return jdbcTemplate.queryForList(sql.toString(), args.toArray());
     }
 
+    private void resolveAuditActors(List<Map<String, Object>> rows, String field) {
+        for (Map<String, Object> row : rows) {
+            Object actor = row.get(field);
+            if (actor == null) continue;
+            List<String> usernames = jdbcTemplate.query(
+                    "SELECT username FROM user WHERE id=? OR username=? LIMIT 1",
+                    (rs, index) -> rs.getString(1), actor.toString(), actor.toString());
+            if (!usernames.isEmpty()) row.put(field, usernames.get(0));
+        }
+    }
+
     @Transactional
     public Map<String, Object> createStorageLocation(StockDtos.StorageLocationRequest request, String userId) {
         String id = uuid();
@@ -668,7 +679,9 @@ public class StockOperationsService {
         if (hasText(entityType)) { sql.append(" AND entity_type = ?"); args.add(entityType.trim().toUpperCase()); }
         if (hasText(entityId)) { sql.append(" AND entity_id = ?"); args.add(entityId); }
         sql.append(" ORDER BY created_at DESC LIMIT 500");
-        return jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        resolveAuditActors(rows, "created_by");
+        return rows;
     }
 
     private void refreshPurchaseOrderReceiptStatus(String purchaseOrderId, String userId) {

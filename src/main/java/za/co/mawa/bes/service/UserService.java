@@ -128,6 +128,7 @@ public class UserService implements UserDao {
         userEntity.setUsername(username);
         userEntity.setEmail(email);
         userEntity.setCellphone(cellphone);
+        userEntity.setTimeZone(validTimeZone(userCreateDto.getTimeZone()));
         userEntity.setUserType(userCreateDto.getUserType() == null ? UserType.ADMIN : userCreateDto.getUserType().toUpperCase());
         userEntity.setAccountType(userCreateDto.getAccountType() == null ? "STANDARD" : userCreateDto.getAccountType().toUpperCase());
         userEntity.setTestUser(Boolean.TRUE.equals(userCreateDto.getTestUser()));
@@ -606,6 +607,7 @@ public class UserService implements UserDao {
                     user.setCellphone(referenceDataValidationService.requireContactNumber(edit.getCellphone()));
                 }
             }
+            if (edit.getTimeZone() != null) user.setTimeZone(validTimeZone(edit.getTimeZone()));
             if (edit.getUserType() != null && edit.getUserType() != "") {
                 user.setUserType(edit.getUserType().toUpperCase());
             }
@@ -672,6 +674,7 @@ public class UserService implements UserDao {
             }
             userDto.setEmail(userEntity.getEmail());
             userDto.setCellphone(userEntity.getCellphone());
+            userDto.setTimeZone(validTimeZone(userEntity.getTimeZone()));
             userDto.setType(userEntity.getUserType());
             userDto.setStatus(userEntity.getStatus());
             userDto.setPasswordStatus(userEntity.getPasswordStatus());
@@ -710,6 +713,16 @@ public class UserService implements UserDao {
         UserEntity userEntity = new UserEntity();
         userEntity.setEmail(userDto.getEmail());
         return userEntity;
+    }
+
+    private String validTimeZone(String value) {
+        String zone = StringUtils.hasText(value) ? value.trim() : "Africa/Harare";
+        try {
+            java.time.ZoneId.of(zone);
+            return zone;
+        } catch (java.time.DateTimeException exception) {
+            throw new IllegalArgumentException("Select a valid time zone");
+        }
     }
 
     private Specification<UserEntity> findByCriteria(UserQueryDto userQuery) {
