@@ -21,6 +21,7 @@ import za.co.mawa.bes.repository.*;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
+import za.co.mawa.bes.xero.XeroMasterDataQueueService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -70,6 +71,8 @@ public class PartnerServiceV2 {
     PartnerViewRepository partnerViewRepository;
     @Autowired
     NumberAllocationService numberAllocationService;
+    @Autowired
+    XeroMasterDataQueueService xeroMasterDataQueueService;
 
     @Transactional
     public PartnerViewEntity create(PartnerInboundDto partnerInboundDto) {
@@ -139,6 +142,7 @@ public class PartnerServiceV2 {
                 // Flush before reading the view to keep partner creation atomic and
                 // prevent false "Partner not found" failures.
                 entity = partnerRepository.saveAndFlush(entity);
+                xeroMasterDataQueueService.queueCustomerIfEnabled(entity.getId(), entity.getNo());
 
                 if(entity != null){
 
@@ -163,6 +167,14 @@ public class PartnerServiceV2 {
                         contactInboundDto.setPartner(entity.getId());
                         contactInboundDto.setType("CELLPHONE");
                         contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+                        addPartnerContact(contactInboundDto);
+                    }
+
+                    if (hasText(partnerInboundDto.getAlternativeContactNumber())) {
+                        ContactInboundDto contactInboundDto = new ContactInboundDto();
+                        contactInboundDto.setPartner(entity.getId());
+                        contactInboundDto.setType("ALTERNATIVE-CELLPHONE");
+                        contactInboundDto.setValue(partnerInboundDto.getAlternativeContactNumber());
                         addPartnerContact(contactInboundDto);
                     }
 
@@ -207,6 +219,7 @@ public class PartnerServiceV2 {
         }
         if (changed) {
             partnerRepository.save(partner);
+            xeroMasterDataQueueService.queueCustomerIfEnabled(partner.getId(), partner.getNo());
         }
 
         if (hasText(partnerInboundDto.getPartnerRole())) {
@@ -220,6 +233,13 @@ public class PartnerServiceV2 {
             contactInboundDto.setPartner(partnerId);
             contactInboundDto.setType("CELLPHONE");
             contactInboundDto.setValue(partnerInboundDto.getContactNumber());
+            addPartnerContact(contactInboundDto);
+        }
+        if (hasText(partnerInboundDto.getAlternativeContactNumber())) {
+            ContactInboundDto contactInboundDto = new ContactInboundDto();
+            contactInboundDto.setPartner(partnerId);
+            contactInboundDto.setType("ALTERNATIVE-CELLPHONE");
+            contactInboundDto.setValue(partnerInboundDto.getAlternativeContactNumber());
             addPartnerContact(contactInboundDto);
         }
         if (hasText(partnerInboundDto.getEmail())) {
@@ -287,6 +307,7 @@ public class PartnerServiceV2 {
             partner.setStatus(partnerEditDto.getStatus());
         }
         partnerRepository.saveAndFlush(partner);
+        xeroMasterDataQueueService.queueCustomerIfEnabled(partner.getId(), partner.getNo());
     }
 
     public PartnerDto get(String id) throws PartnerNotFoundException {
@@ -958,6 +979,7 @@ public class PartnerServiceV2 {
     public boolean removePartnerContact(PartnerContactPKEntity pkEntity) throws Exception {
         try {
             partnerContactRepository.deleteById(pkEntity);
+            queueCustomerForXero(pkEntity.getPartner());
             return true;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -976,6 +998,7 @@ public class PartnerServiceV2 {
             entity.setValidFrom(new Date());
             entity.setValidTo(Conversion.stringToDate("9999-12-31"));
             partnerContactRepository.save(entity);
+            queueCustomerForXero(contact.getPartner());
             return true;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -1010,6 +1033,9 @@ public class PartnerServiceV2 {
             entity.setValidFrom(new Date());
             entity.setValidTo((Conversion.stringToDate(Constant.END_DATE)));
             partnerRoleRepository.save(entity);
+            if ("CUSTOMER".equalsIgnoreCase(rolePartnerDto.getRole())) {
+                queueCustomerForXero(rolePartnerDto.getPartner());
+            }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -1107,6 +1133,7 @@ public class PartnerServiceV2 {
                 contactEntity.setValidTo(Conversion.stringToDate(editDto.getValidTo()));
             }
             partnerContactRepository.save(contactEntity);
+            queueCustomerForXero(entity.getPartner());
             return true;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -1122,6 +1149,12 @@ public class PartnerServiceV2 {
         } catch (Exception ex) {
             return "SYSTEM";
         }
+    }
+
+    private void queueCustomerForXero(String partnerId) {
+        if (partnerId == null || partnerId.isBlank()) return;
+        partnerRepository.findById(partnerId).ifPresent(partner ->
+                xeroMasterDataQueueService.queueCustomerIfEnabled(partner.getId(), partner.getNo()));
     }
 
     private PartnerDto entityIdToDto(PartnerEntity partnerEntity) throws Exception {

@@ -8,6 +8,7 @@ import java.io.Serializable;
 @Setter
 public class UserEditDto implements Serializable{
     private String cellphone;
+    private String timeZone;
     private String email;
     private String password;
     private String userType;

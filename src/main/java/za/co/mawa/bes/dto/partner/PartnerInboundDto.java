@@ -26,5 +26,6 @@ public class PartnerInboundDto {
     private String language;
     private String email;
     private String contactNumber;
+    private String alternativeContactNumber;
 
 }

@@ -31,6 +31,7 @@ public class PayrollBatchPrintoutService {
     private final PaymentAccountConfigurationService paymentAccountService;
     private final JdbcTemplate jdbcTemplate;
     private final CompanyPdfBrandingService companyPdfBrandingService;
+    private final UserTimeZoneService userTimeZoneService;
 
     public byte[] generate(String batchId) {
         PayrollPaymentBatchEntity batch = batchRepository.findById(batchId)
@@ -59,7 +60,7 @@ public class PayrollBatchPrintoutService {
                     + " | Universal branch " + value(debtor, "branch_code"));
             y -= 15;
             text(content, regular, 8, 35, y, "Generated: "
-                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    + userTimeZoneService.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
             y -= 22;
             header(content, bold, y);
             y -= 16;

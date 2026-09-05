@@ -61,5 +61,19 @@ public class PartnerEntity implements Serializable {
     @Column(name = "creation_date")
     @Temporal(TemporalType.DATE)
     private Date creationDate;
+    @Column(name = "xero_contact_id", length = 64)
+    private String xeroContactId;
+
+    @PrePersist
+    @PreUpdate
+    public void normaliseNames() {
+        name1 = uppercase(name1);
+        name2 = uppercase(name2);
+        name3 = uppercase(name3);
+    }
+
+    private static String uppercase(String value) {
+        return value == null ? null : value.trim().toUpperCase(java.util.Locale.ROOT);
+    }
 
 }

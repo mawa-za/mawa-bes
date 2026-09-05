@@ -66,7 +66,7 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
                     UPPER(COALESCE(c.area_name, '')) LIKE CONCAT('%', UPPER(:search), '%') OR
                     UPPER(COALESCE(u.username, '')) LIKE CONCAT('%', UPPER(:search), '%') OR
                     UPPER(CONCAT_WS(' ', p.name2, p.name3, p.name1)) LIKE CONCAT('%', UPPER(:search), '%'))
-             ORDER BY c.cashup_date DESC, c.created_at DESC
+             ORDER BY c.cashup_no DESC
             """, nativeQuery = true)
     Slice<CashupEntity> search(
             @Param("status") String status,

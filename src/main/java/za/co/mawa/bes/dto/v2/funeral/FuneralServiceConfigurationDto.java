@@ -17,4 +17,5 @@ public class FuneralServiceConfigurationDto {
     private Integer maxSelectableCovers;
 
     private Boolean coverSelectionLimitEnabled;
+    private Boolean automaticMortuaryCheckoutEnabled;
 }
