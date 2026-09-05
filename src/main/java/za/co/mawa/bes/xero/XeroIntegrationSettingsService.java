@@ -37,6 +37,15 @@ public class XeroIntegrationSettingsService {
         return isTruthy(value);
     }
 
+    public boolean isIntegrationEnabled() {
+        JSONObject properties = currentTenantProperties();
+        return isTruthy(firstNonBlank(
+                properties.optString(PROP_INTEGRATION_ENABLED, null),
+                properties.optString(PROP_INVOICE_ENABLED, null),
+                settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP),
+                settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP)));
+    }
+
     public String invoiceStatus() {
         JSONObject properties = currentTenantProperties();
         String status = firstNonBlank(

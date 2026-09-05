@@ -43,6 +43,7 @@ public class MembershipChangeService {
     private final MembershipChangeAuditRepository auditRepository;
     private final PartnerRepository partnerRepository;
     private final MembershipDependentRepository membershipDependentRepository;
+    private final MembershipClaimRepository membershipClaimRepository;
     private final MembershipPlanPremiumRuleService membershipPlanPremiumRuleService;
     private final MembershipUpdateHandlerRegistry membershipUpdateHandlerRegistry;
     private final PartnerService partnerService;
@@ -223,6 +224,14 @@ public class MembershipChangeService {
                 Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
             throw new IllegalArgumentException("The selected person is already linked to this membership");
         }
+        MembershipPlanEntity plan = membershipPlanRepository.findById(membership.getPlanId())
+                .orElseThrow(() -> new IllegalArgumentException("Membership plan not found"));
+        int maximum = plan.getMaxDependents() == null ? 0 : plan.getMaxDependents();
+        long current = dependentCapacityCount(membershipId);
+        if (maximum > 0 && current >= maximum) {
+            throw new IllegalStateException("The plan allows a maximum of " + maximum
+                    + " dependents. Deceased dependents with finalised claims remain part of this count.");
+        }
 
         String actionBy = actor(actor);
         MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
@@ -235,8 +244,8 @@ public class MembershipChangeService {
                 .newPlanId(membership.getPlanId())
                 .newDependentPartnerId(partnerId)
                 .newDependentType(dependentType.name())
-                .waitingPeriodMonths(0)
-                .effectiveDate(LocalDate.now())
+                .waitingPeriodMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths())
+                .effectiveDate(LocalDate.now().plusMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths()))
                 .reason(requireReason(request == null ? null : request.getReason()))
                 .requestedAt(LocalDateTime.now())
                 .requestedBy(actionBy)
@@ -260,8 +269,8 @@ public class MembershipChangeService {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
         membershipActionGuardService.requireActionable(membership);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
-        if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
-            throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
+        if (hasFinalisedClaim(membershipId, existing.getDependentPartnerId())) {
+            throw new IllegalArgumentException("A dependent with a finalised claim cannot be removed from membership history");
         }
         requireNoConflictingDependentChange(membershipId, existing.getId(), null);
 
@@ -1227,7 +1236,35 @@ public class MembershipChangeService {
     private MembershipChangeAuditResponse toAuditResponse(MembershipChangeAuditEntity e) {
         return MembershipChangeAuditResponse.builder().id(e.getId()).membershipId(e.getMembershipId()).changeRequestId(e.getChangeRequestId())
                 .eventType(e.getEventType()).oldValuesJson(e.getOldValuesJson()).newValuesJson(e.getNewValuesJson())
-                .details(e.getDetails()).performedBy(e.getPerformedBy()).performedAt(e.getPerformedAt()).build();
+                .details(e.getDetails()).performedBy(username(e.getPerformedBy())).performedAt(e.getPerformedAt()).build();
+    }
+
+    private String username(String userId) {
+        if (clean(userId) == null) return "SYSTEM";
+        List<String> names = jdbcTemplate.query(
+                "SELECT username FROM `user` WHERE id=? OR partner=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1",
+                (rs, rowNum) -> rs.getString(1), userId, userId, userId);
+        return names.isEmpty() || clean(names.get(0)) == null ? userId : names.get(0);
+    }
+
+    private long dependentCapacityCount(String membershipId) {
+        long active = membershipDependentRepository.countByMembershipIdAndStatusIn(
+                membershipId, Set.of(MembershipDependentStatus.ACTIVE));
+        long deceasedWithFinalisedClaims = membershipDependentRepository
+                .findByMembershipIdAndStatus(membershipId, MembershipDependentStatus.DECEASED)
+                .stream()
+                .filter(dependent -> hasFinalisedClaim(membershipId, dependent.getDependentPartnerId()))
+                .count();
+        return active + deceasedWithFinalisedClaims;
+    }
+
+    private boolean hasFinalisedClaim(String membershipId, String dependentPartnerId) {
+        return membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
+                membershipId,
+                dependentPartnerId,
+                List.of(MembershipClaimStatus.APPROVED, MembershipClaimStatus.PAYMENT_PENDING,
+                        MembershipClaimStatus.PAYMENT_PROCESSING, MembershipClaimStatus.PAYMENT_FAILED,
+                        MembershipClaimStatus.PAID));
     }
 
 

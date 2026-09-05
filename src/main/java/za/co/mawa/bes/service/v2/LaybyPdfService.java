@@ -33,6 +33,7 @@ public class LaybyPdfService {
 
     private final LaybyManagementService laybyService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
+    private final UserTimeZoneService userTimeZoneService;
 
     public byte[] agreement(String id) {
         Map<String, Object> layby = laybyService.get(id);
@@ -229,13 +230,13 @@ public class LaybyPdfService {
 
     private String dateTime(Object value) {
         if (value == null) return "";
-        if (value instanceof LocalDateTime localDateTime) return DISPLAY_DATE_TIME.format(localDateTime);
-        if (value instanceof Timestamp timestamp) return DISPLAY_DATE_TIME.format(timestamp.toLocalDateTime());
+        if (value instanceof LocalDateTime localDateTime) return DISPLAY_DATE_TIME.format(userTimeZoneService.display(localDateTime));
+        if (value instanceof Timestamp timestamp) return DISPLAY_DATE_TIME.format(userTimeZoneService.display(timestamp.toLocalDateTime()));
         if (value instanceof LocalDate localDate) return DISPLAY_DATE.format(localDate);
         if (value instanceof java.sql.Date sqlDate) return DISPLAY_DATE.format(sqlDate.toLocalDate());
         String raw = text(value).trim();
         if (raw.isEmpty()) return "";
-        try { return DISPLAY_DATE_TIME.format(LocalDateTime.parse(raw.replace(' ', 'T'))); }
+        try { return DISPLAY_DATE_TIME.format(userTimeZoneService.display(LocalDateTime.parse(raw.replace(' ', 'T')))); }
         catch (Exception ignored) {
             try { return DISPLAY_DATE.format(LocalDate.parse(raw.length() >= 10 ? raw.substring(0, 10) : raw)); }
             catch (Exception ignoredAgain) { return raw; }

@@ -12,6 +12,7 @@ import java.util.List;
 public class FuneralServiceRequestResponseDto {
     private String id;
     private String serviceRequestNo;
+    private String membershipNo;
     private String mortuaryInventoryId;
     private String deceasedName;
     private String deceasedIdentityNumber;

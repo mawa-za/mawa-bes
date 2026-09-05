@@ -48,6 +48,9 @@ public class MembershipPlanEntity {
     @Column(name = "max_dependents")
     private Integer maxDependents;
 
+    @Column(name = "waiting_period_months", nullable = false)
+    private Integer waitingPeriodMonths = 3;
+
     @NotNull
     private Boolean active = true;
 

@@ -14,6 +14,7 @@ import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
 import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.xero.XeroAuthService;
+import za.co.mawa.bes.xero.XeroMasterDataQueueService;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -30,17 +31,20 @@ public class XeroActivationService {
     private final SettingService settingService;
     private final Environment environment;
     private final XeroAuthService xeroAuthService;
+    private final XeroMasterDataQueueService xeroMasterDataQueueService;
 
     public XeroActivationService(GcpTenantSecretService gcpTenantSecretService,
                                  TenantSecretNameService tenantSecretNameService,
                                  SettingService settingService,
                                  Environment environment,
-                                 XeroAuthService xeroAuthService) {
+                                 XeroAuthService xeroAuthService,
+                                 XeroMasterDataQueueService xeroMasterDataQueueService) {
         this.gcpTenantSecretService = gcpTenantSecretService;
         this.tenantSecretNameService = tenantSecretNameService;
         this.settingService = settingService;
         this.environment = environment;
         this.xeroAuthService = xeroAuthService;
+        this.xeroMasterDataQueueService = xeroMasterDataQueueService;
     }
 
     public XeroActivationResponseDto activate(XeroActivationRequestDto request) {
@@ -78,6 +82,7 @@ public class XeroActivationService {
         settingService.upsertSetting("TENANT-ID-SECRET", XERO_GROUP, tenantIdSecret);
         settingService.upsertSetting("REDIRECT-URL", XERO_GROUP, redirectUrl);
         settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, String.valueOf(enableInvoices));
+        settingService.upsertSetting("INTEGRATION", XERO_GROUP, String.valueOf(enableInvoices));
 
         String authenticationUrl = buildAuthenticationUrl(request.getClientId().trim(), redirectUrl, tenantHost);
 
@@ -133,12 +138,13 @@ public class XeroActivationService {
         try {
             String tenant = TenantContext.getCurrentTenant();
             XeroConnectionDto selected = xeroAuthService.selectXeroTenant(tenant, request == null ? null : request.getTenantId());
+            xeroMasterDataQueueService.queueAllExisting();
             return XeroActivationResponseDto.builder()
                     .invoiceIntegrationEnabled(true)
                     .organisationSelectionRequired(false)
                     .selectedTenantId(selected.getTenantId())
                     .selectedTenantName(selected.getTenantName())
-                    .message("Xero organisation selected and invoice integration enabled.")
+                    .message("Xero organisation selected. Existing customers and products were queued, and invoice synchronisation is enabled.")
                     .build();
         } catch (Exception e) {
             if (isInvalidGrant(e)) {
@@ -152,10 +158,11 @@ public class XeroActivationService {
 
     public XeroActivationResponseDto deactivate() {
         settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", XERO_GROUP, "false");
+        settingService.upsertSetting("INTEGRATION", XERO_GROUP, "false");
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(false)
                 .organisationSelectionRequired(false)
-                .message("Xero invoice integration disabled for this tenant. Secret references were retained for future reactivation.")
+                .message("Xero customer, product and invoice synchronisation is disabled for this tenant. Secret references were retained for future reactivation.")
                 .build();
     }
 
