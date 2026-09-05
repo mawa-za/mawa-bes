@@ -61,6 +61,8 @@ public class PartnerEntity implements Serializable {
     @Column(name = "creation_date")
     @Temporal(TemporalType.DATE)
     private Date creationDate;
+    @Column(name = "xero_contact_id", length = 64)
+    private String xeroContactId;
 
     @PrePersist
     @PreUpdate
