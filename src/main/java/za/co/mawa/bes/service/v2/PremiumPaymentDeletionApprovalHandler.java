@@ -17,7 +17,7 @@ public class PremiumPaymentDeletionApprovalHandler implements ApprovalCompletion
 
     @Override
     public void onApproved(ApprovalRequestEntity approvalRequest, String actionBy) {
-        membershipPremiumPaymentService.reverseApprovedPayment(
+        membershipPremiumPaymentService.cancelApprovedPayment(
                 approvalRequest.getReferenceId(),
                 actionBy,
                 approvalRequest.getDescription());
