@@ -311,24 +311,33 @@ public class ReceiptService {
     }
     @Transactional
     public ReceiptResponseDto reverseReceipt(String receiptId, String reason, String reversedBy) {
+        return cancelReceipt(receiptId, reason, reversedBy);
+    }
+
+    /**
+     * Cancels a receipt without removing it from its payment batch or cash-up.
+     * The historical reverse endpoint delegates here for backwards compatibility.
+     */
+    @Transactional
+    public ReceiptResponseDto cancelReceipt(String receiptId, String reason, String cancelledBy) {
         ReceiptEntity receipt = getReceiptEntity(receiptId);
 
-        if (receipt.getStatus() == ReceiptStatus.REVERSED) {
+        if (receipt.getStatus() == ReceiptStatus.CANCELLED) {
             return getReceipt(receiptId);
         }
 
-        receipt.setStatus(ReceiptStatus.REVERSED);
-        receipt.setNotes(appendNote(receipt.getNotes(), "Reversed: " + reason));
+        receipt.setStatus(ReceiptStatus.CANCELLED);
+        receipt.setNotes(appendNote(receipt.getNotes(), "Cancelled: " + reason));
         receipt.setUpdatedAt(LocalDateTime.now());
-        receipt.setUpdatedBy(reversedBy);
+        receipt.setUpdatedBy(cancelledBy);
         receiptRepository.save(receipt);
 
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository.findByReceiptId(receiptId);
         java.util.Set<String> affectedMembershipIds = new java.util.HashSet<>();
         for (ReceiptAllocationEntity allocation : allocations) {
-            allocation.setStatus(ReceiptStatus.REVERSED);
+            allocation.setStatus(ReceiptStatus.CANCELLED);
             allocation.setUpdatedAt(LocalDateTime.now());
-            allocation.setUpdatedBy(reversedBy);
+            allocation.setUpdatedBy(cancelledBy);
             receiptAllocationRepository.save(allocation);
             if (allocation.getAllocationType() == ReceiptAllocationType.MEMBERSHIP_PREMIUM
                     && allocation.getReferenceId() != null
@@ -346,7 +355,7 @@ public class ReceiptService {
         // Membership-wide reconciliation also covers migrated allocations that
         // have no premium reference_id.
         for (String membershipId : affectedMembershipIds) {
-            membershipPremiumService.reconcileMembership(membershipId, reversedBy);
+            membershipPremiumService.reconcileMembership(membershipId, cancelledBy);
         }
 
         return receiptMapper.toDto(receipt, allocations);

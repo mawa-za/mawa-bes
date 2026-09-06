@@ -73,4 +73,13 @@ public class ReceiptControllerV2 {
     ) {
         return receiptService.reverseReceipt(receiptId, reason, reversedBy);
     }
+
+    @PostMapping("/{receiptId}/cancel")
+    public ReceiptResponseDto cancelReceipt(
+            @PathVariable String receiptId,
+            @RequestParam String reason,
+            @RequestParam String cancelledBy
+    ) {
+        return receiptService.cancelReceipt(receiptId, reason, cancelledBy);
+    }
 }
