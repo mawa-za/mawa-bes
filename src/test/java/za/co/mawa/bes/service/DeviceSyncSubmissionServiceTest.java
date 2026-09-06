@@ -10,6 +10,7 @@ import za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCancellationRequest;
 import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -28,11 +29,14 @@ class DeviceSyncSubmissionServiceTest {
     @Mock
     private PaymentBatchRepository paymentBatchRepository;
 
+    @Mock
+    private ReceiptRepository receiptRepository;
+
     @Test
     void retryOfFailedSubmissionRefreshesCorrectedPayloadInsteadOfReplayingStaleRequest() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(7L)
@@ -84,7 +88,7 @@ class DeviceSyncSubmissionServiceTest {
     void completedSubmissionRemainsIdempotentAndIsNotOverwritten() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(8L)
@@ -124,7 +128,7 @@ class DeviceSyncSubmissionServiceTest {
     void orphanedPaymentSubmissionCanBeCancelledWithoutDeletingAuditHistory() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, mapper);
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(9L)
                 .submissionId("submission-3")
