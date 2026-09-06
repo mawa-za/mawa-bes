@@ -460,8 +460,17 @@ public class MembershipService {
                         throw new IllegalArgumentException(
                                 "Membership status changes require an approved Reactivate, Deactivate, Suspend or Cancel action");
                     }
+                    if (membership.getStartDate() != null
+                            && !membership.getStartDate().equals(existingMembership.getStartDate())) {
+                        throw new IllegalArgumentException(
+                                "Membership start-date changes require an approved membership date-change request");
+                    }
+                    if (membership.getBenefitEligibleFrom() != null
+                            && !membership.getBenefitEligibleFrom().equals(existingMembership.getBenefitEligibleFrom())) {
+                        throw new IllegalArgumentException(
+                                "Membership effective-date changes require an approved membership date-change request");
+                    }
                     existingMembership.setMembershipNo(membership.getMembershipNo());
-                    existingMembership.setStartDate(membership.getStartDate());
                     existingMembership.setEndDate(membership.getEndDate());
                     // Membership status is changed only by the approval-backed status action flow.
                     // Paid Up To is derived exclusively from PAID premium rows.

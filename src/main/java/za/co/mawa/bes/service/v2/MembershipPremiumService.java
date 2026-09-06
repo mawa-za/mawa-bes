@@ -18,6 +18,8 @@ import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -372,8 +374,13 @@ public class MembershipPremiumService {
                 .stream().collect(Collectors.toMap(ReceiptEntity::getId, ReceiptEntity::getStatus));
 
         int corrected = 0;
+        int removed = 0;
         LocalDateTime now = LocalDateTime.now();
         String actor = trim(updatedBy).isEmpty() ? "SYSTEM" : updatedBy.trim();
+        String firstValidPeriod = membership.getStartDate() == null
+                ? ""
+                : YearMonth.from(membership.getStartDate())
+                        .format(DateTimeFormatter.ofPattern("yyyyMM"));
         for (MembershipPremiumEntity premium : premiums) {
             if (premium.getStatus() == PremiumStatus.CANCELLED
                     || premium.getStatus() == PremiumStatus.WRITTEN_OFF
@@ -388,6 +395,31 @@ public class MembershipPremiumService {
                                 && Objects.equals(trim(allocation.getPeriodYYYYMM()), trim(premium.getPeriodYYYYMM()))))
                     .map(ReceiptAllocationEntity::getAmountCents).filter(Objects::nonNull)
                     .mapToLong(Long::longValue).sum();
+            if (!firstValidPeriod.isEmpty()
+                    && trim(premium.getPeriodYYYYMM()).compareTo(firstValidPeriod) < 0) {
+                // Some migrated paid history predates receipt allocations. Use
+                // either ledger allocations or the stored paid value here so a
+                // recalculation never deletes money that was historically paid.
+                long historicalPaid = Math.min(
+                        Math.max(allocated, safe(premium.getPaidAmountCents())),
+                        safe(premium.getAmountCents()));
+                if (historicalPaid <= 0) {
+                    membershipPremiumRepository.delete(premium);
+                    removed++;
+                } else {
+                    // Preserve the collected pre-start period as paid history,
+                    // but remove the balance because it was never a valid debt.
+                    premium.setAmountCents(historicalPaid);
+                    premium.setPaidAmountCents(historicalPaid);
+                    premium.setBalanceCents(0L);
+                    premium.setStatus(PremiumStatus.PAID);
+                    premium.setUpdatedAt(now);
+                    premium.setUpdatedBy(actor);
+                    membershipPremiumRepository.save(premium);
+                }
+                corrected++;
+                continue;
+            }
             long paid = Math.min(allocated, safe(premium.getAmountCents()));
             long balance = Math.max(safe(premium.getAmountCents()) - paid, 0L);
             PremiumStatus status = paid <= 0 ? PremiumStatus.UNPAID
@@ -410,6 +442,7 @@ public class MembershipPremiumService {
                 .membershipId(membership.getId())
                 .premiumsChecked(premiums.size())
                 .premiumsCorrected(corrected)
+                .premiumsRemoved(removed)
                 .paidUpToPeriod(paidUpTo)
                 .build();
     }

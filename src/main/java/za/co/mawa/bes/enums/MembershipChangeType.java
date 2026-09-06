@@ -6,5 +6,6 @@ public enum MembershipChangeType {
     ADD_DEPENDENT,
     REMOVE_DEPENDENT,
     REPLACE_DEPENDENT,
-    MERGE
+    MERGE,
+    DATE_CHANGE
 }

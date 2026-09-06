@@ -41,6 +41,7 @@ public enum ApprovalType {
     PREMIUM_PAYMENT_DELETION,
     PREMIUM_PAYMENT_EDIT,
     MEMBERSHIP_STATUS_CHANGE,
+    MEMBERSHIP_DATE_CHANGE,
     LAYBY_CANCELLATION,
     LAYBY_REFUND;
 
@@ -64,4 +65,3 @@ public enum ApprovalType {
         };
     }
 }
-

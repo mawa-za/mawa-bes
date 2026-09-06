@@ -25,6 +25,7 @@ public class MembershipMapper {
                 .status(entity.getStatus())
                 .paidUpToPeriod(entity.getPaidUpToPeriod())
                 .joinDate(entity.getJoinDate())
+                .effectiveDate(entity.getBenefitEligibleFrom())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
                 .updatedAt(entity.getUpdatedAt())
