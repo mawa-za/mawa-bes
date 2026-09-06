@@ -26,7 +26,7 @@ public class PayAppManualActionService {
     private final RestTemplate rest = new RestTemplate();
     @Value("${device-sync.internal-base-url:http://127.0.0.1:${server.port:8080}}") private String internalBaseUrl;
 
-    public Map<String, Object> submit(Map<String, Object> request) throws Exception {
+    public Map<String, Object> submit(Map<String, Object> request, HttpHeaders headers) throws Exception {
         Map<String, Object> body = payload(request.get("payload"));
         String path = safePath(request.get("endpoint"));
         String type = required(request.get("entityType"), "entityType").toUpperCase(Locale.ROOT);
@@ -36,10 +36,22 @@ public class PayAppManualActionService {
         verifyIdentity(type, device, local, body);
         String key = key(type, device, local);
         String json = mapper.writeValueAsString(body);
+        List<Map<String,Object>> existing = jdbc.queryForList("SELECT * FROM pay_app_manual_action WHERE idempotency_key=? ORDER BY requested_at DESC LIMIT 1", key);
+        if (!existing.isEmpty()) {
+            Map<String,Object> current = new LinkedHashMap<>(existing.get(0));
+            String status = text(current.get("status"));
+            if ("COMPLETED".equals(status) || "PROCESSING".equals(status) || "CORRECTION_REQUIRED".equals(status)) return current;
+            if (Boolean.TRUE.equals(request.get("automatic")) && ((Number)current.get("attempt_count")).intValue() < 3) {
+                return processInternal(text(current.get("id")), headers, false);
+            }
+            return current;
+        }
         String id = UUID.randomUUID().toString();
         jdbc.update("INSERT INTO pay_app_manual_action (id,device_id,entity_type,local_record_id,idempotency_key,endpoint,http_method,payload_json,original_payload_json,failure_response,status,requested_by,requested_at) VALUES (?,?,?,?,?,?,'POST',?,?,?,'PENDING',?,UTC_TIMESTAMP())",
                 id, device, type, local, key, path, json, json, text(request.get("failureResponse")), actor());
-        return internal(id);
+        return Boolean.TRUE.equals(request.get("automatic"))
+                ? processInternal(id, headers, false)
+                : internal(id);
     }
 
     public List<Map<String, Object>> list(String status, String search) {
@@ -93,7 +105,11 @@ public class PayAppManualActionService {
     }
 
     public Map<String, Object> process(String id, HttpHeaders incoming) throws Exception {
-        requireAdmin();
+        return processInternal(id, incoming, true);
+    }
+
+    private Map<String, Object> processInternal(String id, HttpHeaders incoming, boolean administratorRequired) throws Exception {
+        if (administratorRequired) requireAdmin();
         Map<String, Object> beforeClaim = internal(id);
         String path = safePath(beforeClaim.get("endpoint"));
         String type = text(beforeClaim.get("entity_type"));
@@ -116,7 +132,10 @@ public class PayAppManualActionService {
         } catch (HttpStatusCodeException ex) {
             finish(id,attemptId,ex.getStatusCode().is4xxClientError()?"CORRECTION_REQUIRED":"FAILED",ex.getStatusCode().value(),ex.getResponseBodyAsString(),ex.getMessage());
         } catch (Exception ex) { finish(id,attemptId,"FAILED",null,null,ex.getMessage()); }
-        return get(id);
+        // Automatic device recovery is intentionally not granted ERP workcentre
+        // access. Return the processed row directly; administrator detail/history
+        // remains protected by get(id).
+        return internal(id);
     }
 
     public Map<String, Object> reject(String id, String notes) {

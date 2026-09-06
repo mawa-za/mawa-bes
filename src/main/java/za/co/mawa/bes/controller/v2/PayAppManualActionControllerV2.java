@@ -15,8 +15,9 @@ public class PayAppManualActionControllerV2 {
     private final PayAppManualActionService service;
 
     @PostMapping
-    public ResponseEntity<?> submit(@RequestBody Map<String, Object> request) throws Exception {
-        return ResponseEntity.accepted().body(service.submit(request));
+    public ResponseEntity<?> submit(@RequestBody Map<String, Object> request,
+                                    @RequestHeader HttpHeaders headers) throws Exception {
+        return ResponseEntity.accepted().body(service.submit(request, headers));
     }
 
     @GetMapping
