@@ -38,6 +38,13 @@ public class MembershipChangeControllerV2 {
         return service.requestMerge(membershipId, request, actor(principal));
     }
 
+    @PostMapping("/{membershipId}/dates")
+    public MembershipChangeResponse requestDateChange(@PathVariable String membershipId,
+                                                       @RequestBody MembershipDateChangeRequest request,
+                                                       Principal principal) {
+        return service.requestDateChange(membershipId, request, actor(principal));
+    }
+
     @GetMapping("/{membershipId}")
     public List<MembershipChangeResponse> list(@PathVariable String membershipId){ return service.listChanges(membershipId); }
 

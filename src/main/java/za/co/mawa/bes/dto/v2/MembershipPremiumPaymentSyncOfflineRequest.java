@@ -32,5 +32,9 @@ public class MembershipPremiumPaymentSyncOfflineRequest {
 
     private String createdBy;
 
+    private String status;
+
+    private String cancellationReason;
+
     private List<PremiumReceiptOfflineDto> receipts;
 }

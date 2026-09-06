@@ -38,6 +38,10 @@ public class MembershipChangeResponse {
 
     private Integer waitingPeriodMonths;
     private LocalDate effectiveDate;
+    private LocalDate oldStartDate;
+    private LocalDate newStartDate;
+    private LocalDate oldMembershipEffectiveDate;
+    private LocalDate newMembershipEffectiveDate;
     private String reason;
     private String approvalRequestId;
     private LocalDateTime requestedAt;

@@ -43,6 +43,14 @@ public class PaymentBatchControllerV2 {
         return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
     }
 
+    @PostMapping("/{paymentBatchId}/cancellation-request")
+    public ApprovalRequestResponse requestPremiumPaymentCancellation(
+            @PathVariable String paymentBatchId,
+            @RequestBody PremiumPaymentDeletionRequest request
+    ) {
+        return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
+    }
+
     @PostMapping("/{paymentBatchId}/edit-request")
     public ApprovalRequestResponse requestPremiumPaymentEdit(
             @PathVariable String paymentBatchId,
@@ -61,6 +69,13 @@ public class PaymentBatchControllerV2 {
 
     @GetMapping("/{paymentBatchId}/deletion-status")
     public PremiumPaymentDeletionStatusResponse getPremiumPaymentDeletionStatus(
+            @PathVariable String paymentBatchId
+    ) {
+        return membershipPremiumPaymentService.deletionStatus(paymentBatchId);
+    }
+
+    @GetMapping("/{paymentBatchId}/cancellation-status")
+    public PremiumPaymentDeletionStatusResponse getPremiumPaymentCancellationStatus(
             @PathVariable String paymentBatchId
     ) {
         return membershipPremiumPaymentService.deletionStatus(paymentBatchId);
