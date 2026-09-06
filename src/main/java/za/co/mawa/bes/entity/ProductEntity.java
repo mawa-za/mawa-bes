@@ -36,6 +36,8 @@ public class ProductEntity implements Serializable {
     @Builder.Default
     @Column(name = "available_for_sale", nullable = false)
     private Boolean availableForSale = true;
+    @Column(name = "xero_item_id", length = 64)
+    private String xeroItemId;
     @Column(name = "valid_from")
     @Temporal(TemporalType.DATE)
     private Date validFrom;

@@ -35,6 +35,7 @@ import za.co.mawa.bes.repository.ProductPricingRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.service.v2.ProductClassificationService;
+import za.co.mawa.bes.xero.XeroMasterDataQueueService;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -57,6 +58,8 @@ public class ProductService implements ProductDao {
     JdbcTemplate jdbcTemplate;
     @Autowired
     ProductClassificationService productClassificationService;
+    @Autowired
+    XeroMasterDataQueueService xeroMasterDataQueueService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -96,6 +99,7 @@ public class ProductService implements ProductDao {
             productEntity.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             productEntity.setUom(productCreateDto.getBaseUnitOfMeasure() == null ? "EA" : productCreateDto.getBaseUnitOfMeasure().trim().toUpperCase());
             ProductDto productDto = get(productRepository.save(productEntity).getId());
+            xeroMasterDataQueueService.queueProductIfEnabled(productDto.getId(), productDto.getCode());
             writeProductAudit(productDto.getId(), "CREATE", null,
                     productDto.getCode() + " - " + productDto.getDescription() + " [" + productType.getCode() + "]", null);
             if (productCreateDto.getPricingType() != null && !productCreateDto.getPricingType().isBlank()) {
@@ -413,6 +417,7 @@ public class ProductService implements ProductDao {
                 productEntity.setUom(productEditDto.getBaseUnitOfMeasure().trim().toUpperCase());
             }
             productRepository.save(productEntity);
+            xeroMasterDataQueueService.queueProductIfEnabled(productEntity.getId(), productEntity.getCode());
             if (ProductTypeCode.SERVICE != productType) {
                 try {
                     jdbcTemplate.update("UPDATE product_asset_link SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE service_product_id = ?",

@@ -31,6 +31,11 @@ public class DeviceSyncSubmissionControllerV2 {
     }
 
     @GetMapping("/{id}") public DeviceSyncSubmissionDto get(@PathVariable String id){ return service.get(id); }
+    @GetMapping("/reconcile")
+    public DeviceSyncReconciliationDto reconcile(@RequestParam String deviceId,
+                                                  @RequestParam String idempotencyKey) {
+        return service.reconcile(deviceId, idempotencyKey);
+    }
     @PostMapping("/{id}/process") public DeviceSyncSubmissionDto process(@PathVariable String id,@RequestHeader HttpHeaders headers){ return service.process(id,headers); }
     @PutMapping("/{id}/correction") public DeviceSyncSubmissionDto correct(@PathVariable String id,@RequestBody DeviceSyncCorrectionRequest request,@RequestHeader(value="X-User-Id",required=false)String userId,Principal principal){ return service.correct(id,request,user(userId,principal)); }
     @PostMapping("/{id}/reprocess") public DeviceSyncSubmissionDto reprocess(@PathVariable String id,@RequestHeader HttpHeaders headers){ return service.process(id,headers); }

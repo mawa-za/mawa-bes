@@ -22,6 +22,7 @@ public class MembershipPlanMapper {
                 .premiumCents(entity.getPremiumCents())
                 .currency(entity.getCurrency())
                 .maxDependents(entity.getMaxDependents())
+                .waitingPeriodMonths(entity.getWaitingPeriodMonths())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
@@ -42,6 +43,7 @@ public class MembershipPlanMapper {
                 .premiumCents(request.getPremiumCents())
                 .currency(request.getCurrency())
                 .maxDependents(request.getMaxDependents())
+                .waitingPeriodMonths(request.getWaitingPeriodMonths() == null ? 3 : request.getWaitingPeriodMonths())
                 .active(request.getActive())
                 .oldId(request.getOldId())
                 .build();
@@ -58,6 +60,7 @@ public class MembershipPlanMapper {
         entity.setPremiumCents(request.getPremiumCents());
         entity.setCurrency(request.getCurrency());
         entity.setMaxDependents(request.getMaxDependents());
+        entity.setWaitingPeriodMonths(request.getWaitingPeriodMonths() == null ? 3 : request.getWaitingPeriodMonths());
         entity.setActive(request.getActive());
         entity.setOldId(request.getOldId());
     }

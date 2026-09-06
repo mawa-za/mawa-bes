@@ -9,4 +9,5 @@ public class MembershipPartnerIdentityCorrectionRequest {
     private String dependentId;
     @NotBlank private String identityNumber;
     @NotBlank private String reason;
+    private Boolean overrideExistingOwner = false;
 }

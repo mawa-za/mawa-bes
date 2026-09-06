@@ -22,6 +22,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.ZoneId;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +45,7 @@ public class MembershipChangeService {
     private final MembershipChangeAuditRepository auditRepository;
     private final PartnerRepository partnerRepository;
     private final MembershipDependentRepository membershipDependentRepository;
+    private final MembershipClaimRepository membershipClaimRepository;
     private final MembershipPlanPremiumRuleService membershipPlanPremiumRuleService;
     private final MembershipUpdateHandlerRegistry membershipUpdateHandlerRegistry;
     private final PartnerService partnerService;
@@ -201,6 +204,54 @@ public class MembershipChangeService {
         return toResponse(changeRequestRepository.save(change));
     }
 
+    @Transactional
+    public MembershipChangeResponse requestDateChange(
+            String membershipId,
+            MembershipDateChangeRequest request,
+            String actor
+    ) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
+        requireNoOpenChange(membershipId);
+        if (request == null || (request.getStartDate() == null && request.getEffectiveDate() == null)) {
+            throw new IllegalArgumentException("A new membership start date or effective date is required");
+        }
+
+        LocalDate newStartDate = request.getStartDate() == null
+                ? membership.getStartDate() : request.getStartDate();
+        LocalDate newEffectiveDate = request.getEffectiveDate() == null
+                ? membership.getBenefitEligibleFrom() : request.getEffectiveDate();
+        if (newStartDate == null) throw new IllegalArgumentException("Membership start date is required");
+        if (newEffectiveDate != null && newEffectiveDate.isBefore(newStartDate)) {
+            throw new IllegalArgumentException("Membership effective date cannot be before its start date");
+        }
+        if (newStartDate.equals(membership.getStartDate())
+                && java.util.Objects.equals(newEffectiveDate, membership.getBenefitEligibleFrom())) {
+            throw new IllegalArgumentException("The requested dates are unchanged");
+        }
+
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
+                .membershipId(membershipId)
+                .changeType(MembershipChangeType.DATE_CHANGE)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(membership.getMemberId()).newMemberId(membership.getMemberId())
+                .oldPlanId(membership.getPlanId()).newPlanId(membership.getPlanId())
+                .oldStartDate(membership.getStartDate()).newStartDate(newStartDate)
+                .oldMembershipEffectiveDate(membership.getBenefitEligibleFrom())
+                .newMembershipEffectiveDate(newEffectiveDate)
+                .reason(requireReason(request.getReason()))
+                .requestedAt(LocalDateTime.now()).requestedBy(actionBy)
+                .updatedAt(LocalDateTime.now()).updatedBy(actionBy)
+                .build();
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED", dateValues(change, false), dateValues(change, true),
+                change.getReason(), actionBy);
+        ApprovalRequestResponse approval = submit(change, membership, ApprovalType.MEMBERSHIP_DATE_CHANGE, actionBy);
+        change.setApprovalRequestId(approval.getId());
+        return toResponse(changeRequestRepository.save(change));
+    }
+
 
     @Transactional
     public MembershipChangeResponse requestDependentAdd(
@@ -223,6 +274,14 @@ public class MembershipChangeService {
                 Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED))) {
             throw new IllegalArgumentException("The selected person is already linked to this membership");
         }
+        MembershipPlanEntity plan = membershipPlanRepository.findById(membership.getPlanId())
+                .orElseThrow(() -> new IllegalArgumentException("Membership plan not found"));
+        int maximum = plan.getMaxDependents() == null ? 0 : plan.getMaxDependents();
+        long current = dependentCapacityCount(membershipId);
+        if (maximum > 0 && current >= maximum) {
+            throw new IllegalStateException("The plan allows a maximum of " + maximum
+                    + " dependents. Deceased dependents with finalised claims remain part of this count.");
+        }
 
         String actionBy = actor(actor);
         MembershipChangeRequestEntity change = MembershipChangeRequestEntity.builder()
@@ -235,8 +294,8 @@ public class MembershipChangeService {
                 .newPlanId(membership.getPlanId())
                 .newDependentPartnerId(partnerId)
                 .newDependentType(dependentType.name())
-                .waitingPeriodMonths(0)
-                .effectiveDate(LocalDate.now())
+                .waitingPeriodMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths())
+                .effectiveDate(LocalDate.now().plusMonths(plan.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS : plan.getWaitingPeriodMonths()))
                 .reason(requireReason(request == null ? null : request.getReason()))
                 .requestedAt(LocalDateTime.now())
                 .requestedBy(actionBy)
@@ -260,8 +319,8 @@ public class MembershipChangeService {
         MembershipEntity membership = getMembershipForUpdate(membershipId);
         membershipActionGuardService.requireActionable(membership);
         MembershipDependentEntity existing = getVisibleDependent(membershipId, dependentId);
-        if (existing.getStatus() == MembershipDependentStatus.DECEASED) {
-            throw new IllegalArgumentException("A deceased dependent cannot be removed from membership history");
+        if (hasFinalisedClaim(membershipId, existing.getDependentPartnerId())) {
+            throw new IllegalArgumentException("A dependent with a finalised claim cannot be removed from membership history");
         }
         requireNoConflictingDependentChange(membershipId, existing.getId(), null);
 
@@ -377,7 +436,9 @@ public class MembershipChangeService {
         change.setApprovedBy(actor);
         change.setUpdatedAt(LocalDateTime.now());
         change.setUpdatedBy(actor);
-        if (change.getChangeType() == MembershipChangeType.MERGE) {
+        if (change.getChangeType() == MembershipChangeType.DATE_CHANGE) {
+            applyDateChange(change, actor);
+        } else if (change.getChangeType() == MembershipChangeType.MERGE) {
             change.setEffectiveDate(LocalDate.now());
             changeRequestRepository.save(change);
             applyMerge(change, actor);
@@ -460,8 +521,26 @@ public class MembershipChangeService {
              WHERE s.membership_id = ? AND p.id IS NULL
             """, primary.getId(), primary.getId(), source.getId());
 
-        // Preserve one obligation per period. Non-conflicting premiums move to the
-        // primary membership; conflicting periods remain immutable on the source.
+        // Resolve duplicate obligations before moving source premiums. If one
+        // duplicate is paid and the other is unpaid, retain the paid row. When
+        // both are unpaid, retain the primary row.
+        jdbcTemplate.update("""
+            DELETE p FROM membership_premium p
+            JOIN membership_premium s
+              ON s.membership_id = ? AND s.period_yyyymm = p.period_yyyymm
+             WHERE p.membership_id = ?
+               AND COALESCE(p.paid_amount_cents, 0) = 0
+               AND COALESCE(s.paid_amount_cents, 0) > 0
+            """, source.getId(), primary.getId());
+        jdbcTemplate.update("""
+            DELETE s FROM membership_premium s
+            JOIN membership_premium p
+              ON p.membership_id = ? AND p.period_yyyymm = s.period_yyyymm
+             WHERE s.membership_id = ?
+               AND COALESCE(s.paid_amount_cents, 0) = 0
+            """, primary.getId(), source.getId());
+
+        // Move every remaining non-conflicting source obligation.
         jdbcTemplate.update("""
             UPDATE membership_premium s
             LEFT JOIN membership_premium p
@@ -511,6 +590,59 @@ public class MembershipChangeService {
                        "paidUpToPeriod", paidUpTo == null ? "" : paidUpTo),
                 "Membership merge applied", actor);
         membershipUpdateHandlerRegistry.handleUpdate(primary.getId());
+    }
+
+    private void applyDateChange(MembershipChangeRequestEntity change, String actor) {
+        MembershipEntity membership = getMembershipForUpdate(change.getMembershipId());
+        if (!java.util.Objects.equals(membership.getStartDate(), change.getOldStartDate())
+                || !java.util.Objects.equals(membership.getBenefitEligibleFrom(), change.getOldMembershipEffectiveDate())) {
+            throw new IllegalStateException("Membership dates changed after this request was submitted");
+        }
+        membership.setStartDate(change.getNewStartDate());
+        membership.setBenefitEligibleFrom(change.getNewMembershipEffectiveDate());
+        membership.setUpdatedAt(LocalDateTime.now());
+        membership.setUpdatedBy(actor);
+        membershipRepository.save(membership);
+
+        String firstPremiumPeriod = YearMonth.from(change.getNewStartDate())
+                .format(DateTimeFormatter.ofPattern("yyyyMM"));
+        // Keep collected money as historical payment, but remove any balance
+        // that would otherwise be outstanding before membership commencement.
+        jdbcTemplate.update("""
+            UPDATE membership_premium
+               SET amount_cents = paid_amount_cents,
+                   balance_cents = 0,
+                   status = 'PAID',
+                   updated_at = CURRENT_TIMESTAMP,
+                   updated_by = ?
+             WHERE membership_id = ? AND period_yyyymm < ?
+               AND COALESCE(paid_amount_cents, 0) > 0
+               AND COALESCE(balance_cents, 0) > 0
+            """, actor, membership.getId(), firstPremiumPeriod);
+        jdbcTemplate.update("""
+            DELETE FROM membership_premium
+             WHERE membership_id = ? AND period_yyyymm < ?
+               AND COALESCE(paid_amount_cents, 0) = 0
+            """, membership.getId(), firstPremiumPeriod);
+
+        change.setEffectiveDate(LocalDate.now());
+        change.setStatus(MembershipChangeStatus.APPLIED);
+        change.setAppliedAt(LocalDateTime.now());
+        change.setAppliedBy(actor);
+        change.setUpdatedAt(LocalDateTime.now());
+        change.setUpdatedBy(actor);
+        changeRequestRepository.save(change);
+        audit(change, "APPLIED", dateValues(change, false), dateValues(change, true),
+                "Membership dates updated after approval", actor);
+        membershipUpdateHandlerRegistry.handleUpdate(membership.getId());
+    }
+
+    private Map<String, Object> dateValues(MembershipChangeRequestEntity change, boolean proposed) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("startDate", proposed ? change.getNewStartDate() : change.getOldStartDate());
+        values.put("effectiveDate", proposed
+                ? change.getNewMembershipEffectiveDate() : change.getOldMembershipEffectiveDate());
+        return values;
     }
 
     private void recalculateMergedPremiumStatuses(String membershipId) {
@@ -930,6 +1062,7 @@ public class MembershipChangeService {
                     partnerName(change.getOldDependentPartnerId()),
                     membershipHolder);
             case MEMBERSHIP_MERGE -> "Membership merge - " + membership.getMembershipNo();
+            case MEMBERSHIP_DATE_CHANGE -> "Membership date change - " + membership.getMembershipNo();
             default -> "Membership change - " + membership.getMembershipNo() + " - " + membershipHolder;
         });
         request.setDescription(approvalDescription(change, membership, approvalType));
@@ -958,6 +1091,11 @@ public class MembershipChangeService {
         if (approvalType == ApprovalType.MEMBERSHIP_MERGE) {
             return "Review the primary and source memberships, dependants, premium periods, payments and claims before actioning. " +
                     "The source membership will become a read-only merged alias. Reason: " + change.getReason();
+        }
+        if (approvalType == ApprovalType.MEMBERSHIP_DATE_CHANGE) {
+            return "Review the existing and proposed membership start and effective dates. " +
+                    "On approval, outstanding premiums before the new start month will be removed. Reason: " +
+                    change.getReason();
         }
         return change.getReason();
     }
@@ -1043,6 +1181,10 @@ public class MembershipChangeService {
             proposed.put("primaryPlan", planName(membership.getPlanId()));
             impact.put("sourceStatusAfterApproval", "MERGED");
             impact.put("effectiveDate", "On final approval");
+        } else if (approvalType == ApprovalType.MEMBERSHIP_DATE_CHANGE) {
+            current.putAll(dateValues(change, false));
+            proposed.putAll(dateValues(change, true));
+            impact.put("preStartOutstandingPremiums", "Removed on final approval");
         } else {
             payload.put("change", toResponse(change));
         }
@@ -1219,7 +1361,11 @@ public class MembershipChangeService {
                 .oldDependentType(e.getOldDependentType())
                 .newDependentType(e.getNewDependentType())
                 .waitingPeriodMonths(e.getWaitingPeriodMonths())
-                .effectiveDate(e.getEffectiveDate()).reason(e.getReason()).approvalRequestId(e.getApprovalRequestId())
+                .effectiveDate(e.getEffectiveDate())
+                .oldStartDate(e.getOldStartDate()).newStartDate(e.getNewStartDate())
+                .oldMembershipEffectiveDate(e.getOldMembershipEffectiveDate())
+                .newMembershipEffectiveDate(e.getNewMembershipEffectiveDate())
+                .reason(e.getReason()).approvalRequestId(e.getApprovalRequestId())
                 .requestedAt(e.getRequestedAt()).requestedBy(e.getRequestedBy()).approvedAt(e.getApprovedAt()).approvedBy(e.getApprovedBy())
                 .appliedAt(e.getAppliedAt()).appliedBy(e.getAppliedBy()).build();
     }
@@ -1227,7 +1373,35 @@ public class MembershipChangeService {
     private MembershipChangeAuditResponse toAuditResponse(MembershipChangeAuditEntity e) {
         return MembershipChangeAuditResponse.builder().id(e.getId()).membershipId(e.getMembershipId()).changeRequestId(e.getChangeRequestId())
                 .eventType(e.getEventType()).oldValuesJson(e.getOldValuesJson()).newValuesJson(e.getNewValuesJson())
-                .details(e.getDetails()).performedBy(e.getPerformedBy()).performedAt(e.getPerformedAt()).build();
+                .details(e.getDetails()).performedBy(username(e.getPerformedBy())).performedAt(e.getPerformedAt()).build();
+    }
+
+    private String username(String userId) {
+        if (clean(userId) == null) return "SYSTEM";
+        List<String> names = jdbcTemplate.query(
+                "SELECT username FROM `user` WHERE id=? OR partner=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1",
+                (rs, rowNum) -> rs.getString(1), userId, userId, userId);
+        return names.isEmpty() || clean(names.get(0)) == null ? userId : names.get(0);
+    }
+
+    private long dependentCapacityCount(String membershipId) {
+        long active = membershipDependentRepository.countByMembershipIdAndStatusIn(
+                membershipId, Set.of(MembershipDependentStatus.ACTIVE));
+        long deceasedWithFinalisedClaims = membershipDependentRepository
+                .findByMembershipIdAndStatus(membershipId, MembershipDependentStatus.DECEASED)
+                .stream()
+                .filter(dependent -> hasFinalisedClaim(membershipId, dependent.getDependentPartnerId()))
+                .count();
+        return active + deceasedWithFinalisedClaims;
+    }
+
+    private boolean hasFinalisedClaim(String membershipId, String dependentPartnerId) {
+        return membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
+                membershipId,
+                dependentPartnerId,
+                List.of(MembershipClaimStatus.APPROVED, MembershipClaimStatus.PAYMENT_PENDING,
+                        MembershipClaimStatus.PAYMENT_PROCESSING, MembershipClaimStatus.PAYMENT_FAILED,
+                        MembershipClaimStatus.PAID));
     }
 
 

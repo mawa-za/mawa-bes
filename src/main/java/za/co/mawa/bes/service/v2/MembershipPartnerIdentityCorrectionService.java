@@ -51,11 +51,17 @@ public class MembershipPartnerIdentityCorrectionService {
         if (ownerIdentity.isPresent() && Objects.equals(ownerIdentity.get().getPartner(), currentPartnerId)) {
             throw new IllegalArgumentException("This SA-ID is already assigned to the current partner");
         }
+        boolean override = Boolean.TRUE.equals(request.getOverrideExistingOwner());
         PartnerIdentityEntity currentSaId = identityRepository.findPartnerIdentityByTypeAndPartner(SA_ID, currentPartnerId);
-        if (currentSaId != null) throw new IllegalArgumentException("The current partner already has an SA-ID");
-        String targetPartnerId = ownerIdentity.map(PartnerIdentityEntity::getPartner).orElse(currentPartnerId);
+        if (currentSaId != null && Objects.equals(currentSaId.getPartnerIdentityPK().getValue(), idNumber)) {
+            throw new IllegalArgumentException("This SA-ID is already assigned to the current partner");
+        }
+        if (currentSaId != null && !override) throw new IllegalArgumentException("The current partner already has an SA-ID. Select override to replace it through approval.");
+        String targetPartnerId = override ? currentPartnerId : ownerIdentity.map(PartnerIdentityEntity::getPartner).orElse(currentPartnerId);
         PartnerEntity targetPartner = requirePartner(targetPartnerId);
-        String action = targetPartnerId.equals(currentPartnerId) ? "ASSIGN_IDENTITY" : "RELINK_PARTNER";
+        String action = override && ownerIdentity.isPresent() && !Objects.equals(ownerIdentity.get().getPartner(), currentPartnerId)
+                ? "REASSIGN_IDENTITY"
+                : targetPartnerId.equals(currentPartnerId) ? "ASSIGN_IDENTITY" : "RELINK_PARTNER";
         validateRelationship(membership, dependent, subjectType, targetPartnerId);
 
         Integer pending = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM membership_partner_identity_correction WHERE membership_id=? AND subject_type=? AND COALESCE(dependent_id,'')=COALESCE(?,'') AND status='PENDING_APPROVAL'",
@@ -80,6 +86,8 @@ public class MembershipPartnerIdentityCorrectionService {
         payload.put("identityType", SA_ID);
         payload.put("identityNumber", idNumber);
         payload.put("correctionAction", action);
+        payload.put("overrideExistingOwner", override);
+        ownerIdentity.ifPresent(value -> payload.put("previousIdentityOwner", partnerSnapshot(requirePartner(value.getPartner()))));
         payload.put("currentPartner", partnerSnapshot(currentPartner));
         payload.put("proposedPartner", partnerSnapshot(targetPartner));
         payload.put("reason", request.getReason().trim());
@@ -118,7 +126,17 @@ public class MembershipPartnerIdentityCorrectionService {
         }
         validateRelationship(membership, dependent, subjectType, targetPartnerId);
         Optional<PartnerIdentityEntity> identity = identityRepository.findByNormalizedIdentity(SA_ID, idNumber);
-        if (identity.isPresent() && !Objects.equals(identity.get().getPartner(), targetPartnerId)) throw new IllegalStateException("The SA-ID is now assigned to a different partner");
+        boolean reassignIdentity = "REASSIGN_IDENTITY".equalsIgnoreCase(Objects.toString(row.get("correction_action"), ""));
+        if (!reassignIdentity && identity.isPresent() && !Objects.equals(identity.get().getPartner(), targetPartnerId)) throw new IllegalStateException("The SA-ID is now assigned to a different partner");
+        if (reassignIdentity && identity.isPresent()) {
+            PartnerIdentityEntity existingTargetIdentity = identityRepository.findPartnerIdentityByTypeAndPartner(SA_ID, targetPartnerId);
+            if (existingTargetIdentity != null && !Objects.equals(existingTargetIdentity.getPartnerIdentityPK().getValue(), idNumber)) {
+                identityRepository.delete(existingTargetIdentity);
+                identityRepository.flush();
+            }
+            identity.get().setPartner(targetPartnerId);
+            identityRepository.save(identity.get());
+        }
         if (identity.isEmpty()) {
             if (identityRepository.findPartnerIdentityByTypeAndPartner(SA_ID, targetPartnerId) != null)
                 throw new IllegalStateException("The target partner already has a different SA-ID");

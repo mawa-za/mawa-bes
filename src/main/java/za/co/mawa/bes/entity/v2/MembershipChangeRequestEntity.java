@@ -65,6 +65,18 @@ public class MembershipChangeRequestEntity {
     @Column(name = "effective_date")
     private LocalDate effectiveDate;
 
+    @Column(name = "old_start_date")
+    private LocalDate oldStartDate;
+
+    @Column(name = "new_start_date")
+    private LocalDate newStartDate;
+
+    @Column(name = "old_membership_effective_date")
+    private LocalDate oldMembershipEffectiveDate;
+
+    @Column(name = "new_membership_effective_date")
+    private LocalDate newMembershipEffectiveDate;
+
     @Column(name = "reason", columnDefinition = "TEXT")
     private String reason;
 

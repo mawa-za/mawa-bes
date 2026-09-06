@@ -25,6 +25,9 @@ public class FuneralServiceEntity {
     @Column(name = "service_request_no", unique = true)
     private String serviceRequestNo;
 
+    @Column(name = "membership_no", length = 100)
+    private String membershipNo;
+
     @Column(name = "mortuary_inventory_id")
     private String mortuaryInventoryId;
 

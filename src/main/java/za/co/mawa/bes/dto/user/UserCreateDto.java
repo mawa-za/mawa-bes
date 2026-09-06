@@ -14,6 +14,7 @@ public class UserCreateDto implements Serializable {
     private String password;
     private String email;
     private String cellphone;
+    private String timeZone;
     private String userType;
     private String partnerId;
     private String accountType;

@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.PartnerIdentityEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.dto.v2.sync.MembershipMasterDataDto;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.enums.PremiumStatus;
 import za.co.mawa.bes.exception.NumberRangeObjectNotFound;
@@ -337,21 +338,29 @@ public class MembershipService {
                 throw new IllegalStateException("Multiple memberships are not allowed for this member.");
             }
 
-            membership.setCreatedAt(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+            membership.setCreatedAt(LocalDateTime.ofInstant(java.time.Instant.now(), ZoneId.of("UTC")));
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
             membership.setMembershipNo(requestedMembershipNo.isEmpty()
                     ? numberAllocationService.allocateNumber(TransactionType.MEMBERSHIP)
                     : requestedMembershipNo);
-            membership.setPremiumCents(membershipPlanService.getPlanById(planId)
+            MembershipPlanEntity selectedPlan = membershipPlanService.getPlanById(planId)
                     .orElseThrow(() -> new IllegalArgumentException("Membership plan not found: " + planId))
-                    .getPremiumCents());
+                    ;
+            membership.setPremiumCents(selectedPlan.getPremiumCents());
             if (membership.getStartDate() == null) {
                 throw new IllegalArgumentException("Membership start date is required");
             }
             if (membership.getStatus() == null || membership.getStatus().isBlank()) {
-                membership.setStatus("ACTIVE");
+                int waitingMonths = selectedPlan.getWaitingPeriodMonths() == null ? 3 : selectedPlan.getWaitingPeriodMonths();
+                membership.setBenefitEligibleFrom(membership.getStartDate().plusMonths(waitingMonths));
+                membership.setStatus(waitingMonths > 0
+                        ? "WAITING_PERIOD" : "ACTIVE");
             } else {
                 membership.setStatus(membership.getStatus().trim().toUpperCase());
+                if (membership.getBenefitEligibleFrom() == null) {
+                    int waitingMonths = selectedPlan.getWaitingPeriodMonths() == null ? 3 : selectedPlan.getWaitingPeriodMonths();
+                    membership.setBenefitEligibleFrom(membership.getStartDate().plusMonths(waitingMonths));
+                }
             }
 
             boolean approvalRequired = additionalMembership
@@ -451,8 +460,17 @@ public class MembershipService {
                         throw new IllegalArgumentException(
                                 "Membership status changes require an approved Reactivate, Deactivate, Suspend or Cancel action");
                     }
+                    if (membership.getStartDate() != null
+                            && !membership.getStartDate().equals(existingMembership.getStartDate())) {
+                        throw new IllegalArgumentException(
+                                "Membership start-date changes require an approved membership date-change request");
+                    }
+                    if (membership.getBenefitEligibleFrom() != null
+                            && !membership.getBenefitEligibleFrom().equals(existingMembership.getBenefitEligibleFrom())) {
+                        throw new IllegalArgumentException(
+                                "Membership effective-date changes require an approved membership date-change request");
+                    }
                     existingMembership.setMembershipNo(membership.getMembershipNo());
-                    existingMembership.setStartDate(membership.getStartDate());
                     existingMembership.setEndDate(membership.getEndDate());
                     // Membership status is changed only by the approval-backed status action flow.
                     // Paid Up To is derived exclusively from PAID premium rows.

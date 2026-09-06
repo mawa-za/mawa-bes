@@ -15,6 +15,7 @@ import za.co.mawa.bes.dto.v2.devicesync.*;
 import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
+import za.co.mawa.bes.repository.v2.ReceiptRepository;
 
 import java.time.*;
 import java.util.*;
@@ -24,6 +25,7 @@ import java.util.*;
 public class DeviceSyncSubmissionService {
     private final DeviceSyncSubmissionRepository repository;
     private final PaymentBatchRepository paymentBatchRepository;
+    private final ReceiptRepository receiptRepository;
     private final ObjectMapper mapper;
 
     @Value("${device-sync.internal-base-url:http://127.0.0.1:${server.port:8080}}")
@@ -174,6 +176,55 @@ public class DeviceSyncSubmissionService {
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setProcessedAt(null);
         return dto(repository.save(entity));
+    }
+
+    @Transactional(readOnly = true)
+    public DeviceSyncReconciliationDto reconcile(String deviceId, String idempotencyKey) {
+        if (blank(deviceId) || blank(idempotencyKey)) {
+            throw new IllegalArgumentException("deviceId and idempotencyKey are required");
+        }
+        DeviceSyncSubmissionEntity submission = repository.findByIdempotencyKey(idempotencyKey.trim()).orElse(null);
+        if (submission != null && !deviceId.trim().equals(submission.getDeviceId())) {
+            throw new IllegalStateException("The sync operation belongs to a different device");
+        }
+
+        String prefix = "payment-batch:" + deviceId.trim() + ":";
+        if (idempotencyKey.startsWith(prefix)) {
+            String localId = idempotencyKey.substring(prefix.length());
+            var batch = paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(deviceId.trim(), localId).orElse(null);
+            if (batch == null) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("PAYMENT_BATCH")
+                        .message("No matching backend payment batch was found").build();
+            }
+            Map<String, String> receipts = new LinkedHashMap<>();
+            receiptRepository.findByPaymentBatchId(batch.getId()).forEach(receipt ->
+                    receipts.put(receipt.getReceiptNo(), receipt.getId()));
+            return DeviceSyncReconciliationDto.builder().verified(true)
+                    .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
+                    .serverStatus(batch.getStatus() == null ? null : batch.getStatus().name())
+                    .receiptIdsByNumber(receipts)
+                    .message("Backend payment batch verified").build();
+        }
+
+        if (submission != null && "COMPLETED".equals(submission.getStatus())) {
+            Map<String, Object> response = payloadMap(submission.getResponsePayload());
+            String serverId = firstText(response, "id", "serverId", "paymentBatchId", "cashupId", "membershipId", "partnerId");
+            return DeviceSyncReconciliationDto.builder().verified(true)
+                    .entityType("SUBMISSION").serverRecordId(serverId)
+                    .serverStatus(submission.getStatus()).message("Completed backend submission verified").build();
+        }
+        return DeviceSyncReconciliationDto.builder().verified(false).entityType("SUBMISSION")
+                .serverStatus(submission == null ? null : submission.getStatus())
+                .message(submission == null ? "No backend submission was found" : "Backend submission is not completed").build();
+    }
+
+    private String firstText(Map<String, Object> values, String... keys) {
+        for (String key : keys) {
+            String value = text(values.get(key));
+            if (!blank(value)) return value;
+        }
+        return null;
     }
 
     @Transactional

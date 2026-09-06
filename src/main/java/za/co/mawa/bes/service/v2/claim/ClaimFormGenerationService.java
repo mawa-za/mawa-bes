@@ -21,6 +21,7 @@ import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.CompanyPdfBrandingService;
+import za.co.mawa.bes.service.v2.UserTimeZoneService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ public class ClaimFormGenerationService {
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
+    private final UserTimeZoneService userTimeZoneService;
 
     @Transactional
     public AttachmentEntity generateForSubmittedClaim(String claimId) {
@@ -134,7 +136,7 @@ public class ClaimFormGenerationService {
 
     private float drawHeader(PDDocument document, PDPageContentStream content, float y, ClaimFormData data) throws Exception {
         y = companyPdfBrandingService.drawPdfBoxHeader(document, content, regularFont(), boldFont(), LEFT, RIGHT, y);
-        writeRight(content, "Generated " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")), RIGHT, y + 2, 8, false);
+        writeRight(content, "Generated " + userTimeZoneService.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")), RIGHT, y + 2, 8, false);
         y -= 24;
         write(content, "MEMBERSHIP CLAIM FORM", LEFT, y, 18, true);
         writeRight(content, clean(data.claimNo), RIGHT, y, 11, true);

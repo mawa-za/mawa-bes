@@ -21,6 +21,7 @@ public class MembershipPlanResponseDto {
     private Long premiumCents;
     private String currency;
     private Integer maxDependents;
+    private Integer waitingPeriodMonths;
     private Boolean active;
     private LocalDateTime createdAt;
     private String createdBy;

@@ -16,6 +16,7 @@ import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.PartnerContactRepository;
 import za.co.mawa.bes.repository.PartnerIdentityRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.service.TenantAdminService;
 
 import java.io.BufferedReader;
@@ -41,6 +42,8 @@ public class XeroInvoicePushService {
 
     @Autowired
     private PartnerRepository partnerRepository;
+    @Autowired
+    private ProductRepository productRepository;
 
     @Autowired
     private PartnerIdentityRepository partnerIdentityRepository;
@@ -56,6 +59,8 @@ public class XeroInvoicePushService {
 
     @Autowired
     private XeroIntegrationSettingsService xeroIntegrationSettingsService;
+    @Autowired
+    private XeroMasterDataPushService xeroMasterDataPushService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -87,6 +92,13 @@ public class XeroInvoicePushService {
             }
 
             String invoiceUrl = xeroAuthService.getXeroProperty(xeroConfigTenant, "XERO-BASE-URL", DEFAULT_INVOICE_URL);
+
+            xeroMasterDataPushService.pushCustomer(invoice.getPartnerId());
+            if (invoice.getLines() != null) {
+                for (InvoiceLineEntity line : invoice.getLines()) {
+                    if (!isBlank(line.getProductId())) xeroMasterDataPushService.pushProduct(line.getProductId());
+                }
+            }
 
             ObjectNode payload = buildInvoicePayload(invoice);
             JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload);
@@ -160,13 +172,14 @@ public class XeroInvoicePushService {
 
     private ObjectNode buildContact(String partnerId) {
         ObjectNode contact = objectMapper.createObjectNode();
-        String xeroContactId = getXeroContactId(partnerId);
+        PartnerEntity partner = partnerRepository.findById(partnerId).orElse(null);
+        String xeroContactId = partner == null ? null : partner.getXeroContactId();
+        if (isBlank(xeroContactId)) xeroContactId = getXeroContactId(partnerId);
         if (!isBlank(xeroContactId)) {
             contact.put("ContactID", xeroContactId);
             return contact;
         }
 
-        PartnerEntity partner = partnerRepository.findById(partnerId).orElse(null);
         String name = partner == null ? partnerId : firstNonBlank(joinNames(partner), partner.getNo(), partner.getId());
         contact.put("Name", name);
 
@@ -184,6 +197,11 @@ public class XeroInvoicePushService {
         lineItem.put("UnitAmount", centsToAmount(line.getUnitPriceCents()));
         lineItem.put("AccountCode", xeroIntegrationSettingsService.invoiceAccountCode());
         lineItem.put("TaxType", xeroIntegrationSettingsService.invoiceTaxType());
+        if (!isBlank(line.getProductId())) {
+            productRepository.findById(line.getProductId()).ifPresent(product -> {
+                if (!isBlank(product.getCode())) lineItem.put("ItemCode", product.getCode());
+            });
+        }
         return lineItem;
     }
 

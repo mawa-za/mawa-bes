@@ -49,6 +49,7 @@ public class FuneralManagementService {
     private static final String INTEGRATION_CONFIG_ID = "DEFAULT";
     private static final String FUNERAL_SERVICE_SETTING = "FUNERAL-SERVICE";
     private static final String MAX_SELECTED_COVERS_ATTRIBUTE = "MAX-SELECTED-COVERS";
+    private static final String AUTOMATIC_MORTUARY_CHECKOUT_ATTRIBUTE = "AUTOMATIC-MORTUARY-CHECKOUT-ENABLED";
     private static final String GENERATED_CLAIM_FORM_DOCUMENT_TYPE = "CLAIM-FORM";
 
     private final FuneralPickupRequestRepository pickupRequestRepository;
@@ -509,6 +510,8 @@ public class FuneralManagementService {
         return FuneralServiceConfigurationDto.builder()
                 .maxSelectableCovers(maxSelectableCovers)
                 .coverSelectionLimitEnabled(maxSelectableCovers > 0)
+                .automaticMortuaryCheckoutEnabled(Boolean.parseBoolean(settingService.getSetting(
+                        AUTOMATIC_MORTUARY_CHECKOUT_ATTRIBUTE, FUNERAL_SERVICE_SETTING)))
                 .build();
     }
 
@@ -516,6 +519,8 @@ public class FuneralManagementService {
     public FuneralServiceConfigurationDto updateServiceConfiguration(FuneralServiceConfigurationDto request) {
         int maxSelectableCovers = normalizeMaxSelectableCovers(request == null ? null : request.getMaxSelectableCovers());
         settingService.upsertSetting(MAX_SELECTED_COVERS_ATTRIBUTE, FUNERAL_SERVICE_SETTING, String.valueOf(maxSelectableCovers));
+        settingService.upsertSetting(AUTOMATIC_MORTUARY_CHECKOUT_ATTRIBUTE, FUNERAL_SERVICE_SETTING,
+                String.valueOf(request != null && Boolean.TRUE.equals(request.getAutomaticMortuaryCheckoutEnabled())));
         return getServiceConfiguration();
     }
 
@@ -540,6 +545,10 @@ public class FuneralManagementService {
     @Transactional
     public FuneralServiceRequestResponseDto createServiceRequest(FuneralServiceRequestDto request) {
         populateServiceRequestDefaults(request);
+        String mortuaryInventoryId = trimToNull(request.getMortuaryInventoryId());
+        if (mortuaryInventoryId != null && funeralServiceRepository.existsActiveByMortuaryInventoryId(mortuaryInventoryId)) {
+            throw new IllegalStateException("This deceased already has an active funeral service request. Cancel the existing request before creating another one.");
+        }
         validateRequired(request.getDeceasedName(), "deceasedName");
         validateRequired(request.getFamilyRepresentativeNames(), "familyRepresentativeNames");
         validateRequired(request.getFamilyRepresentativeSurname(), "familyRepresentativeSurname");
@@ -557,14 +566,14 @@ public class FuneralManagementService {
 
         FuneralServiceEntity entity = new FuneralServiceEntity();
         entity.setServiceRequestNo(generateFuneralServiceRequestNo());
-        entity.setMortuaryInventoryId(request.getMortuaryInventoryId());
-        entity.setDeceasedName(request.getDeceasedName());
+        entity.setMortuaryInventoryId(mortuaryInventoryId);
+        entity.setDeceasedName(request.getDeceasedName().trim().toUpperCase(Locale.ROOT));
         entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
         entity.setDeceasedPartnerId(resolveDeceasedPartnerId(request));
         entity.setPackageId(request.getPackageId());
         entity.setFamilyRepId(trimToNull(request.getFamilyRepId()));
-        entity.setFamilyRepNames(request.getFamilyRepresentativeNames().trim());
-        entity.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim());
+        entity.setFamilyRepNames(request.getFamilyRepresentativeNames().trim().toUpperCase(Locale.ROOT));
+        entity.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim().toUpperCase(Locale.ROOT));
         entity.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
         entity.setDateOfDeath(request.getDateOfDeath());
         entity.setFuneralDate(request.getFuneralDate());
@@ -639,6 +648,13 @@ public class FuneralManagementService {
         if (coverMap.isEmpty()) {
             throw new IllegalArgumentException("Selected membership cover could not be resolved. Please re-check membership cover and select again.");
         }
+        service.setMembershipNo(coverMap.values().stream()
+                .map(FuneralMembershipCoverDto::getMembershipNumber)
+                .filter(StringUtils::hasText)
+                .sorted(java.util.Comparator.reverseOrder())
+                .findFirst()
+                .orElse(null));
+        funeralServiceRepository.save(service);
         boolean hasLocalCover = coverMap.values().stream()
                 .anyMatch(cover -> COVER_SOURCE_LOCAL.equals(cover.getCoverSource()));
         if (hasLocalCover && !StringUtils.hasText(service.getDeceasedPartnerId())) {
@@ -2377,6 +2393,7 @@ public class FuneralManagementService {
         return FuneralServiceRequestResponseDto.builder()
                 .id(entity.getId())
                 .serviceRequestNo(entity.getServiceRequestNo())
+                .membershipNo(entity.getMembershipNo())
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())

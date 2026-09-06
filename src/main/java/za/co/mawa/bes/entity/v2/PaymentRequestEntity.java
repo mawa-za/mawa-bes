@@ -106,6 +106,9 @@ public class PaymentRequestEntity {
     @Column(name = "payment_purpose", length = 100)
     private String paymentPurpose;
 
+    @Column(name = "service_category", length = 100)
+    private String serviceCategory;
+
     @Column(name = "idempotency_key", length = 500, unique = true)
     private String idempotencyKey;
 

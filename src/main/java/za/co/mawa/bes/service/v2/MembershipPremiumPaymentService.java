@@ -184,10 +184,10 @@ public class MembershipPremiumPaymentService {
         String resolvedMembershipId = resolveCurrentMembershipId(batch.getMembershipId());
         membershipActionGuardService.requireActionable(resolvedMembershipId);
         if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM) {
-            throw new IllegalArgumentException("Only membership premium payments can be deleted");
+            throw new IllegalArgumentException("Only membership premium receipts can be cancelled");
         }
         if (batch.getStatus() != PaymentBatchStatus.POSTED) {
-            throw new IllegalStateException("Only POSTED premium payments can be deleted");
+            throw new IllegalStateException("Only POSTED premium receipts can be cancelled");
         }
 
         List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
@@ -219,7 +219,7 @@ public class MembershipPremiumPaymentService {
             for (var link : links) {
                 if (link.getCashup() == null || !"OPEN".equalsIgnoreCase(link.getCashup().getStatus())) {
                     throw new IllegalStateException(
-                            "Premium payments can only be deleted while the linked cash-up is OPEN");
+                            "Premium receipts can only be cancelled while the linked cash-up is OPEN");
                 }
                 linkedToOpenCashup = true;
             }
@@ -236,7 +236,7 @@ public class MembershipPremiumPaymentService {
             throw new IllegalArgumentException("requesterId is required");
         }
         if (isBlank(request.getReason())) {
-            throw new IllegalArgumentException("A deletion reason is required");
+            throw new IllegalArgumentException("A cancellation reason is required");
         }
 
         var existingApproval = approvalRequestRepository.findByApprovalTypeAndReferenceId(
@@ -249,11 +249,12 @@ public class MembershipPremiumPaymentService {
             PaymentBatchEntity existingBatch = paymentBatchRepository.findById(paymentBatchId)
                     .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
             if (existingApproval.getStatus() == ApprovalStatus.APPROVED
-                    && existingBatch.getStatus() == PaymentBatchStatus.REVERSED) {
+                    && (existingBatch.getStatus() == PaymentBatchStatus.CANCELLED
+                    || existingBatch.getStatus() == PaymentBatchStatus.REVERSED)) {
                 return approvalService.getById(existingApproval.getId());
             }
             throw new IllegalStateException(
-                    "A premium payment deletion request already exists with status " + existingApproval.getStatus());
+                    "A premium receipt cancellation request already exists with status " + existingApproval.getStatus());
         }
 
         validateDeletionAllowed(paymentBatchId);
@@ -263,7 +264,7 @@ public class MembershipPremiumPaymentService {
         approval.setApprovalType(ApprovalType.PREMIUM_PAYMENT_DELETION);
         approval.setReferenceId(batch.getId());
         approval.setReferenceNo(batch.getPaymentBatchNo());
-        approval.setTitle("Delete premium payment " + batch.getPaymentBatchNo());
+        approval.setTitle("Cancel premium payment " + batch.getPaymentBatchNo());
         approval.setDescription(request.getReason().trim());
         approval.setRequesterId(request.getRequesterId().trim());
         String resolvedMembershipId = resolveCurrentMembershipId(batch.getMembershipId());
@@ -528,6 +529,11 @@ public class MembershipPremiumPaymentService {
 
     @Transactional
     public void reverseApprovedPayment(String paymentBatchId, String actionBy, String reason) {
+        cancelApprovedPayment(paymentBatchId, actionBy, reason);
+    }
+
+    @Transactional
+    public void cancelApprovedPayment(String paymentBatchId, String actionBy, String reason) {
         validateDeletionAllowed(paymentBatchId);
         PaymentBatchEntity batch = paymentBatchRepository.findById(paymentBatchId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment batch not found: " + paymentBatchId));
@@ -544,31 +550,28 @@ public class MembershipPremiumPaymentService {
             }
         }
 
-        String reversalReason = isBlank(reason) ? "Approved premium payment deletion" : reason.trim();
+        String reversalReason = isBlank(reason) ? "Approved premium payment cancellation" : reason.trim();
         for (ReceiptEntity receipt : receipts) {
-            receiptService.reverseReceipt(receipt.getId(), reversalReason, actionBy);
+            receiptService.cancelReceipt(receipt.getId(), reversalReason, actionBy);
         }
+        onlineCashupService.cancelReceiptAmounts(receipts, actionBy);
         ManualPremiumReceiptEntity manualReceipt = manualPremiumReceiptRepository
                 .findByPaymentBatchId(paymentBatchId)
                 .orElse(null);
         boolean legacyManualPayment = isLegacyManualReceiptPayment(batch, receipts, manualReceipt);
-        onlineCashupService.removeReceipts(
-                receipts,
-                manualReceipt == null ? List.of() : List.of(manualReceipt.getId()),
-                actionBy,
-                !allowPremiumPaymentDeletionWithoutCashupValidation(),
-                legacyManualPayment);
+        // Keep cancelled receipts linked to their cash-up for complete audit and
+        // reconciliation history. Cancellation changes ledger status, not history.
 
         if (manualReceipt != null && manualReceipt.getVoidedAt() == null) {
             manualReceipt.setVoidedAt(LocalDateTime.now());
             manualReceipt.setVoidedBy(actionBy);
-            manualReceipt.setVoidReason(isBlank(reason) ? "Approved premium payment deletion" : reason.trim());
+            manualReceipt.setVoidReason(isBlank(reason) ? "Approved premium payment cancellation" : reason.trim());
             manualPremiumReceiptRepository.save(manualReceipt);
         }
 
-        batch.setStatus(PaymentBatchStatus.REVERSED);
+        batch.setStatus(PaymentBatchStatus.CANCELLED);
         batch.setNotes((isBlank(batch.getNotes()) ? "" : batch.getNotes() + "\n")
-                + "Reversed after approved deletion: " + reversalReason);
+                + "Cancelled after approval: " + reversalReason);
         paymentBatchRepository.save(batch);
         if (!isBlank(batch.getMembershipId())) {
             membershipPremiumService.reconcileMembership(

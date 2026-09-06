@@ -17,6 +17,7 @@ public class MembershipPlanCreateRequestDto {
     private Long premiumCents;
     private String currency;
     private Integer maxDependents;
+    private Integer waitingPeriodMonths;
     private Boolean active;
     private String oldId;
 }

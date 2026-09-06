@@ -60,6 +60,9 @@ public class MembershipEntity {
     @Column(name = "join_date")
     private LocalDate joinDate;
 
+    @Column(name = "benefit_eligible_from")
+    private LocalDate benefitEligibleFrom;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

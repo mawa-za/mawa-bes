@@ -48,6 +48,7 @@ public class FuneralDocumentService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final ReferenceDataValidationService referenceDataValidationService;
+    private final UserTimeZoneService userTimeZoneService;
 
     public byte[] generateConfirmationLetter(String funeralServiceId) {
         FuneralServiceEntity service = getService(funeralServiceId);
@@ -60,7 +61,7 @@ public class FuneralDocumentService {
             PdfFont bold = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
             addCompanyHeader(document, regular, bold);
-            document.add(new Paragraph(LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")))
+            document.add(new Paragraph(userTimeZoneService.now().toLocalDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")))
                     .setFont(regular).setFontSize(10).setMarginTop(14));
             document.add(new Paragraph("TO WHOM IT MAY CONCERN")
                     .setFont(bold).setFontSize(12).setMarginTop(18).setMarginBottom(18));
@@ -135,7 +136,7 @@ public class FuneralDocumentService {
             addSection(document, "REQUEST DETAILS", regular, bold, new String[][]{
                     {"Service request number", value(service.getServiceRequestNo(), service.getId())},
                     {"Status", value(service.getStatus(), "")},
-                    {"Created", service.getCreatedAt() == null ? "" : service.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}
+                    {"Created", service.getCreatedAt() == null ? "" : userTimeZoneService.display(service.getCreatedAt()).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}
             });
 
             addSection(document, "DECEASED DETAILS", regular, bold, new String[][]{
@@ -212,7 +213,7 @@ public class FuneralDocumentService {
     }
 
     private String formatDayDateTime(LocalDateTime dateTime) {
-        return dateTime == null ? "" : dateTime.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy HH:mm", Locale.ENGLISH));
+        return dateTime == null ? "" : userTimeZoneService.display(dateTime).format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy HH:mm", Locale.ENGLISH));
     }
 
     private void addCompanyHeader(Document document, PdfFont regular, PdfFont bold) {

@@ -23,6 +23,11 @@ public interface MembershipDependentRepository extends JpaRepository<MembershipD
             MembershipDependentStatus status
     );
 
+    long countByMembershipIdAndStatusIn(
+            String membershipId,
+            Collection<MembershipDependentStatus> statuses
+    );
+
     Optional<MembershipDependentEntity> findByIdAndMembershipId(String id, String membershipId);
 
     Optional<MembershipDependentEntity> findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(

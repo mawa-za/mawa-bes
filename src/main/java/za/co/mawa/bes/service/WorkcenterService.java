@@ -6,7 +6,6 @@ import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
 import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
-import za.co.mawa.bes.enums.ApprovalType;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -114,18 +113,9 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("business-partner","Business Partners","search"));
         workcenterDtoList.add(new WorkcenterDto("payroll-batch","Payroll Batch","search"));
         workcenterDtoList.add(new WorkcenterDto("approvals","Approvals","search"));
-        // Approval queues are independently assignable. The generic Approvals
-        // workcentre remains the unfiltered inbox, while these cards provide
-        // role-controlled, type-specific shortcuts into the same workspace.
-        for (ApprovalType approvalType : ApprovalType.values()) {
-            String label = java.util.Arrays.stream(approvalType.name().split("_"))
-                    .map(part -> part.substring(0, 1) + part.substring(1).toLowerCase())
-                    .collect(java.util.stream.Collectors.joining(" "));
-            workcenterDtoList.add(new WorkcenterDto(
-                    "approval-" + approvalType.name().toLowerCase().replace('_', '-'),
-                    label + " Approvals",
-                    "APPROVALS"));
-        }
+        // Approval requests are deliberately exposed as one consolidated
+        // workspace. Approval type is workflow data, not a workcentre
+        // permission, and therefore must not clutter role maintenance.
         // Reporting permissions are intentionally granular. Each report is a
         // separate workcentre so role administrators can grant only the
         // management/operational information a user is allowed to see. The
@@ -143,6 +133,12 @@ public class WorkcenterService implements WorkcenterDao {
         workcenterDtoList.add(new WorkcenterDto("management-supplier-payments-summary-report","Supplier Payments Summary","search"));
         workcenterDtoList.add(new WorkcenterDto("management-payments-by-service-report","Payments by Service","search"));
         workcenterDtoList.add(new WorkcenterDto("operational-supplier-payment-detail-report","Supplier Payment Detail","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-new-memberships-per-month-report","New Memberships per Month","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-approval-requests-per-month-report","Approval Requests per Month","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-funeral-services-per-month-report","Funeral Services per Month","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-group-societies-total-report","Total Group Societies","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-group-society-balances-report","Group Society Balances","search"));
+        workcenterDtoList.add(new WorkcenterDto("management-consolidated-customer-balances-report","Consolidated Customer Balances","search"));
         return workcenterDtoList;
     }
 

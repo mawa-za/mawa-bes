@@ -25,6 +25,7 @@ import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
+import za.co.mawa.bes.xero.XeroMasterDataPushService;
 
 import java.time.LocalDateTime;
 import java.sql.SQLException;
@@ -55,6 +56,8 @@ public class MessageConsumerService {
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
     @Autowired
     XeroInvoicePushService xeroInvoicePushService;
+    @Autowired
+    XeroMasterDataPushService xeroMasterDataPushService;
     @Autowired
     PaymentDisbursementAttemptService paymentAttemptService;
     @Autowired
@@ -350,6 +353,14 @@ public class MessageConsumerService {
                         break;
                     case "XERO-INVOICE":
                         xeroInvoicePushService.pushInvoice(resolveInvoiceId(msg));
+                        msg.setProcessed(true);
+                        break;
+                    case "XERO-CUSTOMER":
+                        xeroMasterDataPushService.pushCustomer(msg.getReferenceId());
+                        msg.setProcessed(true);
+                        break;
+                    case "XERO-PRODUCT":
+                        xeroMasterDataPushService.pushProduct(msg.getReferenceId());
                         msg.setProcessed(true);
                         break;
                     default:
@@ -648,5 +659,4 @@ public class MessageConsumerService {
         messageQueueRepository.save(msg);
     }
 }
-
 
