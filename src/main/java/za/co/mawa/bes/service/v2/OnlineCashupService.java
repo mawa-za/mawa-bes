@@ -346,6 +346,38 @@ public class OnlineCashupService {
         }
     }
 
+    @Transactional
+    public void cancelReceiptAmounts(List<ReceiptEntity> receipts, String actor) {
+        if (receipts == null || receipts.isEmpty()) return;
+        Map<String, CashupEntity> affected = new LinkedHashMap<>();
+        for (ReceiptEntity receipt : receipts) {
+            if (receipt == null || receipt.getId() == null) continue;
+            Map<String, CashupReceiptEntity> links = new LinkedHashMap<>();
+            for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptId(receipt.getId())) {
+                links.put(link.getId(), link);
+            }
+            if (receipt.getPaymentBatchId() != null && !receipt.getPaymentBatchId().isBlank()) {
+                for (CashupReceiptEntity link : cashupReceiptRepository.findByLegacyTransactionId(receipt.getPaymentBatchId())) {
+                    links.put(link.getId(), link);
+                }
+            }
+            Long number = numericReceiptNo(receipt.getReceiptNo());
+            if (number != null) {
+                for (CashupReceiptEntity link : cashupReceiptRepository.findByReceiptNo(number)) {
+                    links.put(link.getId(), link);
+                }
+            }
+            for (CashupReceiptEntity link : links.values()) {
+                link.setAmountCents(0L);
+                cashupReceiptRepository.save(link);
+                if (link.getCashup() != null) affected.put(link.getCashup().getId(), link.getCashup());
+            }
+        }
+        cashupReceiptRepository.flush();
+        String user = firstNonBlank(actor, DEFAULT_USER);
+        for (CashupEntity cashup : affected.values()) rebuildCashupFromLinks(cashup, user);
+    }
+
     private void rebuildCashupFromLinks(CashupEntity cashup, String actor) {
         List<CashupReceiptEntity> remaining = cashupReceiptRepository.findByCashupId(cashup.getId());
         long receiptTotal = remaining.stream().mapToLong(item -> value(item.getAmountCents())).sum();

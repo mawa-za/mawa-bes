@@ -147,6 +147,18 @@ public class MembershipPremiumSyncOfflineService {
             }
         }
 
+        if ("CANCELLED".equalsIgnoreCase(request.getStatus())) {
+            String reason = request.getCancellationReason() == null
+                    || request.getCancellationReason().isBlank()
+                    ? "Cancelled on MawaPay before synchronization"
+                    : request.getCancellationReason().trim();
+            for (ReceiptResponseDto syncedReceipt : syncedReceipts) {
+                receiptService.cancelReceipt(syncedReceipt.getId(), reason, request.getCreatedBy());
+            }
+            batch.setStatus(PaymentBatchStatus.CANCELLED);
+            batch.setNotes(reason);
+        }
+
         String paidUpToPeriod = membershipService.recalculatePaidUpToPeriod(canonicalMembershipId);
         String syncStatus = warnings.isEmpty() ? "SYNCED" : "SYNCED_WITH_WARNINGS";
 
