@@ -34,7 +34,7 @@ public class PayAppManualActionService {
         String device = required(request.get("deviceId"), "deviceId");
         String local = required(request.get("localRecordId"), "localRecordId");
         verifyIdentity(type, device, local, body);
-        String key = key(type, device, local);
+        String key = key(type, device, local, body);
         String json = mapper.writeValueAsString(body);
         List<Map<String,Object>> existing = jdbc.queryForList("SELECT * FROM pay_app_manual_action WHERE idempotency_key=? ORDER BY requested_at DESC LIMIT 1", key);
         if (!existing.isEmpty()) {
@@ -114,7 +114,10 @@ public class PayAppManualActionService {
         String path = safePath(beforeClaim.get("endpoint"));
         String type = text(beforeClaim.get("entity_type"));
         validateTarget(path, text(beforeClaim.get("http_method")), type);
-        String idem = key(type, text(beforeClaim.get("device_id")), text(beforeClaim.get("local_record_id")));
+        Map<String, Object> beforePayload = mapper.readValue(
+                text(beforeClaim.get("payload_json")), new TypeReference<>() {});
+        String idem = key(type, text(beforeClaim.get("device_id")),
+                text(beforeClaim.get("local_record_id")), beforePayload);
         int claimed = jdbc.update("UPDATE pay_app_manual_action SET status='PROCESSING',processing_started_at=UTC_TIMESTAMP(),attempt_count=attempt_count+1,row_version=row_version+1,actioned_by=?,actioned_at=UTC_TIMESTAMP() WHERE id=? AND status IN ('PENDING','FAILED','CORRECTION_REQUIRED')", actor(), id);
         if (claimed != 1) throw new IllegalStateException("Action is already processing or is no longer executable");
         Map<String, Object> action = internal(id);
@@ -152,7 +155,11 @@ public class PayAppManualActionService {
     private Map<String,Object> internal(String id) { List<Map<String,Object>> rows=jdbc.queryForList("SELECT * FROM pay_app_manual_action WHERE id=?",id); if(rows.isEmpty())throw new NoSuchElementException("Manual sync action not found"); return new LinkedHashMap<>(rows.get(0)); }
     private void validateTarget(String path,String method,String type){ if(!"POST".equalsIgnoreCase(method))throw new IllegalArgumentException("Only POST manual actions are supported"); if(!type.equals(ALLOWED.get(path)))throw new IllegalArgumentException("Endpoint is not allowed for this entity type"); }
     private void verifyIdentity(String type,String device,String local,Map<String,Object> body){ if("PAYMENT_BATCH".equals(type)&&(!device.equals(text(body.get("deviceId")))||!local.equals(text(body.get("localPaymentBatchId")))))throw new IllegalArgumentException("Payment batch identity cannot be changed"); if("CASHUP".equals(type)&&!device.equals(text(body.get("deviceId"))))throw new IllegalArgumentException("Cashup device identity cannot be changed"); }
-    private String key(String type,String device,String local){ String prefix=switch(type){case"PAYMENT_BATCH"->"payment-batch";case"PARTNER"->"partner";case"MEMBERSHIP"->"membership";case"CASHUP"->"cashup";default->throw new IllegalArgumentException("Unsupported entity type");}; return prefix+":"+required(device,"deviceId")+":"+required(local,"localRecordId"); }
+    private String key(String type,String device,String local){ return key(type,device,local,null); }
+    private String key(String type,String device,String local,Map<String,Object> body){
+        String normalizedDevice=required(device,"deviceId");
+        if("PAYMENT_BATCH".equals(type)&&body!=null&&!blank(text(body.get("paymentBatchNo")))) return "payment-batch-number:"+normalizedDevice+":"+text(body.get("paymentBatchNo"));
+        String prefix=switch(type){case"PAYMENT_BATCH"->"payment-batch";case"PARTNER"->"partner";case"MEMBERSHIP"->"membership";case"CASHUP"->"cashup";default->throw new IllegalArgumentException("Unsupported entity type");}; return prefix+":"+normalizedDevice+":"+required(local,"localRecordId"); }
     private Map<String,Object> payload(Object value){ if(value==null)throw new IllegalArgumentException("Failed payload is required"); Map<String,Object> result=mapper.convertValue(value,new TypeReference<>(){}); if(result.isEmpty())throw new IllegalArgumentException("Failed payload is required"); return result; }
     private String safePath(Object value){ String path=required(value,"endpoint"); if(path.contains("?")||path.contains("..")||path.contains("://"))throw new IllegalArgumentException("Invalid manual action endpoint"); return path; }
     private void requireAdmin(){
