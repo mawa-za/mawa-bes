@@ -8,6 +8,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.dto.v2.devicesync.DeviceSyncSubmitRequest;
 import za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCancellationRequest;
 import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
+import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
+import za.co.mawa.bes.enums.PaymentBatchStatus;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
@@ -125,6 +127,47 @@ class DeviceSyncSubmissionServiceTest {
     }
 
     @Test
+    void completedPaymentWithoutResponseBodyIsReopenedForARealRetry() {
+        ObjectMapper mapper = new ObjectMapper();
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, mapper);
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .id(10L)
+                .submissionId("submission-empty-payment")
+                .idempotencyKey("payment-batch-number:device-1:PB-9002")
+                .deviceId("device-1")
+                .syncTime(LocalDateTime.now())
+                .submittedBy("cashier")
+                .httpMethod("POST")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .requestPayload("{\"paymentBatchNo\":\"PB-9002\"}")
+                .responsePayload(null)
+                .responseStatus(200)
+                .status("COMPLETED")
+                .attemptCount(1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        DeviceSyncSubmitRequest request = new DeviceSyncSubmitRequest();
+        request.setIdempotencyKey("payment-batch-number:device-1:PB-9002");
+        request.setDeviceId("device-1");
+        request.setMethod("POST");
+        request.setPath("/v2/sync/payment-batches/membership-premiums");
+        request.setPayload(Map.of("paymentBatchNo", "PB-9002"));
+
+        when(repository.findByIdempotencyKey(request.getIdempotencyKey()))
+                .thenReturn(Optional.of(existing));
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.submit(request, "cashier");
+
+        assertThat(result.getStatus()).isEqualTo("RECEIVED");
+        assertThat(existing.getResponseStatus()).isNull();
+        assertThat(existing.getProcessedAt()).isNull();
+    }
+
+    @Test
     void orphanedPaymentSubmissionCanBeCancelledWithoutDeletingAuditHistory() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
@@ -159,5 +202,33 @@ class DeviceSyncSubmissionServiceTest {
         assertThat(result.getStatus()).isEqualTo("CANCELLED");
         assertThat(existing.getErrorMessage()).contains("cashier");
         assertThat(existing.getProcessedAt()).isNotNull();
+    }
+
+    @Test
+    void paymentBatchNumberIdentityDoesNotResolveAReusedLocalRowId() {
+        ObjectMapper mapper = new ObjectMapper();
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, mapper);
+        PaymentBatchEntity current = PaymentBatchEntity.builder()
+                .id("server-batch-new")
+                .paymentBatchNo("PB-9002")
+                .deviceId("device-1")
+                .localPaymentBatchId("44")
+                .status(PaymentBatchStatus.POSTED)
+                .build();
+
+        when(repository.findByIdempotencyKey(
+                "payment-batch-number:device-1:PB-9002"))
+                .thenReturn(Optional.empty());
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-9002"))
+                .thenReturn(Optional.of(current));
+        when(receiptRepository.findByPaymentBatchId("server-batch-new"))
+                .thenReturn(java.util.List.of());
+
+        var result = service.reconcile(
+                "device-1", "payment-batch-number:device-1:PB-9002");
+
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getServerRecordId()).isEqualTo("server-batch-new");
     }
 }
