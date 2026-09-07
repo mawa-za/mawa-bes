@@ -45,9 +45,9 @@ public class GroupSocietyPaymentSyncOfflineService {
 
         GroupSocietyEntity society = groupSocietyService.getById(request.getGroupSocietyId());
 
-        var existingBatch = paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(
-                request.getDeviceId(),
-                request.getLocalPaymentBatchId()
+        // Use the allocated, non-reusable batch number as the durable identity.
+        var existingBatch = paymentBatchRepository.findByPaymentBatchNo(
+                request.getPaymentBatchNo()
         );
 
         if (existingBatch.isPresent()) {
@@ -58,19 +58,6 @@ public class GroupSocietyPaymentSyncOfflineService {
                     request,
                     society,
                     new ArrayList<>(List.of("Group society payment batch already existed; backend receipts were verified")),
-                    true
-            );
-        }
-
-        if (paymentBatchRepository.existsByPaymentBatchNo(request.getPaymentBatchNo())) {
-            PaymentBatchEntity batch = paymentBatchRepository.findByPaymentBatchNo(request.getPaymentBatchNo())
-                    .orElseThrow();
-            validateExistingBatchIdentity(batch, request, society);
-            return syncIntoBatch(
-                    batch,
-                    request,
-                    society,
-                    new ArrayList<>(List.of("Payment batch number already existed; backend receipts were verified")),
                     true
             );
         }
@@ -154,8 +141,7 @@ public class GroupSocietyPaymentSyncOfflineService {
         if (batch.getSourceType() != ReceiptSourceType.GROUP_SOCIETY
                 || !Objects.equals(batch.getReceivedFromPartnerId(), society.getPartnerId())
                 || !request.getPaymentBatchNo().equals(batch.getPaymentBatchNo())
-                || !request.getDeviceId().equals(batch.getDeviceId())
-                || !request.getLocalPaymentBatchId().equals(batch.getLocalPaymentBatchId())) {
+                || !request.getDeviceId().equals(batch.getDeviceId())) {
             throw new IllegalStateException(
                     "Payment batch number is already linked to a different MawaPay device transaction"
             );
