@@ -32,9 +32,11 @@ public class MembershipPremiumSyncOfflineService {
     public PaymentSyncOfflineResponseDto sync(MembershipPremiumPaymentSyncOfflineRequest request) {
         validate(request);
 
-        var existingBatch = paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(
-                request.getDeviceId(),
-                request.getLocalPaymentBatchId()
+        // The allocated payment batch number is immutable. The former
+        // device/local-row lookup is unsafe because SQLite may reuse its
+        // highest integer id after a hard delete.
+        var existingBatch = paymentBatchRepository.findByPaymentBatchNo(
+                request.getPaymentBatchNo()
         );
 
         if (existingBatch.isPresent()) {
@@ -50,24 +52,6 @@ public class MembershipPremiumSyncOfflineService {
                     request,
                     canonicalMembershipId,
                     new ArrayList<>(List.of("Payment batch already existed; backend receipts were verified")),
-                    true
-            );
-        }
-
-        if (paymentBatchRepository.existsByPaymentBatchNo(request.getPaymentBatchNo())) {
-            PaymentBatchEntity batch = paymentBatchRepository.findByPaymentBatchNo(request.getPaymentBatchNo())
-                    .orElseThrow();
-            validateExistingBatchIdentity(batch, request);
-            String canonicalMembershipId = membershipService.resolveMembership(request.getMembershipId()).getId();
-            if (!canonicalMembershipId.equals(batch.getMembershipId())) {
-                batch.setMembershipId(canonicalMembershipId);
-                paymentBatchRepository.save(batch);
-            }
-            return syncIntoBatch(
-                    batch,
-                    request,
-                    canonicalMembershipId,
-                    new ArrayList<>(List.of("Payment batch number already existed; backend receipts were verified")),
                     true
             );
         }
@@ -183,8 +167,7 @@ public class MembershipPremiumSyncOfflineService {
     ) {
         if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM
                 || !request.getPaymentBatchNo().equals(batch.getPaymentBatchNo())
-                || !request.getDeviceId().equals(batch.getDeviceId())
-                || !request.getLocalPaymentBatchId().equals(batch.getLocalPaymentBatchId())) {
+                || !request.getDeviceId().equals(batch.getDeviceId())) {
             throw new IllegalStateException(
                     "Payment batch number is already linked to a different MawaPay device transaction"
             );

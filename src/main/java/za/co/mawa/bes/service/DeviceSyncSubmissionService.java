@@ -42,11 +42,15 @@ public class DeviceSyncSubmissionService {
         if (existing.isPresent()) {
             DeviceSyncSubmissionEntity entity = existing.get();
             if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
-            if (!"COMPLETED".equals(entity.getStatus())) {
+            boolean incompleteCompletedPayment = "COMPLETED".equals(entity.getStatus())
+                    && isPaymentBatchSubmission(entity.getTargetPath())
+                    && blankJson(entity.getResponsePayload());
+            if (!"COMPLETED".equals(entity.getStatus()) || incompleteCompletedPayment) {
                 // The same durable operation may be retried after the device user
                 // corrected local data. Keep the idempotency identity, but refresh
                 // the payload and device metadata so reprocessing never replays the
-                // stale request that originally failed.
+                // stale request that originally failed. A payment HTTP 200 without
+                // a response body is incomplete and must also be reprocessed.
                 entity.setDeviceId(trimToNull(request.getDeviceId()));
                 entity.setDeviceSerialNumber(trimToNull(request.getDeviceSerialNumber()));
                 entity.setSyncTime(parseDeviceTime(request.getSyncTime(), now));
@@ -188,6 +192,19 @@ public class DeviceSyncSubmissionService {
             throw new IllegalStateException("The sync operation belongs to a different device");
         }
 
+        String numberPrefix = "payment-batch-number:" + deviceId.trim() + ":";
+        if (idempotencyKey.startsWith(numberPrefix)) {
+            String paymentBatchNo = idempotencyKey.substring(numberPrefix.length());
+            var batch = paymentBatchRepository.findByPaymentBatchNo(paymentBatchNo).orElse(null);
+            if (batch == null || !deviceId.trim().equals(batch.getDeviceId())) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("PAYMENT_BATCH")
+                        .message("No matching backend payment batch was found").build();
+            }
+            return verifiedPaymentBatch(batch);
+        }
+
+        // Compatibility with queue records created before MawaPay 1.2.56.
         String prefix = "payment-batch:" + deviceId.trim() + ":";
         if (idempotencyKey.startsWith(prefix)) {
             String localId = idempotencyKey.substring(prefix.length());
@@ -197,14 +214,7 @@ public class DeviceSyncSubmissionService {
                         .entityType("PAYMENT_BATCH")
                         .message("No matching backend payment batch was found").build();
             }
-            Map<String, String> receipts = new LinkedHashMap<>();
-            receiptRepository.findByPaymentBatchId(batch.getId()).forEach(receipt ->
-                    receipts.put(receipt.getReceiptNo(), receipt.getId()));
-            return DeviceSyncReconciliationDto.builder().verified(true)
-                    .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
-                    .serverStatus(batch.getStatus() == null ? null : batch.getStatus().name())
-                    .receiptIdsByNumber(receipts)
-                    .message("Backend payment batch verified").build();
+            return verifiedPaymentBatch(batch);
         }
 
         if (submission != null && "COMPLETED".equals(submission.getStatus())) {
@@ -217,6 +227,17 @@ public class DeviceSyncSubmissionService {
         return DeviceSyncReconciliationDto.builder().verified(false).entityType("SUBMISSION")
                 .serverStatus(submission == null ? null : submission.getStatus())
                 .message(submission == null ? "No backend submission was found" : "Backend submission is not completed").build();
+    }
+
+    private DeviceSyncReconciliationDto verifiedPaymentBatch(za.co.mawa.bes.entity.v2.PaymentBatchEntity batch) {
+        Map<String, String> receipts = new LinkedHashMap<>();
+        receiptRepository.findByPaymentBatchId(batch.getId()).forEach(receipt ->
+                receipts.put(receipt.getReceiptNo(), receipt.getId()));
+        return DeviceSyncReconciliationDto.builder().verified(true)
+                .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
+                .serverStatus(batch.getStatus() == null ? null : batch.getStatus().name())
+                .receiptIdsByNumber(receipts)
+                .message("Backend payment batch verified").build();
     }
 
     private String firstText(Map<String, Object> values, String... keys) {
@@ -255,8 +276,13 @@ public class DeviceSyncSubmissionService {
                 !entity.getDeviceId().equals(payloadDeviceId)) {
             throw new IllegalStateException("The queued payment identity is incomplete or does not match this device");
         }
-        if (paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(
-                payloadDeviceId, localPaymentBatchId).isPresent()) {
+        String paymentBatchNo = text(payload.get("paymentBatchNo"));
+        boolean backendBatchExists = !blank(paymentBatchNo)
+                ? paymentBatchRepository.findByPaymentBatchNo(paymentBatchNo)
+                    .filter(batch -> payloadDeviceId.equals(batch.getDeviceId())).isPresent()
+                : paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(
+                    payloadDeviceId, localPaymentBatchId).isPresent();
+        if (backendBatchExists) {
             throw new IllegalStateException(
                     "The payment batch already exists on the backend and cannot be discarded");
         }
@@ -399,5 +425,11 @@ public class DeviceSyncSubmissionService {
 
     private boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean blankJson(String value) {
+        return blank(value)
+                || "null".equalsIgnoreCase(value.trim())
+                || "{}".equals(value.trim());
     }
 }
