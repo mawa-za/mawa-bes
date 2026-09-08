@@ -6,6 +6,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FuneralClaimSettlementServiceTest {
 
@@ -57,5 +58,11 @@ class FuneralClaimSettlementServiceTest {
                 20_000L
         );
         assertEquals(10_000L, amount);
+    }
+
+    @Test
+    void groupSocietySettlementHasDedicatedPaymentRequestType() {
+        assertTrue(java.util.Arrays.stream(za.co.mawa.bes.enums.PaymentRequestType.values())
+                .anyMatch(type -> type.name().equals("GROUP_SOCIETY_SETTLEMENT")));
     }
 }
