@@ -73,6 +73,12 @@ public class PaymentAccountConfigurationService {
         if (bankIntegration != null) {
             bankIntegration = bankIntegration.toUpperCase();
         }
+        if ("DEBTOR".equals(role) && "GROUP_SOCIETY_SETTLEMENT".equals(requestType)) {
+            if (!"FNB".equalsIgnoreCase(bankIntegration) || !"FNB".equalsIgnoreCase(bankName)) {
+                throw new IllegalArgumentException(
+                        "Group society settlement debtor account must be an FNB account using FNB integration");
+            }
+        }
         if ("PAYROLL_DEBTOR".equals(role)) {
             bankIntegration = "FNB";
         }

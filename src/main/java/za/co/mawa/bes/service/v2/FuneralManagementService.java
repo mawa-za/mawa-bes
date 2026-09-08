@@ -1798,11 +1798,13 @@ public class FuneralManagementService {
     }
 
     private void reconcileFuneralCoverPayment(String invoiceId, FuneralInvoiceSplitDto split) {
-        boolean coveredByApprovedClaim =
+        boolean membershipCover =
                 ("BURIAL_SOCIETY".equalsIgnoreCase(split.getEntityType())
-                        && StringUtils.hasText(split.getMembershipClaimId()))
-                || ("GROUP_SOCIETY".equalsIgnoreCase(split.getEntityType())
-                        && StringUtils.hasText(split.getGroupSocietyClaimId()));
+                        && StringUtils.hasText(split.getMembershipClaimId()));
+        boolean groupSocietyCover = "GROUP_SOCIETY".equalsIgnoreCase(split.getEntityType())
+                && StringUtils.hasText(split.getGroupSocietyClaimId());
+        boolean coveredByApprovedClaim = membershipCover
+                || (groupSocietyCover && groupSocietySettlementCompleted(invoiceId));
 
         // Replace only the system-generated cover allocation. Cash/card/EFT payments captured
         // by users remain untouched when the funeral invoice is regenerated.
@@ -1840,6 +1842,18 @@ public class FuneralManagementService {
         jdbcTemplate.update(
                 "UPDATE invoice SET paid_cents = ?, balance_cents = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 paid, balance, status, invoiceId);
+    }
+
+    private boolean groupSocietySettlementCompleted(String invoiceId) {
+        List<String> statuses = jdbcTemplate.query("""
+                SELECT pr.status
+                  FROM funeral_service_invoice fsi
+                  LEFT JOIN payment_request pr ON pr.id=fsi.payment_request_id
+                 WHERE fsi.invoice_id=?
+                """, (rs, rowNum) -> rs.getString(1), invoiceId);
+        // No payment request means the configured mode was ledger-only.
+        return statuses.isEmpty() || statuses.get(0) == null
+                || "PAID".equalsIgnoreCase(statuses.get(0));
     }
 
     private void rebuildFuneralInvoiceLines(FuneralServiceEntity service, FuneralInvoiceSplitDto split, String invoiceId) {
