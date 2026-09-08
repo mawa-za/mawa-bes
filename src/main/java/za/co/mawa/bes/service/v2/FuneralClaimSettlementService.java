@@ -14,6 +14,7 @@ import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.repository.v2.FuneralServiceClaimRepository;
 import za.co.mawa.bes.service.NumberRangeService;
+import za.co.mawa.bes.service.SettingService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +29,12 @@ import java.util.UUID;
 public class FuneralClaimSettlementService {
     private static final String FUNERAL_CLAIM_PAYMENT_SETTING = "FUNERAL_CLAIM_PAY";
     private static final String FUNERAL_CLAIM_SUPPLIER_ATTRIBUTE = "SUPPLIER_PARTNER_ID";
+    private static final String GROUP_SOCIETY_SETTLEMENT_SETTING = "GROUP_SOCIETY_SETTLEMENT";
+    private static final String SETTLEMENT_MODE_ATTRIBUTE = "MODE";
+    private static final String SETTLEMENT_RECIPIENT_ATTRIBUTE = "RECIPIENT_PARTNER_ID";
+    private static final String LEDGER_ONLY = "LEDGER_ONLY";
+    private static final String INTERNAL_ACCOUNT_TRANSFER = "INTERNAL_ACCOUNT_TRANSFER";
+    private static final String EXTERNAL_PROVIDER_PAYMENT = "EXTERNAL_PROVIDER_PAYMENT";
 
     private final JdbcTemplate jdbc;
     private final FuneralServiceClaimRepository links;
@@ -35,6 +42,8 @@ public class FuneralClaimSettlementService {
     private final MembershipClaimService membershipClaims;
     private final PaymentRequestFnbPaymentQueueService paymentQueue;
     private final NumberRangeService numberRangeService;
+    private final SettingService settingService;
+    private final PaymentAccountConfigurationService paymentAccountConfigurationService;
 
     @Transactional
     public PaymentRequestResponse settleApprovedClaim(String claimId, String actor) {
@@ -223,16 +232,23 @@ public class FuneralClaimSettlementService {
 
         Map<String, Object> invoice = ensureGroupSocietyCoverageInvoice(serviceId, claimId, claim, amountCents);
         String tenant = TenantContext.getCurrentTenant();
-        String supplierPartnerId = resolveConfiguredFuneralClaimSupplierId(tenant);
+        String settlementMode = groupSocietySettlementMode();
+        if (LEDGER_ONLY.equals(settlementMode)) {
+            settleGroupSocietyInvoiceInternally(invoice, claimId, amountCents);
+            return null;
+        }
+
+        String supplierPartnerId = resolveGroupSocietySettlementRecipient(tenant);
         String paymentInvoiceNo = Objects.toString(invoice.get("invoice_no"), null);
 
         PaymentRequestCreateRequest request = new PaymentRequestCreateRequest();
-        request.setRequestType(PaymentRequestType.FUNERAL_SERVICE_PAYMENT);
+        request.setRequestType(PaymentRequestType.GROUP_SOCIETY_SETTLEMENT);
         request.setSourceType(PaymentRequestSourceType.GROUP_SOCIETY);
         request.setSourceId(claimId);
         request.setPayeePartnerId(supplierPartnerId);
         request.setPayeeName(resolvePartnerName(tenant, supplierPartnerId));
         applySupplierBanking(tenant, supplierPartnerId, request);
+        assertDistinctSettlementAccounts(request);
         request.setAmount(BigDecimal.valueOf(amountCents, 2));
         request.setCurrency("ZAR");
         request.setInvoiceNo(paymentInvoiceNo);
@@ -240,7 +256,9 @@ public class FuneralClaimSettlementService {
         request.setPaymentReason("FUNERAL-SERVICE-COVER");
         request.setRequestedPaymentDate(LocalDate.now());
         request.setIdempotencyKey("GROUP-SOCIETY-FUNERAL-SERVICE:" + claimId);
-        request.setNotes("Approved group society funeral cover payment to funeral service provider");
+        request.setNotes(INTERNAL_ACCOUNT_TRANSFER.equals(settlementMode)
+                ? "Transfer from ring-fenced group society funds to the tenant invoice payments account"
+                : "Approved group society funeral cover payment to external funeral service provider");
 
         String effectiveActor = effectiveActor(actor);
         PaymentRequestResponse response = approveAndQueue(payments.create(request, effectiveActor), effectiveActor);
@@ -249,7 +267,83 @@ public class FuneralClaimSettlementService {
         jdbc.update("UPDATE funeral_service_invoice"
                         + " SET payment_request_id=?, provider_tenant_id=?, cover_tenant_id=? WHERE invoice_id=?",
                 response.getId(), tenant, tenant, invoice.get("invoice_id"));
+        String invoiceStatus = Set.of(PaymentRequestStatus.QUEUED_FOR_PAYMENT, PaymentRequestStatus.PROCESSED)
+                .contains(response.getStatus()) ? "PAYMENT_PROCESSING" : "PAYMENT_PENDING";
+        jdbc.update("UPDATE invoice SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                invoiceStatus, invoice.get("invoice_id"));
         return response;
+    }
+
+    private String groupSocietySettlementMode() {
+        String configured = settingService.getSetting(
+                SETTLEMENT_MODE_ATTRIBUTE, GROUP_SOCIETY_SETTLEMENT_SETTING);
+        String mode = isBlank(configured) ? LEDGER_ONLY : configured.trim().toUpperCase();
+        if (!Set.of(LEDGER_ONLY, INTERNAL_ACCOUNT_TRANSFER, EXTERNAL_PROVIDER_PAYMENT).contains(mode)) {
+            throw new IllegalStateException("Unsupported group society settlement mode: " + configured);
+        }
+        return mode;
+    }
+
+    private String resolveGroupSocietySettlementRecipient(String tenant) {
+        String partnerId = settingService.getSetting(
+                SETTLEMENT_RECIPIENT_ATTRIBUTE, GROUP_SOCIETY_SETTLEMENT_SETTING);
+        if (isBlank(partnerId)) {
+            throw new IllegalStateException(
+                    "Configure the group society settlement recipient under System Configuration > Group Society Settlement");
+        }
+        partnerId = partnerId.trim();
+        Integer supplierCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM " + qualified(tenant, "partner_role")
+                        + " WHERE partner=? AND UPPER(TRIM(role))='SUPPLIER'",
+                Integer.class, partnerId);
+        if (supplierCount == null || supplierCount == 0) {
+            throw new IllegalStateException("The configured group society settlement recipient is not an approved supplier");
+        }
+        return partnerId;
+    }
+
+    private void assertDistinctSettlementAccounts(PaymentRequestCreateRequest request) {
+        Map<String, Object> source = paymentAccountConfigurationService
+                .activeDebtor(PaymentRequestType.GROUP_SOCIETY_SETTLEMENT.name())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Configure an active FNB debtor account for GROUP_SOCIETY_SETTLEMENT under Payment Accounts"));
+        String integration = Objects.toString(source.get("bank_integration"), "");
+        if (!"FNB".equalsIgnoreCase(integration)) {
+            throw new IllegalStateException("The GROUP_SOCIETY_SETTLEMENT source account must use FNB integration");
+        }
+        String sourceAccount = digits(Objects.toString(source.get("account_number"), ""));
+        String destinationAccount = digits(request.getAccountNumber());
+        if (!sourceAccount.isEmpty() && sourceAccount.equals(destinationAccount)) {
+            throw new IllegalStateException(
+                    "The group society funds account and settlement destination account are the same. Use Ledger only instead of creating an FNB transfer");
+        }
+    }
+
+    private void settleGroupSocietyInvoiceInternally(
+            Map<String, Object> invoice, String claimId, long amountCents) {
+        String invoiceId = Objects.toString(invoice.get("invoice_id"), null);
+        jdbc.update("""
+                INSERT INTO invoice_payment(
+                    id,invoice_id,payment_date,amount_cents,payment_method,reference_no,created_at)
+                SELECT ?,?,CURRENT_TIMESTAMP,?,'GROUP_SOCIETY_COVER',?,CURRENT_TIMESTAMP
+                 WHERE NOT EXISTS (
+                    SELECT 1 FROM invoice_payment
+                     WHERE invoice_id=? AND payment_method='GROUP_SOCIETY_COVER'
+                       AND reference_no=?
+                 )
+                """, UUID.randomUUID().toString(), invoiceId, amountCents, claimId, invoiceId, claimId);
+        jdbc.update("""
+                UPDATE invoice i
+                   SET i.paid_cents=(SELECT COALESCE(SUM(p.amount_cents),0) FROM invoice_payment p WHERE p.invoice_id=i.id),
+                       i.balance_cents=GREATEST(0,i.total_cents-(SELECT COALESCE(SUM(p.amount_cents),0) FROM invoice_payment p WHERE p.invoice_id=i.id)-COALESCE(i.credited_cents,0)),
+                       i.status=CASE WHEN i.total_cents <= (SELECT COALESCE(SUM(p.amount_cents),0) FROM invoice_payment p WHERE p.invoice_id=i.id)+COALESCE(i.credited_cents,0) THEN 'PAID' ELSE 'PARTIALLY_PAID' END,
+                       i.updated_at=CURRENT_TIMESTAMP
+                 WHERE i.id=?
+                """, invoiceId);
+    }
+
+    private String digits(String value) {
+        return value == null ? "" : value.replaceAll("[^0-9]", "");
     }
 
     private PaymentRequestResponse approveAndQueue(PaymentRequestResponse response, String actor) {
