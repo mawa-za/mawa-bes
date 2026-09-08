@@ -747,6 +747,7 @@ public class PaymentRequestService {
         if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
             membershipClaimService.markPaymentPaid(entity.getSourceId(), systemActor(updatedBy));
         }
+        updateGroupSocietySettlementInvoice(entity, "PAID");
     }
 
     @Transactional
@@ -764,11 +765,47 @@ public class PaymentRequestService {
         if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
             membershipClaimService.markPaymentFailed(entity.getSourceId(), reason, systemActor(updatedBy));
         }
+        updateGroupSocietySettlementInvoice(entity, "PAYMENT_FAILED");
     }
 
     private void updateLinkedClaimProcessing(PaymentRequestEntity entity, String updatedBy) {
         if (entity.getSourceType() == PaymentRequestSourceType.MEMBERSHIP_CLAIM && entity.getSourceId() != null) {
             membershipClaimService.markPaymentProcessing(entity.getSourceId(), updatedBy);
+        }
+        updateGroupSocietySettlementInvoice(entity, "PAYMENT_PROCESSING");
+    }
+
+    private void updateGroupSocietySettlementInvoice(PaymentRequestEntity entity, String invoiceStatus) {
+        if (entity.getSourceType() != PaymentRequestSourceType.GROUP_SOCIETY || entity.getId() == null) return;
+        if ("PAID".equals(invoiceStatus)) {
+            jdbcTemplate.update("""
+                    INSERT INTO invoice_payment(
+                        id,invoice_id,payment_date,amount_cents,payment_method,reference_no,created_at)
+                    SELECT UUID(),fsi.invoice_id,CURRENT_TIMESTAMP,i.total_cents,
+                           'GROUP_SOCIETY_COVER',pr.request_no,CURRENT_TIMESTAMP
+                      FROM funeral_service_invoice fsi
+                      JOIN invoice i ON i.id=fsi.invoice_id
+                      JOIN payment_request pr ON pr.id=fsi.payment_request_id
+                     WHERE fsi.payment_request_id=?
+                       AND NOT EXISTS (
+                           SELECT 1 FROM invoice_payment ip
+                            WHERE ip.invoice_id=fsi.invoice_id
+                              AND ip.payment_method='GROUP_SOCIETY_COVER'
+                       )
+                    """, entity.getId());
+            jdbcTemplate.update("""
+                    UPDATE invoice i
+                    JOIN funeral_service_invoice fsi ON fsi.invoice_id=i.id
+                       SET i.status='PAID',i.paid_cents=i.total_cents,i.balance_cents=0,i.updated_at=CURRENT_TIMESTAMP
+                     WHERE fsi.payment_request_id=?
+                    """, entity.getId());
+        } else {
+            jdbcTemplate.update("""
+                    UPDATE invoice i
+                    JOIN funeral_service_invoice fsi ON fsi.invoice_id=i.id
+                       SET i.status=?,i.updated_at=CURRENT_TIMESTAMP
+                     WHERE fsi.payment_request_id=?
+                    """, invoiceStatus, entity.getId());
         }
     }
 
