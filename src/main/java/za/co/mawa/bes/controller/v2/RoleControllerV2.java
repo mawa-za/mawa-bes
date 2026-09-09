@@ -41,13 +41,6 @@ public class RoleControllerV2 {
             roleDto.setValidFrom(new Date());
             roleDto.setValidTo(Conversion.stringToDate(Constant.END_DATE));
             roleService.create(roleDto);
-            if (!Boolean.TRUE.equals(roleDto.getAccessAllWorkcentres())) {
-                RoleWorkcenterCreateDto workcenter = new RoleWorkcenterCreateDto();
-                workcenter.setWorkcenter("dashboard");
-                workcenter.setRole(roleDto.getId());
-                workcenter.setPosition(1);
-                roleService.addWorkcenter(workcenter);
-            }
             return ResponseEntity.ok(roleService.get(roleDto.getId()));
         } catch (SecurityException exception) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("code", "PROTECTED_ROLE_CHANGE_DENIED", "message", exception.getMessage()));

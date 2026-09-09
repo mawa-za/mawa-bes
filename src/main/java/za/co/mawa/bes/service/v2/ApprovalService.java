@@ -33,6 +33,7 @@ public class ApprovalService {
     private final UserInboxService userInboxService;
     private final MembershipClaimService membershipClaimService;
     private final ApprovalApproverScopeService approverScopeService;
+    private final ApprovalAccessService approvalAccessService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -353,8 +354,21 @@ public class ApprovalService {
         return toResponse(getApprovalRequestOrThrow(id));
     }
 
+    public ApprovalRequestResponse getByIdForViewer(String id, String viewer) {
+        ApprovalRequestEntity request = getApprovalRequestOrThrow(id);
+        if (!approvalAccessService.canView(request, viewer)) {
+            throw new SecurityException("User is not assigned to this approval request");
+        }
+        return toResponse(request);
+    }
+
     public List<ApprovalActionEntity> getAuditTrail(String approvalRequestId) {
         return approvalActionRepository.findByApprovalRequestIdOrderByActionAtAsc(approvalRequestId);
+    }
+
+    public List<ApprovalActionEntity> getAuditTrailForViewer(String approvalRequestId, String viewer) {
+        getByIdForViewer(approvalRequestId, viewer);
+        return getAuditTrail(approvalRequestId);
     }
 
     public List<ApprovalRequestEntity> getByStatus(ApprovalStatus status) {
@@ -372,16 +386,25 @@ public class ApprovalService {
     public List<ApprovalRequestEntity> search(
             ApprovalStatus status,
             ApprovalType approvalType,
-            String requesterId
+            String requesterId,
+            String viewer
     ) {
+        List<ApprovalRequestEntity> candidates;
         if (status != null && approvalType != null) {
-            return approvalRequestRepository
+            candidates = approvalRequestRepository
                     .findByStatusAndApprovalTypeOrderByCreatedAtDesc(status, approvalType);
+        } else if (status != null) {
+            candidates = getByStatus(status);
+        } else if (approvalType != null) {
+            candidates = getByType(approvalType);
+        } else if (requesterId != null && !requesterId.isBlank()) {
+            candidates = getByRequester(requesterId);
+        } else {
+            candidates = approvalRequestRepository.findAllByOrderByCreatedAtDesc();
         }
-        if (status != null) return getByStatus(status);
-        if (approvalType != null) return getByType(approvalType);
-        if (requesterId != null && !requesterId.isBlank()) return getByRequester(requesterId);
-        return approvalRequestRepository.findAllByOrderByCreatedAtDesc();
+        return candidates.stream()
+                .filter(request -> approvalAccessService.canView(request, viewer))
+                .toList();
     }
 
     private void moveToNextStepOrComplete(ApprovalRequestEntity approvalRequest, ApprovalDecisionRequest decision) {

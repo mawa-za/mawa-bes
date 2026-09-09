@@ -146,6 +146,11 @@ public class RoleService implements RoleDao {
     @Override
     public void addWorkcenter(RoleWorkcenterCreateDto roleWorkcenterCreateDto) throws Exception {
         try {
+            WorkcenterDto catalogued = workcenterService.getById(roleWorkcenterCreateDto.getWorkcenter());
+            if (!Boolean.TRUE.equals(catalogued.getAssignable())) {
+                throw new IllegalArgumentException("Workcentre is not assignable: " + roleWorkcenterCreateDto.getWorkcenter());
+            }
+            roleWorkcenterCreateDto.setWorkcenter(catalogued.getId());
             RoleEntity role = roleRepository.findById(roleWorkcenterCreateDto.getRole()).orElse(null);
             if (role != null && (Boolean.TRUE.equals(role.getProtectedRole()) || Boolean.TRUE.equals(role.getSystemRole()))
                     && !userAccessService.isProtectedAdministrator()) {
