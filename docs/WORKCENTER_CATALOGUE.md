@@ -17,6 +17,10 @@ display ordering, active state and whether administrators may assign the workcen
 Role assignments remain in `role_workcenter`. Group rows are presentation metadata and never grant
 access. The backend rejects assignments for unknown, inactive or non-assignable catalogue entries.
 
+Approval tiles are an exception to role-workcenter assignment: they are generated from active
+workflow approver rules. A user sees the Approvals group only when at least one approval type is
+assigned to that user, one of their roles/groups, or their manager scope.
+
 ## Adding or changing a workcenter
 
 Change the catalogue with a tenant Flyway migration. Do not add a Java hard-coded catalogue entry,

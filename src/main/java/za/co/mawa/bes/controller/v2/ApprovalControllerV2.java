@@ -13,6 +13,8 @@ import za.co.mawa.bes.entity.v2.ApprovalWorkflowEntity;
 import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.service.v2.ApprovalService;
+import za.co.mawa.bes.service.v2.ApprovalAccessService;
+import za.co.mawa.bes.dto.v2.AssignedApprovalTypeResponse;
 
 import java.util.List;
 
@@ -23,6 +25,7 @@ import java.util.List;
 public class ApprovalControllerV2 {
 
     private final ApprovalService approvalService;
+    private final ApprovalAccessService approvalAccessService;
 
 //    @PostMapping("/workflows")
 //    public ApprovalWorkflowEntity createWorkflow(
@@ -73,25 +76,35 @@ public class ApprovalControllerV2 {
 
     @GetMapping("/{approvalRequestId}")
     public ApprovalRequestResponse getById(
-            @PathVariable String approvalRequestId
+            @PathVariable String approvalRequestId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
-        return approvalService.getById(approvalRequestId);
+        return approvalService.getByIdForViewer(approvalRequestId, currentUser(headerUserId, null));
     }
 
     @GetMapping("/{approvalRequestId}/audit")
     public List<ApprovalActionEntity> getAuditTrail(
-            @PathVariable String approvalRequestId
+            @PathVariable String approvalRequestId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
-        return approvalService.getAuditTrail(approvalRequestId);
+        return approvalService.getAuditTrailForViewer(approvalRequestId, currentUser(headerUserId, null));
     }
 
     @GetMapping
     public List<ApprovalRequestEntity> search(
             @RequestParam(required = false) ApprovalStatus status,
             @RequestParam(required = false) ApprovalType approvalType,
-            @RequestParam(required = false) String requesterId
+            @RequestParam(required = false) String requesterId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
-        return approvalService.search(status, approvalType, requesterId);
+        return approvalService.search(status, approvalType, requesterId, currentUser(headerUserId, null));
+    }
+
+    @GetMapping("/assigned-types")
+    public List<AssignedApprovalTypeResponse> assignedTypes(
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
+        return approvalAccessService.assignedTypes(currentUser(headerUserId, null));
     }
 
     private String currentUser(String headerUserId, String fallback) {
