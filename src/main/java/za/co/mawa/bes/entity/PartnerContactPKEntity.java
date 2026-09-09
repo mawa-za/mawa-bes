@@ -17,7 +17,7 @@ public class PartnerContactPKEntity implements Serializable {
     private String partner;
     @Basic(optional = false)
     //@NotNull
-    @Column(name = "type", length = 20)
+    @Column(name = "type", length = 32)
     private String type;
 
 }
