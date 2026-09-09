@@ -1,157 +1,49 @@
 package za.co.mawa.bes.service;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dao.WorkcenterDao;
-import za.co.mawa.bes.dto.FieldDto;
 import za.co.mawa.bes.dto.WorkcenterDto;
-import za.co.mawa.bes.exception.FieldDoesNotExist;
 import za.co.mawa.bes.exception.RoleDoesNotExist;
 
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 public class WorkcenterService implements WorkcenterDao {
+    private final JdbcTemplate jdbcTemplate;
+
+    public WorkcenterService(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
     @Override
     public List<WorkcenterDto> getAll() {
-        List<WorkcenterDto> workcenterDtoList = new ArrayList<>();
-//        workcenterDtoList.add(new WorkcenterDto("dashboard","Dashboard",""));
-//        workcenterDtoList.add(new WorkcenterDto("home","Home",""));
-//        workcenterDtoList.add(new WorkcenterDto("prospect","Prospects","search"));
-        workcenterDtoList.add(new WorkcenterDto("membership-management","Membership Management",""));
-        workcenterDtoList.add(new WorkcenterDto("funeral-management","Funeral Management",""));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-management","Tombstone Management",""));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-orders","Tombstone Orders","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-laybys","Tombstone Laybys","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-site-assessments","Tombstone Site Assessments","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-design-approvals","Tombstone Design Approvals","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-production-jobs","Tombstone Production Jobs","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-planning","Tombstone Installation Planning","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-calendar","Tombstone Installation Calendar","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-installation-teams","Tombstone Installation Teams","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-rework-jobs","Tombstone Rework Jobs","search"));
-        workcenterDtoList.add(new WorkcenterDto("tombstone-reports","Tombstone Reports","search"));
-        workcenterDtoList.add(new WorkcenterDto("finance-management","Finance Management",""));
-        workcenterDtoList.add(new WorkcenterDto("inventory","Inventory Management",""));
-        workcenterDtoList.add(new WorkcenterDto("scheduling","Calendar & Appointments",""));
-        // Service Management business objects are independent workcentres.
-        // The ERP groups them for navigation only; access is always role-based
-        // per object.
-        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
-        workcenterDtoList.add(new WorkcenterDto("service-order","Service Orders","search"));
-        workcenterDtoList.add(new WorkcenterDto("service-contract","Service Contracts","search"));
-        workcenterDtoList.add(new WorkcenterDto("service-appointment","Service Appointments","search"));
-        workcenterDtoList.add(new WorkcenterDto("service-catalogue","Services","search"));
-        workcenterDtoList.add(new WorkcenterDto("service-resource","Service Resources","search"));
-        workcenterDtoList.add(new WorkcenterDto("partner-management","Partner Management",""));
-        workcenterDtoList.add(new WorkcenterDto("administration","Administration",""));
-        workcenterDtoList.add(new WorkcenterDto("customer","Customers","search"));
-        workcenterDtoList.add(new WorkcenterDto("client","Clients","search"));
-        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
-        workcenterDtoList.add(new WorkcenterDto("employment-management","Employment Management","search"));
-        workcenterDtoList.add(new WorkcenterDto("leave-management","Leave Management","search"));
-        workcenterDtoList.add(new WorkcenterDto("asset-register","Asset Management","search"));
-        workcenterDtoList.add(new WorkcenterDto("supplier","Suppliers","search"));
-        workcenterDtoList.add(new WorkcenterDto("member","Members","search"));
-        workcenterDtoList.add(new WorkcenterDto("funeral-service-request","Funeral Service Requests","search"));
-        workcenterDtoList.add(new WorkcenterDto("funeral-package-setup","Funeral Package Setup",""));
-        workcenterDtoList.add(new WorkcenterDto("pickup-request","Pickup Requests","search"));
-        workcenterDtoList.add(new WorkcenterDto("mortuary-inventory","Mortuary Inventory","search"));
-        workcenterDtoList.add(new WorkcenterDto("corpse-check-in","Corpse Check In","search"));
-        workcenterDtoList.add(new WorkcenterDto("corpse-check-out","Corpse Check Out","search"));
-        workcenterDtoList.add(new WorkcenterDto("invoice","Invoices","search"));
-        workcenterDtoList.add(new WorkcenterDto("purchase-order","Purchase Orders","search"));
-//        workcenterDtoList.add(new WorkcenterDto("service-request","Service Requests","search"));
-//        workcenterDtoList.add(new WorkcenterDto("service-order","Service Orders","search"));
-//        workcenterDtoList.add(new WorkcenterDto("leave-request","Leave Requests","search"));
-//        workcenterDtoList.add(new WorkcenterDto("leave-dashboard","Leave",""));
-//        workcenterDtoList.add(new WorkcenterDto("leave-approval","Leave Approvals","search"));
-//        workcenterDtoList.add(new WorkcenterDto("employee","Employees","search"));
-        workcenterDtoList.add(new WorkcenterDto("quotation","Quotations","search"));
-        workcenterDtoList.add(new WorkcenterDto("layby","Laybys","search"));
-        workcenterDtoList.add(new WorkcenterDto("membership-claim","Membership Claims","search"));
-        workcenterDtoList.add(new WorkcenterDto("funeral-cover-underwriting","Funeral Cover Underwriting","search"));
-        workcenterDtoList.add(new WorkcenterDto("membership-plan","Membership Plans","search"));
-        workcenterDtoList.add(new WorkcenterDto("membership","Memberships","search"));
-        workcenterDtoList.add(new WorkcenterDto("product","Products","search"));
-        workcenterDtoList.add(new WorkcenterDto("goods-receipt","Goods Receipt","search"));
-        workcenterDtoList.add(new WorkcenterDto("putaway","Putaway","search"));
-        workcenterDtoList.add(new WorkcenterDto("stock-on-hand","Stock on Hand","search"));
-        workcenterDtoList.add(new WorkcenterDto("stock-movement","Stock Movements","search"));
-        workcenterDtoList.add(new WorkcenterDto("inventory-audit","Inventory Audit","search"));
-        workcenterDtoList.add(new WorkcenterDto("inventory-setup","Inventory Setup",""));
-        workcenterDtoList.add(new WorkcenterDto("sales-order","Sales Orders","search"));
-//        workcenterDtoList.add(new WorkcenterDto("complaint","Complaints","search"));
-//        workcenterDtoList.add(new WorkcenterDto("identify-customer","Identify Customer",""));
-//        workcenterDtoList.add(new WorkcenterDto("interaction-record","Interaction Record","list"));
-        workcenterDtoList.add(new WorkcenterDto("calendar","Calendar", ""));
-        workcenterDtoList.add(new WorkcenterDto("appointment","Appointments", "search"));
-//        workcenterDtoList.add(new WorkcenterDto("time-tracker","Time Tracker","search"));
-//        workcenterDtoList.add(new WorkcenterDto("company-info","Company Information",""));
-        workcenterDtoList.add(new WorkcenterDto("system-configuration","System Configuration",""));
-        workcenterDtoList.add(new WorkcenterDto("approval-workflow","Approval Workflow Configuration","search"));
-        workcenterDtoList.add(new WorkcenterDto("company-forms","Company Forms","search"));
-//        workcenterDtoList.add(new WorkcenterDto("report","Reports",""));
-        workcenterDtoList.add(new WorkcenterDto("api-log","API Logs","search"));
-//        workcenterDtoList.add(new WorkcenterDto("receipt","Receipts","search"));
-        workcenterDtoList.add(new WorkcenterDto("cashup","Cashups","search"));
-//        workcenterDtoList.add(new WorkcenterDto("supplier","Suppliers","search"));
-        workcenterDtoList.add(new WorkcenterDto("payment-request","Payment Request","search"));
-//        workcenterDtoList.add(new WorkcenterDto("claim-approval","Claim Approvals","search"));
-//        workcenterDtoList.add(new WorkcenterDto("partner","Partners","search"));
-//        workcenterDtoList.add(new WorkcenterDto("membership-approval","Membership Approval","search"));
-        workcenterDtoList.add(new WorkcenterDto("group-society","Group Society","search"));
-//        workcenterDtoList.add(new WorkcenterDto("payment-request-approval","Payment Request Approval","search"));
-//        workcenterDtoList.add(new WorkcenterDto("case","Cases","search"));
-//        workcenterDtoList.add(new WorkcenterDto("membership-premium","Membership Premiums","update"));
-//        workcenterDtoList.add(new WorkcenterDto("warehouse-layout-display","Warehouse Layout",""));
-//        workcenterDtoList.add(new WorkcenterDto("warehouse-layout-config","Warehouse Layout Configurator",""));
-        workcenterDtoList.add(new WorkcenterDto("legal-case","Legal Cases","search"));
-        workcenterDtoList.add(new WorkcenterDto("employee-engagement","Employee Engagement",""));
-        workcenterDtoList.add(new WorkcenterDto("business-partner","Business Partners","search"));
-        workcenterDtoList.add(new WorkcenterDto("payroll-batch","Payroll Batch","search"));
-        workcenterDtoList.add(new WorkcenterDto("approvals","Approvals","search"));
-        // Approval requests are deliberately exposed as one consolidated
-        // workspace. Approval type is workflow data, not a workcentre
-        // permission, and therefore must not clutter role maintenance.
-        // Reporting permissions are intentionally granular. Each report is a
-        // separate workcentre so role administrators can grant only the
-        // management/operational information a user is allowed to see. The
-        // legacy hidden "reports" marker is retained only in role_workcenter
-        // data for reporting-service compatibility and is not exposed here.
-        workcenterDtoList.add(new WorkcenterDto("management-membership-overview-report","Membership Overview","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-memberships-by-plan-report","Memberships by Plan","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-premium-performance-report","Premium Performance","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-claims-activity-report","Claims by Month & Type","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-customer-money-received-report","Customer Money Received","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-cashier-collections-report","Cashier Collections","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-deposits-summary-report","Deposits Summary","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-undeposited-collections-report","Undeposited Collections","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-collections-deposits-reconciliation-report","Collections & Deposits Reconciliation","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-supplier-payments-summary-report","Supplier Payments Summary","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-payments-by-service-report","Payments by Service","search"));
-        workcenterDtoList.add(new WorkcenterDto("operational-supplier-payment-detail-report","Supplier Payment Detail","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-new-memberships-per-month-report","New Memberships per Month","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-approval-requests-per-month-report","Approval Requests per Month","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-funeral-services-per-month-report","Funeral Services per Month","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-group-societies-total-report","Total Group Societies","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-group-society-balances-report","Group Society Balances","search"));
-        workcenterDtoList.add(new WorkcenterDto("management-consolidated-customer-balances-report","Consolidated Customer Balances","search"));
-        return workcenterDtoList;
+        return queryCatalogue("WHERE active = TRUE AND assignable = TRUE", new Object[0]);
     }
 
     @Override
     public WorkcenterDto getById(String id) throws RoleDoesNotExist {
-        List<WorkcenterDto> workcenterDtoList = getAll().stream()
-                .filter(a -> Objects.equals(a.getId(), id))
-                .toList();
-        if (!workcenterDtoList.isEmpty()) {
-            return workcenterDtoList.iterator().next();
-        } else {
-            throw new RoleDoesNotExist();
-        }
+        return queryCatalogue("WHERE LOWER(id) = LOWER(?) AND active = TRUE", new Object[]{id})
+                .stream().findFirst().orElseThrow(RoleDoesNotExist::new);
     }
 
+    private List<WorkcenterDto> queryCatalogue(String where, Object[] arguments) {
+        String sql = """
+                SELECT id, description, default_function, route_key, route_path, icon_key,
+                       group_code, group_title, group_description, section_code, section_title,
+                       section_display_order, group_display_order, display_order,
+                       card_description, active, assignable, permission_code
+                  FROM workcenter_catalog
+                """ + where + " ORDER BY section_display_order, group_display_order, display_order, description";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> WorkcenterDto.catalogued(
+                rs.getString("id"), rs.getString("description"), rs.getString("default_function"),
+                rs.getString("route_key"), rs.getString("route_path"), rs.getString("icon_key"),
+                rs.getString("group_code"), rs.getString("group_title"), rs.getString("group_description"),
+                rs.getString("section_code"), rs.getString("section_title"),
+                rs.getInt("section_display_order"), rs.getInt("group_display_order"),
+                rs.getInt("display_order"), rs.getString("card_description"),
+                rs.getBoolean("active"), rs.getBoolean("assignable"),
+                rs.getString("permission_code")), arguments);
+    }
 }
+
