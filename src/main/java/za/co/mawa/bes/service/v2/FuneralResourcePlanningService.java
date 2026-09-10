@@ -181,7 +181,7 @@ public class FuneralResourcePlanningService {
         jdbc.update("INSERT INTO purchase_order_line(id,purchase_order_id,line_no,product_id,product_description,ordered_qty,received_qty,open_qty,uom,unit_cost,tax_rate,line_subtotal,line_tax,line_total,status,notes,created_at,created_by) VALUES(?,?,?,?,?,?,0,?,?,?,15,?,?,?,'OPEN',?,CURRENT_TIMESTAMP,?)",
                 lineId,poId,lineNo,product,item.get("name"),qty,qty,item.get("uom"),unit,subtotal,tax,subtotal.add(tax),"External funeral resource lease",userId);
         jdbc.update("UPDATE purchase_order SET subtotal_amount=subtotal_amount+?,tax_amount=tax_amount+?,total_amount=total_amount+?,updated_at=CURRENT_TIMESTAMP,updated_by=? WHERE id=?",subtotal,tax,subtotal.add(tax),userId,poId);
-        jdbc.update("INSERT INTO funeral_resource_allocation(id,plan_item_id,allocation_type,supplier_partner_id,quantity,status,purchase_order_id,purchase_order_line_id,unit_cost,notes,created_by,updated_by) VALUES(?,?,'EXTERNAL',?,?,'ORDERED',?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO funeral_resource_allocation(id,plan_item_id,allocation_type,supplier_partner_id,quantity,status,purchase_order_id,purchase_order_line_id,unit_cost,notes,created_by,updated_by) VALUES(?,?,'EXTERNAL',?,?,'DRAFT_PO',?,?,?,?,?,?)",
                 UUID.randomUUID().toString(),itemId,supplier,qty,poId,lineId,unit,blank(request.notes()),userId,userId);
         recalculate(itemId,userId); return plan(planId);
     }
@@ -191,7 +191,7 @@ public class FuneralResourcePlanningService {
         jdbc.queryForMap("SELECT id FROM funeral_resource_plan WHERE id=? FOR UPDATE",planId);
         int unresolved=count("SELECT COUNT(*) FROM funeral_resource_plan_item WHERE resource_plan_id=? AND mandatory=1 AND allocated_quantity<required_quantity",planId);
         if(unresolved>0) throw new IllegalStateException("All mandatory resources must be covered before the plan can be marked ready");
-        if(bool("REQUIRE-APPROVED-PO",true) && count("SELECT COUNT(*) FROM funeral_resource_allocation a JOIN funeral_resource_plan_item i ON i.id=a.plan_item_id JOIN purchase_order po ON po.id=a.purchase_order_id WHERE i.resource_plan_id=? AND a.allocation_type='EXTERNAL' AND po.status NOT IN ('APPROVED','SENT','PARTIAL','RECEIVED','COMPLETED')",planId)>0)
+        if(bool("REQUIRE-APPROVED-PO",true) && count("SELECT COUNT(*) FROM funeral_resource_allocation a JOIN funeral_resource_plan_item i ON i.id=a.plan_item_id JOIN purchase_order po ON po.id=a.purchase_order_id WHERE i.resource_plan_id=? AND a.allocation_type='EXTERNAL' AND po.status NOT IN ('APPROVED','SENT','CONFIRMED','PARTIAL','RECEIVED','COMPLETED')",planId)>0)
             throw new IllegalStateException("All external-resource purchase orders must be approved before readiness");
         jdbc.update("UPDATE funeral_resource_allocation a JOIN funeral_resource_plan_item i ON i.id=a.plan_item_id SET a.status=CASE WHEN a.status='PROVISIONAL' THEN 'CONFIRMED' ELSE a.status END,a.expires_at=NULL,a.updated_by=? WHERE i.resource_plan_id=?",userId,planId);
         jdbc.update("UPDATE funeral_resource_plan_item SET status='READY',updated_by=? WHERE resource_plan_id=?",userId,planId);
