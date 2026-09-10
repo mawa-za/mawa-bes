@@ -78,6 +78,7 @@ public class FuneralManagementService {
     private final TenantAdminService tenantAdminService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final StorageConfigurationService storageConfigurationService;
+    private final FuneralResourcePlanningService funeralResourcePlanningService;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -539,6 +540,7 @@ public class FuneralManagementService {
             throw new IllegalStateException("An invoiced funeral service request cannot be cancelled");
         }
         service.setStatus("CANCELLED");
+        funeralResourcePlanningService.cancelForFuneral(id, UserContext.getCurrentUserId());
         return toServiceResponse(funeralServiceRepository.save(service));
     }
 
@@ -587,7 +589,9 @@ public class FuneralManagementService {
         entity.setTotalAmountCents((packageEntity == null ? 0L : defaultLong(packageEntity.getBasePriceCents())) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus(packageEntity == null ? "COVER_IDENTIFIED" : "ARRANGEMENT_CREATED");
         entity.setWizardStep(packageEntity == null ? 2 : 3);
-        return toServiceResponse(funeralServiceRepository.save(entity));
+        FuneralServiceEntity saved = funeralServiceRepository.save(entity);
+        funeralResourcePlanningService.ensurePlan(saved.getId(), UserContext.getCurrentUserId());
+        return toServiceResponse(saved);
     }
 
     @Transactional
@@ -633,7 +637,9 @@ public class FuneralManagementService {
             service.setStatus("ARRANGEMENT_CREATED");
             service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 3));
         }
-        return toServiceResponse(funeralServiceRepository.save(service));
+        FuneralServiceEntity saved = funeralServiceRepository.save(service);
+        funeralResourcePlanningService.ensurePlan(saved.getId(), UserContext.getCurrentUserId());
+        return toServiceResponse(saved);
     }
 
     @Transactional
