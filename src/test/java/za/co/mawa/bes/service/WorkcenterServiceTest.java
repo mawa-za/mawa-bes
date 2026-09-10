@@ -17,6 +17,9 @@ class WorkcenterServiceTest {
     @Test
     void catalogueIsTheSourceForNavigationAndPermissionMetadata() throws Exception {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        SettingService settings = mock(SettingService.class);
+        when(settings.getSetting("STATUS", "FUNERAL-RESOURCE-PLANNING"))
+                .thenReturn("ENABLED");
         ResultSet rs = mock(ResultSet.class);
         when(rs.getString("id")).thenReturn("cashup");
         when(rs.getString("description")).thenReturn("Cashups");
@@ -29,7 +32,7 @@ class WorkcenterServiceTest {
                 .thenAnswer(invocation -> List.of(
                         ((org.springframework.jdbc.core.RowMapper<WorkcenterDto>) invocation.getArgument(1)).mapRow(rs, 0)));
 
-        WorkcenterDto item = new WorkcenterService(jdbc).getAll().get(0);
+        WorkcenterDto item = new WorkcenterService(jdbc, settings).getAll().get(0);
 
         assertEquals("/cashups", item.getRoutePath());
         assertEquals("finance-payments", item.getGroupCode());
