@@ -104,6 +104,7 @@ public final class ServiceManagementDtos {
         private String productId;
         private String serviceLocationId;
         private String sourceChannel;
+        private String lifecycleStatus;
         private String externalRequestId;
         private LocalDate preferredDate;
         private LocalTime preferredStartTime;
@@ -111,6 +112,26 @@ public final class ServiceManagementDtos {
         private String recurrenceFrequency;
         private Integer recurrenceInterval;
     }
+
+    @Data
+    public static class ServiceRequestCreateRequest {
+        private String customerPartnerId;
+        private String productId;
+        private String serviceLocationId;
+        private String summary;
+        private String description;
+        private String category;
+        private String priority;
+        private String sourceChannel;
+        private LocalDate preferredDate;
+        private LocalTime preferredStartTime;
+        private Boolean recurringRequested;
+        private String recurrenceFrequency;
+        private Integer recurrenceInterval;
+    }
+
+    @Data
+    public static class RequestStatusRequest { private String status; }
 
     @Data
     public static class AvailabilityRequest {

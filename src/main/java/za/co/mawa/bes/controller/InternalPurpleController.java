@@ -84,6 +84,14 @@ public class InternalPurpleController {
         return execute(headers, tenant, () -> purpleService.customerQuotes(request), HttpStatus.OK);
     }
 
+    @PostMapping("/customer/quotes/{quoteId}/status")
+    public ResponseEntity<?> quoteStatus(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
+                                         @PathVariable String quoteId,
+                                         @RequestBody PurpleDtos.CustomerQuoteStatusRequest request) {
+        request.setQuoteId(quoteId);
+        return execute(headers, tenant, () -> purpleService.updateCustomerQuoteStatus(request), HttpStatus.OK);
+    }
+
     @PostMapping("/customer/invoices")
     public ResponseEntity<?> invoices(@RequestHeader HttpHeaders headers, @PathVariable String tenant,
                                       @RequestBody PurpleDtos.CustomerRequest request) {
