@@ -11,6 +11,8 @@ import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderLineRequest;
 import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderRequest;
 import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderResponse;
 import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.TenantAdminService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,19 +31,53 @@ public class SupplierNetworkService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final ServiceOrderService serviceOrders;
+    private final SettingService settings;
+    private final TenantAdminService tenants;
 
-    public SupplierNetworkService(JdbcTemplate jdbc, ObjectMapper json, ServiceOrderService serviceOrders) {
+    public SupplierNetworkService(JdbcTemplate jdbc, ObjectMapper json, ServiceOrderService serviceOrders,
+                                  SettingService settings, TenantAdminService tenants) {
         this.jdbc = jdbc;
         this.json = json;
         this.serviceOrders = serviceOrders;
+        this.settings = settings;
+        this.tenants = tenants;
+    }
+
+    public Map<String,Object> configuration() {
+        boolean enabled="ENABLED".equalsIgnoreCase(settings.getSetting("STATUS","MAWA-SUPPLIER-NETWORK"));
+        return Map.of("status",enabled?"ENABLED":"DISABLED","enabled",enabled);
+    }
+
+    @Transactional
+    public Map<String,Object> updateConfiguration(ConfigurationRequest request) {
+        if(request==null||request.enabled()==null) throw new IllegalArgumentException("enabled is required");
+        settings.upsertSetting("STATUS","MAWA-SUPPLIER-NETWORK",request.enabled()?"ENABLED":"DISABLED");
+        return configuration();
+    }
+
+    public List<Map<String,Object>> tenantOptions(){
+        String current=TenantContext.getCurrentTenant();
+        return tenants.getAll().stream().filter(Objects::nonNull)
+                .filter(t->StringUtils.hasText(t.getId())&&!t.getId().equals(current))
+                .filter(t->t.getStatus()==null||"ACTIVE".equalsIgnoreCase(String.valueOf(t.getStatus())))
+                .sorted(Comparator.comparing(t->defaultText(t.getName(),t.getId()),String.CASE_INSENSITIVE_ORDER))
+                .map(t->{Map<String,Object>x=new LinkedHashMap<>();x.put("id",t.getId());x.put("name",defaultText(t.getName(),t.getId()));x.put("host",t.getHost());return x;}).toList();
+    }
+
+    public List<Map<String,Object>> resourceOptions(String type,String query){
+        requireEnabled(); String q="%"+defaultText(query,"").toUpperCase(Locale.ROOT)+"%";
+        if("EMPLOYEE".equalsIgnoreCase(type)) return jdbc.queryForList("SELECT DISTINCT p.id,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) name,p.number FROM partner p JOIN partner_role pr ON pr.partner=p.id WHERE pr.role='EMPLOYEE' AND p.status='ACTIVE' AND (UPPER(p.number) LIKE ? OR UPPER(CONCAT_WS(' ',p.name2,p.name3,p.name1)) LIKE ?) ORDER BY name LIMIT 100",q,q);
+        return jdbc.queryForList("SELECT id,asset_no number,name,category FROM asset_register WHERE status='ACTIVE' AND condition_status NOT IN ('DAMAGED','POOR','LOST') AND (UPPER(asset_no) LIKE ? OR UPPER(name) LIKE ? OR UPPER(COALESCE(category,'')) LIKE ?) ORDER BY name LIMIT 100",q,q,q);
     }
 
     public List<Map<String,Object>> connections() {
+        requireEnabled();
         return jdbc.queryForList("SELECT c.*,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) local_partner_name FROM tenant_trading_connection c LEFT JOIN partner p ON p.id=c.local_partner_id ORDER BY c.updated_at DESC,c.created_at DESC");
     }
 
     @Transactional
     public Map<String,Object> saveConnection(ConnectionRequest r, String user) {
+        requireEnabled();
         if (r == null) throw new IllegalArgumentException("Connection is required");
         String remote = tenant(r.remoteTenantId());
         String type = required(r.relationshipType(), "relationshipType").toUpperCase(Locale.ROOT);
@@ -56,6 +92,7 @@ public class SupplierNetworkService {
 
     @Transactional
     public Map<String,Object> sendPurchaseOrder(String poId, String user) {
+        requireEnabled();
         String buyerTenant=tenant(TenantContext.getCurrentTenant());
         Map<String,Object> po=one("SELECT po.*,p.number supplier_no,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) supplier_name FROM purchase_order po LEFT JOIN partner p ON p.id=po.supplier_partner_id WHERE po.id=?",poId);
         String poStatus=text(po.get("status")).toUpperCase(Locale.ROOT);
@@ -84,12 +121,14 @@ public class SupplierNetworkService {
     }
 
     public List<Map<String,Object>> orders(String status) {
+        requireEnabled();
         String sql="SELECT o.*,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) customer_name FROM supplier_customer_order o LEFT JOIN partner p ON p.id=o.customer_partner_id";
         List<Map<String,Object>> rows=StringUtils.hasText(status)&&!"ALL".equalsIgnoreCase(status)?jdbc.queryForList(sql+" WHERE o.status=? ORDER BY o.created_at DESC",status.toUpperCase(Locale.ROOT)):jdbc.queryForList(sql+" ORDER BY o.created_at DESC");
         return rows;
     }
 
     public Map<String,Object> order(String id) {
+        requireEnabled();
         Map<String,Object> result=one("SELECT o.*,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) customer_name FROM supplier_customer_order o LEFT JOIN partner p ON p.id=o.customer_partner_id WHERE o.id=?",id);
         result.put("lines",jdbc.queryForList("SELECT * FROM supplier_customer_order_line WHERE customer_order_id=? ORDER BY line_no",id));
         result.put("reservations",jdbc.queryForList("SELECT r.*,a.asset_no,a.name asset_name,TRIM(CONCAT(COALESCE(p.name2,''),' ',COALESCE(p.name3,''),' ',COALESCE(p.name1,''))) employee_name FROM supplier_resource_reservation r LEFT JOIN asset_register a ON a.id=r.asset_id LEFT JOIN partner p ON p.id=r.employee_partner_id WHERE r.customer_order_id=? ORDER BY r.start_at",id));
@@ -193,6 +232,9 @@ public class SupplierNetworkService {
     private LocalDateTime timestamp(Object v){if(v==null)return null;if(v instanceof Timestamp t)return t.toLocalDateTime();if(v instanceof LocalDateTime d)return d;if(v instanceof java.sql.Date d)return d.toLocalDate().atStartOfDay();return LocalDateTime.parse(String.valueOf(v).replace(' ','T'));}
     private String toJson(Object value){try{return json.writeValueAsString(value);}catch(JsonProcessingException e){throw new IllegalStateException("Unable to serialize trading document",e);}}
 
+    private void requireEnabled(){if(!"ENABLED".equalsIgnoreCase(settings.getSetting("STATUS","MAWA-SUPPLIER-NETWORK")))throw new IllegalStateException("MAWA Supplier Network is disabled for this tenant");}
+
+    public record ConfigurationRequest(Boolean enabled){}
     public record ConnectionRequest(String id,String remoteTenantId,String localPartnerId,String remotePartnerId,String relationshipType,String status,Boolean allowPurchaseOrders,Boolean allowInvoices,LocalDate effectiveFrom,LocalDate effectiveTo){}
     public record LineResponse(String id,BigDecimal confirmedQuantity,BigDecimal unitPrice,String status,String note){}
     public record ResponseRequest(String status,String note,LocalDateTime scheduledStartAt,LocalDateTime scheduledEndAt,List<LineResponse> lines){}
