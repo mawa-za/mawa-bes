@@ -14,6 +14,10 @@ public class SupplierNetworkControllerV2 {
     private final SupplierNetworkService service;
     public SupplierNetworkControllerV2(SupplierNetworkService service){this.service=service;}
 
+    @GetMapping("/configuration") public ResponseEntity<?> configuration(){return call(service::configuration);}
+    @PutMapping("/configuration") public ResponseEntity<?> configuration(@RequestBody SupplierNetworkService.ConfigurationRequest request){return call(()->service.updateConfiguration(request));}
+    @GetMapping("/tenants") public ResponseEntity<?> tenants(){return call(service::tenantOptions);}
+    @GetMapping("/resources") public ResponseEntity<?> resources(@RequestParam(defaultValue="ASSET")String type,@RequestParam(required=false)String query){return call(()->service.resourceOptions(type,query));}
     @GetMapping("/connections") public ResponseEntity<?> connections(){return call(service::connections);}
     @PostMapping("/connections") public ResponseEntity<?> connection(@RequestBody SupplierNetworkService.ConnectionRequest request,@RequestHeader(value="X-User-Id",required=false)String user){return call(()->service.saveConnection(request,user));}
     @PostMapping("/purchase-orders/{id}/send") public ResponseEntity<?> send(@PathVariable String id,@RequestHeader(value="X-User-Id",required=false)String user){return call(()->service.sendPurchaseOrder(id,user));}
