@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.servicemanagement.ServiceManagementDtos;
 import za.co.mawa.bes.service.v2.ServiceManagementService;
+import za.co.mawa.bes.dto.v2.stock.StockDtos;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,9 +58,12 @@ public class ServiceManagementControllerV2 {
     }
 
     @GetMapping("/requests") public ResponseEntity<?> requests(@RequestParam(required=false) String status){return execute(() -> service.requests(status),HttpStatus.OK);}
+    @PostMapping("/requests") public ResponseEntity<?> createRequest(@RequestBody ServiceManagementDtos.ServiceRequestCreateRequest request){return execute(() -> service.createRequest(request),HttpStatus.CREATED);}
     @GetMapping("/requests/{id}/metadata") public ResponseEntity<?> requestMetadata(@PathVariable String id){return execute(() -> service.requestMetadata(id),HttpStatus.OK);}
     @PostMapping("/requests/{id}/order") public ResponseEntity<?> createOrder(@PathVariable String id){return execute(() -> service.createOrderFromRequest(id),HttpStatus.OK);}
     @PostMapping("/requests/{id}/contract") public ResponseEntity<?> createContract(@PathVariable String id){return execute(() -> service.createContractFromRequest(id),HttpStatus.OK);}
+    @PostMapping("/requests/{id}/quotation") public ResponseEntity<?> createQuotation(@PathVariable String id,@RequestBody StockDtos.QuotationRequest request){return execute(() -> service.createQuotationFromRequest(id,request),HttpStatus.CREATED);}
+    @PostMapping("/requests/{id}/status") public ResponseEntity<?> requestStatus(@PathVariable String id,@RequestBody ServiceManagementDtos.RequestStatusRequest request){return execute(() -> service.changeRequestStatus(id,request.getStatus()),HttpStatus.OK);}
     @PutMapping("/requests/metadata") public ResponseEntity<?> saveRequestMetadata(@RequestBody ServiceManagementDtos.RequestMetadataRequest request){
         return execute(() -> service.saveRequestMetadata(request),HttpStatus.OK);
     }
