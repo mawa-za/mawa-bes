@@ -60,8 +60,25 @@ public class FuneralResourcePlanningService {
         put("REQUIRE-APPROVED-PO", request.requireApprovedPo(), true);
         put("DEFAULT-ASSIGNED-EMPLOYEE-ID", blank(request.defaultAssignedEmployeeId()));
         put("DEFAULT-ASSIGNED-ROLE-ID", blank(request.defaultAssignedRoleId()));
+        int createdPlans = 0;
+        if ("ENABLED".equals(requested) && bool("AUTO-CREATE-PLANS", true)) {
+            List<String> missingPlans = jdbc.queryForList("""
+                    SELECT fs.id
+                      FROM funeral_service fs
+                 LEFT JOIN funeral_resource_plan rp ON rp.funeral_service_id=fs.id
+                     WHERE rp.id IS NULL
+                       AND fs.funeral_date IS NOT NULL
+                       AND fs.funeral_date >= CURRENT_DATE
+                       AND UPPER(COALESCE(fs.status, '')) <> 'CANCELLED'
+                    """, String.class);
+            for (String funeralServiceId : missingPlans) {
+                ensurePlan(funeralServiceId, userId);
+            }
+            createdPlans = missingPlans.size();
+        }
         Map<String,Object> result = configuration();
-        result.put("openPlans", open);
+        result.put("openPlans", count("SELECT COUNT(*) FROM funeral_resource_plan WHERE status NOT IN ('COMPLETED','CANCELLED')"));
+        result.put("createdPlans", createdPlans);
         return result;
     }
 
