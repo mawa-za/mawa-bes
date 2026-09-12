@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -360,6 +361,7 @@ public class MembershipPremiumService {
     ) {
         var membership = membershipService.resolveMembership(membershipId);
         List<String> membershipIds = membershipService.membershipIdentifiers(membership.getId());
+        int generated = generateMissingPremiums(membership, updatedBy);
         List<MembershipPremiumEntity> premiums =
                 membershipPremiumRepository.findForReconciliation(membershipIds);
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository
@@ -441,10 +443,52 @@ public class MembershipPremiumService {
         return MembershipPremiumRecalculationResponse.builder()
                 .membershipId(membership.getId())
                 .premiumsChecked(premiums.size())
+                .premiumsGenerated(generated)
                 .premiumsCorrected(corrected)
                 .premiumsRemoved(removed)
                 .paidUpToPeriod(paidUpTo)
                 .build();
+    }
+
+    private int generateMissingPremiums(za.co.mawa.bes.entity.v2.MembershipEntity membership, String updatedBy) {
+        if (membership.getStartDate() == null) return 0;
+        YearMonth first = YearMonth.from(membership.getStartDate());
+        YearMonth last = YearMonth.now();
+        if (membership.getEndDate() != null) {
+            YearMonth end = YearMonth.from(membership.getEndDate());
+            if (end.isBefore(last)) last = end;
+        }
+        if (first.isAfter(last)) return 0;
+
+        long amount = safe(membership.getPremiumCents());
+        if (amount <= 0L) {
+            throw new IllegalStateException("Membership monthly premium must be greater than zero before premiums can be recalculated");
+        }
+        Set<String> existing = membershipPremiumRepository
+                .findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipService.membershipIdentifiers(membership.getId()))
+                .stream().map(MembershipPremiumEntity::getPeriodYYYYMM).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        String actor = trim(updatedBy).isEmpty() ? "SYSTEM" : updatedBy.trim();
+        int generated = 0;
+        for (YearMonth period = first; !period.isAfter(last); period = period.plusMonths(1)) {
+            String key = period.format(DateTimeFormatter.ofPattern("yyyyMM"));
+            if (existing.contains(key)) continue;
+            MembershipPremiumEntity premium = new MembershipPremiumEntity();
+            premium.setMembershipId(membership.getId());
+            premium.setPeriodYYYYMM(key);
+            premium.setAmountCents(amount);
+            premium.setPaidAmountCents(0L);
+            premium.setBalanceCents(amount);
+            premium.setStatus(PremiumStatus.UNPAID);
+            premium.setDueDate(period.atDay(1));
+            premium.setCreatedAt(LocalDateTime.now());
+            premium.setCreatedBy(actor);
+            membershipPremiumRepository.save(premium);
+            existing.add(key);
+            generated++;
+        }
+        membershipPremiumRepository.flush();
+        return generated;
     }
 
     private long safe(Long value) {
