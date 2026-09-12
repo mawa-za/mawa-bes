@@ -60,22 +60,7 @@ public class FuneralResourcePlanningService {
         put("REQUIRE-APPROVED-PO", request.requireApprovedPo(), true);
         put("DEFAULT-ASSIGNED-EMPLOYEE-ID", blank(request.defaultAssignedEmployeeId()));
         put("DEFAULT-ASSIGNED-ROLE-ID", blank(request.defaultAssignedRoleId()));
-        int createdPlans = 0;
-        if ("ENABLED".equals(requested) && bool("AUTO-CREATE-PLANS", true)) {
-            List<String> missingPlans = jdbc.queryForList("""
-                    SELECT fs.id
-                      FROM funeral_service fs
-                 LEFT JOIN funeral_resource_plan rp ON rp.funeral_service_id=fs.id
-                     WHERE rp.id IS NULL
-                       AND fs.funeral_date IS NOT NULL
-                       AND fs.funeral_date >= CURRENT_DATE
-                       AND UPPER(COALESCE(fs.status, '')) <> 'CANCELLED'
-                    """, String.class);
-            for (String funeralServiceId : missingPlans) {
-                ensurePlan(funeralServiceId, userId);
-            }
-            createdPlans = missingPlans.size();
-        }
+        int createdPlans = "ENABLED".equals(requested) ? synchronizeMissingPlans(userId) : 0;
         Map<String,Object> result = configuration();
         result.put("openPlans", count("SELECT COUNT(*) FROM funeral_resource_plan WHERE status NOT IN ('COMPLETED','CANCELLED')"));
         result.put("createdPlans", createdPlans);
@@ -129,6 +114,9 @@ public class FuneralResourcePlanningService {
     }
 
     public List<Map<String,Object>> plans(String status, String assignee, String query) {
+        if (acceptsNewPlans() && bool("AUTO-CREATE-PLANS", true)) {
+            synchronizeMissingPlans("SYSTEM");
+        }
         expireProvisional();
         StringBuilder sql = new StringBuilder("SELECT rp.*,fs.service_request_no,fs.deceased_name,fs.funeral_date,fs.funeral_area,COUNT(i.id) item_count,SUM(CASE WHEN i.mandatory=1 AND i.status NOT IN ('COVERED','CONFIRMED','ORDERED','READY','COMPLETED') THEN 1 ELSE 0 END) unresolved_count FROM funeral_resource_plan rp JOIN funeral_service fs ON fs.id=rp.funeral_service_id LEFT JOIN funeral_resource_plan_item i ON i.resource_plan_id=rp.id WHERE 1=1");
         List<Object> args = new ArrayList<>();
@@ -137,6 +125,24 @@ public class FuneralResourcePlanningService {
         if (StringUtils.hasText(query)) { sql.append(" AND (UPPER(fs.service_request_no) LIKE ? OR UPPER(fs.deceased_name) LIKE ?)"); String q="%"+query.toUpperCase(Locale.ROOT)+"%"; args.add(q); args.add(q); }
         sql.append(" GROUP BY rp.id,fs.service_request_no,fs.deceased_name,fs.funeral_date,fs.funeral_area ORDER BY fs.funeral_date,rp.created_at");
         return jdbc.queryForList(sql.toString(), args.toArray());
+    }
+
+    @Transactional
+    public int synchronizeMissingPlans(String userId) {
+        if (!acceptsNewPlans() || !bool("AUTO-CREATE-PLANS", true)) return 0;
+        List<String> missingPlans = jdbc.queryForList("""
+                SELECT fs.id
+                  FROM funeral_service fs
+             LEFT JOIN funeral_resource_plan rp ON rp.funeral_service_id=fs.id
+                 WHERE rp.id IS NULL
+                   AND fs.funeral_date IS NOT NULL
+                   AND fs.funeral_date >= CURRENT_DATE
+                   AND UPPER(COALESCE(fs.status, '')) <> 'CANCELLED'
+                """, String.class);
+        for (String funeralServiceId : missingPlans) {
+            ensurePlan(funeralServiceId, userId);
+        }
+        return missingPlans.size();
     }
 
     public Map<String,Object> plan(String id) {
