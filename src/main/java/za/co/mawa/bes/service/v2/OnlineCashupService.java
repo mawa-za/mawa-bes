@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.entity.v2.CardTerminalEntity;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
@@ -33,6 +34,7 @@ public class OnlineCashupService {
 
     private static final String SOURCE = "ERP_ONLINE";
     private static final String SOURCE_EFT = "ERP_ONLINE_EFT";
+    private static final String SOURCE_CARD = "ERP_ONLINE_CARD";
     private static final String STATUS_OPEN = "OPEN";
     private static final String DEFAULT_DEVICE = "ERP-ONLINE";
     private static final String DEFAULT_USER = "SYSTEM";
@@ -43,6 +45,7 @@ public class OnlineCashupService {
     private final ReceiptRepository receiptRepository;
     private final NumberAllocationService numberAllocationService;
     private final CashupService cashupService;
+    private final CardTerminalService cardTerminalService;
 
     @Transactional
     public void addReceipts(
@@ -80,11 +83,26 @@ public class OnlineCashupService {
             return;
         }
 
+        if ("CARD".equals(paymentMethod)) {
+            var terminal = cardTerminalService.requireActive(batch.getTerminalId());
+            CashupEntity cashup = cashupRepository
+                    .findFirstByCardTerminalIdAndStatusAndSourceOrderByCreatedAtDesc(
+                            terminal.getId(), STATUS_OPEN, SOURCE_CARD)
+                    .orElseGet(() -> createCardCashup(terminal, user));
+            addToCashup(cashup, batch, receipts, user, paymentMethod);
+            return;
+        }
+
         CashupEntity cashup = cashupRepository
                 .findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
                         device, user, STATUS_OPEN, SOURCE)
                 .orElseGet(() -> createCashup(device, user));
 
+        addToCashup(cashup, batch, receipts, user, paymentMethod);
+    }
+
+    private void addToCashup(CashupEntity cashup, PaymentBatchEntity batch,
+                             List<ReceiptEntity> receipts, String user, String paymentMethod) {
         long addedAmountCents = 0L;
         int addedReceiptCount = 0;
         for (ReceiptEntity receipt : receipts) {
@@ -125,6 +143,14 @@ public class OnlineCashupService {
         summary.setAmountCents(value(summary.getAmountCents()) + addedAmountCents);
         summary.setPaymentCount(value(summary.getPaymentCount()) + addedReceiptCount);
         cashupPaymentSummaryRepository.save(summary);
+    }
+
+    private CashupEntity createCardCashup(CardTerminalEntity terminal, String user) {
+        CashupEntity cashup = createCashup("CARD-" + terminal.getCode(), user);
+        cashup.setSource(SOURCE_CARD);
+        cashup.setCardTerminalId(terminal.getId());
+        cashup.setNotes("Card payments grouped for terminal " + terminal.getCode() + " - " + terminal.getName());
+        return cashupRepository.save(cashup);
     }
 
     private void addEftPaymentCashup(

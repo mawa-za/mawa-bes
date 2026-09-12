@@ -12,6 +12,9 @@ public class CashupListItemResponse {
     private String id;
     private Long cashupNo;
     private String deviceId;
+    private String cardTerminalId;
+    private String cardTerminalCode;
+    private String cardTerminalName;
     private String userId;
     private String cashierName;
     private LocalDate cashupDate;

@@ -14,6 +14,9 @@ public class CashupSummaryResponse {
     private Long cashupNo;
 
     private String deviceId;
+    private String cardTerminalId;
+    private String cardTerminalCode;
+    private String cardTerminalName;
     private String userId;
     private String cashierName;
 

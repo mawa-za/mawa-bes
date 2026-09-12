@@ -63,6 +63,7 @@ public class LaybyManagementService {
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
     private final OnlineCashupService onlineCashupService;
+    private final CardTerminalService cardTerminalService;
     private final NumberAllocationService numberAllocationService;
     private final InvoiceService invoiceService;
     private final ApprovalService approvalService;
@@ -337,6 +338,7 @@ public class LaybyManagementService {
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
         String method = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
+        cardTerminalService.validateForPayment(method, request.getTerminalId());
         String deviceId = firstNonBlank(request.getDeviceId(), "ERP-ONLINE");
 
         PaymentBatchEntity batch = new PaymentBatchEntity();
