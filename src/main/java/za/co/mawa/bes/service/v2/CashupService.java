@@ -58,9 +58,11 @@ public class CashupService {
     private static final String SOURCE_MANUAL_RECEIPT_BOOK = "MANUAL_RECEIPT_BOOK";
     private static final String SOURCE_ERP_ONLINE_EFT = "ERP_ONLINE_EFT";
     private static final String SOURCE_MAWA_PAY_EFT = "MAWA_PAY_EFT";
+    private static final String SOURCE_MAWA_PAY_CARD = "MAWA_PAY_CARD";
 
     private final CashupRepository cashupRepository;
     private final CardTerminalRepository cardTerminalRepository;
+    private final CardTerminalService cardTerminalService;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final CashupReceiptRepository cashupReceiptRepository;
     private final CashupDepositRepository cashupDepositRepository;
@@ -79,7 +81,8 @@ public class CashupService {
      *
      * New MawaPay flow:
      * 1. Device always has an active/open cashup.
-     * 2. Every CASH/CARD receipt is attached to the active cashup immediately; EFT uses its own cashup.
+     * 2. CASH receipts use the cashier's active cashup, CARD receipts use the
+     *    configured terminal's active cashup, and EFT uses its own cashup.
      * 3. The app keeps syncing the same cashup while it is OPEN.
      * 4. When the cashier closes the cashup on the device, the same cashup is synced as AWAITING_DEPOSITS.
      *
@@ -89,6 +92,11 @@ public class CashupService {
     @Transactional
     public CashupResponse submitCashup(CashupRequest request) {
         validateRequest(request);
+
+        boolean mawaPayCard = isMawaPayCardCashup(request);
+        CardTerminalEntity cardTerminal = mawaPayCard
+                ? cardTerminalService.requireActive(request.getTerminalId())
+                : null;
 
         CashupEntity cashup = cashupRepository.findByCashupNo(request.getCashupNo())
                 .orElseGet(CashupEntity::new);
@@ -120,6 +128,10 @@ public class CashupService {
         }
 
         applyRequestToCashup(cashup, request, requestedStatus, created);
+        if (cardTerminal != null) {
+            cashup.setCardTerminalId(cardTerminal.getId());
+            cashup.setSource(SOURCE_MAWA_PAY_CARD);
+        }
         if (mawaPayEft) {
             cashup.setSource(SOURCE_MAWA_PAY_EFT);
             cashup.setDepositTotalCents(0L);
@@ -613,6 +625,16 @@ public class CashupService {
             cashup.setCreatedBy(request.getUserId());
         }
         cashup.setUpdatedBy(request.getUserId());
+    }
+
+    private boolean isMawaPayCardCashup(CashupRequest request) {
+        if (request.getAmountByMethod() == null || request.getAmountByMethod().isEmpty()) return false;
+        Set<String> populatedMethods = request.getAmountByMethod().entrySet().stream()
+                .filter(entry -> defaultLong(entry.getValue()) != 0L)
+                .map(entry -> normalizePaymentMethod(entry.getKey()))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        return populatedMethods.size() == 1 && populatedMethods.contains("CARD");
     }
 
     private void replacePaymentSummaries(
