@@ -322,11 +322,9 @@ public class MembershipPremiumPaymentService {
                 .findByPaymentBatchId(paymentBatchId)
                 .orElse(null);
         List<ReceiptEntity> receipts = receiptRepository.findByPaymentBatchId(paymentBatchId);
-        boolean migratedLegacyManualReceipt = isMigratedLegacyManualReceipt(batch, receipts);
-        if (manualReceipt == null && !migratedLegacyManualReceipt) {
-            throw new IllegalStateException(
-                    "Only manually captured premium payments can be transferred");
-        }
+        // Posted MawaPay receipts are transferable too. Reallocation does not
+        // change the receipt amount, payment method or cash-up; it only moves
+        // the posted premium allocation to another membership and period.
 
         if (isBlank(batch.getMembershipId())) {
             throw new IllegalStateException("The payment does not have a source membership");

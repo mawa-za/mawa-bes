@@ -571,6 +571,7 @@ public class FuneralManagementService {
         entity.setMortuaryInventoryId(mortuaryInventoryId);
         entity.setDeceasedName(request.getDeceasedName().trim().toUpperCase(Locale.ROOT));
         entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
+        entity.setDeceasedCategory(normaliseDeceasedCategory(request.getDeceasedCategory()));
         entity.setDeceasedPartnerId(resolveDeceasedPartnerId(request));
         entity.setPackageId(request.getPackageId());
         entity.setFamilyRepId(trimToNull(request.getFamilyRepId()));
@@ -618,6 +619,7 @@ public class FuneralManagementService {
         service.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim());
         service.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
         service.setDateOfDeath(request.getDateOfDeath());
+        service.setDeceasedCategory(normaliseDeceasedCategory(request.getDeceasedCategory()));
         service.setExtrasJson(toJson(request.getExtras()));
         service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
@@ -2417,6 +2419,7 @@ public class FuneralManagementService {
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())
+                .deceasedCategory(defaultString(entity.getDeceasedCategory(), "ADULT"))
                 .deceasedPartnerId(entity.getDeceasedPartnerId())
                 .packageId(entity.getPackageId())
                 .familyRepId(entity.getFamilyRepId())
@@ -2437,6 +2440,14 @@ public class FuneralManagementService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    private String normaliseDeceasedCategory(String value) {
+        String category = defaultString(value, "ADULT").trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("ADULT", "INFANT", "STILLBORN").contains(category)) {
+            throw new IllegalArgumentException("deceasedCategory must be ADULT, INFANT or STILLBORN");
+        }
+        return category;
     }
 
     private FuneralPickupRequestEntity getPickupRequestOrThrow(String id) {
