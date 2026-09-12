@@ -58,6 +58,7 @@ public class MembershipPremiumPaymentService {
     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
     private final SettingService settingService;
     private final MembershipActionGuardService membershipActionGuardService;
+    private final CardTerminalService cardTerminalService;
     @Autowired
     NumberAllocationService numberAllocationService;
 
@@ -987,5 +988,6 @@ public class MembershipPremiumPaymentService {
         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
             throw new RuntimeException("paymentMethod is required");
         }
+        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
     }
 }

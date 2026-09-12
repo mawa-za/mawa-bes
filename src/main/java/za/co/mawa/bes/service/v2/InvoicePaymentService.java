@@ -36,6 +36,7 @@ public class InvoicePaymentService {
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
     private final OnlineCashupService onlineCashupService;
+    private final CardTerminalService cardTerminalService;
     private final NumberAllocationService numberAllocationService;
 
     @Transactional
@@ -72,6 +73,7 @@ public class InvoicePaymentService {
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
         String paymentMethod = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
+        cardTerminalService.validateForPayment(paymentMethod, request.getTerminalId());
         String deviceId = blank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId().trim();
 
         PaymentBatchEntity batch = new PaymentBatchEntity();

@@ -28,6 +28,9 @@ public class CashupEntity {
     @Column(name = "device_id", nullable = false, length = 128)
     private String deviceId;
 
+    @Column(name = "card_terminal_id", length = 36)
+    private String cardTerminalId;
+
     @Column(name = "user_id", nullable = false, length = 255)
     private String userId;
 
