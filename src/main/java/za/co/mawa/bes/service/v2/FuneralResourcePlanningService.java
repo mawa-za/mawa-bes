@@ -130,19 +130,18 @@ public class FuneralResourcePlanningService {
     @Transactional
     public int synchronizeMissingPlans(String userId) {
         if (!acceptsNewPlans() || !bool("AUTO-CREATE-PLANS", true)) return 0;
-        List<String> missingPlans = jdbc.queryForList("""
+        List<String> funerals = jdbc.queryForList("""
                 SELECT fs.id
                   FROM funeral_service fs
-             LEFT JOIN funeral_resource_plan rp ON rp.funeral_service_id=fs.id
-                 WHERE rp.id IS NULL
-                   AND fs.funeral_date IS NOT NULL
+                 WHERE fs.funeral_date IS NOT NULL
                    AND fs.funeral_date >= CURRENT_DATE
                    AND UPPER(COALESCE(fs.status, '')) <> 'CANCELLED'
                 """, String.class);
-        for (String funeralServiceId : missingPlans) {
+        int before = count("SELECT COUNT(*) FROM funeral_resource_plan");
+        for (String funeralServiceId : funerals) {
             ensurePlan(funeralServiceId, userId);
         }
-        return missingPlans.size();
+        return Math.max(0, count("SELECT COUNT(*) FROM funeral_resource_plan") - before);
     }
 
     public Map<String,Object> plan(String id) {
@@ -212,6 +211,8 @@ public class FuneralResourcePlanningService {
     @Transactional
     public Map<String,Object> confirmReady(String planId, String userId) {
         jdbc.queryForMap("SELECT id FROM funeral_resource_plan WHERE id=? FOR UPDATE",planId);
+        int total=count("SELECT COUNT(*) FROM funeral_resource_plan_item WHERE resource_plan_id=?",planId);
+        if(total==0) throw new IllegalStateException("No resource requirements are configured for this funeral package");
         int unresolved=count("SELECT COUNT(*) FROM funeral_resource_plan_item WHERE resource_plan_id=? AND mandatory=1 AND allocated_quantity<required_quantity",planId);
         if(unresolved>0) throw new IllegalStateException("All mandatory resources must be covered before the plan can be marked ready");
         if(bool("REQUIRE-APPROVED-PO",true) && count("SELECT COUNT(*) FROM funeral_resource_allocation a JOIN funeral_resource_plan_item i ON i.id=a.plan_item_id JOIN purchase_order po ON po.id=a.purchase_order_id WHERE i.resource_plan_id=? AND a.allocation_type='EXTERNAL' AND po.status NOT IN ('APPROVED','SENT','CONFIRMED','PARTIAL','RECEIVED','COMPLETED')",planId)>0)
