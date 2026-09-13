@@ -18,6 +18,7 @@ MAWA supports tenant-level Xero activation from the Settings screen.
 
 Background synchronisation is never enabled by the initial `activate` request. The integration remains in `PENDING_AUTHORISATION` until the OAuth callback succeeds.
 While activation is pending, `GET /v2/integrations/xero/connections` returns an empty list rather than an error; no token refresh is attempted until authorisation is complete.
+API responses expose `invoiceIntegrationRequested` separately from `invoiceIntegrationEnabled`. The former drives the configuration switch; the latter reports whether background synchronisation is currently allowed to run.
 
 ## OAuth scopes
 
@@ -85,6 +86,7 @@ roles/secretmanager.secretVersionAdder
 ```http
 POST /v2/integrations/xero/activate
 POST /v2/integrations/xero/deactivate
+POST /v2/integrations/xero/invoice-integration
 GET /v2/integrations/xero/secret-names
 GET /v2/integrations/xero/connections
 POST /v2/integrations/xero/select-tenant

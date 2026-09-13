@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationRequestDto;
+import za.co.mawa.bes.dto.v2.integration.XeroInvoiceIntegrationRequestDto;
 import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.v2.integration.XeroActivationService;
 
@@ -37,6 +38,11 @@ public class XeroIntegrationControllerV2 {
     @PostMapping("/deactivate")
     public ResponseEntity<?> deactivate() {
         return ResponseEntity.ok(xeroActivationService.deactivate());
+    }
+
+    @PostMapping("/invoice-integration")
+    public ResponseEntity<?> updateInvoiceIntegration(@RequestBody XeroInvoiceIntegrationRequestDto request) {
+        return ResponseEntity.ok(xeroActivationService.updateInvoiceIntegration(request));
     }
 
     @GetMapping("/connections")
