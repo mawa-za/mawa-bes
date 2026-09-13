@@ -122,6 +122,10 @@ public class XeroActivationService {
     }
 
     public java.util.List<XeroConnectionDto> connections() {
+        String status = settingService.getSetting(INTEGRATION_STATUS, XERO_GROUP);
+        if (isPreAuthorisationStatus(status)) {
+            return Collections.emptyList();
+        }
         try {
             return xeroAuthService.getConnectionsForCurrentTenant();
         } catch (Exception e) {
@@ -192,12 +196,28 @@ public class XeroActivationService {
         Throwable current = error;
         while (current != null) {
             String message = current.getMessage();
-            if (message != null && message.contains("Missing required Xero configuration")) {
-                return true;
+            if (message != null) {
+                String normalised = message.toLowerCase();
+                if (normalised.contains("missing required xero configuration")
+                        || normalised.contains("secret does not contain any versions")
+                        || normalised.contains("secret version") && normalised.contains("not found")) {
+                    return true;
+                }
             }
             current = current.getCause();
         }
         return false;
+    }
+
+    private boolean isPreAuthorisationStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return false;
+        }
+        return switch (status.trim().toUpperCase()) {
+            case "PENDING_AUTHORISATION", "PENDING_ORGANISATION_SELECTION",
+                    "NOT_AUTHORISED", "REAUTHORISATION_REQUIRED", "DISABLED" -> true;
+            default -> false;
+        };
     }
 
     private void markReauthorisationRequired() {
