@@ -86,6 +86,10 @@ public class XeroActivationService {
         settingService.upsertSetting("ACCESS-TOKEN-SECRET", XERO_GROUP, accessTokenSecret);
         settingService.upsertSetting("TENANT-ID-SECRET", XERO_GROUP, tenantIdSecret);
         settingService.upsertSetting("REDIRECT-URL", XERO_GROUP, redirectUrl);
+        if (StringUtils.hasText(request.getPaymentAccountCode())) {
+            settingService.upsertSetting("PAYMENT-ACCOUNT-CODE", XERO_GROUP,
+                    request.getPaymentAccountCode().trim());
+        }
         // Remember the user's preference, but do not allow background synchronisation
         // until the OAuth callback has completed and an organisation is selected.
         settingService.upsertSetting(INVOICE_REQUESTED, XERO_GROUP, String.valueOf(enableInvoices));
@@ -104,6 +108,7 @@ public class XeroActivationService {
                 .tenantIdSecret(tenantIdSecret)
                 .accessTokenSecret(accessTokenSecret)
                 .redirectUrl(redirectUrl)
+                .paymentAccountCode(settingService.getSetting("PAYMENT-ACCOUNT-CODE", XERO_GROUP))
                 .organisationSelectionRequired(false)
                 .message("Xero secrets were saved to Google Secret Manager. Open authenticationUrl to authorise the Xero organisation.")
                 .build();
@@ -121,6 +126,7 @@ public class XeroActivationService {
                 .tenantIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "tenant-id"))
                 .accessTokenSecret(tenantSecretNameService.currentTenantSecretName("xero", "access-token"))
                 .redirectUrl(settingService.getSetting("REDIRECT-URL", XERO_GROUP))
+                .paymentAccountCode(settingService.getSetting("PAYMENT-ACCOUNT-CODE", XERO_GROUP))
                 .build();
     }
 
@@ -161,7 +167,7 @@ public class XeroActivationService {
                     .selectedTenantId(selected.getTenantId())
                     .selectedTenantName(selected.getTenantName())
                     .message(enabled
-                            ? "Xero organisation selected. Existing customers and products were queued, and invoice synchronisation is enabled."
+                            ? "Xero organisation selected. Existing products, customers and invoices were queued for synchronisation."
                             : "Xero organisation selected. Synchronisation remains disabled as requested.")
                     .build();
         } catch (Exception e) {
@@ -207,7 +213,7 @@ public class XeroActivationService {
                 .integrationStatus(status)
                 .organisationSelectionRequired("PENDING_ORGANISATION_SELECTION".equalsIgnoreCase(status))
                 .message(runtimeEnabled
-                        ? "Xero invoice integration enabled. Existing customers and products were queued for synchronisation."
+                        ? "Xero invoice integration enabled. Existing products, customers and invoices were queued for synchronisation."
                         : requested
                                 ? "Invoice integration will be enabled after Xero authorisation is completed."
                                 : "Xero invoice integration disabled.")

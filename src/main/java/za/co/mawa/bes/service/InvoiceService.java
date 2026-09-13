@@ -205,7 +205,26 @@ public class InvoiceService {
     }
 
     public void deleteInvoice(String invoiceId) {
-        invoiceRepository.deleteById(invoiceId);
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + invoiceId));
+        if (invoice.getXeroInvoiceId() == null || invoice.getXeroInvoiceId().isBlank()) {
+            invoiceRepository.deleteById(invoiceId);
+            return;
+        }
+        boolean hasActivePayments = invoicePaymentRepository.findByInvoiceId(invoiceId).stream()
+                .anyMatch(payment -> !"CANCELLED".equalsIgnoreCase(payment.getStatus())
+                        && payment.getAmountCents() != null
+                        && payment.getAmountCents() > 0L);
+        if (hasActivePayments) {
+            throw new IllegalStateException(
+                    "Cancel or reverse all invoice payments before voiding an invoice already synchronised to Xero");
+        }
+        // A synchronised financial document must retain its MAWA/Xero audit link.
+        // Convert deletion into a void request instead of physically removing it.
+        invoice.setStatus("VOIDED");
+        invoice.setUpdatedAt(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
     }
 
     @Transactional

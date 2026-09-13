@@ -9,11 +9,16 @@ import za.co.mawa.bes.dto.v2.ReceiptResponseDto;
 import za.co.mawa.bes.dto.v2.ReceiptVerificationDto;
 import za.co.mawa.bes.entity.v2.ReceiptAllocationEntity;
 import za.co.mawa.bes.entity.v2.ReceiptEntity;
+import za.co.mawa.bes.entity.InvoiceEntity;
+import za.co.mawa.bes.entity.InvoicePaymentEntity;
 import za.co.mawa.bes.enums.ReceiptAllocationType;
 import za.co.mawa.bes.enums.ReceiptStatus;
 import za.co.mawa.bes.enums.ReceiptSourceType;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.repository.InvoicePaymentRepository;
+import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -33,6 +38,9 @@ public class ReceiptService {
     private final ReceiptMapper receiptMapper;
     private final JdbcTemplate jdbcTemplate;
     private final MembershipPremiumService membershipPremiumService;
+    private final InvoicePaymentRepository invoicePaymentRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
 
     public ReceiptEntity saveReceipt(ReceiptEntity receipt) {
         return receiptRepository.save(receipt);
@@ -350,6 +358,11 @@ public class ReceiptService {
                     && !allocation.getMembershipId().isBlank()) {
                 affectedMembershipIds.add(allocation.getMembershipId());
             }
+            if (allocation.getAllocationType() == ReceiptAllocationType.INVOICE
+                    && allocation.getReferenceId() != null
+                    && !allocation.getReferenceId().isBlank()) {
+                reverseInvoicePayment(receipt, allocation.getReferenceId(), reason, cancelledBy);
+            }
         }
 
         // Membership-wide reconciliation also covers migrated allocations that
@@ -359,6 +372,38 @@ public class ReceiptService {
         }
 
         return receiptMapper.toDto(receipt, allocations);
+    }
+
+    private void reverseInvoicePayment(ReceiptEntity receipt, String invoiceId,
+                                       String reason, String cancelledBy) {
+        InvoicePaymentEntity payment = invoicePaymentRepository
+                .findFirstByReceiptIdAndInvoiceId(receipt.getId(), invoiceId)
+                .orElse(null);
+        if (payment == null || "CANCELLED".equalsIgnoreCase(payment.getStatus())) return;
+
+        payment.setStatus("CANCELLED");
+        payment.setReversedAt(LocalDateTime.now());
+        payment.setReversedBy(cancelledBy);
+        payment.setReversalReason(reason);
+        payment.setXeroSyncStatus(payment.getXeroPaymentId() == null ? "NOT_POSTED" : "REVERSAL_QUEUED");
+        invoicePaymentRepository.save(payment);
+
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId).orElse(null);
+        if (invoice == null) return;
+        long paid = Math.max(0L, amount(invoice.getPaidCents()) - amount(payment.getAmountCents()));
+        long balance = Math.max(0L,
+                amount(invoice.getTotalCents()) - paid - amount(invoice.getCreditedCents()));
+        invoice.setPaidCents(paid);
+        invoice.setBalanceCents(balance);
+        invoice.setStatus(paid > 0 ? "PARTIALLY_PAID" : "ISSUED");
+        invoice.setUpdatedAt(LocalDateTime.now());
+        invoice.setUpdatedBy(cancelledBy);
+        invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
+    }
+
+    private long amount(Long value) {
+        return value == null ? 0L : value;
     }
 
     private String appendNote(String current, String note) {

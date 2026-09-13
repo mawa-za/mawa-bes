@@ -19,6 +19,7 @@ import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ public class InvoicePaymentService {
     private final OnlineCashupService onlineCashupService;
     private final CardTerminalService cardTerminalService;
     private final NumberAllocationService numberAllocationService;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
 
     @Transactional
     public PaymentBatchResponseDto capturePayment(String invoiceId, CaptureInvoicePaymentDto request) {
@@ -124,6 +126,8 @@ public class InvoicePaymentService {
                 .amountCents(request.getAmountCents())
                 .paymentMethod(paymentMethod)
                 .referenceNo(blank(request.getReference()) ? receipt.getReceiptNo() : request.getReference().trim())
+                .receiptId(receipt.getId())
+                .status("POSTED")
                 .createdAt(LocalDateTime.now())
                 .createdBy(actor)
                 .build();
@@ -149,6 +153,7 @@ public class InvoicePaymentService {
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actor);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
 
         onlineCashupService.addReceipts(batch, List.of(receipt.getId()), actor, deviceId);
         ReceiptResponseDto receiptDto = receiptMapper.toDto(receipt, List.of(allocation));
