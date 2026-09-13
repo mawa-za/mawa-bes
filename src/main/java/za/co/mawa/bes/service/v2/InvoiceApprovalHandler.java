@@ -6,6 +6,7 @@ import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -15,6 +16,7 @@ import java.util.Locale;
 public class InvoiceApprovalHandler implements ApprovalCompletionHandler, ApprovalSubmissionHandler {
 
     private final InvoiceRepository invoiceRepository;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
 
     @Override
     public ApprovalType supports() {
@@ -32,6 +34,7 @@ public class InvoiceApprovalHandler implements ApprovalCompletionHandler, Approv
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actionBy);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
     }
 
     @Override
@@ -49,6 +52,7 @@ public class InvoiceApprovalHandler implements ApprovalCompletionHandler, Approv
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actionBy);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
     }
 
     @Override
@@ -58,6 +62,7 @@ public class InvoiceApprovalHandler implements ApprovalCompletionHandler, Approv
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actionBy);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
     }
 
     @Override
@@ -67,6 +72,7 @@ public class InvoiceApprovalHandler implements ApprovalCompletionHandler, Approv
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actionBy);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
     }
 
     private InvoiceEntity getInvoice(ApprovalRequestEntity approvalRequest) {

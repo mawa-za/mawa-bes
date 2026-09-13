@@ -79,20 +79,31 @@ public class XeroMasterDataPushService {
         ProductEntity product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
         if (!text(product.getCode())) throw new IllegalArgumentException("Product code is required for Xero sync");
-        ObjectNode item = mapper.createObjectNode();
-        if (text(product.getXeroItemId())) item.put("ItemID", product.getXeroItemId());
-        item.put("Code", product.getCode());
-        item.put("Name", limit(first(product.getDescription(), product.getCode()), 50));
-        item.put("Description", limit(first(product.getDescription(), product.getCode()), 4000));
-        item.put("IsSold", Boolean.TRUE.equals(product.getAvailableForSale()));
-        ObjectNode root = mapper.createObjectNode();
-        root.set("Items", mapper.createArrayNode().add(item));
+        ObjectNode root = buildProductPayload(product);
         JsonNode response = post(resolveUrl("XERO-ITEMS-URL", ITEMS_URL), root);
         JsonNode saved = firstResult(response, "Items");
         String id = saved.path("ItemID").asText(null);
         if (!text(id)) throw new IOException("Xero product response did not contain ItemID");
         product.setXeroItemId(id);
         productRepository.save(product);
+    }
+
+    ObjectNode buildProductPayload(ProductEntity product) {
+        ObjectNode item = mapper.createObjectNode();
+        if (text(product.getXeroItemId())) item.put("ItemID", product.getXeroItemId());
+        item.put("Code", product.getCode());
+        item.put("Name", limit(first(product.getDescription(), product.getCode()), 50));
+        item.put("Description", limit(first(product.getDescription(), product.getCode()), 4000));
+        // MAWA products are synchronised for use on Xero sales invoices. Xero needs
+        // the item to be sales-enabled and its sales posting details to be explicit.
+        item.put("IsSold", true);
+        ObjectNode salesDetails = mapper.createObjectNode();
+        salesDetails.put("AccountCode", settings.invoiceAccountCode());
+        salesDetails.put("TaxType", settings.invoiceTaxType());
+        item.set("SalesDetails", salesDetails);
+        ObjectNode root = mapper.createObjectNode();
+        root.set("Items", mapper.createArrayNode().add(item));
+        return root;
     }
 
     private JsonNode post(String endpoint, ObjectNode payload) throws IOException {

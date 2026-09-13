@@ -25,10 +25,10 @@ API responses expose `invoiceIntegrationRequested` separately from `invoiceInteg
 MAWA requests:
 
 ```text
-openid profile email offline_access accounting.invoices accounting.contacts accounting.settings
+openid profile email offline_access accounting.invoices accounting.payments accounting.contacts accounting.settings
 ```
 
-The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations. `accounting.invoices` is the granular replacement required for apps created after 2 March 2026; the deprecated broad `accounting.transactions` scope must not be requested by new apps.
+The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice and payment operations, customer/contact writes, and product/item operations. `accounting.invoices` and `accounting.payments` are granular scopes for apps created after 2 March 2026; the deprecated broad `accounting.transactions` scope must not be requested by new apps.
 The authorization URL encodes the spaces between scopes as `%20` rather than `+`, so Xero always parses them as separate scope names.
 
 ## Settings written by activation
@@ -104,6 +104,17 @@ Activation payload:
 ```
 
 The response contains `authenticationUrl`. Open it to authorise the Xero organisation.
+
+## Invoice lifecycle synchronisation
+
+- MAWA sends its generated number as Xero `InvoiceNumber` and retains the returned `InvoiceID` for all later updates.
+- `DRAFT`, `NEW`, `AWAITING_APPROVAL`, and `REJECTED` map to Xero `DRAFT`.
+- `ISSUED`, `PARTIALLY_PAID`, `OVERDUE`, and `PAID` map to Xero `AUTHORISED`; Xero derives `PAID` from allocated payments.
+- `CANCELLED` and `VOIDED` map to Xero `VOIDED`.
+- Captured invoice payments are posted once and retain their Xero `PaymentID` for idempotent retries.
+- Configure the Xero bank account used for receipts with Group `XERO`, Attribute `PAYMENT-ACCOUNT-CODE` (or tenant property `XERO-PAYMENT-ACCOUNT-CODE`).
+
+Adding the `accounting.payments` scope requires existing connections to be authorised again once after deployment.
 
 ## Deactivation
 

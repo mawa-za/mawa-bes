@@ -41,7 +41,7 @@ public class XeroAuthService {
     @Getter
     private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
     @Getter
-    private static final String SCOPES = "openid profile email offline_access accounting.invoices accounting.contacts accounting.settings";
+    private static final String SCOPES = "openid profile email offline_access accounting.invoices accounting.payments accounting.contacts accounting.settings";
 
     public String getInitialTokens(String authorizationCode) throws IOException {
         return getInitialTokens(TenantContext.getCurrentTenant(), authorizationCode);

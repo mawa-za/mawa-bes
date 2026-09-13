@@ -37,6 +37,34 @@ public class InvoicePaymentEntity {
     @Column(name = "reference_no")
     private String referenceNo;
 
+    @Column(name = "receipt_id", length = 255)
+    private String receiptId;
+
+    @Column(name = "status", length = 30)
+    @Builder.Default
+    private String status = "POSTED";
+
+    @Column(name = "reversed_at")
+    private LocalDateTime reversedAt;
+
+    @Column(name = "reversed_by")
+    private String reversedBy;
+
+    @Column(name = "reversal_reason", length = 500)
+    private String reversalReason;
+
+    @Column(name = "xero_payment_id", length = 64)
+    private String xeroPaymentId;
+
+    @Column(name = "xero_sync_status", length = 30)
+    private String xeroSyncStatus;
+
+    @Column(name = "xero_sync_error", columnDefinition = "TEXT")
+    private String xeroSyncError;
+
+    @Column(name = "xero_synced_at")
+    private LocalDateTime xeroSyncedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

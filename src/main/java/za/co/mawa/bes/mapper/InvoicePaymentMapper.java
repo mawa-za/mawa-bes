@@ -18,6 +18,15 @@ public class InvoicePaymentMapper {
                 .amountCents(entity.getAmountCents())
                 .paymentMethod(entity.getPaymentMethod())
                 .referenceNo(entity.getReferenceNo())
+                .receiptId(entity.getReceiptId())
+                .status(entity.getStatus())
+                .reversedAt(entity.getReversedAt())
+                .reversedBy(entity.getReversedBy())
+                .reversalReason(entity.getReversalReason())
+                .xeroPaymentId(entity.getXeroPaymentId())
+                .xeroSyncStatus(entity.getXeroSyncStatus())
+                .xeroSyncError(entity.getXeroSyncError())
+                .xeroSyncedAt(entity.getXeroSyncedAt())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
                 .build();
@@ -30,6 +39,7 @@ public class InvoicePaymentMapper {
                 .amountCents(request.getAmountCents())
                 .paymentMethod(request.getPaymentMethod())
                 .referenceNo(request.getReferenceNo())
+                .status("POSTED")
                 .build();
     }
     public void updateEntity(InvoicePaymentEntity entity, InvoicePaymentUpdateRequestDto request) {

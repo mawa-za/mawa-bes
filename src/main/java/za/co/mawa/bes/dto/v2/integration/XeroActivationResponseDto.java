@@ -19,6 +19,7 @@ public class XeroActivationResponseDto {
     private String tenantIdSecret;
     private String accessTokenSecret;
     private String redirectUrl;
+    private String paymentAccountCode;
     private String selectedTenantId;
     private String selectedTenantName;
     private List<XeroConnectionDto> connections;
