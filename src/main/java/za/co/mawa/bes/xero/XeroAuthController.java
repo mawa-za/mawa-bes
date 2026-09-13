@@ -64,10 +64,14 @@ public class XeroAuthController {
         String authUrl = XeroAuthService.getAUTH_URL() + "?response_type=code" +
                 "&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
                 "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
-                "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8) +
+                "&scope=" + encodeOAuthScope(XeroAuthService.getSCOPES()) +
                 "&state=" + URLEncoder.encode(tenantState, StandardCharsets.UTF_8);
 
         return ResponseEntity.ok(Map.of("authenticationUrl", authUrl));
+    }
+
+    private String encodeOAuthScope(String scopes) {
+        return URLEncoder.encode(scopes, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
 

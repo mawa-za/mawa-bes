@@ -28,6 +28,7 @@ openid profile email offline_access accounting.transactions accounting.contacts 
 ```
 
 The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations.
+The authorization URL encodes the spaces between scopes as `%20` rather than `+`, so Xero always parses them as separate scope names.
 
 ## Settings written by activation
 
