@@ -11,6 +11,7 @@ import za.co.mawa.bes.configuration.gcp.TenantSecretNameService;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationRequestDto;
 import za.co.mawa.bes.dto.v2.integration.XeroActivationResponseDto;
 import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
+import za.co.mawa.bes.dto.v2.integration.XeroInvoiceIntegrationRequestDto;
 import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.xero.XeroAuthService;
@@ -94,6 +95,7 @@ public class XeroActivationService {
 
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(false)
+                .invoiceIntegrationRequested(enableInvoices)
                 .integrationStatus("PENDING_AUTHORISATION")
                 .authenticationUrl(authenticationUrl)
                 .clientIdSecret(clientIdSecret)
@@ -110,6 +112,7 @@ public class XeroActivationService {
     public XeroActivationResponseDto secretNames() {
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(isEnabled(INVOICE_ENABLED))
+                .invoiceIntegrationRequested(invoiceIntegrationRequested())
                 .integrationStatus(currentStatus())
                 .organisationSelectionRequired(false)
                 .clientIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "client-id"))
@@ -152,6 +155,7 @@ public class XeroActivationService {
             boolean enabled = enableAfterAuthorisation();
             return XeroActivationResponseDto.builder()
                     .invoiceIntegrationEnabled(enabled)
+                    .invoiceIntegrationRequested(invoiceIntegrationRequested())
                     .integrationStatus("AUTHORISED")
                     .organisationSelectionRequired(false)
                     .selectedTenantId(selected.getTenantId())
@@ -174,9 +178,39 @@ public class XeroActivationService {
         setRuntimeState(false, "DISABLED");
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(false)
+                .invoiceIntegrationRequested(false)
                 .integrationStatus("DISABLED")
                 .organisationSelectionRequired(false)
                 .message("Xero customer, product and invoice synchronisation is disabled for this tenant. Secret references were retained for future reactivation.")
+                .build();
+    }
+
+    public XeroActivationResponseDto updateInvoiceIntegration(XeroInvoiceIntegrationRequestDto request) {
+        if (request == null || request.getEnabled() == null) {
+            throw new IllegalArgumentException("Invoice integration enabled value is required");
+        }
+
+        boolean requested = request.getEnabled();
+        String status = currentStatus();
+        boolean authorised = "AUTHORISED".equalsIgnoreCase(status);
+        settingService.upsertSetting(INVOICE_REQUESTED, XERO_GROUP, String.valueOf(requested));
+
+        boolean runtimeEnabled = requested && authorised;
+        setRuntimeState(runtimeEnabled, status);
+        if (runtimeEnabled) {
+            xeroMasterDataQueueService.queueAllExisting();
+        }
+
+        return XeroActivationResponseDto.builder()
+                .invoiceIntegrationEnabled(runtimeEnabled)
+                .invoiceIntegrationRequested(requested)
+                .integrationStatus(status)
+                .organisationSelectionRequired("PENDING_ORGANISATION_SELECTION".equalsIgnoreCase(status))
+                .message(runtimeEnabled
+                        ? "Xero invoice integration enabled. Existing customers and products were queued for synchronisation."
+                        : requested
+                                ? "Invoice integration will be enabled after Xero authorisation is completed."
+                                : "Xero invoice integration disabled.")
                 .build();
     }
 
@@ -234,13 +268,17 @@ public class XeroActivationService {
     }
 
     private boolean enableAfterAuthorisation() {
-        String requestedValue = settingService.getSetting(INVOICE_REQUESTED, XERO_GROUP);
-        boolean enabled = !StringUtils.hasText(requestedValue) || Boolean.parseBoolean(requestedValue);
+        boolean enabled = invoiceIntegrationRequested();
         setRuntimeState(enabled, "AUTHORISED");
         if (enabled) {
             xeroMasterDataQueueService.queueAllExisting();
         }
         return enabled;
+    }
+
+    private boolean invoiceIntegrationRequested() {
+        String requestedValue = settingService.getSetting(INVOICE_REQUESTED, XERO_GROUP);
+        return !StringUtils.hasText(requestedValue) || Boolean.parseBoolean(requestedValue);
     }
 
     private void setRuntimeState(boolean enabled, String status) {
