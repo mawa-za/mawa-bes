@@ -9,6 +9,7 @@ import java.util.List;
 @Builder
 public class XeroActivationResponseDto {
     private boolean invoiceIntegrationEnabled;
+    private String integrationStatus;
     private boolean organisationSelectionRequired;
     private String authenticationUrl;
     private String clientIdSecret;

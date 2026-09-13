@@ -10,6 +10,7 @@ import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.dto.v2.integration.XeroConnectionDto;
+import za.co.mawa.bes.service.v2.integration.XeroActivationService;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -27,6 +28,8 @@ public class XeroAuthController {
 
     @Autowired
     XeroAuthService xeroAuthService;
+    @Autowired
+    XeroActivationService xeroActivationService;
     @Autowired
     SettingService settingService;
     @Autowired
@@ -82,6 +85,7 @@ public class XeroAuthController {
             }
             TenantContext.setCurrentTenantURL(state);
             XeroAuthService.XeroOAuthResult result = xeroAuthService.completeInitialAuthorisation(resolvedTenant, code);
+            xeroActivationService.completeAuthorisation(result);
 
             if (result.isOrganisationSelectionRequired()) {
                 String organisations = result.getConnections().stream()

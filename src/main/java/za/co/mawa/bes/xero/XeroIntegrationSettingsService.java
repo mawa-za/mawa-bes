@@ -30,6 +30,7 @@ public class XeroIntegrationSettingsService {
         String value = firstNonBlank(
                 properties.optString(PROP_INVOICE_ENABLED, null),
                 properties.optString(PROP_INTEGRATION_ENABLED, null),
+                settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP)
         );
@@ -43,6 +44,7 @@ public class XeroIntegrationSettingsService {
                 properties.optString(PROP_INTEGRATION_ENABLED, null),
                 properties.optString(PROP_INVOICE_ENABLED, null),
                 settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP),
+                settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP)));
     }
 
