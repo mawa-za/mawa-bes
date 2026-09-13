@@ -143,6 +143,18 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @GetMapping("/check-membership-number/{membershipNumber}")
+    public ResponseEntity<?> checkMembershipNumber(
+            @PathVariable String membershipNumber,
+            @RequestParam String deceasedCategory) {
+        try {
+            return ResponseEntity.ok(funeralManagementService
+                    .checkMembershipByNumber(membershipNumber, deceasedCategory));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @GetMapping("/service-requests")
     public ResponseEntity<?> getServiceRequests(
             @RequestParam(required = false) String query,

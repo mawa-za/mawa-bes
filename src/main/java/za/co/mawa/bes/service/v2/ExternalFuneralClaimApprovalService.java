@@ -106,7 +106,9 @@ public class ExternalFuneralClaimApprovalService {
         }
 
         String claimType = Objects.toString(claim.get("claim_type"), "").toUpperCase(Locale.ROOT);
-        String expectedApprovalType = "CLAIM_" + claimType;
+        String expectedApprovalType = "STILLBORN".equals(claimType)
+                ? ApprovalType.CLAIM_FUNERAL.name()
+                : "CLAIM_" + claimType;
         if (!request.getApprovalType().name().equals(expectedApprovalType)
                 && request.getApprovalType() != ApprovalType.CLAIM) {
             throw new IllegalArgumentException(
