@@ -41,7 +41,7 @@ public class XeroAuthService {
     @Getter
     private static final String AUTH_URL = "https://login.xero.com/identity/connect/authorize";
     @Getter
-    private static final String SCOPES = "offline_access accounting.transactions accounting.contacts.read";
+    private static final String SCOPES = "offline_access accounting.transactions accounting.contacts accounting.settings";
 
     public String getInitialTokens(String authorizationCode) throws IOException {
         return getInitialTokens(TenantContext.getCurrentTenant(), authorizationCode);
@@ -83,11 +83,8 @@ public class XeroAuthService {
                     throw new IllegalStateException("No Xero organisations were returned for the authorised user.");
                 }
                 selectionRequired = true;
-                settingService.upsertSetting("INTEGRATION-STATUS", "XERO", "PENDING_ORGANISATION_SELECTION");
-                settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", "XERO", "false");
             } else {
                 createProperty(tenant, XeroUtils.XERO_TENANT_ID, selectedConnection.getTenantId());
-                settingService.upsertSetting("INTEGRATION-STATUS", "XERO", "AUTHORISED");
             }
 
             String expiresAt = String.valueOf(System.currentTimeMillis() + (1800 * 1000));
@@ -307,8 +304,6 @@ public class XeroAuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Selected Xero organisation is not available for the authorised Xero user"));
 
         createProperty(tenant, XeroUtils.XERO_TENANT_ID, selected.getTenantId());
-        settingService.upsertSetting("INTEGRATION-STATUS", "XERO", "AUTHORISED");
-        settingService.upsertSetting("INVOICE-INTEGRATION-ENABLED", "XERO", "true");
         return selected;
     }
 

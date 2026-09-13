@@ -12,8 +12,21 @@ MAWA supports tenant-level Xero activation from the Settings screen.
 6. Backend returns a Xero authentication URL.
 7. User opens the URL and authorises the correct Xero organisation.
 8. Xero redirects back to `/xero/callback` with the MAWA tenant in OAuth `state`.
-9. Backend stores refresh token and Xero tenant ID in Google Secret Manager.
-10. Invoice push is enabled for the tenant.
+9. Backend stores the access token, refresh token and selected Xero tenant ID in Google Secret Manager.
+10. For one organisation, activation completes automatically. For multiple organisations, synchronisation remains disabled until the user selects one in MAWA.
+11. After successful selection, the backend applies the user's invoice-integration preference and queues existing customers and products when synchronisation is enabled.
+
+Background synchronisation is never enabled by the initial `activate` request. The integration remains in `PENDING_AUTHORISATION` until the OAuth callback succeeds.
+
+## OAuth scopes
+
+MAWA requests:
+
+```text
+offline_access accounting.transactions accounting.contacts accounting.settings
+```
+
+These permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations.
 
 ## Settings written by activation
 
@@ -26,7 +39,10 @@ Group: `XERO`
 | `REFRESH-TOKEN-SECRET` | GCP secret name for Xero refresh token |
 | `TENANT-ID-SECRET` | GCP secret name for Xero tenant ID |
 | `REDIRECT-URL` | Public backend Xero callback URL |
+| `INVOICE-INTEGRATION-REQUESTED` | User preference captured before OAuth |
 | `INVOICE-INTEGRATION-ENABLED` | `true` or `false` |
+| `INTEGRATION` | Runtime synchronisation switch |
+| `INTEGRATION-STATUS` | Current OAuth/integration state |
 
 ## Secret naming
 
@@ -67,6 +83,9 @@ roles/secretmanager.secretVersionAdder
 ```http
 POST /v2/integrations/xero/activate
 POST /v2/integrations/xero/deactivate
+GET /v2/integrations/xero/secret-names
+GET /v2/integrations/xero/connections
+POST /v2/integrations/xero/select-tenant
 ```
 
 Activation payload:
@@ -91,6 +110,8 @@ Group: XERO
 Attribute: INVOICE-INTEGRATION-ENABLED
 Value: false
 ```
+
+It also disables `INTEGRATION`, clears the requested enablement preference, and records `INTEGRATION-STATUS=DISABLED`.
 
 It does not delete secret references or secret values. This allows easy reactivation/reconnect later.
 
