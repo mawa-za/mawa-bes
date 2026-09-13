@@ -24,10 +24,10 @@ While activation is pending, `GET /v2/integrations/xero/connections` returns an 
 MAWA requests:
 
 ```text
-offline_access accounting.transactions accounting.contacts accounting.settings
+openid profile email offline_access accounting.transactions accounting.contacts accounting.settings
 ```
 
-These permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations.
+The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations.
 
 ## Settings written by activation
 
