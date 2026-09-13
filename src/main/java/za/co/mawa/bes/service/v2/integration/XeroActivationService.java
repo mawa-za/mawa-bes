@@ -275,8 +275,14 @@ public class XeroActivationService {
         return XeroAuthService.getAUTH_URL() + "?response_type=code"
                 + "&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8)
                 + "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8)
-                + "&scope=" + URLEncoder.encode(XeroAuthService.getSCOPES(), StandardCharsets.UTF_8)
+                + "&scope=" + encodeOAuthScope(XeroAuthService.getSCOPES())
                 + "&state=" + URLEncoder.encode(tenant, StandardCharsets.UTF_8);
+    }
+
+    private String encodeOAuthScope(String scopes) {
+        // Scope is a space-delimited OAuth value. Emit RFC 3986 spaces explicitly;
+        // URLEncoder uses '+', which Xero can interpret as part of the scope name.
+        return URLEncoder.encode(scopes, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private String buildRedirectUrl(String rawRedirectUrl) {
