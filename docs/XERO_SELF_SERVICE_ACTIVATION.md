@@ -24,10 +24,10 @@ While activation is pending, `GET /v2/integrations/xero/connections` returns an 
 MAWA requests:
 
 ```text
-openid profile email offline_access accounting.transactions accounting.contacts accounting.settings
+openid profile email offline_access accounting.invoices accounting.contacts accounting.settings
 ```
 
-The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations.
+The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice operations, customer/contact writes, and product/item operations. `accounting.invoices` is the granular replacement required for apps created after 2 March 2026; the deprecated broad `accounting.transactions` scope must not be requested by new apps.
 The authorization URL encodes the spaces between scopes as `%20` rather than `+`, so Xero always parses them as separate scope names.
 
 ## Settings written by activation
