@@ -4,6 +4,7 @@ public enum MembershipClaimType {
     CASH,
     TOMBSTONE,
     FUNERAL,
+    STILLBORN,
     COMBINATION,
     GROCERY
 }

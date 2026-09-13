@@ -24,6 +24,9 @@ public class FuneralMembershipCoverDto {
     /** Amount payable when this cover is used as a normal FUNERAL claim. */
     private Long funeralAmountCents;
 
+    /** Amount payable for an infant/stillborn arrangement without an SA ID. */
+    private Long stillbornAmountCents;
+
     /** Amount payable when more than one cover is selected and claims are handled as COMBINATION. */
     private Long combinationAmountCents;
 
@@ -45,6 +48,9 @@ public class FuneralMembershipCoverDto {
     public Long amountForClaimType(String claimType) {
         if ("COMBINATION".equalsIgnoreCase(claimType)) {
             return combinationAmountCents == null ? 0L : Math.max(0L, combinationAmountCents);
+        }
+        if ("STILLBORN".equalsIgnoreCase(claimType)) {
+            return stillbornAmountCents == null ? 0L : Math.max(0L, stillbornAmountCents);
         }
         return firstPositive(funeralAmountCents, coverAmountCents, combinationAmountCents);
     }
