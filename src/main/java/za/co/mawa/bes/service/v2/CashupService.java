@@ -596,8 +596,9 @@ public class CashupService {
             throw new IllegalStateException("Only submitted cashups can be rejected");
         }
 
-        cashup.setStatus(STATUS_REJECTED);
-        cashup.setNotes(reason);
+        cashup.setStatus(STATUS_AWAITING_DEPOSITS);
+        cashup.setApprovalRequestId(null);
+        cashup.setNotes(clean(reason) == null ? "Cashup approval rejected" : reason.trim());
         cashup.setUpdatedBy(rejectedBy);
 
         cashupRepository.save(cashup);
@@ -606,7 +607,7 @@ public class CashupService {
                 .status("SUCCESS")
                 .cashupId(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
-                .message("Cashup rejected successfully")
+                .message("Cashup rejected and returned to awaiting deposits")
                 .build();
     }
 
