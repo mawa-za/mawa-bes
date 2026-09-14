@@ -74,7 +74,9 @@ public class XeroInvoicePushService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void pushInvoice(String invoiceId) throws IOException {
-        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+        // Invoice lines are LAZY. Fetch them before the repository transaction
+        // closes because the remainder of this method performs external calls.
+        InvoiceEntity invoice = invoiceRepository.findByIdWithLines(invoiceId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + invoiceId));
 
         boolean update = !isBlank(invoice.getXeroInvoiceId());
