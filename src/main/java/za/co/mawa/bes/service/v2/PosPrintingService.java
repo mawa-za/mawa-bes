@@ -438,7 +438,7 @@ public class PosPrintingService {
             if ("FAILED".equals(existingJob.getStatus())) {
                 return retry(existingJob.getId());
             }
-            return jobDto(existingJob, printer);
+            return jobDto(existingJob, printerRepository.findById(existingJob.getPrinterId()).orElse(null));
         }
 
         PosPrintJobEntity job = PosPrintJobEntity.builder()
@@ -557,6 +557,50 @@ public class PosPrintingService {
         return jobRepository.findTop100ByOrderByCreatedAtDesc().stream()
                 .map(job -> jobDto(job, printerRepository.findById(job.getPrinterId()).orElse(null)))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PrintJobResponse getJob(String jobId) {
+        PosPrintJobEntity job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Print job not found"));
+        return jobDto(job, printerRepository.findById(job.getPrinterId()).orElse(null));
+    }
+
+    @Transactional
+    public PrintJobResponse rerouteAndRetry(String jobId) {
+        PosPrintJobEntity job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Print job not found"));
+        if ("SPOOLED".equals(job.getStatus())) {
+            throw new IllegalArgumentException("Spooled jobs require an explicit receipt reprint");
+        }
+        PosTerminalEntity terminal = terminalRepository.findById(job.getTerminalId())
+                .orElseThrow(() -> new IllegalArgumentException("Print job terminal no longer exists"));
+        if (!terminal.isEnabled() || !StringUtils.hasText(terminal.getAgentId())) {
+            throw new IllegalArgumentException("Terminal has no active print destination");
+        }
+        PosPrintAgentEntity agent = agentRepository.findById(terminal.getAgentId())
+                .orElseThrow(() -> new IllegalArgumentException("Assigned print agent no longer exists"));
+        if (!"ACTIVE".equals(agent.getStatus())) {
+            throw new IllegalArgumentException("Assigned print agent is not active");
+        }
+        if (!StringUtils.hasText(terminal.getDefaultReceiptPrinterId())) {
+            throw new IllegalArgumentException("Terminal has no assigned receipt printer");
+        }
+        PosPrinterEntity printer = validatePrinterAssignment(
+                terminal.getDefaultReceiptPrinterId(), terminal.getAgentId());
+        if (!"ONLINE".equals(printer.getStatus())) {
+            throw new IllegalArgumentException("Selected printer is offline");
+        }
+        job.setAgentId(agent.getId());
+        job.setPrinterId(printer.getId());
+        job.setStatus("QUEUED");
+        job.setAttemptCount(0);
+        job.setNextAttemptAt(LocalDateTime.now());
+        job.setFailedAt(null);
+        job.setLastError(null);
+        clearClaim(job);
+        job.setUpdatedAt(LocalDateTime.now());
+        return jobDto(jobRepository.save(job), printer);
     }
 
     @Transactional
@@ -711,8 +755,13 @@ public class PosPrintingService {
                 .status(job.getStatus())
                 .claimToken(job.getClaimToken())
                 .attemptCount(job.getAttemptCount())
+                .maxAttempts(job.getMaxAttempts())
                 .claimExpiresAt(job.getClaimExpiresAt())
+                .nextAttemptAt(job.getNextAttemptAt())
+                .spooledAt(job.getSpooledAt())
+                .failedAt(job.getFailedAt())
                 .createdAt(job.getCreatedAt())
+                .updatedAt(job.getUpdatedAt())
                 .lastError(job.getLastError())
                 .build();
     }
