@@ -58,7 +58,7 @@ class ApprovalServiceTest {
         request.setRequesterId("user-1");
         request.setTitle("Leave request");
 
-        when(approvalRequestRepository.findByApprovalTypeAndReferenceId(
+        when(approvalRequestRepository.findTopByApprovalTypeAndReferenceIdOrderByCreatedAtDesc(
                 ApprovalType.LEAVE, "leave-1"))
                 .thenReturn(Optional.empty());
         when(workflowRepository.findByApprovalType(ApprovalType.LEAVE))

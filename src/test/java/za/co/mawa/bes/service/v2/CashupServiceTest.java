@@ -131,4 +131,24 @@ class CashupServiceTest {
         verify(approvalService, never()).submitForApproval(any());
     }
 
+    @Test
+    void directRejectionReturnsCashupToAwaitingDepositsAndAllowsFreshApproval() {
+        CashupEntity cashup = CashupEntity.builder()
+                .id("cashup-1")
+                .cashupNo(1001L)
+                .status("SUBMITTED")
+                .approvalRequestId("approval-1")
+                .build();
+        when(cashupRepository.findById("cashup-1")).thenReturn(Optional.of(cashup));
+
+        CashupResponse response = service.rejectCashup(
+                "cashup-1", "approver-1", "Deposit total does not match");
+
+        assertEquals("AWAITING_DEPOSITS", cashup.getStatus());
+        assertEquals(null, cashup.getApprovalRequestId());
+        assertEquals("Deposit total does not match", cashup.getNotes());
+        assertEquals("Cashup rejected and returned to awaiting deposits", response.getMessage());
+        verify(cashupRepository).save(cashup);
+    }
+
 }
