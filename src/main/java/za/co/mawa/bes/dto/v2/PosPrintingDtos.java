@@ -183,10 +183,19 @@ public final class PosPrintingDtos {
         private String status;
         private String claimToken;
         private int attemptCount;
+        private int maxAttempts;
         @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime claimExpiresAt;
         @JsonFormat(shape = JsonFormat.Shape.STRING)
+        private LocalDateTime nextAttemptAt;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
+        private LocalDateTime spooledAt;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
+        private LocalDateTime failedAt;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         private LocalDateTime createdAt;
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
+        private LocalDateTime updatedAt;
         private String lastError;
     }
 
