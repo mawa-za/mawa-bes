@@ -50,6 +50,36 @@ public class ResellerPortalControllerV2 {
         return execute(() -> tenantAdminService.revokeResellerSupportSession(reseller(), sessionId, actor()));
     }
 
+    @GetMapping("/support-tickets")
+    public ResponseEntity<?> tickets() {
+        return execute(() -> tenantAdminService.getResellerSupportTickets(reseller(), actor()));
+    }
+
+    @PostMapping("/support-tickets/{ticketId}/detail")
+    public ResponseEntity<?> ticket(@PathVariable String ticketId) {
+        return execute(() -> tenantAdminService.getSupportTicket(ticketId, reseller(), actor()));
+    }
+
+    @PostMapping("/support-tickets/{ticketId}/comment")
+    public ResponseEntity<?> comment(@PathVariable String ticketId, @RequestBody Map<String, String> request) {
+        return execute(() -> tenantAdminService.commentOnSupportTicket(ticketId, reseller(), actor(), request.get("message")));
+    }
+
+    @PostMapping("/support-tickets/{ticketId}/status")
+    public ResponseEntity<?> status(@PathVariable String ticketId, @RequestBody Map<String, String> request) {
+        return execute(() -> tenantAdminService.updateSupportTicketStatus(ticketId, reseller(), actor(), request.get("status")));
+    }
+
+    @PostMapping("/support-tickets/{ticketId}/assign")
+    public ResponseEntity<?> assign(@PathVariable String ticketId, @RequestBody Map<String, String> request) {
+        return execute(() -> tenantAdminService.assignSupportTicket(ticketId, reseller(), actor(), request.get("assignedTo")));
+    }
+
+    @PostMapping("/support-tickets/{ticketId}/escalate")
+    public ResponseEntity<?> escalate(@PathVariable String ticketId, @RequestBody Map<String, String> request) {
+        return execute(() -> tenantAdminService.escalateSupportTicket(ticketId, reseller(), actor(), request.get("reason")));
+    }
+
     private String reseller() {
         String tenant = TenantContext.getCurrentTenant();
         if (tenant == null || tenant.isBlank()) throw new IllegalStateException("Tenant context is required");

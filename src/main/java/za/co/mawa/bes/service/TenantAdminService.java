@@ -235,6 +235,47 @@ public class TenantAdminService implements TenantDao {
                 + "/support-sessions/" + encode(sessionId) + "/revoke", Map.of("actor", StringUtils.hasText(actor) ? actor : "system"), true);
     }
 
+    public String getClientSupportTickets(String clientTenantId) {
+        return execute("GET", "/internal/erp/support-tickets/clients/" + encode(clientTenantId), null, true);
+    }
+
+    public String createClientSupportTicket(String clientTenantId, Object request) {
+        return execute("POST", "/internal/erp/support-tickets/clients/" + encode(clientTenantId), request, true);
+    }
+
+    public String getResellerSupportTickets(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/support-tickets/resellers/" + encode(resellerTenantId) + "/search",
+                Map.of("actor", actor), true);
+    }
+
+    public String getSupportTicket(String ticketId, String tenantId, String actor) {
+        return supportTicketAction(ticketId, "detail", Map.of("tenantId", tenantId, "actor", actor));
+    }
+
+    public String commentOnSupportTicket(String ticketId, String tenantId, String actor, String message) {
+        return supportTicketAction(ticketId, "comment", Map.of(
+                "tenantId", tenantId, "actor", actor, "message", message == null ? "" : message));
+    }
+
+    public String updateSupportTicketStatus(String ticketId, String tenantId, String actor, String status) {
+        return supportTicketAction(ticketId, "status", Map.of(
+                "tenantId", tenantId, "actor", actor, "status", status == null ? "" : status));
+    }
+
+    public String assignSupportTicket(String ticketId, String tenantId, String actor, String assignedTo) {
+        return supportTicketAction(ticketId, "assign", Map.of(
+                "tenantId", tenantId, "actor", actor, "assignedTo", assignedTo == null ? "" : assignedTo));
+    }
+
+    public String escalateSupportTicket(String ticketId, String tenantId, String actor, String reason) {
+        return supportTicketAction(ticketId, "escalate", Map.of(
+                "tenantId", tenantId, "actor", actor, "reason", reason == null ? "" : reason));
+    }
+
+    private String supportTicketAction(String ticketId, String action, Object request) {
+        return execute("POST", "/internal/erp/support-tickets/" + encode(ticketId) + "/" + action, request, true);
+    }
+
     public void invalidateTenantCache() {
         cachedTenantsAt = 0L;
     }
