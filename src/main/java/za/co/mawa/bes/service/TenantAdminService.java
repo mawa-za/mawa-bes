@@ -209,6 +209,32 @@ public class TenantAdminService implements TenantDao {
         return execute("POST", "/internal/erp/purple/providers/" + encode(tenant), request, true);
     }
 
+    public String getResellerProfile(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/profile", null, true);
+    }
+
+    public String getResellerAssignments(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants", null, true);
+    }
+
+    public String getResellerSupportSessions(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions", null, true);
+    }
+
+    public String startResellerSupportSession(String resellerTenantId, Object request) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions", request, true);
+    }
+
+    public String openResellerSupportSession(String resellerTenantId, String sessionId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/support-sessions/" + encode(sessionId) + "/open", Map.of("actor", StringUtils.hasText(actor) ? actor : "system"), true);
+    }
+
+    public String revokeResellerSupportSession(String resellerTenantId, String sessionId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/support-sessions/" + encode(sessionId) + "/revoke", Map.of("actor", StringUtils.hasText(actor) ? actor : "system"), true);
+    }
+
     public void invalidateTenantCache() {
         cachedTenantsAt = 0L;
     }
