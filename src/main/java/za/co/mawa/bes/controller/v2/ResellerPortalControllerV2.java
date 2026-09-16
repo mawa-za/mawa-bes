@@ -28,10 +28,27 @@ public class ResellerPortalControllerV2 {
     public ResponseEntity<?> profile() { return execute(() -> tenantAdminService.getResellerProfile(reseller())); }
 
     @GetMapping("/clients")
-    public ResponseEntity<?> clients() { return execute(() -> tenantAdminService.getResellerAssignments(reseller())); }
+    public ResponseEntity<?> clients() { return execute(() -> tenantAdminService.getResellerAssignments(reseller(), actor())); }
+
+    @PostMapping("/clients")
+    public ResponseEntity<?> createClient(@RequestBody Map<String, Object> request) {
+        Map<String, Object> safeRequest = new LinkedHashMap<>();
+        safeRequest.put("name", request.get("name"));
+        safeRequest.put("urlPrefix", request.get("urlPrefix"));
+        safeRequest.put("supportLevel", request.get("supportLevel"));
+        safeRequest.put("billingResponsibility", request.get("billingResponsibility"));
+        safeRequest.put("actor", actor());
+        return execute(() -> tenantAdminService.provisionResellerTenant(reseller(), safeRequest));
+    }
+
+    @PostMapping("/clients/{clientTenantId}/provision/retry")
+    public ResponseEntity<?> retryClientProvisioning(@PathVariable String clientTenantId) {
+        return execute(() -> tenantAdminService.retryResellerTenantProvisioning(
+                reseller(), clientTenantId, actor()));
+    }
 
     @GetMapping("/support-sessions")
-    public ResponseEntity<?> sessions() { return execute(() -> tenantAdminService.getResellerSupportSessions(reseller())); }
+    public ResponseEntity<?> sessions() { return execute(() -> tenantAdminService.getResellerSupportSessions(reseller(), actor())); }
 
     @PostMapping("/support-sessions")
     public ResponseEntity<?> startSession(@RequestBody Map<String, Object> request) {
