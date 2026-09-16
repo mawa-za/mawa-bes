@@ -217,8 +217,30 @@ public class TenantAdminService implements TenantDao {
         return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants", null, true);
     }
 
+    public String getResellerAssignments(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants/search",
+                Map.of("actor", actor), true);
+    }
+
+    public String provisionResellerTenant(String resellerTenantId, Object request) {
+        String result = execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/tenants/provision", request, true);
+        invalidateTenantCache();
+        return result;
+    }
+
+    public String retryResellerTenantProvisioning(String resellerTenantId, String clientTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants/"
+                + encode(clientTenantId) + "/provision/retry", Map.of("actor", actor), true);
+    }
+
     public String getResellerSupportSessions(String resellerTenantId) {
         return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions", null, true);
+    }
+
+    public String getResellerSupportSessions(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions/search",
+                Map.of("actor", actor), true);
     }
 
     public String startResellerSupportSession(String resellerTenantId, Object request) {
