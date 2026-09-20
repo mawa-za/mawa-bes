@@ -40,6 +40,9 @@ public class FuneralServiceEntity {
     @Column(name = "deceased_identity_number")
     private String deceasedIdentityNumber;
 
+    @Column(name = "deceased_category", nullable = false, length = 20)
+    private String deceasedCategory = "ADULT";
+
     @Column(name = "package_id", nullable = false)
     private String packageId;
 
@@ -102,6 +105,7 @@ public class FuneralServiceEntity {
         updatedAt = now;
         if (status == null) status = "ARRANGEMENT_CREATED";
         if (wizardStep == null) wizardStep = 0;
+        if (deceasedCategory == null || deceasedCategory.isBlank()) deceasedCategory = "ADULT";
     }
 
     @PreUpdate

@@ -36,4 +36,15 @@ public class CashupApprovalHandler implements ApprovalCompletionHandler, Approva
         cashup.setUpdatedBy(actionBy);
         cashupRepository.save(cashup);
     }
+
+    @Override
+    public void onRejected(ApprovalRequestEntity approvalRequest, String actionBy, String reason) {
+        CashupEntity cashup = cashupRepository.findById(approvalRequest.getReferenceId())
+                .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + approvalRequest.getReferenceId()));
+        cashup.setStatus("AWAITING_DEPOSITS");
+        cashup.setApprovalRequestId(null);
+        cashup.setNotes(reason == null || reason.isBlank() ? "Cashup approval rejected" : reason.trim());
+        cashup.setUpdatedBy(actionBy);
+        cashupRepository.save(cashup);
+    }
 }

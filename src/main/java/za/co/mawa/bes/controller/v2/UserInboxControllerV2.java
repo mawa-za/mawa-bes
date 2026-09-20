@@ -6,6 +6,7 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.dto.v2.inbox.InboxCountsResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserInboxResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserNotificationResponse;
+import za.co.mawa.bes.dto.v2.inbox.InboxNotificationPreferenceDto;
 
 import java.util.List;
 import za.co.mawa.bes.service.v2.UserInboxService;
@@ -56,6 +57,19 @@ public class UserInboxControllerV2 {
             @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
         inboxService.markAllRead(currentUser(headerUserId));
+    }
+
+    @GetMapping("/notification-preference")
+    public InboxNotificationPreferenceDto getNotificationPreference(
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
+        return inboxService.getPreference(currentUser(headerUserId));
+    }
+
+    @PutMapping("/notification-preference")
+    public InboxNotificationPreferenceDto saveNotificationPreference(
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestBody InboxNotificationPreferenceDto request) {
+        return inboxService.savePreference(currentUser(headerUserId), request);
     }
 
     private String currentUser(String headerUserId) {

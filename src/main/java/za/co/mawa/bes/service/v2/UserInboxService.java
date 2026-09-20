@@ -9,6 +9,7 @@ import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.inbox.InboxCountsResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserInboxResponse;
 import za.co.mawa.bes.dto.v2.inbox.UserNotificationResponse;
+import za.co.mawa.bes.dto.v2.inbox.InboxNotificationPreferenceDto;
 import za.co.mawa.bes.entity.v2.ApprovalActionEntity;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepApproverEntity;
@@ -167,6 +168,36 @@ public class UserInboxService {
                    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP(6))
                  WHERE user_id = ? AND read_at IS NULL
                 """, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public InboxNotificationPreferenceDto getPreference(String userIdentity) {
+        String userId = requireCanonicalUser(userIdentity);
+        List<InboxNotificationPreferenceDto> rows = jdbcTemplate.query("""
+                SELECT popup_enabled, postponed_until
+                  FROM user_inbox_notification_preference WHERE user_id = ?
+                """, (rs, rowNum) -> {
+                    InboxNotificationPreferenceDto dto = new InboxNotificationPreferenceDto();
+                    dto.setPopupEnabled(rs.getBoolean("popup_enabled"));
+                    dto.setPostponedUntil(toLocalDateTime(rs.getTimestamp("postponed_until")));
+                    return dto;
+                }, userId);
+        return rows.isEmpty() ? new InboxNotificationPreferenceDto() : rows.get(0);
+    }
+
+    @Transactional
+    public InboxNotificationPreferenceDto savePreference(String userIdentity, InboxNotificationPreferenceDto request) {
+        String userId = requireCanonicalUser(userIdentity);
+        InboxNotificationPreferenceDto value = request == null ? new InboxNotificationPreferenceDto() : request;
+        jdbcTemplate.update("""
+                INSERT INTO user_inbox_notification_preference
+                    (user_id, popup_enabled, postponed_until, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP(6))
+                ON DUPLICATE KEY UPDATE popup_enabled = VALUES(popup_enabled),
+                    postponed_until = VALUES(postponed_until), updated_at = CURRENT_TIMESTAMP(6)
+                """, userId, value.isPopupEnabled(),
+                value.getPostponedUntil() == null ? null : Timestamp.valueOf(value.getPostponedUntil()));
+        return getPreference(userId);
     }
 
     private void reconcileRequiredNotifications(String userId, List<ApprovalRequestResponse> pending) {

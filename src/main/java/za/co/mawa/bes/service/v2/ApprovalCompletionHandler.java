@@ -13,6 +13,10 @@ public interface ApprovalCompletionHandler {
         // Optional domain-specific rejection handling.
     }
 
+    default void onRejected(ApprovalRequestEntity approvalRequest, String actionBy, String reason) {
+        onRejected(approvalRequest, actionBy);
+    }
+
     default void onCancelled(ApprovalRequestEntity approvalRequest, String actionBy) {
         // Optional domain-specific cancellation handling.
     }

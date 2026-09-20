@@ -173,7 +173,7 @@ public class FuneralClaimSettlementService {
             String claimId = Objects.toString(row.get("id"), null);
             String claimType = Objects.toString(row.get("claim_type"), "");
             if (claimId == null) continue;
-            if (Set.of("FUNERAL", "COMBINATION").contains(claimType)) {
+            if (Set.of("FUNERAL", "STILLBORN", "COMBINATION").contains(claimType)) {
                 PaymentRequestResponse paymentRequest = settleApprovedClaim(claimId, actor);
                 if (paymentRequest != null) {
                     membershipClaims.linkPaymentRequest(paymentRequest, effectiveActor(actor));

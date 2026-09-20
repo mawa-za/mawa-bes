@@ -104,8 +104,18 @@ public class PosPrintingControllerV2 {
         return service.listJobs();
     }
 
+    @GetMapping("/jobs/{jobId}")
+    public PrintJobResponse job(@PathVariable String jobId) {
+        return service.getJob(jobId);
+    }
+
     @PostMapping("/jobs/{jobId}/retry")
     public PrintJobResponse retry(@PathVariable String jobId) {
         return service.retry(jobId);
+    }
+
+    @PostMapping("/jobs/{jobId}/reroute-retry")
+    public PrintJobResponse rerouteRetry(@PathVariable String jobId) {
+        return service.rerouteAndRetry(jobId);
     }
 }

@@ -19,6 +19,7 @@ import za.co.mawa.bes.repository.InvoicePaymentRepository;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,7 +37,9 @@ public class InvoicePaymentService {
     private final ReceiptService receiptService;
     private final ReceiptMapper receiptMapper;
     private final OnlineCashupService onlineCashupService;
+    private final CardTerminalService cardTerminalService;
     private final NumberAllocationService numberAllocationService;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
 
     @Transactional
     public PaymentBatchResponseDto capturePayment(String invoiceId, CaptureInvoicePaymentDto request) {
@@ -72,6 +75,7 @@ public class InvoicePaymentService {
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
         String paymentMethod = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
+        String terminalId = cardTerminalService.resolveForOnlinePayment(paymentMethod, request.getTerminalId());
         String deviceId = blank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId().trim();
 
         PaymentBatchEntity batch = new PaymentBatchEntity();
@@ -84,7 +88,7 @@ public class InvoicePaymentService {
         batch.setLocation(request.getLocation());
         batch.setEmployeeResponsible(request.getEmployeeResponsible());
         batch.setDeviceId(deviceId);
-        batch.setTerminalId(request.getTerminalId());
+        batch.setTerminalId(terminalId);
         batch.setStatus(PaymentBatchStatus.POSTED);
         batch.setSyncStatus(SyncStatus.SYNCED);
         batch.setNotes(request.getNotes());
@@ -106,7 +110,7 @@ public class InvoicePaymentService {
         receipt.setLocation(request.getLocation());
         receipt.setEmployeeResponsible(request.getEmployeeResponsible());
         receipt.setDeviceId(deviceId);
-        receipt.setTerminalId(request.getTerminalId());
+        receipt.setTerminalId(terminalId);
         receipt.setCaptureSource("ERP_ONLINE");
         receipt.setCapturedBy(actor);
         receipt.setPrinted(false);
@@ -122,6 +126,8 @@ public class InvoicePaymentService {
                 .amountCents(request.getAmountCents())
                 .paymentMethod(paymentMethod)
                 .referenceNo(blank(request.getReference()) ? receipt.getReceiptNo() : request.getReference().trim())
+                .receiptId(receipt.getId())
+                .status("POSTED")
                 .createdAt(LocalDateTime.now())
                 .createdBy(actor)
                 .build();
@@ -147,6 +153,7 @@ public class InvoicePaymentService {
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice.setUpdatedBy(actor);
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
 
         onlineCashupService.addReceipts(batch, List.of(receipt.getId()), actor, deviceId);
         ReceiptResponseDto receiptDto = receiptMapper.toDto(receipt, List.of(allocation));

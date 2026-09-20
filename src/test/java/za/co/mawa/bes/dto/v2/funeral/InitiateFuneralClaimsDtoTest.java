@@ -2,6 +2,7 @@ package za.co.mawa.bes.dto.v2.funeral;
 
 import org.junit.jupiter.api.Test;
 import za.co.mawa.bes.enums.MembershipClaimType;
+import za.co.mawa.bes.enums.ApprovalType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,6 +13,20 @@ class InitiateFuneralClaimsDtoTest {
     @Test
     void groceryIsAPlanBenefitClaimType() {
         assertEquals(MembershipClaimType.GROCERY, MembershipClaimType.valueOf("GROCERY"));
+    }
+
+    @Test
+    void stillbornUsesItsOwnBenefitAndTheFuneralApprovalWorkflow() {
+        FuneralMembershipCoverDto cover = FuneralMembershipCoverDto.builder()
+                .funeralAmountCents(50_000L)
+                .stillbornAmountCents(30_000L)
+                .build();
+
+        assertEquals(MembershipClaimType.STILLBORN,
+                MembershipClaimType.valueOf("STILLBORN"));
+        assertEquals(30_000L, cover.amountForClaimType("STILLBORN"));
+        assertEquals(ApprovalType.CLAIM_FUNERAL,
+                ApprovalType.forMembershipClaimType(MembershipClaimType.STILLBORN));
     }
 
     @Test

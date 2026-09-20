@@ -21,6 +21,10 @@ public class ApprovalCompletionHandlerRegistry {
         findHandler(approvalRequest).ifPresent(handler -> handler.onRejected(approvalRequest, actionBy));
     }
 
+    public void handleRejected(ApprovalRequestEntity approvalRequest, String actionBy, String reason) {
+        findHandler(approvalRequest).ifPresent(handler -> handler.onRejected(approvalRequest, actionBy, reason));
+    }
+
     public void handleCancelled(ApprovalRequestEntity approvalRequest, String actionBy) {
         findHandler(approvalRequest).ifPresent(handler -> handler.onCancelled(approvalRequest, actionBy));
     }

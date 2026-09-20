@@ -19,6 +19,11 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
             String referenceId
     );
 
+    Optional<ApprovalRequestEntity> findTopByApprovalTypeAndReferenceIdOrderByCreatedAtDesc(
+            ApprovalType approvalType,
+            String referenceId
+    );
+
     List<ApprovalRequestEntity> findByReferenceId(String referenceId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -38,4 +43,3 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
 
     List<ApprovalRequestEntity> findAllByOrderByCreatedAtDesc();
 }
-

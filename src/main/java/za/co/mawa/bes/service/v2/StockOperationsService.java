@@ -118,8 +118,8 @@ public class StockOperationsService {
         String quotationNo = nextNumber("QUOTATION", "QT");
         LocalDate quotationDate = request.getQuotationDate() == null ? LocalDate.now() : request.getQuotationDate();
         AmountTotals totals = totals(request.getLines());
-        jdbcTemplate.update("INSERT INTO quotation (id, quotation_no, customer_partner_id, customer_reference, quotation_date, valid_until, requested_delivery_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                id, quotationNo, request.getCustomerPartnerId(), request.getCustomerReference(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()), toSqlDate(request.getRequestedDeliveryDate()), defaultText(request.getStatus(), "DRAFT").toUpperCase(), defaultText(request.getCurrency(), "ZAR"), totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
+        jdbcTemplate.update("INSERT INTO quotation (id, quotation_no, customer_partner_id, customer_reference, source_type, source_id, quotation_date, valid_until, requested_delivery_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                id, quotationNo, request.getCustomerPartnerId(), request.getCustomerReference(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()), toSqlDate(request.getRequestedDeliveryDate()), defaultText(request.getStatus(), "DRAFT").toUpperCase(), defaultText(request.getCurrency(), "ZAR"), totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
         int lineNo = 10;
         for (StockDtos.CommercialLineRequest line : request.getLines()) {
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
@@ -174,8 +174,8 @@ public class StockOperationsService {
                 ? dateValue(current.get("quotation_date"), LocalDate.now())
                 : request.getQuotationDate();
         String status = hasText(request.getStatus()) ? request.getStatus().trim().toUpperCase(Locale.ROOT) : currentStatus;
-        jdbcTemplate.update("UPDATE quotation SET customer_partner_id=?, customer_reference=?, quotation_date=?, valid_until=?, requested_delivery_date=?, status=?, currency=?, subtotal_amount=?, tax_amount=?, total_amount=?, notes=?, updated_at=?, updated_by=? WHERE id=?",
-                request.getCustomerPartnerId(), request.getCustomerReference(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()),
+        jdbcTemplate.update("UPDATE quotation SET customer_partner_id=?, customer_reference=?, source_type=COALESCE(?,source_type), source_id=COALESCE(?,source_id), quotation_date=?, valid_until=?, requested_delivery_date=?, status=?, currency=?, subtotal_amount=?, tax_amount=?, total_amount=?, notes=?, updated_at=?, updated_by=? WHERE id=?",
+                request.getCustomerPartnerId(), request.getCustomerReference(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()),
                 toSqlDate(request.getRequestedDeliveryDate()), status, defaultText(request.getCurrency(), defaultText(text(current.get("currency")), "ZAR")),
                 totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, id);
 
@@ -272,6 +272,16 @@ public class StockOperationsService {
             throw new IllegalStateException("A converted quotation is read-only");
         }
         jdbcTemplate.update("UPDATE quotation SET status = ?, updated_at = ?, updated_by = ? WHERE id = ?", status, nowTs(), userId, id);
+        String requestStatus = switch (status) {
+            case "SENT" -> "QUOTED";
+            case "ACCEPTED" -> "ACCEPTED";
+            case "DECLINED", "REJECTED" -> "DECLINED";
+            case "CANCELLED" -> "CANCELLED";
+            default -> null;
+        };
+        if (requestStatus != null) {
+            jdbcTemplate.update("UPDATE service_request_metadata m JOIN quotation q ON q.id=? AND q.source_type='SERVICE_REQUEST' AND q.source_id=m.service_request_id SET m.lifecycle_status=?", id, requestStatus);
+        }
         audit("QUOTATION", id, "STATUS", null, status, userId, request.getNotes());
         return getQuotation(id);
     }

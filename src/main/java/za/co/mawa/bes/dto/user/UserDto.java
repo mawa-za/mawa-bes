@@ -18,6 +18,7 @@ public class UserDto implements Serializable {
     private String email;
     private String cellphone;
     private String timeZone;
+    private String cardTerminalId;
     private String type;
     private String status;
     private PartnerDto partner;

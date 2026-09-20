@@ -8,4 +8,5 @@ public class XeroActivationRequestDto {
     private String clientSecret;
     private String redirectUrl;
     private Boolean invoiceIntegrationEnabled;
+    private String paymentAccountCode;
 }

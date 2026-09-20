@@ -26,6 +26,8 @@ public class StockDtos {
     public static class QuotationRequest {
         private String customerPartnerId;
         private String customerReference;
+        private String sourceType;
+        private String sourceId;
         private LocalDate quotationDate;
         private LocalDate validUntil;
         private LocalDate requestedDeliveryDate;
