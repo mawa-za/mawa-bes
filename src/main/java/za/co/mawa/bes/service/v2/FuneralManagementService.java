@@ -19,6 +19,7 @@ import za.co.mawa.bes.dto.v2.FuneralPackageItemRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.AttachmentEntity;
+import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.entity.v2.*;
 import za.co.mawa.bes.repository.InvoiceRepository;
@@ -78,6 +79,8 @@ public class FuneralManagementService {
     private final TenantAdminService tenantAdminService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final StorageConfigurationService storageConfigurationService;
+    private final FuneralResourcePlanningService funeralResourcePlanningService;
+    private final za.co.mawa.bes.repository.PartnerRepository partnerRepository;
 
     public List<FuneralPickupRequestEntity> getPickupRequests() {
         return pickupRequestRepository.findAllByOrderByCreatedAtDesc();
@@ -370,6 +373,27 @@ public class FuneralManagementService {
         return result;
     }
 
+    public List<FuneralMembershipCoverDto> checkMembershipByNumber(
+            String membershipNumber, String deceasedCategory) {
+        validateRequired(membershipNumber, "membershipNumber");
+        String category = normaliseDeceasedCategory(deceasedCategory);
+        if ("ADULT".equals(category)) {
+            throw new IllegalArgumentException(
+                    "Membership-number cover search is only available for infants and stillborns without an SA ID");
+        }
+        FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
+        List<FuneralMembershipCoverDto> result = new ArrayList<>();
+        if (includesLocalSource(config)) {
+            result.addAll(findLocalMembershipCoverByNumber(membershipNumber, category));
+        }
+        if (includesExternalSource(config)
+                && Boolean.TRUE.equals(config.getActive())
+                && Boolean.TRUE.equals(config.getMembershipLookupEnabled())) {
+            result.addAll(findExternalMembershipCoverByNumber(membershipNumber, category, config));
+        }
+        return result;
+    }
+
     public FuneralTenantIntegrationConfigDto getTenantIntegrationConfiguration() {
         return tenantIntegrationConfigRepository.findById(INTEGRATION_CONFIG_ID)
                 .map(this::toTenantIntegrationConfigDto)
@@ -539,6 +563,7 @@ public class FuneralManagementService {
             throw new IllegalStateException("An invoiced funeral service request cannot be cancelled");
         }
         service.setStatus("CANCELLED");
+        funeralResourcePlanningService.cancelForFuneral(id, UserContext.getCurrentUserId());
         return toServiceResponse(funeralServiceRepository.save(service));
     }
 
@@ -568,8 +593,10 @@ public class FuneralManagementService {
         entity.setServiceRequestNo(generateFuneralServiceRequestNo());
         entity.setMortuaryInventoryId(mortuaryInventoryId);
         entity.setDeceasedName(request.getDeceasedName().trim().toUpperCase(Locale.ROOT));
-        entity.setDeceasedIdentityNumber(request.getDeceasedIdentityNumber());
-        entity.setDeceasedPartnerId(resolveDeceasedPartnerId(request));
+        String deceasedCategory = normaliseDeceasedCategory(request.getDeceasedCategory());
+        entity.setDeceasedIdentityNumber(trimToNull(request.getDeceasedIdentityNumber()));
+        entity.setDeceasedCategory(deceasedCategory);
+        entity.setDeceasedPartnerId(resolveOrCreateDeceasedPartnerId(request, deceasedCategory));
         entity.setPackageId(request.getPackageId());
         entity.setFamilyRepId(trimToNull(request.getFamilyRepId()));
         entity.setFamilyRepNames(request.getFamilyRepresentativeNames().trim().toUpperCase(Locale.ROOT));
@@ -587,7 +614,9 @@ public class FuneralManagementService {
         entity.setTotalAmountCents((packageEntity == null ? 0L : defaultLong(packageEntity.getBasePriceCents())) + calculateExtrasTotal(request.getExtras()));
         entity.setStatus(packageEntity == null ? "COVER_IDENTIFIED" : "ARRANGEMENT_CREATED");
         entity.setWizardStep(packageEntity == null ? 2 : 3);
-        return toServiceResponse(funeralServiceRepository.save(entity));
+        FuneralServiceEntity saved = funeralServiceRepository.save(entity);
+        funeralResourcePlanningService.ensurePlan(saved.getId(), UserContext.getCurrentUserId());
+        return toServiceResponse(saved);
     }
 
     @Transactional
@@ -614,6 +643,7 @@ public class FuneralManagementService {
         service.setFamilyRepSurname(request.getFamilyRepresentativeSurname().trim());
         service.setFamilyRepContactDetails(request.getFamilyRepresentativeContactDetails().trim());
         service.setDateOfDeath(request.getDateOfDeath());
+        service.setDeceasedCategory(normaliseDeceasedCategory(request.getDeceasedCategory()));
         service.setExtrasJson(toJson(request.getExtras()));
         service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
@@ -633,12 +663,15 @@ public class FuneralManagementService {
             service.setStatus("ARRANGEMENT_CREATED");
             service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 3));
         }
-        return toServiceResponse(funeralServiceRepository.save(service));
+        FuneralServiceEntity saved = funeralServiceRepository.save(service);
+        funeralResourcePlanningService.ensurePlan(saved.getId(), UserContext.getCurrentUserId());
+        return toServiceResponse(saved);
     }
 
     @Transactional
     public List<FuneralClaimDto> initiateClaims(String funeralServiceId, InitiateFuneralClaimsDto request) {
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        ensureNoIdentityDeceasedPartner(service);
         List<String> selectedMemberships = request.getMemberships();
         if (selectedMemberships == null || selectedMemberships.isEmpty()) {
             throw new IllegalArgumentException("At least one membership selection is required");
@@ -661,7 +694,9 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Funeral service must have deceasedPartnerId before a local membership claim can be created");
         }
 
-        String claimType = request.getEffectiveClaimType(selectedMemberships.size());
+        String claimType = "STILLBORN".equalsIgnoreCase(service.getDeceasedCategory())
+                ? "STILLBORN"
+                : request.getEffectiveClaimType(selectedMemberships.size());
         boolean combinationClaim = "COMBINATION".equalsIgnoreCase(claimType);
         long arrangementTotal = defaultLong(service.getTotalAmountCents());
         // remaining is an allocation guard for a single FUNERAL claim only.
@@ -687,11 +722,19 @@ public class FuneralManagementService {
                     externalClaim ? claimTenantId : null,
                     membershipId,
                     coverageEventDate);
-            String coverageDependentType = resolveCoverageDependentType(
-                    externalClaim ? claimTenantId : null,
-                    membershipId,
-                    defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
-                    defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
+            boolean unregisteredChild = isNoIdentityCoverSelection(cover);
+            String claimDeceasedPartnerId = defaultString(
+                    cover.getDeceasedPartnerId(), service.getDeceasedPartnerId());
+            if (externalClaim && unregisteredChild) {
+                ensureDeceasedPartnerInClaimTenant(claimTenantId, claimDeceasedPartnerId);
+            }
+            String coverageDependentType = unregisteredChild
+                    ? "CHILD"
+                    : resolveCoverageDependentType(
+                            externalClaim ? claimTenantId : null,
+                            membershipId,
+                            claimDeceasedPartnerId,
+                            defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
             long coverAmount = defaultLong(externalClaim
                     ? findExternalMembershipPlanPayout(claimTenantId, coveragePlanId, claimType, coverageDependentType)
                     : findMembershipPlanPayout(coveragePlanId, claimType, coverageDependentType));
@@ -732,7 +775,7 @@ public class FuneralManagementService {
                     coveragePlanId,
                     coverageEventDate,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
-                    defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
+                    claimDeceasedPartnerId,
                     coverageEventDate,
                     LocalDate.now(),
                     defaultString(request.getCauseOfDeath(), service.getCauseOfDeath()),
@@ -1255,6 +1298,107 @@ public class FuneralManagementService {
         return covers;
     }
 
+    private List<FuneralMembershipCoverDto> findLocalMembershipCoverByNumber(
+            String membershipNumber, String deceasedCategory) {
+        String sql = """
+                SELECT m.id AS membership_id,
+                       m.membership_no AS membership_no,
+                       COALESCE(mp.name, 'Burial Society') AS burial_society_name,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL'
+                           THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'STILLBORN'
+                           THEN pay.payout_amount_cents END), 0) AS stillborn_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION'
+                           THEN pay.payout_amount_cents END), 0) AS combination_amount_cents
+                  FROM membership m
+                  JOIN membership_plan mp ON mp.id = m.plan_id
+             LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
+                       AND pay.active = 1
+                       AND pay.dependent_type IN ('CHILD', 'DEPENDENT', 'ANY')
+                 WHERE UPPER(TRIM(m.membership_no)) = UPPER(TRIM(?))
+                   AND m.status = 'ACTIVE'
+              GROUP BY m.id, m.membership_no, mp.name
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            long funeral = rs.getLong("funeral_amount_cents");
+            long stillborn = rs.getLong("stillborn_amount_cents");
+            long selected = "STILLBORN".equals(deceasedCategory) ? stillborn : funeral;
+            String selectionId = "LOCAL:" + rs.getString("membership_id") + ":NO_ID:CHILD";
+            return FuneralMembershipCoverDto.builder()
+                    .membershipId(selectionId)
+                    .sourceMembershipId(rs.getString("membership_id"))
+                    .membershipNumber(rs.getString("membership_no"))
+                    .deceasedPartnerId(null)
+                    .deceasedType("CHILD")
+                    .coverAmountCents(selected)
+                    .funeralAmountCents(funeral)
+                    .stillbornAmountCents(stillborn)
+                    .combinationAmountCents(rs.getLong("combination_amount_cents"))
+                    .burialSocietyName(rs.getString("burial_society_name"))
+                    .coverSource(COVER_SOURCE_LOCAL)
+                    .sourceReference(selectionId)
+                    .build();
+        }, membershipNumber).stream()
+                .filter(cover -> defaultLong(cover.getCoverAmountCents()) > 0)
+                .toList();
+    }
+
+    private List<FuneralMembershipCoverDto> findExternalMembershipCoverByNumber(
+            String membershipNumber,
+            String deceasedCategory,
+            FuneralTenantIntegrationConfigDto config) {
+        String tenantId = requireConfiguredExternalTenant(config);
+        requireApprovedTrust(tenantId, "allow_membership_lookup");
+        String membership = qualifiedTable(tenantId, "membership");
+        String membershipPlan = qualifiedTable(tenantId, "membership_plan");
+        String payout = qualifiedTable(tenantId, "membership_plan_claim_payout");
+        String sql = """
+                SELECT m.id AS membership_id,
+                       m.membership_no AS membership_no,
+                       COALESCE(mp.name, 'Burial Society') AS burial_society_name,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'FUNERAL'
+                           THEN pay.payout_amount_cents END), 0) AS funeral_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'STILLBORN'
+                           THEN pay.payout_amount_cents END), 0) AS stillborn_amount_cents,
+                       COALESCE(MAX(CASE WHEN pay.claim_type = 'COMBINATION'
+                           THEN pay.payout_amount_cents END), 0) AS combination_amount_cents
+                  FROM %s m
+                  JOIN %s mp ON mp.id = m.plan_id
+             LEFT JOIN %s pay ON pay.plan_id = m.plan_id
+                       AND pay.active = 1
+                       AND pay.dependent_type IN ('CHILD', 'DEPENDENT', 'ANY')
+                 WHERE UPPER(TRIM(m.membership_no)) = UPPER(TRIM(?))
+                   AND m.status = 'ACTIVE'
+              GROUP BY m.id, m.membership_no, mp.name
+                """.formatted(membership, membershipPlan, payout);
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            long funeral = rs.getLong("funeral_amount_cents");
+            long stillborn = rs.getLong("stillborn_amount_cents");
+            long selected = "STILLBORN".equals(deceasedCategory) ? stillborn : funeral;
+            String selectionId = String.join(":", "EXTERNAL", tenantId,
+                    rs.getString("membership_id"), "NO_ID", "CHILD");
+            return FuneralMembershipCoverDto.builder()
+                    .membershipId(selectionId)
+                    .sourceMembershipId(rs.getString("membership_id"))
+                    .membershipNumber(rs.getString("membership_no"))
+                    .deceasedPartnerId(null)
+                    .deceasedType("CHILD")
+                    .coverAmountCents(selected)
+                    .funeralAmountCents(funeral)
+                    .stillbornAmountCents(stillborn)
+                    .combinationAmountCents(rs.getLong("combination_amount_cents"))
+                    .burialSocietyName(rs.getString("burial_society_name"))
+                    .burialSocietyPartnerId(config.getExternalTenantPartnerId())
+                    .coverSource(COVER_SOURCE_EXTERNAL)
+                    .sourceTenantId(tenantId)
+                    .sourceTenantName(defaultString(config.getExternalTenantName(), tenantId))
+                    .sourceReference(selectionId)
+                    .build();
+        }, membershipNumber).stream()
+                .filter(cover -> defaultLong(cover.getCoverAmountCents()) > 0)
+                .toList();
+    }
+
     private List<FuneralMembershipCoverDto> findExternalMembershipCover(
             String identityNumber,
             FuneralTenantIntegrationConfigDto config
@@ -1385,7 +1529,7 @@ public class FuneralManagementService {
             if (selectionId.startsWith("EXTERNAL:")) {
                 String[] parts = selectionId.split(":", 6);
                 if (parts.length >= 5) {
-                    map.put(selectionId, resolveLiveExternalCoverSelection(selectionId));
+                    map.put(selectionId, resolveLiveExternalCoverSelection(selectionId, service));
                 } else {
                     // Backwards compatibility for legacy external-cover snapshots.
                     externalIds.add(selectionId.substring("EXTERNAL:".length()));
@@ -1438,7 +1582,8 @@ public class FuneralManagementService {
                 .build();
     }
 
-    private FuneralMembershipCoverDto resolveLiveExternalCoverSelection(String selectionId) {
+    private FuneralMembershipCoverDto resolveLiveExternalCoverSelection(
+            String selectionId, FuneralServiceEntity service) {
         String[] parts = selectionId.split(":", 6);
         if (parts.length < 5) {
             throw new IllegalArgumentException("Invalid external membership selection id: " + selectionId);
@@ -1462,13 +1607,21 @@ public class FuneralManagementService {
                   JOIN %s mp ON mp.id = m.plan_id
                  WHERE m.id = ? AND m.status = 'ACTIVE'
                 """.formatted(membershipTable, planTable), membershipId);
-        String dependentType = validateSelectedDeceasedAgainstMembership(
-                tenantId,
-                membershipId,
-                String.valueOf(membership.get("member_id")),
-                deceasedPartnerId,
-                deceasedType);
+        boolean noIdentityChild = "NO_ID".equalsIgnoreCase(deceasedPartnerId);
+        if (noIdentityChild) {
+            validateNoIdentityCoverService(service);
+            deceasedPartnerId = service.getDeceasedPartnerId();
+        }
+        String dependentType = noIdentityChild
+                ? "CHILD"
+                : validateSelectedDeceasedAgainstMembership(
+                        tenantId,
+                        membershipId,
+                        String.valueOf(membership.get("member_id")),
+                        deceasedPartnerId,
+                        deceasedType);
         Long funeralPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "FUNERAL", dependentType);
+        Long stillbornPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "STILLBORN", dependentType);
         Long combinationPayout = findExternalMembershipPlanPayout(tenantId, membership.get("plan_id"), "COMBINATION", dependentType);
 
         return FuneralMembershipCoverDto.builder()
@@ -1477,8 +1630,11 @@ public class FuneralManagementService {
                 .membershipNumber(String.valueOf(membership.get("membership_no")))
                 .deceasedPartnerId(deceasedPartnerId)
                 .deceasedType(deceasedType)
-                .coverAmountCents(funeralPayout)
+                .coverAmountCents(service != null
+                        && "STILLBORN".equalsIgnoreCase(service.getDeceasedCategory())
+                        ? stillbornPayout : funeralPayout)
                 .funeralAmountCents(funeralPayout)
+                .stillbornAmountCents(stillbornPayout)
                 .combinationAmountCents(combinationPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .burialSocietyPartnerId(config.getExternalTenantPartnerId())
@@ -1555,25 +1711,37 @@ public class FuneralManagementService {
                   JOIN membership_plan mp ON mp.id = m.plan_id
                  WHERE m.id = ? AND m.status = 'ACTIVE'
                 """, membershipId);
-        String dependentType = validateSelectedDeceasedAgainstMembership(
-                null,
-                membershipId,
-                String.valueOf(membership.get("member_id")),
-                deceasedPartnerId,
-                deceasedType);
+        boolean noIdentityChild = "NO_ID".equalsIgnoreCase(deceasedPartnerId);
+        if (noIdentityChild) {
+            validateNoIdentityCoverService(service);
+            deceasedPartnerId = service.getDeceasedPartnerId();
+        }
+        String dependentType = noIdentityChild
+                ? "CHILD"
+                : validateSelectedDeceasedAgainstMembership(
+                        null,
+                        membershipId,
+                        String.valueOf(membership.get("member_id")),
+                        deceasedPartnerId,
+                        deceasedType);
         Long funeralPayout = findMembershipPlanPayout(membership.get("plan_id"), "FUNERAL", dependentType);
+        Long stillbornPayout = findMembershipPlanPayout(membership.get("plan_id"), "STILLBORN", dependentType);
         Long combinationPayout = findMembershipPlanPayout(membership.get("plan_id"), "COMBINATION", dependentType);
+        boolean stillborn = service != null
+                && "STILLBORN".equalsIgnoreCase(service.getDeceasedCategory());
         return FuneralMembershipCoverDto.builder()
                 .membershipId(selectionId)
                 .sourceMembershipId(membershipId)
                 .membershipNumber(String.valueOf(membership.get("membership_no")))
                 .deceasedPartnerId(deceasedPartnerId)
                 .deceasedType(deceasedType)
-                .coverAmountCents(funeralPayout)
+                .coverAmountCents(stillborn ? stillbornPayout : funeralPayout)
                 .funeralAmountCents(funeralPayout)
+                .stillbornAmountCents(stillbornPayout)
                 .combinationAmountCents(combinationPayout)
                 .burialSocietyName(String.valueOf(membership.get("plan_name")))
                 .coverSource(COVER_SOURCE_LOCAL)
+                .sourceReference(selectionId)
                 .build();
     }
 
@@ -2375,6 +2543,76 @@ public class FuneralManagementService {
         }
     }
 
+    private String resolveOrCreateDeceasedPartnerId(
+            FuneralServiceRequestDto request, String deceasedCategory) {
+        String existing = resolveDeceasedPartnerId(request);
+        if (StringUtils.hasText(existing)) return existing;
+        if ("ADULT".equalsIgnoreCase(deceasedCategory)) return null;
+
+        return createNoIdentityDeceasedPartner(request.getDeceasedName());
+    }
+
+    private void ensureNoIdentityDeceasedPartner(FuneralServiceEntity service) {
+        if (service == null
+                || "ADULT".equalsIgnoreCase(defaultString(service.getDeceasedCategory(), "ADULT"))
+                || StringUtils.hasText(service.getDeceasedPartnerId())) {
+            return;
+        }
+        service.setDeceasedPartnerId(createNoIdentityDeceasedPartner(service.getDeceasedName()));
+        funeralServiceRepository.save(service);
+    }
+
+    private String createNoIdentityDeceasedPartner(String name) {
+        String deceasedName = defaultString(name, "INFANT").trim();
+        String[] names = deceasedName.split("\\s+", 2);
+        PartnerEntity partner = new PartnerEntity();
+        partner.setName1(names[0]);
+        partner.setName2(names.length > 1 ? names[1] : null);
+        partner.setType("PERSON");
+        partner.setStatus("DECEASED");
+        partner.setValidFrom(new java.util.Date());
+        partner.setValidTo(java.sql.Date.valueOf("9999-12-31"));
+        partner.setCreatedBy(UserContext.getCurrentUserId());
+        partner.setCreationDate(new java.util.Date());
+        return partnerRepository.save(partner).getId();
+    }
+
+    private void validateNoIdentityCoverService(FuneralServiceEntity service) {
+        if (service == null
+                || "ADULT".equalsIgnoreCase(defaultString(service.getDeceasedCategory(), "ADULT"))
+                || !StringUtils.hasText(service.getDeceasedPartnerId())) {
+            throw new IllegalArgumentException(
+                    "Infant/stillborn cover requires a funeral arrangement with a no-SA-ID deceased record");
+        }
+    }
+
+    private boolean isNoIdentityCoverSelection(FuneralMembershipCoverDto cover) {
+        return cover != null
+                && StringUtils.hasText(cover.getSourceReference())
+                && cover.getSourceReference().contains(":NO_ID:");
+    }
+
+    private void ensureDeceasedPartnerInClaimTenant(String tenantId, String partnerId) {
+        if (!StringUtils.hasText(tenantId) || !StringUtils.hasText(partnerId)) {
+            throw new IllegalArgumentException("The infant/stillborn deceased record is incomplete");
+        }
+        String externalPartner = qualifiedTable(tenantId, "partner");
+        Integer exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + externalPartner + " WHERE id = ?",
+                Integer.class,
+                partnerId);
+        if (exists != null && exists > 0) return;
+        jdbcTemplate.update("""
+                INSERT INTO %s
+                    (id, name1, name2, name3, type, status, valid_from, valid_to,
+                     created_by, creation_date)
+                SELECT id, name1, name2, name3, type, status, valid_from, valid_to,
+                       created_by, creation_date
+                  FROM partner
+                 WHERE id = ?
+                """.formatted(externalPartner), partnerId);
+    }
+
     private void updateFuneralServiceClaimStatus(String membershipClaimId) {
         funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId).ifPresent(link -> {
             List<FuneralClaimDto> claims = funeralServiceClaimRepository.findByFuneralServiceId(link.getFuneralServiceId())
@@ -2411,6 +2649,7 @@ public class FuneralManagementService {
                 .mortuaryInventoryId(entity.getMortuaryInventoryId())
                 .deceasedName(entity.getDeceasedName())
                 .deceasedIdentityNumber(entity.getDeceasedIdentityNumber())
+                .deceasedCategory(defaultString(entity.getDeceasedCategory(), "ADULT"))
                 .deceasedPartnerId(entity.getDeceasedPartnerId())
                 .packageId(entity.getPackageId())
                 .familyRepId(entity.getFamilyRepId())
@@ -2431,6 +2670,14 @@ public class FuneralManagementService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    private String normaliseDeceasedCategory(String value) {
+        String category = defaultString(value, "ADULT").trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("ADULT", "INFANT", "STILLBORN").contains(category)) {
+            throw new IllegalArgumentException("deceasedCategory must be ADULT, INFANT or STILLBORN");
+        }
+        return category;
     }
 
     private FuneralPickupRequestEntity getPickupRequestOrThrow(String id) {

@@ -11,20 +11,29 @@ import java.util.List;
 @Service
 public class WorkcenterService implements WorkcenterDao {
     private final JdbcTemplate jdbcTemplate;
+    private final SettingService settingService;
 
-    public WorkcenterService(JdbcTemplate jdbcTemplate) {
+    public WorkcenterService(JdbcTemplate jdbcTemplate, SettingService settingService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.settingService = settingService;
     }
 
     @Override
     public List<WorkcenterDto> getAll() {
-        return queryCatalogue("WHERE active = TRUE AND assignable = TRUE", new Object[0]);
+        List<WorkcenterDto> result = queryCatalogue("WHERE active = TRUE AND assignable = TRUE", new Object[0]);
+        if (!resourcePlanningEnabled()) result.removeIf(item -> "funeral-resource-planning".equalsIgnoreCase(item.getId()));
+        return result;
     }
 
     @Override
     public WorkcenterDto getById(String id) throws RoleDoesNotExist {
+        if ("funeral-resource-planning".equalsIgnoreCase(id) && !resourcePlanningEnabled()) throw new RoleDoesNotExist();
         return queryCatalogue("WHERE LOWER(id) = LOWER(?) AND active = TRUE", new Object[]{id})
                 .stream().findFirst().orElseThrow(RoleDoesNotExist::new);
+    }
+
+    private boolean resourcePlanningEnabled() {
+        return "ENABLED".equalsIgnoreCase(settingService.getSetting("STATUS", "FUNERAL-RESOURCE-PLANNING"));
     }
 
     private List<WorkcenterDto> queryCatalogue(String where, Object[] arguments) {
@@ -46,4 +55,3 @@ public class WorkcenterService implements WorkcenterDao {
                 rs.getString("permission_code")), arguments);
     }
 }
-

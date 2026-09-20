@@ -11,6 +11,12 @@ import za.co.mawa.bes.dto.v2.servicemanagement.ServiceManagementDtos;
 import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderLineRequest;
 import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderRequest;
 import za.co.mawa.bes.dto.v2.serviceorder.ServiceOrderResponse;
+import za.co.mawa.bes.dto.v2.stock.StockDtos;
+import za.co.mawa.bes.dto.transaction.TransactionCreateDto;
+import za.co.mawa.bes.dto.transaction.TransactionDto;
+import za.co.mawa.bes.service.TransactionService;
+import za.co.mawa.bes.utils.Status;
+import za.co.mawa.bes.utils.TransactionType;
 
 import java.sql.Time;
 import java.math.BigDecimal;
@@ -23,18 +29,26 @@ public class ServiceManagementService {
     private static final Set<String> CONTRACT_STATUSES = Set.of("DRAFT", "ACTIVE", "SUSPENDED", "EXPIRED", "CANCELLED");
     private static final Set<String> FREQUENCIES = Set.of("DAILY", "WEEKLY", "MONTHLY");
     private static final Set<String> RESOURCE_TYPES = Set.of("EMPLOYEE", "TEAM", "FACILITY", "EQUIPMENT", "CAPACITY");
+    private static final Set<String> REQUEST_STATUSES = Set.of("NEW", "UNDER_REVIEW", "AWAITING_CUSTOMER_INFORMATION",
+            "ASSESSMENT_REQUIRED", "ASSESSMENT_SCHEDULED", "QUOTATION_IN_PREPARATION", "QUOTED", "ACCEPTED",
+            "DECLINED", "CONVERTED_TO_SERVICE_ORDER", "CANCELLED", "CLOSED");
 
     private final JdbcTemplate jdbc;
     private final NumberAllocationService numbering;
     private final ServiceOrderService serviceOrderService;
     private final AppointmentService appointmentService;
+    private final TransactionService transactionService;
+    private final StockOperationsService stockOperationsService;
 
     public ServiceManagementService(JdbcTemplate jdbc, NumberAllocationService numbering,
-                                    ServiceOrderService serviceOrderService, AppointmentService appointmentService) {
+                                    ServiceOrderService serviceOrderService, AppointmentService appointmentService,
+                                    TransactionService transactionService, StockOperationsService stockOperationsService) {
         this.jdbc = jdbc;
         this.numbering = numbering;
         this.serviceOrderService = serviceOrderService;
         this.appointmentService = appointmentService;
+        this.transactionService = transactionService;
+        this.stockOperationsService = stockOperationsService;
     }
 
     public Map<String, Object> dashboard() {
@@ -212,7 +226,9 @@ public class ServiceManagementService {
             SELECT t.id,t.no,t.number,t.status,t.description AS summary,t.sub_description AS description,
                    tp.partner AS customer_partner_id,
                    TRIM(CONCAT_WS(' ',p.name1,p.name2,p.name3)) AS customer_name,
-                   m.product_id,m.service_location_id,m.source_channel,m.external_request_id,m.preferred_date,
+                   m.product_id,m.service_location_id,m.source_channel,m.lifecycle_status,m.external_request_id,
+                   m.quotation_id,q.quotation_no,q.status AS quotation_status,q.total_amount AS quotation_total,
+                   m.preferred_date,
                    m.preferred_start_time,m.recurring_requested,m.recurrence_frequency,m.recurrence_interval,
                    sl.name AS service_location_name,pr.description AS service_name
               FROM transaction t
@@ -221,11 +237,12 @@ public class ServiceManagementService {
               LEFT JOIN service_request_metadata m ON m.service_request_id=t.id
               LEFT JOIN service_location sl ON sl.id=m.service_location_id
               LEFT JOIN product pr ON pr.id=m.product_id
+              LEFT JOIN quotation q ON q.id=m.quotation_id
              WHERE t.type='SERVICE-REQUEST'
             """);
         List<Object> args = new ArrayList<>();
         if (StringUtils.hasText(status) && !"ALL".equalsIgnoreCase(status)) {
-            sql.append(" AND t.status=?");
+            sql.append(" AND COALESCE(m.lifecycle_status,'NEW')=?");
             args.add(status.trim().toUpperCase(Locale.ROOT));
         }
         sql.append(" ORDER BY COALESCE(m.preferred_date,CURRENT_DATE) DESC,t.number DESC");
@@ -235,7 +252,14 @@ public class ServiceManagementService {
     @Transactional
     public ServiceOrderResponse createOrderFromRequest(String serviceRequestId) {
         String requestId = text(serviceRequestId, "Service request is required");
+        Map<String, Object> before = requestMetadata(requestId);
+        String quotationId = Objects.toString(before.get("quotation_id"), null);
+        if (StringUtils.hasText(quotationId)) {
+            String quoteStatus = Objects.toString(row("SELECT status FROM quotation WHERE id=?", quotationId).get("status"), "");
+            require("ACCEPTED".equalsIgnoreCase(quoteStatus), "The customer must accept the linked quotation before a service order can be created");
+        }
         ServiceOrderResponse created = serviceOrderService.createFromServiceRequest(requestId, actor(), false);
+        jdbc.update("UPDATE service_request_metadata SET lifecycle_status='CONVERTED_TO_SERVICE_ORDER' WHERE service_request_id=?", requestId);
         Map<String, Object> metadata = requestMetadata(requestId);
         if (metadata.isEmpty()) return created;
 
@@ -331,16 +355,64 @@ public class ServiceManagementService {
         require(r != null, "Service request metadata is required");
         String requestId = text(r.getServiceRequestId(), "Service request is required");
         jdbc.update("""
-            INSERT INTO service_request_metadata(service_request_id,product_id,service_location_id,source_channel,external_request_id,
+            INSERT INTO service_request_metadata(service_request_id,product_id,service_location_id,source_channel,lifecycle_status,external_request_id,
               preferred_date,preferred_start_time,recurring_requested,recurrence_frequency,recurrence_interval)
-            VALUES(?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?)
             ON DUPLICATE KEY UPDATE product_id=VALUES(product_id),service_location_id=VALUES(service_location_id),source_channel=VALUES(source_channel),
               external_request_id=VALUES(external_request_id),preferred_date=VALUES(preferred_date),preferred_start_time=VALUES(preferred_start_time),
+              lifecycle_status=VALUES(lifecycle_status),
               recurring_requested=VALUES(recurring_requested),recurrence_frequency=VALUES(recurrence_frequency),recurrence_interval=VALUES(recurrence_interval)
-            """, requestId, trim(r.getProductId()), trim(r.getServiceLocationId()), upper(r.getSourceChannel(), "ERP"), trim(r.getExternalRequestId()),
+            """, requestId, trim(r.getProductId()), trim(r.getServiceLocationId()), upper(r.getSourceChannel(), "ERP"),
+                normalize(r.getLifecycleStatus() == null ? "NEW" : r.getLifecycleStatus(), "SERVICE REQUEST STATUS", REQUEST_STATUSES), trim(r.getExternalRequestId()),
                 r.getPreferredDate(), r.getPreferredStartTime() == null ? null : Time.valueOf(r.getPreferredStartTime()), bool(r.getRecurringRequested(), false),
                 trimUpper(r.getRecurrenceFrequency()), r.getRecurrenceInterval());
         return row("SELECT * FROM service_request_metadata WHERE service_request_id=?", requestId);
+    }
+
+    @Transactional
+    public Map<String, Object> createRequest(ServiceManagementDtos.ServiceRequestCreateRequest r) {
+        require(r != null, "Service request is required");
+        TransactionCreateDto create = new TransactionCreateDto();
+        create.setType(TransactionType.SERVICE_REQUEST);
+        create.setCustomerId(text(r.getCustomerPartnerId(), "Customer is required"));
+        create.setDescription(text(r.getSummary(), "Summary is required"));
+        create.setSubDescription(text(r.getDescription(), "Description is required"));
+        create.setCategory(upper(r.getCategory(), "GENERAL"));
+        create.setPriority(upper(r.getPriority(), "NORMAL"));
+        create.setStatus(Status.NOT_YET_STARTED);
+        create.setStatusReason(Status.SERVICE_REQUEST_STATUS_REASON);
+        TransactionDto saved = transactionService.create(create);
+        ServiceManagementDtos.RequestMetadataRequest metadata = new ServiceManagementDtos.RequestMetadataRequest();
+        metadata.setServiceRequestId(saved.getId()); metadata.setProductId(r.getProductId());
+        metadata.setServiceLocationId(r.getServiceLocationId()); metadata.setSourceChannel(upper(r.getSourceChannel(), "CALL_CENTRE"));
+        metadata.setLifecycleStatus("NEW"); metadata.setPreferredDate(r.getPreferredDate());
+        metadata.setPreferredStartTime(r.getPreferredStartTime()); metadata.setRecurringRequested(r.getRecurringRequested());
+        metadata.setRecurrenceFrequency(r.getRecurrenceFrequency()); metadata.setRecurrenceInterval(r.getRecurrenceInterval());
+        saveRequestMetadata(metadata);
+        return requests("ALL").stream().filter(v -> saved.getId().equals(Objects.toString(v.get("id"))))
+                .findFirst().orElse(Map.of("id", saved.getId(), "number", saved.getNumber()));
+    }
+
+    @Transactional
+    public Map<String, Object> changeRequestStatus(String id, String value) {
+        String status = normalize(value, "SERVICE REQUEST STATUS", REQUEST_STATUSES);
+        int updated = jdbc.update("UPDATE service_request_metadata SET lifecycle_status=? WHERE service_request_id=?", status, text(id, "Service request is required"));
+        require(updated == 1, "Service request metadata was not found");
+        return requestMetadata(id);
+    }
+
+    @Transactional
+    public Map<String, Object> createQuotationFromRequest(String id, StockDtos.QuotationRequest quote) {
+        String requestId = text(id, "Service request is required");
+        Map<String, Object> request = requests("ALL").stream().filter(v -> requestId.equals(Objects.toString(v.get("id"))))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Service request not found"));
+        require(quote != null, "Quotation is required");
+        quote.setCustomerPartnerId(Objects.toString(request.get("customer_partner_id"), null));
+        quote.setCustomerReference(Objects.toString(request.get("number"), requestId));
+        quote.setSourceType("SERVICE_REQUEST"); quote.setSourceId(requestId);
+        Map<String, Object> saved = stockOperationsService.createQuotation(quote, actor());
+        jdbc.update("UPDATE service_request_metadata SET quotation_id=?,quoted_at=CURRENT_TIMESTAMP(6),lifecycle_status='QUOTATION_IN_PREPARATION' WHERE service_request_id=?", saved.get("id"), requestId);
+        return saved;
     }
 
     public Map<String, Object> requestMetadata(String serviceRequestId) {

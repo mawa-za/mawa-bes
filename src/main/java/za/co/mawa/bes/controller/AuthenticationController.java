@@ -29,6 +29,7 @@ import za.co.mawa.bes.dto.JwtResponse;
 import za.co.mawa.bes.service.EncryptionService;
 import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.UserService;
+import za.co.mawa.bes.service.v2.CardTerminalService;
 import za.co.mawa.bes.dto.user.UserDto;
 import za.co.mawa.bes.dto.user.UserUpdateDto;
 
@@ -47,6 +48,8 @@ public class AuthenticationController {
     EncryptionService encryptionService;
     @Autowired
     private JwtUserDetailsService userDetailsService;
+    @Autowired
+    private CardTerminalService cardTerminalService;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -71,6 +74,7 @@ public class AuthenticationController {
         authenticationResponseDto.setUsername(authenticationDto.getUsername());
         authenticationResponseDto.setUserId(userDto.getId());
         authenticationResponseDto.setDisplayName(userDto.getPartner() == null ? userDto.getUsername() : (userDto.getPartner().getName2() + " " + userDto.getPartner().getName1()).trim());
+        authenticationResponseDto.setCardTerminalId(cardTerminalService.activeAssignmentOrNull(userDto.getCardTerminalId()));
         authenticationResponseDto.setAccountType(userDto.getAccountType());
         authenticationResponseDto.setTestUser(userDto.getTestUser());
         authenticationResponseDto.setProtectedUser(userDto.getProtectedUser());

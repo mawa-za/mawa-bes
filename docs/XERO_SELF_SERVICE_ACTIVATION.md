@@ -12,8 +12,24 @@ MAWA supports tenant-level Xero activation from the Settings screen.
 6. Backend returns a Xero authentication URL.
 7. User opens the URL and authorises the correct Xero organisation.
 8. Xero redirects back to `/xero/callback` with the MAWA tenant in OAuth `state`.
-9. Backend stores refresh token and Xero tenant ID in Google Secret Manager.
-10. Invoice push is enabled for the tenant.
+9. Backend stores the access token, refresh token and selected Xero tenant ID in Google Secret Manager.
+10. For one organisation, activation completes automatically. For multiple organisations, synchronisation remains disabled until the user selects one in MAWA.
+11. After successful selection, the backend applies the user's invoice-integration preference and queues existing customers and products when synchronisation is enabled.
+
+Background synchronisation is never enabled by the initial `activate` request. The integration remains in `PENDING_AUTHORISATION` until the OAuth callback succeeds.
+While activation is pending, `GET /v2/integrations/xero/connections` returns an empty list rather than an error; no token refresh is attempted until authorisation is complete.
+API responses expose `invoiceIntegrationRequested` separately from `invoiceIntegrationEnabled`. The former drives the configuration switch; the latter reports whether background synchronisation is currently allowed to run.
+
+## OAuth scopes
+
+MAWA requests:
+
+```text
+openid profile email offline_access accounting.invoices accounting.payments accounting.contacts accounting.settings
+```
+
+The OpenID identity scopes are required by Xero's standard OAuth flow. The remaining scopes permit refresh-token rotation, invoice and payment operations, customer/contact writes, and product/item operations. `accounting.invoices` and `accounting.payments` are granular scopes for apps created after 2 March 2026; the deprecated broad `accounting.transactions` scope must not be requested by new apps.
+The authorization URL encodes the spaces between scopes as `%20` rather than `+`, so Xero always parses them as separate scope names.
 
 ## Settings written by activation
 
@@ -26,7 +42,10 @@ Group: `XERO`
 | `REFRESH-TOKEN-SECRET` | GCP secret name for Xero refresh token |
 | `TENANT-ID-SECRET` | GCP secret name for Xero tenant ID |
 | `REDIRECT-URL` | Public backend Xero callback URL |
+| `INVOICE-INTEGRATION-REQUESTED` | User preference captured before OAuth |
 | `INVOICE-INTEGRATION-ENABLED` | `true` or `false` |
+| `INTEGRATION` | Runtime synchronisation switch |
+| `INTEGRATION-STATUS` | Current OAuth/integration state |
 
 ## Secret naming
 
@@ -67,6 +86,10 @@ roles/secretmanager.secretVersionAdder
 ```http
 POST /v2/integrations/xero/activate
 POST /v2/integrations/xero/deactivate
+POST /v2/integrations/xero/invoice-integration
+GET /v2/integrations/xero/secret-names
+GET /v2/integrations/xero/connections
+POST /v2/integrations/xero/select-tenant
 ```
 
 Activation payload:
@@ -82,6 +105,17 @@ Activation payload:
 
 The response contains `authenticationUrl`. Open it to authorise the Xero organisation.
 
+## Invoice lifecycle synchronisation
+
+- MAWA sends its generated number as Xero `InvoiceNumber` and retains the returned `InvoiceID` for all later updates.
+- `DRAFT`, `NEW`, `AWAITING_APPROVAL`, and `REJECTED` map to Xero `DRAFT`.
+- `ISSUED`, `PARTIALLY_PAID`, `OVERDUE`, and `PAID` map to Xero `AUTHORISED`; Xero derives `PAID` from allocated payments.
+- `CANCELLED` and `VOIDED` map to Xero `VOIDED`.
+- Captured invoice payments are posted once and retain their Xero `PaymentID` for idempotent retries.
+- Configure the Xero bank account used for receipts with Group `XERO`, Attribute `PAYMENT-ACCOUNT-CODE` (or tenant property `XERO-PAYMENT-ACCOUNT-CODE`).
+
+Adding the `accounting.payments` scope requires existing connections to be authorised again once after deployment.
+
 ## Deactivation
 
 Deactivation sets:
@@ -91,6 +125,8 @@ Group: XERO
 Attribute: INVOICE-INTEGRATION-ENABLED
 Value: false
 ```
+
+It also disables `INTEGRATION`, clears the requested enablement preference, and records `INTEGRATION-STATUS=DISABLED`.
 
 It does not delete secret references or secret values. This allows easy reactivation/reconnect later.
 

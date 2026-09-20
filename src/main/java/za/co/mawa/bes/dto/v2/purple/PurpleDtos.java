@@ -32,6 +32,15 @@ public final class PurpleDtos {
         private String description;
         private Boolean bookingEnabled;
         private Boolean serviceRequestEnabled;
+        private String pricingModel;
+        private java.math.BigDecimal fixedPrice;
+        private java.math.BigDecimal minimumPrice;
+        private java.math.BigDecimal maximumPrice;
+        private java.math.BigDecimal hourlyRate;
+        private java.math.BigDecimal calloutFee;
+        private String pricingCurrency;
+        private String pricingDisclaimer;
+        private Boolean inspectionRequired;
         private Integer durationMinutes;
         private Integer slotIntervalMinutes;
         private Integer bufferBeforeMinutes;
@@ -68,6 +77,12 @@ public final class PurpleDtos {
         private String email;
         private String cellphone;
         private String displayName;
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class CustomerQuoteStatusRequest extends CustomerRequest {
+        private String quoteId;
+        private String status;
     }
 
     @Getter @Setter @NoArgsConstructor

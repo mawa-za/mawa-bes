@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.CashupDepositEntity;
+import za.co.mawa.bes.entity.v2.CardTerminalEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
@@ -23,6 +24,7 @@ import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
+import za.co.mawa.bes.repository.v2.CardTerminalRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
 import za.co.mawa.bes.repository.v2.CashupRepository;
@@ -56,8 +58,11 @@ public class CashupService {
     private static final String SOURCE_MANUAL_RECEIPT_BOOK = "MANUAL_RECEIPT_BOOK";
     private static final String SOURCE_ERP_ONLINE_EFT = "ERP_ONLINE_EFT";
     private static final String SOURCE_MAWA_PAY_EFT = "MAWA_PAY_EFT";
+    private static final String SOURCE_MAWA_PAY_CARD = "MAWA_PAY_CARD";
 
     private final CashupRepository cashupRepository;
+    private final CardTerminalRepository cardTerminalRepository;
+    private final CardTerminalService cardTerminalService;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final CashupReceiptRepository cashupReceiptRepository;
     private final CashupDepositRepository cashupDepositRepository;
@@ -76,7 +81,8 @@ public class CashupService {
      *
      * New MawaPay flow:
      * 1. Device always has an active/open cashup.
-     * 2. Every CASH/CARD receipt is attached to the active cashup immediately; EFT uses its own cashup.
+     * 2. CASH receipts use the cashier's active cashup, CARD receipts use the
+     *    configured terminal's active cashup, and EFT uses its own cashup.
      * 3. The app keeps syncing the same cashup while it is OPEN.
      * 4. When the cashier closes the cashup on the device, the same cashup is synced as AWAITING_DEPOSITS.
      *
@@ -86,6 +92,11 @@ public class CashupService {
     @Transactional
     public CashupResponse submitCashup(CashupRequest request) {
         validateRequest(request);
+
+        boolean mawaPayCard = isMawaPayCardCashup(request);
+        CardTerminalEntity cardTerminal = mawaPayCard
+                ? cardTerminalService.requireActive(request.getTerminalId())
+                : null;
 
         CashupEntity cashup = cashupRepository.findByCashupNo(request.getCashupNo())
                 .orElseGet(CashupEntity::new);
@@ -117,6 +128,10 @@ public class CashupService {
         }
 
         applyRequestToCashup(cashup, request, requestedStatus, created);
+        if (cardTerminal != null) {
+            cashup.setCardTerminalId(cardTerminal.getId());
+            cashup.setSource(SOURCE_MAWA_PAY_CARD);
+        }
         if (mawaPayEft) {
             cashup.setSource(SOURCE_MAWA_PAY_EFT);
             cashup.setDepositTotalCents(0L);
@@ -158,11 +173,15 @@ public class CashupService {
                         .paymentCount(item.getPaymentCount())
                         .build())
                 .toList();
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
 
         return CashupSummaryResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
@@ -231,10 +250,14 @@ public class CashupService {
     }
 
     private CashupListItemResponse toListItem(CashupEntity cashup, String cashierName) {
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
         return CashupListItemResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(cashierName)
                 .cashupDate(cashup.getCashupDate())
@@ -573,8 +596,9 @@ public class CashupService {
             throw new IllegalStateException("Only submitted cashups can be rejected");
         }
 
-        cashup.setStatus(STATUS_REJECTED);
-        cashup.setNotes(reason);
+        cashup.setStatus(STATUS_AWAITING_DEPOSITS);
+        cashup.setApprovalRequestId(null);
+        cashup.setNotes(clean(reason) == null ? "Cashup approval rejected" : reason.trim());
         cashup.setUpdatedBy(rejectedBy);
 
         cashupRepository.save(cashup);
@@ -583,7 +607,7 @@ public class CashupService {
                 .status("SUCCESS")
                 .cashupId(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
-                .message("Cashup rejected successfully")
+                .message("Cashup rejected and returned to awaiting deposits")
                 .build();
     }
 
@@ -602,6 +626,16 @@ public class CashupService {
             cashup.setCreatedBy(request.getUserId());
         }
         cashup.setUpdatedBy(request.getUserId());
+    }
+
+    private boolean isMawaPayCardCashup(CashupRequest request) {
+        if (request.getAmountByMethod() == null || request.getAmountByMethod().isEmpty()) return false;
+        Set<String> populatedMethods = request.getAmountByMethod().entrySet().stream()
+                .filter(entry -> defaultLong(entry.getValue()) != 0L)
+                .map(entry -> normalizePaymentMethod(entry.getKey()))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        return populatedMethods.size() == 1 && populatedMethods.contains("CARD");
     }
 
     private void replacePaymentSummaries(
@@ -746,10 +780,14 @@ public class CashupService {
     }
 
     private CashupSummaryResponse toSummary(CashupEntity cashup) {
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
         return CashupSummaryResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
@@ -772,6 +810,11 @@ public class CashupService {
                 .approvalRequestId(cashup.getApprovalRequestId())
                 .deposits(getDeposits(cashup.getId()))
                 .build();
+    }
+
+    private CardTerminalEntity resolveCardTerminal(CashupEntity cashup) {
+        String terminalId = clean(cashup.getCardTerminalId());
+        return terminalId == null ? null : cardTerminalRepository.findById(terminalId).orElse(null);
     }
 
     private String toJson(Object value) {

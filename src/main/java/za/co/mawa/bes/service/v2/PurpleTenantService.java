@@ -137,7 +137,11 @@ public class PurpleTenantService {
                        COALESCE(NULLIF(pse.display_name,''),p.description) AS displayName,
                        COALESCE(NULLIF(pse.description,''),p.description) AS description,
                        p.type AS productType,pse.booking_enabled AS bookingEnabled,
-                       pse.service_request_enabled AS serviceRequestEnabled,pse.duration_minutes AS durationMinutes,
+                       pse.service_request_enabled AS serviceRequestEnabled,pse.pricing_model AS pricingModel,
+                       pse.fixed_price AS fixedPrice,pse.minimum_price AS minimumPrice,pse.maximum_price AS maximumPrice,
+                       pse.hourly_rate AS hourlyRate,pse.callout_fee AS calloutFee,pse.pricing_currency AS pricingCurrency,
+                       pse.pricing_disclaimer AS pricingDisclaimer,pse.inspection_required AS inspectionRequired,
+                       pse.duration_minutes AS durationMinutes,
                        pse.slot_interval_minutes AS slotIntervalMinutes,pse.buffer_before_minutes AS bufferBeforeMinutes,
                        pse.buffer_after_minutes AS bufferAfterMinutes,pse.location,pse.display_order AS displayOrder,
                        pse.active,
@@ -160,23 +164,42 @@ public class PurpleTenantService {
         if (productCount == null || productCount == 0) throw new IllegalArgumentException("Selected MAWA product or service was not found");
         int duration = positive(request.getDurationMinutes(), 30, "Duration must be greater than zero");
         int interval = positive(request.getSlotIntervalMinutes(), duration, "Slot interval must be greater than zero");
+        String pricingModel = firstNonBlank(request.getPricingModel(), "CATALOGUE_PRICE").toUpperCase(Locale.ROOT);
+        if (!Set.of("CATALOGUE_PRICE", "FIXED", "FROM", "RANGE", "HOURLY", "CALLOUT_PLUS_LABOUR", "INSPECTION_REQUIRED", "ON_REQUEST").contains(pricingModel)) {
+            throw new IllegalArgumentException("Unsupported Purple pricing model");
+        }
+        for (BigDecimal amount : Arrays.asList(request.getFixedPrice(), request.getMinimumPrice(), request.getMaximumPrice(), request.getHourlyRate(), request.getCalloutFee())) {
+            if (amount == null) continue;
+            if (amount.signum() < 0) throw new IllegalArgumentException("Pricing amounts cannot be negative");
+        }
+        if (request.getMinimumPrice() != null && request.getMaximumPrice() != null && request.getMinimumPrice().compareTo(request.getMaximumPrice()) > 0) {
+            throw new IllegalArgumentException("Minimum price cannot exceed maximum price");
+        }
         String id = jdbc.query("SELECT id FROM purple_service_enrolment WHERE product_id=?", rs -> rs.next() ? rs.getString(1) : null, productId);
         if (!StringUtils.hasText(id)) id = UUID.randomUUID().toString();
         String actor = actor();
         jdbc.update("""
                 INSERT INTO purple_service_enrolment(
-                    id,product_id,display_name,description,booking_enabled,service_request_enabled,duration_minutes,
+                    id,product_id,display_name,description,booking_enabled,service_request_enabled,pricing_model,fixed_price,
+                    minimum_price,maximum_price,hourly_rate,callout_fee,pricing_currency,pricing_disclaimer,inspection_required,duration_minutes,
                     slot_interval_minutes,buffer_before_minutes,buffer_after_minutes,location,display_order,active,created_by,updated_by
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON DUPLICATE KEY UPDATE
                     display_name=VALUES(display_name),description=VALUES(description),booking_enabled=VALUES(booking_enabled),
                     service_request_enabled=VALUES(service_request_enabled),duration_minutes=VALUES(duration_minutes),
+                    pricing_model=VALUES(pricing_model),fixed_price=VALUES(fixed_price),minimum_price=VALUES(minimum_price),
+                    maximum_price=VALUES(maximum_price),hourly_rate=VALUES(hourly_rate),callout_fee=VALUES(callout_fee),
+                    pricing_currency=VALUES(pricing_currency),pricing_disclaimer=VALUES(pricing_disclaimer),inspection_required=VALUES(inspection_required),
                     slot_interval_minutes=VALUES(slot_interval_minutes),buffer_before_minutes=VALUES(buffer_before_minutes),
                     buffer_after_minutes=VALUES(buffer_after_minutes),location=VALUES(location),display_order=VALUES(display_order),
                     active=VALUES(active),updated_by=VALUES(updated_by)
                 """,
                 id, productId, trimToNull(request.getDisplayName()), trimToNull(request.getDescription()),
-                bool(request.getBookingEnabled()), bool(request.getServiceRequestEnabled()), duration, interval,
+                bool(request.getBookingEnabled()), bool(request.getServiceRequestEnabled()),
+                pricingModel, request.getFixedPrice(),
+                request.getMinimumPrice(), request.getMaximumPrice(), request.getHourlyRate(), request.getCalloutFee(),
+                firstNonBlank(request.getPricingCurrency(), "ZAR").toUpperCase(Locale.ROOT), trimToNull(request.getPricingDisclaimer()),
+                bool(request.getInspectionRequired()), duration, interval,
                 nonNegative(request.getBufferBeforeMinutes()), nonNegative(request.getBufferAfterMinutes()),
                 trimToNull(request.getLocation()), request.getDisplayOrder() == null ? 0 : request.getDisplayOrder(),
                 request.getActive() == null || request.getActive() ? 1 : 0, actor, actor
@@ -337,6 +360,7 @@ public class PurpleTenantService {
         metadata.setProductId(service == null ? null : Objects.toString(service.get("productId"), null));
         metadata.setServiceLocationId(trimToNull(request.getServiceLocationId()));
         metadata.setSourceChannel("PURPLE");
+        metadata.setLifecycleStatus(service != null && asBoolean(service.get("inspectionRequired")) ? "ASSESSMENT_REQUIRED" : "NEW");
         metadata.setExternalRequestId(request.getPurpleCustomerId() + ":" + saved.getId());
         metadata.setPreferredDate(request.getPreferredDate());
         metadata.setPreferredStartTime(request.getPreferredStartTime());
@@ -405,13 +429,15 @@ public class PurpleTenantService {
     public List<Map<String, Object>> customerServiceRequests(PurpleDtos.CustomerRequest customer) {
         requireCustomerId(customer);
         return jdbc.queryForList("""
-                SELECT t.id,t.number,t.status,t.description AS summary,t.sub_description AS description,t.category,t.priority,
+                SELECT t.id,t.number,COALESCE(m.lifecycle_status,'NEW') AS status,t.description AS summary,t.sub_description AS description,t.category,t.priority,
+                       m.quotation_id AS quotationId,
                        MAX(CASE WHEN td.type='CREATED' THEN td.value END) AS createdAt
                   FROM purple_service_request_link l
                   JOIN `transaction` t ON t.id=l.service_request_id
+                  LEFT JOIN service_request_metadata m ON m.service_request_id=t.id
                   LEFT JOIN transaction_date td ON td.transaction=t.id
                  WHERE l.purple_customer_id=?
-                 GROUP BY t.id,t.number,t.status,t.description,t.sub_description,t.category,t.priority
+                 GROUP BY t.id,t.number,m.lifecycle_status,m.quotation_id,t.description,t.sub_description,t.category,t.priority
                  ORDER BY createdAt DESC
                 """, customer.getPurpleCustomerId());
     }
@@ -420,23 +446,18 @@ public class PurpleTenantService {
         String partnerId = linkedPartner(customer);
         if (partnerId == null) return List.of();
         List<Map<String, Object>> quotes = jdbc.queryForList("""
-                SELECT t.id,t.number,t.status,t.sub_description AS description,t.description AS summary,
-                       MAX(CASE WHEN td.type='CREATED' THEN td.value END) AS createdAt,
-                       COALESCE(SUM(ti.quantity*ti.unit_price),0) AS total
-                  FROM `transaction` t
-                  JOIN transaction_partner tp ON tp.transaction=t.id AND tp.partner_function='CUSTOMER'
-                  LEFT JOIN transaction_date td ON td.transaction=t.id
-                  LEFT JOIN transaction_item ti ON ti.transaction=t.id
-                 WHERE t.type='QUOTATION' AND tp.partner=?
-                 GROUP BY t.id,t.number,t.status,t.description,t.sub_description
-                 ORDER BY createdAt DESC
+                SELECT q.id,q.quotation_no AS number,q.status,q.notes AS description,q.created_at AS createdAt,
+                       q.total_amount AS total,q.currency,q.source_id AS serviceRequestId,t.number AS serviceRequestNumber
+                  FROM quotation q
+                  LEFT JOIN `transaction` t ON q.source_type='SERVICE_REQUEST' AND t.id=q.source_id
+                 WHERE q.customer_partner_id=? ORDER BY q.created_at DESC
                 """, partnerId);
         for (Map<String, Object> quote : quotes) {
             quote.put("items", jdbc.queryForList("""
-                    SELECT ti.item,ti.product AS productId,p.code AS productCode,p.description,
-                           ti.quantity,ti.unit_price AS unitPrice,(ti.quantity*ti.unit_price) AS total
-                      FROM transaction_item ti LEFT JOIN product p ON p.id=ti.product
-                     WHERE ti.transaction=? ORDER BY ti.item
+                    SELECT ql.line_no AS item,ql.product_id AS productId,p.code AS productCode,ql.product_description AS description,
+                           ql.quantity,ql.unit_price AS unitPrice,ql.line_total AS total
+                      FROM quotation_line ql LEFT JOIN product p ON p.id=ql.product_id
+                     WHERE ql.quotation_id=? ORDER BY ql.line_no
                     """, quote.get("id")));
         }
         return quotes;
@@ -461,6 +482,19 @@ public class PurpleTenantService {
                     """, invoice.get("id")));
         }
         return invoices;
+    }
+
+    @Transactional
+    public Map<String, Object> updateCustomerQuoteStatus(PurpleDtos.CustomerQuoteStatusRequest request) {
+        String partnerId = ensureCustomer(request);
+        String quoteId = requireText(request.getQuoteId(), "Quotation is required");
+        String status = requireText(request.getStatus(), "Quotation status is required").toUpperCase(Locale.ROOT);
+        if (!Set.of("ACCEPTED", "DECLINED").contains(status)) throw new IllegalArgumentException("Customers may only accept or decline a quotation");
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM quotation WHERE id=? AND customer_partner_id=? AND status IN ('DRAFT','SENT')", Integer.class, quoteId, partnerId);
+        if (count == null || count != 1) throw new IllegalStateException("Quotation is not available for customer action");
+        jdbc.update("UPDATE quotation SET status=?,updated_at=CURRENT_TIMESTAMP(6),updated_by=? WHERE id=?", status, "purple:" + request.getPurpleCustomerId(), quoteId);
+        jdbc.update("UPDATE service_request_metadata SET lifecycle_status=? WHERE quotation_id=?", status, quoteId);
+        return jdbc.queryForMap("SELECT id,quotation_no AS number,status,total_amount AS total,currency FROM quotation WHERE id=?", quoteId);
     }
 
     private List<Map<String, Object>> calculateAvailability(Map<String, Object> service, LocalDate from, LocalDate to) {

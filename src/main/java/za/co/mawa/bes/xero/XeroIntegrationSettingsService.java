@@ -17,6 +17,7 @@ public class XeroIntegrationSettingsService {
     public static final String PROP_INVOICE_ACCOUNT_CODE = "XERO-INVOICE-ACCOUNT-CODE";
     public static final String PROP_INVOICE_TAX_TYPE = "XERO-INVOICE-TAX-TYPE";
     public static final String PROP_LINE_AMOUNT_TYPES = "XERO-LINE-AMOUNT-TYPES";
+    public static final String PROP_PAYMENT_ACCOUNT_CODE = "XERO-PAYMENT-ACCOUNT-CODE";
 
     @Autowired
     private TenantAdminService tenantAdminService;
@@ -30,6 +31,7 @@ public class XeroIntegrationSettingsService {
         String value = firstNonBlank(
                 properties.optString(PROP_INVOICE_ENABLED, null),
                 properties.optString(PROP_INTEGRATION_ENABLED, null),
+                settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP)
         );
@@ -43,6 +45,7 @@ public class XeroIntegrationSettingsService {
                 properties.optString(PROP_INTEGRATION_ENABLED, null),
                 properties.optString(PROP_INVOICE_ENABLED, null),
                 settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP),
+                settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP)));
     }
 
@@ -83,6 +86,14 @@ public class XeroIntegrationSettingsService {
                 properties.optString(PROP_LINE_AMOUNT_TYPES, null),
                 settingService.getSetting("LINE-AMOUNT-TYPES", XERO_SETTINGS_GROUP),
                 "Exclusive"
+        );
+    }
+
+    public String paymentAccountCode() {
+        JSONObject properties = currentTenantProperties();
+        return firstNonBlank(
+                properties.optString(PROP_PAYMENT_ACCOUNT_CODE, null),
+                settingService.getSetting("PAYMENT-ACCOUNT-CODE", XERO_SETTINGS_GROUP)
         );
     }
 

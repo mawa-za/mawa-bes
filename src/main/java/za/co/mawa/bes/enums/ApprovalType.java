@@ -60,6 +60,7 @@ public enum ApprovalType {
             case CASH -> CLAIM_CASH;
             case TOMBSTONE -> CLAIM_TOMBSTONE;
             case FUNERAL -> CLAIM_FUNERAL;
+            case STILLBORN -> CLAIM_FUNERAL;
             case COMBINATION -> CLAIM_COMBINATION;
             case GROCERY -> CLAIM_GROCERY;
         };

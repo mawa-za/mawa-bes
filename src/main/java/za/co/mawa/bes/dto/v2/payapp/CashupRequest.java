@@ -11,6 +11,7 @@ public class CashupRequest {
     private Long cashupNo;
 
     private String deviceId;
+    private String terminalId;
     private String userId;
     private String tenantId;
 
