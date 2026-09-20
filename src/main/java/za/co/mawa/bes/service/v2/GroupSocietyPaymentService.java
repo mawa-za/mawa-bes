@@ -25,6 +25,7 @@ public class GroupSocietyPaymentService {
     private final ReceiptMapper receiptMapper;
     private final OnlineCashupService onlineCashupService;
     private final NumberAllocationService numberAllocationService;
+    private final CardTerminalService cardTerminalService;
 
     @Transactional
     public PaymentBatchResponseDto createPayment(String groupSocietyId, GroupSocietyPaymentRequest request) {
@@ -34,6 +35,7 @@ public class GroupSocietyPaymentService {
         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
             throw new IllegalArgumentException("paymentMethod is required");
         }
+        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
         GroupSocietyEntity society = groupSocietyService.getById(groupSocietyId);
         String actor = blank(request.getCreatedBy()) ? "SYSTEM" : request.getCreatedBy().trim();
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();

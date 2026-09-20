@@ -33,6 +33,10 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
             String deviceId, String userId, String status, String source
     );
 
+    Optional<CashupEntity> findFirstByCardTerminalIdAndStatusAndSourceOrderByCreatedAtDesc(
+            String cardTerminalId, String status, String source
+    );
+
     Optional<CashupEntity> findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(
             String legacyTransactionId, String source
     );

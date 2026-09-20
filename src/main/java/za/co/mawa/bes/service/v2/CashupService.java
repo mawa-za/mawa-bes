@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.CashupDepositEntity;
+import za.co.mawa.bes.entity.v2.CardTerminalEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
@@ -23,6 +24,7 @@ import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
+import za.co.mawa.bes.repository.v2.CardTerminalRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
 import za.co.mawa.bes.repository.v2.CashupRepository;
@@ -58,6 +60,7 @@ public class CashupService {
     private static final String SOURCE_MAWA_PAY_EFT = "MAWA_PAY_EFT";
 
     private final CashupRepository cashupRepository;
+    private final CardTerminalRepository cardTerminalRepository;
     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
     private final CashupReceiptRepository cashupReceiptRepository;
     private final CashupDepositRepository cashupDepositRepository;
@@ -158,11 +161,15 @@ public class CashupService {
                         .paymentCount(item.getPaymentCount())
                         .build())
                 .toList();
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
 
         return CashupSummaryResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
@@ -231,10 +238,14 @@ public class CashupService {
     }
 
     private CashupListItemResponse toListItem(CashupEntity cashup, String cashierName) {
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
         return CashupListItemResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(cashierName)
                 .cashupDate(cashup.getCashupDate())
@@ -746,10 +757,14 @@ public class CashupService {
     }
 
     private CashupSummaryResponse toSummary(CashupEntity cashup) {
+        CardTerminalEntity terminal = resolveCardTerminal(cashup);
         return CashupSummaryResponse.builder()
                 .id(cashup.getId())
                 .cashupNo(cashup.getCashupNo())
                 .deviceId(cashup.getDeviceId())
+                .cardTerminalId(cashup.getCardTerminalId())
+                .cardTerminalCode(terminal == null ? null : terminal.getCode())
+                .cardTerminalName(terminal == null ? null : terminal.getName())
                 .userId(cashup.getUserId())
                 .cashierName(resolveCashierName(cashup.getUserId()))
                 .cashupDate(cashup.getCashupDate())
@@ -772,6 +787,11 @@ public class CashupService {
                 .approvalRequestId(cashup.getApprovalRequestId())
                 .deposits(getDeposits(cashup.getId()))
                 .build();
+    }
+
+    private CardTerminalEntity resolveCardTerminal(CashupEntity cashup) {
+        String terminalId = clean(cashup.getCardTerminalId());
+        return terminalId == null ? null : cardTerminalRepository.findById(terminalId).orElse(null);
     }
 
     private String toJson(Object value) {

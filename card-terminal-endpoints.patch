@@ -1,0 +1,461 @@
+From 4856e0ddfe2e2958812e34847c14b9c92badd21d Mon Sep 17 00:00:00 2001
+From: "tebogo.mohale" <tebogo.mohale@mawa.co.za>
+Date: Sat, 12 Sep 2026 22:11:37 +0200
+Subject: [PATCH] feat: Implement card terminal management with CRUD operations
+ and payment validation
+
+---
+ .../v2/CardTerminalControllerV2.java          | 14 +++++++
+ .../mawa/bes/dto/v2/CardTerminalRequest.java  | 12 ++++++
+ .../dto/v2/payapp/CashupListItemResponse.java |  3 ++
+ .../dto/v2/payapp/CashupSummaryResponse.java  |  3 ++
+ .../bes/entity/v2/CardTerminalEntity.java     | 25 ++++++++++++
+ .../co/mawa/bes/entity/v2/CashupEntity.java   |  5 ++-
+ .../repository/v2/CardTerminalRepository.java | 10 +++++
+ .../bes/repository/v2/CashupRepository.java   |  4 ++
+ .../bes/service/v2/CardTerminalService.java   | 39 +++++++++++++++++++
+ .../co/mawa/bes/service/v2/CashupService.java | 20 ++++++++++
+ .../v2/GroupSocietyPaymentService.java        |  2 +
+ .../bes/service/v2/InvoicePaymentService.java |  2 +
+ .../service/v2/LaybyManagementService.java    |  2 +
+ .../v2/MembershipPremiumPaymentService.java   |  2 +
+ .../bes/service/v2/OnlineCashupService.java   | 26 +++++++++++++
+ 15 files changed, 168 insertions(+), 1 deletion(-)
+ create mode 100644 src/main/java/za/co/mawa/bes/controller/v2/CardTerminalControllerV2.java
+ create mode 100644 src/main/java/za/co/mawa/bes/dto/v2/CardTerminalRequest.java
+ create mode 100644 src/main/java/za/co/mawa/bes/entity/v2/CardTerminalEntity.java
+ create mode 100644 src/main/java/za/co/mawa/bes/repository/v2/CardTerminalRepository.java
+ create mode 100644 src/main/java/za/co/mawa/bes/service/v2/CardTerminalService.java
+
+diff --git a/src/main/java/za/co/mawa/bes/controller/v2/CardTerminalControllerV2.java b/src/main/java/za/co/mawa/bes/controller/v2/CardTerminalControllerV2.java
+new file mode 100644
+index 00000000..fab2612c
+--- /dev/null
++++ b/src/main/java/za/co/mawa/bes/controller/v2/CardTerminalControllerV2.java
+@@ -0,0 +1,14 @@
++package za.co.mawa.bes.controller.v2;
++import lombok.RequiredArgsConstructor;
++import org.springframework.web.bind.annotation.*;
++import za.co.mawa.bes.dto.v2.CardTerminalRequest;
++import za.co.mawa.bes.entity.v2.CardTerminalEntity;
++import za.co.mawa.bes.service.v2.CardTerminalService;
++import java.util.List;
++@CrossOrigin @RestController @RequiredArgsConstructor @RequestMapping("v2/card-terminals")
++public class CardTerminalControllerV2 {
++    private final CardTerminalService service;
++    @GetMapping public List<CardTerminalEntity> list(@RequestParam(defaultValue="false") boolean activeOnly){return service.list(activeOnly);}
++    @PostMapping public CardTerminalEntity create(@RequestBody CardTerminalRequest request){return service.save(null,request);}
++    @PutMapping("/{id}") public CardTerminalEntity update(@PathVariable String id,@RequestBody CardTerminalRequest request){return service.save(id,request);}
++}
+diff --git a/src/main/java/za/co/mawa/bes/dto/v2/CardTerminalRequest.java b/src/main/java/za/co/mawa/bes/dto/v2/CardTerminalRequest.java
+new file mode 100644
+index 00000000..28ec0104
+--- /dev/null
++++ b/src/main/java/za/co/mawa/bes/dto/v2/CardTerminalRequest.java
+@@ -0,0 +1,12 @@
++package za.co.mawa.bes.dto.v2;
++import lombok.Getter;
++import lombok.Setter;
++@Getter @Setter
++public class CardTerminalRequest {
++    private String code;
++    private String name;
++    private String merchantNumber;
++    private String locationCode;
++    private Boolean active;
++    private String changedBy;
++}
+diff --git a/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupListItemResponse.java b/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupListItemResponse.java
+index 33dad4e5..9f0f1d95 100644
+--- a/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupListItemResponse.java
++++ b/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupListItemResponse.java
+@@ -12,6 +12,9 @@ public class CashupListItemResponse {
+     private String id;
+     private Long cashupNo;
+     private String deviceId;
++    private String cardTerminalId;
++    private String cardTerminalCode;
++    private String cardTerminalName;
+     private String userId;
+     private String cashierName;
+     private LocalDate cashupDate;
+diff --git a/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupSummaryResponse.java b/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupSummaryResponse.java
+index f17fca77..8dee9330 100644
+--- a/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupSummaryResponse.java
++++ b/src/main/java/za/co/mawa/bes/dto/v2/payapp/CashupSummaryResponse.java
+@@ -14,6 +14,9 @@ public class CashupSummaryResponse {
+     private Long cashupNo;
+ 
+     private String deviceId;
++    private String cardTerminalId;
++    private String cardTerminalCode;
++    private String cardTerminalName;
+     private String userId;
+     private String cashierName;
+ 
+diff --git a/src/main/java/za/co/mawa/bes/entity/v2/CardTerminalEntity.java b/src/main/java/za/co/mawa/bes/entity/v2/CardTerminalEntity.java
+new file mode 100644
+index 00000000..9aa74c19
+--- /dev/null
++++ b/src/main/java/za/co/mawa/bes/entity/v2/CardTerminalEntity.java
+@@ -0,0 +1,25 @@
++package za.co.mawa.bes.entity.v2;
++
++import jakarta.persistence.*;
++import lombok.*;
++import org.hibernate.annotations.GenericGenerator;
++import java.time.LocalDateTime;
++
++@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
++@Entity @Table(name = "card_terminal")
++public class CardTerminalEntity {
++    @Id @GeneratedValue(generator = "system-uuid")
++    @GenericGenerator(name = "system-uuid", strategy = "uuid")
++    @Column(length = 36) private String id;
++    @Column(nullable = false, unique = true, length = 50) private String code;
++    @Column(nullable = false, length = 150) private String name;
++    @Column(name = "merchant_number", length = 100) private String merchantNumber;
++    @Column(name = "location_code", length = 100) private String locationCode;
++    @Column(nullable = false) private Boolean active = true;
++    @Column(name = "created_at", nullable = false) private LocalDateTime createdAt;
++    @Column(name = "created_by", length = 255) private String createdBy;
++    @Column(name = "updated_at") private LocalDateTime updatedAt;
++    @Column(name = "updated_by", length = 255) private String updatedBy;
++    @PrePersist void create(){ createdAt=LocalDateTime.now(); updatedAt=createdAt; if(active==null)active=true; }
++    @PreUpdate void update(){ updatedAt=LocalDateTime.now(); }
++}
+diff --git a/src/main/java/za/co/mawa/bes/entity/v2/CashupEntity.java b/src/main/java/za/co/mawa/bes/entity/v2/CashupEntity.java
+index ee646946..cd7b5b95 100644
+--- a/src/main/java/za/co/mawa/bes/entity/v2/CashupEntity.java
++++ b/src/main/java/za/co/mawa/bes/entity/v2/CashupEntity.java
+@@ -28,6 +28,9 @@ public class CashupEntity {
+     @Column(name = "device_id", nullable = false, length = 128)
+     private String deviceId;
+ 
++    @Column(name = "card_terminal_id", length = 36)
++    private String cardTerminalId;
++
+     @Column(name = "user_id", nullable = false, length = 255)
+     private String userId;
+ 
+@@ -106,4 +109,4 @@ public class CashupEntity {
+ 
+     @Column(name = "updated_by", length = 255)
+     private String updatedBy;
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/za/co/mawa/bes/repository/v2/CardTerminalRepository.java b/src/main/java/za/co/mawa/bes/repository/v2/CardTerminalRepository.java
+new file mode 100644
+index 00000000..12d64530
+--- /dev/null
++++ b/src/main/java/za/co/mawa/bes/repository/v2/CardTerminalRepository.java
+@@ -0,0 +1,10 @@
++package za.co.mawa.bes.repository.v2;
++import org.springframework.data.jpa.repository.JpaRepository;
++import za.co.mawa.bes.entity.v2.CardTerminalEntity;
++import java.util.List;
++public interface CardTerminalRepository extends JpaRepository<CardTerminalEntity,String> {
++    List<CardTerminalEntity> findAllByOrderByNameAsc();
++    List<CardTerminalEntity> findByActiveTrueOrderByNameAsc();
++    boolean existsByCodeIgnoreCase(String code);
++    boolean existsByCodeIgnoreCaseAndIdNot(String code, String id);
++}
+diff --git a/src/main/java/za/co/mawa/bes/repository/v2/CashupRepository.java b/src/main/java/za/co/mawa/bes/repository/v2/CashupRepository.java
+index cb263663..6ccaafb3 100644
+--- a/src/main/java/za/co/mawa/bes/repository/v2/CashupRepository.java
++++ b/src/main/java/za/co/mawa/bes/repository/v2/CashupRepository.java
+@@ -33,6 +33,10 @@ public interface CashupRepository extends JpaRepository<CashupEntity, String> {
+             String deviceId, String userId, String status, String source
+     );
+ 
++    Optional<CashupEntity> findFirstByCardTerminalIdAndStatusAndSourceOrderByCreatedAtDesc(
++            String cardTerminalId, String status, String source
++    );
++
+     Optional<CashupEntity> findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(
+             String legacyTransactionId, String source
+     );
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/CardTerminalService.java b/src/main/java/za/co/mawa/bes/service/v2/CardTerminalService.java
+new file mode 100644
+index 00000000..e8ce353e
+--- /dev/null
++++ b/src/main/java/za/co/mawa/bes/service/v2/CardTerminalService.java
+@@ -0,0 +1,39 @@
++package za.co.mawa.bes.service.v2;
++
++import lombok.RequiredArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import za.co.mawa.bes.dto.v2.CardTerminalRequest;
++import za.co.mawa.bes.entity.v2.CardTerminalEntity;
++import za.co.mawa.bes.repository.v2.CardTerminalRepository;
++import java.util.List;
++import java.util.Locale;
++
++@Service @RequiredArgsConstructor
++public class CardTerminalService {
++    private final CardTerminalRepository repository;
++    public List<CardTerminalEntity> list(boolean activeOnly){ return activeOnly?repository.findByActiveTrueOrderByNameAsc():repository.findAllByOrderByNameAsc(); }
++    public CardTerminalEntity requireActive(String id){
++        if(id==null||id.isBlank()) throw new IllegalArgumentException("Select the card terminal used for this card payment");
++        CardTerminalEntity terminal=repository.findById(id.trim()).orElseThrow(()->new IllegalArgumentException("Card terminal not found"));
++        if(!Boolean.TRUE.equals(terminal.getActive())) throw new IllegalStateException("The selected card terminal is inactive");
++        return terminal;
++    }
++    @Transactional public CardTerminalEntity save(String id, CardTerminalRequest request){
++        if(request==null||request.getCode()==null||request.getCode().isBlank()) throw new IllegalArgumentException("Terminal code is required");
++        if(request.getName()==null||request.getName().isBlank()) throw new IllegalArgumentException("Terminal name is required");
++        String code=request.getCode().trim().toUpperCase(Locale.ROOT);
++        CardTerminalEntity entity=id==null?new CardTerminalEntity():repository.findById(id).orElseThrow(()->new IllegalArgumentException("Card terminal not found"));
++        boolean duplicate = id == null
++                ? repository.existsByCodeIgnoreCase(code)
++                : repository.existsByCodeIgnoreCaseAndIdNot(code, id);
++        if(duplicate) throw new IllegalArgumentException("Card terminal code already exists");
++        entity.setCode(code); entity.setName(request.getName().trim());
++        entity.setMerchantNumber(trim(request.getMerchantNumber())); entity.setLocationCode(trim(request.getLocationCode()));
++        entity.setActive(request.getActive()==null||request.getActive()); entity.setUpdatedBy(trim(request.getChangedBy()));
++        if(id==null) entity.setCreatedBy(trim(request.getChangedBy()));
++        return repository.save(entity);
++    }
++    public void validateForPayment(String paymentMethod,String terminalId){ if("CARD".equalsIgnoreCase(paymentMethod)) requireActive(terminalId); }
++    private String trim(String value){return value==null||value.isBlank()?null:value.trim();}
++}
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/CashupService.java b/src/main/java/za/co/mawa/bes/service/v2/CashupService.java
+index 59d703d3..1a9d0e9f 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/CashupService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/CashupService.java
+@@ -15,6 +15,7 @@ import za.co.mawa.bes.entity.AttachmentEntity;
+ import za.co.mawa.bes.entity.PartnerEntity;
+ import za.co.mawa.bes.entity.UserEntity;
+ import za.co.mawa.bes.entity.v2.CashupDepositEntity;
++import za.co.mawa.bes.entity.v2.CardTerminalEntity;
+ import za.co.mawa.bes.entity.v2.CashupEntity;
+ import za.co.mawa.bes.enums.ApprovalType;
+ import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
+@@ -23,6 +24,7 @@ import za.co.mawa.bes.entity.v2.ManualPremiumReceiptEntity;
+ import za.co.mawa.bes.repository.PartnerRepository;
+ import za.co.mawa.bes.repository.UserRepository;
+ import za.co.mawa.bes.repository.v2.CashupDepositRepository;
++import za.co.mawa.bes.repository.v2.CardTerminalRepository;
+ import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
+ import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
+ import za.co.mawa.bes.repository.v2.CashupRepository;
+@@ -58,6 +60,7 @@ public class CashupService {
+     private static final String SOURCE_MAWA_PAY_EFT = "MAWA_PAY_EFT";
+ 
+     private final CashupRepository cashupRepository;
++    private final CardTerminalRepository cardTerminalRepository;
+     private final CashupPaymentSummaryRepository cashupPaymentSummaryRepository;
+     private final CashupReceiptRepository cashupReceiptRepository;
+     private final CashupDepositRepository cashupDepositRepository;
+@@ -158,11 +161,15 @@ public class CashupService {
+                         .paymentCount(item.getPaymentCount())
+                         .build())
+                 .toList();
++        CardTerminalEntity terminal = resolveCardTerminal(cashup);
+ 
+         return CashupSummaryResponse.builder()
+                 .id(cashup.getId())
+                 .cashupNo(cashup.getCashupNo())
+                 .deviceId(cashup.getDeviceId())
++                .cardTerminalId(cashup.getCardTerminalId())
++                .cardTerminalCode(terminal == null ? null : terminal.getCode())
++                .cardTerminalName(terminal == null ? null : terminal.getName())
+                 .userId(cashup.getUserId())
+                 .cashierName(resolveCashierName(cashup.getUserId()))
+                 .cashupDate(cashup.getCashupDate())
+@@ -231,10 +238,14 @@ public class CashupService {
+     }
+ 
+     private CashupListItemResponse toListItem(CashupEntity cashup, String cashierName) {
++        CardTerminalEntity terminal = resolveCardTerminal(cashup);
+         return CashupListItemResponse.builder()
+                 .id(cashup.getId())
+                 .cashupNo(cashup.getCashupNo())
+                 .deviceId(cashup.getDeviceId())
++                .cardTerminalId(cashup.getCardTerminalId())
++                .cardTerminalCode(terminal == null ? null : terminal.getCode())
++                .cardTerminalName(terminal == null ? null : terminal.getName())
+                 .userId(cashup.getUserId())
+                 .cashierName(cashierName)
+                 .cashupDate(cashup.getCashupDate())
+@@ -746,10 +757,14 @@ public class CashupService {
+     }
+ 
+     private CashupSummaryResponse toSummary(CashupEntity cashup) {
++        CardTerminalEntity terminal = resolveCardTerminal(cashup);
+         return CashupSummaryResponse.builder()
+                 .id(cashup.getId())
+                 .cashupNo(cashup.getCashupNo())
+                 .deviceId(cashup.getDeviceId())
++                .cardTerminalId(cashup.getCardTerminalId())
++                .cardTerminalCode(terminal == null ? null : terminal.getCode())
++                .cardTerminalName(terminal == null ? null : terminal.getName())
+                 .userId(cashup.getUserId())
+                 .cashierName(resolveCashierName(cashup.getUserId()))
+                 .cashupDate(cashup.getCashupDate())
+@@ -774,6 +789,11 @@ public class CashupService {
+                 .build();
+     }
+ 
++    private CardTerminalEntity resolveCardTerminal(CashupEntity cashup) {
++        String terminalId = clean(cashup.getCardTerminalId());
++        return terminalId == null ? null : cardTerminalRepository.findById(terminalId).orElse(null);
++    }
++
+     private String toJson(Object value) {
+         try {
+             return objectMapper.writeValueAsString(value);
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/GroupSocietyPaymentService.java b/src/main/java/za/co/mawa/bes/service/v2/GroupSocietyPaymentService.java
+index b4652e20..f0ea3953 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/GroupSocietyPaymentService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/GroupSocietyPaymentService.java
+@@ -25,6 +25,7 @@ public class GroupSocietyPaymentService {
+     private final ReceiptMapper receiptMapper;
+     private final OnlineCashupService onlineCashupService;
+     private final NumberAllocationService numberAllocationService;
++    private final CardTerminalService cardTerminalService;
+ 
+     @Transactional
+     public PaymentBatchResponseDto createPayment(String groupSocietyId, GroupSocietyPaymentRequest request) {
+@@ -34,6 +35,7 @@ public class GroupSocietyPaymentService {
+         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
+             throw new IllegalArgumentException("paymentMethod is required");
+         }
++        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
+         GroupSocietyEntity society = groupSocietyService.getById(groupSocietyId);
+         String actor = blank(request.getCreatedBy()) ? "SYSTEM" : request.getCreatedBy().trim();
+         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/InvoicePaymentService.java b/src/main/java/za/co/mawa/bes/service/v2/InvoicePaymentService.java
+index 884798ee..603c214b 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/InvoicePaymentService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/InvoicePaymentService.java
+@@ -36,6 +36,7 @@ public class InvoicePaymentService {
+     private final ReceiptService receiptService;
+     private final ReceiptMapper receiptMapper;
+     private final OnlineCashupService onlineCashupService;
++    private final CardTerminalService cardTerminalService;
+     private final NumberAllocationService numberAllocationService;
+ 
+     @Transactional
+@@ -72,6 +73,7 @@ public class InvoicePaymentService {
+         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
+         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
+         String paymentMethod = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
++        cardTerminalService.validateForPayment(paymentMethod, request.getTerminalId());
+         String deviceId = blank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId().trim();
+ 
+         PaymentBatchEntity batch = new PaymentBatchEntity();
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/LaybyManagementService.java b/src/main/java/za/co/mawa/bes/service/v2/LaybyManagementService.java
+index b2f92d9a..0952ce94 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/LaybyManagementService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/LaybyManagementService.java
+@@ -63,6 +63,7 @@ public class LaybyManagementService {
+     private final ReceiptService receiptService;
+     private final ReceiptMapper receiptMapper;
+     private final OnlineCashupService onlineCashupService;
++    private final CardTerminalService cardTerminalService;
+     private final NumberAllocationService numberAllocationService;
+     private final InvoiceService invoiceService;
+     private final ApprovalService approvalService;
+@@ -337,6 +338,7 @@ public class LaybyManagementService {
+         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
+         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
+         String method = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
++        cardTerminalService.validateForPayment(method, request.getTerminalId());
+         String deviceId = firstNonBlank(request.getDeviceId(), "ERP-ONLINE");
+ 
+         PaymentBatchEntity batch = new PaymentBatchEntity();
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/MembershipPremiumPaymentService.java b/src/main/java/za/co/mawa/bes/service/v2/MembershipPremiumPaymentService.java
+index b084b46a..3db73769 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/MembershipPremiumPaymentService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/MembershipPremiumPaymentService.java
+@@ -58,6 +58,7 @@ public class MembershipPremiumPaymentService {
+     private final @Qualifier("MembershipServiceV2") MembershipService membershipService;
+     private final SettingService settingService;
+     private final MembershipActionGuardService membershipActionGuardService;
++    private final CardTerminalService cardTerminalService;
+     @Autowired
+     NumberAllocationService numberAllocationService;
+ 
+@@ -989,5 +990,6 @@ public class MembershipPremiumPaymentService {
+         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
+             throw new RuntimeException("paymentMethod is required");
+         }
++        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
+     }
+ }
+diff --git a/src/main/java/za/co/mawa/bes/service/v2/OnlineCashupService.java b/src/main/java/za/co/mawa/bes/service/v2/OnlineCashupService.java
+index d5877a0d..bbc65099 100644
+--- a/src/main/java/za/co/mawa/bes/service/v2/OnlineCashupService.java
++++ b/src/main/java/za/co/mawa/bes/service/v2/OnlineCashupService.java
+@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ import za.co.mawa.bes.entity.v2.CashupEntity;
++import za.co.mawa.bes.entity.v2.CardTerminalEntity;
+ import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
+ import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
+ import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
+@@ -33,6 +34,7 @@ public class OnlineCashupService {
+ 
+     private static final String SOURCE = "ERP_ONLINE";
+     private static final String SOURCE_EFT = "ERP_ONLINE_EFT";
++    private static final String SOURCE_CARD = "ERP_ONLINE_CARD";
+     private static final String STATUS_OPEN = "OPEN";
+     private static final String DEFAULT_DEVICE = "ERP-ONLINE";
+     private static final String DEFAULT_USER = "SYSTEM";
+@@ -43,6 +45,7 @@ public class OnlineCashupService {
+     private final ReceiptRepository receiptRepository;
+     private final NumberAllocationService numberAllocationService;
+     private final CashupService cashupService;
++    private final CardTerminalService cardTerminalService;
+ 
+     @Transactional
+     public void addReceipts(
+@@ -80,11 +83,26 @@ public class OnlineCashupService {
+             return;
+         }
+ 
++        if ("CARD".equals(paymentMethod)) {
++            var terminal = cardTerminalService.requireActive(batch.getTerminalId());
++            CashupEntity cashup = cashupRepository
++                    .findFirstByCardTerminalIdAndStatusAndSourceOrderByCreatedAtDesc(
++                            terminal.getId(), STATUS_OPEN, SOURCE_CARD)
++                    .orElseGet(() -> createCardCashup(terminal, user));
++            addToCashup(cashup, batch, receipts, user, paymentMethod);
++            return;
++        }
++
+         CashupEntity cashup = cashupRepository
+                 .findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
+                         device, user, STATUS_OPEN, SOURCE)
+                 .orElseGet(() -> createCashup(device, user));
+ 
++        addToCashup(cashup, batch, receipts, user, paymentMethod);
++    }
++
++    private void addToCashup(CashupEntity cashup, PaymentBatchEntity batch,
++                             List<ReceiptEntity> receipts, String user, String paymentMethod) {
+         long addedAmountCents = 0L;
+         int addedReceiptCount = 0;
+         for (ReceiptEntity receipt : receipts) {
+@@ -127,6 +145,14 @@ public class OnlineCashupService {
+         cashupPaymentSummaryRepository.save(summary);
+     }
+ 
++    private CashupEntity createCardCashup(CardTerminalEntity terminal, String user) {
++        CashupEntity cashup = createCashup("CARD-" + terminal.getCode(), user);
++        cashup.setSource(SOURCE_CARD);
++        cashup.setCardTerminalId(terminal.getId());
++        cashup.setNotes("Card payments grouped for terminal " + terminal.getCode() + " - " + terminal.getName());
++        return cashupRepository.save(cashup);
++    }
++
+     private void addEftPaymentCashup(
+             PaymentBatchEntity batch,
+             List<ReceiptEntity> receipts,
+-- 
+2.51.1
+
