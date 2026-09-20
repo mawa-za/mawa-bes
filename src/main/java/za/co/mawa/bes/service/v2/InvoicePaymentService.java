@@ -75,7 +75,7 @@ public class InvoicePaymentService {
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
         String paymentMethod = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
-        cardTerminalService.validateForPayment(paymentMethod, request.getTerminalId());
+        String terminalId = cardTerminalService.resolveForOnlinePayment(paymentMethod, request.getTerminalId());
         String deviceId = blank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId().trim();
 
         PaymentBatchEntity batch = new PaymentBatchEntity();
@@ -88,7 +88,7 @@ public class InvoicePaymentService {
         batch.setLocation(request.getLocation());
         batch.setEmployeeResponsible(request.getEmployeeResponsible());
         batch.setDeviceId(deviceId);
-        batch.setTerminalId(request.getTerminalId());
+        batch.setTerminalId(terminalId);
         batch.setStatus(PaymentBatchStatus.POSTED);
         batch.setSyncStatus(SyncStatus.SYNCED);
         batch.setNotes(request.getNotes());
@@ -110,7 +110,7 @@ public class InvoicePaymentService {
         receipt.setLocation(request.getLocation());
         receipt.setEmployeeResponsible(request.getEmployeeResponsible());
         receipt.setDeviceId(deviceId);
-        receipt.setTerminalId(request.getTerminalId());
+        receipt.setTerminalId(terminalId);
         receipt.setCaptureSource("ERP_ONLINE");
         receipt.setCapturedBy(actor);
         receipt.setPrinted(false);

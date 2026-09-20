@@ -31,6 +31,8 @@ public class UserEntity implements Serializable {
     private String email;
     @Column(name = "time_zone", length = 64, nullable = false)
     private String timeZone = "Africa/Harare";
+    @Column(name = "card_terminal_id", length = 36)
+    private String cardTerminalId;
     @Lob
     @Column(name = "password")
     private byte[] password;
