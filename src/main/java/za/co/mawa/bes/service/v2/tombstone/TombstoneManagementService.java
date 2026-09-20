@@ -26,6 +26,7 @@ import za.co.mawa.bes.service.InvoiceService;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.service.v2.PaymentRequestService;
 import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -78,6 +79,7 @@ public class TombstoneManagementService {
     private final PaymentRequestRepository paymentRequestRepository;
     private final ReceiptAllocationRepository receiptAllocationRepository;
     private final MembershipClaimRepository claimRepository;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
     private final InvoiceRepository invoiceRepository;
     private final InvoiceService invoiceService;
     private final PaymentRequestService paymentRequestService;
@@ -1144,6 +1146,7 @@ public class TombstoneManagementService {
             invoice.setUpdatedAt(LocalDateTime.now());
             invoice.setUpdatedBy(actor);
             invoiceRepository.save(invoice);
+            xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
         });
     }
 

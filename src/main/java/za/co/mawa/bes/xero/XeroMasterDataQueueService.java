@@ -6,6 +6,7 @@ import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.ProductRepository;
 import za.co.mawa.bes.repository.PartnerRoleRepository;
+import za.co.mawa.bes.repository.InvoiceRepository;
 
 import java.time.LocalDateTime;
 
@@ -19,17 +20,23 @@ public class XeroMasterDataQueueService {
     private final PartnerRepository partnerRepository;
     private final ProductRepository productRepository;
     private final PartnerRoleRepository partnerRoleRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final XeroInvoiceQueueService invoiceQueueService;
 
     public XeroMasterDataQueueService(MessageQueueRepository queueRepository,
                                       XeroIntegrationSettingsService settings,
                                       PartnerRepository partnerRepository,
                                       ProductRepository productRepository,
-                                      PartnerRoleRepository partnerRoleRepository) {
+                                      PartnerRoleRepository partnerRoleRepository,
+                                      InvoiceRepository invoiceRepository,
+                                      XeroInvoiceQueueService invoiceQueueService) {
         this.queueRepository = queueRepository;
         this.settings = settings;
         this.partnerRepository = partnerRepository;
         this.productRepository = productRepository;
         this.partnerRoleRepository = partnerRoleRepository;
+        this.invoiceRepository = invoiceRepository;
+        this.invoiceQueueService = invoiceQueueService;
     }
 
     public void queueCustomerIfEnabled(String partnerId, String partnerNo) {
@@ -47,10 +54,22 @@ public class XeroMasterDataQueueService {
 
     public void queueAllExisting() {
         if (!settings.isIntegrationEnabled()) return;
+
+        // Products are deliberately queued first. The shared message worker consumes
+        // a bounded batch ordered by next-attempt time; queuing every customer first
+        // can otherwise leave the complete product catalogue waiting behind a large
+        // customer backlog.
+        productRepository.findAll().forEach(product ->
+                queueProductIfEnabled(product.getId(), product.getCode()));
+
         partnerRoleRepository.findPartnerByRole("CUSTOMER").forEach(role ->
                 partnerRepository.findById(role.getPartnerRolePK().getId()).ifPresent(partner ->
                         queueCustomerIfEnabled(partner.getId(), partner.getNo())));
-        productRepository.findAll().forEach(product -> queueProductIfEnabled(product.getId(), product.getCode()));
+
+        // Activation previously omitted existing invoices completely. Keep invoices
+        // last because their push validates/synchronises the referenced customer and
+        // products before submitting the invoice to Xero.
+        invoiceRepository.findAll().forEach(invoiceQueueService::queueInvoiceIfEnabled);
     }
 
     private void queueIfEnabled(String type, String id, String number) {

@@ -209,6 +209,95 @@ public class TenantAdminService implements TenantDao {
         return execute("POST", "/internal/erp/purple/providers/" + encode(tenant), request, true);
     }
 
+    public String getResellerProfile(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/profile", null, true);
+    }
+
+    public String getResellerAssignments(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants", null, true);
+    }
+
+    public String getResellerAssignments(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants/search",
+                Map.of("actor", actor), true);
+    }
+
+    public String provisionResellerTenant(String resellerTenantId, Object request) {
+        String result = execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/tenants/provision", request, true);
+        invalidateTenantCache();
+        return result;
+    }
+
+    public String retryResellerTenantProvisioning(String resellerTenantId, String clientTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/tenants/"
+                + encode(clientTenantId) + "/provision/retry", Map.of("actor", actor), true);
+    }
+
+    public String getResellerSupportSessions(String resellerTenantId) {
+        return execute("GET", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions", null, true);
+    }
+
+    public String getResellerSupportSessions(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions/search",
+                Map.of("actor", actor), true);
+    }
+
+    public String startResellerSupportSession(String resellerTenantId, Object request) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId) + "/support-sessions", request, true);
+    }
+
+    public String openResellerSupportSession(String resellerTenantId, String sessionId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/support-sessions/" + encode(sessionId) + "/open", Map.of("actor", StringUtils.hasText(actor) ? actor : "system"), true);
+    }
+
+    public String revokeResellerSupportSession(String resellerTenantId, String sessionId, String actor) {
+        return execute("POST", "/internal/erp/resellers/" + encode(resellerTenantId)
+                + "/support-sessions/" + encode(sessionId) + "/revoke", Map.of("actor", StringUtils.hasText(actor) ? actor : "system"), true);
+    }
+
+    public String getClientSupportTickets(String clientTenantId) {
+        return execute("GET", "/internal/erp/support-tickets/clients/" + encode(clientTenantId), null, true);
+    }
+
+    public String createClientSupportTicket(String clientTenantId, Object request) {
+        return execute("POST", "/internal/erp/support-tickets/clients/" + encode(clientTenantId), request, true);
+    }
+
+    public String getResellerSupportTickets(String resellerTenantId, String actor) {
+        return execute("POST", "/internal/erp/support-tickets/resellers/" + encode(resellerTenantId) + "/search",
+                Map.of("actor", actor), true);
+    }
+
+    public String getSupportTicket(String ticketId, String tenantId, String actor) {
+        return supportTicketAction(ticketId, "detail", Map.of("tenantId", tenantId, "actor", actor));
+    }
+
+    public String commentOnSupportTicket(String ticketId, String tenantId, String actor, String message) {
+        return supportTicketAction(ticketId, "comment", Map.of(
+                "tenantId", tenantId, "actor", actor, "message", message == null ? "" : message));
+    }
+
+    public String updateSupportTicketStatus(String ticketId, String tenantId, String actor, String status) {
+        return supportTicketAction(ticketId, "status", Map.of(
+                "tenantId", tenantId, "actor", actor, "status", status == null ? "" : status));
+    }
+
+    public String assignSupportTicket(String ticketId, String tenantId, String actor, String assignedTo) {
+        return supportTicketAction(ticketId, "assign", Map.of(
+                "tenantId", tenantId, "actor", actor, "assignedTo", assignedTo == null ? "" : assignedTo));
+    }
+
+    public String escalateSupportTicket(String ticketId, String tenantId, String actor, String reason) {
+        return supportTicketAction(ticketId, "escalate", Map.of(
+                "tenantId", tenantId, "actor", actor, "reason", reason == null ? "" : reason));
+    }
+
+    private String supportTicketAction(String ticketId, String action, Object request) {
+        return execute("POST", "/internal/erp/support-tickets/" + encode(ticketId) + "/" + action, request, true);
+    }
+
     public void invalidateTenantCache() {
         cachedTenantsAt = 0L;
     }

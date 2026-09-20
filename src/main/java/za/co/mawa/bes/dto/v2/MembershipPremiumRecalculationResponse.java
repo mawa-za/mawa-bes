@@ -8,6 +8,7 @@ import lombok.Data;
 public class MembershipPremiumRecalculationResponse {
     private String membershipId;
     private int premiumsChecked;
+    private int premiumsGenerated;
     private int premiumsCorrected;
     private int premiumsRemoved;
     private String paidUpToPeriod;

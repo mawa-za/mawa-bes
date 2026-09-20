@@ -51,12 +51,6 @@ public class XeroInvoiceQueueService {
         if (invoice == null || isBlank(invoice.getId())) {
             return;
         }
-        if (!isBlank(invoice.getXeroInvoiceId())) {
-            invoice.setIntegrationStatus("POSTED");
-            invoiceRepository.save(invoice);
-            return;
-        }
-
         MessageQueueEntity message = messageQueueRepository
                 .findFirstByTypeAndReferenceIdOrderByIdDesc(MESSAGE_TYPE, invoice.getId())
                 .orElseGet(MessageQueueEntity::new);
@@ -70,7 +64,7 @@ public class XeroInvoiceQueueService {
         message.setNextAttemptAt(LocalDateTime.now());
         messageQueueRepository.save(message);
 
-        invoice.setIntegrationStatus("QUEUED");
+        invoice.setIntegrationStatus(isBlank(invoice.getXeroInvoiceId()) ? "QUEUED" : "UPDATE_QUEUED");
         invoice.setIntegrationError(null);
         invoiceRepository.save(invoice);
     }

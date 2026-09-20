@@ -16,6 +16,7 @@ public class FuneralServiceRequestResponseDto {
     private String mortuaryInventoryId;
     private String deceasedName;
     private String deceasedIdentityNumber;
+    private String deceasedCategory;
     private String deceasedPartnerId;
     private String packageId;
     private String familyRepId;

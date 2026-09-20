@@ -31,6 +31,7 @@ import za.co.mawa.bes.repository.RoleRepository;
 import za.co.mawa.bes.repository.UserRoleRepository;
 import za.co.mawa.bes.utils.*;
 import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
+import za.co.mawa.bes.service.v2.CardTerminalService;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -62,6 +63,8 @@ public class UserService implements UserDao {
     SettingService settingService;
     @Autowired
     ReferenceDataValidationService referenceDataValidationService;
+    @Autowired
+    CardTerminalService cardTerminalService;
     private String encryptionSecret;
     public static final String SYSTEM_USER = "system";
     public static final String DEFAULT_SYSTEM_PASSWORD = "system";
@@ -675,6 +678,7 @@ public class UserService implements UserDao {
             userDto.setEmail(userEntity.getEmail());
             userDto.setCellphone(userEntity.getCellphone());
             userDto.setTimeZone(validTimeZone(userEntity.getTimeZone()));
+            userDto.setCardTerminalId(userEntity.getCardTerminalId());
             userDto.setType(userEntity.getUserType());
             userDto.setStatus(userEntity.getStatus());
             userDto.setPasswordStatus(userEntity.getPasswordStatus());
@@ -723,6 +727,21 @@ public class UserService implements UserDao {
         } catch (java.time.DateTimeException exception) {
             throw new IllegalArgumentException("Select a valid time zone");
         }
+    }
+
+    @Transactional
+    public UserDto assignCardTerminal(String userId, String cardTerminalId) {
+        if (!userAccessService.isProtectedAdministrator()) {
+            throw new SecurityException("Only a system administrator can assign a card terminal to a user");
+        }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        String normalized = StringUtils.hasText(cardTerminalId) ? cardTerminalId.trim() : null;
+        if (normalized != null) {
+            cardTerminalService.requireActive(normalized);
+        }
+        user.setCardTerminalId(normalized);
+        return entityToDto(userRepository.save(user));
     }
 
     private Specification<UserEntity> findByCriteria(UserQueryDto userQuery) {

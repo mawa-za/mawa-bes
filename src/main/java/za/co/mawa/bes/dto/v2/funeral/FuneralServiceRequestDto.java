@@ -15,6 +15,7 @@ public class FuneralServiceRequestDto {
     private String serviceRequestNo;
     private String deceasedName;
     private String deceasedIdentityNumber;
+    private String deceasedCategory;
     private String deceasedPartnerId;
     private String packageId;
     @JsonAlias({"familyRepPartnerId", "familyRepresentativePartnerId"})

@@ -15,6 +15,7 @@ public class AuthenticationResponseDto implements Serializable {
     private String userId;
     private String username;
     private String displayName;
+    private String cardTerminalId;
     private String accessToken;
     private String refreshToken;
     private String accountType;

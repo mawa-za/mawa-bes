@@ -21,6 +21,7 @@ import za.co.mawa.bes.dto.creditnote.CreditNoteIssueRequestDto;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.repository.InvoiceRepository;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
+import za.co.mawa.bes.xero.XeroInvoiceQueueService;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
@@ -38,6 +39,7 @@ public class CreditNoteService {
     private final JdbcTemplate jdbcTemplate;
     private final NumberAllocationService numberAllocationService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
+    private final XeroInvoiceQueueService xeroInvoiceQueueService;
 
     @Transactional
     public Map<String, Object> issue(String invoiceId, CreditNoteIssueRequestDto request, String userId) {
@@ -75,6 +77,7 @@ public class CreditNoteService {
                 ? "CREDITED"
                 : (credited > 0 ? "PARTIALLY_CREDITED" : invoice.getStatus()));
         invoiceRepository.save(invoice);
+        xeroInvoiceQueueService.queueInvoiceIfEnabled(invoice);
         return get(id);
     }
 

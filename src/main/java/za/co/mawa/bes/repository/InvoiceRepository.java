@@ -18,6 +18,13 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, String> 
     List<InvoiceEntity> findByInvoiceDate(LocalDate invoiceDate);
     List<InvoiceEntity> findBySourceTypeAndSourceId(String sourceType, String sourceId);
 
+    /**
+     * Loads the invoice and its lines in one query for processing outside the
+     * repository transaction (for example while calling the Xero API).
+     */
+    @Query("select distinct i from InvoiceEntity i left join fetch i.lines where i.id = :id")
+    Optional<InvoiceEntity> findByIdWithLines(@Param("id") String id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from InvoiceEntity i where i.id = :id")
     Optional<InvoiceEntity> findByIdForUpdate(@Param("id") String id);

@@ -85,8 +85,13 @@ public class ApprovalService {
             }
         } else {
             approvalRequestRepository
-                    .findByApprovalTypeAndReferenceId(request.getApprovalType(), request.getReferenceId())
+                    .findTopByApprovalTypeAndReferenceIdOrderByCreatedAtDesc(
+                            request.getApprovalType(), request.getReferenceId())
                     .ifPresent(existing -> {
+                        if (request.getApprovalType() == ApprovalType.CASHUP
+                                && existing.getStatus() == ApprovalStatus.REJECTED) {
+                            return;
+                        }
                         throw new IllegalStateException("Approval request already exists for reference: " + request.getReferenceId());
                     });
         }
@@ -312,7 +317,7 @@ public class ApprovalService {
         approvalRequest.setUpdatedBy(request.getActionBy());
 
         ApprovalRequestEntity saved = approvalRequestRepository.save(approvalRequest);
-        completionHandlerRegistry.handleRejected(saved, request.getActionBy());
+        completionHandlerRegistry.handleRejected(saved, request.getActionBy(), request.getComments());
         userInboxService.notifyRequesterActioned(saved, action, request.getActionBy());
         return toResponse(saved);
     }
