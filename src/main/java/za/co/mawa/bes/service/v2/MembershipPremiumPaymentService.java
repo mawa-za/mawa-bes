@@ -65,6 +65,7 @@ public class MembershipPremiumPaymentService {
     @Transactional
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
+        request.setTerminalId(cardTerminalService.resolveForOnlinePayment(request.getPaymentMethod(), request.getTerminalId()));
         membershipActionGuardService.requireActionable(request.getMembershipId());
         validatePremiumPaymentLimit(request);
         validatePremiumPeriodSelection(request);
@@ -988,6 +989,5 @@ public class MembershipPremiumPaymentService {
         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
             throw new RuntimeException("paymentMethod is required");
         }
-        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
     }
 }

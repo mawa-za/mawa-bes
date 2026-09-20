@@ -35,7 +35,7 @@ public class GroupSocietyPaymentService {
         if (request.getPaymentMethod() == null || request.getPaymentMethod().isBlank()) {
             throw new IllegalArgumentException("paymentMethod is required");
         }
-        cardTerminalService.validateForPayment(request.getPaymentMethod(), request.getTerminalId());
+        String terminalId = cardTerminalService.resolveForOnlinePayment(request.getPaymentMethod(), request.getTerminalId());
         GroupSocietyEntity society = groupSocietyService.getById(groupSocietyId);
         String actor = blank(request.getCreatedBy()) ? "SYSTEM" : request.getCreatedBy().trim();
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
@@ -50,7 +50,7 @@ public class GroupSocietyPaymentService {
         batch.setLocation(request.getLocation());
         batch.setEmployeeResponsible(request.getEmployeeResponsible());
         batch.setDeviceId(blank(request.getDeviceId()) ? "ERP-ONLINE" : request.getDeviceId().trim());
-        batch.setTerminalId(request.getTerminalId());
+        batch.setTerminalId(terminalId);
         batch.setStatus(PaymentBatchStatus.POSTED);
         batch.setSyncStatus(SyncStatus.SYNCED);
         batch.setNotes(request.getNotes());
@@ -72,7 +72,7 @@ public class GroupSocietyPaymentService {
         receipt.setLocation(request.getLocation());
         receipt.setEmployeeResponsible(request.getEmployeeResponsible());
         receipt.setDeviceId(batch.getDeviceId());
-        receipt.setTerminalId(request.getTerminalId());
+        receipt.setTerminalId(terminalId);
         receipt.setCaptureSource("ERP_ONLINE");
         receipt.setCapturedBy(actor);
         receipt.setPrinted(false);

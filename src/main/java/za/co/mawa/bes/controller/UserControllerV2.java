@@ -199,6 +199,20 @@ public class UserControllerV2 {
     }
 
 
+
+    @RequestMapping(value = "{id}/card-terminal", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> assignCardTerminal(@PathVariable String id, @RequestBody UserCardTerminalAssignmentRequest request) {
+        try {
+            String terminalId = request == null ? null : request.getCardTerminalId();
+            return ResponseEntity.ok(gson.toJson(userService.assignCardTerminal(id, terminalId)));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(
+                    "code", "CARD_TERMINAL_ASSIGNMENT_DENIED", "message", exception.getMessage()));
+        } catch (Exception exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
     @RequestMapping(value = "/username/{username}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
         try {

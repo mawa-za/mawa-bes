@@ -338,7 +338,7 @@ public class LaybyManagementService {
         LocalDate paymentDate = request.getPaymentDate() == null ? LocalDate.now() : request.getPaymentDate();
         LocalDateTime paymentDateTime = paymentDate.atStartOfDay();
         String method = request.getPaymentMethod().trim().toUpperCase(Locale.ROOT);
-        cardTerminalService.validateForPayment(method, request.getTerminalId());
+        String terminalId = cardTerminalService.resolveForOnlinePayment(method, request.getTerminalId());
         String deviceId = firstNonBlank(request.getDeviceId(), "ERP-ONLINE");
 
         PaymentBatchEntity batch = new PaymentBatchEntity();
@@ -351,7 +351,7 @@ public class LaybyManagementService {
         batch.setLocation(clean(request.getLocation()));
         batch.setEmployeeResponsible(clean(request.getEmployeeResponsible()));
         batch.setDeviceId(deviceId);
-        batch.setTerminalId(clean(request.getTerminalId()));
+        batch.setTerminalId(terminalId);
         batch.setStatus(PaymentBatchStatus.POSTED);
         batch.setSyncStatus(SyncStatus.SYNCED);
         batch.setNotes(clean(request.getNotes()));
@@ -373,7 +373,7 @@ public class LaybyManagementService {
         receipt.setLocation(clean(request.getLocation()));
         receipt.setEmployeeResponsible(clean(request.getEmployeeResponsible()));
         receipt.setDeviceId(deviceId);
-        receipt.setTerminalId(clean(request.getTerminalId()));
+        receipt.setTerminalId(terminalId);
         receipt.setCaptureSource("ERP_ONLINE");
         receipt.setCapturedBy(actor);
         receipt.setPrinted(false);
