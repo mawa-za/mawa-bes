@@ -48,6 +48,12 @@
             </properties>
         </profile>
         <profile>
+            <id>hotfix</id>
+            <properties>
+                <spring.profiles.active>hotfix</spring.profiles.active>
+            </properties>
+        </profile>
+        <profile>
             <id>prep</id>
             <properties>
                 <spring.profiles.active>prep</spring.profiles.active>
