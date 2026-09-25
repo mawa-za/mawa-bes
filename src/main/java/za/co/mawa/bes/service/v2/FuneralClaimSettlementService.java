@@ -44,6 +44,7 @@ public class FuneralClaimSettlementService {
     private final NumberRangeService numberRangeService;
     private final SettingService settingService;
     private final PaymentAccountConfigurationService paymentAccountConfigurationService;
+    private final FuneralFundingReconciliationService funeralFundingReconciliationService;
 
     @Transactional
     public PaymentRequestResponse settleApprovedClaim(String claimId, String actor) {
@@ -79,18 +80,30 @@ public class FuneralClaimSettlementService {
                             + " WHERE membership_claim_id=? AND service_payment_request_id IS NOT NULL LIMIT 1",
                     (rs, rowNum) -> rs.getString(1), claimId);
             if (!existingRequestIds.isEmpty() && existingRequestIds.get(0) != null) {
+                PaymentRequestResponse existingRequest = null;
                 try {
-                    return payments.getById(existingRequestIds.get(0));
+                    existingRequest = payments.getById(existingRequestIds.get(0));
                 } catch (RuntimeException ignored) {
                     // Cross-tenant link can outlive a repaired/deleted local request.
                     // Continue and recreate idempotently in the claim-owning tenant.
                 }
+                if (existingRequest != null) {
+                    funeralFundingReconciliationService.reconcileProviderFamilyBalance(
+                            providerTenant, serviceId, effectiveActor(actor));
+                    return existingRequest;
+                }
             }
         } else {
+            PaymentRequestResponse existingRequest = null;
             try {
-                return payments.getById(localLink.getServicePaymentRequestId());
+                existingRequest = payments.getById(localLink.getServicePaymentRequestId());
             } catch (RuntimeException ignored) {
                 // Repair a stale link by recreating below.
+            }
+            if (existingRequest != null) {
+                funeralFundingReconciliationService.reconcileProviderFamilyBalance(
+                        providerTenant, serviceId, effectiveActor(actor));
+                return existingRequest;
             }
         }
 
@@ -103,6 +116,8 @@ public class FuneralClaimSettlementService {
 
         Map<String, Object> invoice = ensureMembershipCoverageInvoice(
                 providerTenant, serviceId, claimId, claim, localLink);
+        funeralFundingReconciliationService.reconcileProviderFamilyBalance(
+                providerTenant, serviceId, effectiveActor(actor));
         // The funeral-provider invoice is the commercial document being paid.
         // Use its allocated amount rather than the raw approved claim amount so
         // combination claims cannot overpay the funeral arrangement allocation.
@@ -214,16 +229,22 @@ public class FuneralClaimSettlementService {
                 """, claimId);
         if (!"APPROVED".equalsIgnoreCase(Objects.toString(claim.get("status"), ""))) return null;
 
+        String serviceId = Objects.toString(claim.get("funeral_service_id"), null);
         String existingPaymentRequestId = Objects.toString(claim.get("payment_request_id"), null);
         if (existingPaymentRequestId != null && !existingPaymentRequestId.isBlank()) {
+            PaymentRequestResponse existingRequest = null;
             try {
-                return payments.getById(existingPaymentRequestId);
+                existingRequest = payments.getById(existingPaymentRequestId);
             } catch (RuntimeException ignored) {
                 // Reconcile a stale reference below using the idempotency key.
             }
+            if (existingRequest != null) {
+                funeralFundingReconciliationService.reconcileProviderFamilyBalance(
+                        TenantContext.getCurrentTenant(), serviceId, effectiveActor(actor));
+                return existingRequest;
+            }
         }
 
-        String serviceId = Objects.toString(claim.get("funeral_service_id"), null);
         long amountCents = number(claim.get("approved_cover_cents"));
         if (amountCents <= 0) amountCents = number(claim.get("requested_cover_cents"));
         if (amountCents <= 0) {
@@ -231,7 +252,13 @@ public class FuneralClaimSettlementService {
         }
 
         Map<String, Object> invoice = ensureGroupSocietyCoverageInvoice(serviceId, claimId, claim, amountCents);
+        amountCents = settlementAmountCents(invoice);
+        if (amountCents <= 0) {
+            throw new IllegalStateException("No funeral arrangement balance remains for the group society claim");
+        }
         String tenant = TenantContext.getCurrentTenant();
+        funeralFundingReconciliationService.reconcileProviderFamilyBalance(
+                tenant, serviceId, effectiveActor(actor));
         String settlementMode = groupSocietySettlementMode();
         if (LEDGER_ONLY.equals(settlementMode)) {
             settleGroupSocietyInvoiceInternally(invoice, claimId, amountCents);
@@ -452,6 +479,11 @@ public class FuneralClaimSettlementService {
                 """, serviceId, claimId);
         if (!invoices.isEmpty()) return invoices.get(0);
 
+        long invoiceAmountCents = allocateGroupSocietyCoverageInvoiceAmount(serviceId, claimId, amountCents);
+        if (invoiceAmountCents <= 0) {
+            throw new IllegalStateException(
+                    "No funeral arrangement balance remains for group society claim " + claimId);
+        }
         return createCoverageInvoice(
                 TenantContext.getCurrentTenant(),
                 serviceId,
@@ -459,10 +491,33 @@ public class FuneralClaimSettlementService {
                 Objects.toString(claim.get("society_partner_id"), null),
                 null,
                 claimId,
-                amountCents,
+                invoiceAmountCents,
                 "Group society funeral cover settlement",
                 firstNonBlank(Objects.toString(claim.get("society_name"), null), Objects.toString(claim.get("group_no"), null)),
                 Objects.toString(claim.get("group_no"), null));
+    }
+
+    private long allocateGroupSocietyCoverageInvoiceAmount(
+            String serviceId,
+            String claimId,
+            long approvedClaimAmountCents
+    ) {
+        if (approvedClaimAmountCents <= 0) return 0L;
+        Long arrangementTotal = jdbc.queryForObject(
+                "SELECT COALESCE(total_amount_cents,0) FROM funeral_service WHERE id=?",
+                Long.class,
+                serviceId);
+        if (arrangementTotal == null || arrangementTotal <= 0) return approvedClaimAmountCents;
+        Long alreadyAllocated = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(amount_cents),0) FROM funeral_service_invoice "
+                        + "WHERE funeral_service_id=? "
+                        + "AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY') "
+                        + "AND (group_society_claim_id IS NULL OR group_society_claim_id<>?)",
+                Long.class,
+                serviceId,
+                claimId);
+        return capCoverageInvoiceAmount(
+                approvedClaimAmountCents, arrangementTotal, alreadyAllocated == null ? 0L : alreadyAllocated);
     }
 
     private Map<String, Object> createCoverageInvoice(

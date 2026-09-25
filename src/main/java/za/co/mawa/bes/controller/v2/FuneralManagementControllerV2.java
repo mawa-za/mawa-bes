@@ -305,11 +305,24 @@ public class FuneralManagementControllerV2 {
     }
 
     @PostMapping(value = "/service-request/{id}/group-society-cover", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> submitGroupSocietyCover(
+    public ResponseEntity<?> createGroupSocietyCoverDraft(
             @PathVariable String id,
             @RequestBody za.co.mawa.bes.dto.v2.group.GroupSocietyFuneralClaimRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(groupSocietyFuneralClaimService.submit(id, request));
+                .body(groupSocietyFuneralClaimService.createDraft(id, request));
+    }
+
+    @PostMapping(value = "/service-request/{id}/group-society-cover/{claimId}/submit-for-approval")
+    public ResponseEntity<?> submitGroupSocietyCoverForApproval(
+            @PathVariable String id,
+            @PathVariable String claimId,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        var claim = groupSocietyFuneralClaimService.get(claimId);
+        if (!id.equals(claim.getFuneralServiceId())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Group society funeral claim does not belong to this funeral service request");
+        }
+        return ResponseEntity.ok(groupSocietyFuneralClaimService.submitForApproval(claimId, userId));
     }
 
     @PostMapping(value = "/service-request/{id}/initiate-claims", consumes = MediaType.APPLICATION_JSON_VALUE)

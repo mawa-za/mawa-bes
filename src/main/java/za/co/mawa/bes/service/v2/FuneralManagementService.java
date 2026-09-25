@@ -821,9 +821,14 @@ public class FuneralManagementService {
         }
         createGroceryClaimForFuneral(service, groceryCover, request);
 
-        service.setStatus("CLAIMS_INITIATED");
-        service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 4));
-        funeralServiceRepository.save(service);
+        // Funding is independent from the arrangement lifecycle. A late claim
+        // may be initiated after final invoices already exist; never move an
+        // INVOICED funeral backwards to CLAIMS_INITIATED.
+        if (!"INVOICED".equalsIgnoreCase(defaultString(service.getStatus(), ""))) {
+            service.setStatus("CLAIMS_INITIATED");
+            service.setWizardStep(Math.max(defaultInt(service.getWizardStep()), 4));
+            funeralServiceRepository.save(service);
+        }
         return response;
     }
 
