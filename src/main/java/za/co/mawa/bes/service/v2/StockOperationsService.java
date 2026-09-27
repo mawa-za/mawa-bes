@@ -25,11 +25,13 @@ public class StockOperationsService {
     private final JdbcTemplate jdbcTemplate;
     private final NumberRangeService numberRangeService;
     private final InvoiceService invoiceService;
+    private final InventoryPostingService inventoryPostingService;
 
-    public StockOperationsService(JdbcTemplate jdbcTemplate, NumberRangeService numberRangeService, InvoiceService invoiceService) {
+    public StockOperationsService(JdbcTemplate jdbcTemplate, NumberRangeService numberRangeService, InvoiceService invoiceService, InventoryPostingService inventoryPostingService) {
         this.jdbcTemplate = jdbcTemplate;
         this.numberRangeService = numberRangeService;
         this.invoiceService = invoiceService;
+        this.inventoryPostingService = inventoryPostingService;
     }
 
     public List<Map<String, Object>> getWarehouses(String status) {
@@ -411,6 +413,14 @@ public class StockOperationsService {
         LocationProfile receiptLocation = requireActiveLocation(warehouseId, locationId);
         LocalDate receiptDate = request.getReceiptDate() == null ? LocalDate.now() : request.getReceiptDate();
         AmountTotals totals = goodsReceiptTotals(request.getLines());
+        InventoryDtos.PostingRequest inventoryPosting = new InventoryDtos.PostingRequest();
+        inventoryPosting.setMovementType(hasText(request.getPurchaseOrderId()) ? "GOODS_RECEIPT_PO" : "GOODS_RECEIPT_DIRECT");
+        inventoryPosting.setReferenceType("GOODS_RECEIPT");
+        inventoryPosting.setReferenceId(receiptId);
+        inventoryPosting.setReferenceNo(receiptNo);
+        inventoryPosting.setPostingDate(receiptDate);
+        inventoryPosting.setIdempotencyKey("GOODS_RECEIPT:" + receiptId);
+        inventoryPosting.setNotes(request.getNotes());
 
         jdbcTemplate.update("INSERT INTO goods_receipt (id, receipt_no, purchase_order_id, purchase_order_no, supplier_partner_id, supplier_reference, warehouse_id, storage_location_id, receipt_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 receiptId, receiptNo, request.getPurchaseOrderId(), request.getPurchaseOrderNo(), request.getSupplierPartnerId(), request.getSupplierReference(), warehouseId, locationId, Date.valueOf(receiptDate), "RECEIVED", "ZAR", totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
@@ -436,8 +446,17 @@ public class StockOperationsService {
             jdbcTemplate.update("INSERT INTO goods_receipt_line (id, goods_receipt_id, line_no, purchase_order_line_id, product_id, quantity, open_putaway_qty, uom, batch_no, expiry_date, unit_cost, tax_rate, line_subtotal, line_tax, line_total, received_value, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     lineId, receiptId, lineNo, line.getPurchaseOrderLineId(), productId, qty, openPutawayQty, defaultText(line.getUom(), "EA"), line.getBatchNo(), line.getExpiryDate() == null ? null : Date.valueOf(line.getExpiryDate()), unitCost, taxRate, lineSubtotal, lineTax, lineTotal, lineTotal, nowTs(), userId);
             if (product.type().isStockControlled()) {
-                applyBalance(productId, warehouseId, locationId, qty, BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
-                createMovement("GOODS_RECEIPT", receiptId, receiptNo, productId, warehouseId, null, locationId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId, "Goods receipt " + receiptNo);
+                InventoryDtos.PostingLineRequest postingLine = new InventoryDtos.PostingLineRequest();
+                postingLine.setProductId(productId);
+                postingLine.setWarehouseId(warehouseId);
+                postingLine.setDestinationWarehouseId(warehouseId);
+                postingLine.setDestinationLocationId(locationId);
+                postingLine.setDestinationStockStatus(receiptLocation.requiresQualityRelease() ? "QUALITY" : "UNRESTRICTED");
+                postingLine.setQuantity(qty);
+                postingLine.setUom(defaultText(line.getUom(), "EA"));
+                postingLine.setBatchNo(line.getBatchNo());
+                postingLine.setUnitCost(unitCost);
+                inventoryPosting.getLines().add(postingLine);
             } else {
                 audit("PRODUCT", productId, "ASSET_RECEIPT", null, qty.toPlainString(), userId, "Register received asset through Asset Management");
             }
@@ -447,6 +466,7 @@ public class StockOperationsService {
             }
             lineNo += 10;
         }
+        if (!inventoryPosting.getLines().isEmpty()) inventoryPostingService.post(inventoryPosting);
         if (hasText(request.getPurchaseOrderId())) refreshPurchaseOrderReceiptStatus(request.getPurchaseOrderId(), userId);
         audit("GOODS_RECEIPT", receiptId, "CREATE", null, null, userId, receiptNo);
         return getGoodsReceipt(receiptId);
@@ -478,6 +498,14 @@ public class StockOperationsService {
             throw new IllegalArgumentException("Storage location " + destination.code() + " does not allow putaway");
         }
         LocalDate movementDate = request.getMovementDate() == null ? LocalDate.now() : request.getMovementDate();
+        InventoryDtos.PostingRequest inventoryPosting = new InventoryDtos.PostingRequest();
+        inventoryPosting.setMovementType("PUTAWAY");
+        inventoryPosting.setReferenceType("PUTAWAY");
+        inventoryPosting.setReferenceId(putawayId);
+        inventoryPosting.setReferenceNo(putawayNo);
+        inventoryPosting.setPostingDate(movementDate);
+        inventoryPosting.setIdempotencyKey("PUTAWAY:" + putawayId);
+        inventoryPosting.setNotes(request.getNotes());
         jdbcTemplate.update("INSERT INTO putaway (id, putaway_no, goods_receipt_id, warehouse_id, from_location_id, to_location_id, movement_date, status, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 putawayId, putawayNo, request.getGoodsReceiptId(), warehouseId, fromLocationId, toLocationId, Date.valueOf(movementDate), "COMPLETED", request.getNotes(), nowTs(), userId, nowTs(), userId);
         int lineNo = 10;
@@ -488,14 +516,25 @@ public class StockOperationsService {
             String lineId = uuid();
             jdbcTemplate.update("INSERT INTO putaway_line (id, putaway_id, line_no, goods_receipt_line_id, product_id, quantity, uom, batch_no, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)",
                     lineId, putawayId, lineNo, line.getGoodsReceiptLineId(), productId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), nowTs(), userId);
-            applyBalance(productId, warehouseId, fromLocationId, qty.negate(), BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
-            applyBalance(productId, warehouseId, toLocationId, qty, BigDecimal.ZERO, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId);
+            InventoryDtos.PostingLineRequest postingLine = new InventoryDtos.PostingLineRequest();
+            postingLine.setProductId(productId);
+            postingLine.setWarehouseId(warehouseId);
+            postingLine.setSourceWarehouseId(warehouseId);
+            postingLine.setDestinationWarehouseId(warehouseId);
+            postingLine.setSourceLocationId(fromLocationId);
+            postingLine.setDestinationLocationId(toLocationId);
+            postingLine.setSourceStockStatus("UNRESTRICTED");
+            postingLine.setDestinationStockStatus("UNRESTRICTED");
+            postingLine.setQuantity(qty);
+            postingLine.setUom(defaultText(line.getUom(), "EA"));
+            postingLine.setBatchNo(line.getBatchNo());
+            inventoryPosting.getLines().add(postingLine);
             if (hasText(line.getGoodsReceiptLineId())) {
                 jdbcTemplate.update("UPDATE goods_receipt_line SET open_putaway_qty = GREATEST(open_putaway_qty - ?, 0) WHERE id = ?", qty, line.getGoodsReceiptLineId());
             }
-            createMovement("PUTAWAY", putawayId, putawayNo, productId, warehouseId, fromLocationId, toLocationId, qty, defaultText(line.getUom(), "EA"), line.getBatchNo(), userId, "Putaway " + putawayNo);
             lineNo += 10;
         }
+        inventoryPostingService.post(inventoryPosting);
         audit("PUTAWAY", putawayId, "CREATE", null, null, userId, putawayNo);
         return getPutaway(putawayId);
     }
@@ -683,6 +722,34 @@ public class StockOperationsService {
         return response;
     }
 
+    public StockDtos.StockDashboardResponse dashboard(List<String> warehouseIds) {
+        if (warehouseIds == null || warehouseIds.isEmpty()) return dashboard();
+        String in = String.join(",", Collections.nCopies(warehouseIds.size(), "?"));
+        Object[] args = warehouseIds.toArray();
+        StockDtos.StockDashboardResponse response = new StockDtos.StockDashboardResponse();
+        response.setTotalStockQuantity(jdbcTemplate.queryForObject("SELECT COALESCE(SUM(on_hand_qty),0) FROM stock_balance WHERE warehouse_id IN ("+in+")", BigDecimal.class, args));
+        response.setProductCount(jdbcTemplate.queryForObject("SELECT COUNT(DISTINCT product_id) FROM stock_balance WHERE on_hand_qty<>0 AND warehouse_id IN ("+in+")", Integer.class, args));
+        response.setLowStockCount(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM stock_balance WHERE on_hand_qty<=minimum_qty AND warehouse_id IN ("+in+")", Integer.class, args));
+        response.setGoodsReceiptsToday(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM goods_receipt WHERE DATE(created_at)=CURRENT_DATE AND warehouse_id IN ("+in+")", Integer.class, args));
+        response.setStockMovementsToday(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM stock_movement WHERE DATE(movement_at)=CURRENT_DATE AND (COALESCE(source_warehouse_id,warehouse_id) IN ("+in+") OR COALESCE(destination_warehouse_id,warehouse_id) IN ("+in+"))", Integer.class, concat(args,args)));
+        response.setOpenSalesOrders(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_order WHERE status IN ('OPEN','PARTIAL','RESERVED','BACKORDER') AND warehouse_id IN ("+in+")", Integer.class, args));
+        response.setOpenQuotations(0);
+        response.setOpenPurchaseOrders(0);
+        response.setPendingPutaways(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM goods_receipt_line l JOIN goods_receipt gr ON gr.id=l.goods_receipt_id WHERE l.open_putaway_qty>0 AND gr.warehouse_id IN ("+in+")", Integer.class, args));
+        response.setActiveWarehouses(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM warehouse WHERE status='ACTIVE' AND id IN ("+in+")", Integer.class, args));
+        response.setStockByWarehouse(jdbcTemplate.queryForList("SELECT w.id AS warehouse_id,w.warehouse_code,w.name,COALESCE(SUM(b.on_hand_qty),0) AS on_hand_qty FROM warehouse w LEFT JOIN stock_balance b ON b.warehouse_id=w.id WHERE w.id IN ("+in+") GROUP BY w.id,w.warehouse_code,w.name ORDER BY w.warehouse_code", args));
+        response.setLowStock(jdbcTemplate.queryForList("SELECT b.*,p.code AS product_code,p.description AS product_description,w.warehouse_code,l.location_code FROM stock_balance b LEFT JOIN product p ON p.id=b.product_id LEFT JOIN warehouse w ON w.id=b.warehouse_id LEFT JOIN storage_location l ON l.id=b.storage_location_id WHERE b.on_hand_qty<=b.minimum_qty AND b.warehouse_id IN ("+in+") ORDER BY p.code LIMIT 50", args));
+        response.setRecentMovements(jdbcTemplate.queryForList("SELECT m.*,p.code AS product_code,p.description AS product_description FROM stock_movement m LEFT JOIN product p ON p.id=m.product_id WHERE COALESCE(m.source_warehouse_id,m.warehouse_id) IN ("+in+") OR COALESCE(m.destination_warehouse_id,m.warehouse_id) IN ("+in+") ORDER BY m.movement_at DESC LIMIT 20", concat(args,args)));
+        response.setUserActivity(List.of());
+        return response;
+    }
+
+    private Object[] concat(Object[] first, Object[] second) {
+        Object[] result = Arrays.copyOf(first, first.length + second.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
+    }
+
     public List<Map<String, Object>> auditTrail(String entityType, String entityId) {
         StringBuilder sql = new StringBuilder("SELECT * FROM stock_audit_log WHERE 1=1");
         List<Object> args = new ArrayList<>();
@@ -773,31 +840,37 @@ public class StockOperationsService {
         boolean hasMappedReservations = queryInt(
                 "SELECT COUNT(*) FROM sales_order_stock_reservation WHERE sales_order_line_id=? AND reserved_qty>0",
                 salesOrderLineId) > 0;
-        StringBuilder sql = new StringBuilder("SELECT b.id, b.on_hand_qty, b.reserved_qty, b.available_qty, COALESCE(r.reserved_qty,0) AS order_reserved_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_picking=1 AND t.available_for_issue=1 LEFT JOIN sales_order_stock_reservation r ON r.stock_balance_id=b.id AND r.sales_order_line_id=? WHERE b.product_id = ? AND b.warehouse_id = ? AND b.on_hand_qty > 0");
+        StringBuilder sql = new StringBuilder("SELECT b.id,b.storage_location_id,b.batch_no,b.stock_status,b.uom,b.unit_cost,b.on_hand_qty,b.reserved_qty,b.available_qty,COALESCE(r.reserved_qty,0) AS order_reserved_qty FROM stock_balance b JOIN storage_location l ON l.id=b.storage_location_id AND UPPER(COALESCE(l.status,'ACTIVE'))='ACTIVE' JOIN storage_location_type t ON t.code=l.location_type AND t.active=1 AND t.allow_picking=1 AND t.available_for_issue=1 LEFT JOIN sales_order_stock_reservation r ON r.stock_balance_id=b.id AND r.sales_order_line_id=? WHERE b.product_id=? AND b.warehouse_id=? AND b.on_hand_qty>0");
         List<Object> args = new ArrayList<>();
-        args.add(salesOrderLineId);
-        args.add(productId);
-        args.add(warehouseId);
-        if (hasText(storageLocationId)) { sql.append(" AND b.storage_location_id = ?"); args.add(storageLocationId); }
-        sql.append(" ORDER BY order_reserved_qty DESC, available_qty DESC, reserved_qty DESC");
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        args.add(salesOrderLineId); args.add(productId); args.add(warehouseId);
+        if (hasText(storageLocationId)) { sql.append(" AND b.storage_location_id=?"); args.add(storageLocationId); }
+        sql.append(" ORDER BY order_reserved_qty DESC,available_qty DESC,reserved_qty DESC FOR UPDATE");
+        List<Map<String,Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         BigDecimal remaining = quantity;
-        for (Map<String, Object> row : rows) {
+        InventoryDtos.PostingRequest posting = new InventoryDtos.PostingRequest();
+        posting.setMovementType("SALES_ISSUE"); posting.setReferenceType("SALES_ORDER_LINE"); posting.setReferenceId(salesOrderLineId);
+        BigDecimal alreadyIssued = queryBigDecimal("SELECT COALESCE(issued_qty,0) FROM sales_order_line WHERE id=?", salesOrderLineId);
+        posting.setIdempotencyKey("SALES_ORDER_ISSUE:" + salesOrderLineId + ":" + alreadyIssued.toPlainString() + ":" + quantity.toPlainString());
+        for (Map<String,Object> row : rows) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
-            BigDecimal onHand = decimal(row.get("on_hand_qty"));
-            BigDecimal reserved = decimal(row.get("reserved_qty"));
-            BigDecimal available = decimal(row.get("available_qty"));
-            BigDecimal orderReserved = decimal(row.get("order_reserved_qty")).min(reserved);
-            BigDecimal eligible = hasMappedReservations ? orderReserved.add(available) : onHand;
-            BigDecimal take = eligible.min(onHand).min(remaining);
-            if (take.compareTo(BigDecimal.ZERO) <= 0) continue;
-            BigDecimal reservedTake = hasMappedReservations ? orderReserved.min(take) : reserved.min(take);
-            BigDecimal availableTake = take.subtract(reservedTake);
-            jdbcTemplate.update("UPDATE stock_balance SET on_hand_qty = GREATEST(on_hand_qty - ?, 0), reserved_qty = GREATEST(reserved_qty - ?, 0), available_qty = GREATEST(available_qty - ?, 0), last_movement_at = ?, updated_at = ?, updated_by = ? WHERE id = ?",
-                    take, reservedTake, availableTake, nowTs(), nowTs(), userId, row.get("id"));
-            remaining = remaining.subtract(take);
+            BigDecimal onHand=decimal(row.get("on_hand_qty")); BigDecimal reserved=decimal(row.get("reserved_qty")); BigDecimal available=decimal(row.get("available_qty"));
+            BigDecimal orderReserved=decimal(row.get("order_reserved_qty")).min(reserved);
+            BigDecimal eligible=hasMappedReservations ? orderReserved.add(available) : available;
+            BigDecimal take=eligible.min(onHand).min(remaining);
+            if (take.compareTo(BigDecimal.ZERO)<=0) continue;
+            BigDecimal reservedTake=hasMappedReservations ? orderReserved.min(take) : BigDecimal.ZERO;
+            if (reservedTake.compareTo(BigDecimal.ZERO)>0) {
+                jdbcTemplate.update("UPDATE stock_balance SET reserved_qty=GREATEST(reserved_qty-?,0),available_qty=available_qty+?,updated_at=?,updated_by=? WHERE id=?", reservedTake,reservedTake,nowTs(),userId,row.get("id"));
+            }
+            InventoryDtos.PostingLineRequest line=new InventoryDtos.PostingLineRequest();
+            line.setProductId(productId); line.setSourceWarehouseId(warehouseId); line.setSourceLocationId(text(row.get("storage_location_id")));
+            line.setSourceStockStatus(defaultText(text(row.get("stock_status")),"UNRESTRICTED")); line.setBatchNo(text(row.get("batch_no")));
+            line.setQuantity(take); line.setUom(defaultText(text(row.get("uom")),"EA")); line.setUnitCost(decimal(row.get("unit_cost")));
+            posting.getLines().add(line);
+            remaining=remaining.subtract(take);
         }
-        if (remaining.compareTo(BigDecimal.ZERO) > 0) throw new IllegalArgumentException("Insufficient unreserved or layby-reserved stock to issue product " + productId);
+        if (remaining.compareTo(BigDecimal.ZERO)>0) throw new IllegalArgumentException("Insufficient unreserved or sales-order-reserved stock to issue product " + productId);
+        inventoryPostingService.post(posting);
         jdbcTemplate.update("DELETE FROM sales_order_stock_reservation WHERE sales_order_line_id=?", salesOrderLineId);
     }
 
