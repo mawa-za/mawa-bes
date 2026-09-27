@@ -43,7 +43,13 @@ public enum ApprovalType {
     MEMBERSHIP_STATUS_CHANGE,
     MEMBERSHIP_DATE_CHANGE,
     LAYBY_CANCELLATION,
-    LAYBY_REFUND;
+    LAYBY_REFUND,
+    INVENTORY_ADJUSTMENT,
+    STOCKTAKE_VARIANCE,
+    STOCK_WRITE_OFF,
+    STOCK_REVERSAL,
+    WAREHOUSE_TRANSFER,
+    SUPPLIER_RETURN;
 
     public boolean isMembershipClaimApproval() {
         return this == CLAIM
