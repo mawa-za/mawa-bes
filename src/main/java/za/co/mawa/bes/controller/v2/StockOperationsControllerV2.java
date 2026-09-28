@@ -1,9 +1,12 @@
 package za.co.mawa.bes.controller.v2;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.dto.v2.stock.StockDtos;
 import za.co.mawa.bes.service.v2.StockOperationsService;
+import za.co.mawa.bes.service.v2.QuotationPdfService;
 
 import java.util.List;
 import java.util.Map;
@@ -13,9 +16,11 @@ import java.util.Map;
 @RequestMapping("/v2")
 public class StockOperationsControllerV2 {
     private final StockOperationsService stockOperationsService;
+    private final QuotationPdfService quotationPdfService;
 
-    public StockOperationsControllerV2(StockOperationsService stockOperationsService) {
+    public StockOperationsControllerV2(StockOperationsService stockOperationsService, QuotationPdfService quotationPdfService) {
         this.stockOperationsService = stockOperationsService;
+        this.quotationPdfService = quotationPdfService;
     }
 
     @GetMapping("/stock/dashboard")
@@ -84,6 +89,16 @@ public class StockOperationsControllerV2 {
     @GetMapping("/quotations/{id}")
     public ResponseEntity<Map<String, Object>> quotation(@PathVariable String id) {
         return ResponseEntity.ok(stockOperationsService.getQuotation(id));
+    }
+
+    @GetMapping(value = "/quotations/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> quotationPdf(@PathVariable String id) {
+        Map<String, Object> quotation = stockOperationsService.getQuotation(id);
+        String number = String.valueOf(quotation.getOrDefault("quotation_no", "quotation"));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + number + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(quotationPdfService.generate(id));
     }
 
     @PutMapping("/quotations/{id}")
