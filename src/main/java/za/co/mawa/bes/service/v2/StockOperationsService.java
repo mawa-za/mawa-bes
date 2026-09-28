@@ -110,6 +110,14 @@ public class StockOperationsService {
     // ---------------------------------------------------------------------
     // Quotations
     // ---------------------------------------------------------------------
+    public List<Map<String, Object>> getProductBundles() {
+        List<Map<String, Object>> bundles = jdbcTemplate.queryForList("SELECT b.*, p.code AS main_product_code, p.description AS main_product_description, p.uom AS main_product_uom, COALESCE((SELECT pp.value FROM product_pricing pp WHERE pp.product=b.main_product_id AND pp.pricing='SELLING-PRICE' AND (pp.valid_from IS NULL OR pp.valid_from<=CURRENT_DATE) AND (pp.valid_to IS NULL OR pp.valid_to>=CURRENT_DATE) ORDER BY pp.valid_from DESC LIMIT 1),0) AS bundle_price FROM product_bundle b JOIN product p ON p.id=b.main_product_id WHERE b.active=1 ORDER BY b.name");
+        for (Map<String, Object> bundle : bundles) {
+            bundle.put("items", jdbcTemplate.queryForList("SELECT bi.*, p.code AS product_code, p.description AS product_description, p.uom FROM product_bundle_item bi JOIN product p ON p.id=bi.product_id WHERE bi.product_bundle_id=? ORDER BY bi.position, p.description", bundle.get("id")));
+        }
+        return bundles;
+    }
+
     @Transactional
     public Map<String, Object> createQuotation(StockDtos.QuotationRequest request, String userId) {
         if (request == null) throw new IllegalArgumentException("Request is required");
@@ -118,8 +126,8 @@ public class StockOperationsService {
         String quotationNo = nextNumber("QUOTATION", "QT");
         LocalDate quotationDate = request.getQuotationDate() == null ? LocalDate.now() : request.getQuotationDate();
         AmountTotals totals = totals(request.getLines());
-        jdbcTemplate.update("INSERT INTO quotation (id, quotation_no, customer_partner_id, customer_reference, source_type, source_id, quotation_date, valid_until, requested_delivery_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                id, quotationNo, request.getCustomerPartnerId(), request.getCustomerReference(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()), toSqlDate(request.getRequestedDeliveryDate()), defaultText(request.getStatus(), "DRAFT").toUpperCase(), defaultText(request.getCurrency(), "ZAR"), totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
+        jdbcTemplate.update("INSERT INTO quotation (id, quotation_no, customer_partner_id, customer_reference, title, summary, source_type, source_id, quotation_date, valid_until, requested_delivery_date, status, currency, subtotal_amount, tax_amount, total_amount, notes, created_at, created_by, updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                id, quotationNo, request.getCustomerPartnerId(), request.getCustomerReference(), request.getTitle(), request.getSummary(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()), toSqlDate(request.getRequestedDeliveryDate()), defaultText(request.getStatus(), "DRAFT").toUpperCase(), defaultText(request.getCurrency(), "ZAR"), totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, nowTs(), userId);
         int lineNo = 10;
         for (StockDtos.CommercialLineRequest line : request.getLines()) {
             String productId = resolveProductId(line.getProductId(), line.getProductCode());
@@ -129,8 +137,8 @@ public class StockOperationsService {
             BigDecimal taxRate = percent(line.getTaxRate());
             BigDecimal lineSubtotal = unitPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
             BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-            jdbcTemplate.update("INSERT INTO quotation_line (id, quotation_id, line_no, product_id, product_description, quantity, uom, unit_price, tax_rate, line_subtotal, line_tax, line_total, notes, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    uuid(), id, lineNo, productId, line.getDescription(), qty, defaultText(line.getUom(), "EA"), unitPrice, taxRate, lineSubtotal, lineTax, lineSubtotal.add(lineTax), line.getNotes(), nowTs(), userId);
+            jdbcTemplate.update("INSERT INTO quotation_line (id, quotation_id, line_no, product_id, product_description, quantity, uom, unit_price, tax_rate, line_subtotal, line_tax, line_total, notes, product_bundle_id, bundle_role, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    uuid(), id, lineNo, productId, line.getDescription(), qty, defaultText(line.getUom(), "EA"), unitPrice, taxRate, lineSubtotal, lineTax, lineSubtotal.add(lineTax), line.getNotes(), line.getProductBundleId(), line.getBundleRole(), nowTs(), userId);
             lineNo += 10;
         }
         audit("QUOTATION", id, "CREATE", null, null, userId, quotationNo);
@@ -174,8 +182,8 @@ public class StockOperationsService {
                 ? dateValue(current.get("quotation_date"), LocalDate.now())
                 : request.getQuotationDate();
         String status = hasText(request.getStatus()) ? request.getStatus().trim().toUpperCase(Locale.ROOT) : currentStatus;
-        jdbcTemplate.update("UPDATE quotation SET customer_partner_id=?, customer_reference=?, source_type=COALESCE(?,source_type), source_id=COALESCE(?,source_id), quotation_date=?, valid_until=?, requested_delivery_date=?, status=?, currency=?, subtotal_amount=?, tax_amount=?, total_amount=?, notes=?, updated_at=?, updated_by=? WHERE id=?",
-                request.getCustomerPartnerId(), request.getCustomerReference(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()),
+        jdbcTemplate.update("UPDATE quotation SET customer_partner_id=?, customer_reference=?, title=?, summary=?, source_type=COALESCE(?,source_type), source_id=COALESCE(?,source_id), quotation_date=?, valid_until=?, requested_delivery_date=?, status=?, currency=?, subtotal_amount=?, tax_amount=?, total_amount=?, notes=?, updated_at=?, updated_by=? WHERE id=?",
+                request.getCustomerPartnerId(), request.getCustomerReference(), request.getTitle(), request.getSummary(), request.getSourceType(), request.getSourceId(), Date.valueOf(quotationDate), toSqlDate(request.getValidUntil()),
                 toSqlDate(request.getRequestedDeliveryDate()), status, defaultText(request.getCurrency(), defaultText(text(current.get("currency")), "ZAR")),
                 totals.subtotal, totals.tax, totals.total, request.getNotes(), nowTs(), userId, id);
 
@@ -189,8 +197,8 @@ public class StockOperationsService {
             BigDecimal taxRate = percent(line.getTaxRate());
             BigDecimal lineSubtotal = unitPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
             BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-            jdbcTemplate.update("INSERT INTO quotation_line (id, quotation_id, line_no, product_id, product_description, quantity, uom, unit_price, tax_rate, line_subtotal, line_tax, line_total, notes, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    uuid(), id, lineNo, productId, line.getDescription(), qty, defaultText(line.getUom(), "EA"), unitPrice, taxRate, lineSubtotal, lineTax, lineSubtotal.add(lineTax), line.getNotes(), nowTs(), userId);
+            jdbcTemplate.update("INSERT INTO quotation_line (id, quotation_id, line_no, product_id, product_description, quantity, uom, unit_price, tax_rate, line_subtotal, line_tax, line_total, notes, product_bundle_id, bundle_role, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    uuid(), id, lineNo, productId, line.getDescription(), qty, defaultText(line.getUom(), "EA"), unitPrice, taxRate, lineSubtotal, lineTax, lineSubtotal.add(lineTax), line.getNotes(), line.getProductBundleId(), line.getBundleRole(), nowTs(), userId);
             lineNo += 10;
         }
         audit("QUOTATION", id, "UPDATE", null, null, userId, text(current.get("quotation_no")));

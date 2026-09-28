@@ -20,12 +20,16 @@ public class StockDtos {
         private BigDecimal unitPrice;
         private BigDecimal taxRate;
         private String notes;
+        private String productBundleId;
+        private String bundleRole;
     }
 
     @Data
     public static class QuotationRequest {
         private String customerPartnerId;
         private String customerReference;
+        private String title;
+        private String summary;
         private String sourceType;
         private String sourceId;
         private LocalDate quotationDate;
