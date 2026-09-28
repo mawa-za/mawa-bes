@@ -74,6 +74,11 @@ public class StockOperationsControllerV2 {
         return ResponseEntity.ok(stockOperationsService.getMovements(productId, null, null, null, null, null));
     }
 
+    @GetMapping("/product-bundles")
+    public ResponseEntity<List<Map<String, Object>>> productBundles() {
+        return ResponseEntity.ok(stockOperationsService.getProductBundles());
+    }
+
     @PostMapping("/quotations")
     public ResponseEntity<Map<String, Object>> createQuotation(@RequestBody StockDtos.QuotationRequest request,
                                                                @RequestHeader(value = "X-User-Id", required = false) String userId) {

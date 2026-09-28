@@ -32,6 +32,7 @@ import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.MembershipClaimType;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -230,6 +231,7 @@ public class FuneralManagementService {
         entity.setInclusionsJson("[]");
         entity.setActive(request.getActive() == null || request.getActive());
         entity = funeralPackageRepository.save(entity);
+        ensurePackageMainProduct(entity, request.getProductCode());
         replacePackageItems(entity, request.getProducts());
         return attachPackageItems(entity);
     }
@@ -248,6 +250,7 @@ public class FuneralManagementService {
             entity.setActive(request.getActive());
         }
         entity = funeralPackageRepository.save(entity);
+        ensurePackageMainProduct(entity, request.getProductCode());
         replacePackageItems(entity, request.getProducts());
         return attachPackageItems(entity);
     }
@@ -316,6 +319,54 @@ public class FuneralManagementService {
         funeralPackageItemRepository.flush();
         funeralPackageItemRepository.saveAllAndFlush(replacements);
         funeralPackageRepository.save(funeralPackage);
+        syncProductBundle(funeralPackage, replacements);
+    }
+
+    /** Keeps the generic Product Bundle model canonical for all new consumers while
+     * legacy funeral-service references continue to use funeral_package.id. */
+    private void ensurePackageMainProduct(FuneralPackageEntity funeralPackage, String requestedCode) {
+        za.co.mawa.bes.entity.ProductEntity product = null;
+        if (funeralPackage.getProductId() != null && !funeralPackage.getProductId().isBlank()) {
+            product = productRepository.findById(funeralPackage.getProductId()).orElse(null);
+        }
+        if (product == null) {
+            String code = requestedCode == null || requestedCode.isBlank()
+                    ? "FP-" + funeralPackage.getId().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT)
+                    : requestedCode.trim().toUpperCase(Locale.ROOT);
+            product = za.co.mawa.bes.entity.ProductEntity.builder()
+                    .code(code).description(funeralPackage.getName()).type("FUNERAL-PACKAGE")
+                    .uom("EA").categoryId("CAT-FUNERAL-PACKAGES")
+                    .availableForSale(Boolean.TRUE.equals(funeralPackage.getActive()))
+                    .validFrom(new java.util.Date()).build();
+            product = productRepository.save(product);
+            funeralPackage.setProductId(product.getId());
+            funeralPackageRepository.save(funeralPackage);
+        } else {
+            product.setDescription(funeralPackage.getName());
+            product.setType("FUNERAL-PACKAGE");
+            product.setUom("EA");
+            product.setCategoryId("CAT-FUNERAL-PACKAGES");
+            product.setAvailableForSale(Boolean.TRUE.equals(funeralPackage.getActive()));
+            productRepository.save(product);
+        }
+    }
+
+    private void syncProductBundle(FuneralPackageEntity funeralPackage, List<FuneralPackageItemEntity> items) {
+        if (funeralPackage.getProductId() == null || funeralPackage.getProductId().isBlank()) return;
+        BigDecimal sellingPrice = BigDecimal.valueOf(defaultLong(funeralPackage.getBasePriceCents()), 2);
+        int pricingUpdated = jdbcTemplate.update("UPDATE product_pricing SET value=?, valid_to='9999-12-31' WHERE pricing='SELLING-PRICE' AND product=?", sellingPrice, funeralPackage.getProductId());
+        if (pricingUpdated == 0) {
+            jdbcTemplate.update("INSERT INTO product_pricing(pricing,product,value,valid_from,valid_to) VALUES ('SELLING-PRICE',?,?,CURRENT_DATE,'9999-12-31')", funeralPackage.getProductId(), sellingPrice);
+        }
+        jdbcTemplate.update("INSERT INTO product_bundle(id,name,bundle_type,main_product_id,active) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),bundle_type=VALUES(bundle_type),main_product_id=VALUES(main_product_id),active=VALUES(active)",
+                funeralPackage.getId(), funeralPackage.getName(), "FUNERAL_PACKAGE", funeralPackage.getProductId(), Boolean.TRUE.equals(funeralPackage.getActive()));
+        jdbcTemplate.update("DELETE FROM product_bundle_item WHERE product_bundle_id=?", funeralPackage.getId());
+        int position = 10;
+        for (FuneralPackageItemEntity item : items) {
+            jdbcTemplate.update("INSERT INTO product_bundle_item(id,product_bundle_id,product_id,quantity,position) VALUES (?,?,?,?,?)",
+                    item.getId(), funeralPackage.getId(), item.getProductId(), item.getQuantity(), position);
+            position += 10;
+        }
     }
 
     private String normalizePackagePricingMode(String pricingMode) {
@@ -331,6 +382,7 @@ public class FuneralManagementService {
         FuneralPackageEntity entity = getFuneralPackageOrThrow(id);
         entity.setActive(false);
         funeralPackageRepository.save(entity);
+        jdbcTemplate.update("UPDATE product_bundle SET active=0 WHERE id=?", id);
     }
 
 
