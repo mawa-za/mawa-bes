@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.dto.InvoiceOutboundDto;
+import za.co.mawa.bes.dto.v2.stock.InventoryDtos;
 import za.co.mawa.bes.dto.v2.stock.StockDtos;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
