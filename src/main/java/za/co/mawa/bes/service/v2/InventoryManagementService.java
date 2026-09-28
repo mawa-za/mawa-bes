@@ -310,7 +310,7 @@ public class InventoryManagementService {
     public Map<String,Object> createStockCount(InventoryDtos.StockCountCreateRequest request){
         access.requireWorkcentre("stock-count");
         String warehouseId=required(request.getWarehouseId(),"warehouseId");access.requireWarehouse(warehouseId);
-        String actor=access.actorId();String id=uuid();String no=nextNumber("INVENTORY_STOCK_COUNT","CNT");
+        String actor=access.actorId();String id=uuid();String no=nextNumber("INV_STOCK_COUNT","CNT");
         boolean blind=request.getBlindCount()==null||request.getBlindCount();boolean freeze=request.getFreezeStock()==null||request.getFreezeStock();
         jdbcTemplate.update("INSERT INTO inventory_stock_count(id,count_no,warehouse_id,storage_location_id,count_type,blind_count,freeze_stock,status,snapshot_at,notes,created_at,created_by,updated_at,updated_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 id,no,warehouseId,empty(request.getStorageLocationId()),defaultText(request.getCountType(),"CYCLE").toUpperCase(Locale.ROOT),blind,freeze,"COUNTING",now(),request.getNotes(),now(),actor,now(),actor);
@@ -384,7 +384,7 @@ public class InventoryManagementService {
         if(StringUtils.hasText(request.getBatchNo())){sql.append(" AND b.batch_no=?");args.add(request.getBatchNo());}
         sql.append(" ORDER BY b.available_qty DESC FOR UPDATE");
         List<Map<String,Object>> rows=jdbcTemplate.queryForList(sql.toString(),args.toArray());
-        BigDecimal remaining=qty; String reservationNo=nextNumber("INVENTORY_RESERVATION","RSV"); String firstId=null;
+        BigDecimal remaining=qty; String reservationNo=nextNumber("INV_RESERVATION","RSV"); String firstId=null;
         for(Map<String,Object> row:rows){
             if(remaining.compareTo(BigDecimal.ZERO)<=0)break;
             BigDecimal available=decimal(row.get("available_qty")); BigDecimal take=available.min(remaining); String id=uuid(); if(firstId==null)firstId=id;
