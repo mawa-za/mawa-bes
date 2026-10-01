@@ -15,6 +15,7 @@ import za.co.mawa.bes.mapper.v2.MembershipPremiumMapper;
 import za.co.mawa.bes.repository.v2.MembershipPremiumRepository;
 import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.service.SettingService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +39,11 @@ public class MembershipPremiumService {
     private final ReceiptRepository receiptRepository;
     private final MembershipPremiumMapper membershipPremiumMapper;
     private final ReceiptMapper receiptMapper;
+    private final SettingService settingService;
+
+    private static final String MEMBERSHIP_SETTINGS = "MEMBERSHIP";
+    private static final String PREMIUM_HISTORY_MONTH_LIMIT = "PREMIUM_HISTORY_MONTH_LIMIT";
+    private static final int DEFAULT_PREMIUM_HISTORY_MONTH_LIMIT = 24;
 
     public MembershipPremiumEntity getById(String premiumId) {
         return membershipPremiumRepository.findById(premiumId)
@@ -361,9 +367,9 @@ public class MembershipPremiumService {
     ) {
         var membership = membershipService.resolveMembership(membershipId);
         List<String> membershipIds = membershipService.membershipIdentifiers(membership.getId());
-        int generated = generateMissingPremiums(membership, updatedBy);
-        List<MembershipPremiumEntity> premiums =
-                membershipPremiumRepository.findForReconciliation(membershipIds);
+        int monthLimit = premiumHistoryMonthLimit();
+        YearMonth lastPeriod = recalculationLastPeriod(membership);
+        YearMonth firstPeriod = lastPeriod.minusMonths(monthLimit - 1L);
         List<ReceiptAllocationEntity> allocations = receiptAllocationRepository
                 .findByMembershipIdInOrderByCreatedAtDesc(membershipIds).stream()
                 .filter(allocation -> allocation.getAllocationType()
@@ -375,8 +381,19 @@ public class MembershipPremiumService {
                                 .filter(Objects::nonNull).distinct().toList())
                 .stream().collect(Collectors.toMap(ReceiptEntity::getId, ReceiptEntity::getStatus));
 
+        // Clean up debt that falls outside the configured history window. A premium
+        // is removed only when there is no genuine POSTED receipt allocation for it.
+        // Receipt/allocation history is never deleted by this operation.
+        int removed = removeOldUnpaidPremiums(
+                membershipIds, firstPeriod, allocations, receiptStatuses);
+
+        int generated = generateMissingPremiums(membership, updatedBy, firstPeriod);
+        List<MembershipPremiumEntity> premiums = membershipPremiumRepository
+                .findForReconciliation(membershipIds).stream()
+                .filter(premium -> isWithinRecalculationWindow(premium, firstPeriod, lastPeriod))
+                .toList();
+
         int corrected = 0;
-        int removed = 0;
         LocalDateTime now = LocalDateTime.now();
         String actor = trim(updatedBy).isEmpty() ? "SYSTEM" : updatedBy.trim();
         String firstValidPeriod = membership.getStartDate() == null
@@ -450,9 +467,49 @@ public class MembershipPremiumService {
                 .build();
     }
 
-    private int generateMissingPremiums(za.co.mawa.bes.entity.v2.MembershipEntity membership, String updatedBy) {
+
+    private int removeOldUnpaidPremiums(
+            List<String> membershipIds,
+            YearMonth firstPeriod,
+            List<ReceiptAllocationEntity> allocations,
+            Map<String, ReceiptStatus> receiptStatuses) {
+        List<MembershipPremiumEntity> oldPremiums = membershipPremiumRepository
+                .findByMembershipIdInOrderByPeriodYYYYMMAsc(membershipIds).stream()
+                .filter(premium -> isBeforeRecalculationWindow(premium, firstPeriod))
+                .toList();
+
+        int removed = 0;
+        for (MembershipPremiumEntity premium : oldPremiums) {
+            boolean hasPostedPayment = allocations.stream()
+                    .filter(allocation -> receiptStatuses.get(allocation.getReceiptId()) == ReceiptStatus.POSTED)
+                    .anyMatch(allocation -> Objects.equals(trim(allocation.getReferenceId()), premium.getId())
+                            || (trim(allocation.getReferenceId()).isEmpty()
+                                && membershipIds.contains(trim(allocation.getMembershipId()))
+                                && Objects.equals(trim(allocation.getPeriodYYYYMM()), trim(premium.getPeriodYYYYMM()))));
+            if (!hasPostedPayment) {
+                membershipPremiumRepository.delete(premium);
+                removed++;
+            }
+        }
+        if (removed > 0) membershipPremiumRepository.flush();
+        return removed;
+    }
+
+    private boolean isBeforeRecalculationWindow(
+            MembershipPremiumEntity premium, YearMonth firstPeriod) {
+        String period = trim(premium.getPeriodYYYYMM());
+        if (!period.matches("\\d{6}")) return false;
+        try {
+            return YearMonth.parse(period, DateTimeFormatter.ofPattern("yyyyMM")).isBefore(firstPeriod);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private int generateMissingPremiums(za.co.mawa.bes.entity.v2.MembershipEntity membership, String updatedBy, YearMonth windowStart) {
         if (membership.getStartDate() == null) return 0;
         YearMonth first = YearMonth.from(membership.getStartDate());
+        if (first.isBefore(windowStart)) first = windowStart;
         YearMonth last = YearMonth.now();
         if (membership.getEndDate() != null) {
             YearMonth end = YearMonth.from(membership.getEndDate());
@@ -489,6 +546,39 @@ public class MembershipPremiumService {
         }
         membershipPremiumRepository.flush();
         return generated;
+    }
+
+    private int premiumHistoryMonthLimit() {
+        String configured = settingService.getSetting(PREMIUM_HISTORY_MONTH_LIMIT, MEMBERSHIP_SETTINGS);
+        if (configured == null || configured.isBlank()) return DEFAULT_PREMIUM_HISTORY_MONTH_LIMIT;
+        try {
+            int value = Integer.parseInt(configured.trim());
+            return value > 0 ? value : DEFAULT_PREMIUM_HISTORY_MONTH_LIMIT;
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_PREMIUM_HISTORY_MONTH_LIMIT;
+        }
+    }
+
+    private YearMonth recalculationLastPeriod(za.co.mawa.bes.entity.v2.MembershipEntity membership) {
+        YearMonth last = YearMonth.now();
+        if (membership.getEndDate() != null) {
+            YearMonth end = YearMonth.from(membership.getEndDate());
+            if (end.isBefore(last)) last = end;
+        }
+        return last;
+    }
+
+    private boolean isWithinRecalculationWindow(
+            MembershipPremiumEntity premium, YearMonth first, YearMonth last) {
+        String period = trim(premium.getPeriodYYYYMM());
+        if (!period.matches("\\d{6}")) return false;
+        YearMonth value;
+        try {
+            value = YearMonth.parse(period, DateTimeFormatter.ofPattern("yyyyMM"));
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        return !value.isBefore(first) && !value.isAfter(last);
     }
 
     private long safe(Long value) {
