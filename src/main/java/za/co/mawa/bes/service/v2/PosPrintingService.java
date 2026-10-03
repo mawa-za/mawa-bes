@@ -51,6 +51,7 @@ public class PosPrintingService {
     private static final long PRINTER_DISCOVERY_OFFLINE_GRACE_SECONDS = 120L;
 
     private final PosPrintAgentRepository agentRepository;
+    private final za.co.mawa.bes.service.PlatformPrintAgentClient platformPrintAgentClient;
     private final PosPrinterRepository printerRepository;
     private final PosTerminalRepository terminalRepository;
     private final PosPrintEnrollmentRepository enrollmentRepository;
@@ -104,28 +105,12 @@ public class PosPrintingService {
             throw new SecurityException("Enrollment code has expired");
         }
 
-        String secret = randomSecret();
-        PosPrintAgentEntity agent = agentRepository.save(PosPrintAgentEntity.builder()
-                .agentSecretHash(hash(secret))
-                .name(enrollment.getAgentName())
-                .location(enrollment.getLocation())
-                .machineName(trim(request.getMachineName()))
-                .osName(trim(request.getOsName()))
-                .osVersion(trim(request.getOsVersion()))
-                .agentVersion(trim(request.getAgentVersion()))
-                .lastIpAddress(remoteIp)
-                .lastHeartbeatAt(LocalDateTime.now())
-                .build());
+        AgentEnrollResponse response = platformPrintAgentClient.register(
+                enrollment.getAgentName(), enrollment.getLocation(), request, remoteIp);
 
         enrollment.setUsedAt(LocalDateTime.now());
         enrollmentRepository.save(enrollment);
-
-        return AgentEnrollResponse.builder()
-                .agentId(agent.getId())
-                .agentSecret(secret)
-                .agentName(agent.getName())
-                .location(agent.getLocation())
-                .build();
+        return response;
     }
 
     @Transactional
@@ -204,7 +189,7 @@ public class PosPrintingService {
 
     @Transactional(readOnly = true)
     public List<AgentResponse> listAgents() {
-        return agentRepository.findAllByOrderByNameAsc().stream().map(this::agentDto).toList();
+        return platformPrintAgentClient.list();
     }
 
     @Transactional(readOnly = true)
@@ -285,22 +270,14 @@ public class PosPrintingService {
             throw new IllegalArgumentException("Agent is required");
         }
 
-        PosPrintAgentEntity agent = agentRepository.findById(request.getAgentId())
-                .orElseThrow(() -> new IllegalArgumentException("Agent not found"));
-        if (!"ACTIVE".equals(agent.getStatus())) {
-            throw new IllegalArgumentException("Agent is not active");
-        }
-
-        if (StringUtils.hasText(request.getDefaultReceiptPrinterId())) {
-            validatePrinterAssignment(request.getDefaultReceiptPrinterId(), agent.getId());
-        }
-        if (StringUtils.hasText(request.getDefaultDocumentPrinterId())) {
-            validatePrinterAssignment(request.getDefaultDocumentPrinterId(), agent.getId());
-        }
+        AgentResponse agent = platformPrintAgentClient.list().stream()
+                .filter(item -> request.getAgentId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Platform print agent not found"));
+        if (!"ACTIVE".equals(agent.getStatus())) throw new IllegalArgumentException("Agent is not active");
 
         terminal.setAgentId(agent.getId());
-        terminal.setDefaultReceiptPrinterId(trim(request.getDefaultReceiptPrinterId()));
-        terminal.setDefaultDocumentPrinterId(trim(request.getDefaultDocumentPrinterId()));
+        terminal.setDefaultReceiptPrinterId(null);
+        terminal.setDefaultDocumentPrinterId(null);
         terminal.setUpdatedAt(LocalDateTime.now());
         return terminalDto(terminalRepository.save(terminal));
     }
@@ -319,19 +296,11 @@ public class PosPrintingService {
 
     @Transactional
     public void revokeAgent(String agentId) {
-        PosPrintAgentEntity agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("Agent not found"));
-        agent.setStatus("REVOKED");
-        agent.setUpdatedAt(LocalDateTime.now());
-        agentRepository.save(agent);
-        jobRepository.failOpenForAgent(agentId, LocalDateTime.now(), "Print agent was revoked");
-
-        for (PosPrinterEntity printer : printerRepository.findByAgentIdOrderByDisplayNameAsc(agentId)) {
-            printer.setStatus("OFFLINE");
-            printer.setUpdatedAt(LocalDateTime.now());
-            printerRepository.save(printer);
-        }
+        platformPrintAgentClient.revoke(agentId);
+        jobRepository.failOpenForAgent(agentId, LocalDateTime.now(), "Platform print agent was revoked");
     }
+
+
 
     @Transactional
     public PrintJobResponse queueReceipt(String receiptId, QueueReceiptRequest request) {
@@ -342,8 +311,7 @@ public class PosPrintingService {
             // The first print is deterministic, so double-clicks and HTTP retries cannot create duplicate jobs.
             request.setRequestId("INITIAL");
         }
-        PosPrinterEntity selectedPrinter = selectedPrinter(request);
-        String content = renderReceipt(data, reprint, paperWidth(selectedPrinter));
+        String content = renderReceipt(data, reprint, DEFAULT_PAPER_WIDTH);
         return queueContent("RECEIPT", receiptId, receiptId, content, request);
     }
 
@@ -357,8 +325,7 @@ public class PosPrintingService {
             // create a second physical slip for the same cashup and terminal.
             destination.setRequestId("INITIAL");
         }
-        PosPrinterEntity selectedPrinter = selectedPrinter(destination);
-        String content = renderCashup(data, reprint, paperWidth(selectedPrinter));
+        String content = renderCashup(data, reprint, DEFAULT_PAPER_WIDTH);
         return queueContent("CASHUP", cashupId, null, content, destination);
     }
 
@@ -370,15 +337,12 @@ public class PosPrintingService {
             destination.setRequestId(UUID.randomUUID().toString());
         }
 
-        PosPrinterEntity selectedPrinter = selectedPrinter(destination);
-        int width = paperWidth(selectedPrinter);
+        int width = DEFAULT_PAPER_WIDTH;
         String separator = "-".repeat(width);
         String content = center("MAWA POS TEST PRINT", width) + "\n"
                 + separator + "\n"
-                + "Terminal and printer setup is working.\n"
-                + "Queue: " + selectedPrinter.getWindowsQueueName() + "\n"
-                + "Width: " + width + " characters\n"
-                + "Cutter: " + (selectedPrinter.isSupportsCut() ? "enabled" : "disabled") + "\n"
+                + "Terminal and print agent setup is working.\n"
+                + "Printer selection is owned by the Windows agent.\n"
                 + "Time: " + userTimeZoneService.now() + "\n"
                 + separator + "\n";
         return queueContent("TEST_PRINT", terminalId, null, content, destination);
@@ -410,23 +374,14 @@ public class PosPrintingService {
             throw new IllegalArgumentException("Terminal has no assigned print agent");
         }
 
-        PosPrintAgentEntity agent = agentRepository.findById(terminal.getAgentId())
-                .orElseThrow(() -> new IllegalArgumentException("Assigned print agent no longer exists"));
-        if (!"ACTIVE".equals(agent.getStatus())) {
-            throw new IllegalArgumentException("Assigned print agent is not active");
-        }
+        AgentResponse agent = platformPrintAgentClient.list().stream()
+                .filter(item -> terminal.getAgentId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Assigned platform print agent no longer exists"));
+        if (!"ACTIVE".equals(agent.getStatus())) throw new IllegalArgumentException("Assigned print agent is not active");
 
-        String printerId = StringUtils.hasText(request.getPrinterId())
-                ? request.getPrinterId().trim()
-                : terminal.getDefaultReceiptPrinterId();
-        if (!StringUtils.hasText(printerId)) {
-            throw new IllegalArgumentException("Terminal has no assigned receipt printer");
-        }
-
-        PosPrinterEntity printer = validatePrinterAssignment(printerId, terminal.getAgentId());
-        if (!"ONLINE".equals(printer.getStatus())) {
-            throw new IllegalArgumentException("Selected printer is offline");
-        }
+        // Physical printer selection belongs to the Windows agent.  Keep accepting
+        // printerId during the rolling hotfix deployment, but do not require or route by it.
+        String printerId = null;
 
         String requestId = StringUtils.hasText(request.getRequestId())
                 ? request.getRequestId().trim()
@@ -438,7 +393,7 @@ public class PosPrintingService {
             if ("FAILED".equals(existingJob.getStatus())) {
                 return retry(existingJob.getId());
             }
-            return jobDto(existingJob, printerRepository.findById(existingJob.getPrinterId()).orElse(null));
+            return jobDto(existingJob, null);
         }
 
         PosPrintJobEntity job = PosPrintJobEntity.builder()
@@ -456,12 +411,17 @@ public class PosPrintingService {
                 .maxAttempts(5)
                 .createdBy(currentUser())
                 .build();
-        return jobDto(jobRepository.save(job), printer);
+        return jobDto(jobRepository.save(job), null);
     }
 
     @Transactional
     public PrintJobResponse claim(String agentId, String secret) {
-        validateAgent(agentId, secret);
+        platformPrintAgentClient.authenticate(agentId, secret);
+        return claimTrusted(agentId);
+    }
+
+    @Transactional
+    public PrintJobResponse claimTrusted(String agentId) {
         LocalDateTime now = LocalDateTime.now();
         jobRepository.failExhaustedExpired(agentId, now);
         jobRepository.releaseExpired(agentId, now);
@@ -489,12 +449,17 @@ public class PosPrintingService {
                 .status("CLAIMED")
                 .build());
 
-        return jobDto(job, printerRepository.findById(job.getPrinterId()).orElse(null));
+        return jobDto(job, null);
     }
 
     @Transactional
     public void markSpooled(String agentId, String secret, String jobId, JobResultRequest request) {
-        validateAgent(agentId, secret);
+        platformPrintAgentClient.authenticate(agentId, secret);
+        markSpooledTrusted(agentId, jobId, request);
+    }
+
+    @Transactional
+    public void markSpooledTrusted(String agentId, String jobId, JobResultRequest request) {
         PosPrintJobEntity existing = jobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Print job not found"));
         if ("SPOOLED".equals(existing.getStatus())
@@ -525,7 +490,12 @@ public class PosPrintingService {
 
     @Transactional
     public void markFailed(String agentId, String secret, String jobId, JobResultRequest request) {
-        validateAgent(agentId, secret);
+        platformPrintAgentClient.authenticate(agentId, secret);
+        markFailedTrusted(agentId, jobId, request);
+    }
+
+    @Transactional
+    public void markFailedTrusted(String agentId, String jobId, JobResultRequest request) {
         PosPrintJobEntity job = validateClaim(agentId, jobId, request);
         LocalDateTime now = LocalDateTime.now();
         String error = request == null || !StringUtils.hasText(request.getErrorMessage())
@@ -555,7 +525,7 @@ public class PosPrintingService {
     @Transactional(readOnly = true)
     public List<PrintJobResponse> listJobs() {
         return jobRepository.findTop100ByOrderByCreatedAtDesc().stream()
-                .map(job -> jobDto(job, printerRepository.findById(job.getPrinterId()).orElse(null)))
+                .map(job -> jobDto(job, null))
                 .toList();
     }
 
@@ -563,7 +533,7 @@ public class PosPrintingService {
     public PrintJobResponse getJob(String jobId) {
         PosPrintJobEntity job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Print job not found"));
-        return jobDto(job, printerRepository.findById(job.getPrinterId()).orElse(null));
+        return jobDto(job, null);
     }
 
     @Transactional
@@ -578,21 +548,14 @@ public class PosPrintingService {
         if (!terminal.isEnabled() || !StringUtils.hasText(terminal.getAgentId())) {
             throw new IllegalArgumentException("Terminal has no active print destination");
         }
-        PosPrintAgentEntity agent = agentRepository.findById(terminal.getAgentId())
-                .orElseThrow(() -> new IllegalArgumentException("Assigned print agent no longer exists"));
-        if (!"ACTIVE".equals(agent.getStatus())) {
-            throw new IllegalArgumentException("Assigned print agent is not active");
-        }
-        if (!StringUtils.hasText(terminal.getDefaultReceiptPrinterId())) {
-            throw new IllegalArgumentException("Terminal has no assigned receipt printer");
-        }
-        PosPrinterEntity printer = validatePrinterAssignment(
-                terminal.getDefaultReceiptPrinterId(), terminal.getAgentId());
-        if (!"ONLINE".equals(printer.getStatus())) {
-            throw new IllegalArgumentException("Selected printer is offline");
-        }
+        AgentResponse agent = platformPrintAgentClient.list().stream()
+                .filter(item -> terminal.getAgentId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Assigned platform print agent no longer exists"));
+        if (!"ACTIVE".equals(agent.getStatus())) throw new IllegalArgumentException("Assigned print agent is not active");
         job.setAgentId(agent.getId());
-        job.setPrinterId(printer.getId());
+        // The agent owns physical printer routing. Clear legacy server-side routing
+        // when a job is explicitly rerouted.
+        job.setPrinterId(null);
         job.setStatus("QUEUED");
         job.setAttemptCount(0);
         job.setNextAttemptAt(LocalDateTime.now());
@@ -600,7 +563,7 @@ public class PosPrintingService {
         job.setLastError(null);
         clearClaim(job);
         job.setUpdatedAt(LocalDateTime.now());
-        return jobDto(jobRepository.save(job), printer);
+        return jobDto(jobRepository.save(job), null);
     }
 
     @Transactional
@@ -618,7 +581,7 @@ public class PosPrintingService {
         job.setLastError(null);
         clearClaim(job);
         job.setUpdatedAt(LocalDateTime.now());
-        return jobDto(jobRepository.save(job), printerRepository.findById(job.getPrinterId()).orElse(null));
+        return jobDto(jobRepository.save(job), null);
     }
 
     private PosPrintAgentEntity validateAgent(String agentId, String secret) {
