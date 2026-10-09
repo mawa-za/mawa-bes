@@ -16,6 +16,9 @@ import za.co.mawa.bes.repository.v2.ReceiptAllocationRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -98,9 +101,10 @@ public class MembershipPremiumSyncOfflineService {
                 }
                 // A receipt number identifies an immutable financial transaction.
                 // Never silently move it to another membership or accept a changed amount.
-                if (!canonicalMembershipId.equals(
+                if (receipt.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM
+                        || !canonicalMembershipId.equals(
                         membershipService.resolveMembership(receipt.getMembershipId()).getId())
-                        || !offlineReceipt.getAmountCents().equals(receipt.getTotalAmountCents())) {
+                        || !Objects.equals(offlineReceipt.getAmountCents(), receipt.getTotalAmountCents())) {
                     throw new IllegalStateException(
                             "Receipt number " + offlineReceipt.getReceiptNo()
                                     + " conflicts with an existing payment; manual reconciliation required");
@@ -261,6 +265,36 @@ public class MembershipPremiumSyncOfflineService {
 
         if (request.getReceipts() == null || request.getReceipts().isEmpty()) {
             throw new RuntimeException("At least one receipt is required");
+        }
+        if (request.getTotalAmountCents() == null || request.getTotalAmountCents() <= 0) {
+            throw new IllegalArgumentException("totalAmountCents must be positive");
+        }
+        Set<String> receiptNumbers = new HashSet<>();
+        Set<String> localReceiptIds = new HashSet<>();
+        long receiptTotal = 0;
+        for (PremiumReceiptOfflineDto receipt : request.getReceipts()) {
+            if (receipt == null || receipt.getReceiptNo() == null || receipt.getReceiptNo().isBlank()) {
+                throw new IllegalArgumentException("Every receipt requires a receiptNo");
+            }
+            if (!receiptNumbers.add(receipt.getReceiptNo().trim())) {
+                throw new IllegalArgumentException("Duplicate receiptNo within payment batch: " + receipt.getReceiptNo());
+            }
+            if (receipt.getLocalReceiptId() != null && !receipt.getLocalReceiptId().isBlank()
+                    && !localReceiptIds.add(receipt.getLocalReceiptId().trim())) {
+                throw new IllegalArgumentException("Duplicate localReceiptId within payment batch");
+            }
+            if (receipt.getPeriodYYYYMM() == null || !receipt.getPeriodYYYYMM().matches("\\d{6}")
+                    || Integer.parseInt(receipt.getPeriodYYYYMM().substring(4)) < 1
+                    || Integer.parseInt(receipt.getPeriodYYYYMM().substring(4)) > 12) {
+                throw new IllegalArgumentException("Invalid receipt periodYYYYMM");
+            }
+            if (receipt.getAmountCents() == null || receipt.getAmountCents() <= 0) {
+                throw new IllegalArgumentException("Receipt amountCents must be positive");
+            }
+            receiptTotal = Math.addExact(receiptTotal, receipt.getAmountCents());
+        }
+        if (receiptTotal != request.getTotalAmountCents()) {
+            throw new IllegalArgumentException("Payment batch total does not equal receipt amounts");
         }
     }
 }
