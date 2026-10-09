@@ -12,7 +12,7 @@ public class PosPrintAttemptEntity {
     @Id @Column(length=36) private String id;
     @Column(name="print_job_id", nullable=false, length=36) private String printJobId;
     @Column(name="agent_id", nullable=false, length=36) private String agentId;
-    @Column(name="printer_id", nullable=false, length=36) private String printerId;
+    @Column(name="printer_id", length=36) private String printerId;
     @Column(name="attempt_number", nullable=false) private int attemptNumber;
     @Column(nullable=false, length=30) private String status;
     @Column(name="started_at", nullable=false) private LocalDateTime startedAt;

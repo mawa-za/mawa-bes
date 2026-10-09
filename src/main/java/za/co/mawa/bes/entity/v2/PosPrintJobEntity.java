@@ -15,7 +15,7 @@ public class PosPrintJobEntity {
     @Column(name="source_id", nullable=false, length=255) private String sourceId;
     @Column(name="terminal_id", nullable=false, length=36) private String terminalId;
     @Column(name="agent_id", nullable=false, length=36) private String agentId;
-    @Column(name="printer_id", nullable=false, length=36) private String printerId;
+    @Column(name="printer_id", length=36) private String printerId;
     @Column(nullable=false, columnDefinition="LONGTEXT") private String content;
     @Column(name="content_type", nullable=false, length=50) private String contentType;
     @Column(nullable=false, length=30) private String status;

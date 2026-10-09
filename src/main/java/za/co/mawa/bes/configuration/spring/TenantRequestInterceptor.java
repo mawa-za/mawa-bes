@@ -75,6 +75,11 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        if (requestURI.startsWith("/v2/platform-print-agents/")) {
+            // Platform print agents authenticate with machine credentials and poll across tenant schemas.
+            return true;
+        }
+
         if (requestURI.startsWith("/v2/pos-print-agents/")) {
             String tenantReference = firstNonBlank(
                     request.getHeader("X-TenantID"),

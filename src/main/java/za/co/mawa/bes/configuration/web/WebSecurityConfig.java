@@ -47,6 +47,7 @@ public class WebSecurityConfig {
             "/v2/company-logo/content",
             "/v2/admin-handoff/exchange",
             "/v2/pos-print-agents/**",
+            "/v2/platform-print-agents/**",
             "/error",
             "/internal/admin/**",
             "/xero/callback"
@@ -56,6 +57,7 @@ public class WebSecurityConfig {
             "/error",
             "/print-job",
             "/v2/pos-print-agents/**",
+            "/v2/platform-print-agents/**",
             "/authenticate",
             "/v2/authenticate",
             "/v2/membership/master-data/**",
