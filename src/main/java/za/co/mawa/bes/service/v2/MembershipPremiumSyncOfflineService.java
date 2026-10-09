@@ -43,9 +43,11 @@ public class MembershipPremiumSyncOfflineService {
             PaymentBatchEntity batch = existingBatch.get();
             validateExistingBatchIdentity(batch, request);
             String canonicalMembershipId = membershipService.resolveMembership(request.getMembershipId()).getId();
-            if (!canonicalMembershipId.equals(batch.getMembershipId())) {
-                batch.setMembershipId(canonicalMembershipId);
-                paymentBatchRepository.save(batch);
+            // A retry may not reassign an existing financial batch to another member.
+            if (!canonicalMembershipId.equals(
+                    membershipService.resolveMembership(batch.getMembershipId()).getId())) {
+                throw new IllegalStateException(
+                        "Payment batch belongs to a different membership; manual reconciliation required");
             }
             return syncIntoBatch(
                     batch,
@@ -94,9 +96,14 @@ public class MembershipPremiumSyncOfflineService {
                                     + " already belongs to a different payment batch"
                     );
                 }
-                if (!canonicalMembershipId.equals(receipt.getMembershipId())) {
-                    receipt.setMembershipId(canonicalMembershipId);
-                    receipt = receiptService.saveReceipt(receipt);
+                // A receipt number identifies an immutable financial transaction.
+                // Never silently move it to another membership or accept a changed amount.
+                if (!canonicalMembershipId.equals(
+                        membershipService.resolveMembership(receipt.getMembershipId()).getId())
+                        || !offlineReceipt.getAmountCents().equals(receipt.getTotalAmountCents())) {
+                    throw new IllegalStateException(
+                            "Receipt number " + offlineReceipt.getReceiptNo()
+                                    + " conflicts with an existing payment; manual reconciliation required");
                 }
             } else {
                 receipt = createReceiptFromOfflineRequest(batch, request, offlineReceipt, canonicalMembershipId);
@@ -167,7 +174,10 @@ public class MembershipPremiumSyncOfflineService {
     ) {
         if (batch.getSourceType() != ReceiptSourceType.MEMBERSHIP_PREMIUM
                 || !request.getPaymentBatchNo().equals(batch.getPaymentBatchNo())
-                || !request.getDeviceId().equals(batch.getDeviceId())) {
+                || !request.getDeviceId().equals(batch.getDeviceId())
+                || !request.getLocalPaymentBatchId().equals(batch.getLocalPaymentBatchId())
+                || !java.util.Objects.equals(request.getTotalAmountCents(), batch.getTotalAmountCents())
+                || !java.util.Objects.equals(request.getPaymentMethod(), batch.getPaymentMethod())) {
             throw new IllegalStateException(
                     "Payment batch number is already linked to a different MawaPay device transaction"
             );
