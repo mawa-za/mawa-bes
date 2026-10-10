@@ -173,7 +173,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         return value == null ? null : String.valueOf(value);
     }
 
-    private boolean isDeviceSyncPath(String path) {
+    static boolean isDeviceSyncPath(String path) {
         if (path == null) return false;
         return path.equals("/v2/pay-app/device-identity/renew")
                 || path.startsWith("/v2/sync/")
@@ -181,7 +181,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || path.startsWith("/v2/cashup")
                 || path.startsWith("/v2/partner")
                 || path.startsWith("/v2/membership")
+                || path.equals("/v2/number-allocation/allocate")
+                || path.equals("/v2/number-allocation/active")
                 || path.startsWith("/v2/number-allocations")
+                || path.matches("/v2/payment-batches/[^/]+/cancellation-status")
                 || path.startsWith("/v2/receipt")
                 || path.equals("/pay-app/receipt-sync");
     }
