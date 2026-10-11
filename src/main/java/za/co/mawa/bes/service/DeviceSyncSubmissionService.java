@@ -16,6 +16,8 @@ import za.co.mawa.bes.entity.DeviceSyncSubmissionEntity;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.repository.v2.MembershipRepository;
+import za.co.mawa.bes.entity.v2.MembershipEntity;
 
 import java.time.*;
 import java.util.*;
@@ -26,6 +28,7 @@ public class DeviceSyncSubmissionService {
     private final DeviceSyncSubmissionRepository repository;
     private final PaymentBatchRepository paymentBatchRepository;
     private final ReceiptRepository receiptRepository;
+    private final MembershipRepository membershipRepository;
     private final ObjectMapper mapper;
 
     @Value("${device-sync.internal-base-url:http://127.0.0.1:${server.port:8080}}")
@@ -45,6 +48,14 @@ public class DeviceSyncSubmissionService {
             boolean incompleteCompletedPayment = "COMPLETED".equals(entity.getStatus())
                     && isPaymentBatchSubmission(entity.getTargetPath())
                     && blankJson(entity.getResponsePayload());
+            if ("COMPLETED".equals(entity.getStatus()) && isMembershipSubmission(entity.getTargetPath())
+                    && blankJson(entity.getResponsePayload())) {
+                if (recoverMembershipResponse(entity)) return dto(entity);
+                entity.setStatus("PROCESSING_FAILED");
+                entity.setErrorMessage("Completed membership has no response and could not be reconciled");
+                entity.setUpdatedAt(LocalDateTime.now());
+                return dto(repository.save(entity));
+            }
             if (!"COMPLETED".equals(entity.getStatus()) || incompleteCompletedPayment) {
                 // The same durable operation may be retried after the device user
                 // corrected local data. Keep the idempotency identity, but refresh
@@ -126,7 +137,18 @@ public class DeviceSyncSubmissionService {
     @Transactional
     public DeviceSyncSubmissionDto process(String id, HttpHeaders incoming) {
         DeviceSyncSubmissionEntity entity = find(id);
-        if (Set.of("COMPLETED", "CANCELLED").contains(entity.getStatus())) return dto(entity);
+        if ("COMPLETED".equals(entity.getStatus())) {
+            if (isMembershipSubmission(entity.getTargetPath()) && blankJson(entity.getResponsePayload())) {
+                if (!recoverMembershipResponse(entity)) {
+                    entity.setStatus("PROCESSING_FAILED");
+                    entity.setErrorMessage("Completed membership has no response and could not be reconciled");
+                    entity.setUpdatedAt(LocalDateTime.now());
+                    return dto(repository.save(entity));
+                }
+            }
+            return dto(entity);
+        }
+        if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
 
         entity.setStatus("PROCESSING");
         entity.setAttemptCount(entity.getAttemptCount() + 1);
@@ -149,6 +171,11 @@ public class DeviceSyncSubmissionService {
             );
             entity.setResponseStatus(response.getStatusCode().value());
             entity.setResponsePayload(response.getBody());
+            if (isMembershipSubmission(entity.getTargetPath()) && blankJson(entity.getResponsePayload())) {
+                if (!recoverMembershipResponse(entity)) {
+                    throw new IllegalStateException("Membership processed without a response body; unable to verify server membership");
+                }
+            }
             entity.setStatus("COMPLETED");
             entity.setErrorMessage(null);
             entity.setProcessedAt(LocalDateTime.now());
@@ -307,6 +334,30 @@ public class DeviceSyncSubmissionService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Device sync submission was not found for the supplied operation"));
         return cancel(entity.getSubmissionId(), request, userId);
+    }
+
+    private boolean isMembershipSubmission(String path) {
+        return path != null && (path.equals("/v2/membership") || path.startsWith("/v2/membership?"));
+    }
+
+    // Restore a lost response only when the persisted membership identity matches
+    // the submission. Never replay creation merely to manufacture a response.
+    private boolean recoverMembershipResponse(DeviceSyncSubmissionEntity entity) {
+        Map<String, Object> payload = payloadMap(entity.getRequestPayload());
+        String membershipNo = text(payload.get("membershipNo"));
+        String memberId = text(payload.get("memberId"));
+        String planId = text(payload.get("planId"));
+        if (blank(membershipNo) || blank(memberId) || blank(planId)) return false;
+        Optional<MembershipEntity> match = membershipRepository.findByMembershipNo(membershipNo.trim());
+        if (match.isEmpty()) return false;
+        MembershipEntity membership = match.get();
+        if (!memberId.trim().equals(membership.getMemberId()) || !planId.trim().equals(membership.getPlanId())) {
+            return false;
+        }
+        entity.setResponsePayload(json(membership));
+        entity.setResponseStatus(200);
+        repository.save(entity);
+        return true;
     }
 
     private DeviceSyncSubmissionEntity find(String id) {

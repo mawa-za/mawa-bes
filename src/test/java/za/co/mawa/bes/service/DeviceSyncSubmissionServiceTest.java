@@ -13,6 +13,7 @@ import za.co.mawa.bes.enums.PaymentBatchStatus;
 import za.co.mawa.bes.repository.DeviceSyncSubmissionRepository;
 import za.co.mawa.bes.repository.v2.PaymentBatchRepository;
 import za.co.mawa.bes.repository.v2.ReceiptRepository;
+import za.co.mawa.bes.repository.v2.MembershipRepository;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -34,11 +35,77 @@ class DeviceSyncSubmissionServiceTest {
     @Mock
     private ReceiptRepository receiptRepository;
 
+    @Mock
+    private MembershipRepository membershipRepository;
+
+    @Test
+    void completedMembershipWithEmptyBodyIsRecoveredFromVerifiedMembershipNumber() {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("membership-submission")
+                .idempotencyKey("membership:M-100:partner-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-100\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .responseStatus(201)
+                .status("COMPLETED")
+                .build();
+        var membership = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("server-membership-id").membershipNo("M-100")
+                .memberId("partner-1").planId("plan-1")
+                .premiumCents(100L).startDate(java.time.LocalDate.of(2026,10,1))
+                .status("ACTIVE").build();
+        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+                .thenReturn(Optional.of(existing));
+        when(membershipRepository.findByMembershipNo("M-100"))
+                .thenReturn(Optional.of(membership));
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        DeviceSyncSubmitRequest request = new DeviceSyncSubmitRequest();
+        request.setIdempotencyKey("membership:M-100:partner-1");
+        request.setMethod("POST");
+        request.setPath("/v2/membership");
+        var result = service.submit(request, "user-1");
+        assertThat(result.getResponseStatus()).isEqualTo(200);
+        assertThat(result.getResponsePayload().toString()).contains("server-membership-id");
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void emptyMembershipResponseMustNotReconcileDifferentMember() {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("membership-submission")
+                .idempotencyKey("membership:M-100:partner-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-100\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .status("COMPLETED").build();
+        var unrelated = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("wrong-id").membershipNo("M-100").memberId("different-partner")
+                .planId("plan-1").build();
+        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+                .thenReturn(Optional.of(existing));
+        when(membershipRepository.findByMembershipNo("M-100"))
+                .thenReturn(Optional.of(unrelated));
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        DeviceSyncSubmitRequest request = new DeviceSyncSubmitRequest();
+        request.setIdempotencyKey("membership:M-100:partner-1");
+        request.setMethod("POST");
+        request.setPath("/v2/membership");
+        var result = service.submit(request, "user-1");
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        assertThat(result.getResponsePayload()).isNull();
+    }
+
     @Test
     void retryOfFailedSubmissionRefreshesCorrectedPayloadInsteadOfReplayingStaleRequest() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, receiptRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(7L)
@@ -90,7 +157,7 @@ class DeviceSyncSubmissionServiceTest {
     void completedSubmissionRemainsIdempotentAndIsNotOverwritten() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, receiptRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
 
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(8L)
@@ -130,7 +197,7 @@ class DeviceSyncSubmissionServiceTest {
     void completedPaymentWithoutResponseBodyIsReopenedForARealRetry() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, receiptRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(10L)
                 .submissionId("submission-empty-payment")
@@ -171,7 +238,7 @@ class DeviceSyncSubmissionServiceTest {
     void orphanedPaymentSubmissionCanBeCancelledWithoutDeletingAuditHistory() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, receiptRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
         DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
                 .id(9L)
                 .submissionId("submission-3")
@@ -208,7 +275,7 @@ class DeviceSyncSubmissionServiceTest {
     void paymentBatchNumberIdentityDoesNotResolveAReusedLocalRowId() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
-                repository, paymentBatchRepository, receiptRepository, mapper);
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
         PaymentBatchEntity current = PaymentBatchEntity.builder()
                 .id("server-batch-new")
                 .paymentBatchNo("PB-9002")

@@ -166,6 +166,20 @@ public class MembershipControllerV2 {
         return ResponseEntity.ok(payAppMasterDataService.changes(after, cursor, size));
     }
 
+    @GetMapping("/by-number")
+    public ResponseEntity<MembershipEntity> getMembershipByNumber(
+            @RequestParam String membershipNo,
+            @RequestParam String memberId,
+            @RequestParam String planId) {
+        if (membershipNo.isBlank() || memberId.isBlank() || planId.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return membershipRepository.findByMembershipNo(membershipNo.trim())
+                .filter(m -> memberId.trim().equals(m.getMemberId()) && planId.trim().equals(m.getPlanId()))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<MembershipEntity> getMembership(@PathVariable String id) {
         return membershipService.getMembershipById(id)
