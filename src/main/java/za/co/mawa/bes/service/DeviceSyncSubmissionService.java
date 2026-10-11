@@ -45,6 +45,15 @@ public class DeviceSyncSubmissionService {
         if (existing.isPresent()) {
             DeviceSyncSubmissionEntity entity = existing.get();
             if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+            // The ERP may have committed the membership before an earlier device
+            // submission was marked failed (for example after a lost response).
+            // Reconcile the *new* request identity before replaying its POST.
+            if (!"COMPLETED".equals(entity.getStatus())
+                    && isMembershipSubmission(entity.getTargetPath())
+                    && isMembershipSubmission(request.getPath())
+                    && recoverMembershipResponse(entity, json(request.getPayload()))) {
+                return dto(entity);
+            }
             boolean incompleteCompletedPayment = "COMPLETED".equals(entity.getStatus())
                     && isPaymentBatchSubmission(entity.getTargetPath())
                     && blankJson(entity.getResponsePayload());
@@ -149,6 +158,11 @@ public class DeviceSyncSubmissionService {
             return dto(entity);
         }
         if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+        // Repair previously failed/correction-required submissions even when
+        // the original ERP create succeeded but the queue recorded an error.
+        if (isMembershipSubmission(entity.getTargetPath()) && recoverMembershipResponse(entity)) {
+            return dto(entity);
+        }
 
         entity.setStatus("PROCESSING");
         entity.setAttemptCount(entity.getAttemptCount() + 1);
@@ -296,7 +310,11 @@ public class DeviceSyncSubmissionService {
             throw new IllegalStateException("Only an orphaned payment-batch submission can be cancelled from MawaPay");
         }
 
-        Map<String, Object> payload = payloadMap(entity.getRequestPayload());
+        return recoverMembershipResponse(entity, entity.getRequestPayload());
+    }
+
+    private boolean recoverMembershipResponse(DeviceSyncSubmissionEntity entity, String requestJson) {
+        Map<String, Object> payload = payloadMap(requestJson);
         String payloadDeviceId = text(payload.get("deviceId"));
         String localPaymentBatchId = text(payload.get("localPaymentBatchId"));
         if (blank(payloadDeviceId) || blank(localPaymentBatchId) ||
@@ -354,8 +372,13 @@ public class DeviceSyncSubmissionService {
         if (!memberId.trim().equals(membership.getMemberId()) || !planId.trim().equals(membership.getPlanId())) {
             return false;
         }
+        entity.setRequestPayload(requestJson);
         entity.setResponsePayload(json(membership));
         entity.setResponseStatus(200);
+        entity.setStatus("COMPLETED");
+        entity.setErrorMessage(null);
+        entity.setProcessedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
         repository.save(entity);
         return true;
     }
