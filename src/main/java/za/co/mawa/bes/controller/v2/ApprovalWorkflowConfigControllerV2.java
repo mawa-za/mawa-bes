@@ -11,6 +11,7 @@ import za.co.mawa.bes.service.v2.ApprovalWorkflowConfigService;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Arrays;
 
 @CrossOrigin
 @RestController
@@ -57,6 +58,16 @@ public class ApprovalWorkflowConfigControllerV2 {
     ) {
         assertConfigurationAccess(selectedRole);
         return ResponseEntity.ok(approvalWorkflowConfigService.getAll());
+    }
+
+    // Include approval types without persisted workflows in configuration UI.
+    @GetMapping("/types")
+    public ResponseEntity<List<String>> getApprovalTypes(
+            @RequestHeader(value = "X-Role", required = false) String selectedRole
+    ) {
+        assertConfigurationAccess(selectedRole);
+        return ResponseEntity.ok(Arrays.stream(ApprovalType.values())
+                .map(Enum::name).toList());
     }
 
     @GetMapping("/active")

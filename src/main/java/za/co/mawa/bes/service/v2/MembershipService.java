@@ -322,21 +322,9 @@ public class MembershipService {
 
             long existingMemberships = membershipRepository.countByMemberId(memberId);
             boolean additionalMembership = existingMemberships > 0;
-            if (additionalMembership && !membershipPolicyConfigurationService.allowMultipleMemberships()) {
-                Optional<MembershipEntity> existingForMember =
-                        membershipRepository.findFirstByMemberIdOrderByCreatedAtDesc(memberId);
-                if (requestedMembershipNo.isEmpty()
-                        && existingForMember.isPresent()
-                        && planId.equals(existingForMember.get().getPlanId())
-                        && java.util.Objects.equals(
-                                membership.getStartDate(),
-                                existingForMember.get().getStartDate())) {
-                    // A mobile retry can arrive after the original response was
-                    // lost, before the device stored the server membership id.
-                    return existingForMember.get();
-                }
-                throw new IllegalStateException("Multiple memberships are not allowed for this member.");
-            }
+            // Business duplicates must reach ERP for approval rather than remain
+            // permanently stuck in the device sync queue. Immutable membership
+            // numbers above still provide retry idempotency.
 
             membership.setCreatedAt(LocalDateTime.ofInstant(java.time.Instant.now(), ZoneId.of("UTC")));
             membership.setCreatedBy(UserContext.getCurrentUserPartner());
@@ -363,8 +351,7 @@ public class MembershipService {
                 }
             }
 
-            boolean approvalRequired = additionalMembership
-                    && membershipPolicyConfigurationService.additionalMembershipRequiresApproval();
+            boolean approvalRequired = additionalMembership;
             if (approvalRequired) {
                 membership.setStatus("PENDING_APPROVAL");
             } else if (additionalMembership) {
