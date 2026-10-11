@@ -310,11 +310,7 @@ public class DeviceSyncSubmissionService {
             throw new IllegalStateException("Only an orphaned payment-batch submission can be cancelled from MawaPay");
         }
 
-        return recoverMembershipResponse(entity, entity.getRequestPayload());
-    }
-
-    private boolean recoverMembershipResponse(DeviceSyncSubmissionEntity entity, String requestJson) {
-        Map<String, Object> payload = payloadMap(requestJson);
+        Map<String, Object> payload = payloadMap(entity.getRequestPayload());
         String payloadDeviceId = text(payload.get("deviceId"));
         String localPaymentBatchId = text(payload.get("localPaymentBatchId"));
         if (blank(payloadDeviceId) || blank(localPaymentBatchId) ||
@@ -361,7 +357,11 @@ public class DeviceSyncSubmissionService {
     // Restore a lost response only when the persisted membership identity matches
     // the submission. Never replay creation merely to manufacture a response.
     private boolean recoverMembershipResponse(DeviceSyncSubmissionEntity entity) {
-        Map<String, Object> payload = payloadMap(entity.getRequestPayload());
+        return recoverMembershipResponse(entity, entity.getRequestPayload());
+    }
+
+    private boolean recoverMembershipResponse(DeviceSyncSubmissionEntity entity, String requestJson) {
+        Map<String, Object> payload = payloadMap(requestJson);
         String membershipNo = text(payload.get("membershipNo"));
         String memberId = text(payload.get("memberId"));
         String planId = text(payload.get("planId"));
