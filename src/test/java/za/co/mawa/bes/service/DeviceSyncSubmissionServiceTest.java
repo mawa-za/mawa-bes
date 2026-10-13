@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +38,62 @@ class DeviceSyncSubmissionServiceTest {
 
     @Mock
     private MembershipRepository membershipRepository;
+
+    @Test
+    void manualCorrectionCannotOverwriteInFlightSubmission() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity processing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("active-operation")
+                .status("PROCESSING")
+                .requestPayload("{\"original\":true}")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("active-operation"))
+                .thenReturn(Optional.of(processing));
+        var correction = new za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCorrectionRequest();
+        correction.setPayload(Map.of("changed", true));
+        assertThatThrownBy(() -> service.correct("active-operation", correction, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("being processed");
+        assertThat(processing.getRequestPayload()).contains("original");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void manualCorrectionCannotReopenCompletedSubmission() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("completed-operation")
+                .status("COMPLETED")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("completed-operation"))
+                .thenReturn(Optional.of(completed));
+        var correction = new za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCorrectionRequest();
+        correction.setPayload(Map.of("changed", true));
+        assertThatThrownBy(() -> service.correct("completed-operation", correction, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("finalized");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void cancellationCannotInvalidateActiveProcessing() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity processing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("active-payment")
+                .idempotencyKey("payment-batch:device-1:42")
+                .status("PROCESSING")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("active-payment"))
+                .thenReturn(Optional.of(processing));
+        assertThatThrownBy(() -> service.cancel("active-payment", null, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("processing");
+        assertThat(processing.getStatus()).isEqualTo("PROCESSING");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
 
     @Test
     void repeatedSubmitDoesNotReplaceAnInFlightPayload() {

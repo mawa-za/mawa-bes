@@ -214,9 +214,13 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto correct(String id, DeviceSyncCorrectionRequest request, String userId) {
-        DeviceSyncSubmissionEntity entity = find(id);
-        if ("CANCELLED".equals(entity.getStatus())) {
-            throw new IllegalStateException("A cancelled device sync submission cannot be corrected");
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
+        if ("CANCELLED".equals(entity.getStatus()) || "COMPLETED".equals(entity.getStatus())) {
+            throw new IllegalStateException("A finalized device sync submission cannot be corrected");
+        }
+        if ("PROCESSING".equals(entity.getStatus())) {
+            throw new IllegalStateException("A device sync submission being processed cannot be corrected");
         }
         entity.setRequestPayload(json(request.getPayload()));
         entity.setResponsePayload(null);
@@ -308,14 +312,15 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto cancel(String id, DeviceSyncCancellationRequest request, String userId) {
-        DeviceSyncSubmissionEntity entity = find(id);
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
         if (!blank(request == null ? null : request.getIdempotencyKey()) &&
                 !entity.getIdempotencyKey().equals(request.getIdempotencyKey().trim())) {
             throw new IllegalStateException("The queued operation identity does not match");
         }
         if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
-        if ("COMPLETED".equals(entity.getStatus())) {
-            throw new IllegalStateException("A completed device sync submission cannot be cancelled");
+        if ("COMPLETED".equals(entity.getStatus()) || "PROCESSING".equals(entity.getStatus())) {
+            throw new IllegalStateException("A completed or processing device sync submission cannot be cancelled");
         }
         if (request == null || blank(request.getDeviceId()) || blank(request.getReason())) {
             throw new IllegalArgumentException("deviceId and cancellation reason are required");
@@ -361,7 +366,7 @@ public class DeviceSyncSubmissionService {
             throw new IllegalArgumentException("idempotencyKey is required");
         }
         DeviceSyncSubmissionEntity entity = repository
-                .findByIdempotencyKey(request.getIdempotencyKey().trim())
+                .findByIdempotencyKeyForUpdate(request.getIdempotencyKey().trim())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Device sync submission was not found for the supplied operation"));
         return cancel(entity.getSubmissionId(), request, userId);
