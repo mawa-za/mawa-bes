@@ -57,9 +57,17 @@ public class DeviceSyncSubmissionService {
                     && recoverMembershipResponse(entity, json(request.getPayload()))) {
                 return dto(entity);
             }
-            boolean incompleteCompletedPayment = "COMPLETED".equals(entity.getStatus())
+            // HTTP success with no acknowledgment is ambiguous: the business
+            // transaction may have committed even though its response was lost.
+            // Never silently reopen that completed payment for another POST.
+            if ("COMPLETED".equals(entity.getStatus())
                     && isPaymentBatchSubmission(entity.getTargetPath())
-                    && blankJson(entity.getResponsePayload());
+                    && blankJson(entity.getResponsePayload())) {
+                entity.setStatus("PROCESSING_FAILED");
+                entity.setErrorMessage("Payment batch acknowledgment missing; reconcile the original backend batch before retrying");
+                entity.setUpdatedAt(now);
+                return dto(repository.save(entity));
+            }
             if ("COMPLETED".equals(entity.getStatus()) && isMembershipSubmission(entity.getTargetPath())
                     && blankJson(entity.getResponsePayload())) {
                 if (recoverMembershipResponse(entity)) return dto(entity);
@@ -68,7 +76,7 @@ public class DeviceSyncSubmissionService {
                 entity.setUpdatedAt(LocalDateTime.now());
                 return dto(repository.save(entity));
             }
-            if (!"COMPLETED".equals(entity.getStatus()) || incompleteCompletedPayment) {
+            if (!"COMPLETED".equals(entity.getStatus())) {
                 // The same durable operation may be retried after the device user
                 // corrected local data. Keep the idempotency identity, but refresh
                 // the payload and device metadata so reprocessing never replays the
@@ -164,6 +172,14 @@ public class DeviceSyncSubmissionService {
             return dto(entity);
         }
         if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+        if (isPaymentBatchSubmission(entity.getTargetPath())
+                && "PROCESSING_FAILED".equals(entity.getStatus())
+                && entity.getErrorMessage() != null
+                && entity.getErrorMessage().startsWith("Payment batch acknowledgment missing;")) {
+            // Client must use the payment-batch reconciliation endpoint to
+            // recover the durable ERP identity before authorizing a new POST.
+            return dto(entity);
+        }
         // Repair previously failed/correction-required submissions even when
         // the original ERP create succeeded but the queue recorded an error.
         if (isMembershipSubmission(entity.getTargetPath()) && recoverMembershipResponse(entity)) {

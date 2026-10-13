@@ -364,7 +364,7 @@ class DeviceSyncSubmissionServiceTest {
     }
 
     @Test
-    void completedPaymentWithoutResponseBodyIsReopenedForARealRetry() {
+    void completedPaymentWithoutResponseBodyRequiresReconciliationBeforeRetry() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
@@ -399,9 +399,9 @@ class DeviceSyncSubmissionServiceTest {
 
         var result = service.submit(request, "cashier");
 
-        assertThat(result.getStatus()).isEqualTo("RECEIVED");
-        assertThat(existing.getResponseStatus()).isNull();
-        assertThat(existing.getProcessedAt()).isNull();
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        assertThat(existing.getResponseStatus()).isEqualTo(200);
+        assertThat(existing.getErrorMessage()).contains("reconcile");
     }
 
     @Test
@@ -509,5 +509,44 @@ class DeviceSyncSubmissionServiceTest {
                                 .id(null).receiptNo("R-101").build()));
         var result = service.reconcile("device-1", "payment-batch-number:device-1:PB-101");
         assertThat(result.isVerified()).isFalse();
+    }
+
+    @Test
+    void completedSubmissionRetryReturnsSavedAcknowledgmentWithoutReprocessing() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("done-payment")
+                .idempotencyKey("payment-batch-number:device-1:PB-700")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .status("COMPLETED")
+                .responseStatus(200)
+                .responsePayload("{\"id\":\"server-batch-700\"}")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("done-payment"))
+                .thenReturn(Optional.of(existing));
+        var result = service.process("done-payment", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(String.valueOf(result.getResponsePayload())).contains("server-batch-700");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void emptyAcknowledgmentCannotTriggerSecondProcessingRequest() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("lost-payment-ack")
+                .idempotencyKey("payment-batch-number:device-1:PB-701")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Payment batch acknowledgment missing; reconcile the original backend batch before retrying")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("lost-payment-ack"))
+                .thenReturn(Optional.of(existing));
+        var result = service.process("lost-payment-ack", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
     }
 }
