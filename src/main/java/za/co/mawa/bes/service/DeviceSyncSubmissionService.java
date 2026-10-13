@@ -268,6 +268,33 @@ public class DeviceSyncSubmissionService {
             return verifiedPaymentBatch(batch);
         }
 
+        // A lost response can leave a membership create marked failed even when
+        // ERP already committed it. Reconcile only against the original, verified
+        // membership identity; never infer a match from membership number alone.
+        if (submission != null && isMembershipSubmission(submission.getTargetPath())
+                && !"CANCELLED".equals(submission.getStatus())) {
+            Map<String, Object> original = payloadMap(submission.getRequestPayload());
+            String membershipNo = trimToNull(text(original.get("membershipNo")));
+            String memberId = trimToNull(text(original.get("memberId")));
+            String planId = trimToNull(text(original.get("planId")));
+            if (membershipNo != null && memberId != null && planId != null) {
+                Optional<MembershipEntity> matching = membershipRepository.findByMembershipNo(membershipNo);
+                if (matching.isPresent()) {
+                    MembershipEntity membership = matching.get();
+                    if (memberId.equals(membership.getMemberId())
+                            && planId.equals(membership.getPlanId())
+                            && !blank(membership.getId())) {
+                        return DeviceSyncReconciliationDto.builder().verified(true)
+                                .entityType("MEMBERSHIP")
+                                .serverRecordId(membership.getId())
+                                .serverStatus(membership.getStatus())
+                                .message("Existing ERP membership identity verified")
+                                .build();
+                    }
+                }
+            }
+        }
+
         if (submission != null && "COMPLETED".equals(submission.getStatus())) {
             Map<String, Object> response = payloadMap(submission.getResponsePayload());
             String serverId = firstText(response, "id", "serverId", "paymentBatchId", "cashupId", "membershipId", "partnerId");

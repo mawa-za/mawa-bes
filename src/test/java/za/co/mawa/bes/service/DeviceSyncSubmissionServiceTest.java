@@ -76,6 +76,56 @@ class DeviceSyncSubmissionServiceTest {
     }
 
     @Test
+    void failedMembershipWithLostAcknowledgmentCanReconcileByVerifiedIdentity() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity submitted = DeviceSyncSubmissionEntity.builder()
+                .submissionId("offline-membership")
+                .idempotencyKey("membership:device-1:100")
+                .deviceId("device-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-100\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .status("PROCESSING_FAILED")
+                .build();
+        when(repository.findByIdempotencyKey("membership:device-1:100"))
+                .thenReturn(Optional.of(submitted));
+        var membership = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("erp-id").membershipNo("M-100").memberId("partner-1")
+                .planId("plan-1").status("PENDING_APPROVAL").build();
+        when(membershipRepository.findByMembershipNo("M-100"))
+                .thenReturn(Optional.of(membership));
+
+        var result = service.reconcile("device-1", "membership:device-1:100");
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getServerRecordId()).isEqualTo("erp-id");
+        assertThat(result.getServerStatus()).isEqualTo("PENDING_APPROVAL");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void conflictingMembershipIdentityIsNotReconciled() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity submitted = DeviceSyncSubmissionEntity.builder()
+                .submissionId("offline-membership")
+                .idempotencyKey("membership:device-1:101")
+                .deviceId("device-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-101\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .status("PROCESSING_FAILED")
+                .build();
+        when(repository.findByIdempotencyKey("membership:device-1:101"))
+                .thenReturn(Optional.of(submitted));
+        var other = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("different-erp-id").membershipNo("M-101")
+                .memberId("different-partner").planId("plan-1").build();
+        when(membershipRepository.findByMembershipNo("M-101"))
+                .thenReturn(Optional.of(other));
+        var result = service.reconcile("device-1", "membership:device-1:101");
+        assertThat(result.isVerified()).isFalse();
+    }
+
+    @Test
     void manualCorrectionCannotOverwriteInFlightSubmission() {
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
