@@ -65,6 +65,74 @@ class DeviceSyncSubmissionServiceTest {
     }
 
     @Test
+    void repeatedFailedPaymentProcessingDoesNotReplayAnAlreadyCommittedBatch() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("lost-ack-batch")
+                .idempotencyKey("payment-batch-number:device-1:PB-LOST")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .httpMethod("POST")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"PB-LOST\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .attemptCount(1)
+                .build();
+        when(repository.findBySubmissionIdForUpdate("lost-ack-batch"))
+                .thenReturn(Optional.of(failed));
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-LOST"))
+                .thenReturn(Optional.of(PaymentBatchEntity.builder()
+                        .id("erp-original").deviceId("device-1").build()));
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var result = service.process("lost-ack-batch", new org.springframework.http.HttpHeaders());
+            assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+            assertThat(result.getErrorMessage()).contains("already exists in ERP");
+        }
+        assertThat(failed.getAttemptCount()).isEqualTo(1);
+        org.mockito.Mockito.verify(paymentBatchRepository, org.mockito.Mockito.times(2))
+                .findByPaymentBatchNo("PB-LOST");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.times(2))
+                .save(any(DeviceSyncSubmissionEntity.class));
+    }
+
+    @Test
+    void failedPaymentDoesNotAcceptSameBatchNumberOwnedByDifferentDevice() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("other-device-collision")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .httpMethod("POST")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"PB-COLLISION\",\"localPaymentBatchId\":\"100\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .attemptCount(1)
+                .build();
+        when(repository.findBySubmissionIdForUpdate("other-device-collision"))
+                .thenReturn(Optional.of(failed));
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-COLLISION"))
+                .thenReturn(Optional.of(PaymentBatchEntity.builder()
+                        .id("erp-other-device").deviceId("device-2").build()));
+        when(paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId("device-1", "100"))
+                .thenReturn(Optional.empty());
+        // An invalid internal destination prevents an outbound POST from executing,
+        // while allowing us to inspect whether the ERP identity check incorrectly
+        // classified the unrelated batch as already processed.
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "internalBaseUrl", "invalid-url");
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.process("other-device-collision", new org.springframework.http.HttpHeaders());
+        assertThat(result.getErrorMessage()).doesNotContain("already exists in ERP");
+        assertThat(failed.getAttemptCount()).isEqualTo(2);
+    }
+
+    @Test
     void completedSubmissionWithoutBackendIdentityIsNotVerified() {
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
