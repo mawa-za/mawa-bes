@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,268 @@ class DeviceSyncSubmissionServiceTest {
     private MembershipRepository membershipRepository;
 
     @Test
+    void failedPaymentWithExistingErpBatchIsNotPostedAgain() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("failed-payment")
+                .idempotencyKey("payment-batch-number:device-1:B100")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"B100\",\"localPaymentBatchId\":\"10\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("failed-payment")).thenReturn(Optional.of(failed));
+        var persisted = PaymentBatchEntity.builder().id("erp-batch-1")
+                .deviceId("device-1").build();
+        when(paymentBatchRepository.findByPaymentBatchNo("B100")).thenReturn(Optional.of(persisted));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.process("failed-payment", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        assertThat(failed.getErrorMessage()).contains("already exists in ERP");
+        assertThat(failed.getAttemptCount()).isZero();
+    }
+
+    @Test
+    void repeatedFailedPaymentProcessingDoesNotReplayAnAlreadyCommittedBatch() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("lost-ack-batch")
+                .idempotencyKey("payment-batch-number:device-1:PB-LOST")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .httpMethod("POST")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"PB-LOST\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .attemptCount(1)
+                .build();
+        when(repository.findBySubmissionIdForUpdate("lost-ack-batch"))
+                .thenReturn(Optional.of(failed));
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-LOST"))
+                .thenReturn(Optional.of(PaymentBatchEntity.builder()
+                        .id("erp-original").deviceId("device-1").build()));
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var result = service.process("lost-ack-batch", new org.springframework.http.HttpHeaders());
+            assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+            assertThat(result.getErrorMessage()).contains("already exists in ERP");
+        }
+        assertThat(failed.getAttemptCount()).isEqualTo(1);
+        org.mockito.Mockito.verify(paymentBatchRepository, org.mockito.Mockito.times(2))
+                .findByPaymentBatchNo("PB-LOST");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.times(2))
+                .save(any(DeviceSyncSubmissionEntity.class));
+    }
+
+    @Test
+    void failedPaymentDoesNotAcceptSameBatchNumberOwnedByDifferentDevice() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("other-device-collision")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .httpMethod("POST")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"PB-COLLISION\",\"localPaymentBatchId\":\"100\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .attemptCount(1)
+                .build();
+        when(repository.findBySubmissionIdForUpdate("other-device-collision"))
+                .thenReturn(Optional.of(failed));
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-COLLISION"))
+                .thenReturn(Optional.of(PaymentBatchEntity.builder()
+                        .id("erp-other-device").deviceId("device-2").build()));
+        when(paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId("device-1", "100"))
+                .thenReturn(Optional.empty());
+        // An invalid internal destination prevents an outbound POST from executing,
+        // while allowing us to inspect whether the ERP identity check incorrectly
+        // classified the unrelated batch as already processed.
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "internalBaseUrl", "invalid-url");
+        when(repository.save(any(DeviceSyncSubmissionEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.process("other-device-collision", new org.springframework.http.HttpHeaders());
+        assertThat(result.getErrorMessage()).doesNotContain("already exists in ERP");
+        assertThat(failed.getAttemptCount()).isEqualTo(2);
+    }
+
+    @Test
+    void completedSubmissionWithoutBackendIdentityIsNotVerified() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("receipt-no-ack")
+                .idempotencyKey("receipt:device-1:42")
+                .deviceId("device-1")
+                .status("COMPLETED")
+                .responsePayload("{\"message\":\"ok\"}")
+                .build();
+        when(repository.findByIdempotencyKey("receipt:device-1:42"))
+                .thenReturn(Optional.of(completed));
+        var result = service.reconcile("device-1", "receipt:device-1:42");
+        assertThat(result.isVerified()).isFalse();
+        assertThat(result.getMessage()).contains("no verifiable backend record ID");
+    }
+
+    @Test
+    void completedSubmissionWithBackendIdentityCanBeVerified() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("receipt-ack")
+                .idempotencyKey("receipt:device-1:43")
+                .deviceId("device-1")
+                .status("COMPLETED")
+                .responsePayload("{\"id\":\"receipt-server-id\"}")
+                .build();
+        when(repository.findByIdempotencyKey("receipt:device-1:43"))
+                .thenReturn(Optional.of(completed));
+        var result = service.reconcile("device-1", "receipt:device-1:43");
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getServerRecordId()).isEqualTo("receipt-server-id");
+    }
+
+    @Test
+    void failedMembershipWithLostAcknowledgmentCanReconcileByVerifiedIdentity() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity submitted = DeviceSyncSubmissionEntity.builder()
+                .submissionId("offline-membership")
+                .idempotencyKey("membership:device-1:100")
+                .deviceId("device-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-100\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .status("PROCESSING_FAILED")
+                .build();
+        when(repository.findByIdempotencyKey("membership:device-1:100"))
+                .thenReturn(Optional.of(submitted));
+        var membership = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("erp-id").membershipNo("M-100").memberId("partner-1")
+                .planId("plan-1").status("PENDING_APPROVAL").build();
+        when(membershipRepository.findByMembershipNo("M-100"))
+                .thenReturn(Optional.of(membership));
+
+        var result = service.reconcile("device-1", "membership:device-1:100");
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getServerRecordId()).isEqualTo("erp-id");
+        assertThat(result.getServerStatus()).isEqualTo("PENDING_APPROVAL");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void conflictingMembershipIdentityIsNotReconciled() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity submitted = DeviceSyncSubmissionEntity.builder()
+                .submissionId("offline-membership")
+                .idempotencyKey("membership:device-1:101")
+                .deviceId("device-1")
+                .targetPath("/v2/membership")
+                .requestPayload("{\"membershipNo\":\"M-101\",\"memberId\":\"partner-1\",\"planId\":\"plan-1\"}")
+                .status("PROCESSING_FAILED")
+                .build();
+        when(repository.findByIdempotencyKey("membership:device-1:101"))
+                .thenReturn(Optional.of(submitted));
+        var other = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
+                .id("different-erp-id").membershipNo("M-101")
+                .memberId("different-partner").planId("plan-1").build();
+        when(membershipRepository.findByMembershipNo("M-101"))
+                .thenReturn(Optional.of(other));
+        var result = service.reconcile("device-1", "membership:device-1:101");
+        assertThat(result.isVerified()).isFalse();
+    }
+
+    @Test
+    void manualCorrectionCannotOverwriteInFlightSubmission() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity processing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("active-operation")
+                .status("PROCESSING")
+                .requestPayload("{\"original\":true}")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("active-operation"))
+                .thenReturn(Optional.of(processing));
+        var correction = new za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCorrectionRequest();
+        correction.setPayload(Map.of("changed", true));
+        assertThatThrownBy(() -> service.correct("active-operation", correction, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("being processed");
+        assertThat(processing.getRequestPayload()).contains("original");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void manualCorrectionCannotReopenCompletedSubmission() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("completed-operation")
+                .status("COMPLETED")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("completed-operation"))
+                .thenReturn(Optional.of(completed));
+        var correction = new za.co.mawa.bes.dto.v2.devicesync.DeviceSyncCorrectionRequest();
+        correction.setPayload(Map.of("changed", true));
+        assertThatThrownBy(() -> service.correct("completed-operation", correction, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("finalized");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void cancellationCannotInvalidateActiveProcessing() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity processing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("active-payment")
+                .idempotencyKey("payment-batch:device-1:42")
+                .status("PROCESSING")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("active-payment"))
+                .thenReturn(Optional.of(processing));
+        assertThatThrownBy(() -> service.cancel("active-payment", null, "admin"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("processing");
+        assertThat(processing.getStatus()).isEqualTo("PROCESSING");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void repeatedSubmitDoesNotReplaceAnInFlightPayload() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity inFlight = DeviceSyncSubmissionEntity.builder()
+                .submissionId("submission-processing")
+                .idempotencyKey("payment:device:123")
+                .targetPath("/v2/payment-batch")
+                .httpMethod("POST")
+                .requestPayload("{\"reference\":\"original\"}")
+                .status("PROCESSING")
+                .build();
+        when(repository.findByIdempotencyKeyForUpdate("payment:device:123"))
+                .thenReturn(Optional.of(inFlight));
+        DeviceSyncSubmitRequest retry = new DeviceSyncSubmitRequest();
+        retry.setIdempotencyKey("payment:device:123");
+        retry.setMethod("POST");
+        retry.setPath("/v2/payment-batch");
+        retry.setPayload(Map.of("reference", "replacement"));
+
+        var result = service.submit(retry, "user-2");
+        assertThat(result.getStatus()).isEqualTo("PROCESSING");
+        assertThat(inFlight.getRequestPayload()).contains("original");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+                .save(any(DeviceSyncSubmissionEntity.class));
+    }
+
+    @Test
     void completedMembershipWithEmptyBodyIsRecoveredFromVerifiedMembershipNumber() {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
@@ -56,7 +319,7 @@ class DeviceSyncSubmissionServiceTest {
                 .memberId("partner-1").planId("plan-1")
                 .premiumCents(100L).startDate(java.time.LocalDate.of(2026,10,1))
                 .status("ACTIVE").build();
-        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+        when(repository.findByIdempotencyKeyForUpdate("membership:M-100:partner-1"))
                 .thenReturn(Optional.of(existing));
         when(membershipRepository.findByMembershipNo("M-100"))
                 .thenReturn(Optional.of(membership));
@@ -86,7 +349,7 @@ class DeviceSyncSubmissionServiceTest {
         var unrelated = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
                 .id("wrong-id").membershipNo("M-100").memberId("different-partner")
                 .planId("plan-1").build();
-        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+        when(repository.findByIdempotencyKeyForUpdate("membership:M-100:partner-1"))
                 .thenReturn(Optional.of(existing));
         when(membershipRepository.findByMembershipNo("M-100"))
                 .thenReturn(Optional.of(unrelated));
@@ -135,7 +398,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/partner");
         request.setPayload(Map.of("name1", "CORRECTED"));
 
-        when(repository.findByIdempotencyKey("partner:device-1:42"))
+        when(repository.findByIdempotencyKeyForUpdate("partner:device-1:42"))
                 .thenReturn(Optional.of(existing));
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -183,7 +446,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/partner");
         request.setPayload(Map.of("name1", "SHOULD-NOT-REPLACE"));
 
-        when(repository.findByIdempotencyKey("partner:device-1:43"))
+        when(repository.findByIdempotencyKeyForUpdate("partner:device-1:43"))
                 .thenReturn(Optional.of(existing));
 
         var result = service.submit(request, "user-new");
@@ -194,7 +457,7 @@ class DeviceSyncSubmissionServiceTest {
     }
 
     @Test
-    void completedPaymentWithoutResponseBodyIsReopenedForARealRetry() {
+    void completedPaymentWithoutResponseBodyRequiresReconciliationBeforeRetry() {
         ObjectMapper mapper = new ObjectMapper();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, mapper);
@@ -222,16 +485,16 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/sync/payment-batches/membership-premiums");
         request.setPayload(Map.of("paymentBatchNo", "PB-9002"));
 
-        when(repository.findByIdempotencyKey(request.getIdempotencyKey()))
+        when(repository.findByIdempotencyKeyForUpdate(request.getIdempotencyKey()))
                 .thenReturn(Optional.of(existing));
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = service.submit(request, "cashier");
 
-        assertThat(result.getStatus()).isEqualTo("RECEIVED");
-        assertThat(existing.getResponseStatus()).isNull();
-        assertThat(existing.getProcessedAt()).isNull();
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        assertThat(existing.getResponseStatus()).isEqualTo(200);
+        assertThat(existing.getErrorMessage()).contains("reconcile");
     }
 
     @Test
@@ -258,7 +521,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setDeviceId("device-1");
         request.setReason("Local receipt deleted before successful synchronization");
 
-        when(repository.findBySubmissionId("submission-3")).thenReturn(Optional.of(existing));
+        when(repository.findBySubmissionIdForUpdate("submission-3")).thenReturn(Optional.of(existing));
         when(paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId("device-1", "44"))
                 .thenReturn(Optional.empty());
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
@@ -297,5 +560,86 @@ class DeviceSyncSubmissionServiceTest {
 
         assertThat(result.isVerified()).isTrue();
         assertThat(result.getServerRecordId()).isEqualTo("server-batch-new");
+    }
+
+    @Test
+    void reconciliationRejectsDuplicateBackendReceiptNumbers() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        PaymentBatchEntity batch = PaymentBatchEntity.builder()
+                .id("server-batch-1").paymentBatchNo("PB-100")
+                .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-100"))
+                .thenReturn(Optional.empty());
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-100"))
+                .thenReturn(Optional.of(batch));
+        when(receiptRepository.findByPaymentBatchId("server-batch-1"))
+                .thenReturn(java.util.List.of(
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id("receipt-1").receiptNo("R-100").build(),
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id("receipt-2").receiptNo("R-100").build()));
+
+        var result = service.reconcile("device-1", "payment-batch-number:device-1:PB-100");
+        assertThat(result.isVerified()).isFalse();
+        assertThat(result.getMessage()).contains("duplicate");
+    }
+
+    @Test
+    void reconciliationRejectsReceiptWithoutServerId() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        PaymentBatchEntity batch = PaymentBatchEntity.builder()
+                .id("server-batch-2").paymentBatchNo("PB-101")
+                .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-101"))
+                .thenReturn(Optional.empty());
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-101"))
+                .thenReturn(Optional.of(batch));
+        when(receiptRepository.findByPaymentBatchId("server-batch-2"))
+                .thenReturn(java.util.List.of(
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id(null).receiptNo("R-101").build()));
+        var result = service.reconcile("device-1", "payment-batch-number:device-1:PB-101");
+        assertThat(result.isVerified()).isFalse();
+    }
+
+    @Test
+    void completedSubmissionRetryReturnsSavedAcknowledgmentWithoutReprocessing() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("done-payment")
+                .idempotencyKey("payment-batch-number:device-1:PB-700")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .status("COMPLETED")
+                .responseStatus(200)
+                .responsePayload("{\"id\":\"server-batch-700\"}")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("done-payment"))
+                .thenReturn(Optional.of(existing));
+        var result = service.process("done-payment", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(String.valueOf(result.getResponsePayload())).contains("server-batch-700");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void emptyAcknowledgmentCannotTriggerSecondProcessingRequest() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity existing = DeviceSyncSubmissionEntity.builder()
+                .submissionId("lost-payment-ack")
+                .idempotencyKey("payment-batch-number:device-1:PB-701")
+                .targetPath("/v2/sync/payment-batches/membership-premiums")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Payment batch acknowledgment missing; reconcile the original backend batch before retrying")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("lost-payment-ack"))
+                .thenReturn(Optional.of(existing));
+        var result = service.process("lost-payment-ack", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
     }
 }

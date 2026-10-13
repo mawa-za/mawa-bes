@@ -41,10 +41,13 @@ public class DeviceSyncSubmissionService {
         validate(request);
         String key = request.getIdempotencyKey().trim();
         LocalDateTime now = LocalDateTime.now();
-        Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKey(key);
+        Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKeyForUpdate(key);
         if (existing.isPresent()) {
             DeviceSyncSubmissionEntity entity = existing.get();
             if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+            // An in-flight attempt owns its payload until processing commits.
+            // A repeated submit must not reset it to RECEIVED or replace its body.
+            if ("PROCESSING".equals(entity.getStatus())) return dto(entity);
             // The ERP may have committed the membership before an earlier device
             // submission was marked failed (for example after a lost response).
             // Reconcile the *new* request identity before replaying its POST.
@@ -54,9 +57,17 @@ public class DeviceSyncSubmissionService {
                     && recoverMembershipResponse(entity, json(request.getPayload()))) {
                 return dto(entity);
             }
-            boolean incompleteCompletedPayment = "COMPLETED".equals(entity.getStatus())
+            // HTTP success with no acknowledgment is ambiguous: the business
+            // transaction may have committed even though its response was lost.
+            // Never silently reopen that completed payment for another POST.
+            if ("COMPLETED".equals(entity.getStatus())
                     && isPaymentBatchSubmission(entity.getTargetPath())
-                    && blankJson(entity.getResponsePayload());
+                    && blankJson(entity.getResponsePayload())) {
+                entity.setStatus("PROCESSING_FAILED");
+                entity.setErrorMessage("Payment batch acknowledgment missing; reconcile the original backend batch before retrying");
+                entity.setUpdatedAt(now);
+                return dto(repository.save(entity));
+            }
             if ("COMPLETED".equals(entity.getStatus()) && isMembershipSubmission(entity.getTargetPath())
                     && blankJson(entity.getResponsePayload())) {
                 if (recoverMembershipResponse(entity)) return dto(entity);
@@ -65,7 +76,7 @@ public class DeviceSyncSubmissionService {
                 entity.setUpdatedAt(LocalDateTime.now());
                 return dto(repository.save(entity));
             }
-            if (!"COMPLETED".equals(entity.getStatus()) || incompleteCompletedPayment) {
+            if (!"COMPLETED".equals(entity.getStatus())) {
                 // The same durable operation may be retried after the device user
                 // corrected local data. Keep the idempotency identity, but refresh
                 // the payload and device metadata so reprocessing never replays the
@@ -145,7 +156,10 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto process(String id, HttpHeaders incoming) {
-        DeviceSyncSubmissionEntity entity = find(id);
+        // Lock before checking status. A concurrent retry must not replay a
+        // submission that another request is already processing.
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
         if ("COMPLETED".equals(entity.getStatus())) {
             if (isMembershipSubmission(entity.getTargetPath()) && blankJson(entity.getResponsePayload())) {
                 if (!recoverMembershipResponse(entity)) {
@@ -158,6 +172,39 @@ public class DeviceSyncSubmissionService {
             return dto(entity);
         }
         if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+        if (isPaymentBatchSubmission(entity.getTargetPath())
+                && "PROCESSING_FAILED".equals(entity.getStatus())
+                && entity.getErrorMessage() != null
+                && entity.getErrorMessage().startsWith("Payment batch acknowledgment missing;")) {
+            // Client must use the payment-batch reconciliation endpoint to
+            // recover the durable ERP identity before authorizing a new POST.
+            return dto(entity);
+        }
+        // Before replaying an uncertain payment upload, check the actual ERP
+        // payment batch using its stable device-owned identity. A lost HTTP
+        // response must not authorize creating that same payment twice.
+        if (isPaymentBatchSubmission(entity.getTargetPath())
+                && ("PROCESSING_FAILED".equals(entity.getStatus())
+                    || "CORRECTION_REQUIRED".equals(entity.getStatus()))) {
+            Map<String, Object> original = payloadMap(entity.getRequestPayload());
+            String deviceId = trimToNull(text(original.get("deviceId")));
+            String batchNo = trimToNull(text(original.get("paymentBatchNo")));
+            String localId = trimToNull(text(original.get("localPaymentBatchId")));
+            boolean exists = false;
+            if (deviceId != null && batchNo != null) {
+                exists = paymentBatchRepository.findByPaymentBatchNo(batchNo)
+                        .filter(batch -> deviceId.equals(batch.getDeviceId())).isPresent();
+            }
+            if (!exists && deviceId != null && localId != null) {
+                exists = paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(deviceId, localId).isPresent();
+            }
+            if (exists) {
+                entity.setStatus("PROCESSING_FAILED");
+                entity.setErrorMessage("Payment batch already exists in ERP; reconcile receipt identities before acknowledging or retrying");
+                entity.setUpdatedAt(LocalDateTime.now());
+                return dto(repository.save(entity));
+            }
+        }
         // Repair previously failed/correction-required submissions even when
         // the original ERP create succeeded but the queue recorded an error.
         if (isMembershipSubmission(entity.getTargetPath()) && recoverMembershipResponse(entity)) {
@@ -208,9 +255,13 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto correct(String id, DeviceSyncCorrectionRequest request, String userId) {
-        DeviceSyncSubmissionEntity entity = find(id);
-        if ("CANCELLED".equals(entity.getStatus())) {
-            throw new IllegalStateException("A cancelled device sync submission cannot be corrected");
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
+        if ("CANCELLED".equals(entity.getStatus()) || "COMPLETED".equals(entity.getStatus())) {
+            throw new IllegalStateException("A finalized device sync submission cannot be corrected");
+        }
+        if ("PROCESSING".equals(entity.getStatus())) {
+            throw new IllegalStateException("A device sync submission being processed cannot be corrected");
         }
         entity.setRequestPayload(json(request.getPayload()));
         entity.setResponsePayload(null);
@@ -258,9 +309,45 @@ public class DeviceSyncSubmissionService {
             return verifiedPaymentBatch(batch);
         }
 
+        // A lost response can leave a membership create marked failed even when
+        // ERP already committed it. Reconcile only against the original, verified
+        // membership identity; never infer a match from membership number alone.
+        if (submission != null && isMembershipSubmission(submission.getTargetPath())
+                && !"CANCELLED".equals(submission.getStatus())) {
+            Map<String, Object> original = payloadMap(submission.getRequestPayload());
+            String membershipNo = trimToNull(text(original.get("membershipNo")));
+            String memberId = trimToNull(text(original.get("memberId")));
+            String planId = trimToNull(text(original.get("planId")));
+            if (membershipNo != null && memberId != null && planId != null) {
+                Optional<MembershipEntity> matching = membershipRepository.findByMembershipNo(membershipNo);
+                if (matching.isPresent()) {
+                    MembershipEntity membership = matching.get();
+                    if (memberId.equals(membership.getMemberId())
+                            && planId.equals(membership.getPlanId())
+                            && !blank(membership.getId())) {
+                        return DeviceSyncReconciliationDto.builder().verified(true)
+                                .entityType("MEMBERSHIP")
+                                .serverRecordId(membership.getId())
+                                .serverStatus(membership.getStatus())
+                                .message("Existing ERP membership identity verified")
+                                .build();
+                    }
+                }
+            }
+        }
+
         if (submission != null && "COMPLETED".equals(submission.getStatus())) {
             Map<String, Object> response = payloadMap(submission.getResponsePayload());
             String serverId = firstText(response, "id", "serverId", "paymentBatchId", "cashupId", "membershipId", "partnerId");
+            // A completed queue entry alone is not proof that a business record
+            // was created. Keep ambiguous acknowledgments visible for reconciliation.
+            if (blank(serverId)) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("SUBMISSION")
+                        .serverStatus(submission.getStatus())
+                        .message("Completed submission has no verifiable backend record ID")
+                        .build();
+            }
             return DeviceSyncReconciliationDto.builder().verified(true)
                     .entityType("SUBMISSION").serverRecordId(serverId)
                     .serverStatus(submission.getStatus()).message("Completed backend submission verified").build();
@@ -272,8 +359,19 @@ public class DeviceSyncSubmissionService {
 
     private DeviceSyncReconciliationDto verifiedPaymentBatch(za.co.mawa.bes.entity.v2.PaymentBatchEntity batch) {
         Map<String, String> receipts = new LinkedHashMap<>();
-        receiptRepository.findByPaymentBatchId(batch.getId()).forEach(receipt ->
-                receipts.put(receipt.getReceiptNo(), receipt.getId()));
+        for (var receipt : receiptRepository.findByPaymentBatchId(batch.getId())) {
+            String receiptNo = trimToNull(receipt.getReceiptNo());
+            String receiptId = trimToNull(receipt.getId());
+            // Never return a partial or ambiguous receipt map. A device could
+            // otherwise acknowledge the wrong local receipt or lose its retry.
+            if (receiptNo == null || receiptId == null || receipts.containsKey(receiptNo)) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
+                        .message("Backend receipts have missing or duplicate identifiers; manual reconciliation required")
+                        .build();
+            }
+            receipts.put(receiptNo, receiptId);
+        }
         return DeviceSyncReconciliationDto.builder().verified(true)
                 .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
                 .serverStatus(batch.getStatus() == null ? null : batch.getStatus().name())
@@ -291,14 +389,15 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto cancel(String id, DeviceSyncCancellationRequest request, String userId) {
-        DeviceSyncSubmissionEntity entity = find(id);
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
         if (!blank(request == null ? null : request.getIdempotencyKey()) &&
                 !entity.getIdempotencyKey().equals(request.getIdempotencyKey().trim())) {
             throw new IllegalStateException("The queued operation identity does not match");
         }
         if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
-        if ("COMPLETED".equals(entity.getStatus())) {
-            throw new IllegalStateException("A completed device sync submission cannot be cancelled");
+        if ("COMPLETED".equals(entity.getStatus()) || "PROCESSING".equals(entity.getStatus())) {
+            throw new IllegalStateException("A completed or processing device sync submission cannot be cancelled");
         }
         if (request == null || blank(request.getDeviceId()) || blank(request.getReason())) {
             throw new IllegalArgumentException("deviceId and cancellation reason are required");
@@ -344,7 +443,7 @@ public class DeviceSyncSubmissionService {
             throw new IllegalArgumentException("idempotencyKey is required");
         }
         DeviceSyncSubmissionEntity entity = repository
-                .findByIdempotencyKey(request.getIdempotencyKey().trim())
+                .findByIdempotencyKeyForUpdate(request.getIdempotencyKey().trim())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Device sync submission was not found for the supplied operation"));
         return cancel(entity.getSubmissionId(), request, userId);
