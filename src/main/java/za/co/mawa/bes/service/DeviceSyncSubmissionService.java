@@ -180,6 +180,31 @@ public class DeviceSyncSubmissionService {
             // recover the durable ERP identity before authorizing a new POST.
             return dto(entity);
         }
+        // Before replaying an uncertain payment upload, check the actual ERP
+        // payment batch using its stable device-owned identity. A lost HTTP
+        // response must not authorize creating that same payment twice.
+        if (isPaymentBatchSubmission(entity.getTargetPath())
+                && ("PROCESSING_FAILED".equals(entity.getStatus())
+                    || "CORRECTION_REQUIRED".equals(entity.getStatus()))) {
+            Map<String, Object> original = payloadMap(entity.getRequestPayload());
+            String deviceId = trimToNull(text(original.get("deviceId")));
+            String batchNo = trimToNull(text(original.get("paymentBatchNo")));
+            String localId = trimToNull(text(original.get("localPaymentBatchId")));
+            boolean exists = false;
+            if (deviceId != null && batchNo != null) {
+                exists = paymentBatchRepository.findByPaymentBatchNo(batchNo)
+                        .filter(batch -> deviceId.equals(batch.getDeviceId())).isPresent();
+            }
+            if (!exists && deviceId != null && localId != null) {
+                exists = paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId(deviceId, localId).isPresent();
+            }
+            if (exists) {
+                entity.setStatus("PROCESSING_FAILED");
+                entity.setErrorMessage("Payment batch already exists in ERP; reconcile receipt identities before acknowledging or retrying");
+                entity.setUpdatedAt(LocalDateTime.now());
+                return dto(repository.save(entity));
+            }
+        }
         // Repair previously failed/correction-required submissions even when
         // the original ERP create succeeded but the queue recorded an error.
         if (isMembershipSubmission(entity.getTargetPath()) && recoverMembershipResponse(entity)) {

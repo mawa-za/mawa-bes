@@ -40,6 +40,31 @@ class DeviceSyncSubmissionServiceTest {
     private MembershipRepository membershipRepository;
 
     @Test
+    void failedPaymentWithExistingErpBatchIsNotPostedAgain() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity failed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("failed-payment")
+                .idempotencyKey("payment-batch-number:device-1:B100")
+                .deviceId("device-1")
+                .targetPath("/v2/sync/payment-batches/create")
+                .requestPayload("{\"deviceId\":\"device-1\",\"paymentBatchNo\":\"B100\",\"localPaymentBatchId\":\"10\"}")
+                .status("PROCESSING_FAILED")
+                .errorMessage("Read timed out")
+                .build();
+        when(repository.findBySubmissionIdForUpdate("failed-payment")).thenReturn(Optional.of(failed));
+        var persisted = PaymentBatchEntity.builder().id("erp-batch-1")
+                .deviceId("device-1").build();
+        when(paymentBatchRepository.findByPaymentBatchNo("B100")).thenReturn(Optional.of(persisted));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.process("failed-payment", new org.springframework.http.HttpHeaders());
+        assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
+        assertThat(failed.getErrorMessage()).contains("already exists in ERP");
+        assertThat(failed.getAttemptCount()).isNull();
+    }
+
+    @Test
     void completedSubmissionWithoutBackendIdentityIsNotVerified() {
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
