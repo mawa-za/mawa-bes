@@ -61,7 +61,7 @@ class DeviceSyncSubmissionServiceTest {
         var result = service.process("failed-payment", new org.springframework.http.HttpHeaders());
         assertThat(result.getStatus()).isEqualTo("PROCESSING_FAILED");
         assertThat(failed.getErrorMessage()).contains("already exists in ERP");
-        assertThat(failed.getAttemptCount()).isNull();
+        assertThat(failed.getAttemptCount()).isZero();
     }
 
     @Test
@@ -521,7 +521,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setDeviceId("device-1");
         request.setReason("Local receipt deleted before successful synchronization");
 
-        when(repository.findBySubmissionId("submission-3")).thenReturn(Optional.of(existing));
+        when(repository.findBySubmissionIdForUpdate("submission-3")).thenReturn(Optional.of(existing));
         when(paymentBatchRepository.findByDeviceIdAndLocalPaymentBatchId("device-1", "44"))
                 .thenReturn(Optional.empty());
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
@@ -547,7 +547,7 @@ class DeviceSyncSubmissionServiceTest {
                 .status(PaymentBatchStatus.POSTED)
                 .build();
 
-        when(repository.findByIdempotencyKeyForUpdate(
+        when(repository.findByIdempotencyKey(
                 "payment-batch-number:device-1:PB-9002"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-9002"))
@@ -569,7 +569,7 @@ class DeviceSyncSubmissionServiceTest {
         PaymentBatchEntity batch = PaymentBatchEntity.builder()
                 .id("server-batch-1").paymentBatchNo("PB-100")
                 .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
-        when(repository.findByIdempotencyKeyForUpdate("payment-batch-number:device-1:PB-100"))
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-100"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-100"))
                 .thenReturn(Optional.of(batch));
@@ -592,7 +592,7 @@ class DeviceSyncSubmissionServiceTest {
         PaymentBatchEntity batch = PaymentBatchEntity.builder()
                 .id("server-batch-2").paymentBatchNo("PB-101")
                 .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
-        when(repository.findByIdempotencyKeyForUpdate("payment-batch-number:device-1:PB-101"))
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-101"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-101"))
                 .thenReturn(Optional.of(batch));
