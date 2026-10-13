@@ -18,4 +18,9 @@ public interface DeviceSyncSubmissionRepository extends JpaRepository<DeviceSync
     @Query("select s from DeviceSyncSubmissionEntity s where s.submissionId = :submissionId")
     Optional<DeviceSyncSubmissionEntity> findBySubmissionIdForUpdate(@Param("submissionId") String submissionId);
     Optional<DeviceSyncSubmissionEntity> findByIdempotencyKey(String idempotencyKey);
+
+    // Coordinate repeated /submit requests with a concurrent /process of this same operation.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from DeviceSyncSubmissionEntity s where s.idempotencyKey = :idempotencyKey")
+    Optional<DeviceSyncSubmissionEntity> findByIdempotencyKeyForUpdate(@Param("idempotencyKey") String idempotencyKey);
 }

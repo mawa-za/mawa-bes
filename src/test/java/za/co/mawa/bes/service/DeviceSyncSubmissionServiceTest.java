@@ -39,6 +39,33 @@ class DeviceSyncSubmissionServiceTest {
     private MembershipRepository membershipRepository;
 
     @Test
+    void repeatedSubmitDoesNotReplaceAnInFlightPayload() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity inFlight = DeviceSyncSubmissionEntity.builder()
+                .submissionId("submission-processing")
+                .idempotencyKey("payment:device:123")
+                .targetPath("/v2/payment-batch")
+                .httpMethod("POST")
+                .requestPayload("{\"reference\":\"original\"}")
+                .status("PROCESSING")
+                .build();
+        when(repository.findByIdempotencyKeyForUpdate("payment:device:123"))
+                .thenReturn(Optional.of(inFlight));
+        DeviceSyncSubmitRequest retry = new DeviceSyncSubmitRequest();
+        retry.setIdempotencyKey("payment:device:123");
+        retry.setMethod("POST");
+        retry.setPath("/v2/payment-batch");
+        retry.setPayload(Map.of("reference", "replacement"));
+
+        var result = service.submit(retry, "user-2");
+        assertThat(result.getStatus()).isEqualTo("PROCESSING");
+        assertThat(inFlight.getRequestPayload()).contains("original");
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+                .save(any(DeviceSyncSubmissionEntity.class));
+    }
+
+    @Test
     void completedMembershipWithEmptyBodyIsRecoveredFromVerifiedMembershipNumber() {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
@@ -56,7 +83,7 @@ class DeviceSyncSubmissionServiceTest {
                 .memberId("partner-1").planId("plan-1")
                 .premiumCents(100L).startDate(java.time.LocalDate.of(2026,10,1))
                 .status("ACTIVE").build();
-        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+        when(repository.findByIdempotencyKeyForUpdate("membership:M-100:partner-1"))
                 .thenReturn(Optional.of(existing));
         when(membershipRepository.findByMembershipNo("M-100"))
                 .thenReturn(Optional.of(membership));
@@ -86,7 +113,7 @@ class DeviceSyncSubmissionServiceTest {
         var unrelated = za.co.mawa.bes.entity.v2.MembershipEntity.builder()
                 .id("wrong-id").membershipNo("M-100").memberId("different-partner")
                 .planId("plan-1").build();
-        when(repository.findByIdempotencyKey("membership:M-100:partner-1"))
+        when(repository.findByIdempotencyKeyForUpdate("membership:M-100:partner-1"))
                 .thenReturn(Optional.of(existing));
         when(membershipRepository.findByMembershipNo("M-100"))
                 .thenReturn(Optional.of(unrelated));
@@ -135,7 +162,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/partner");
         request.setPayload(Map.of("name1", "CORRECTED"));
 
-        when(repository.findByIdempotencyKey("partner:device-1:42"))
+        when(repository.findByIdempotencyKeyForUpdate("partner:device-1:42"))
                 .thenReturn(Optional.of(existing));
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -183,7 +210,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/partner");
         request.setPayload(Map.of("name1", "SHOULD-NOT-REPLACE"));
 
-        when(repository.findByIdempotencyKey("partner:device-1:43"))
+        when(repository.findByIdempotencyKeyForUpdate("partner:device-1:43"))
                 .thenReturn(Optional.of(existing));
 
         var result = service.submit(request, "user-new");
@@ -222,7 +249,7 @@ class DeviceSyncSubmissionServiceTest {
         request.setPath("/v2/sync/payment-batches/membership-premiums");
         request.setPayload(Map.of("paymentBatchNo", "PB-9002"));
 
-        when(repository.findByIdempotencyKey(request.getIdempotencyKey()))
+        when(repository.findByIdempotencyKeyForUpdate(request.getIdempotencyKey()))
                 .thenReturn(Optional.of(existing));
         when(repository.save(any(DeviceSyncSubmissionEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -284,7 +311,7 @@ class DeviceSyncSubmissionServiceTest {
                 .status(PaymentBatchStatus.POSTED)
                 .build();
 
-        when(repository.findByIdempotencyKey(
+        when(repository.findByIdempotencyKeyForUpdate(
                 "payment-batch-number:device-1:PB-9002"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-9002"))
@@ -306,7 +333,7 @@ class DeviceSyncSubmissionServiceTest {
         PaymentBatchEntity batch = PaymentBatchEntity.builder()
                 .id("server-batch-1").paymentBatchNo("PB-100")
                 .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
-        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-100"))
+        when(repository.findByIdempotencyKeyForUpdate("payment-batch-number:device-1:PB-100"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-100"))
                 .thenReturn(Optional.of(batch));
@@ -329,7 +356,7 @@ class DeviceSyncSubmissionServiceTest {
         PaymentBatchEntity batch = PaymentBatchEntity.builder()
                 .id("server-batch-2").paymentBatchNo("PB-101")
                 .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
-        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-101"))
+        when(repository.findByIdempotencyKeyForUpdate("payment-batch-number:device-1:PB-101"))
                 .thenReturn(Optional.empty());
         when(paymentBatchRepository.findByPaymentBatchNo("PB-101"))
                 .thenReturn(Optional.of(batch));

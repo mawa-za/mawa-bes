@@ -41,10 +41,13 @@ public class DeviceSyncSubmissionService {
         validate(request);
         String key = request.getIdempotencyKey().trim();
         LocalDateTime now = LocalDateTime.now();
-        Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKey(key);
+        Optional<DeviceSyncSubmissionEntity> existing = repository.findByIdempotencyKeyForUpdate(key);
         if (existing.isPresent()) {
             DeviceSyncSubmissionEntity entity = existing.get();
             if ("CANCELLED".equals(entity.getStatus())) return dto(entity);
+            // An in-flight attempt owns its payload until processing commits.
+            // A repeated submit must not reset it to RECEIVED or replace its body.
+            if ("PROCESSING".equals(entity.getStatus())) return dto(entity);
             // The ERP may have committed the membership before an earlier device
             // submission was marked failed (for example after a lost response).
             // Reconcile the *new* request identity before replaying its POST.
