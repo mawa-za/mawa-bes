@@ -145,7 +145,10 @@ public class DeviceSyncSubmissionService {
 
     @Transactional
     public DeviceSyncSubmissionDto process(String id, HttpHeaders incoming) {
-        DeviceSyncSubmissionEntity entity = find(id);
+        // Lock before checking status. A concurrent retry must not replay a
+        // submission that another request is already processing.
+        DeviceSyncSubmissionEntity entity = repository.findBySubmissionIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Device sync submission not found: " + id));
         if ("COMPLETED".equals(entity.getStatus())) {
             if (isMembershipSubmission(entity.getTargetPath()) && blankJson(entity.getResponsePayload())) {
                 if (!recoverMembershipResponse(entity)) {
