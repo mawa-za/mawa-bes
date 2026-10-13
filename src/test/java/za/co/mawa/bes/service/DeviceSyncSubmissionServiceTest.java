@@ -298,4 +298,46 @@ class DeviceSyncSubmissionServiceTest {
         assertThat(result.isVerified()).isTrue();
         assertThat(result.getServerRecordId()).isEqualTo("server-batch-new");
     }
+
+    @Test
+    void reconciliationRejectsDuplicateBackendReceiptNumbers() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        PaymentBatchEntity batch = PaymentBatchEntity.builder()
+                .id("server-batch-1").paymentBatchNo("PB-100")
+                .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-100"))
+                .thenReturn(Optional.empty());
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-100"))
+                .thenReturn(Optional.of(batch));
+        when(receiptRepository.findByPaymentBatchId("server-batch-1"))
+                .thenReturn(java.util.List.of(
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id("receipt-1").receiptNo("R-100").build(),
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id("receipt-2").receiptNo("R-100").build()));
+
+        var result = service.reconcile("device-1", "payment-batch-number:device-1:PB-100");
+        assertThat(result.isVerified()).isFalse();
+        assertThat(result.getMessage()).contains("duplicate");
+    }
+
+    @Test
+    void reconciliationRejectsReceiptWithoutServerId() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        PaymentBatchEntity batch = PaymentBatchEntity.builder()
+                .id("server-batch-2").paymentBatchNo("PB-101")
+                .deviceId("device-1").status(PaymentBatchStatus.POSTED).build();
+        when(repository.findByIdempotencyKey("payment-batch-number:device-1:PB-101"))
+                .thenReturn(Optional.empty());
+        when(paymentBatchRepository.findByPaymentBatchNo("PB-101"))
+                .thenReturn(Optional.of(batch));
+        when(receiptRepository.findByPaymentBatchId("server-batch-2"))
+                .thenReturn(java.util.List.of(
+                        za.co.mawa.bes.entity.v2.ReceiptEntity.builder()
+                                .id(null).receiptNo("R-101").build()));
+        var result = service.reconcile("device-1", "payment-batch-number:device-1:PB-101");
+        assertThat(result.isVerified()).isFalse();
+    }
 }

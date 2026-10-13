@@ -272,8 +272,19 @@ public class DeviceSyncSubmissionService {
 
     private DeviceSyncReconciliationDto verifiedPaymentBatch(za.co.mawa.bes.entity.v2.PaymentBatchEntity batch) {
         Map<String, String> receipts = new LinkedHashMap<>();
-        receiptRepository.findByPaymentBatchId(batch.getId()).forEach(receipt ->
-                receipts.put(receipt.getReceiptNo(), receipt.getId()));
+        for (var receipt : receiptRepository.findByPaymentBatchId(batch.getId())) {
+            String receiptNo = trimToNull(receipt.getReceiptNo());
+            String receiptId = trimToNull(receipt.getId());
+            // Never return a partial or ambiguous receipt map. A device could
+            // otherwise acknowledge the wrong local receipt or lose its retry.
+            if (receiptNo == null || receiptId == null || receipts.containsKey(receiptNo)) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
+                        .message("Backend receipts have missing or duplicate identifiers; manual reconciliation required")
+                        .build();
+            }
+            receipts.put(receiptNo, receiptId);
+        }
         return DeviceSyncReconciliationDto.builder().verified(true)
                 .entityType("PAYMENT_BATCH").serverRecordId(batch.getId())
                 .serverStatus(batch.getStatus() == null ? null : batch.getStatus().name())
