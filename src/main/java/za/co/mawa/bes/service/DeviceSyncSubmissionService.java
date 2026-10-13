@@ -271,6 +271,15 @@ public class DeviceSyncSubmissionService {
         if (submission != null && "COMPLETED".equals(submission.getStatus())) {
             Map<String, Object> response = payloadMap(submission.getResponsePayload());
             String serverId = firstText(response, "id", "serverId", "paymentBatchId", "cashupId", "membershipId", "partnerId");
+            // A completed queue entry alone is not proof that a business record
+            // was created. Keep ambiguous acknowledgments visible for reconciliation.
+            if (blank(serverId)) {
+                return DeviceSyncReconciliationDto.builder().verified(false)
+                        .entityType("SUBMISSION")
+                        .serverStatus(submission.getStatus())
+                        .message("Completed submission has no verifiable backend record ID")
+                        .build();
+            }
             return DeviceSyncReconciliationDto.builder().verified(true)
                     .entityType("SUBMISSION").serverRecordId(serverId)
                     .serverStatus(submission.getStatus()).message("Completed backend submission verified").build();

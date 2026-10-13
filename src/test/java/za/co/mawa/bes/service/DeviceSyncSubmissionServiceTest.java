@@ -40,6 +40,42 @@ class DeviceSyncSubmissionServiceTest {
     private MembershipRepository membershipRepository;
 
     @Test
+    void completedSubmissionWithoutBackendIdentityIsNotVerified() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("receipt-no-ack")
+                .idempotencyKey("receipt:device-1:42")
+                .deviceId("device-1")
+                .status("COMPLETED")
+                .responsePayload("{\"message\":\"ok\"}")
+                .build();
+        when(repository.findByIdempotencyKey("receipt:device-1:42"))
+                .thenReturn(Optional.of(completed));
+        var result = service.reconcile("device-1", "receipt:device-1:42");
+        assertThat(result.isVerified()).isFalse();
+        assertThat(result.getMessage()).contains("no verifiable backend record ID");
+    }
+
+    @Test
+    void completedSubmissionWithBackendIdentityCanBeVerified() {
+        DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
+                repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
+        DeviceSyncSubmissionEntity completed = DeviceSyncSubmissionEntity.builder()
+                .submissionId("receipt-ack")
+                .idempotencyKey("receipt:device-1:43")
+                .deviceId("device-1")
+                .status("COMPLETED")
+                .responsePayload("{\"id\":\"receipt-server-id\"}")
+                .build();
+        when(repository.findByIdempotencyKey("receipt:device-1:43"))
+                .thenReturn(Optional.of(completed));
+        var result = service.reconcile("device-1", "receipt:device-1:43");
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getServerRecordId()).isEqualTo("receipt-server-id");
+    }
+
+    @Test
     void manualCorrectionCannotOverwriteInFlightSubmission() {
         DeviceSyncSubmissionService service = new DeviceSyncSubmissionService(
                 repository, paymentBatchRepository, receiptRepository, membershipRepository, new ObjectMapper());
