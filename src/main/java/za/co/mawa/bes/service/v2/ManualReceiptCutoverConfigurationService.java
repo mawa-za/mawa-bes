@@ -29,13 +29,18 @@ public class ManualReceiptCutoverConfigurationService {
 
     @Transactional
     public ManualReceiptCutoverConfigurationDto save(ManualReceiptCutoverConfigurationDto dto) {
-        if (dto.getMawaPayGoLiveDate() == null) throw new IllegalArgumentException("mawaPayGoLiveDate is required");
         ManualReceiptCutoverConfigurationEntity e = repository.findById(SINGLETON_ID).orElseGet(ManualReceiptCutoverConfigurationEntity::new);
         e.setId(SINGLETON_ID);
-        e.setMawaPayGoLiveDate(dto.getMawaPayGoLiveDate());
+        // Preserve an already configured date when an older/partial client omits it.
+        // A new configuration must always supply the date explicitly.
+        if (dto.getMawaPayGoLiveDate() != null) {
+            e.setMawaPayGoLiveDate(dto.getMawaPayGoLiveDate());
+        } else if (e.getMawaPayGoLiveDate() == null) {
+            throw new IllegalArgumentException("mawaPayGoLiveDate is required for initial setup");
+        }
         e.setLegacyCaptureCloseDate(dto.getLegacyCaptureCloseDate());
-        e.setEmergencyReceiptRequiresProof(!Boolean.FALSE.equals(dto.getEmergencyReceiptRequiresProof()));
-        e.setLegacyCaptureEnabled(!Boolean.FALSE.equals(dto.getLegacyCaptureEnabled()));
+        if (dto.getEmergencyReceiptRequiresProof() != null) e.setEmergencyReceiptRequiresProof(dto.getEmergencyReceiptRequiresProof());
+        if (dto.getLegacyCaptureEnabled() != null) e.setLegacyCaptureEnabled(dto.getLegacyCaptureEnabled());
         e.setUpdatedAt(LocalDateTime.now());
         e.setUpdatedBy(dto.getUpdatedBy());
         return toDto(repository.save(e));

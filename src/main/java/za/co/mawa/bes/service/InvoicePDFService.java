@@ -34,6 +34,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -48,6 +50,7 @@ public class InvoicePDFService {
     private final PartnerRepository partnerRepository;
     private final AddressRepository addressRepository;
     private final SettingService settingService;
+    private final JdbcTemplate jdbc;
     private final FuneralServiceInvoiceRepository funeralServiceInvoiceRepository;
 
     public InvoicePDFService(CompanyInfoService companyInfoService,
@@ -55,12 +58,14 @@ public class InvoicePDFService {
                              PartnerRepository partnerRepository,
                              AddressRepository addressRepository,
                              SettingService settingService,
-                             FuneralServiceInvoiceRepository funeralServiceInvoiceRepository) {
+                             FuneralServiceInvoiceRepository funeralServiceInvoiceRepository,
+                             JdbcTemplate jdbc) {
         this.companyInfoService = companyInfoService;
         this.companyLogoService = companyLogoService;
         this.partnerRepository = partnerRepository;
         this.addressRepository = addressRepository;
         this.settingService = settingService;
+        this.jdbc = jdbc;
         this.funeralServiceInvoiceRepository = funeralServiceInvoiceRepository;
     }
 
@@ -187,11 +192,19 @@ public class InvoicePDFService {
         document.add(new Paragraph("Please use your invoice number as a reference for payment")
                 .setFont(regular).setFontSize(9).setMarginBottom(7));
 
-        String bank = setting("BANK-NAME");
-        String holder = setting("ACCOUNT-HOLDER");
-        String type = setting("ACCOUNT-TYPE");
-        String number = setting("ACCOUNT-NUMBER");
-        String branch = setting("BRANCH-CODE");
+        // The same configured tenant account is used for regular and funeral-service invoices.
+        List<Map<String, Object>> invoiceAccounts = jdbc.queryForList("""
+                SELECT bank_name, account_holder, account_type, account_number, branch_code
+                  FROM payment_bank_account
+                 WHERE account_role = 'INVOICE' AND active = b'1'
+                 ORDER BY updated_at DESC, id DESC LIMIT 1
+                """);
+        Map<String, Object> account = invoiceAccounts.isEmpty() ? null : invoiceAccounts.get(0);
+        String bank = account == null ? setting("BANK-NAME") : bankValue(account, "bank_name");
+        String holder = account == null ? setting("ACCOUNT-HOLDER") : bankValue(account, "account_holder");
+        String type = account == null ? setting("ACCOUNT-TYPE") : bankValue(account, "account_type");
+        String number = account == null ? setting("ACCOUNT-NUMBER") : bankValue(account, "account_number");
+        String branch = account == null ? setting("BRANCH-CODE") : bankValue(account, "branch_code");
         if (!(bank + holder + type + number + branch).isBlank()) {
             Table banking = new Table(UnitValue.createPercentArray(new float[]{23, 77})).setWidth(UnitValue.createPercentValue(60));
             addBankRow(banking, "Bank", bank, bold, regular);
@@ -240,6 +253,11 @@ public class InvoicePDFService {
     private void addIdentityRow(Table table, String label, String value, PdfFont bold, PdfFont regular) {
         table.addCell(noBorderCell().setPadding(2).add(new Paragraph(label).setFont(bold).setFontSize(9)));
         table.addCell(noBorderCell().setPadding(2).add(new Paragraph(value).setFont(regular).setFontSize(9)));
+    }
+
+    private String bankValue(Map<String, Object> account, String key) {
+        Object value = account.get(key);
+        return value == null ? "" : value.toString();
     }
 
     private void addBankRow(Table table, String label, String value, PdfFont bold, PdfFont regular) {

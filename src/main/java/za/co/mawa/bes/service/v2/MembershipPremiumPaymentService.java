@@ -133,14 +133,8 @@ public class MembershipPremiumPaymentService {
             if (request.getOriginalReceiptDate().isBefore(config.getMawaPayGoLiveDate())) {
                 throw new IllegalArgumentException("Receipts before go-live must be captured as LEGACY_CATCH_UP");
             }
-            if (Boolean.TRUE.equals(config.getEmergencyReceiptRequiresProof()) && isBlank(request.getProofAttachmentId())) {
-                throw new IllegalArgumentException("proofAttachmentId is required for an emergency manual receipt");
-            }
             if (!isBlank(request.getProofAttachmentId()) && !attachmentRepository.existsById(request.getProofAttachmentId())) {
                 throw new IllegalArgumentException("The proof attachment does not exist");
-            }
-            if (isBlank(request.getLateCaptureReason())) {
-                throw new IllegalArgumentException("lateCaptureReason is required for an emergency manual receipt");
             }
         } else {
             throw new IllegalArgumentException("captureMode must be LEGACY_CATCH_UP or MANUAL_EMERGENCY");
