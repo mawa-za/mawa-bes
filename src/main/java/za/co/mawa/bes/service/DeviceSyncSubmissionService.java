@@ -180,11 +180,12 @@ public class DeviceSyncSubmissionService {
             // recover the durable ERP identity before authorizing a new POST.
             return dto(entity);
         }
-        // Before replaying an uncertain payment upload, check the actual ERP
-        // payment batch using its stable device-owned identity. A lost HTTP
-        // response must not authorize creating that same payment twice.
+        // Before the first POST as well as any retry, verify the durable ERP
+        // identity. A new queue key must not allow a second payment POST for
+        // a batch already committed by the same device.
         if (isPaymentBatchSubmission(entity.getTargetPath())
-                && ("PROCESSING_FAILED".equals(entity.getStatus())
+                && ("RECEIVED".equals(entity.getStatus())
+                    || "PROCESSING_FAILED".equals(entity.getStatus())
                     || "CORRECTION_REQUIRED".equals(entity.getStatus()))) {
             Map<String, Object> original = payloadMap(entity.getRequestPayload());
             String deviceId = trimToNull(text(original.get("deviceId")));
