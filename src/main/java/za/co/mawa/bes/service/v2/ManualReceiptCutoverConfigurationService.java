@@ -34,8 +34,8 @@ public class ManualReceiptCutoverConfigurationService {
         e.setId(SINGLETON_ID);
         e.setMawaPayGoLiveDate(dto.getMawaPayGoLiveDate());
         e.setLegacyCaptureCloseDate(dto.getLegacyCaptureCloseDate());
-        e.setEmergencyReceiptRequiresProof(!Boolean.FALSE.equals(dto.getEmergencyReceiptRequiresProof()));
-        e.setLegacyCaptureEnabled(!Boolean.FALSE.equals(dto.getLegacyCaptureEnabled()));
+        if (dto.getEmergencyReceiptRequiresProof() != null) e.setEmergencyReceiptRequiresProof(dto.getEmergencyReceiptRequiresProof());
+        if (dto.getLegacyCaptureEnabled() != null) e.setLegacyCaptureEnabled(dto.getLegacyCaptureEnabled());
         e.setUpdatedAt(LocalDateTime.now());
         e.setUpdatedBy(dto.getUpdatedBy());
         return toDto(repository.save(e));

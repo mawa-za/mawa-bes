@@ -9,7 +9,7 @@ import java.time.LocalDate;
 public class ManualReceiptCutoverConfigurationDto {
     private LocalDate mawaPayGoLiveDate;
     private LocalDate legacyCaptureCloseDate;
-    private Boolean emergencyReceiptRequiresProof = true;
-    private Boolean legacyCaptureEnabled = true;
+    private Boolean emergencyReceiptRequiresProof;
+    private Boolean legacyCaptureEnabled;
     private String updatedBy;
 }

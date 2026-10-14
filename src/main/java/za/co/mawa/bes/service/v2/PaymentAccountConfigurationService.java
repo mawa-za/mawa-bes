@@ -17,7 +17,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentAccountConfigurationService {
     private static final Set<String> ACCOUNT_ROLES = Set.of(
-        "DEBTOR", "PETTY_CASH_CREDITOR", "CASH_CLAIM_CREDITOR", "PAYROLL_DEBTOR"
+        "DEBTOR", "PETTY_CASH_CREDITOR", "CASH_CLAIM_CREDITOR", "PAYROLL_DEBTOR", "INVOICE"
     );
 
     private final JdbcTemplate jdbc;
