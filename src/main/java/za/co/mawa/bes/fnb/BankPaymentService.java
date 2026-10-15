@@ -209,6 +209,9 @@ public class BankPaymentService {
             responseBody = readResponseBody(connection);
             if (responseCode >= 200 && responseCode < 300) {
                 ObjectMapper mapper = new ObjectMapper();
+                if (responseBody == null || responseBody.isBlank()) {
+                    throw new FnbReportUnavailableException(responseCode);
+                }
                 return mapper.readValue(responseBody, BankPaymentResponse.class);
             }
 

@@ -12,6 +12,7 @@ import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.PaymentMethod;
 import za.co.mawa.bes.enums.PaymentRequestType;
 import za.co.mawa.bes.fnb.FnbApiCallLogger;
+import za.co.mawa.bes.fnb.FnbReportUnavailableException;
 import za.co.mawa.bes.fnb.dto.*;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.TransactionService;
@@ -234,6 +235,9 @@ public class BankPaymentService {
             responseBody = readResponseBody(connection);
 
             if (responseCode >= 200 && responseCode < 300) {
+                if (responseBody == null || responseBody.isBlank()) {
+                    throw new FnbReportUnavailableException(responseCode);
+                }
                 return objectMapper.readValue(responseBody, BankPaymentResponse.class);
             }
 
