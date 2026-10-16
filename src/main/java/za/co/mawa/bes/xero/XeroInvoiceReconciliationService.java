@@ -119,9 +119,43 @@ public class XeroInvoiceReconciliationService {
                 && invoice.getTotalCents() != null && remote.path("Total").isNumber()
                 && BigDecimal.valueOf(invoice.getTotalCents(), 2).compareTo(remote.path("Total").decimalValue()) == 0;
         result.put("invoiceIdentityMatches", identityMatches);
+        // Read-only, evidence-oriented comparison. Missing remote arrays are UNKNOWN,
+        // not evidence that Xero contains no payments or credits.
+        java.util.List<Map<String, Object>> localPayments = new java.util.ArrayList<>();
+        java.util.List<InvoicePaymentEntity> payments = paymentRepository.findByInvoiceId(invoiceId);
+        JsonNode remotePayments = remote.path("Payments");
+        boolean paymentsObservable = remotePayments.isArray();
+        for (InvoicePaymentEntity payment : payments) {
+            Map<String, Object> detail = new java.util.LinkedHashMap<>();
+            detail.put("mawaPaymentId", payment.getId());
+            detail.put("xeroPaymentId", payment.getXeroPaymentId());
+            detail.put("mawaAmountCents", payment.getAmountCents());
+            detail.put("mawaStatus", payment.getStatus());
+            detail.put("xeroSyncStatus", payment.getXeroSyncStatus());
+            java.util.List<JsonNode> matches = new java.util.ArrayList<>();
+            if (paymentsObservable && payment.getXeroPaymentId() != null && !payment.getXeroPaymentId().isBlank()) {
+                for (JsonNode candidate : remotePayments) {
+                    if (payment.getXeroPaymentId().equals(candidate.path("PaymentID").asText(null))) matches.add(candidate);
+                }
+            }
+            detail.put("matchCount", paymentsObservable ? matches.size() : null);
+            detail.put("xeroAmount", matches.size() == 1 && matches.get(0).path("Amount").isNumber()
+                    ? matches.get(0).path("Amount").decimalValue() : null);
+            detail.put("amountMatches", matches.size() == 1 && payment.getAmountCents() != null
+                    && matches.get(0).path("Amount").isNumber()
+                    && BigDecimal.valueOf(payment.getAmountCents(), 2).compareTo(matches.get(0).path("Amount").decimalValue()) == 0);
+            localPayments.add(detail);
+        }
+        result.put("paymentDetailsAvailable", paymentsObservable);
+        result.put("mawaPayments", localPayments);
+        // Xero invoice details are not guaranteed to include complete credit-note
+        // allocation evidence; do not interpret absent details as zero allocations.
+        JsonNode credits = remote.path("CreditNotes");
+        result.put("creditNoteDetailsAvailable", credits.isArray());
+        result.put("xeroCreditNotes", credits.isArray() ? credits : null);
         result.put("ledgerVerified", false);
         result.put("releaseAllowed", false);
-        result.put("message", "Read-only snapshot; payment, credit-note and allocation ledger verification remains outstanding");
+        result.put("message", "Read-only comparison only; payment coverage, credit-note allocations and outstanding balances require independent verification");
         return result;
     }
 
