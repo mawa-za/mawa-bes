@@ -247,7 +247,18 @@ public class XeroInvoicePushService {
             if ("CANCELLED".equalsIgnoreCase(payment.getStatus())) {
                 if (!isBlank(payment.getXeroPaymentId())
                         && !"DELETED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
-                    deletePayment(paymentUrl + "/" + payment.getXeroPaymentId(), accessToken, xeroTenantId);
+                    try {
+                        deletePayment(paymentUrl + "/" + payment.getXeroPaymentId(), accessToken, xeroTenantId);
+                    } catch (IOException uncertain) {
+                        // A lost DELETE acknowledgement or a missing remote record does not
+                        // establish whether the payment was reversed. Never replay blindly.
+                        payment.setXeroSyncStatus("RECONCILIATION_REQUIRED");
+                        payment.setXeroSyncError(trim("Xero reversal requires independent verification: "
+                                + uncertain.getMessage(), 2000));
+                        invoicePaymentRepository.save(payment);
+                        throw new XeroAmbiguousResponseException(
+                                "Xero payment reversal outcome requires reconciliation: " + payment.getId(), uncertain);
+                    }
                     payment.setXeroSyncStatus("DELETED");
                     payment.setXeroSyncError(null);
                     payment.setXeroSyncedAt(LocalDateTime.now());
@@ -313,8 +324,11 @@ public class XeroInvoicePushService {
             connection.setRequestProperty("Xero-Tenant-Id", xeroTenantId);
             connection.setRequestProperty("Accept", "application/json");
             int responseCode = connection.getResponseCode();
-            if (responseCode >= 300 && responseCode != 404) {
-                throw new IOException("Xero payment reversal failed. Response code: " + responseCode
+            // Do not interpret HTTP 404 as a confirmed reversal: it can mean a
+            // wrong tenant, wrong external ID, or a payment already removed.
+            // The external ledger must be checked before we mark it DELETED.
+            if (responseCode < 200 || responseCode >= 300) {
+                throw new IOException("Xero payment reversal not confirmed. HTTP " + responseCode
                         + ". Response: " + readResponse(connection, true));
             }
         } finally {
