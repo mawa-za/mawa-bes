@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** Tenant-scoped read-only quarantine worklist and conservative reconciliation dispatch. */
 @Service
@@ -49,9 +50,7 @@ public class XeroReconciliationOperationsService {
         return rows;
     }
 
-    /** Only active, currently assigned roles with full workcentre access may inspect finance quarantine.
-     * This deliberately fails closed until a dedicated accounting permission is wired into MAWA roles.
-     */
+    /** Explicit Xero capability, never implied by broad workcentre access. */
     private void requireAccountingAdministrator() {
         String userId = UserContext.getCurrentUserId();
         if (userId == null || userId.isBlank()) {
@@ -61,7 +60,8 @@ public class XeroReconciliationOperationsService {
                 SELECT COUNT(*) FROM user_role ur
                 JOIN `role` r ON r.id = ur.role
                 JOIN `user` u ON u.id = ur.user
-                WHERE ur.user = ? AND r.access_all_workcentres = b'1'
+                JOIN xero_reconciliation_role_permission xp ON xp.role_id = r.id
+                WHERE ur.user = ? AND xp.can_check = 1
                   AND u.status = 'ACTIVE'
                   AND (u.expires_at IS NULL OR u.expires_at > NOW())
                   AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
@@ -69,8 +69,18 @@ public class XeroReconciliationOperationsService {
                 """, Integer.class, userId);
         if (allowed == null || allowed == 0) {
             log.warn("Denied Xero reconciliation access for ERP user {}", userId);
-            throw new AccessDeniedException("Insufficient permission to view Xero reconciliation");
+            throw new AccessDeniedException("Insufficient Xero reconciliation permission");
         }
+    }
+
+    private void audit(String auditId, String operator, String type, String transactionId,
+                       String outcome, String detail) {
+        jdbc.update("""
+                INSERT INTO xero_reconciliation_audit
+                    (id, operator_user_id, transaction_type, transaction_id, action,
+                     outcome, detail, occurred_at)
+                VALUES (?, ?, ?, ?, 'CHECK_XERO', ?, ?, CURRENT_TIMESTAMP(6))
+                """, auditId, operator, type, transactionId, outcome, detail);
     }
 
     private void append(List<Map<String, Object>> result, String type, String sql) {
@@ -82,23 +92,43 @@ public class XeroReconciliationOperationsService {
         });
     }
 
-    /** Never releases quarantine; remote reads only. */
+    /** Never releases quarantine; remote reads only. Audit writes are mandatory. */
     public Map<String, Object> check(String type, String id) throws IOException {
         requireAccountingAdministrator();
-        log.info("Xero reconciliation check requested: operator={}, type={}, transaction={}",
-                UserContext.getCurrentUserId(), type, id);
         if (id == null || id.isBlank()) throw new IllegalArgumentException("Transaction ID is required");
-        boolean matched = switch (type == null ? "" : type) {
-            case "INVOICE" -> reconciliation.reconcileInvoice(id);
-            case "PAYMENT" -> reconciliation.reconcilePayment(id);
-            case "CREDIT_NOTE" -> reconciliation.reconcileCreditNote(id);
-            case "CREDIT_NOTE_ALLOCATION" -> reconciliation.reconcileCreditNoteAllocation(id);
-            default -> throw new IllegalArgumentException("Unsupported Xero reconciliation type");
-        };
-        log.info("Xero reconciliation check completed: operator={}, type={}, transaction={}, matched={}, quarantineRetained=true",
-                UserContext.getCurrentUserId(), type, id, matched);
-        return Map.of("matched", matched, "quarantineRetained", true,
-                "message", matched ? "Match linked; quarantine retained for operator review"
-                        : "No new unique match linked; quarantine retained");
+        if (!List.of("INVOICE", "PAYMENT", "CREDIT_NOTE", "CREDIT_NOTE_ALLOCATION").contains(type)) {
+            throw new IllegalArgumentException("Unsupported Xero reconciliation type");
+        }
+        String operator = UserContext.getCurrentUserId();
+        String auditId = UUID.randomUUID().toString();
+        // An audit record must exist before contacting Xero; if this fails, no lookup occurs.
+        audit(auditId, operator, type, id, "STARTED", null);
+        try {
+            boolean matched = switch (type) {
+                case "INVOICE" -> reconciliation.reconcileInvoice(id);
+                case "PAYMENT" -> reconciliation.reconcilePayment(id);
+                case "CREDIT_NOTE" -> reconciliation.reconcileCreditNote(id);
+                case "CREDIT_NOTE_ALLOCATION" -> reconciliation.reconcileCreditNoteAllocation(id);
+                default -> throw new IllegalArgumentException("Unsupported Xero reconciliation type");
+            };
+            jdbc.update("""
+                    UPDATE xero_reconciliation_audit SET outcome = ?, detail = ? WHERE id = ?
+                    """, matched ? "MATCHED" : "NO_UNIQUE_MATCH",
+                    "Quarantine retained; no transaction replay", auditId);
+            return Map.of("matched", matched, "quarantineRetained", true,
+                    "auditId", auditId,
+                    "message", matched ? "Match linked; quarantine retained for operator review"
+                            : "No new unique match linked; quarantine retained");
+        } catch (IOException | RuntimeException ex) {
+            try {
+                jdbc.update("""
+                        UPDATE xero_reconciliation_audit SET outcome = 'ERROR', detail = ? WHERE id = ?
+                        """, ex.getClass().getSimpleName(), auditId);
+            } catch (RuntimeException auditError) {
+                log.error("Failed to record Xero reconciliation outcome for audit {}", auditId, auditError);
+                ex.addSuppressed(auditError);
+            }
+            throw ex;
+        }
     }
 }
