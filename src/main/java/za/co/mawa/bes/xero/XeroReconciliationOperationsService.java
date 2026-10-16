@@ -123,18 +123,44 @@ public class XeroReconciliationOperationsService {
                 blockers.add("Invoice is not in reconciliation quarantine");
             if (invoice.get("xero_invoice_id") == null || String.valueOf(invoice.get("xero_invoice_id")).isBlank())
                 blockers.add("Xero invoice ID has not been recovered");
-            Integer payments = jdbc.queryForObject("""
-                    SELECT COUNT(*) FROM invoice_payment
-                     WHERE invoice_id = ? AND xero_sync_status = 'RECONCILIATION_REQUIRED'
-                    """, Integer.class, id);
-            if (payments != null && payments > 0)
-                blockers.add(payments + " quarantined invoice payment(s) require reconciliation");
-            Integer notes = jdbc.queryForObject("""
-                    SELECT COUNT(*) FROM credit_note
-                     WHERE invoice_id = ? AND xero_sync_status = 'RECONCILIATION_REQUIRED'
-                    """, Integer.class, id);
-            if (notes != null && notes > 0)
-                blockers.add(notes + " quarantined credit note(s) or allocation(s) require reconciliation");
+            // A count of quarantined records alone is insufficient: FAILED, SENDING,
+            // missing external IDs and incomplete allocations also block release.
+            List<Map<String, Object>> payments = jdbc.queryForList("""
+                    SELECT id, status, xero_sync_status, xero_payment_id
+                      FROM invoice_payment WHERE invoice_id = ?
+                    """, id);
+            for (Map<String, Object> payment : payments) {
+                String paymentId = String.valueOf(payment.get("id"));
+                String state = value(payment.get("xero_sync_status"));
+                String externalId = value(payment.get("xero_payment_id"));
+                boolean cancelled = "CANCELLED".equalsIgnoreCase(value(payment.get("status")));
+                if (cancelled) {
+                    if (externalId != null && !"DELETED".equalsIgnoreCase(state))
+                        blockers.add("Payment " + paymentId + " cancellation not confirmed in Xero");
+                    if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(state) || "SENDING".equalsIgnoreCase(state))
+                        blockers.add("Payment " + paymentId + " has an uncertain reversal outcome");
+                } else if (externalId == null || !"POSTED".equalsIgnoreCase(state)) {
+                    blockers.add("Payment " + paymentId + " is not confirmed POSTED with a Xero Payment ID"
+                            + " (state: " + (state == null ? "UNSET" : state) + ")");
+                }
+            }
+            List<Map<String, Object>> notes = jdbc.queryForList("""
+                    SELECT id, status, xero_sync_status, xero_credit_note_id, xero_allocated_at
+                      FROM credit_note WHERE invoice_id = ?
+                    """, id);
+            for (Map<String, Object> note : notes) {
+                // Only issued notes are sent by the current Xero integration. Other
+                // credit-note states require separate accounting policy review.
+                if (!"ISSUED".equalsIgnoreCase(value(note.get("status")))) continue;
+                String noteId = String.valueOf(note.get("id"));
+                if (value(note.get("xero_credit_note_id")) == null
+                        || note.get("xero_allocated_at") == null
+                        || !"ALLOCATED".equalsIgnoreCase(value(note.get("xero_sync_status")))) {
+                    blockers.add("Credit note " + noteId
+                            + " is not confirmed ALLOCATED with Xero ID and allocation marker");
+                }
+            }
+            blockers.add("External Xero ledger balance and transaction verification are not implemented");
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("type", type);
@@ -142,6 +168,10 @@ public class XeroReconciliationOperationsService {
         result.put("releaseAllowed", false);
         result.put("blockers", blockers);
         return result;
+    }
+
+    private static String value(Object field) {
+        return field == null || field.toString().isBlank() ? null : field.toString();
     }
 
     private static void validateTransaction(String type, String id) {
