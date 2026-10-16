@@ -92,6 +92,64 @@ public class XeroReconciliationOperationsService {
         });
     }
 
+    /** Tenant-scoped immutable operator history. This endpoint never changes financial state. */
+    public List<Map<String, Object>> auditHistory(String type, String id) {
+        requireAccountingAdministrator();
+        validateTransaction(type, id);
+        return jdbc.queryForList("""
+                SELECT id, operator_user_id, transaction_type, transaction_id,
+                       action, outcome, detail, occurred_at
+                  FROM xero_reconciliation_audit
+                 WHERE transaction_type = ? AND transaction_id = ?
+                 ORDER BY occurred_at DESC, id DESC LIMIT 100
+                """, type, id);
+    }
+
+    /** Local preflight only: never declares the external ledger balanced or releases quarantine. */
+    public Map<String, Object> releaseReadiness(String type, String id) {
+        requireAccountingAdministrator();
+        validateTransaction(type, id);
+        List<String> blockers = new ArrayList<>();
+        blockers.add("Manual financial verification and audited release workflow are not implemented");
+        if (!"INVOICE".equals(type)) {
+            blockers.add("Release of " + type + " requires linked invoice and all related entries to be reviewed");
+        } else {
+            List<Map<String, Object>> invoices = jdbc.queryForList("""
+                    SELECT integration_status, xero_invoice_id FROM invoice WHERE id = ?
+                    """, id);
+            if (invoices.isEmpty()) throw new IllegalArgumentException("Invoice not found");
+            Map<String, Object> invoice = invoices.get(0);
+            if (!"RECONCILIATION_REQUIRED".equals(String.valueOf(invoice.get("integration_status"))))
+                blockers.add("Invoice is not in reconciliation quarantine");
+            if (invoice.get("xero_invoice_id") == null || String.valueOf(invoice.get("xero_invoice_id")).isBlank())
+                blockers.add("Xero invoice ID has not been recovered");
+            Integer payments = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM invoice_payment
+                     WHERE invoice_id = ? AND xero_sync_status = 'RECONCILIATION_REQUIRED'
+                    """, Integer.class, id);
+            if (payments != null && payments > 0)
+                blockers.add(payments + " quarantined invoice payment(s) require reconciliation");
+            Integer notes = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM credit_note
+                     WHERE invoice_id = ? AND xero_sync_status = 'RECONCILIATION_REQUIRED'
+                    """, Integer.class, id);
+            if (notes != null && notes > 0)
+                blockers.add(notes + " quarantined credit note(s) or allocation(s) require reconciliation");
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", type);
+        result.put("id", id);
+        result.put("releaseAllowed", false);
+        result.put("blockers", blockers);
+        return result;
+    }
+
+    private static void validateTransaction(String type, String id) {
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("Transaction ID is required");
+        if (!List.of("INVOICE", "PAYMENT", "CREDIT_NOTE", "CREDIT_NOTE_ALLOCATION").contains(type))
+            throw new IllegalArgumentException("Unsupported Xero reconciliation type");
+    }
+
     /** Never releases quarantine; remote reads only. Audit writes are mandatory. */
     public Map<String, Object> check(String type, String id) throws IOException {
         requireAccountingAdministrator();

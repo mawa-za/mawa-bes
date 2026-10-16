@@ -72,6 +72,16 @@ public class XeroIntegrationControllerV2 {
         return ResponseEntity.ok(reconciliationOperations.check(type, id));
     }
 
+    @GetMapping("/reconciliation/{type}/{id}/audit")
+    public ResponseEntity<?> reconciliationAudit(@PathVariable String type, @PathVariable String id) {
+        return ResponseEntity.ok(reconciliationOperations.auditHistory(type, id));
+    }
+
+    @GetMapping("/reconciliation/{type}/{id}/release-readiness")
+    public ResponseEntity<?> reconciliationReleaseReadiness(@PathVariable String type, @PathVariable String id) {
+        return ResponseEntity.ok(reconciliationOperations.releaseReadiness(type, id));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> badRequest(IllegalArgumentException exception) {
         return ResponseEntity.badRequest().body(Map.of(
