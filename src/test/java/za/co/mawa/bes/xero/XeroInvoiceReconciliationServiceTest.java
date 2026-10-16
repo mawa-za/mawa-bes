@@ -24,4 +24,30 @@ class XeroInvoiceReconciliationServiceTest {
             """);
         assertNull(XeroInvoiceReconciliationService.uniqueInvoiceMatch(json, "INV-1", "ZAR", 12500L));
     }
+    @Test void paymentReconciliationRequiresUniqueExactMatch() throws Exception {
+        var json = mapper.readTree("""
+            {"Invoices":[{"InvoiceID":"invoice-1","Payments":[
+              {"PaymentID":"pay-1","Amount":190.00,"Reference":"RECEIPT-10","DateString":"2026-10-16T00:00:00"}
+            ]}]}
+            """);
+        assertEquals("pay-1", XeroInvoiceReconciliationService.uniquePaymentMatch(
+                json, "invoice-1", "RECEIPT-10", "2026-10-16", 19000L));
+        assertNull(XeroInvoiceReconciliationService.uniquePaymentMatch(
+                json, "invoice-1", "RECEIPT-11", "2026-10-16", 19000L));
+        assertNull(XeroInvoiceReconciliationService.uniquePaymentMatch(
+                json, "invoice-1", "RECEIPT-10", "2026-10-15", 19000L));
+        assertNull(XeroInvoiceReconciliationService.uniquePaymentMatch(
+                json, "invoice-1", "RECEIPT-10", "2026-10-16", 18000L));
+    }
+
+    @Test void duplicatePaymentMatchesRemainQuarantined() throws Exception {
+        var json = mapper.readTree("""
+            {"Invoices":[{"InvoiceID":"invoice-1","Payments":[
+              {"PaymentID":"pay-1","Amount":190,"Reference":"R1","DateString":"2026-10-16T00:00:00"},
+              {"PaymentID":"pay-2","Amount":190,"Reference":"R1","DateString":"2026-10-16T00:00:00"}
+            ]}]}
+            """);
+        assertNull(XeroInvoiceReconciliationService.uniquePaymentMatch(
+                json, "invoice-1", "R1", "2026-10-16", 19000L));
+    }
 }
