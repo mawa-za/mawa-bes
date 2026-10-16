@@ -105,6 +105,13 @@ public class XeroReconciliationOperationsService {
                 """, type, id);
     }
 
+    /** Permission-protected financial snapshot; does not modify quarantine or Xero records. */
+    public Map<String, Object> invoiceLedgerSnapshot(String id) throws IOException {
+        requireAccountingAdministrator();
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("Invoice ID is required");
+        return reconciliation.inspectInvoiceLedger(id);
+    }
+
     /** Local preflight only: never declares the external ledger balanced or releases quarantine. */
     public Map<String, Object> releaseReadiness(String type, String id) {
         requireAccountingAdministrator();

@@ -82,6 +82,11 @@ public class XeroIntegrationControllerV2 {
         return ResponseEntity.ok(reconciliationOperations.releaseReadiness(type, id));
     }
 
+    @GetMapping("/reconciliation/invoice/{id}/ledger-snapshot")
+    public ResponseEntity<?> invoiceLedgerSnapshot(@PathVariable String id) throws IOException {
+        return ResponseEntity.ok(reconciliationOperations.invoiceLedgerSnapshot(id));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> badRequest(IllegalArgumentException exception) {
         return ResponseEntity.badRequest().body(Map.of(

@@ -82,6 +82,49 @@ public class XeroInvoiceReconciliationService {
         } finally { conn.disconnect(); }
     }
 
+    /** Read-only Xero ledger snapshot. Values are observational, not an approval to release. */
+    public Map<String, Object> inspectInvoiceLedger(String invoiceId) throws IOException {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + invoiceId));
+        if (!"RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus()))
+            throw new IllegalStateException("Invoice must remain in reconciliation quarantine");
+        String externalId = invoice.getXeroInvoiceId();
+        if (externalId == null || externalId.isBlank())
+            throw new IllegalStateException("Xero invoice identifier is missing; run Check Xero first");
+        String config = auth.checkXeroInfo();
+        if (config == null || config.isBlank()) throw new IOException("Xero is not connected");
+        String base = auth.getXeroProperty(config, "XERO-BASE-URL", DEFAULT_URL).replaceAll("/+$", "");
+        JsonNode body = getXero(base + "/" + URLEncoder.encode(externalId, StandardCharsets.UTF_8));
+        JsonNode invoices = body.path("Invoices");
+        if (!invoices.isArray() || invoices.size() != 1 ||
+                !externalId.equals(invoices.get(0).path("InvoiceID").asText(null)))
+            throw new IllegalStateException("Xero did not return exactly the requested invoice");
+        JsonNode remote = invoices.get(0);
+        // Missing fields are reported, never treated as zero.
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("invoiceId", invoiceId);
+        result.put("xeroInvoiceId", externalId);
+        result.put("mawaInvoiceNumber", invoice.getInvoiceNo());
+        result.put("xeroInvoiceNumber", remote.path("InvoiceNumber").asText(null));
+        result.put("mawaCurrency", invoice.getCurrency());
+        result.put("xeroCurrency", remote.path("CurrencyCode").asText(null));
+        result.put("mawaTotalCents", invoice.getTotalCents());
+        for (String field : java.util.List.of("Total", "AmountPaid", "AmountCredited", "AmountDue")) {
+            result.put("xero" + field, remote.path(field).isNumber() ? remote.path(field).decimalValue() : null);
+        }
+        result.put("xeroStatus", remote.path("Status").asText(null));
+        boolean identityMatches = java.util.Objects.equals(invoice.getInvoiceNo(), remote.path("InvoiceNumber").asText(null))
+                && invoice.getCurrency() != null
+                && invoice.getCurrency().equalsIgnoreCase(remote.path("CurrencyCode").asText(""))
+                && invoice.getTotalCents() != null && remote.path("Total").isNumber()
+                && BigDecimal.valueOf(invoice.getTotalCents(), 2).compareTo(remote.path("Total").decimalValue()) == 0;
+        result.put("invoiceIdentityMatches", identityMatches);
+        result.put("ledgerVerified", false);
+        result.put("releaseAllowed", false);
+        result.put("message", "Read-only snapshot; payment, credit-note and allocation ledger verification remains outstanding");
+        return result;
+    }
+
     /** Read-only recovery: link a quarantined payment only on a single exact match. */
     public boolean reconcilePayment(String paymentId) throws IOException {
         InvoicePaymentEntity payment = paymentRepository.findById(paymentId)
