@@ -129,4 +129,32 @@ class XeroInvoiceReconciliationServiceTest {
             .inspectCreditNoteAllocations(incomplete, "c1", "i1").get("verification"));
     }
 
+
+    @Test void financialComparisonFailsClosedOnUnlinkedExternalPayments() throws Exception {
+        var payment = za.co.mawa.bes.entity.InvoicePaymentEntity.builder()
+                .id("local-p1").status("POSTED").amountCents(10000L).xeroPaymentId("p1").build();
+        var evidence = java.util.Map.<String, Object>of("verification", "EXACT_MATCH");
+        var invoice = mapper.readTree("""
+            {"AmountPaid":100,"AmountCredited":0,"Payments":[
+             {"PaymentID":"p1"},{"PaymentID":"unlinked"}],"CreditNotes":[]}
+            """);
+        var result = XeroInvoiceReconciliationService.compareLocalFinancialEvidence(
+                java.util.List.of(payment), java.util.List.of(evidence),
+                java.util.List.of(), java.util.List.of(), invoice);
+        assertEquals(false, result.get("localEvidenceConsistent"));
+        assertEquals(false, result.get("ledgerCertified"));
+        assertEquals(false, result.get("releaseAllowed"));
+        assertTrue(result.get("blockers").toString().contains("unlinked"));
+    }
+
+    @Test void financialComparisonNeverCertifiesAnApparentlyBalancedInvoice() throws Exception {
+        var invoice = mapper.readTree("""
+            {"AmountPaid":0,"AmountCredited":0,"Payments":[],"CreditNotes":[]}
+            """);
+        var result = XeroInvoiceReconciliationService.compareLocalFinancialEvidence(
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(), invoice);
+        assertEquals(true, result.get("localEvidenceConsistent"));
+        assertEquals(false, result.get("ledgerCertified"));
+        assertEquals(false, result.get("releaseAllowed"));
+    }
 }

@@ -199,10 +199,124 @@ public class XeroInvoiceReconciliationService {
             noteEvidence.add(evidence);
         }
         result.put("independentCreditNoteEvidence", noteEvidence);
+        result.put("financialComparison", compareLocalFinancialEvidence(
+                payments, paymentEvidence, localNotes, noteEvidence, remote));
         result.put("ledgerVerified", false);
         result.put("releaseAllowed", false);
         result.put("message", "Read-only evidence only; local-to-Xero allocation amounts, unmatched external postings and complete ledger balances are not yet certified");
         return result;
+    }
+
+    /**
+     * Read-only comparison of MAWA's current postings with independently retrieved Xero evidence.
+     * A locally absent external ID is UNKNOWN, never evidence that Xero did not post it.
+     * Embedded invoice arrays can expose extra Xero records, but their absence is not completeness proof.
+     */
+    static Map<String, Object> compareLocalFinancialEvidence(
+            java.util.List<InvoicePaymentEntity> payments,
+            java.util.List<Map<String, Object>> paymentEvidence,
+            java.util.List<Map<String, Object>> notes,
+            java.util.List<Map<String, Object>> noteEvidence,
+            JsonNode remoteInvoice) {
+        Map<String, Object> comparison = new java.util.LinkedHashMap<>();
+        java.util.List<String> blockers = new java.util.ArrayList<>();
+        BigDecimal localPaymentTotal = BigDecimal.ZERO;
+        BigDecimal verifiedPaymentTotal = BigDecimal.ZERO;
+        java.util.Set<String> knownPaymentIds = new java.util.HashSet<>();
+        for (int i = 0; i < payments.size(); i++) {
+            InvoicePaymentEntity payment = payments.get(i);
+            String status = payment.getStatus();
+            if (!"POSTED".equalsIgnoreCase(status) || payment.getReversedAt() != null) {
+                blockers.add("Payment " + payment.getId() + " needs reversal/status review");
+                continue;
+            }
+            Long cents = payment.getAmountCents();
+            if (cents == null || cents < 0) {
+                blockers.add("Payment " + payment.getId() + " has invalid amount");
+                continue;
+            }
+            BigDecimal amount = BigDecimal.valueOf(cents, 2);
+            localPaymentTotal = localPaymentTotal.add(amount);
+            String id = payment.getXeroPaymentId();
+            if (id == null || id.isBlank() || !knownPaymentIds.add(id)) {
+                blockers.add("Payment " + payment.getId() + " has a missing or duplicate Xero ID");
+                continue;
+            }
+            if (i >= paymentEvidence.size() || !"EXACT_MATCH".equals(paymentEvidence.get(i).get("verification"))) {
+                blockers.add("Payment " + payment.getId() + " is not independently verified");
+                continue;
+            }
+            verifiedPaymentTotal = verifiedPaymentTotal.add(amount);
+        }
+        comparison.put("mawaPostedPaymentTotal", localPaymentTotal);
+        comparison.put("independentlyVerifiedPaymentTotal", verifiedPaymentTotal);
+        JsonNode xeroPaid = remoteInvoice.path("AmountPaid");
+        comparison.put("xeroAmountPaid", xeroPaid.isNumber() ? xeroPaid.decimalValue() : null);
+        if (!xeroPaid.isNumber() || localPaymentTotal.compareTo(xeroPaid.decimalValue()) != 0)
+            blockers.add("MAWA posted payment total cannot be matched to Xero AmountPaid");
+        if (localPaymentTotal.compareTo(verifiedPaymentTotal) != 0)
+            blockers.add("Not all MAWA posted payments have independent Xero confirmation");
+
+        BigDecimal verifiedInvoiceCredits = BigDecimal.ZERO;
+        java.util.Set<String> knownNoteIds = new java.util.HashSet<>();
+        for (int i = 0; i < notes.size(); i++) {
+            Map<String, Object> note = notes.get(i);
+            String noteId = stringValue(note.get("xero_credit_note_id"));
+            if (noteId == null || !knownNoteIds.add(noteId)) {
+                blockers.add("Credit note " + note.get("id") + " has a missing or duplicate Xero ID");
+                continue;
+            }
+            if (i >= noteEvidence.size()) {
+                blockers.add("Credit note " + note.get("id") + " has no Xero evidence");
+                continue;
+            }
+            Map<String, Object> evidence = noteEvidence.get(i);
+            if (!"EXACT_MATCH_ALLOCATION_PRESENT".equals(evidence.get("verification"))) {
+                blockers.add("Credit note " + note.get("id") + " has unresolved identity/allocation");
+                continue;
+            }
+            Object allocationObject = evidence.get("allocationEvidence");
+            if (!(allocationObject instanceof Map<?, ?> allocation)
+                    || !"XERO_ALLOCATION_ARITHMETIC_MATCH".equals(allocation.get("verification"))
+                    || !(allocation.get("targetInvoiceAllocatedAmount") instanceof BigDecimal allocated)) {
+                blockers.add("Credit note " + note.get("id") + " lacks verified allocation amounts");
+                continue;
+            }
+            if (note.get("xero_allocated_at") == null)
+                blockers.add("Credit note " + note.get("id") + " has no local allocation marker");
+            verifiedInvoiceCredits = verifiedInvoiceCredits.add(allocated);
+        }
+        comparison.put("verifiedInvoiceCreditAllocations", verifiedInvoiceCredits);
+        JsonNode xeroCredited = remoteInvoice.path("AmountCredited");
+        comparison.put("xeroAmountCredited", xeroCredited.isNumber() ? xeroCredited.decimalValue() : null);
+        if (!xeroCredited.isNumber() || verifiedInvoiceCredits.compareTo(xeroCredited.decimalValue()) != 0)
+            blockers.add("Verified credit allocations do not match Xero AmountCredited");
+
+        JsonNode embeddedPayments = remoteInvoice.path("Payments");
+        if (embeddedPayments.isArray()) {
+            for (JsonNode item : embeddedPayments) {
+                String id = item.path("PaymentID").asText(null);
+                if (id == null || !knownPaymentIds.contains(id)) {
+                    blockers.add("Xero invoice contains an unlinked or unidentified payment");
+                    break;
+                }
+            }
+        } else blockers.add("Xero invoice response did not include complete payment identifiers");
+        JsonNode embeddedCredits = remoteInvoice.path("CreditNotes");
+        if (embeddedCredits.isArray()) {
+            for (JsonNode item : embeddedCredits) {
+                String id = item.path("CreditNoteID").asText(null);
+                if (id == null || !knownNoteIds.contains(id)) {
+                    blockers.add("Xero invoice contains an unlinked or unidentified credit note");
+                    break;
+                }
+            }
+        } else blockers.add("Xero invoice response did not include complete credit note identifiers");
+        comparison.put("blockers", blockers);
+        comparison.put("localEvidenceConsistent", blockers.isEmpty());
+        comparison.put("ledgerCertified", false); // Completeness of remote collections not established.
+        comparison.put("releaseAllowed", false);
+        return comparison;
     }
 
     /** Xero arithmetic only; this is not proof of MAWA-to-Xero balance equality. */
