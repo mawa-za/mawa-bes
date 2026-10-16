@@ -119,6 +119,9 @@ public class XeroMasterDataPushService {
             connection.setRequestProperty("Xero-Tenant-Id", xeroTenant);
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
+            // Stable across retries of the same tenant, endpoint and accounting payload.
+            connection.setRequestProperty("Idempotency-Key",
+                    XeroInvoicePushService.idempotencyKey(xeroTenant, endpoint, payload));
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) { output.write(mapper.writeValueAsBytes(payload)); }
             int code = connection.getResponseCode();

@@ -257,6 +257,12 @@ public class MessageConsumerService {
         return lastRunAt == null || !lastRunAt.plusSeconds(getSchedulerIntervalSeconds()).isAfter(LocalDateTime.now());
     }
 
+    private boolean isXeroQueueMessage(MessageQueueEntity message) {
+        return message != null && ("XERO-INVOICE".equals(message.getType())
+                || "XERO-CUSTOMER".equals(message.getType())
+                || "XERO-PRODUCT".equals(message.getType()));
+    }
+
     public int processCurrentTenant() {
         ObjectMapper mapper = new ObjectMapper();
         int processedCount = 0;
@@ -268,6 +274,15 @@ public class MessageConsumerService {
         }
 
         for (MessageQueueEntity msg : messageQueueEntities) {
+            if (isXeroQueueMessage(msg)) {
+                LocalDateTime claimTime = LocalDateTime.now();
+                // Do not issue any external request unless the shared database granted
+                // this instance the lease. An expired lease is eligible for recovery.
+                if (messageQueueRepository.claimXeroMessage(msg.getId(), claimTime,
+                        claimTime.plusMinutes(15)) != 1) {
+                    continue;
+                }
+            }
             try {
                 log.debug("Processing message queue item {} of type {} for tenant {}",
                         msg.getId(), msg.getType(), TenantContext.getCurrentTenant());
