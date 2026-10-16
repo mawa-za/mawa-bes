@@ -14,15 +14,21 @@ import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.v2.integration.XeroActivationService;
 
 import java.util.Map;
+import java.io.IOException;
+import org.springframework.web.bind.annotation.PathVariable;
+import za.co.mawa.bes.xero.XeroReconciliationOperationsService;
 
 @RestController
 @RequestMapping("/v2/integrations/xero")
 public class XeroIntegrationControllerV2 {
 
     private final XeroActivationService xeroActivationService;
+    private final XeroReconciliationOperationsService reconciliationOperations;
 
-    public XeroIntegrationControllerV2(XeroActivationService xeroActivationService) {
+    public XeroIntegrationControllerV2(XeroActivationService xeroActivationService,
+                                      XeroReconciliationOperationsService reconciliationOperations) {
         this.xeroActivationService = xeroActivationService;
+        this.reconciliationOperations = reconciliationOperations;
     }
 
     @PostMapping("/activate")
@@ -53,6 +59,17 @@ public class XeroIntegrationControllerV2 {
     @PostMapping("/select-tenant")
     public ResponseEntity<?> selectTenant(@RequestBody XeroSelectTenantRequestDto request) {
         return ResponseEntity.ok(xeroActivationService.selectTenant(request));
+    }
+
+    @GetMapping("/reconciliation/pending")
+    public ResponseEntity<?> pendingReconciliation() {
+        return ResponseEntity.ok(reconciliationOperations.pending());
+    }
+
+    @PostMapping("/reconciliation/{type}/{id}/check")
+    public ResponseEntity<?> checkReconciliation(@PathVariable String type, @PathVariable String id)
+            throws IOException {
+        return ResponseEntity.ok(reconciliationOperations.check(type, id));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
