@@ -274,12 +274,14 @@ public class MessageConsumerService {
         }
 
         for (MessageQueueEntity msg : messageQueueEntities) {
+            LocalDateTime xeroLeaseUntil = null;
             if (isXeroQueueMessage(msg)) {
                 LocalDateTime claimTime = LocalDateTime.now();
+                xeroLeaseUntil = claimTime.plusMinutes(15);
                 // Do not issue any external request unless the shared database granted
                 // this instance the lease. An expired lease is eligible for recovery.
                 if (messageQueueRepository.claimXeroMessage(msg.getId(), claimTime,
-                        claimTime.plusMinutes(15)) != 1) {
+                        xeroLeaseUntil) != 1) {
                     continue;
                 }
             }
@@ -453,7 +455,19 @@ public class MessageConsumerService {
                     }
                 }
             }
-            messageQueueRepository.save(msg);
+            if (xeroLeaseUntil != null) {
+                int completed = messageQueueRepository.completeXeroClaim(
+                        msg.getId(), xeroLeaseUntil, msg.isProcessed(),
+                        msg.getRetryCount(), msg.getNextAttemptAt());
+                if (completed != 1) {
+                    log.warn("Discarding stale Xero queue completion for tenant {}, message {}: "
+                                    + "the lease was replaced or the message was completed elsewhere",
+                            TenantContext.getCurrentTenant(), msg.getId());
+                    continue;
+                }
+            } else {
+                messageQueueRepository.save(msg);
+            }
             processedCount++;
         }
         return processedCount;

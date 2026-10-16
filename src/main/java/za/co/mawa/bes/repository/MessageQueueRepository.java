@@ -24,6 +24,22 @@ public interface MessageQueueRepository  extends JpaRepository<MessageQueueEntit
     int claimXeroMessage(@Param("id") Long id, @Param("now") LocalDateTime now,
                          @Param("leaseUntil") LocalDateTime leaseUntil);
 
+    // Fencing: a worker may only complete the exact Xero lease it acquired.
+    // A reclaimed lease has a different nextAttemptAt and cannot be overwritten
+    // by an older worker's detached JPA entity.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Query("UPDATE MessageQueueEntity m SET m.processed = :processed, " +
+            "m.retryCount = :retryCount, m.nextAttemptAt = :nextAttemptAt " +
+            "WHERE m.id = :id AND m.processed = false " +
+            "AND m.nextAttemptAt = :expectedLeaseUntil " +
+            "AND m.type IN ('XERO-INVOICE', 'XERO-CUSTOMER', 'XERO-PRODUCT')")
+    int completeXeroClaim(@Param("id") Long id,
+                          @Param("expectedLeaseUntil") LocalDateTime expectedLeaseUntil,
+                          @Param("processed") boolean processed,
+                          @Param("retryCount") int retryCount,
+                          @Param("nextAttemptAt") LocalDateTime nextAttemptAt);
+
     boolean existsByTypeAndReferenceId(String type, String referenceId);
     Optional<MessageQueueEntity> findFirstByTypeAndReferenceIdOrderByIdDesc(String type, String referenceId);
 }
