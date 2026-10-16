@@ -3,6 +3,7 @@ package za.co.mawa.bes.xero;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
@@ -16,6 +17,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.sql.Date;
+import java.util.Map;
 
 /** Conservative, explicitly invoked reconciliation; never triggers a Xero write. */
 @Service
@@ -26,6 +29,8 @@ public class XeroInvoiceReconciliationService {
     @Autowired private InvoiceRepository invoiceRepository;
     @Autowired private InvoicePaymentRepository paymentRepository;
     @Autowired private XeroAuthService auth;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    private static final String CREDIT_NOTES_URL = "https://api.xero.com/api.xro/2.0/CreditNotes";
 
     /** Returns true only when a single exact financial match can be safely linked. */
     public boolean reconcileInvoice(String invoiceId) throws IOException {
@@ -122,6 +127,133 @@ public class XeroInvoiceReconciliationService {
             paymentRepository.save(current);
             return true;
         } finally { conn.disconnect(); }
+    }
+
+
+    /** Read-only credit note lookup; never releases RECONCILIATION_REQUIRED. */
+    public boolean reconcileCreditNote(String creditNoteId) throws IOException {
+        Map<String, Object> note = loadQuarantinedCreditNote(creditNoteId);
+        String existing = stringValue(note.get("xero_credit_note_id"));
+        if (existing != null) return false;
+        String number = stringValue(note.get("credit_note_no"));
+        String currency = stringValue(note.get("currency"));
+        Long cents = note.get("total_cents") instanceof Number n ? n.longValue() : null;
+        if (number == null || cents == null) return false;
+        String url = creditNotesBaseUrl() + "?where=" + URLEncoder.encode(
+                "Reference==\"" + number.replace("\"", "\\\"") + "\"", StandardCharsets.UTF_8);
+        JsonNode response = getXero(url);
+        String found = uniqueCreditNoteMatch(response, number, currency, cents);
+        if (found == null) return false;
+        return jdbcTemplate.update("""
+                UPDATE credit_note SET xero_credit_note_id=?,
+                    xero_sync_error='Credit note found in Xero; reconcile allocation before release'
+                WHERE id=? AND xero_sync_status='RECONCILIATION_REQUIRED'
+                    AND (xero_credit_note_id IS NULL OR xero_credit_note_id='')
+                """, found, creditNoteId) == 1;
+    }
+
+    /** An allocation match records the local marker but retains quarantine for operator review. */
+    public boolean reconcileCreditNoteAllocation(String creditNoteId) throws IOException {
+        Map<String, Object> note = loadQuarantinedCreditNote(creditNoteId);
+        if (note.get("xero_allocated_at") != null) return false;
+        String xeroId = stringValue(note.get("xero_credit_note_id"));
+        if (xeroId == null) return false;
+        InvoiceEntity invoice = invoiceRepository.findById(String.valueOf(note.get("invoice_id"))).orElse(null);
+        if (invoice == null || invoice.getXeroInvoiceId() == null || invoice.getXeroInvoiceId().isBlank()) return false;
+        String date = note.get("credit_note_date") instanceof Date sqlDate
+                ? sqlDate.toLocalDate().toString() : String.valueOf(note.get("credit_note_date"));
+        JsonNode response = getXero(creditNotesBaseUrl() + "/" +
+                URLEncoder.encode(xeroId, StandardCharsets.UTF_8));
+        if (!uniqueAllocationMatch(response, xeroId, invoice.getXeroInvoiceId(), date,
+                note.get("total_cents") instanceof Number n ? n.longValue() : null)) return false;
+        return jdbcTemplate.update("""
+                UPDATE credit_note SET xero_allocated_at=CURRENT_TIMESTAMP,
+                    xero_sync_error='Xero allocation found; operator review required before release'
+                WHERE id=? AND xero_sync_status='RECONCILIATION_REQUIRED'
+                    AND xero_credit_note_id=? AND xero_allocated_at IS NULL
+                """, creditNoteId, xeroId) == 1;
+    }
+
+    private Map<String, Object> loadQuarantinedCreditNote(String id) {
+        Map<String, Object> note = jdbcTemplate.queryForMap("""
+                SELECT id, invoice_id, credit_note_no, credit_note_date, currency, total_cents,
+                       xero_credit_note_id, xero_allocated_at, xero_sync_status
+                  FROM credit_note WHERE id=?
+                """, id);
+        if (!"RECONCILIATION_REQUIRED".equalsIgnoreCase(String.valueOf(note.get("xero_sync_status"))))
+            throw new IllegalStateException("Credit note is not quarantined for Xero reconciliation");
+        return note;
+    }
+
+    private static String stringValue(Object value) {
+        return value == null || value.toString().isBlank() ? null : value.toString();
+    }
+
+    private String creditNotesBaseUrl() throws IOException {
+        String config = auth.checkXeroInfo();
+        if (config == null || config.isBlank()) throw new IOException("Xero is not connected");
+        return auth.getXeroProperty(config, "XERO-CREDIT-NOTES-URL", CREDIT_NOTES_URL).replaceAll("/+$", "");
+    }
+
+    private JsonNode getXero(String url) throws IOException {
+        String config = auth.checkXeroInfo();
+        if (config == null || config.isBlank()) throw new IOException("Xero is not connected");
+        String tenantId = auth.getXeroProperty(config, XeroUtils.XERO_TENANT_ID);
+        if (tenantId == null || tenantId.isBlank()) throw new IOException("Xero organisation is not selected");
+        String token = auth.refreshAccessToken(config);
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(20000);
+            conn.setReadTimeout(30000);
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            conn.setRequestProperty("Xero-Tenant-Id", tenantId);
+            conn.setRequestProperty("Accept", "application/json");
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) throw new IOException("Xero reconciliation lookup failed: HTTP " + code);
+            try (var stream = conn.getInputStream()) { return mapper.readTree(stream); }
+        } finally { conn.disconnect(); }
+    }
+
+    static String uniqueCreditNoteMatch(JsonNode response, String reference, String currency, Long totalCents) {
+        if (response == null || !response.path("CreditNotes").isArray() || reference == null || totalCents == null) return null;
+        String expectedCurrency = currency == null || currency.isBlank() ? "ZAR" : currency.trim();
+        BigDecimal expected = BigDecimal.valueOf(totalCents, 2);
+        int count = 0;
+        String result = null;
+        for (JsonNode note : response.path("CreditNotes")) {
+            if (!reference.equals(note.path("Reference").asText(null))) continue;
+            if (!expectedCurrency.equalsIgnoreCase(note.path("CurrencyCode").asText(""))) continue;
+            if (!note.path("Total").isNumber() || expected.compareTo(note.path("Total").decimalValue()) != 0) continue;
+            String id = note.path("CreditNoteID").asText(null);
+            if (id == null || id.isBlank()) continue;
+            result = id;
+            count++;
+        }
+        return count == 1 ? result : null;
+    }
+
+    static boolean uniqueAllocationMatch(JsonNode response, String creditNoteId, String invoiceId,
+                                         String date, Long amountCents) {
+        if (response == null || !response.path("CreditNotes").isArray() || creditNoteId == null ||
+                invoiceId == null || date == null || amountCents == null) return false;
+        BigDecimal expected = BigDecimal.valueOf(amountCents, 2);
+        int matches = 0;
+        int notes = 0;
+        for (JsonNode note : response.path("CreditNotes")) {
+            if (!creditNoteId.equals(note.path("CreditNoteID").asText(null))) continue;
+            notes++;
+            if (!note.path("Allocations").isArray()) return false;
+            for (JsonNode allocation : note.path("Allocations")) {
+                if (!invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) continue;
+                if (!allocation.path("Amount").isNumber() ||
+                        expected.compareTo(allocation.path("Amount").decimalValue()) != 0) continue;
+                String xeroDate = allocation.path("DateString").asText(null);
+                if (xeroDate == null || xeroDate.length() < 10 || !date.equals(xeroDate.substring(0, 10))) continue;
+                matches++;
+            }
+        }
+        return notes == 1 && matches == 1;
     }
 
     /** Xero invoice GET returns Payments on the invoice; never match solely by amount. */
