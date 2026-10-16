@@ -27,7 +27,6 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -449,14 +448,21 @@ public class XeroInvoicePushService {
                 os.write(input, 0, input.length);
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponse(connection, responseCode >= 300);
+            int responseCode;
+            String responseBody;
+            try {
+                responseCode = connection.getResponseCode();
+                responseBody = readResponse(connection, responseCode >= 300);
+            } catch (IOException uncertain) {
+                // The request body was already sent. Xero may have committed the write.
+                // Do not automatically replay financial operations until reconciled.
+                throw new XeroAmbiguousResponseException(
+                        "Xero write outcome unknown; reconcile in Xero before retrying", uncertain);
+            }
             if (responseCode >= 300) {
                 throw new IOException("Xero invoice request failed. Response code: " + responseCode + ". Response: " + responseBody);
             }
             return objectMapper.readTree(responseBody);
-        } catch (SocketTimeoutException e) {
-            throw new IOException("Xero invoice request timed out: " + e.getMessage(), e);
         } finally {
             if (connection != null) {
                 connection.disconnect();

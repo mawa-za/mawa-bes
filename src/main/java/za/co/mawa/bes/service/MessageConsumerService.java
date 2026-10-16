@@ -26,6 +26,7 @@ import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
+import za.co.mawa.bes.xero.XeroAmbiguousResponseException;
 import za.co.mawa.bes.xero.XeroMasterDataPushService;
 
 import java.time.LocalDateTime;
@@ -439,6 +440,14 @@ public class MessageConsumerService {
                         // Payroll reports retain their existing retry semantics.
                         msg.setProcessed(false);
                         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                    } else if (isXeroQueueMessage(msg)
+                            && hasCause(e, XeroAmbiguousResponseException.class)) {
+                        // A write may have succeeded remotely. Blind replay risks double posting.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.error("Xero message {} for tenant {} requires reconciliation: "
+                                        + "remote write outcome is unknown; automatic retries suspended",
+                                msg.getId(), TenantContext.getCurrentTenant());
                     } else if (msg.getType() != null && msg.getType().startsWith("XERO-")
                             && msg.getRetryCount() > 3) {
                         // Never mark a failed accounting message as successfully processed.
