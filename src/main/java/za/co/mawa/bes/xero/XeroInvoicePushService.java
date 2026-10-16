@@ -30,6 +30,9 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.time.LocalDateTime;
 import java.sql.Date;
 import java.util.Map;
@@ -427,6 +430,9 @@ public class XeroInvoicePushService {
             connection.setRequestProperty("Xero-Tenant-Id", xeroTenantId);
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
+            // Reuse the same key when a request succeeds at Xero but its response is lost.
+            // Changing the accounting payload deliberately yields a different key.
+            connection.setRequestProperty("Idempotency-Key", idempotencyKey(xeroTenantId, invoiceUrl, payload));
             connection.setDoOutput(true);
 
             try (OutputStream os = connection.getOutputStream()) {
@@ -446,6 +452,17 @@ public class XeroInvoicePushService {
             if (connection != null) {
                 connection.disconnect();
             }
+        }
+    }
+
+    static String idempotencyKey(String xeroTenantId, String endpoint, ObjectNode payload) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = (xeroTenantId + "\n" + endpoint + "\n" + payload.toString())
+                    .getBytes(StandardCharsets.UTF_8);
+            return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
         }
     }
 

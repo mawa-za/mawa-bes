@@ -422,6 +422,15 @@ public class MessageConsumerService {
                         // Payroll reports retain their existing retry semantics.
                         msg.setProcessed(false);
                         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                    } else if (msg.getType() != null && msg.getType().startsWith("XERO-")
+                            && msg.getRetryCount() > 3) {
+                        // Never mark a failed accounting message as successfully processed.
+                        // Suspend automatic retries until an operator explicitly requeues it.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.error("Xero queue item {} for tenant {} suspended after {} failures; "
+                                        + "requires investigation and explicit requeue",
+                                msg.getId(), TenantContext.getCurrentTenant(), msg.getRetryCount());
                     } else if (msg.getRetryCount() > 3) {
                         msg.setProcessed(true);
                     } else {
