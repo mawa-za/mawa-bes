@@ -109,17 +109,20 @@ public class XeroInvoicePushService {
             }
 
             ObjectNode payload = buildInvoicePayload(invoice);
-            JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload);
+            JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload,
+                    update ? null : "invoice-create:" + invoice.getId());
             JsonNode xeroInvoice = response.path("Invoices").isArray() && response.path("Invoices").size() > 0
                     ? response.path("Invoices").get(0)
                     : null;
             if (xeroInvoice == null || xeroInvoice.isMissingNode() || xeroInvoice.isNull()) {
-                throw new IOException("Xero invoice response did not contain an invoice");
+                throw new XeroAmbiguousResponseException(
+                        "Xero acknowledged invoice write without returning an invoice; reconcile before retrying");
             }
 
             String returnedInvoiceId = xeroInvoice.path("InvoiceID").asText(null);
             if (isBlank(returnedInvoiceId)) {
-                throw new IOException("Xero invoice response did not contain InvoiceID");
+                throw new XeroAmbiguousResponseException(
+                        "Xero acknowledged invoice write without InvoiceID; reconcile before retrying");
             }
             invoice.setXeroInvoiceId(returnedInvoiceId);
             invoice.setXeroInvoiceNo(firstNonBlank(
@@ -134,12 +137,26 @@ public class XeroInvoicePushService {
                 syncPayments(invoice, accessToken, xeroTenantId);
             }
         } catch (Exception e) {
-            markFailed(invoice.getId(), e.getMessage());
+            if (e instanceof XeroAmbiguousResponseException) {
+                markReconciliationRequired(invoice.getId(), e.getMessage());
+            } else {
+                markFailed(invoice.getId(), e.getMessage());
+            }
             if (e instanceof IOException ioException) {
                 throw ioException;
             }
             throw new IOException("Failed to push invoice to Xero: " + e.getMessage(), e);
         }
+    }
+
+    public void markReconciliationRequired(String invoiceId, String errorMessage) {
+        if (isBlank(invoiceId)) return;
+        invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            invoice.setIntegrationStatus("RECONCILIATION_REQUIRED");
+            invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
+            invoice.setIntegrationError(trim(errorMessage, 2000));
+            invoiceRepository.save(invoice);
+        });
     }
 
     public void markFailed(String invoiceId, String errorMessage) {
@@ -256,7 +273,8 @@ public class XeroInvoicePushService {
                         ? response.path("Payments").get(0) : null;
                 String paymentId = saved == null ? null : saved.path("PaymentID").asText(null);
                 if (isBlank(paymentId)) {
-                    throw new IOException("Xero payment response did not contain PaymentID");
+                    throw new XeroAmbiguousResponseException(
+                            "Xero acknowledged payment write without PaymentID; reconcile before retrying");
                 }
                 payment.setXeroPaymentId(paymentId);
                 payment.setXeroSyncStatus("POSTED");
@@ -264,7 +282,8 @@ public class XeroInvoicePushService {
                 payment.setXeroSyncedAt(LocalDateTime.now());
                 invoicePaymentRepository.save(payment);
             } catch (Exception error) {
-                payment.setXeroSyncStatus("FAILED");
+                payment.setXeroSyncStatus(error instanceof XeroAmbiguousResponseException
+                        ? "RECONCILIATION_REQUIRED" : "FAILED");
                 payment.setXeroSyncError(trim(error.getMessage(), 2000));
                 invoicePaymentRepository.save(payment);
                 if (error instanceof IOException ioException) throw ioException;
@@ -336,7 +355,8 @@ public class XeroInvoicePushService {
                     JsonNode saved = response.path("CreditNotes").isArray() && response.path("CreditNotes").size() > 0
                             ? response.path("CreditNotes").get(0) : null;
                     xeroCreditNoteId = saved == null ? null : saved.path("CreditNoteID").asText(null);
-                    if (isBlank(xeroCreditNoteId)) throw new IOException("Xero credit note response did not contain CreditNoteID");
+                    if (isBlank(xeroCreditNoteId)) throw new XeroAmbiguousResponseException(
+                            "Xero acknowledged credit-note write without CreditNoteID; reconcile before retrying");
                     jdbcTemplate.update("""
                             UPDATE credit_note
                                SET xero_credit_note_id=?, xero_sync_status='POSTED',
@@ -366,7 +386,8 @@ public class XeroInvoicePushService {
                             """, noteId);
                 }
             } catch (Exception error) {
-                jdbcTemplate.update("UPDATE credit_note SET xero_sync_status='FAILED', xero_sync_error=? WHERE id=?",
+                jdbcTemplate.update("UPDATE credit_note SET xero_sync_status=?, xero_sync_error=? WHERE id=?",
+                        error instanceof XeroAmbiguousResponseException ? "RECONCILIATION_REQUIRED" : "FAILED",
                         trim(error.getMessage(), 2000), noteId);
                 if (error instanceof IOException ioException) throw ioException;
                 throw new IOException("Failed to push credit note to Xero: " + error.getMessage(), error);
@@ -462,7 +483,17 @@ public class XeroInvoicePushService {
             if (responseCode >= 300) {
                 throw new IOException("Xero invoice request failed. Response code: " + responseCode + ". Response: " + responseBody);
             }
-            return objectMapper.readTree(responseBody);
+            try {
+                JsonNode parsed = objectMapper.readTree(responseBody);
+                if (parsed == null) {
+                    throw new XeroAmbiguousResponseException(
+                            "Xero returned an empty successful write response; reconcile before retrying");
+                }
+                return parsed;
+            } catch (com.fasterxml.jackson.core.JsonProcessingException malformed) {
+                throw new XeroAmbiguousResponseException(
+                        "Xero returned an unreadable successful write response; reconcile before retrying", malformed);
+            }
         } finally {
             if (connection != null) {
                 connection.disconnect();

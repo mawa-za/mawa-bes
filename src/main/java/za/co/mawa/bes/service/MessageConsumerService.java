@@ -433,7 +433,11 @@ public class MessageConsumerService {
                     log.error("Message queue processing failed for tenant {}, message {}, type {}",
                             TenantContext.getCurrentTenant(), msg.getId(), msg.getType(), e);
                     if ("XERO-INVOICE".equals(msg.getType())) {
-                        xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                        if (hasCause(e, XeroAmbiguousResponseException.class)) {
+                            xeroInvoicePushService.markReconciliationRequired(resolveInvoiceId(msg), e.getMessage());
+                        } else {
+                            xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                        }
                     }
                     msg.setRetryCount(msg.getRetryCount() + 1);
                     if (isBankPaymentReportMessage(msg)) {
