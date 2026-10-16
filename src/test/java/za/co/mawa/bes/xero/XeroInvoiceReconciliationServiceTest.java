@@ -80,4 +80,26 @@ class XeroInvoiceReconciliationServiceTest {
             """);
         assertFalse(XeroInvoiceReconciliationService.uniqueAllocationMatch(duplicates, "cn-1", "inv-1", "2026-10-16", 9550L));
     }
+    @Test void independentPaymentRequiresExactInvoiceAmountAndUniqueId() throws Exception {
+        var matching = mapper.readTree("""
+            {"Payments":[{"PaymentID":"p1","Invoice":{"InvoiceID":"i1"},"Amount":190.00}]}
+            """);
+        assertEquals("EXACT_MATCH", XeroInvoiceReconciliationService.verifyIndependentPayment(matching, "p1", "i1", 19000L));
+        assertEquals("CONFLICT", XeroInvoiceReconciliationService.verifyIndependentPayment(matching, "p1", "i2", 19000L));
+        assertEquals("CONFLICT", XeroInvoiceReconciliationService.verifyIndependentPayment(matching, "p1", "i1", 19001L));
+        assertEquals("UNKNOWN_NOT_RETURNED", XeroInvoiceReconciliationService.verifyIndependentPayment(matching, "p2", "i1", 19000L));
+    }
+
+    @Test void independentCreditNoteRequiresExactAllocationEvidence() throws Exception {
+        var matching = mapper.readTree("""
+            {"CreditNotes":[{"CreditNoteID":"c1","CurrencyCode":"ZAR","Total":95.50,
+             "Allocations":[{"Invoice":{"InvoiceID":"i1"},"Amount":95.50}]}]}
+            """);
+        assertEquals("EXACT_MATCH_ALLOCATION_PRESENT", XeroInvoiceReconciliationService.verifyIndependentCreditNote(
+                matching, "c1", "i1", 9550L, "ZAR"));
+        assertEquals("CONFLICT_OR_ALLOCATION_UNKNOWN", XeroInvoiceReconciliationService.verifyIndependentCreditNote(
+                matching, "c1", "i2", 9550L, "ZAR"));
+        assertEquals("UNKNOWN_RESPONSE", XeroInvoiceReconciliationService.verifyIndependentCreditNote(
+                mapper.readTree("{}"), "c1", "i1", 9550L, "ZAR"));
+    }
 }

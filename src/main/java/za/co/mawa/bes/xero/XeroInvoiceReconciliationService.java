@@ -153,10 +153,99 @@ public class XeroInvoiceReconciliationService {
         JsonNode credits = remote.path("CreditNotes");
         result.put("creditNoteDetailsAvailable", credits.isArray());
         result.put("xeroCreditNotes", credits.isArray() ? credits : null);
+        // Independent reads: embedded invoice collections are not authoritative evidence.
+        // Query only IDs already linked in MAWA. Unknown IDs remain unresolved and
+        // must never be inferred from matching amounts or an empty collection.
+        if (payments.size() > 100) throw new IllegalStateException("Payment verification exceeds the 100-record review limit");
+        java.util.List<Map<String, Object>> paymentEvidence = new java.util.ArrayList<>();
+        String paymentBase = auth.getXeroProperty(config, "XERO-PAYMENTS-URL",
+                "https://api.xero.com/api.xro/2.0/Payments").replaceAll("/+$", "");
+        for (InvoicePaymentEntity payment : payments) {
+            Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+            evidence.put("mawaPaymentId", payment.getId());
+            evidence.put("xeroPaymentId", payment.getXeroPaymentId());
+            String paymentId = payment.getXeroPaymentId();
+            if (paymentId == null || paymentId.isBlank()) {
+                evidence.put("verification", "UNKNOWN_MISSING_XERO_ID");
+            } else {
+                JsonNode response = getXero(paymentBase + "/" + URLEncoder.encode(paymentId, StandardCharsets.UTF_8));
+                evidence.put("verification", verifyIndependentPayment(response, paymentId,
+                        externalId, payment.getAmountCents()));
+            }
+            paymentEvidence.add(evidence);
+        }
+        result.put("independentPaymentEvidence", paymentEvidence);
+        java.util.List<Map<String, Object>> noteEvidence = new java.util.ArrayList<>();
+        java.util.List<Map<String, Object>> localNotes = jdbcTemplate.queryForList("""
+                SELECT id, xero_credit_note_id, total_cents, currency, xero_allocated_at
+                  FROM credit_note WHERE invoice_id=?
+                """, invoiceId);
+        if (localNotes.size() > 100) throw new IllegalStateException("Credit-note verification exceeds the 100-record review limit");
+        for (Map<String, Object> note : localNotes) {
+            Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+            evidence.put("mawaCreditNoteId", note.get("id"));
+            String noteId = stringValue(note.get("xero_credit_note_id"));
+            evidence.put("xeroCreditNoteId", noteId);
+            if (noteId == null) {
+                evidence.put("verification", "UNKNOWN_MISSING_XERO_ID");
+            } else {
+                JsonNode response = getXero(creditNotesBaseUrl() + "/" + URLEncoder.encode(noteId, StandardCharsets.UTF_8));
+                Long cents = note.get("total_cents") instanceof Number amount ? amount.longValue() : null;
+                evidence.put("verification", verifyIndependentCreditNote(response, noteId,
+                        externalId, cents, stringValue(note.get("currency"))));
+            }
+            noteEvidence.add(evidence);
+        }
+        result.put("independentCreditNoteEvidence", noteEvidence);
         result.put("ledgerVerified", false);
         result.put("releaseAllowed", false);
         result.put("message", "Read-only comparison only; payment coverage, credit-note allocations and outstanding balances require independent verification");
         return result;
+    }
+
+    // Exact identity, parent invoice and amount are mandatory. We do not use
+    // an empty response as evidence that a financial posting never happened.
+    static String verifyIndependentPayment(JsonNode body, String paymentId, String invoiceId, Long cents) {
+        if (body == null || !body.path("Payments").isArray() || cents == null) return "UNKNOWN_RESPONSE";
+        int matches = 0;
+        boolean valid = false;
+        for (JsonNode payment : body.path("Payments")) {
+            if (!paymentId.equals(payment.path("PaymentID").asText(null))) continue;
+            matches++;
+            valid = invoiceId.equals(payment.path("Invoice").path("InvoiceID").asText(null))
+                    && payment.path("Amount").isNumber()
+                    && BigDecimal.valueOf(cents, 2).compareTo(payment.path("Amount").decimalValue()) == 0;
+        }
+        if (matches == 0) return "UNKNOWN_NOT_RETURNED";
+        return matches == 1 && valid ? "EXACT_MATCH" : "CONFLICT";
+    }
+
+    static String verifyIndependentCreditNote(JsonNode body, String creditNoteId, String invoiceId,
+                                               Long cents, String currency) {
+        if (body == null || !body.path("CreditNotes").isArray() || cents == null || currency == null)
+            return "UNKNOWN_RESPONSE";
+        int matches = 0;
+        boolean valid = false;
+        for (JsonNode note : body.path("CreditNotes")) {
+            if (!creditNoteId.equals(note.path("CreditNoteID").asText(null))) continue;
+            matches++;
+            boolean exact = note.path("Total").isNumber()
+                    && BigDecimal.valueOf(cents, 2).compareTo(note.path("Total").decimalValue()) == 0
+                    && currency.equalsIgnoreCase(note.path("CurrencyCode").asText(""));
+            JsonNode allocations = note.path("Allocations");
+            boolean allocatedToInvoice = false;
+            if (allocations.isArray()) {
+                for (JsonNode allocation : allocations) {
+                    if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
+                        allocatedToInvoice = true;
+                        break;
+                    }
+                }
+            }
+            valid = exact && allocatedToInvoice;
+        }
+        if (matches == 0) return "UNKNOWN_NOT_RETURNED";
+        return matches == 1 && valid ? "EXACT_MATCH_ALLOCATION_PRESENT" : "CONFLICT_OR_ALLOCATION_UNKNOWN";
     }
 
     /** Read-only recovery: link a quarantined payment only on a single exact match. */
