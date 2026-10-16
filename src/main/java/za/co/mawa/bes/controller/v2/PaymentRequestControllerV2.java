@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.v2.payment.*;
 import za.co.mawa.bes.entity.v2.PaymentRequestStatusHistoryEntity;
 import za.co.mawa.bes.enums.PaymentRequestStatus;
 import za.co.mawa.bes.enums.PaymentRequestType;
+import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
 import za.co.mawa.bes.fnb.v2.BankPaymentService;
 import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
@@ -30,15 +31,21 @@ public class PaymentRequestControllerV2 {
     private final PaymentRequestService paymentRequestService;
     private final PaymentRequestFnbPaymentQueueService fnbPaymentQueueService;
     private final za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService;
+    private final MessageQueueRepository messageQueueRepository;
+    private final za.co.mawa.bes.service.MessageConsumerService messageConsumerService;
 
     public PaymentRequestControllerV2(
             @Qualifier("paymentRequestServiceV2") PaymentRequestService paymentRequestService,
             PaymentRequestFnbPaymentQueueService fnbPaymentQueueService,
-            za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService
+            za.co.mawa.bes.service.v2.PaymentDisbursementAttemptService paymentAttemptService,
+            MessageQueueRepository messageQueueRepository,
+            za.co.mawa.bes.service.MessageConsumerService messageConsumerService
     ) {
         this.paymentRequestService = paymentRequestService;
         this.fnbPaymentQueueService = fnbPaymentQueueService;
         this.paymentAttemptService = paymentAttemptService;
+        this.messageQueueRepository = messageQueueRepository;
+        this.messageConsumerService = messageConsumerService;
     }
 
     @PostMapping
@@ -151,6 +158,16 @@ public class PaymentRequestControllerV2 {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
+    @GetMapping(value = "/{id}/bank-report/polling-paused", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<java.util.Map<String, Boolean>> isBankReportPollingPaused(@PathVariable String id) {
+        paymentRequestService.getById(id);
+        boolean paused = messageQueueRepository
+                .findFirstByTypeAndReferenceIdOrderByIdDesc("FNB-EFT-PAYMENT-REPORT", id)
+                .map(message -> !message.isProcessed() && message.getRetryCount() >= 3)
+                .orElse(false);
+        return ResponseEntity.ok(java.util.Map.of("paused", paused));
+    }
+
     @PostMapping(value = "/{id}/bank-report/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BankPaymentResponse> refreshBankReport(@PathVariable String id) {
         PaymentRequestResponse paymentRequest = paymentRequestService.getById(id);
@@ -161,10 +178,11 @@ public class PaymentRequestControllerV2 {
         try {
             BankPaymentResponse report = bankPaymentService.getPaymentReport(instructionId);
             paymentAttemptService.recordBankReport(id, report);
+            messageConsumerService.reconcileOpenedPaymentReport(id, report);
             return ResponseEntity.ok(report);
         } catch (Exception exception) {
             throw new IllegalStateException(
-                    "The FNB bank report is not available yet. The system will continue checking automatically.",
+                    "The FNB bank report is not available yet. After three failed automatic polls, open the payment request to check again.",
                     exception
             );
         }

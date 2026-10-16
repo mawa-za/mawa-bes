@@ -13,6 +13,7 @@ import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.fnb.BankPaymentService;
 import za.co.mawa.bes.fnb.FnbInitiationRecoveryService;
+import za.co.mawa.bes.fnb.FnbReportUnavailableException;
 import za.co.mawa.bes.fnb.dto.BankPaymentRequest;
 import za.co.mawa.bes.fnb.dto.PaymentInformation;
 import za.co.mawa.bes.fnb.dto.BankPaymentResponse;
@@ -375,29 +376,50 @@ public class MessageConsumerService {
                     }
                     throw new IllegalStateException("Transient database failure while processing message queue", e);
                 }
-                if (isBankPaymentReportMessage(msg) && isBankReportTooEarly(e)) {
+                if (isEftPaymentReportMessage(msg)) {
+                    // Count only unsuccessful report retrievals. A valid response with
+                    // PENDING status follows the existing polling path unchanged.
+                    msg.setRetryCount(msg.getRetryCount() + 1);
+                    msg.setProcessed(false);
+                    if (msg.getRetryCount() >= 3) {
+                        // No more scheduled polls. Preserve the unconfirmed queue row
+                        // for investigation; opening the payment detail permits a
+                        // separate, user-triggered report refresh.
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.warn("FNB EFT report polling paused after {} failed retrievals for tenant {}, "
+                                        + "queue message {}, payment request {}. The payment remains unconfirmed; "
+                                        + "opening its detail screen can check FNB again.",
+                                msg.getRetryCount(), TenantContext.getCurrentTenant(), msg.getId(), msg.getReferenceId());
+                    } else {
+                        int retryAfterSeconds = isBankReportTooEarly(e)
+                                ? resolveBankReportRetryAfterSeconds(e)
+                                : getPaymentReportIntervalSeconds();
+                        msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(retryAfterSeconds));
+                        if (hasCause(e, FnbReportUnavailableException.class) || isBankReportTooEarly(e)) {
+                            log.info("FNB EFT report unavailable for queue message {} (failed poll {}/3); "
+                                            + "retrying in {} seconds: {}",
+                                    msg.getId(), msg.getRetryCount(), retryAfterSeconds, rootMessage(e));
+                        } else {
+                            log.warn("FNB EFT report failed for queue message {} (failed poll {}/3); "
+                                            + "retrying in {} seconds: {}",
+                                    msg.getId(), msg.getRetryCount(), retryAfterSeconds, rootMessage(e));
+                        }
+                    }
+                } else if (isBankPaymentReportMessage(msg) && isBankReportTooEarly(e)) {
                     int retryAfterSeconds = resolveBankReportRetryAfterSeconds(e);
                     msg.setProcessed(false);
                     msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(retryAfterSeconds));
-                    log.info(
-                            "FNB report is not ready for queue message {} ({}); retrying in {} seconds",
-                            msg.getId(), msg.getType(), retryAfterSeconds
-                    );
+                    log.info("FNB report is not ready for queue message {} ({}); retrying in {} seconds",
+                            msg.getId(), msg.getType(), retryAfterSeconds);
                 } else {
-                    log.error(
-                            "Message queue processing failed for tenant {}, message {}, type {}",
-                            TenantContext.getCurrentTenant(),
-                            msg.getId(),
-                            msg.getType(),
-                            e
-                    );
+                    log.error("Message queue processing failed for tenant {}, message {}, type {}",
+                            TenantContext.getCurrentTenant(), msg.getId(), msg.getType(), e);
                     if ("XERO-INVOICE".equals(msg.getType())) {
                         xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
                     }
                     msg.setRetryCount(msg.getRetryCount() + 1);
                     if (isBankPaymentReportMessage(msg)) {
-                        // Bank report availability is eventually consistent. Keep polling instead
-                        // of abandoning a valid disbursement after three temporary failures.
+                        // Payroll reports retain their existing retry semantics.
                         msg.setProcessed(false);
                         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
                     } else if (msg.getRetryCount() > 3) {
@@ -414,6 +436,12 @@ public class MessageConsumerService {
     }
 
     private void processFnbPaymentReport(MessageQueueEntity msg, String systemUserId) throws Exception {
+        if (msg.getRetryCount() >= 3) {
+            msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+            log.info("Skipping exhausted FNB EFT report queue message {} for payment request {}",
+                    msg.getId(), msg.getReferenceId());
+            return;
+        }
         String paymentRequestId = msg.getReferenceId();
         String instructionId = paymentRequestService.getFnbInstructionId(paymentRequestId);
         if (instructionId == null || instructionId.isBlank()) {
@@ -444,9 +472,49 @@ public class MessageConsumerService {
 
         paymentRequestService.markBankPaymentPending(paymentRequestId, providerStatus, systemUserId);
         paymentAttemptService.markPending(paymentRequestId, providerStatus);
-        msg.setRetryCount(msg.getRetryCount() + 1);
+        // A valid PENDING response is not a failed poll and must not consume
+        // any of the three permitted failed retrieval attempts.
+        msg.setRetryCount(0);
         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
         msg.setProcessed(false);
+    }
+
+    /** Reconcile a report retrieved when a user opens an exhausted payment request. */
+    public void reconcileOpenedPaymentReport(String paymentRequestId, BankPaymentResponse report) {
+        String status = resolveProviderStatus(report);
+        String reason = resolveProviderReason(report);
+        String actor = systemUserIdForReport();
+        if (isSuccessfulBankStatus(status)) {
+            paymentRequestService.markBankPaymentPaid(paymentRequestId, status, actor);
+            paymentAttemptService.markSucceeded(paymentRequestId, status);
+        } else if (isFailedBankStatus(status)) {
+            paymentRequestService.markBankPaymentFailed(paymentRequestId, status, reason, actor);
+            paymentAttemptService.markFailed(paymentRequestId, status, status, reason);
+        } else {
+            paymentRequestService.markBankPaymentPending(paymentRequestId, status, actor);
+            paymentAttemptService.markPending(paymentRequestId, status);
+        }
+        if (isSuccessfulBankStatus(status) || isFailedBankStatus(status)) {
+            messageQueueRepository.findFirstByTypeAndReferenceIdOrderByIdDesc(
+                    "FNB-EFT-PAYMENT-REPORT", paymentRequestId).ifPresent(message -> {
+                message.setProcessed(true);
+                messageQueueRepository.save(message);
+            });
+        }
+    }
+
+    private boolean hasCause(Throwable failure, Class<? extends Throwable> causeType) {
+        Throwable current = failure;
+        while (current != null) {
+            if (causeType.isInstance(current)) return true;
+            if (current == current.getCause()) break;
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean isEftPaymentReportMessage(MessageQueueEntity message) {
+        return message != null && "FNB-EFT-PAYMENT-REPORT".equals(message.getType());
     }
 
     private boolean isBankPaymentReportMessage(MessageQueueEntity message) {
