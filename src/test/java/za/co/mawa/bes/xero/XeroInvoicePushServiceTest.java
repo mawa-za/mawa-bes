@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -69,5 +70,20 @@ class XeroInvoicePushServiceTest {
         assertEquals("AUTHORISED", service.mapInvoiceStatus("PARTIALLY_PAID"));
         assertEquals("AUTHORISED", service.mapInvoiceStatus("PAID"));
         assertEquals("VOIDED", service.mapInvoiceStatus("CANCELLED"));
+    }
+    @Test
+    void paymentRetryKeyIsStableAndScopedToTenantAndOperation() {
+        String first = XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-1");
+        assertEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-1"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-b", "payment-create:payment-1"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-2"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "credit-note-create:payment-1"));
+    }
+
+    @Test
+    void creditNoteCreationAndAllocationHaveIndependentRetryKeys() {
+        assertNotEquals(
+                XeroInvoicePushService.operationIdempotencyKey("tenant", "credit-note-create:note-1"),
+                XeroInvoicePushService.operationIdempotencyKey("tenant", "credit-note-allocate:note-1"));
     }
 }

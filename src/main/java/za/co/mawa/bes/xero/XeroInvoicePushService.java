@@ -251,7 +251,8 @@ public class XeroInvoicePushService {
                 }
                 root.set("Payments", objectMapper.createArrayNode().add(xeroPayment));
 
-                JsonNode response = postInvoice(paymentUrl, accessToken, xeroTenantId, root);
+                JsonNode response = postInvoice(paymentUrl, accessToken, xeroTenantId, root,
+                        "payment-create:" + payment.getId());
                 JsonNode saved = response.path("Payments").isArray() && response.path("Payments").size() > 0
                         ? response.path("Payments").get(0) : null;
                 String paymentId = saved == null ? null : saved.path("PaymentID").asText(null);
@@ -331,7 +332,8 @@ public class XeroInvoicePushService {
                     ObjectNode root = objectMapper.createObjectNode();
                     root.set("CreditNotes", objectMapper.createArrayNode().add(credit));
 
-                    JsonNode response = postInvoice(baseUrl, accessToken, xeroTenantId, root);
+                    JsonNode response = postInvoice(baseUrl, accessToken, xeroTenantId, root,
+                            "credit-note-create:" + noteId);
                     JsonNode saved = response.path("CreditNotes").isArray() && response.path("CreditNotes").size() > 0
                             ? response.path("CreditNotes").get(0) : null;
                     xeroCreditNoteId = saved == null ? null : saved.path("CreditNoteID").asText(null);
@@ -356,7 +358,7 @@ public class XeroInvoicePushService {
                     ObjectNode root = objectMapper.createObjectNode();
                     root.set("Allocations", objectMapper.createArrayNode().add(allocation));
                     postInvoice(baseUrl + "/" + xeroCreditNoteId + "/Allocations",
-                            accessToken, xeroTenantId, root);
+                            accessToken, xeroTenantId, root, "credit-note-allocate:" + noteId);
                     jdbcTemplate.update("""
                             UPDATE credit_note
                                SET xero_sync_status='ALLOCATED', xero_sync_error=NULL,
@@ -419,6 +421,11 @@ public class XeroInvoicePushService {
     }
 
     private JsonNode postInvoice(String invoiceUrl, String accessToken, String xeroTenantId, ObjectNode payload) throws IOException {
+        return postInvoice(invoiceUrl, accessToken, xeroTenantId, payload, null);
+    }
+
+    private JsonNode postInvoice(String invoiceUrl, String accessToken, String xeroTenantId,
+                                 ObjectNode payload, String operationIdentity) throws IOException {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(invoiceUrl);
@@ -432,7 +439,9 @@ public class XeroInvoicePushService {
             connection.setRequestProperty("Accept", "application/json");
             // Reuse the same key when a request succeeds at Xero but its response is lost.
             // Changing the accounting payload deliberately yields a different key.
-            connection.setRequestProperty("Idempotency-Key", idempotencyKey(xeroTenantId, invoiceUrl, payload));
+            connection.setRequestProperty("Idempotency-Key", operationIdentity == null
+                    ? idempotencyKey(xeroTenantId, invoiceUrl, payload)
+                    : operationIdempotencyKey(xeroTenantId, operationIdentity));
             connection.setDoOutput(true);
 
             try (OutputStream os = connection.getOutputStream()) {
@@ -460,6 +469,18 @@ public class XeroInvoicePushService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] bytes = (xeroTenantId + "\n" + endpoint + "\n" + payload.toString())
                     .getBytes(StandardCharsets.UTF_8);
+            return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
+        }
+    }
+
+    // Keep financial operation identities stable even if mutable accounting fields change
+    // after a lost acknowledgement. Tenant scoping prevents cross-tenant collisions.
+    static String operationIdempotencyKey(String xeroTenantId, String operationIdentity) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = (xeroTenantId + "\n" + operationIdentity).getBytes(StandardCharsets.UTF_8);
             return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
         } catch (NoSuchAlgorithmException error) {
             throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
