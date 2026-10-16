@@ -2,6 +2,10 @@ package za.co.mawa.bes.xero;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import za.co.mawa.bes.configuration.context.UserContext;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,6 +15,7 @@ import java.util.Map;
 /** Tenant-scoped read-only quarantine worklist and conservative reconciliation dispatch. */
 @Service
 public class XeroReconciliationOperationsService {
+    private static final Logger log = LoggerFactory.getLogger(XeroReconciliationOperationsService.class);
     private final JdbcTemplate jdbc;
     private final XeroInvoiceReconciliationService reconciliation;
 
@@ -21,6 +26,7 @@ public class XeroReconciliationOperationsService {
     }
 
     public List<Map<String, Object>> pending() {
+        requireAccountingAdministrator();
         List<Map<String, Object>> rows = new ArrayList<>();
         append(rows, "INVOICE", """
                 SELECT id, invoice_no AS reference, integration_error AS error,
@@ -43,6 +49,30 @@ public class XeroReconciliationOperationsService {
         return rows;
     }
 
+    /** Only active, currently assigned roles with full workcentre access may inspect finance quarantine.
+     * This deliberately fails closed until a dedicated accounting permission is wired into MAWA roles.
+     */
+    private void requireAccountingAdministrator() {
+        String userId = UserContext.getCurrentUserId();
+        if (userId == null || userId.isBlank()) {
+            throw new AccessDeniedException("Xero reconciliation requires an authenticated ERP user");
+        }
+        Integer allowed = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM user_role ur
+                JOIN `role` r ON r.id = ur.role
+                JOIN `user` u ON u.id = ur.user
+                WHERE ur.user = ? AND r.access_all_workcentres = b'1'
+                  AND u.status = 'ACTIVE'
+                  AND (u.expires_at IS NULL OR u.expires_at > NOW())
+                  AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
+                  AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
+                """, Integer.class, userId);
+        if (allowed == null || allowed == 0) {
+            log.warn("Denied Xero reconciliation access for ERP user {}", userId);
+            throw new AccessDeniedException("Insufficient permission to view Xero reconciliation");
+        }
+    }
+
     private void append(List<Map<String, Object>> result, String type, String sql) {
         jdbc.queryForList(sql).forEach(row -> {
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -54,6 +84,9 @@ public class XeroReconciliationOperationsService {
 
     /** Never releases quarantine; remote reads only. */
     public Map<String, Object> check(String type, String id) throws IOException {
+        requireAccountingAdministrator();
+        log.info("Xero reconciliation check requested: operator={}, type={}, transaction={}",
+                UserContext.getCurrentUserId(), type, id);
         if (id == null || id.isBlank()) throw new IllegalArgumentException("Transaction ID is required");
         boolean matched = switch (type == null ? "" : type) {
             case "INVOICE" -> reconciliation.reconcileInvoice(id);
@@ -62,6 +95,8 @@ public class XeroReconciliationOperationsService {
             case "CREDIT_NOTE_ALLOCATION" -> reconciliation.reconcileCreditNoteAllocation(id);
             default -> throw new IllegalArgumentException("Unsupported Xero reconciliation type");
         };
+        log.info("Xero reconciliation check completed: operator={}, type={}, transaction={}, matched={}, quarantineRetained=true",
+                UserContext.getCurrentUserId(), type, id, matched);
         return Map.of("matched", matched, "quarantineRetained", true,
                 "message", matched ? "Match linked; quarantine retained for operator review"
                         : "No new unique match linked; quarantine retained");
