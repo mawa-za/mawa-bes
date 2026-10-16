@@ -102,4 +102,31 @@ class XeroInvoiceReconciliationServiceTest {
         assertEquals("UNKNOWN_RESPONSE", XeroInvoiceReconciliationService.verifyIndependentCreditNote(
                 mapper.readTree("{}"), "c1", "i1", 9550L, "ZAR"));
     }
+    @Test void invoiceBalanceArithmeticFailsClosedOnMissingOrConflictingValues() throws Exception {
+        assertEquals("ARITHMETIC_MATCH", XeroInvoiceReconciliationService.verifyInvoiceBalanceArithmetic(
+            mapper.readTree("{\"Total\":200,\"AmountPaid\":50,\"AmountCredited\":20,\"AmountDue\":130}")));
+        assertEquals("ARITHMETIC_CONFLICT", XeroInvoiceReconciliationService.verifyInvoiceBalanceArithmetic(
+            mapper.readTree("{\"Total\":200,\"AmountPaid\":50,\"AmountCredited\":20,\"AmountDue\":140}")));
+        assertEquals("UNKNOWN_INCOMPLETE_AMOUNTS", XeroInvoiceReconciliationService.verifyInvoiceBalanceArithmetic(
+            mapper.readTree("{\"Total\":200,\"AmountDue\":200}")));
+    }
+
+    @Test void creditAllocationEvidenceReportsAmountsAndUncertainBalances() throws Exception {
+        var note = mapper.readTree("""
+            {"CreditNotes":[{"CreditNoteID":"c1","Total":150.00,"RemainingCredit":25.00,
+              "Allocations":[{"Invoice":{"InvoiceID":"i1"},"Amount":75.00},
+                             {"Invoice":{"InvoiceID":"i2"},"Amount":50.00}]}]}
+            """);
+        var result = XeroInvoiceReconciliationService.inspectCreditNoteAllocations(note, "c1", "i1");
+        assertEquals("XERO_ALLOCATION_ARITHMETIC_MATCH", result.get("verification"));
+        assertEquals(new java.math.BigDecimal("75.00"), result.get("targetInvoiceAllocatedAmount"));
+        assertEquals(1, result.get("targetInvoiceAllocationCount"));
+        var incomplete = mapper.readTree("""
+            {"CreditNotes":[{"CreditNoteID":"c1","Total":150.00,
+              "Allocations":[{"Invoice":{"InvoiceID":"i1"},"Amount":75.00}]}]}
+            """);
+        assertEquals("UNKNOWN_CREDIT_BALANCE", XeroInvoiceReconciliationService
+            .inspectCreditNoteAllocations(incomplete, "c1", "i1").get("verification"));
+    }
+
 }

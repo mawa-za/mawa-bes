@@ -113,6 +113,7 @@ public class XeroInvoiceReconciliationService {
             result.put("xero" + field, remote.path(field).isNumber() ? remote.path(field).decimalValue() : null);
         }
         result.put("xeroStatus", remote.path("Status").asText(null));
+        result.put("xeroBalanceArithmetic", verifyInvoiceBalanceArithmetic(remote));
         boolean identityMatches = java.util.Objects.equals(invoice.getInvoiceNo(), remote.path("InvoiceNumber").asText(null))
                 && invoice.getCurrency() != null
                 && invoice.getCurrency().equalsIgnoreCase(remote.path("CurrencyCode").asText(""))
@@ -193,13 +194,81 @@ public class XeroInvoiceReconciliationService {
                 Long cents = note.get("total_cents") instanceof Number amount ? amount.longValue() : null;
                 evidence.put("verification", verifyIndependentCreditNote(response, noteId,
                         externalId, cents, stringValue(note.get("currency"))));
+                evidence.put("allocationEvidence", inspectCreditNoteAllocations(response, noteId, externalId));
             }
             noteEvidence.add(evidence);
         }
         result.put("independentCreditNoteEvidence", noteEvidence);
         result.put("ledgerVerified", false);
         result.put("releaseAllowed", false);
-        result.put("message", "Read-only comparison only; payment coverage, credit-note allocations and outstanding balances require independent verification");
+        result.put("message", "Read-only evidence only; local-to-Xero allocation amounts, unmatched external postings and complete ledger balances are not yet certified");
+        return result;
+    }
+
+    /** Xero arithmetic only; this is not proof of MAWA-to-Xero balance equality. */
+    static String verifyInvoiceBalanceArithmetic(JsonNode invoice) {
+        if (invoice == null || !invoice.path("Total").isNumber()
+                || !invoice.path("AmountPaid").isNumber()
+                || !invoice.path("AmountCredited").isNumber()
+                || !invoice.path("AmountDue").isNumber()) return "UNKNOWN_INCOMPLETE_AMOUNTS";
+        BigDecimal calculated = invoice.path("Total").decimalValue()
+                .subtract(invoice.path("AmountPaid").decimalValue())
+                .subtract(invoice.path("AmountCredited").decimalValue());
+        return calculated.compareTo(invoice.path("AmountDue").decimalValue()) == 0
+                ? "ARITHMETIC_MATCH" : "ARITHMETIC_CONFLICT";
+    }
+
+    /** Inspect all allocations on a unique credit note without assuming the full note was allocated. */
+    static Map<String, Object> inspectCreditNoteAllocations(JsonNode body, String creditNoteId, String invoiceId) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("verification", "UNKNOWN_RESPONSE");
+        if (body == null || !body.path("CreditNotes").isArray() || creditNoteId == null || invoiceId == null)
+            return result;
+        JsonNode matched = null;
+        int count = 0;
+        for (JsonNode note : body.path("CreditNotes")) {
+            if (creditNoteId.equals(note.path("CreditNoteID").asText(null))) { matched = note; count++; }
+        }
+        if (count != 1) {
+            result.put("verification", count == 0 ? "UNKNOWN_NOT_RETURNED" : "CONFLICT_DUPLICATE_CREDIT_NOTES");
+            return result;
+        }
+        JsonNode allocations = matched.path("Allocations");
+        if (!allocations.isArray()) {
+            result.put("verification", "UNKNOWN_ALLOCATIONS_NOT_RETURNED");
+            return result;
+        }
+        BigDecimal invoiceSum = BigDecimal.ZERO;
+        BigDecimal allSum = BigDecimal.ZERO;
+        int invoiceCount = 0;
+        for (JsonNode allocation : allocations) {
+            if (!allocation.path("Amount").isNumber()) {
+                result.put("verification", "UNKNOWN_ALLOCATION_AMOUNT");
+                return result;
+            }
+            BigDecimal amount = allocation.path("Amount").decimalValue();
+            if (amount.signum() < 0) {
+                result.put("verification", "CONFLICT_NEGATIVE_ALLOCATION");
+                return result;
+            }
+            allSum = allSum.add(amount);
+            if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
+                invoiceSum = invoiceSum.add(amount);
+                invoiceCount++;
+            }
+        }
+        result.put("targetInvoiceAllocationCount", invoiceCount);
+        result.put("targetInvoiceAllocatedAmount", invoiceSum);
+        result.put("allInvoicesAllocatedAmount", allSum);
+        if (!matched.path("Total").isNumber() || !matched.path("RemainingCredit").isNumber()) {
+            result.put("verification", "UNKNOWN_CREDIT_BALANCE");
+            return result;
+        }
+        BigDecimal total = matched.path("Total").decimalValue();
+        BigDecimal remaining = matched.path("RemainingCredit").decimalValue();
+        result.put("xeroRemainingCredit", remaining);
+        result.put("verification", total.subtract(allSum).compareTo(remaining) == 0 && remaining.signum() >= 0
+                ? "XERO_ALLOCATION_ARITHMETIC_MATCH" : "XERO_ALLOCATION_ARITHMETIC_CONFLICT");
         return result;
     }
 
