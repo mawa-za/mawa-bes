@@ -20,6 +20,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +37,21 @@ class XeroInvoicePushServiceTest {
     @Mock private XeroAuthService xeroAuthService;
     @Mock private XeroIntegrationSettingsService settings;
     @Mock private XeroMasterDataPushService masterDataPushService;
+
+    @Test
+    void quarantinedInvoiceCannotBeResentBeforeReconciliation() {
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .id("invoice-quarantine")
+                .integrationStatus("RECONCILIATION_REQUIRED")
+                .lines(new ArrayList<>())
+                .build();
+        when(invoiceRepository.findByIdWithLines("invoice-quarantine"))
+                .thenReturn(Optional.of(invoice));
+
+        assertThrows(XeroAmbiguousResponseException.class,
+                () -> service.pushInvoice("invoice-quarantine"));
+        verifyNoInteractions(xeroAuthService);
+    }
 
     @Test
     void sendsMawaInvoiceNumberAndStoredXeroIdOnUpdate() {

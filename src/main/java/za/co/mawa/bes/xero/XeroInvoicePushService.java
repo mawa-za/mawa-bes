@@ -81,6 +81,11 @@ public class XeroInvoicePushService {
         InvoiceEntity invoice = invoiceRepository.findByIdWithLines(invoiceId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + invoiceId));
 
+        if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) {
+            throw new XeroAmbiguousResponseException(
+                    "Invoice requires Xero reconciliation before any further write: " + invoiceId);
+        }
+
         boolean update = !isBlank(invoice.getXeroInvoiceId());
         invoice.setIntegrationStatus(update ? "UPDATING" : "SENDING");
         invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
@@ -164,6 +169,7 @@ public class XeroInvoicePushService {
             return;
         }
         invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) return;
             invoice.setIntegrationStatus("FAILED");
             invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
             invoice.setIntegrationError(trim(errorMessage, 2000));
@@ -234,6 +240,10 @@ public class XeroInvoicePushService {
                 xeroAuthService.checkXeroInfo(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL);
 
         for (InvoicePaymentEntity payment : payments) {
+            if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
+                throw new XeroAmbiguousResponseException(
+                        "Payment requires Xero reconciliation before further writes: " + payment.getId());
+            }
             if ("CANCELLED".equalsIgnoreCase(payment.getStatus())) {
                 if (!isBlank(payment.getXeroPaymentId())
                         && !"DELETED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
@@ -315,7 +325,7 @@ public class XeroInvoicePushService {
     private void syncCreditNotes(InvoiceEntity invoice, String accessToken, String xeroTenantId) throws IOException {
         List<Map<String, Object>> notes = jdbcTemplate.queryForList("""
                 SELECT id, credit_note_no, credit_note_date, reason, total_cents,
-                       xero_credit_note_id, xero_allocated_at
+                       xero_credit_note_id, xero_allocated_at, xero_sync_status
                   FROM credit_note
                  WHERE invoice_id = ? AND UPPER(status) = 'ISSUED'
                  ORDER BY credit_note_date, created_at
@@ -328,6 +338,10 @@ public class XeroInvoicePushService {
             String noteId = String.valueOf(note.get("id"));
             String xeroCreditNoteId = valueAsString(note.get("xero_credit_note_id"));
             try {
+                if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(valueAsString(note.get("xero_sync_status")))) {
+                    throw new XeroAmbiguousResponseException(
+                            "Credit note requires Xero reconciliation before further writes: " + noteId);
+                }
                 if (isBlank(xeroCreditNoteId)) {
                     jdbcTemplate.update("UPDATE credit_note SET xero_sync_status='SENDING', xero_sync_error=NULL WHERE id=?", noteId);
                     ObjectNode credit = objectMapper.createObjectNode();
