@@ -199,12 +199,55 @@ public class XeroInvoiceReconciliationService {
             noteEvidence.add(evidence);
         }
         result.put("independentCreditNoteEvidence", noteEvidence);
+        // An additional read-only list scan can reveal payments not recorded locally.
+        // It is deliberately bounded and never certifies completeness or releases quarantine.
+        result.put("externalPaymentCoverage", inspectUnmatchedXeroPayments(paymentBase, externalId, payments));
         result.put("financialComparison", compareLocalFinancialEvidence(
                 payments, paymentEvidence, localNotes, noteEvidence, remote));
         result.put("ledgerVerified", false);
         result.put("releaseAllowed", false);
         result.put("message", "Read-only evidence only; local-to-Xero allocation amounts, unmatched external postings and complete ledger balances are not yet certified");
         return result;
+    }
+
+    /** Bounded Xero payment-list inspection; no financial writes and no completeness assertion. */
+    private Map<String, Object> inspectUnmatchedXeroPayments(String paymentBase, String invoiceId,
+                                                               java.util.List<InvoicePaymentEntity> localPayments)
+            throws IOException {
+        java.util.Set<String> knownIds = new java.util.HashSet<>();
+        for (InvoicePaymentEntity payment : localPayments) {
+            if (payment.getXeroPaymentId() != null && !payment.getXeroPaymentId().isBlank())
+                knownIds.add(payment.getXeroPaymentId());
+        }
+        java.util.List<Map<String, Object>> unmatched = new java.util.ArrayList<>();
+        int recordsScanned = 0;
+        // Pages are scoped by Xero-Tenant-Id in getXero, not by MAWA tenant IDs.
+        // Scan only two pages to limit remote API cost; never interpret this as exhaustive.
+        for (int page = 1; page <= 2; page++) {
+            JsonNode body = getXero(paymentBase + "?page=" + page);
+            JsonNode items = body.path("Payments");
+            if (!items.isArray()) throw new IOException("Xero payment list did not contain a Payments array");
+            for (JsonNode item : items) {
+                recordsScanned++;
+                if (!invoiceId.equals(item.path("Invoice").path("InvoiceID").asText(null))) continue;
+                String remoteId = item.path("PaymentID").asText(null);
+                if (remoteId != null && !remoteId.isBlank() && knownIds.contains(remoteId)) continue;
+                Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+                evidence.put("xeroPaymentId", remoteId);
+                evidence.put("amount", item.path("Amount").isNumber() ? item.path("Amount").decimalValue() : null);
+                evidence.put("status", item.path("Status").asText(null));
+                evidence.put("outcome", "UNMATCHED_REMOTE_PAYMENT_REVIEW_REQUIRED");
+                unmatched.add(evidence);
+            }
+            if (items.size() < 100) break;
+        }
+        Map<String, Object> coverage = new java.util.LinkedHashMap<>();
+        coverage.put("recordsScanned", recordsScanned);
+        coverage.put("unmatchedPayments", unmatched);
+        coverage.put("complete", false);
+        coverage.put("verification", "PARTIAL_READ_ONLY_SCAN");
+        coverage.put("releaseAllowed", false);
+        return coverage;
     }
 
     /**
