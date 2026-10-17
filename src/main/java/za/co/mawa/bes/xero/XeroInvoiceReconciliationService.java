@@ -212,6 +212,7 @@ public class XeroInvoiceReconciliationService {
     }
 
     private static final int MAX_DISCOVERY_PAGES = 5;
+    private static final int MAX_CREDIT_NOTE_DETAIL_LOOKUPS = 25;
 
     /** Bounded, organisation-wide discovery. A scan is never proof of complete ledger coverage. */
     private Map<String, Object> inspectUnmatchedXeroPayments(String paymentBase, String invoiceId,
@@ -249,7 +250,11 @@ public class XeroInvoiceReconciliationService {
         return coverageResult(recordsScanned, pagesScanned, emptyPageReached, "unmatchedPayments", unmatched);
     }
 
-    /** Credit notes may link the target invoice through allocation records, not an invoice header. */
+    /**
+     * Discover credit notes linked to the invoice. Xero list items may omit Allocations,
+     * so inspect individual notes under a strict request budget. Partial evidence cannot
+     * certify absence of remote allocations.
+     */
     private Map<String, Object> inspectUnmatchedXeroCreditNotes(String creditNoteBase, String invoiceId,
                                                                  java.util.List<Map<String, Object>> localNotes)
             throws IOException {
@@ -262,6 +267,8 @@ public class XeroInvoiceReconciliationService {
         java.util.List<Map<String, Object>> unmatched = new java.util.ArrayList<>();
         int recordsScanned = 0;
         int pagesScanned = 0;
+        int detailLookups = 0;
+        int unresolvedAssociations = 0;
         boolean emptyPageReached = false;
         for (int page = 1; page <= MAX_DISCOVERY_PAGES; page++) {
             JsonNode items = getXero(creditNoteBase + "?page=" + page).path("CreditNotes");
@@ -270,8 +277,34 @@ public class XeroInvoiceReconciliationService {
             if (items.isEmpty()) { emptyPageReached = true; break; }
             recordsScanned += items.size();
             for (JsonNode item : items) {
-                JsonNode allocations = item.path("Allocations");
-                if (!allocations.isArray()) continue; // Unknown association, not proof of absence.
+                String remoteId = item.path("CreditNoteID").asText(null);
+                if (remoteId == null || remoteId.isBlank()) {
+                    unresolvedAssociations++;
+                    continue;
+                }
+                if (!seenIds.add(remoteId)) continue;
+                JsonNode candidate = item;
+                JsonNode allocations = candidate.path("Allocations");
+                if (!allocations.isArray()) {
+                    if (detailLookups >= MAX_CREDIT_NOTE_DETAIL_LOOKUPS) {
+                        unresolvedAssociations++;
+                        continue;
+                    }
+                    detailLookups++;
+                    JsonNode details = getXero(creditNoteBase + "/" +
+                            URLEncoder.encode(remoteId, StandardCharsets.UTF_8)).path("CreditNotes");
+                    if (!details.isArray() || details.size() != 1 ||
+                            !remoteId.equals(details.get(0).path("CreditNoteID").asText(null))) {
+                        unresolvedAssociations++;
+                        continue;
+                    }
+                    candidate = details.get(0);
+                    allocations = candidate.path("Allocations");
+                }
+                if (!allocations.isArray()) {
+                    unresolvedAssociations++;
+                    continue;
+                }
                 boolean targetInvoice = false;
                 for (JsonNode allocation : allocations) {
                     if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
@@ -279,21 +312,21 @@ public class XeroInvoiceReconciliationService {
                         break;
                     }
                 }
-                if (!targetInvoice) continue;
-                String remoteId = item.path("CreditNoteID").asText(null);
-                if (remoteId != null && !seenIds.add(remoteId)) continue;
-                if (remoteId != null && knownIds.contains(remoteId)) continue;
+                if (!targetInvoice || knownIds.contains(remoteId)) continue;
                 Map<String, Object> evidence = new java.util.LinkedHashMap<>();
                 evidence.put("xeroCreditNoteId", remoteId);
-                evidence.put("reference", item.path("Reference").asText(null));
-                evidence.put("total", item.path("Total").isNumber() ? item.path("Total").decimalValue() : null);
+                evidence.put("reference", candidate.path("Reference").asText(null));
+                evidence.put("total", candidate.path("Total").isNumber() ? candidate.path("Total").decimalValue() : null);
                 evidence.put("outcome", "UNMATCHED_REMOTE_CREDIT_NOTE_REVIEW_REQUIRED");
                 unmatched.add(evidence);
             }
         }
         Map<String, Object> result = coverageResult(recordsScanned, pagesScanned, emptyPageReached,
                 "unmatchedCreditNotes", unmatched);
-        result.put("allocationDetailsMayBeOmitted", true);
+        result.put("detailLookups", detailLookups);
+        result.put("detailLookupCap", MAX_CREDIT_NOTE_DETAIL_LOOKUPS);
+        result.put("unresolvedAssociations", unresolvedAssociations);
+        result.put("allocationDetailsMayBeOmitted", unresolvedAssociations > 0);
         return result;
     }
 
