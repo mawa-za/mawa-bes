@@ -7,6 +7,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class XeroInvoiceReconciliationServiceTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Test void missingRemoteInvoiceAssociationAlwaysRequiresManualReview() {
+        assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(0, 1, 0, true));
+        assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(1, 0, 0, true));
+        assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(0, 0, 1, true));
+        assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(0, 0, 0, false));
+        assertFalse(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(0, 0, 0, true));
+        // A clean bounded scan still does not imply coverage certification.
+    }
+
     @Test void matchesOnlyExactNumberCurrencyAndTotal() throws Exception {
         var json = mapper.readTree(""" 
             {"Invoices":[{"InvoiceID":"id-1","InvoiceNumber":"INV-1","CurrencyCode":"ZAR","Total":125.00}]}

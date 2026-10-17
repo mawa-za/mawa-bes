@@ -228,6 +228,7 @@ public class XeroInvoiceReconciliationService {
         int recordsScanned = 0;
         int pagesScanned = 0;
         int unresolvedRecords = 0;
+        int unknownInvoiceAssociations = 0;
         boolean emptyPageReached = false;
         for (int page = 1; page <= MAX_DISCOVERY_PAGES; page++) {
             JsonNode items = getXero(paymentBase + "?page=" + page).path("Payments");
@@ -236,7 +237,14 @@ public class XeroInvoiceReconciliationService {
             if (items.isEmpty()) { emptyPageReached = true; break; }
             recordsScanned += items.size();
             for (JsonNode item : items) {
-                if (!invoiceId.equals(item.path("Invoice").path("InvoiceID").asText(null))) continue;
+                String associatedInvoiceId = item.path("Invoice").path("InvoiceID").asText(null);
+                if (associatedInvoiceId == null || associatedInvoiceId.isBlank()) {
+                    // A list record without invoice identity cannot establish that the
+                    // target invoice has no extra remote payment. Fail closed.
+                    unknownInvoiceAssociations++;
+                    continue;
+                }
+                if (!invoiceId.equals(associatedInvoiceId)) continue;
                 String remoteId = item.path("PaymentID").asText(null);
                 if (remoteId == null || remoteId.isBlank()) {
                     // Cannot determine identity or safely deduplicate this external payment.
@@ -256,8 +264,17 @@ public class XeroInvoiceReconciliationService {
         Map<String, Object> coverage = coverageResult(recordsScanned, pagesScanned, emptyPageReached,
                 "unmatchedPayments", unmatched);
         coverage.put("unresolvedRecords", unresolvedRecords);
-        coverage.put("requiresManualReview", unresolvedRecords > 0 || !unmatched.isEmpty() || !emptyPageReached);
+        coverage.put("unknownInvoiceAssociations", unknownInvoiceAssociations);
+        coverage.put("requiresManualReview", requiresPaymentCoverageReview(
+                unresolvedRecords, unknownInvoiceAssociations, unmatched.size(), emptyPageReached));
         return coverage;
+    }
+
+    /** Explicitly fail closed when the external list omits invoice identity. */
+    static boolean requiresPaymentCoverageReview(int unresolvedRecords, int unknownInvoiceAssociations,
+                                                  int unmatchedRecords, boolean emptyPageReached) {
+        return unresolvedRecords > 0 || unknownInvoiceAssociations > 0
+                || unmatchedRecords > 0 || !emptyPageReached;
     }
 
     /**
