@@ -202,6 +202,7 @@ public class XeroInvoiceReconciliationService {
         // An additional read-only list scan can reveal payments not recorded locally.
         // It is deliberately bounded and never certifies completeness or releases quarantine.
         result.put("externalPaymentCoverage", inspectUnmatchedXeroPayments(paymentBase, externalId, payments));
+        result.put("externalCreditNoteCoverage", inspectUnmatchedXeroCreditNotes(creditNotesBaseUrl(), externalId, localNotes));
         result.put("financialComparison", compareLocalFinancialEvidence(
                 payments, paymentEvidence, localNotes, noteEvidence, remote));
         result.put("ledgerVerified", false);
@@ -210,7 +211,9 @@ public class XeroInvoiceReconciliationService {
         return result;
     }
 
-    /** Bounded Xero payment-list inspection; no financial writes and no completeness assertion. */
+    private static final int MAX_DISCOVERY_PAGES = 5;
+
+    /** Bounded, organisation-wide discovery. A scan is never proof of complete ledger coverage. */
     private Map<String, Object> inspectUnmatchedXeroPayments(String paymentBase, String invoiceId,
                                                                java.util.List<InvoicePaymentEntity> localPayments)
             throws IOException {
@@ -220,18 +223,21 @@ public class XeroInvoiceReconciliationService {
                 knownIds.add(payment.getXeroPaymentId());
         }
         java.util.List<Map<String, Object>> unmatched = new java.util.ArrayList<>();
+        java.util.Set<String> seenIds = new java.util.HashSet<>();
         int recordsScanned = 0;
-        // Pages are scoped by Xero-Tenant-Id in getXero, not by MAWA tenant IDs.
-        // Scan only two pages to limit remote API cost; never interpret this as exhaustive.
-        for (int page = 1; page <= 2; page++) {
-            JsonNode body = getXero(paymentBase + "?page=" + page);
-            JsonNode items = body.path("Payments");
+        int pagesScanned = 0;
+        boolean emptyPageReached = false;
+        for (int page = 1; page <= MAX_DISCOVERY_PAGES; page++) {
+            JsonNode items = getXero(paymentBase + "?page=" + page).path("Payments");
             if (!items.isArray()) throw new IOException("Xero payment list did not contain a Payments array");
+            pagesScanned++;
+            if (items.isEmpty()) { emptyPageReached = true; break; }
+            recordsScanned += items.size();
             for (JsonNode item : items) {
-                recordsScanned++;
                 if (!invoiceId.equals(item.path("Invoice").path("InvoiceID").asText(null))) continue;
                 String remoteId = item.path("PaymentID").asText(null);
-                if (remoteId != null && !remoteId.isBlank() && knownIds.contains(remoteId)) continue;
+                if (remoteId != null && !seenIds.add(remoteId)) continue;
+                if (remoteId != null && knownIds.contains(remoteId)) continue;
                 Map<String, Object> evidence = new java.util.LinkedHashMap<>();
                 evidence.put("xeroPaymentId", remoteId);
                 evidence.put("amount", item.path("Amount").isNumber() ? item.path("Amount").decimalValue() : null);
@@ -239,11 +245,68 @@ public class XeroInvoiceReconciliationService {
                 evidence.put("outcome", "UNMATCHED_REMOTE_PAYMENT_REVIEW_REQUIRED");
                 unmatched.add(evidence);
             }
-            if (items.size() < 100) break;
         }
+        return coverageResult(recordsScanned, pagesScanned, emptyPageReached, "unmatchedPayments", unmatched);
+    }
+
+    /** Credit notes may link the target invoice through allocation records, not an invoice header. */
+    private Map<String, Object> inspectUnmatchedXeroCreditNotes(String creditNoteBase, String invoiceId,
+                                                                 java.util.List<Map<String, Object>> localNotes)
+            throws IOException {
+        java.util.Set<String> knownIds = new java.util.HashSet<>();
+        for (Map<String, Object> note : localNotes) {
+            String id = stringValue(note.get("xero_credit_note_id"));
+            if (id != null) knownIds.add(id);
+        }
+        java.util.Set<String> seenIds = new java.util.HashSet<>();
+        java.util.List<Map<String, Object>> unmatched = new java.util.ArrayList<>();
+        int recordsScanned = 0;
+        int pagesScanned = 0;
+        boolean emptyPageReached = false;
+        for (int page = 1; page <= MAX_DISCOVERY_PAGES; page++) {
+            JsonNode items = getXero(creditNoteBase + "?page=" + page).path("CreditNotes");
+            if (!items.isArray()) throw new IOException("Xero credit-note list did not contain a CreditNotes array");
+            pagesScanned++;
+            if (items.isEmpty()) { emptyPageReached = true; break; }
+            recordsScanned += items.size();
+            for (JsonNode item : items) {
+                JsonNode allocations = item.path("Allocations");
+                if (!allocations.isArray()) continue; // Unknown association, not proof of absence.
+                boolean targetInvoice = false;
+                for (JsonNode allocation : allocations) {
+                    if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
+                        targetInvoice = true;
+                        break;
+                    }
+                }
+                if (!targetInvoice) continue;
+                String remoteId = item.path("CreditNoteID").asText(null);
+                if (remoteId != null && !seenIds.add(remoteId)) continue;
+                if (remoteId != null && knownIds.contains(remoteId)) continue;
+                Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+                evidence.put("xeroCreditNoteId", remoteId);
+                evidence.put("reference", item.path("Reference").asText(null));
+                evidence.put("total", item.path("Total").isNumber() ? item.path("Total").decimalValue() : null);
+                evidence.put("outcome", "UNMATCHED_REMOTE_CREDIT_NOTE_REVIEW_REQUIRED");
+                unmatched.add(evidence);
+            }
+        }
+        Map<String, Object> result = coverageResult(recordsScanned, pagesScanned, emptyPageReached,
+                "unmatchedCreditNotes", unmatched);
+        result.put("allocationDetailsMayBeOmitted", true);
+        return result;
+    }
+
+    private static Map<String, Object> coverageResult(int recordsScanned, int pagesScanned,
+                                                       boolean emptyPageReached, String key,
+                                                       java.util.List<Map<String, Object>> unmatched) {
         Map<String, Object> coverage = new java.util.LinkedHashMap<>();
         coverage.put("recordsScanned", recordsScanned);
-        coverage.put("unmatchedPayments", unmatched);
+        coverage.put("pagesScanned", pagesScanned);
+        coverage.put("pageCap", MAX_DISCOVERY_PAGES);
+        coverage.put("emptyPageReached", emptyPageReached);
+        coverage.put("scanTruncated", !emptyPageReached);
+        coverage.put(key, unmatched);
         coverage.put("complete", false);
         coverage.put("verification", "PARTIAL_READ_ONLY_SCAN");
         coverage.put("releaseAllowed", false);
