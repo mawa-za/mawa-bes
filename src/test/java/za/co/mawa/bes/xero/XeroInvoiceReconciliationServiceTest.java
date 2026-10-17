@@ -138,7 +138,8 @@ class XeroInvoiceReconciliationServiceTest {
             """);
         var result = XeroInvoiceReconciliationService.inspectCreditNoteAllocations(note, "c1", "i1");
         assertEquals("XERO_ALLOCATION_ARITHMETIC_MATCH", result.get("verification"));
-        assertEquals(new java.math.BigDecimal("75.00"), result.get("targetInvoiceAllocatedAmount"));
+        assertEquals(0, new java.math.BigDecimal("75.00").compareTo(
+                (java.math.BigDecimal) result.get("targetInvoiceAllocatedAmount")));
         assertEquals(1, result.get("targetInvoiceAllocationCount"));
         var incomplete = mapper.readTree("""
             {"CreditNotes":[{"CreditNoteID":"c1","Total":150.00,
