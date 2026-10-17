@@ -227,6 +227,7 @@ public class XeroInvoiceReconciliationService {
         java.util.Set<String> seenIds = new java.util.HashSet<>();
         int recordsScanned = 0;
         int pagesScanned = 0;
+        int unresolvedRecords = 0;
         boolean emptyPageReached = false;
         for (int page = 1; page <= MAX_DISCOVERY_PAGES; page++) {
             JsonNode items = getXero(paymentBase + "?page=" + page).path("Payments");
@@ -237,8 +238,13 @@ public class XeroInvoiceReconciliationService {
             for (JsonNode item : items) {
                 if (!invoiceId.equals(item.path("Invoice").path("InvoiceID").asText(null))) continue;
                 String remoteId = item.path("PaymentID").asText(null);
-                if (remoteId != null && !seenIds.add(remoteId)) continue;
-                if (remoteId != null && knownIds.contains(remoteId)) continue;
+                if (remoteId == null || remoteId.isBlank()) {
+                    // Cannot determine identity or safely deduplicate this external payment.
+                    unresolvedRecords++;
+                    continue;
+                }
+                if (!seenIds.add(remoteId)) continue;
+                if (knownIds.contains(remoteId)) continue;
                 Map<String, Object> evidence = new java.util.LinkedHashMap<>();
                 evidence.put("xeroPaymentId", remoteId);
                 evidence.put("amount", item.path("Amount").isNumber() ? item.path("Amount").decimalValue() : null);
@@ -247,7 +253,11 @@ public class XeroInvoiceReconciliationService {
                 unmatched.add(evidence);
             }
         }
-        return coverageResult(recordsScanned, pagesScanned, emptyPageReached, "unmatchedPayments", unmatched);
+        Map<String, Object> coverage = coverageResult(recordsScanned, pagesScanned, emptyPageReached,
+                "unmatchedPayments", unmatched);
+        coverage.put("unresolvedRecords", unresolvedRecords);
+        coverage.put("requiresManualReview", unresolvedRecords > 0 || !unmatched.isEmpty() || !emptyPageReached);
+        return coverage;
     }
 
     /**
@@ -327,6 +337,7 @@ public class XeroInvoiceReconciliationService {
         result.put("detailLookupCap", MAX_CREDIT_NOTE_DETAIL_LOOKUPS);
         result.put("unresolvedAssociations", unresolvedAssociations);
         result.put("allocationDetailsMayBeOmitted", unresolvedAssociations > 0);
+        result.put("requiresManualReview", unresolvedAssociations > 0 || !unmatched.isEmpty() || !emptyPageReached);
         return result;
     }
 
@@ -339,6 +350,8 @@ public class XeroInvoiceReconciliationService {
         coverage.put("pageCap", MAX_DISCOVERY_PAGES);
         coverage.put("emptyPageReached", emptyPageReached);
         coverage.put("scanTruncated", !emptyPageReached);
+        coverage.put("stopReason", emptyPageReached ? "EMPTY_PAGE" : "PAGE_CAP_REACHED");
+        coverage.put("coverageCertified", false);
         coverage.put(key, unmatched);
         coverage.put("complete", false);
         coverage.put("verification", "PARTIAL_READ_ONLY_SCAN");
