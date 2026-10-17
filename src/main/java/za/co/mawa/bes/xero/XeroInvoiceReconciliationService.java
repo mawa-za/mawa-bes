@@ -332,6 +332,12 @@ public class XeroInvoiceReconciliationService {
                     unresolvedAssociations++;
                     continue;
                 }
+                // A credit-note allocation lacking its invoice identity cannot be
+                // safely excluded from the target invoice. Count it as unresolved.
+                if (hasUnknownAllocationInvoice(allocations)) {
+                    unresolvedAssociations++;
+                    continue;
+                }
                 boolean targetInvoice = false;
                 for (JsonNode allocation : allocations) {
                     if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
@@ -356,6 +362,16 @@ public class XeroInvoiceReconciliationService {
         result.put("allocationDetailsMayBeOmitted", unresolvedAssociations > 0);
         result.put("requiresManualReview", unresolvedAssociations > 0 || !unmatched.isEmpty() || !emptyPageReached);
         return result;
+    }
+
+    /** Fail closed if any allocation cannot be associated with an invoice. */
+    static boolean hasUnknownAllocationInvoice(JsonNode allocations) {
+        if (allocations == null || !allocations.isArray()) return true;
+        for (JsonNode allocation : allocations) {
+            String id = allocation.path("Invoice").path("InvoiceID").asText(null);
+            if (id == null || id.isBlank()) return true;
+        }
+        return false;
     }
 
     private static Map<String, Object> coverageResult(int recordsScanned, int pagesScanned,

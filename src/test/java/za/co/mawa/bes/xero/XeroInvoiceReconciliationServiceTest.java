@@ -166,4 +166,14 @@ class XeroInvoiceReconciliationServiceTest {
         assertEquals(false, result.get("ledgerCertified"));
         assertEquals(false, result.get("releaseAllowed"));
     }
+    @Test void creditNoteDiscoveryFailsClosedOnUnknownAllocationInvoice() throws Exception {
+        assertTrue(XeroInvoiceReconciliationService.hasUnknownAllocationInvoice(
+                mapper.readTree("[{\"Amount\":25.00}]")));
+        assertTrue(XeroInvoiceReconciliationService.hasUnknownAllocationInvoice(
+                mapper.readTree("[{\"Invoice\":{},\"Amount\":25.00}]")));
+        assertFalse(XeroInvoiceReconciliationService.hasUnknownAllocationInvoice(
+                mapper.readTree("[{\"Invoice\":{\"InvoiceID\":\"inv-1\"},\"Amount\":25.00}]")));
+        assertFalse(XeroInvoiceReconciliationService.hasUnknownAllocationInvoice(mapper.readTree("[]")));
+    }
+
 }
