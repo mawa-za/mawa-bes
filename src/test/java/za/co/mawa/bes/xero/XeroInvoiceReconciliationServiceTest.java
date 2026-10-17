@@ -7,6 +7,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class XeroInvoiceReconciliationServiceTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Test void confirmedAllocationIsStillVisibleAlongsideUnknownSibling() throws Exception {
+        var allocations = mapper.readTree("""
+            [{"Invoice":{"InvoiceID":"invoice-target"},"Amount":50.00},
+             {"Invoice":{},"Amount":25.00}]
+            """);
+        assertTrue(XeroInvoiceReconciliationService.hasAllocationForInvoice(allocations, "invoice-target"));
+        assertTrue(XeroInvoiceReconciliationService.hasUnknownAllocationInvoice(allocations));
+        assertFalse(XeroInvoiceReconciliationService.hasAllocationForInvoice(allocations, "other-invoice"));
+    }
+
     @Test void missingRemoteInvoiceAssociationAlwaysRequiresManualReview() {
         assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(0, 1, 0, true));
         assertTrue(XeroInvoiceReconciliationService.requiresPaymentCoverageReview(1, 0, 0, true));

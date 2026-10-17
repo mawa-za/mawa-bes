@@ -334,17 +334,12 @@ public class XeroInvoiceReconciliationService {
                 }
                 // A credit-note allocation lacking its invoice identity cannot be
                 // safely excluded from the target invoice. Count it as unresolved.
+                // Preserve confirmed matches even when another allocation is malformed.
+                // Unknown associations still block certification and require review.
                 if (hasUnknownAllocationInvoice(allocations)) {
                     unresolvedAssociations++;
-                    continue;
                 }
-                boolean targetInvoice = false;
-                for (JsonNode allocation : allocations) {
-                    if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) {
-                        targetInvoice = true;
-                        break;
-                    }
-                }
+                boolean targetInvoice = hasAllocationForInvoice(allocations, invoiceId);
                 if (!targetInvoice || knownIds.contains(remoteId)) continue;
                 Map<String, Object> evidence = new java.util.LinkedHashMap<>();
                 evidence.put("xeroCreditNoteId", remoteId);
@@ -362,6 +357,15 @@ public class XeroInvoiceReconciliationService {
         result.put("allocationDetailsMayBeOmitted", unresolvedAssociations > 0);
         result.put("requiresManualReview", unresolvedAssociations > 0 || !unmatched.isEmpty() || !emptyPageReached);
         return result;
+    }
+
+    /** A confirmed allocation must not disappear because a sibling allocation is incomplete. */
+    static boolean hasAllocationForInvoice(JsonNode allocations, String invoiceId) {
+        if (allocations == null || !allocations.isArray() || invoiceId == null) return false;
+        for (JsonNode allocation : allocations) {
+            if (invoiceId.equals(allocation.path("Invoice").path("InvoiceID").asText(null))) return true;
+        }
+        return false;
     }
 
     /** Fail closed if any allocation cannot be associated with an invoice. */
