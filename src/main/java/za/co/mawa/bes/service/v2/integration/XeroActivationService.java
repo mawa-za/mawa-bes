@@ -119,6 +119,7 @@ public class XeroActivationService {
                 .invoiceIntegrationEnabled(isEnabled(INVOICE_ENABLED))
                 .invoiceIntegrationRequested(invoiceIntegrationRequested())
                 .integrationStatus(currentStatus())
+                .selectedTenantId(xeroAuthService.getXeroProperty(TenantContext.getCurrentTenant(), "XERO-TENANT-ID"))
                 .organisationSelectionRequired(false)
                 .clientIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "client-id"))
                 .clientSecretSecret(tenantSecretNameService.currentTenantSecretName("xero", "secret-key"))
