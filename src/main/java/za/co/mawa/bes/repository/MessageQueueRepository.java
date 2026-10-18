@@ -1,5 +1,6 @@
 package za.co.mawa.bes.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,19 @@ import java.util.Optional;
 
 public interface MessageQueueRepository  extends JpaRepository<MessageQueueEntity, Long> {
     List<MessageQueueEntity> findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime now);
+    // Filter disabled Xero messages before pagination, avoiding starvation of
+    // unrelated queue work when an old Xero backlog fills the oldest ten rows.
+    // Keep disabled rows unchanged so they remain eligible after explicit enablement.
+    @Query("SELECT m FROM MessageQueueEntity m " +
+            "WHERE m.processed = false AND m.nextAttemptAt < :now " +
+            "AND (:includeXero = true OR m.type IS NULL " +
+            "OR m.type NOT IN ('XERO-INVOICE', 'XERO-CUSTOMER', 'XERO-PRODUCT')) " +
+            "ORDER BY m.nextAttemptAt ASC, m.id ASC")
+    List<MessageQueueEntity> findEligibleForDispatch(
+            @Param("now") LocalDateTime now,
+            @Param("includeXero") boolean includeXero,
+            Pageable pageable);
+
     // Atomic Xero-only lease: exactly one Cloud Run worker can claim an eligible row.
     // REQUIRES_NEW commits the claim before the external HTTP call begins.
     @Modifying(clearAutomatically = true, flushAutomatically = true)

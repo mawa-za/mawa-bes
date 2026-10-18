@@ -44,7 +44,7 @@ class MessageConsumerXeroOffSafetyTest {
         MessageQueueEntity invoice = item(1L, "XERO-INVOICE");
         MessageQueueEntity contact = item(2L, "XERO-CUSTOMER");
         MessageQueueEntity product = item(3L, "XERO-PRODUCT");
-        when(repository.findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(any()))
+        when(repository.findEligibleForDispatch(any(), eq(false), any()))
                 .thenReturn(List.of(invoice, contact, product));
 
         assertEquals(0, consumer.processCurrentTenant());
@@ -62,7 +62,7 @@ class MessageConsumerXeroOffSafetyTest {
     void unrelatedQueueItemContinuesWhileXeroIsDisabled() {
         MessageQueueEntity invoice = item(1L, "XERO-INVOICE");
         MessageQueueEntity email = item(2L, "INVOICE-EMAIL");
-        when(repository.findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(any()))
+        when(repository.findEligibleForDispatch(any(), eq(false), any()))
                 .thenReturn(List.of(invoice, email));
 
         assertEquals(1, consumer.processCurrentTenant());
@@ -79,7 +79,7 @@ class MessageConsumerXeroOffSafetyTest {
         // with integration OFF the queue must never invoke that service at all.
         MessageQueueEntity quarantined = item(9L, "XERO-INVOICE");
         quarantined.setRetryCount(2);
-        when(repository.findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(any()))
+        when(repository.findEligibleForDispatch(any(), eq(false), any()))
                 .thenReturn(List.of(quarantined));
 
         assertEquals(0, consumer.processCurrentTenant());
@@ -87,6 +87,23 @@ class MessageConsumerXeroOffSafetyTest {
         assertEquals(2, quarantined.getRetryCount());
         verifyNoInteractions(invoicePush, masterDataPush);
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void moreThanTenOlderDisabledXeroItemsDoNotStarveEligibleWork() {
+        // Repository's WHERE filter runs before LIMIT; the first eligible item
+        // should be returned even when many older Xero records remain pending.
+        MessageQueueEntity eligible = item(100L, "INVOICE-EMAIL");
+        when(repository.findEligibleForDispatch(any(), eq(false), any()))
+                .thenReturn(List.of(eligible));
+
+        assertEquals(1, consumer.processCurrentTenant());
+        assertTrue(eligible.isProcessed());
+        verify(repository).save(same(eligible));
+        verify(repository).findEligibleForDispatch(any(), eq(false), argThat(page ->
+                page.getPageNumber() == 0 && page.getPageSize() == 10));
+        verify(repository, never()).claimXeroMessage(anyLong(), any(), any());
+        verifyNoInteractions(invoicePush, masterDataPush);
     }
 
     private MessageQueueEntity item(long id, String type) {

@@ -3,6 +3,7 @@ package za.co.mawa.bes.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -269,12 +270,13 @@ public class MessageConsumerService {
     public int processCurrentTenant() {
         ObjectMapper mapper = new ObjectMapper();
         int processedCount = 0;
-        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
-                .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
-        int batchSize = getBatchSize();
-        if (messageQueueEntities.size() > batchSize) {
-            messageQueueEntities = messageQueueEntities.subList(0, batchSize);
-        }
+        // The Xero OFF guard must apply in the database query, BEFORE LIMIT.
+        // Otherwise ten old disabled Xero messages can indefinitely starve FNB
+        // and other unrelated work. Keep the per-message guard below as well,
+        // since the integration setting may be changed after this query.
+        boolean includeXero = xeroIntegrationSettingsService.isIntegrationEnabled();
+        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository.findEligibleForDispatch(
+                LocalDateTime.now(), includeXero, PageRequest.of(0, Math.min(10, getBatchSize())));
 
         for (MessageQueueEntity msg : messageQueueEntities) {
             // OFF is a hard barrier even for Xero messages queued before deactivation.
