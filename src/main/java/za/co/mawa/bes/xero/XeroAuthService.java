@@ -495,6 +495,21 @@ public class XeroAuthService {
             return normalizeXeroRedirectUrl(configured);
         }
 
+        // Organisation selection is written to the configured TENANT-ID Secret Manager
+        // reference. A legacy plaintext XERO-TENANT-ID tenant property may still hold
+        // a previous organisation: never let that stale value override the secret.
+        if (XeroUtils.XERO_TENANT_ID.equals(property)) {
+            String configuredReference = gcpTenantSecretService.findSettingSecretReference(
+                    "TENANT-ID", "XERO");
+            if (!isBlank(configuredReference)) {
+                String selectedTenantId = gcpTenantSecretService.accessSecretReference(configuredReference);
+                if (isBlank(selectedTenantId)) {
+                    throw new IllegalStateException("Configured Xero tenant ID secret is empty");
+                }
+                return selectedTenantId;
+            }
+        }
+
         String value = gcpTenantSecretService.resolveTenantProperty(properties, property);
         if (!isBlank(value)) {
             return value;
