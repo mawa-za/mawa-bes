@@ -76,10 +76,6 @@ public class XeroInvoicePushService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void pushInvoice(String invoiceId) throws IOException {
-        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
-            // An explicit direct call must not bypass the queue worker's OFF gate.
-            return;
-        }
         // Invoice lines are LAZY. Fetch them before the repository transaction
         // closes because the remainder of this method performs external calls.
         InvoiceEntity invoice = invoiceRepository.findByIdWithLines(invoiceId)
@@ -88,6 +84,12 @@ public class XeroInvoicePushService {
         if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) {
             throw new XeroAmbiguousResponseException(
                     "Invoice requires Xero reconciliation before any further write: " + invoiceId);
+        }
+
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
+            // Do not perform external writes while integration is disabled.
+            // Preserve reconciliation quarantine errors even when disabled.
+            return;
         }
 
         boolean update = !isBlank(invoice.getXeroInvoiceId());
