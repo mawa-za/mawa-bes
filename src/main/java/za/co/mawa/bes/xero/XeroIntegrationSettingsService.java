@@ -28,12 +28,13 @@ public class XeroIntegrationSettingsService {
     public boolean isInvoiceIntegrationEnabled() {
         JSONObject properties = currentTenantProperties();
 
+        // A stored explicit OFF must never be overridden by stale tenant properties.
         String value = firstNonBlank(
-                properties.optString(PROP_INVOICE_ENABLED, null),
-                properties.optString(PROP_INTEGRATION_ENABLED, null),
                 settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP),
-                settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP)
+                settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP),
+                properties.optString(PROP_INVOICE_ENABLED, null),
+                properties.optString(PROP_INTEGRATION_ENABLED, null)
         );
 
         return isTruthy(value);
@@ -42,11 +43,11 @@ public class XeroIntegrationSettingsService {
     public boolean isIntegrationEnabled() {
         JSONObject properties = currentTenantProperties();
         return isTruthy(firstNonBlank(
-                properties.optString(PROP_INTEGRATION_ENABLED, null),
-                properties.optString(PROP_INVOICE_ENABLED, null),
                 settingService.getSetting("INTEGRATION", XERO_SETTINGS_GROUP),
                 settingService.getSetting("INVOICE-INTEGRATION-ENABLED", XERO_SETTINGS_GROUP),
-                settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP)));
+                settingService.getSetting("INVOICE-INTEGRATION", XERO_SETTINGS_GROUP),
+                properties.optString(PROP_INTEGRATION_ENABLED, null),
+                properties.optString(PROP_INVOICE_ENABLED, null)));
     }
 
     public String invoiceStatus() {

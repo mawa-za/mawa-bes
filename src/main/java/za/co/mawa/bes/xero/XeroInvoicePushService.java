@@ -76,6 +76,10 @@ public class XeroInvoicePushService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void pushInvoice(String invoiceId) throws IOException {
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
+            // An explicit direct call must not bypass the queue worker's OFF gate.
+            return;
+        }
         // Invoice lines are LAZY. Fetch them before the repository transaction
         // closes because the remainder of this method performs external calls.
         InvoiceEntity invoice = invoiceRepository.findByIdWithLines(invoiceId)

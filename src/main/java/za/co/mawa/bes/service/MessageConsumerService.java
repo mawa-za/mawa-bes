@@ -59,6 +59,8 @@ public class MessageConsumerService {
     @Autowired
     XeroInvoicePushService xeroInvoicePushService;
     @Autowired
+    za.co.mawa.bes.xero.XeroIntegrationSettingsService xeroIntegrationSettingsService;
+    @Autowired
     XeroMasterDataPushService xeroMasterDataPushService;
     @Autowired
     PaymentDisbursementAttemptService paymentAttemptService;
@@ -275,6 +277,11 @@ public class MessageConsumerService {
         }
 
         for (MessageQueueEntity msg : messageQueueEntities) {
+            // OFF is a hard barrier even for Xero messages queued before deactivation.
+            // Do not claim, consume, or acknowledge them while integration is disabled.
+            if (isXeroQueueMessage(msg) && !xeroIntegrationSettingsService.isIntegrationEnabled()) {
+                continue;
+            }
             LocalDateTime xeroLeaseUntil = null;
             if (isXeroQueueMessage(msg)) {
                 LocalDateTime claimTime = LocalDateTime.now();
