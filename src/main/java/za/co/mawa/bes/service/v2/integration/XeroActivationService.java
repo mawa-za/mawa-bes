@@ -336,8 +336,7 @@ public class XeroActivationService {
         if (!StringUtils.hasText(baseUrl)) {
             throw new IllegalArgumentException("Redirect URL is required. Use the public backend base URL, for example https://dev.api.app.mawa.co.za");
         }
-        baseUrl = baseUrl.replaceAll("/+$", "");
-        return baseUrl.endsWith("/xero/callback") ? baseUrl : baseUrl + "/xero/callback";
+        return XeroAuthService.normalizeXeroRedirectUrl(baseUrl);
     }
     private String firstNonBlank(String... values) {
         if (values == null) {
