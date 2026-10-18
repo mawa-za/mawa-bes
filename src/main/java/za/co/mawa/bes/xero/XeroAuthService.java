@@ -443,6 +443,22 @@ public class XeroAuthService {
     }
 
     private String getXeroProperty(JSONObject properties, String property) {
+        // Xero client credentials must come from the tenant's configured Secret Manager
+        // references. Never let legacy tenant properties or plaintext settings override
+        // the credentials saved during activation.
+        if (XeroUtils.XERO_CLIENT_ID.equals(property) || XeroUtils.XERO_CLIENT_SECRET.equals(property)) {
+            String attribute = toXeroSettingAttribute(property);
+            String reference = gcpTenantSecretService.findSettingSecretReference(attribute, "XERO");
+            if (isBlank(reference)) {
+                throw new IllegalStateException("Missing GCP Secret Manager reference for Xero " + attribute);
+            }
+            String credential = gcpTenantSecretService.accessSecretReference(reference);
+            if (isBlank(credential)) {
+                throw new IllegalStateException("Empty GCP Secret Manager credential for Xero " + attribute);
+            }
+            return credential;
+        }
+
         String value = gcpTenantSecretService.resolveTenantProperty(properties, property);
         if (!isBlank(value)) {
             return value;
