@@ -92,6 +92,47 @@ public class XeroReconciliationOperationsService {
         });
     }
 
+    /** Phase 45: local, tenant-scoped, read-only inventory. No Xero calls, audit writes or status changes. */
+    public Map<String, Object> readOnlyAssessment() {
+        requireAccountingAdministrator();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("mode", "LOCAL_READ_ONLY");
+        result.put("externalLedgerVerified", false);
+        result.put("releaseAllowed", false);
+        result.put("invoices", localSummary("invoice", "integration_status", "xero_invoice_id"));
+        result.put("payments", localSummary("invoice_payment", "xero_sync_status", "xero_payment_id"));
+        result.put("creditNotes", localSummary("credit_note", "xero_sync_status", "xero_credit_note_id"));
+        result.put("blockers", List.of(
+                "Xero accounting organisation and external ledger have not been verified by this endpoint",
+                "Revenue, receivables, VAT, contact and payment account mappings require review",
+                "No automatic release, posting, payment allocation or historical backfill is authorised"));
+        return result;
+    }
+
+    /** Table and column names are fixed internal literals; no user-provided SQL identifiers. */
+    private Map<String, Object> localSummary(String table, String statusColumn, String xeroIdColumn) {
+        String sql = "SELECT COUNT(*) AS total, "
+                + "SUM(CASE WHEN " + xeroIdColumn + " IS NOT NULL AND TRIM(" + xeroIdColumn
+                + ") <> '' THEN 1 ELSE 0 END) AS withExternalId, "
+                + "SUM(CASE WHEN " + statusColumn
+                + " = 'RECONCILIATION_REQUIRED' THEN 1 ELSE 0 END) AS quarantined "
+                + "FROM " + table;
+        Map<String, Object> counts = jdbc.queryForMap(sql);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("total", counts.get("total"));
+        summary.put("withExternalId", counts.get("withExternalId"));
+        summary.put("quarantined", counts.get("quarantined"));
+        summary.put("statusBreakdown", jdbc.queryForList("SELECT COALESCE(" + statusColumn
+                + ", 'UNSET') AS status, COUNT(*) AS total FROM " + table
+                + " GROUP BY " + statusColumn + " ORDER BY total DESC"));
+        summary.put("duplicateExternalIds", jdbc.queryForList("SELECT " + xeroIdColumn
+                + " AS externalId, COUNT(*) AS occurrences FROM " + table
+                + " WHERE " + xeroIdColumn + " IS NOT NULL AND TRIM(" + xeroIdColumn
+                + ") <> '' GROUP BY " + xeroIdColumn
+                + " HAVING COUNT(*) > 1 ORDER BY occurrences DESC LIMIT 25"));
+        return summary;
+    }
+
     /** Tenant-scoped immutable operator history. This endpoint never changes financial state. */
     public List<Map<String, Object>> auditHistory(String type, String id) {
         requireAccountingAdministrator();

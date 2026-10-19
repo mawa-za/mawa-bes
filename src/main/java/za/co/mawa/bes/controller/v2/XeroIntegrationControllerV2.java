@@ -61,6 +61,12 @@ public class XeroIntegrationControllerV2 {
         return ResponseEntity.ok(xeroActivationService.selectTenant(request));
     }
 
+    /** Local MAWA inventory only; does not query Xero or mutate reconciliation state. */
+    @GetMapping("/reconciliation/read-only-assessment")
+    public ResponseEntity<?> readOnlyAssessment() {
+        return ResponseEntity.ok(reconciliationOperations.readOnlyAssessment());
+    }
+
     @GetMapping("/reconciliation/pending")
     public ResponseEntity<?> pendingReconciliation() {
         return ResponseEntity.ok(reconciliationOperations.pending());
