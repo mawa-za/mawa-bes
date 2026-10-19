@@ -48,7 +48,7 @@ public class XeroOutboundConfigurationPreflightService {
                 && !"NoTax".equalsIgnoreCase(amountType)) {
             blockers.add("Line amount type must be Exclusive, Inclusive or NoTax");
         }
-        if (Boolean.TRUE.equals(configuration.getInvoiceIntegrationEnabled())
+        if (Boolean.TRUE.equals(configuration.isInvoiceIntegrationEnabled())
                 || Boolean.TRUE.equals(configuration.getInvoiceIntegrationRequested())) {
             blockers.add("Invoice integration is enabled or requested; disable it during preflight");
         }
@@ -65,7 +65,7 @@ public class XeroOutboundConfigurationPreflightService {
         result.put("mawaTenant", TenantContext.getCurrentTenant());
         result.put("selectedXeroTenantId", organisationId);
         result.put("integrationStatus", configuration.getIntegrationStatus());
-        result.put("invoiceIntegrationEnabled", configuration.getInvoiceIntegrationEnabled());
+        result.put("invoiceIntegrationEnabled", configuration.isInvoiceIntegrationEnabled());
         result.put("invoiceIntegrationRequested", configuration.getInvoiceIntegrationRequested());
         result.put("mapping", mapping);
         result.put("externalLedgerVerified", false);
