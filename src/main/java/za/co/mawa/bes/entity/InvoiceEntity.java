@@ -76,6 +76,17 @@ public class InvoiceEntity {
     @Column(name = "notes")
     private String notes;
 
+    /** Immutable pricing method captured at invoice finalisation. NULL means legacy/unclassified. */
+    @Column(name = "vat_pricing_method_snapshot", length = 16)
+    private String vatPricingMethodSnapshot;
+
+    /** The tenant VAT-registration position at the time the invoice was finalised. */
+    @Column(name = "vat_registered_snapshot")
+    private Boolean vatRegisteredSnapshot;
+
+    @Column(name = "vat_policy_captured_at")
+    private LocalDateTime vatPolicyCapturedAt;
+
     @Column(name = "xero_invoice_id")
     private String xeroInvoiceId;
 
