@@ -46,10 +46,10 @@ public class XeroAuthController {
                 ? TenantContext.getCurrentTenantURL()
                 : tenant;
 
-        if(xeroAuthDto.getRedirectUrl() != null){
-            String redirectUrl = xeroAuthDto.getRedirectUrl() + "/xero/callback";
-           xeroAuthService.createProperty(tenant,XeroUtils.XERO_REDIRECT_URL,redirectUrl);
-        }
+        // Activation owns the authoritative callback URL in Group XERO. Do not
+        // overwrite it with a competing legacy tenant property.
+        // The payload redirect is kept for backwards compatibility but is not
+        // allowed to override the activated callback configuration.
         // Client ID and Client Secret must be captured through /v2/integrations/xero/activate.
         // That endpoint writes the values to Google Secret Manager and stores only secret references
         // in Group: XERO settings. Do not persist raw Xero credentials from /xero/connect.

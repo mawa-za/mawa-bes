@@ -14,15 +14,21 @@ import za.co.mawa.bes.dto.v2.integration.XeroSelectTenantRequestDto;
 import za.co.mawa.bes.service.v2.integration.XeroActivationService;
 
 import java.util.Map;
+import java.io.IOException;
+import org.springframework.web.bind.annotation.PathVariable;
+import za.co.mawa.bes.xero.XeroReconciliationOperationsService;
 
 @RestController
 @RequestMapping("/v2/integrations/xero")
 public class XeroIntegrationControllerV2 {
 
     private final XeroActivationService xeroActivationService;
+    private final XeroReconciliationOperationsService reconciliationOperations;
 
-    public XeroIntegrationControllerV2(XeroActivationService xeroActivationService) {
+    public XeroIntegrationControllerV2(XeroActivationService xeroActivationService,
+                                      XeroReconciliationOperationsService reconciliationOperations) {
         this.xeroActivationService = xeroActivationService;
+        this.reconciliationOperations = reconciliationOperations;
     }
 
     @PostMapping("/activate")
@@ -53,6 +59,38 @@ public class XeroIntegrationControllerV2 {
     @PostMapping("/select-tenant")
     public ResponseEntity<?> selectTenant(@RequestBody XeroSelectTenantRequestDto request) {
         return ResponseEntity.ok(xeroActivationService.selectTenant(request));
+    }
+
+    /** Local MAWA inventory only; does not query Xero or mutate reconciliation state. */
+    @GetMapping("/reconciliation/read-only-assessment")
+    public ResponseEntity<?> readOnlyAssessment() {
+        return ResponseEntity.ok(reconciliationOperations.readOnlyAssessment());
+    }
+
+    @GetMapping("/reconciliation/pending")
+    public ResponseEntity<?> pendingReconciliation() {
+        return ResponseEntity.ok(reconciliationOperations.pending());
+    }
+
+    @PostMapping("/reconciliation/{type}/{id}/check")
+    public ResponseEntity<?> checkReconciliation(@PathVariable String type, @PathVariable String id)
+            throws IOException {
+        return ResponseEntity.ok(reconciliationOperations.check(type, id));
+    }
+
+    @GetMapping("/reconciliation/{type}/{id}/audit")
+    public ResponseEntity<?> reconciliationAudit(@PathVariable String type, @PathVariable String id) {
+        return ResponseEntity.ok(reconciliationOperations.auditHistory(type, id));
+    }
+
+    @GetMapping("/reconciliation/{type}/{id}/release-readiness")
+    public ResponseEntity<?> reconciliationReleaseReadiness(@PathVariable String type, @PathVariable String id) {
+        return ResponseEntity.ok(reconciliationOperations.releaseReadiness(type, id));
+    }
+
+    @GetMapping("/reconciliation/invoice/{id}/ledger-snapshot")
+    public ResponseEntity<?> invoiceLedgerSnapshot(@PathVariable String id) throws IOException {
+        return ResponseEntity.ok(reconciliationOperations.invoiceLedgerSnapshot(id));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

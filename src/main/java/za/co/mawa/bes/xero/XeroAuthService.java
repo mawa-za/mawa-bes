@@ -442,7 +442,74 @@ public class XeroAuthService {
         return isBlank(value) ? defaultValue : value;
     }
 
+    public static String normalizeXeroRedirectUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new IllegalArgumentException("Xero redirect URL is required");
+        }
+        String url = rawUrl.trim().replaceAll("/+$", "");
+        // Avoid silently accepting a callback path twice when a saved value was
+        // previously assembled by the legacy /xero/connect endpoint.
+        while (url.endsWith("/xero/callback/xero/callback")) {
+            url = url.substring(0, url.length() - "/xero/callback".length());
+        }
+        if (!url.endsWith("/xero/callback")) {
+            url += "/xero/callback";
+        }
+        java.net.URI parsed;
+        try {
+            parsed = java.net.URI.create(url);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Xero redirect URL", e);
+        }
+        if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null
+                || parsed.getUserInfo() != null || parsed.getQuery() != null || parsed.getFragment() != null) {
+            throw new IllegalArgumentException("Xero redirect URL must be an HTTPS callback URL without query or fragment");
+        }
+        return url;
+    }
+
     private String getXeroProperty(JSONObject properties, String property) {
+        // Xero client credentials must come from the tenant's configured Secret Manager
+        // references. Never let legacy tenant properties or plaintext settings override
+        // the credentials saved during activation.
+        if (XeroUtils.XERO_CLIENT_ID.equals(property) || XeroUtils.XERO_CLIENT_SECRET.equals(property)) {
+            String attribute = toXeroSettingAttribute(property);
+            String reference = gcpTenantSecretService.findSettingSecretReference(attribute, "XERO");
+            if (isBlank(reference)) {
+                throw new IllegalStateException("Missing GCP Secret Manager reference for Xero " + attribute);
+            }
+            String credential = gcpTenantSecretService.accessSecretReference(reference);
+            if (isBlank(credential)) {
+                throw new IllegalStateException("Empty GCP Secret Manager credential for Xero " + attribute);
+            }
+            return credential;
+        }
+
+        // The active XERO redirect setting is authoritative. Legacy tenant properties
+        // may contain a stale callback from the old /xero/connect flow.
+        if (XeroUtils.XERO_REDIRECT_URL.equals(property)) {
+            String configured = gcpTenantSecretService.resolveSetting("REDIRECT-URL", "XERO");
+            if (isBlank(configured)) {
+                throw new IllegalStateException("Missing XERO REDIRECT-URL setting. Reactivate Xero with the public backend callback URL.");
+            }
+            return normalizeXeroRedirectUrl(configured);
+        }
+
+        // Organisation selection is written to the configured TENANT-ID Secret Manager
+        // reference. A legacy plaintext XERO-TENANT-ID tenant property may still hold
+        // a previous organisation: never let that stale value override the secret.
+        if (XeroUtils.XERO_TENANT_ID.equals(property)) {
+            String configuredReference = gcpTenantSecretService.findSettingSecretReference(
+                    "TENANT-ID", "XERO");
+            if (!isBlank(configuredReference)) {
+                String selectedTenantId = gcpTenantSecretService.accessSecretReference(configuredReference);
+                if (isBlank(selectedTenantId)) {
+                    throw new IllegalStateException("Configured Xero tenant ID secret is empty");
+                }
+                return selectedTenantId;
+            }
+        }
+
         String value = gcpTenantSecretService.resolveTenantProperty(properties, property);
         if (!isBlank(value)) {
             return value;

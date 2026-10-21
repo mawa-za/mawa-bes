@@ -27,9 +27,11 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.time.LocalDateTime;
 import java.sql.Date;
 import java.util.Map;
@@ -79,6 +81,17 @@ public class XeroInvoicePushService {
         InvoiceEntity invoice = invoiceRepository.findByIdWithLines(invoiceId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + invoiceId));
 
+        if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) {
+            throw new XeroAmbiguousResponseException(
+                    "Invoice requires Xero reconciliation before any further write: " + invoiceId);
+        }
+
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
+            // Do not perform external writes while integration is disabled.
+            // Preserve reconciliation quarantine errors even when disabled.
+            return;
+        }
+
         boolean update = !isBlank(invoice.getXeroInvoiceId());
         invoice.setIntegrationStatus(update ? "UPDATING" : "SENDING");
         invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
@@ -107,17 +120,20 @@ public class XeroInvoicePushService {
             }
 
             ObjectNode payload = buildInvoicePayload(invoice);
-            JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload);
+            JsonNode response = postInvoice(invoiceUrl, accessToken, xeroTenantId, payload,
+                    update ? null : "invoice-create:" + invoice.getId());
             JsonNode xeroInvoice = response.path("Invoices").isArray() && response.path("Invoices").size() > 0
                     ? response.path("Invoices").get(0)
                     : null;
             if (xeroInvoice == null || xeroInvoice.isMissingNode() || xeroInvoice.isNull()) {
-                throw new IOException("Xero invoice response did not contain an invoice");
+                throw new XeroAmbiguousResponseException(
+                        "Xero acknowledged invoice write without returning an invoice; reconcile before retrying");
             }
 
             String returnedInvoiceId = xeroInvoice.path("InvoiceID").asText(null);
             if (isBlank(returnedInvoiceId)) {
-                throw new IOException("Xero invoice response did not contain InvoiceID");
+                throw new XeroAmbiguousResponseException(
+                        "Xero acknowledged invoice write without InvoiceID; reconcile before retrying");
             }
             invoice.setXeroInvoiceId(returnedInvoiceId);
             invoice.setXeroInvoiceNo(firstNonBlank(
@@ -132,7 +148,11 @@ public class XeroInvoicePushService {
                 syncPayments(invoice, accessToken, xeroTenantId);
             }
         } catch (Exception e) {
-            markFailed(invoice.getId(), e.getMessage());
+            if (e instanceof XeroAmbiguousResponseException) {
+                markReconciliationRequired(invoice.getId(), e.getMessage());
+            } else {
+                markFailed(invoice.getId(), e.getMessage());
+            }
             if (e instanceof IOException ioException) {
                 throw ioException;
             }
@@ -140,11 +160,22 @@ public class XeroInvoicePushService {
         }
     }
 
+    public void markReconciliationRequired(String invoiceId, String errorMessage) {
+        if (isBlank(invoiceId)) return;
+        invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            invoice.setIntegrationStatus("RECONCILIATION_REQUIRED");
+            invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
+            invoice.setIntegrationError(trim(errorMessage, 2000));
+            invoiceRepository.save(invoice);
+        });
+    }
+
     public void markFailed(String invoiceId, String errorMessage) {
         if (isBlank(invoiceId)) {
             return;
         }
         invoiceRepository.findById(invoiceId).ifPresent(invoice -> {
+            if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) return;
             invoice.setIntegrationStatus("FAILED");
             invoice.setIntegrationLastAttemptAt(LocalDateTime.now());
             invoice.setIntegrationError(trim(errorMessage, 2000));
@@ -215,10 +246,25 @@ public class XeroInvoicePushService {
                 xeroAuthService.checkXeroInfo(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL);
 
         for (InvoicePaymentEntity payment : payments) {
+            if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
+                throw new XeroAmbiguousResponseException(
+                        "Payment requires Xero reconciliation before further writes: " + payment.getId());
+            }
             if ("CANCELLED".equalsIgnoreCase(payment.getStatus())) {
                 if (!isBlank(payment.getXeroPaymentId())
                         && !"DELETED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
-                    deletePayment(paymentUrl + "/" + payment.getXeroPaymentId(), accessToken, xeroTenantId);
+                    try {
+                        deletePayment(paymentUrl + "/" + payment.getXeroPaymentId(), accessToken, xeroTenantId);
+                    } catch (IOException uncertain) {
+                        // A lost DELETE acknowledgement or a missing remote record does not
+                        // establish whether the payment was reversed. Never replay blindly.
+                        payment.setXeroSyncStatus("RECONCILIATION_REQUIRED");
+                        payment.setXeroSyncError(trim("Xero reversal requires independent verification: "
+                                + uncertain.getMessage(), 2000));
+                        invoicePaymentRepository.save(payment);
+                        throw new XeroAmbiguousResponseException(
+                                "Xero payment reversal outcome requires reconciliation: " + payment.getId(), uncertain);
+                    }
                     payment.setXeroSyncStatus("DELETED");
                     payment.setXeroSyncError(null);
                     payment.setXeroSyncedAt(LocalDateTime.now());
@@ -248,12 +294,14 @@ public class XeroInvoicePushService {
                 }
                 root.set("Payments", objectMapper.createArrayNode().add(xeroPayment));
 
-                JsonNode response = postInvoice(paymentUrl, accessToken, xeroTenantId, root);
+                JsonNode response = postInvoice(paymentUrl, accessToken, xeroTenantId, root,
+                        "payment-create:" + payment.getId());
                 JsonNode saved = response.path("Payments").isArray() && response.path("Payments").size() > 0
                         ? response.path("Payments").get(0) : null;
                 String paymentId = saved == null ? null : saved.path("PaymentID").asText(null);
                 if (isBlank(paymentId)) {
-                    throw new IOException("Xero payment response did not contain PaymentID");
+                    throw new XeroAmbiguousResponseException(
+                            "Xero acknowledged payment write without PaymentID; reconcile before retrying");
                 }
                 payment.setXeroPaymentId(paymentId);
                 payment.setXeroSyncStatus("POSTED");
@@ -261,7 +309,8 @@ public class XeroInvoicePushService {
                 payment.setXeroSyncedAt(LocalDateTime.now());
                 invoicePaymentRepository.save(payment);
             } catch (Exception error) {
-                payment.setXeroSyncStatus("FAILED");
+                payment.setXeroSyncStatus(error instanceof XeroAmbiguousResponseException
+                        ? "RECONCILIATION_REQUIRED" : "FAILED");
                 payment.setXeroSyncError(trim(error.getMessage(), 2000));
                 invoicePaymentRepository.save(payment);
                 if (error instanceof IOException ioException) throw ioException;
@@ -281,8 +330,11 @@ public class XeroInvoicePushService {
             connection.setRequestProperty("Xero-Tenant-Id", xeroTenantId);
             connection.setRequestProperty("Accept", "application/json");
             int responseCode = connection.getResponseCode();
-            if (responseCode >= 300 && responseCode != 404) {
-                throw new IOException("Xero payment reversal failed. Response code: " + responseCode
+            // Do not interpret HTTP 404 as a confirmed reversal: it can mean a
+            // wrong tenant, wrong external ID, or a payment already removed.
+            // The external ledger must be checked before we mark it DELETED.
+            if (responseCode < 200 || responseCode >= 300) {
+                throw new IOException("Xero payment reversal not confirmed. HTTP " + responseCode
                         + ". Response: " + readResponse(connection, true));
             }
         } finally {
@@ -293,7 +345,7 @@ public class XeroInvoicePushService {
     private void syncCreditNotes(InvoiceEntity invoice, String accessToken, String xeroTenantId) throws IOException {
         List<Map<String, Object>> notes = jdbcTemplate.queryForList("""
                 SELECT id, credit_note_no, credit_note_date, reason, total_cents,
-                       xero_credit_note_id, xero_allocated_at
+                       xero_credit_note_id, xero_allocated_at, xero_sync_status
                   FROM credit_note
                  WHERE invoice_id = ? AND UPPER(status) = 'ISSUED'
                  ORDER BY credit_note_date, created_at
@@ -306,6 +358,10 @@ public class XeroInvoicePushService {
             String noteId = String.valueOf(note.get("id"));
             String xeroCreditNoteId = valueAsString(note.get("xero_credit_note_id"));
             try {
+                if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(valueAsString(note.get("xero_sync_status")))) {
+                    throw new XeroAmbiguousResponseException(
+                            "Credit note requires Xero reconciliation before further writes: " + noteId);
+                }
                 if (isBlank(xeroCreditNoteId)) {
                     jdbcTemplate.update("UPDATE credit_note SET xero_sync_status='SENDING', xero_sync_error=NULL WHERE id=?", noteId);
                     ObjectNode credit = objectMapper.createObjectNode();
@@ -328,11 +384,13 @@ public class XeroInvoicePushService {
                     ObjectNode root = objectMapper.createObjectNode();
                     root.set("CreditNotes", objectMapper.createArrayNode().add(credit));
 
-                    JsonNode response = postInvoice(baseUrl, accessToken, xeroTenantId, root);
+                    JsonNode response = postInvoice(baseUrl, accessToken, xeroTenantId, root,
+                            "credit-note-create:" + noteId);
                     JsonNode saved = response.path("CreditNotes").isArray() && response.path("CreditNotes").size() > 0
                             ? response.path("CreditNotes").get(0) : null;
                     xeroCreditNoteId = saved == null ? null : saved.path("CreditNoteID").asText(null);
-                    if (isBlank(xeroCreditNoteId)) throw new IOException("Xero credit note response did not contain CreditNoteID");
+                    if (isBlank(xeroCreditNoteId)) throw new XeroAmbiguousResponseException(
+                            "Xero acknowledged credit-note write without CreditNoteID; reconcile before retrying");
                     jdbcTemplate.update("""
                             UPDATE credit_note
                                SET xero_credit_note_id=?, xero_sync_status='POSTED',
@@ -353,7 +411,7 @@ public class XeroInvoicePushService {
                     ObjectNode root = objectMapper.createObjectNode();
                     root.set("Allocations", objectMapper.createArrayNode().add(allocation));
                     postInvoice(baseUrl + "/" + xeroCreditNoteId + "/Allocations",
-                            accessToken, xeroTenantId, root);
+                            accessToken, xeroTenantId, root, "credit-note-allocate:" + noteId);
                     jdbcTemplate.update("""
                             UPDATE credit_note
                                SET xero_sync_status='ALLOCATED', xero_sync_error=NULL,
@@ -362,7 +420,8 @@ public class XeroInvoicePushService {
                             """, noteId);
                 }
             } catch (Exception error) {
-                jdbcTemplate.update("UPDATE credit_note SET xero_sync_status='FAILED', xero_sync_error=? WHERE id=?",
+                jdbcTemplate.update("UPDATE credit_note SET xero_sync_status=?, xero_sync_error=? WHERE id=?",
+                        error instanceof XeroAmbiguousResponseException ? "RECONCILIATION_REQUIRED" : "FAILED",
                         trim(error.getMessage(), 2000), noteId);
                 if (error instanceof IOException ioException) throw ioException;
                 throw new IOException("Failed to push credit note to Xero: " + error.getMessage(), error);
@@ -416,6 +475,11 @@ public class XeroInvoicePushService {
     }
 
     private JsonNode postInvoice(String invoiceUrl, String accessToken, String xeroTenantId, ObjectNode payload) throws IOException {
+        return postInvoice(invoiceUrl, accessToken, xeroTenantId, payload, null);
+    }
+
+    private JsonNode postInvoice(String invoiceUrl, String accessToken, String xeroTenantId,
+                                 ObjectNode payload, String operationIdentity) throws IOException {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(invoiceUrl);
@@ -427,6 +491,11 @@ public class XeroInvoicePushService {
             connection.setRequestProperty("Xero-Tenant-Id", xeroTenantId);
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json");
+            // Reuse the same key when a request succeeds at Xero but its response is lost.
+            // Changing the accounting payload deliberately yields a different key.
+            connection.setRequestProperty("Idempotency-Key", operationIdentity == null
+                    ? idempotencyKey(xeroTenantId, invoiceUrl, payload)
+                    : operationIdempotencyKey(xeroTenantId, operationIdentity));
             connection.setDoOutput(true);
 
             try (OutputStream os = connection.getOutputStream()) {
@@ -434,18 +503,58 @@ public class XeroInvoicePushService {
                 os.write(input, 0, input.length);
             }
 
-            int responseCode = connection.getResponseCode();
-            String responseBody = readResponse(connection, responseCode >= 300);
+            int responseCode;
+            String responseBody;
+            try {
+                responseCode = connection.getResponseCode();
+                responseBody = readResponse(connection, responseCode >= 300);
+            } catch (IOException uncertain) {
+                // The request body was already sent. Xero may have committed the write.
+                // Do not automatically replay financial operations until reconciled.
+                throw new XeroAmbiguousResponseException(
+                        "Xero write outcome unknown; reconcile in Xero before retrying", uncertain);
+            }
             if (responseCode >= 300) {
                 throw new IOException("Xero invoice request failed. Response code: " + responseCode + ". Response: " + responseBody);
             }
-            return objectMapper.readTree(responseBody);
-        } catch (SocketTimeoutException e) {
-            throw new IOException("Xero invoice request timed out: " + e.getMessage(), e);
+            try {
+                JsonNode parsed = objectMapper.readTree(responseBody);
+                if (parsed == null) {
+                    throw new XeroAmbiguousResponseException(
+                            "Xero returned an empty successful write response; reconcile before retrying");
+                }
+                return parsed;
+            } catch (com.fasterxml.jackson.core.JsonProcessingException malformed) {
+                throw new XeroAmbiguousResponseException(
+                        "Xero returned an unreadable successful write response; reconcile before retrying", malformed);
+            }
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
+        }
+    }
+
+    static String idempotencyKey(String xeroTenantId, String endpoint, ObjectNode payload) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = (xeroTenantId + "\n" + endpoint + "\n" + payload.toString())
+                    .getBytes(StandardCharsets.UTF_8);
+            return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
+        }
+    }
+
+    // Keep financial operation identities stable even if mutable accounting fields change
+    // after a lost acknowledgement. Tenant scoping prevents cross-tenant collisions.
+    static String operationIdempotencyKey(String xeroTenantId, String operationIdentity) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = (xeroTenantId + "\n" + operationIdentity).getBytes(StandardCharsets.UTF_8);
+            return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
         }
     }
 

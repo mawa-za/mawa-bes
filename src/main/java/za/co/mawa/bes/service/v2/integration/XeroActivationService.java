@@ -78,7 +78,7 @@ public class XeroActivationService {
         gcpTenantSecretService.createSecretIfMissing(accessTokenSecret);
 
         String redirectUrl = buildRedirectUrl(request.getRedirectUrl());
-        boolean enableInvoices = request.getInvoiceIntegrationEnabled() == null || request.getInvoiceIntegrationEnabled();
+        boolean enableInvoices = Boolean.TRUE.equals(request.getInvoiceIntegrationEnabled());
 
         settingService.upsertSetting("CLIENT-ID-SECRET", XERO_GROUP, clientIdSecret);
         settingService.upsertSetting("SECRET-KEY-SECRET", XERO_GROUP, clientSecretSecret);
@@ -119,6 +119,7 @@ public class XeroActivationService {
                 .invoiceIntegrationEnabled(isEnabled(INVOICE_ENABLED))
                 .invoiceIntegrationRequested(invoiceIntegrationRequested())
                 .integrationStatus(currentStatus())
+                .selectedTenantId(xeroAuthService.getXeroProperty(TenantContext.getCurrentTenant(), "XERO-TENANT-ID"))
                 .organisationSelectionRequired(false)
                 .clientIdSecret(tenantSecretNameService.currentTenantSecretName("xero", "client-id"))
                 .clientSecretSecret(tenantSecretNameService.currentTenantSecretName("xero", "secret-key"))
@@ -167,7 +168,7 @@ public class XeroActivationService {
                     .selectedTenantId(selected.getTenantId())
                     .selectedTenantName(selected.getTenantName())
                     .message(enabled
-                            ? "Xero organisation selected. Existing products, customers and invoices were queued for synchronisation."
+                            ? "Xero organisation selected. Historical records were not queued automatically."
                             : "Xero organisation selected. Synchronisation remains disabled as requested.")
                     .build();
         } catch (Exception e) {
@@ -203,9 +204,6 @@ public class XeroActivationService {
 
         boolean runtimeEnabled = requested && authorised;
         setRuntimeState(runtimeEnabled, status);
-        if (runtimeEnabled) {
-            xeroMasterDataQueueService.queueAllExisting();
-        }
 
         return XeroActivationResponseDto.builder()
                 .invoiceIntegrationEnabled(runtimeEnabled)
@@ -213,7 +211,7 @@ public class XeroActivationService {
                 .integrationStatus(status)
                 .organisationSelectionRequired("PENDING_ORGANISATION_SELECTION".equalsIgnoreCase(status))
                 .message(runtimeEnabled
-                        ? "Xero invoice integration enabled. Existing products, customers and invoices were queued for synchronisation."
+                        ? "Xero invoice integration enabled. Historical records were not queued automatically."
                         : requested
                                 ? "Invoice integration will be enabled after Xero authorisation is completed."
                                 : "Xero invoice integration disabled.")
@@ -276,15 +274,12 @@ public class XeroActivationService {
     private boolean enableAfterAuthorisation() {
         boolean enabled = invoiceIntegrationRequested();
         setRuntimeState(enabled, "AUTHORISED");
-        if (enabled) {
-            xeroMasterDataQueueService.queueAllExisting();
-        }
         return enabled;
     }
 
     private boolean invoiceIntegrationRequested() {
         String requestedValue = settingService.getSetting(INVOICE_REQUESTED, XERO_GROUP);
-        return !StringUtils.hasText(requestedValue) || Boolean.parseBoolean(requestedValue);
+        return StringUtils.hasText(requestedValue) && Boolean.parseBoolean(requestedValue);
     }
 
     private void setRuntimeState(boolean enabled, String status) {
@@ -336,8 +331,7 @@ public class XeroActivationService {
         if (!StringUtils.hasText(baseUrl)) {
             throw new IllegalArgumentException("Redirect URL is required. Use the public backend base URL, for example https://dev.api.app.mawa.co.za");
         }
-        baseUrl = baseUrl.replaceAll("/+$", "");
-        return baseUrl.endsWith("/xero/callback") ? baseUrl : baseUrl + "/xero/callback";
+        return XeroAuthService.normalizeXeroRedirectUrl(baseUrl);
     }
     private String firstNonBlank(String... values) {
         if (values == null) {

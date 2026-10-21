@@ -19,6 +19,9 @@ import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +37,21 @@ class XeroInvoicePushServiceTest {
     @Mock private XeroAuthService xeroAuthService;
     @Mock private XeroIntegrationSettingsService settings;
     @Mock private XeroMasterDataPushService masterDataPushService;
+
+    @Test
+    void quarantinedInvoiceCannotBeResentBeforeReconciliation() {
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .id("invoice-quarantine")
+                .integrationStatus("RECONCILIATION_REQUIRED")
+                .lines(new ArrayList<>())
+                .build();
+        when(invoiceRepository.findByIdWithLines("invoice-quarantine"))
+                .thenReturn(Optional.of(invoice));
+
+        assertThrows(XeroAmbiguousResponseException.class,
+                () -> service.pushInvoice("invoice-quarantine"));
+        verifyNoInteractions(xeroAuthService);
+    }
 
     @Test
     void sendsMawaInvoiceNumberAndStoredXeroIdOnUpdate() {
@@ -69,5 +87,20 @@ class XeroInvoicePushServiceTest {
         assertEquals("AUTHORISED", service.mapInvoiceStatus("PARTIALLY_PAID"));
         assertEquals("AUTHORISED", service.mapInvoiceStatus("PAID"));
         assertEquals("VOIDED", service.mapInvoiceStatus("CANCELLED"));
+    }
+    @Test
+    void paymentRetryKeyIsStableAndScopedToTenantAndOperation() {
+        String first = XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-1");
+        assertEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-1"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-b", "payment-create:payment-1"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "payment-create:payment-2"));
+        assertNotEquals(first, XeroInvoicePushService.operationIdempotencyKey("xero-tenant-a", "credit-note-create:payment-1"));
+    }
+
+    @Test
+    void creditNoteCreationAndAllocationHaveIndependentRetryKeys() {
+        assertNotEquals(
+                XeroInvoicePushService.operationIdempotencyKey("tenant", "credit-note-create:note-1"),
+                XeroInvoicePushService.operationIdempotencyKey("tenant", "credit-note-allocate:note-1"));
     }
 }

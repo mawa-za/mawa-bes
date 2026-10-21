@@ -3,6 +3,7 @@ package za.co.mawa.bes.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +27,7 @@ import za.co.mawa.bes.service.v2.PaymentRequestFnbPaymentQueueService;
 import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
+import za.co.mawa.bes.xero.XeroAmbiguousResponseException;
 import za.co.mawa.bes.xero.XeroMasterDataPushService;
 
 import java.time.LocalDateTime;
@@ -57,6 +59,8 @@ public class MessageConsumerService {
     za.co.mawa.bes.service.v2.PaymentRequestService paymentRequestService;
     @Autowired
     XeroInvoicePushService xeroInvoicePushService;
+    @Autowired
+    za.co.mawa.bes.xero.XeroIntegrationSettingsService xeroIntegrationSettingsService;
     @Autowired
     XeroMasterDataPushService xeroMasterDataPushService;
     @Autowired
@@ -257,17 +261,40 @@ public class MessageConsumerService {
         return lastRunAt == null || !lastRunAt.plusSeconds(getSchedulerIntervalSeconds()).isAfter(LocalDateTime.now());
     }
 
+    private boolean isXeroQueueMessage(MessageQueueEntity message) {
+        return message != null && ("XERO-INVOICE".equals(message.getType())
+                || "XERO-CUSTOMER".equals(message.getType())
+                || "XERO-PRODUCT".equals(message.getType()));
+    }
+
     public int processCurrentTenant() {
         ObjectMapper mapper = new ObjectMapper();
         int processedCount = 0;
-        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository
-                .findTop10ByProcessedFalseAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(LocalDateTime.now());
-        int batchSize = getBatchSize();
-        if (messageQueueEntities.size() > batchSize) {
-            messageQueueEntities = messageQueueEntities.subList(0, batchSize);
-        }
+        // The Xero OFF guard must apply in the database query, BEFORE LIMIT.
+        // Otherwise ten old disabled Xero messages can indefinitely starve FNB
+        // and other unrelated work. Keep the per-message guard below as well,
+        // since the integration setting may be changed after this query.
+        boolean includeXero = xeroIntegrationSettingsService.isIntegrationEnabled();
+        List<MessageQueueEntity> messageQueueEntities = messageQueueRepository.findEligibleForDispatch(
+                LocalDateTime.now(), includeXero, PageRequest.of(0, Math.min(10, getBatchSize())));
 
         for (MessageQueueEntity msg : messageQueueEntities) {
+            // OFF is a hard barrier even for Xero messages queued before deactivation.
+            // Do not claim, consume, or acknowledge them while integration is disabled.
+            if (isXeroQueueMessage(msg) && !xeroIntegrationSettingsService.isIntegrationEnabled()) {
+                continue;
+            }
+            LocalDateTime xeroLeaseUntil = null;
+            if (isXeroQueueMessage(msg)) {
+                LocalDateTime claimTime = LocalDateTime.now();
+                xeroLeaseUntil = claimTime.plusMinutes(15);
+                // Do not issue any external request unless the shared database granted
+                // this instance the lease. An expired lease is eligible for recovery.
+                if (messageQueueRepository.claimXeroMessage(msg.getId(), claimTime,
+                        xeroLeaseUntil) != 1) {
+                    continue;
+                }
+            }
             try {
                 log.debug("Processing message queue item {} of type {} for tenant {}",
                         msg.getId(), msg.getType(), TenantContext.getCurrentTenant());
@@ -415,13 +442,34 @@ public class MessageConsumerService {
                     log.error("Message queue processing failed for tenant {}, message {}, type {}",
                             TenantContext.getCurrentTenant(), msg.getId(), msg.getType(), e);
                     if ("XERO-INVOICE".equals(msg.getType())) {
-                        xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                        if (hasCause(e, XeroAmbiguousResponseException.class)) {
+                            xeroInvoicePushService.markReconciliationRequired(resolveInvoiceId(msg), e.getMessage());
+                        } else {
+                            xeroInvoicePushService.markFailed(resolveInvoiceId(msg), e.getMessage());
+                        }
                     }
                     msg.setRetryCount(msg.getRetryCount() + 1);
                     if (isBankPaymentReportMessage(msg)) {
                         // Payroll reports retain their existing retry semantics.
                         msg.setProcessed(false);
                         msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(getPaymentReportIntervalSeconds()));
+                    } else if (isXeroQueueMessage(msg)
+                            && hasCause(e, XeroAmbiguousResponseException.class)) {
+                        // A write may have succeeded remotely. Blind replay risks double posting.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.error("Xero message {} for tenant {} requires reconciliation: "
+                                        + "remote write outcome is unknown; automatic retries suspended",
+                                msg.getId(), TenantContext.getCurrentTenant());
+                    } else if (msg.getType() != null && msg.getType().startsWith("XERO-")
+                            && msg.getRetryCount() > 3) {
+                        // Never mark a failed accounting message as successfully processed.
+                        // Suspend automatic retries until an operator explicitly requeues it.
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.error("Xero queue item {} for tenant {} suspended after {} failures; "
+                                        + "requires investigation and explicit requeue",
+                                msg.getId(), TenantContext.getCurrentTenant(), msg.getRetryCount());
                     } else if (msg.getRetryCount() > 3) {
                         msg.setProcessed(true);
                     } else {
@@ -429,7 +477,19 @@ public class MessageConsumerService {
                     }
                 }
             }
-            messageQueueRepository.save(msg);
+            if (xeroLeaseUntil != null) {
+                int completed = messageQueueRepository.completeXeroClaim(
+                        msg.getId(), xeroLeaseUntil, msg.isProcessed(),
+                        msg.getRetryCount(), msg.getNextAttemptAt());
+                if (completed != 1) {
+                    log.warn("Discarding stale Xero queue completion for tenant {}, message {}: "
+                                    + "the lease was replaced or the message was completed elsewhere",
+                            TenantContext.getCurrentTenant(), msg.getId());
+                    continue;
+                }
+            } else {
+                messageQueueRepository.save(msg);
+            }
             processedCount++;
         }
         return processedCount;

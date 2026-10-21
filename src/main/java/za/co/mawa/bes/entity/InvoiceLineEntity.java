@@ -44,6 +44,18 @@ public class InvoiceLineEntity {
     @Column(name = "discount_cents", nullable = false)
     private Long discountCents = 0L;
 
+    /** Snapshotted line tax treatment; NULL indicates historical data not yet classified. */
+    @Column(name = "vat_treatment_snapshot", length = 24)
+    private String vatTreatmentSnapshot;
+
+    /** Tax percentage as at invoice finalisation, not the tenant's current setting. */
+    @Column(name = "vat_rate_percent_snapshot", precision = 9, scale = 4)
+    private java.math.BigDecimal vatRatePercentSnapshot;
+
+    /** Xero organisation tax type, resolved explicitly for this invoice line. */
+    @Column(name = "xero_tax_type_snapshot", length = 100)
+    private String xeroTaxTypeSnapshot;
+
     @Column(name = "tax_cents", nullable = false)
     private Long taxCents = 0L;
 
