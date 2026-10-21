@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Tenant-scoped VAT policy maintenance. No financial posting or invoice mutation. */
 @RestController
-@RequestMapping("/v2/integrations/xero/vat-policy")
+@RequestMapping({"/v2/accounting/vat-policy", "/v2/integrations/xero/vat-policy"})
 public class XeroVatPolicyControllerV2 {
     private final XeroVatPolicyService service;
 

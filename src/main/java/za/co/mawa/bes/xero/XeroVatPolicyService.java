@@ -27,7 +27,7 @@ public class XeroVatPolicyService {
         var policies = jdbc.queryForList("""
             SELECT id, vat_registered, vat_registration_number, default_pricing_method,
                    standard_rate_percent, effective_from, effective_to, created_at, created_by
-              FROM xero_tenant_vat_policy ORDER BY effective_from DESC, created_at DESC
+              FROM tenant_vat_policy ORDER BY effective_from DESC, created_at DESC
             """);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("mode", "VAT_POLICY_CONFIGURATION_ONLY");
@@ -43,7 +43,7 @@ public class XeroVatPolicyService {
         String userId = requirePermission(true);
         validate(request);
         Integer overlaps = jdbc.queryForObject("""
-            SELECT COUNT(*) FROM xero_tenant_vat_policy
+            SELECT COUNT(*) FROM tenant_vat_policy
              WHERE effective_from <= COALESCE(?, '9999-12-31')
                AND (effective_to IS NULL OR effective_to >= ?)
             """, Integer.class, request.effectiveTo(), request.effectiveFrom());
@@ -52,7 +52,7 @@ public class XeroVatPolicyService {
         }
         String id = UUID.randomUUID().toString();
         jdbc.update("""
-            INSERT INTO xero_tenant_vat_policy
+            INSERT INTO tenant_vat_policy
               (id, vat_registered, vat_registration_number, default_pricing_method,
                standard_rate_percent, effective_from, effective_to, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -100,8 +100,8 @@ public class XeroVatPolicyService {
         String userId = UserContext.getCurrentUserId();
         if (userId == null || userId.isBlank()) throw new AccessDeniedException("Authenticated ERP user required");
         String permissionJoin = manage
-                ? "JOIN xero_vat_configuration_role_permission xp ON xp.role_id = r.id AND xp.can_manage = 1"
-                : "JOIN xero_reconciliation_role_permission xp ON xp.role_id = r.id AND xp.can_check = 1";
+                ? "JOIN tenant_vat_role_permission xp ON xp.role_id = r.id AND xp.can_manage = 1"
+                : "JOIN tenant_vat_role_permission xp ON xp.role_id = r.id AND xp.can_view = 1";
         Integer allowed = jdbc.queryForObject("""
              SELECT COUNT(*) FROM user_role ur
              JOIN `role` r ON r.id = ur.role
@@ -112,7 +112,7 @@ public class XeroVatPolicyService {
                 AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
                 AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
             """, Integer.class, userId);
-        if (allowed == null || allowed == 0) throw new AccessDeniedException("Insufficient Xero VAT configuration permission");
+        if (allowed == null || allowed == 0) throw new AccessDeniedException("Insufficient tenant VAT configuration permission");
         return userId;
     }
 
