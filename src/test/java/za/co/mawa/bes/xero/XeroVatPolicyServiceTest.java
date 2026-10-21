@@ -50,7 +50,7 @@ class XeroVatPolicyServiceTest {
         when(jdbc.queryForObject(anyString(), eq(Integer.class), any(), any())).thenReturn(0);
         var result = service.create(validRequest());
         assertEquals(false, result.get("releaseAllowed"));
-        verify(jdbc).update(contains("INSERT INTO xero_tenant_vat_policy"), any(Object[].class));
+        verify(jdbc).update(contains("INSERT INTO tenant_vat_policy"), any(Object[].class));
     }
 
     private XeroVatPolicyService.PolicyRequest validRequest() {
