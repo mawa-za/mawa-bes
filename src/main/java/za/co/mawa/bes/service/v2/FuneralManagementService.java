@@ -775,8 +775,7 @@ public class FuneralManagementService {
                     membershipId,
                     coverageEventDate);
             boolean unregisteredChild = isNoIdentityCoverSelection(cover);
-            String claimDeceasedPartnerId = defaultString(
-                    cover.getDeceasedPartnerId(), service.getDeceasedPartnerId());
+            String claimDeceasedPartnerId = requireClaimDeceasedPartner(cover, service);
             if (externalClaim && unregisteredChild) {
                 ensureDeceasedPartnerInClaimTenant(claimTenantId, claimDeceasedPartnerId);
             }
@@ -1600,13 +1599,13 @@ public class FuneralManagementService {
             externalMembershipCoverRepository.findByIdInAndStatus(externalIds, "ACTIVE")
                     .forEach(cover -> map.put(
                             "EXTERNAL:" + cover.getId(),
-                            resolveLegacyExternalCoverSelection(cover)));
+                            resolveLegacyExternalCoverSelection(cover, service)));
         }
         return map;
     }
 
     private FuneralMembershipCoverDto resolveLegacyExternalCoverSelection(
-            FuneralExternalMembershipCoverEntity snapshot
+            FuneralExternalMembershipCoverEntity snapshot, FuneralServiceEntity service
     ) {
         FuneralTenantIntegrationConfigDto config = getTenantIntegrationConfiguration();
         String configuredTenant = requireConfiguredExternalTenant(config);
@@ -1614,13 +1613,27 @@ public class FuneralManagementService {
             throw new IllegalArgumentException(
                     "Legacy external cover belongs to a tenant that is no longer configured");
         }
-        FuneralMembershipCoverDto liveCover = findExternalMembershipCover(
-                snapshot.getIdentityNumber(), config).stream()
+        // Legacy snapshots only identify the membership, not the deceased partner.
+        // Resolve them against the funeral's deceased identity, never the first
+        // person returned for the policy (which can be the membership holder).
+        String identityNumber = service != null && StringUtils.hasText(service.getDeceasedIdentityNumber())
+                ? service.getDeceasedIdentityNumber().trim()
+                : snapshot.getIdentityNumber();
+        if (service != null && "ADULT".equalsIgnoreCase(service.getDeceasedCategory())
+                && !StringUtils.hasText(service.getDeceasedIdentityNumber())) {
+            throw new IllegalArgumentException(
+                    "The deceased identity number is required to create an external membership claim");
+        }
+        List<FuneralMembershipCoverDto> candidates = findExternalMembershipCover(identityNumber, config).stream()
                 .filter(cover -> Objects.equals(
                         snapshot.getSourceMembershipId(), cover.getSourceMembershipId()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Legacy external cover is no longer active. Re-run membership lookup."));
+                .toList();
+        if (candidates.size() != 1) {
+            throw new IllegalArgumentException(
+                    "The external deceased could not be uniquely identified on the selected membership. "
+                            + "Re-run membership lookup and select the deceased's cover.");
+        }
+        FuneralMembershipCoverDto liveCover = candidates.get(0);
         return FuneralMembershipCoverDto.builder()
                 .membershipId("EXTERNAL:" + snapshot.getId())
                 .membershipNumber(liveCover.getMembershipNumber())
@@ -1668,6 +1681,19 @@ public class FuneralManagementService {
         if (noIdentityChild) {
             validateNoIdentityCoverService(service);
             deceasedPartnerId = service.getDeceasedPartnerId();
+        } else if (service != null) {
+            // The selection id is supplied by the client, and can be stale or
+            // contain the membership holder even when a dependent has died.
+            // Always resolve the deceased in the *membership-owning* tenant.
+            ExternalDeceasedReference verifiedDeceased = resolveExternalDeceasedForFuneral(
+                    tenantId, membershipId, service);
+            if (!Objects.equals(deceasedPartnerId, verifiedDeceased.partnerId())
+                    || !Objects.equals(deceasedType, verifiedDeceased.deceasedType())) {
+                log.warn("Corrected external deceased cover selection for funeral service {} and membership {}",
+                        service.getId(), membershipId);
+            }
+            deceasedPartnerId = verifiedDeceased.partnerId();
+            deceasedType = verifiedDeceased.deceasedType();
         }
         String dependentType = noIdentityChild
                 ? "CHILD"
@@ -1698,8 +1724,57 @@ public class FuneralManagementService {
                 .coverSource(COVER_SOURCE_EXTERNAL)
                 .sourceTenantId(tenantId)
                 .sourceTenantName(defaultString(config.getExternalTenantName(), tenantId))
-                .sourceReference(selectionId)
+                .sourceReference(noIdentityChild ? selectionId : String.join(":", "EXTERNAL",
+                        tenantId, membershipId, deceasedPartnerId, deceasedType))
                 .build();
+    }
+
+    /**
+     * The provider's partner ids do not necessarily exist in the external tenant.
+     * Identify the deceased by their identity number within the selected policy,
+     * considering the main member and active dependents, not by member_id alone.
+     */
+    ExternalDeceasedReference resolveExternalDeceasedForFuneral(
+            String tenantId, String membershipId, FuneralServiceEntity service) {
+        String identityNumber = trimToNull(service.getDeceasedIdentityNumber());
+        if (identityNumber == null) {
+            throw new IllegalArgumentException(
+                    "The deceased identity number is required to create an external membership claim");
+        }
+        String memberships = qualifiedTable(tenantId, "membership");
+        String dependents = qualifiedTable(tenantId, "membership_dependent");
+        String identities = qualifiedTable(tenantId, "partner_identity");
+        List<ExternalDeceasedReference> matches = jdbcTemplate.query("""
+                SELECT DISTINCT matched.partner_id, matched.deceased_type
+                  FROM (
+                      SELECT m.member_id AS partner_id, 'MAIN_MEMBER' AS deceased_type
+                        FROM %s m
+                       WHERE m.id = ? AND m.status = 'ACTIVE'
+                      UNION ALL
+                      SELECT md.dependent_partner_id AS partner_id, 'DEPENDENT' AS deceased_type
+                        FROM %s md
+                        JOIN %s m ON m.id = md.membership_id
+                       WHERE md.membership_id = ? AND md.active = 1 AND m.status = 'ACTIVE'
+                  ) matched
+                  JOIN %s pi ON pi.partner = matched.partner_id
+                 WHERE TRIM(pi.value) = ?
+                """.formatted(memberships, dependents, memberships, identities),
+                (rs, index) -> new ExternalDeceasedReference(
+                        rs.getString("partner_id"), rs.getString("deceased_type")),
+                membershipId, membershipId, identityNumber);
+        return requireUniqueExternalDeceased(matches);
+    }
+
+    record ExternalDeceasedReference(String partnerId, String deceasedType) {}
+
+    static ExternalDeceasedReference requireUniqueExternalDeceased(List<ExternalDeceasedReference> candidates) {
+        if (candidates == null || candidates.size() != 1
+                || !StringUtils.hasText(candidates.get(0).partnerId())) {
+            throw new IllegalArgumentException(
+                    "The deceased could not be uniquely matched to the selected external membership. "
+                            + "Check the deceased identity number and membership dependents before claiming.");
+        }
+        return candidates.get(0);
     }
 
     private Long findExternalMembershipPlanPayout(
@@ -2359,6 +2434,18 @@ public class FuneralManagementService {
         return result;
     }
 
+    private String requireClaimDeceasedPartner(FuneralMembershipCoverDto cover, FuneralServiceEntity service) {
+        String deceasedPartnerId = trimToNull(cover.getDeceasedPartnerId());
+        if (deceasedPartnerId == null && !COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource())) {
+            deceasedPartnerId = trimToNull(service.getDeceasedPartnerId());
+        }
+        if (deceasedPartnerId == null) {
+            throw new IllegalArgumentException(
+                    "Unable to identify the deceased partner for the selected membership cover");
+        }
+        return deceasedPartnerId;
+    }
+
     private void createGroceryClaimForFuneral(FuneralServiceEntity service, FuneralMembershipCoverDto cover, InitiateFuneralClaimsDto request) {
         String tenantId = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource()) ? cover.getSourceTenantId() : null;
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
@@ -2366,10 +2453,11 @@ public class FuneralManagementService {
         String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
         LocalDate coverageEventDate = service.getDateOfDeath() == null ? LocalDate.now() : service.getDateOfDeath();
         String coveragePlanId = resolveEffectiveCoveragePlanId(tenantId, cover.getSourceMembershipId(), coverageEventDate);
+        String deceasedPartnerId = requireClaimDeceasedPartner(cover, service);
         String coverageDependentType = resolveCoverageDependentType(
                 tenantId,
                 cover.getSourceMembershipId(),
-                defaultString(cover.getDeceasedPartnerId(), service.getDeceasedPartnerId()),
+                deceasedPartnerId,
                 defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
         long groceryAmount = defaultLong(tenantId == null
                 ? findMembershipPlanPayout(coveragePlanId, "GROCERY", coverageDependentType)
@@ -2381,7 +2469,7 @@ public class FuneralManagementService {
             claimant_partner_id,claim_amount_cents,funeral_service_id,funeral_provider_tenant_id,status,notes,created_at)
             VALUES(?,?,?,'GROCERY',?,?,?,?,?,?,?,?,?,?,?,?,'DRAFT',?,CURRENT_TIMESTAMP)
             """.formatted(table),groceryId,groceryNo,cover.getSourceMembershipId(),coveragePlanId,coverageEventDate,
-            defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),defaultString(cover.getDeceasedPartnerId(),service.getDeceasedPartnerId()),coverageEventDate,LocalDate.now(),
+            defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),deceasedPartnerId,coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),claimantPartnerId,groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
         FuneralServiceClaimEntity groceryLink=new FuneralServiceClaimEntity(); groceryLink.setFuneralServiceId(service.getId()); groceryLink.setMembershipClaimId(groceryId);
