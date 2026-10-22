@@ -935,6 +935,8 @@ public class MembershipChangeService {
         MembershipEntity membership = getMembership(change.getMembershipId());
         String previous = membership.getMemberId();
         membership.setMemberId(change.getNewMemberId());
+        membership.setMemberStatus("ACTIVE");
+        membership.setMemberDeceasedDate(null);
         membership.setUpdatedAt(LocalDateTime.now());
         membership.setUpdatedBy(actor);
         membershipRepository.save(membership);

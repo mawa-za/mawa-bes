@@ -798,6 +798,12 @@ public class FuneralManagementService {
                     claimType, coverAmount, arrangementTotal, remaining);
             if (claimAmount <= 0) continue;
 
+            // This path inserts via JDBC (also into an external source tenant),
+            // bypassing MembershipClaimService.create: enforce the same guard here.
+            requireFuneralClaimAllowed(externalClaim ? claimTenantId : null,
+                    membershipId, claimDeceasedPartnerId,
+                    defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
+                    service.getId(), claimType, unregisteredChild);
             String membershipClaimId = UUID.randomUUID().toString();
             if (externalClaim) {
                 ensureExternalClaimCreationAllowed(claimTenantId);
@@ -836,6 +842,10 @@ public class FuneralManagementService {
                     service.getId(),
                     TenantContext.getCurrentTenant(),
                     buildClaimNotes(service, request.getNotes(), externalClaim));
+            markFuneralDeceasedOnMembership(externalClaim ? claimTenantId : null,
+                    membershipId, claimDeceasedPartnerId,
+                    defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
+                    coverageEventDate, unregisteredChild);
 
             FuneralServiceClaimEntity link = new FuneralServiceClaimEntity();
             link.setFuneralServiceId(service.getId());
@@ -1313,7 +1323,7 @@ public class FuneralManagementService {
                        NULL AS burial_society_partner_id
                   FROM partner_identity pi
                   JOIN partner p ON p.id = pi.partner
-                  JOIN membership_dependent md ON md.dependent_partner_id = p.id AND md.active = 1
+                  JOIN membership_dependent md ON md.dependent_partner_id = p.id AND md.status IN ('ACTIVE', 'DECEASED')
                   JOIN membership m ON m.id = md.membership_id
                   JOIN membership_plan mp ON mp.id = m.plan_id
              LEFT JOIN membership_plan_claim_payout pay ON pay.plan_id = m.plan_id
@@ -1502,7 +1512,7 @@ public class FuneralManagementService {
                        COALESCE(mp.name, 'Burial Society') AS burial_society_name
                   FROM %s pi
                   JOIN %s p ON p.id = pi.partner
-                  JOIN %s md ON md.dependent_partner_id = p.id AND md.active = 1
+                  JOIN %s md ON md.dependent_partner_id = p.id AND md.status IN ('ACTIVE', 'DECEASED')
                   JOIN %s m ON m.id = md.membership_id
                   JOIN %s mp ON mp.id = m.plan_id
              LEFT JOIN %s pay ON pay.plan_id = m.plan_id
@@ -1754,7 +1764,7 @@ public class FuneralManagementService {
                       SELECT md.dependent_partner_id AS partner_id, 'DEPENDENT' AS deceased_type
                         FROM %s md
                         JOIN %s m ON m.id = md.membership_id
-                       WHERE md.membership_id = ? AND md.active = 1 AND m.status = 'ACTIVE'
+                       WHERE md.membership_id = ? AND md.status IN ('ACTIVE', 'DECEASED') AND m.status = 'ACTIVE'
                   ) matched
                   JOIN %s pi ON pi.partner = matched.partner_id
                  WHERE TRIM(pi.value) = ?
@@ -1817,7 +1827,7 @@ public class FuneralManagementService {
         try {
             String relationship = jdbcTemplate.queryForObject(
                     "SELECT relationship FROM " + dependentTable
-                            + " WHERE membership_id = ? AND dependent_partner_id = ? AND active = 1",
+                            + " WHERE membership_id = ? AND dependent_partner_id = ? AND status IN ('ACTIVE', 'DECEASED')",
                     String.class,
                     membershipId,
                     deceasedPartnerId);
@@ -1825,7 +1835,7 @@ public class FuneralManagementService {
                     ? relationship.trim().toUpperCase(Locale.ROOT)
                     : "DEPENDENT";
         } catch (EmptyResultDataAccessException exception) {
-            throw new IllegalArgumentException("Selected deceased is not an active dependent on the membership");
+            throw new IllegalArgumentException("Selected deceased is not an active or deceased dependent on this membership");
         }
     }
 
@@ -2446,22 +2456,124 @@ public class FuneralManagementService {
         return deceasedPartnerId;
     }
 
+    /**
+     * Funeral Service Request uses its own JDBC claim insert path in the cover's
+     * tenant. A FUNERAL/COMBINATION/STILLBORN claim and its GROCERY companion
+     * form a single event, but a separate request must wait for cancellation.
+     * Serialise through the membership row to avoid parallel duplicate inserts.
+     */
+    private void requireFuneralClaimAllowed(
+            String sourceTenant, String membershipId, String deceasedPartnerId,
+            String deceasedType, String funeralServiceId, String claimType, boolean noIdentityChild) {
+        String membershipTable = sourceTenant == null ? "membership" : qualifiedTable(sourceTenant, "membership");
+        String claimTable = sourceTenant == null ? "membership_claim" : qualifiedTable(sourceTenant, "membership_claim");
+        String dependentTable = sourceTenant == null ? "membership_dependent" : qualifiedTable(sourceTenant, "membership_dependent");
+        List<Map<String, Object>> memberships = jdbcTemplate.queryForList(
+                "SELECT member_id, member_status FROM " + membershipTable + " WHERE id = ? FOR UPDATE",
+                membershipId);
+        if (memberships.isEmpty()) throw new IllegalArgumentException("Claim membership not found: " + membershipId);
+        String currentMemberId = Objects.toString(memberships.get(0).get("member_id"), "");
+        boolean mainMember = "MAIN_MEMBER".equalsIgnoreCase(deceasedType);
+        if (mainMember && !currentMemberId.equals(deceasedPartnerId)) {
+            throw new IllegalArgumentException("Selected deceased does not match the membership holder");
+        }
+        if (!mainMember && currentMemberId.equals(deceasedPartnerId)) {
+            throw new IllegalArgumentException("A dependent claim cannot use the membership holder");
+        }
+        List<Map<String, Object>> dependentRows = !mainMember && !noIdentityChild
+                ? jdbcTemplate.queryForList(
+                        "SELECT status FROM " + dependentTable
+                                + " WHERE membership_id = ? AND dependent_partner_id = ?",
+                        membershipId, deceasedPartnerId)
+                : List.of();
+        if (!mainMember && !noIdentityChild && dependentRows.isEmpty()) {
+            throw new IllegalArgumentException("Deceased dependent is not linked to this membership");
+        }
+        List<Map<String, Object>> priorClaims = jdbcTemplate.queryForList(
+                "SELECT claim_type, funeral_service_id FROM " + claimTable
+                        + " WHERE membership_id = ? AND deceased_partner_id = ? AND status <> 'CANCELLED'",
+                membershipId, deceasedPartnerId);
+        boolean hasCompanion = false;
+        for (Map<String, Object> prior : priorClaims) {
+            String priorType = Objects.toString(prior.get("claim_type"), "");
+            boolean sameService = Objects.equals(funeralServiceId,
+                    Objects.toString(prior.get("funeral_service_id"), null));
+            boolean paired = sameService && (
+                    ("GROCERY".equalsIgnoreCase(claimType) && isPrimaryFuneralClaimType(priorType))
+                    || (isPrimaryFuneralClaimType(claimType) && "GROCERY".equalsIgnoreCase(priorType)));
+            if (!paired) {
+                throw new IllegalStateException("A claim already exists for the selected deceased on this membership. "
+                        + "Cancel the previous claim before creating a new one.");
+            }
+            hasCompanion = true;
+        }
+        boolean deceased = mainMember
+                ? "DECEASED".equalsIgnoreCase(Objects.toString(memberships.get(0).get("member_status"), ""))
+                : !dependentRows.isEmpty()
+                    && "DECEASED".equalsIgnoreCase(Objects.toString(dependentRows.get(0).get("status"), ""));
+        if (deceased && !hasCompanion) {
+            Integer cancelledCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM " + claimTable
+                            + " WHERE membership_id = ? AND deceased_partner_id = ? AND status = 'CANCELLED'",
+                    Integer.class, membershipId, deceasedPartnerId);
+            if (cancelledCount == null || cancelledCount == 0) {
+                throw new IllegalStateException("This deceased relationship has no cancelled claim allowing re-capture.");
+            }
+        }
+    }
+
+    private boolean isPrimaryFuneralClaimType(String claimType) {
+        return "FUNERAL".equalsIgnoreCase(claimType)
+                || "COMBINATION".equalsIgnoreCase(claimType)
+                || "STILLBORN".equalsIgnoreCase(claimType);
+    }
+
+    private void markFuneralDeceasedOnMembership(
+            String sourceTenant, String membershipId, String deceasedPartnerId,
+            String deceasedType, LocalDate dateOfDeath, boolean noIdentityChild) {
+        if ("MAIN_MEMBER".equalsIgnoreCase(deceasedType)) {
+            String membershipTable = sourceTenant == null ? "membership" : qualifiedTable(sourceTenant, "membership");
+            jdbcTemplate.update("UPDATE " + membershipTable
+                            + " SET member_status = 'DECEASED', member_deceased_date = ?"
+                            + " WHERE id = ? AND member_id = ?",
+                    dateOfDeath, membershipId, deceasedPartnerId);
+        } else if (!noIdentityChild) {
+            String dependentTable = sourceTenant == null ? "membership_dependent" : qualifiedTable(sourceTenant, "membership_dependent");
+            int updated = jdbcTemplate.update("UPDATE " + dependentTable
+                            + " SET status = 'DECEASED', active = 0, deceased_date = ?, effective_to = ?"
+                            + " WHERE membership_id = ? AND dependent_partner_id = ?"
+                            + " AND status IN ('ACTIVE', 'DECEASED')",
+                    dateOfDeath, dateOfDeath, membershipId, deceasedPartnerId);
+            if (updated != 1) {
+                throw new IllegalStateException("Unable to mark deceased dependent relationship for claim");
+            }
+        }
+        // Unregistered infant/stillborn covers have no dependent relationship row.
+        // Do not mutate partner.status or create a fictitious relationship here.
+    }
+
     private void createGroceryClaimForFuneral(FuneralServiceEntity service, FuneralMembershipCoverDto cover, InitiateFuneralClaimsDto request) {
         String tenantId = COVER_SOURCE_EXTERNAL.equals(cover.getCoverSource()) ? cover.getSourceTenantId() : null;
         if (tenantId != null) ensureExternalClaimCreationAllowed(tenantId);
         String table = tenantId == null ? "membership_claim" : qualifiedTable(tenantId, "membership_claim");
-        String groceryId=UUID.randomUUID().toString(); String groceryNo=tenantId==null?generateMembershipClaimNo():generateExternalMembershipClaimNo(tenantId);
+        String groceryId = UUID.randomUUID().toString();
         LocalDate coverageEventDate = service.getDateOfDeath() == null ? LocalDate.now() : service.getDateOfDeath();
         String coveragePlanId = resolveEffectiveCoveragePlanId(tenantId, cover.getSourceMembershipId(), coverageEventDate);
         String deceasedPartnerId = requireClaimDeceasedPartner(cover, service);
-        String coverageDependentType = resolveCoverageDependentType(
-                tenantId,
-                cover.getSourceMembershipId(),
-                deceasedPartnerId,
-                defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
+        String coverageDependentType = isNoIdentityCoverSelection(cover)
+                ? "CHILD"
+                : resolveCoverageDependentType(
+                        tenantId,
+                        cover.getSourceMembershipId(),
+                        deceasedPartnerId,
+                        defaultString(cover.getDeceasedType(), "MAIN_MEMBER"));
         long groceryAmount = defaultLong(tenantId == null
                 ? findMembershipPlanPayout(coveragePlanId, "GROCERY", coverageDependentType)
                 : findExternalMembershipPlanPayout(tenantId, coveragePlanId, "GROCERY", coverageDependentType));
+        requireFuneralClaimAllowed(tenantId, cover.getSourceMembershipId(), deceasedPartnerId,
+                defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
+                service.getId(), "GROCERY", isNoIdentityCoverSelection(cover));
+        String groceryNo = tenantId == null ? generateMembershipClaimNo() : generateExternalMembershipClaimNo(tenantId);
         String claimantPartnerId = resolveClaimantPartnerId(service, tenantId);
         jdbcTemplate.update("""
             INSERT INTO %s(id,claim_no,membership_id,claim_type,coverage_plan_id,coverage_event_date,
@@ -2472,6 +2584,9 @@ public class FuneralManagementService {
             defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),deceasedPartnerId,coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),claimantPartnerId,groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
+        markFuneralDeceasedOnMembership(tenantId, cover.getSourceMembershipId(), deceasedPartnerId,
+                defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
+                coverageEventDate, isNoIdentityCoverSelection(cover));
         FuneralServiceClaimEntity groceryLink=new FuneralServiceClaimEntity(); groceryLink.setFuneralServiceId(service.getId()); groceryLink.setMembershipClaimId(groceryId);
         groceryLink.setClaimStorageScope(tenantId==null?"LOCAL":"EXTERNAL"); groceryLink.setClaimOwnerTenantId(tenantId==null?TenantContext.getCurrentTenant():tenantId);
         groceryLink.setCoverSource(cover.getCoverSource()); groceryLink.setSourceTenantId(cover.getSourceTenantId()); groceryLink.setSourceTenantName(cover.getSourceTenantName());

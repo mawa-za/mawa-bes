@@ -26,6 +26,8 @@ public class MembershipResponseDto {
     private LocalDate startDate;
     private LocalDate endDate;
     private String status;
+    private String memberStatus;
+    private LocalDate memberDeceasedDate;
     private String paidUpToPeriod;
     private LocalDate joinDate;
     private LocalDate effectiveDate;

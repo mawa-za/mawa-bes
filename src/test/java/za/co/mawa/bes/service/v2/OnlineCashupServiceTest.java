@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest;
 import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.entity.v2.CardTerminalEntity;
 import za.co.mawa.bes.entity.v2.CashupPaymentSummaryEntity;
 import za.co.mawa.bes.entity.v2.CashupReceiptEntity;
 import za.co.mawa.bes.entity.v2.PaymentBatchEntity;
@@ -37,6 +38,7 @@ class OnlineCashupServiceTest {
     @Mock private ReceiptRepository receiptRepository;
     @Mock private NumberAllocationService numberAllocationService;
     @Mock private CashupService cashupService;
+    @Mock private CardTerminalService cardTerminalService;
 
     @InjectMocks
     private OnlineCashupService service;
@@ -47,6 +49,7 @@ class OnlineCashupServiceTest {
                 .id("batch-card")
                 .paymentBatchNo("PB-CARD")
                 .paymentMethod("CARD")
+                .terminalId("terminal-1")
                 .paymentDate(LocalDateTime.of(2026, 8, 22, 10, 0))
                 .deviceId("device-1")
                 .createdBy("cashier-1")
@@ -62,14 +65,17 @@ class OnlineCashupServiceTest {
                 .deviceId("device-1")
                 .userId("cashier-1")
                 .status("OPEN")
-                .source("ERP_ONLINE")
+                .source("ERP_ONLINE_CARD")
+                .cardTerminalId("terminal-1")
                 .totalCents(0L)
                 .receiptCount(0)
                 .build();
 
         when(receiptRepository.findAllById(any())).thenReturn(List.of(receipt));
-        when(cashupRepository.findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
-                "device-1", "cashier-1", "OPEN", "ERP_ONLINE"))
+        when(cardTerminalService.requireActive("terminal-1")).thenReturn(
+                CardTerminalEntity.builder().id("terminal-1").code("CARD-01").name("Card terminal").active(true).build());
+        when(cashupRepository.findFirstByCardTerminalIdAndStatusAndSourceOrderByCreatedAtDesc(
+                "terminal-1", "OPEN", "ERP_ONLINE_CARD"))
                 .thenReturn(Optional.of(cashup));
         when(cashupReceiptRepository.existsByCashupIdAndReceiptId("cashup-normal", "receipt-card"))
                 .thenReturn(false);
@@ -80,6 +86,9 @@ class OnlineCashupServiceTest {
 
         verify(cashupRepository, never())
                 .findFirstByLegacyTransactionIdAndSourceOrderByCreatedAtDesc(any(), eq("ERP_ONLINE_EFT"));
+        verify(cashupRepository, never())
+                .findFirstByDeviceIdAndUserIdAndStatusAndSourceOrderByCreatedAtDesc(
+                        any(), any(), eq("OPEN"), eq("ERP_ONLINE"));
         verify(cashupService, never()).submitForApproval(any(), any(CashupSubmitForApprovalRequest.class));
 
         ArgumentCaptor<CashupPaymentSummaryEntity> summaryCaptor =

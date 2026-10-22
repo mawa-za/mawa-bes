@@ -23,6 +23,8 @@ public class MembershipMapper {
                 .startDate(entity.getStartDate())
                 .endDate(entity.getEndDate())
                 .status(entity.getStatus())
+                .memberStatus(entity.getMemberStatus())
+                .memberDeceasedDate(entity.getMemberDeceasedDate())
                 .paidUpToPeriod(entity.getPaidUpToPeriod())
                 .joinDate(entity.getJoinDate())
                 .effectiveDate(entity.getBenefitEligibleFrom())

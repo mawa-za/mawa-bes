@@ -17,11 +17,12 @@ import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.PartnerViewRepository;
 import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
+import za.co.mawa.bes.xero.XeroMasterDataQueueService;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -42,6 +43,8 @@ class PartnerServiceV2Test {
     private ReferenceDataValidationService referenceDataValidationService;
     @Mock
     private NumberAllocationService numberAllocationService;
+    @Mock
+    private XeroMasterDataQueueService xeroMasterDataQueueService;
 
     private PartnerServiceV2 service;
 
@@ -54,33 +57,31 @@ class PartnerServiceV2Test {
         service.partnerContactRepository = partnerContactRepository;
         service.referenceDataValidationService = referenceDataValidationService;
         service.numberAllocationService = numberAllocationService;
+        service.xeroMasterDataQueueService = xeroMasterDataQueueService;
     }
 
     @Test
-    void getByIdReturnsMaterialisedPartnerInsteadOfDetachedReference() {
+    void getByIdReturnsCanonicalMaterialisedPartner() {
         PartnerViewEntity partner = PartnerViewEntity.builder()
                 .partnerId("partner-1")
                 .partnerNo("100001")
                 .build();
-        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(partner));
+        when(partnerViewRepository.findCanonicalByPartnerId("partner-1")).thenReturn(partner);
 
         PartnerViewEntity result = service.getById("partner-1");
 
         assertSame(partner, result);
-        verify(partnerViewRepository).findById("partner-1");
+        verify(partnerViewRepository).findCanonicalByPartnerId("partner-1");
         verify(partnerViewRepository, never()).getReferenceById("partner-1");
     }
 
     @Test
-    void getByIdRejectsMissingPartnerWithUsefulMessage() {
-        when(partnerViewRepository.findById("missing")).thenReturn(Optional.empty());
+    void getByIdReturnsNullWhenCanonicalPartnerIsMissing() {
+        // Current getById contract is nullable; callers must handle a missing partner.
+        when(partnerViewRepository.findCanonicalByPartnerId("missing")).thenReturn(null);
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.getById("missing")
-        );
-
-        org.junit.jupiter.api.Assertions.assertEquals("Partner not found: missing", exception.getMessage());
+        assertNull(service.getById("missing"));
+        verify(partnerViewRepository).findCanonicalByPartnerId("missing");
     }
 
     @Test
@@ -105,14 +106,14 @@ class PartnerServiceV2Test {
         when(numberAllocationService.allocateNumber("PARTNER")).thenReturn("P000001");
         when(partnerRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class)))
                 .thenReturn(persisted);
-        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(view));
+        when(partnerViewRepository.findCanonicalByPartnerId("partner-1")).thenReturn(view);
 
         PartnerViewEntity result = service.create(request);
 
         assertSame(view, result);
         InOrder ordered = inOrder(partnerRepository, partnerViewRepository);
         ordered.verify(partnerRepository).saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class));
-        ordered.verify(partnerViewRepository).findById("partner-1");
+        ordered.verify(partnerViewRepository).findCanonicalByPartnerId("partner-1");
     }
 
     @Test
@@ -136,7 +137,7 @@ class PartnerServiceV2Test {
         when(partnerRepository.findById("partner-1")).thenReturn(Optional.of(partner));
         when(referenceDataValidationService.requireContactNumber("082 123 4567"))
                 .thenReturn("0821234567");
-        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(view));
+        when(partnerViewRepository.findCanonicalByPartnerId("partner-1")).thenReturn(view);
 
         PartnerInboundDto request = new PartnerInboundDto();
         request.setIdentityType("SA-ID");
