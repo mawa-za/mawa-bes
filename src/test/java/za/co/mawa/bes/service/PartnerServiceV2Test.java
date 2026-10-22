@@ -106,14 +106,14 @@ class PartnerServiceV2Test {
         when(numberAllocationService.allocateNumber("PARTNER")).thenReturn("P000001");
         when(partnerRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class)))
                 .thenReturn(persisted);
-        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(view));
+        when(partnerViewRepository.findCanonicalByPartnerId("partner-1")).thenReturn(view);
 
         PartnerViewEntity result = service.create(request);
 
         assertSame(view, result);
         InOrder ordered = inOrder(partnerRepository, partnerViewRepository);
         ordered.verify(partnerRepository).saveAndFlush(org.mockito.ArgumentMatchers.any(PartnerEntity.class));
-        ordered.verify(partnerViewRepository).findById("partner-1");
+        ordered.verify(partnerViewRepository).findCanonicalByPartnerId("partner-1");
     }
 
     @Test
@@ -137,7 +137,7 @@ class PartnerServiceV2Test {
         when(partnerRepository.findById("partner-1")).thenReturn(Optional.of(partner));
         when(referenceDataValidationService.requireContactNumber("082 123 4567"))
                 .thenReturn("0821234567");
-        when(partnerViewRepository.findById("partner-1")).thenReturn(Optional.of(view));
+        when(partnerViewRepository.findCanonicalByPartnerId("partner-1")).thenReturn(view);
 
         PartnerInboundDto request = new PartnerInboundDto();
         request.setIdentityType("SA-ID");
