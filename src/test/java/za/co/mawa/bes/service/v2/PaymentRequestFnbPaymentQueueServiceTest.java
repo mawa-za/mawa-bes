@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,7 +60,7 @@ class PaymentRequestFnbPaymentQueueServiceTest {
     }
 
     @Test
-    void refreshesClaimGeneratedManualRoutingAndQueuesWhenFnbDebtorNowExists() {
+    void approvedEftQueuesWhenFnbDebtorIsConfigured() {
         PaymentRequestEntity paymentRequest = approvedFuneralPayment();
         when(paymentRequestRepository.findById("payment-1")).thenReturn(Optional.of(paymentRequest));
         when(settingService.getSetting("ENABLED", "FNB-API")).thenReturn("true");
@@ -124,13 +125,51 @@ class PaymentRequestFnbPaymentQueueServiceTest {
         verify(messageProducerService, never()).sendMessageIfNotExists(any());
     }
 
+    @Test
+    void automaticApprovalNeverQueuesAManualPaymentAsEft() {
+        PaymentRequestEntity paymentRequest = approvedFuneralPayment();
+        paymentRequest.setPaymentMethod(PaymentMethod.MANUAL);
+        when(paymentRequestRepository.findById("payment-1"))
+                .thenReturn(Optional.of(paymentRequest));
+
+        service.queueAfterApproval("payment-1", "PR-0001", "approver-1");
+
+        assertEquals(PaymentMethod.MANUAL, paymentRequest.getPaymentMethod());
+        assertEquals(PaymentRequestStatus.APPROVED, paymentRequest.getStatus());
+        verifyNoInteractions(paymentAccountConfigurationService, bankPaymentService,
+                messageProducerService, attemptService, statusHistoryRepository);
+    }
+
+    @Test
+    void explicitSendToBankRejectsManualPaymentWithoutAutomaticConversion() {
+        PaymentRequestEntity paymentRequest = approvedFuneralPayment();
+        paymentRequest.setPaymentMethod(PaymentMethod.MANUAL);
+        when(paymentRequestRepository.findById("payment-1"))
+                .thenReturn(Optional.of(paymentRequest));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.queueForBank("payment-1", "PR-0001", "approver-1"));
+
+        assertEquals("Only EFT payment requests can be sent to FNB: PR-0001",
+                error.getMessage());
+        assertEquals(PaymentRequestStatus.APPROVED, paymentRequest.getStatus());
+        verifyNoInteractions(paymentAccountConfigurationService, bankPaymentService,
+                messageProducerService, attemptService, statusHistoryRepository);
+    }
+
     private PaymentRequestEntity approvedFuneralPayment() {
         PaymentRequestEntity paymentRequest = new PaymentRequestEntity();
         paymentRequest.setId("payment-1");
         paymentRequest.setRequestNo("PR-0001");
         paymentRequest.setRequestType(PaymentRequestType.FUNERAL_SERVICE_PAYMENT);
         paymentRequest.setStatus(PaymentRequestStatus.APPROVED);
-        paymentRequest.setPaymentMethod(PaymentMethod.MANUAL);
+        // Funeral-service payments are EFT by definition; queueing must never
+        // silently convert an explicitly MANUAL request into a bank transfer.
+        paymentRequest.setPaymentMethod(PaymentMethod.EFT);
+        paymentRequest.setAccountHolder("FAMILY REPRESENTATIVE");
+        paymentRequest.setAccountNumber("1234567890");
+        paymentRequest.setBranchCode("250655");
+        paymentRequest.setAccountType("CHEQUE");
         return paymentRequest;
     }
 }
