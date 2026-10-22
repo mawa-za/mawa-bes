@@ -24,6 +24,12 @@ public interface MembershipClaimRepository extends JpaRepository<MembershipClaim
 
     List<MembershipClaimEntity> findByDeceasedPartnerIdOrderByCreatedAtDesc(String deceasedPartnerId);
 
+    boolean existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+            String membershipId, String deceasedPartnerId, MembershipClaimStatus status);
+
+    boolean existsByMembershipIdAndDeceasedPartnerIdAndStatus(
+            String membershipId, String deceasedPartnerId, MembershipClaimStatus status);
+
     boolean existsByMembershipIdAndDeceasedPartnerIdAndApprovedAtIsNotNull(
             String membershipId, String deceasedPartnerId);
 

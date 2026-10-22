@@ -102,6 +102,9 @@ public class MembershipDependentService {
         membershipDependentRepository.findById(dependentId)
                 .filter(existingDependent -> existingDependent.getMembershipId().equals(membershipId))
                 .map(existingDependent -> {
+                    if (existingDependent.getStatus() == MembershipDependentStatus.DECEASED) {
+                        throw new IllegalArgumentException("A deceased dependent relationship cannot be reactivated or reassigned");
+                    }
                     existingDependent.setDependentPartnerId(dependent.getDependentPartnerId());
                     existingDependent.setDependentType(dependent.getDependentType());
                     existingDependent.setActive(dependent.getActive());
@@ -124,12 +127,10 @@ public class MembershipDependentService {
 
         if (dependent.isPresent()) {
             MembershipDependentEntity existing = dependent.get();
-            if (membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
-                    membershipId, existing.getDependentPartnerId(),
-                    List.of(MembershipClaimStatus.APPROVED, MembershipClaimStatus.PAYMENT_PENDING,
-                            MembershipClaimStatus.PAYMENT_PROCESSING, MembershipClaimStatus.PAYMENT_FAILED,
-                            MembershipClaimStatus.PAID))) {
-                throw new IllegalArgumentException("A dependent with a finalised claim cannot be removed from membership history");
+            if (existing.getStatus() == MembershipDependentStatus.DECEASED
+                    || membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                            membershipId, existing.getDependentPartnerId(), MembershipClaimStatus.CANCELLED)) {
+                throw new IllegalArgumentException("A deceased dependent or one with an uncancelled claim cannot be removed from membership history");
             }
             existing.setActive(false);
             existing.setStatus(MembershipDependentStatus.REMOVED);

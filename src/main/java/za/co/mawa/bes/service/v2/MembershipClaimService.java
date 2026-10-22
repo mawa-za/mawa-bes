@@ -22,7 +22,6 @@ import za.co.mawa.bes.repository.v2.MembershipDependentRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.service.NumberRangeService;
-import za.co.mawa.bes.utils.Status;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
@@ -98,7 +97,9 @@ public class MembershipClaimService {
         String causeOfDeath = referenceDataValidationService.optionalOption(
                 "CAUSE-OF-DEATH", request.getCauseOfDeath(), "Cause of death");
 
-        MembershipEntity membership = membershipRepository.findById(request.getMembershipId())
+        // Lock the membership row: two devices must not create claims concurrently
+        // for the same deceased partner on this membership.
+        MembershipEntity membership = membershipRepository.findByIdForUpdate(request.getMembershipId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + request.getMembershipId()));
         membershipActionGuardService.requireActionable(membership);
 
@@ -117,21 +118,25 @@ public class MembershipClaimService {
                 request.getDeceasedPartnerId()
         );
 
-        boolean previouslyApproved = claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndApprovedAtIsNotNull(
-                request.getMembershipId(),
-                request.getDeceasedPartnerId())
-                || claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusIn(
-                        request.getMembershipId(),
-                        request.getDeceasedPartnerId(),
-                        List.of(
-                                MembershipClaimStatus.APPROVED,
-                                MembershipClaimStatus.PAYMENT_PENDING,
-                                MembershipClaimStatus.PAYMENT_PROCESSING,
-                                MembershipClaimStatus.PAYMENT_FAILED,
-                                MembershipClaimStatus.PAID));
-        if (previouslyApproved) {
+        // A cancelled claim may be re-captured, including if approvedAt was set
+        // before cancellation. Any other existing claim (DRAFT included) blocks it.
+        boolean hasOpenClaim = claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                request.getMembershipId(), request.getDeceasedPartnerId(), MembershipClaimStatus.CANCELLED);
+        if (hasOpenClaim) {
             throw new IllegalStateException(
-                    "An approved claim already exists for this member/dependent on the selected membership.");
+                    "A claim already exists for this deceased member/dependent on the selected membership. "
+                            + "The previous claim must be cancelled before another can be captured.");
+        }
+        boolean alreadyDeceased = request.getDeceasedType() == MembershipClaimDeceasedType.MAIN_MEMBER
+                ? "DECEASED".equalsIgnoreCase(membership.getMemberStatus())
+                : membershipDependentRepository.findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
+                        request.getMembershipId(), request.getDeceasedPartnerId())
+                        .map(d -> d.getStatus() == MembershipDependentStatus.DECEASED)
+                        .orElse(false);
+        if (alreadyDeceased && !claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatus(
+                request.getMembershipId(), request.getDeceasedPartnerId(), MembershipClaimStatus.CANCELLED)) {
+            throw new IllegalStateException(
+                    "This member/dependent is deceased on this membership and has no cancelled claim allowing re-capture.");
         }
 
         MembershipClaimEntity entity = new MembershipClaimEntity();
@@ -496,31 +501,29 @@ public class MembershipClaimService {
     }
 
     private void markDeceasedOnMembership(MembershipClaimEntity claim, String userId) {
-        if (claim.getDeceasedType() != MembershipClaimDeceasedType.DEPENDENT
-                || !StringUtils.hasText(claim.getDeceasedPartnerId())) {
-            return;
+        if (!StringUtils.hasText(claim.getDeceasedPartnerId())) return;
+        if (claim.getDeceasedType() == MembershipClaimDeceasedType.MAIN_MEMBER) {
+            MembershipEntity membership = membershipRepository.findById(claim.getMembershipId())
+                    .orElseThrow(() -> new IllegalStateException("Membership not found for claim"));
+            // Never set the partner's global status: the same partner may have
+            // an independent relationship with another membership.
+            membership.setMemberStatus("DECEASED");
+            membership.setMemberDeceasedDate(claim.getDateOfDeath());
+            membership.setUpdatedBy(userId);
+            membershipRepository.save(membership);
+        } else if (claim.getDeceasedType() == MembershipClaimDeceasedType.DEPENDENT) {
+            MembershipDependentEntity dependent = membershipDependentRepository
+                    .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
+                            claim.getMembershipId(), claim.getDeceasedPartnerId())
+                    .orElseThrow(() -> new IllegalStateException("Deceased dependent relationship not found"));
+            dependent.setActive(false);
+            dependent.setStatus(MembershipDependentStatus.DECEASED);
+            dependent.setDeceasedDate(claim.getDateOfDeath());
+            dependent.setEffectiveTo(claim.getDateOfDeath());
+            dependent.setStatusReason("Deceased claim " + claim.getClaimNo());
+            dependent.setUpdatedBy(userId);
+            membershipDependentRepository.save(dependent);
         }
-
-        membershipDependentRepository
-                .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
-                        claim.getMembershipId(), claim.getDeceasedPartnerId())
-                .ifPresent(dependent -> {
-                    dependent.setActive(false);
-                    dependent.setStatus(MembershipDependentStatus.DECEASED);
-                    dependent.setDeceasedDate(claim.getDateOfDeath());
-                    dependent.setEffectiveTo(claim.getDateOfDeath());
-                    dependent.setStatusReason("Deceased claim " + claim.getClaimNo());
-                    dependent.setUpdatedBy(userId);
-                    membershipDependentRepository.save(dependent);
-                });
-
-        partnerRepository.findById(claim.getDeceasedPartnerId()).ifPresent(partner -> {
-            if (!Status.DECEASED.equalsIgnoreCase(partner.getStatus())) {
-                partner.setStatus(Status.DECEASED);
-                partner.setStatusReason("CLAIM");
-                partnerRepository.save(partner);
-            }
-        });
     }
 
     private String appendNote(String existing, String note) {
@@ -814,11 +817,14 @@ public class MembershipClaimService {
                 throw new IllegalArgumentException("Dependent claim cannot use the main member partner ID.");
             }
 
-            boolean linkedDependent = membershipDependentRepository
-                    .existsByMembershipIdAndDependentPartnerId(membershipId, deceasedPartnerId);
+            boolean coveredDependent = membershipDependentRepository
+                    .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(membershipId, deceasedPartnerId)
+                    .map(d -> d.getStatus() == MembershipDependentStatus.ACTIVE
+                            || d.getStatus() == MembershipDependentStatus.DECEASED)
+                    .orElse(false);
 
-            if (!linkedDependent) {
-                throw new IllegalArgumentException("Deceased partner is not linked as a dependent on this membership.");
+            if (!coveredDependent) {
+                throw new IllegalArgumentException("Deceased partner is not an active or deceased dependent on this membership.");
             }
         }
     }

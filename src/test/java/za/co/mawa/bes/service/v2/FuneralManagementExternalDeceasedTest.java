@@ -40,7 +40,7 @@ class FuneralManagementExternalDeceasedTest {
         verify(jdbcTemplate).query(
                 org.mockito.ArgumentMatchers.argThat((String sql) ->
                         sql.contains("`other-tenant`.`membership_dependent`")
-                                && sql.contains("md.active = 1")
+                                && sql.contains("md.status IN ('ACTIVE', 'DECEASED')")
                                 && sql.contains("matched.partner_id")
                                 && sql.contains("`other-tenant`.`partner_identity`")),
                 any(RowMapper.class), eq("membership-1"), eq("membership-1"), eq("8101011234089"));

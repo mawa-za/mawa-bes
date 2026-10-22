@@ -50,6 +50,15 @@ public class MembershipEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    // Status of the holder on THIS membership, separate from the membership lifecycle
+    // and the partner's global status (a partner can belong to multiple memberships).
+    @Builder.Default
+    @Column(name = "member_status", nullable = false, length = 30)
+    private String memberStatus = "ACTIVE";
+
+    @Column(name = "member_deceased_date")
+    private LocalDate memberDeceasedDate;
+
     @NotBlank
     @Column(nullable = false, length = 30)
     private String status = "ACTIVE";
