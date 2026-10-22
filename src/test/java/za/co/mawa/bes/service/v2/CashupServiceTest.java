@@ -15,8 +15,10 @@ import za.co.mawa.bes.dto.v2.payapp.CashupRequest;
 import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
 import za.co.mawa.bes.dto.v2.payapp.CashupSubmitForApprovalRequest;
 import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.entity.v2.CardTerminalEntity;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.UserRepository;
+import za.co.mawa.bes.repository.v2.CardTerminalRepository;
 import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 import za.co.mawa.bes.repository.v2.CashupPaymentSummaryRepository;
 import za.co.mawa.bes.repository.v2.CashupReceiptRepository;
@@ -52,6 +54,8 @@ class CashupServiceTest {
     @Mock private ApprovalService approvalService;
     @Mock private ReferenceDataValidationService referenceDataValidationService;
     @Mock private ManualReceiptBookService manualReceiptBookService;
+    @Mock private CardTerminalRepository cardTerminalRepository;
+    @Mock private CardTerminalService cardTerminalService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper()
@@ -101,6 +105,7 @@ class CashupServiceTest {
         CashupRequest request = new CashupRequest();
         request.setCashupNo(2001L);
         request.setDeviceId("device-card");
+        request.setTerminalId("terminal-card");
         request.setUserId("cashier-card");
         request.setDate("2026-08-22");
         request.setStatus("SUBMITTED");
@@ -110,6 +115,8 @@ class CashupServiceTest {
         request.setCountByMethod(Map.of("CARD", 1));
         request.setNotes("SOURCE: MAWA_PAY_EFT; CARD payment should still require a deposit");
 
+        when(cardTerminalService.requireActive("terminal-card")).thenReturn(
+                CardTerminalEntity.builder().id("terminal-card").code("CARD-01").name("Card terminal").active(true).build());
         when(cashupRepository.findByCashupNo(2001L)).thenReturn(Optional.empty());
         when(cashupRepository.save(any(CashupEntity.class))).thenAnswer(invocation -> {
             CashupEntity saved = invocation.getArgument(0);
@@ -128,6 +135,8 @@ class CashupServiceTest {
         assertEquals("SUCCESS", response.getStatus());
         assertEquals("AWAITING_DEPOSITS", saved.getStatus());
         assertNotEquals("MAWA_PAY_EFT", saved.getSource());
+        assertEquals("MAWA_PAY_CARD", saved.getSource());
+        assertEquals("terminal-card", saved.getCardTerminalId());
         verify(approvalService, never()).submitForApproval(any());
     }
 
