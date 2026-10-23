@@ -58,9 +58,9 @@ public class TombstoneInstallationRequestService {
               (id, request_no, status, customer_partner_id, deceased_partner_id, deceased_name,
                deceased_identity_number, date_of_death, cause_of_death, death_certificate_no,
                family_representative_partner_id, family_representative_name, family_representative_contact,
-               cemetery_name, cemetery_area, grave_number, sales_area, workcenter_id,
+               cemetery_name, cemetery_area, grave_number, sales_area, installation_directions, workcenter_id,
                expected_installation_date, notes, discount_cents, items_json, covers_json, created_by, updated_by)
-            VALUES (?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, id, number, required(payload.getCustomerPartnerId(), "customerPartnerId"),
                 trim(payload.getDeceasedPartnerId()),
                 required(payload.getDeceasedName(), "deceasedName"), trim(payload.getDeceasedIdentityNumber()),
@@ -68,7 +68,7 @@ public class TombstoneInstallationRequestService {
                 trim(payload.getFamilyRepresentativePartnerId()), trim(payload.getFamilyRepresentativeName()),
                 trim(payload.getFamilyRepresentativeContact()), trim(payload.getCemeteryName()),
                 trim(payload.getCemeteryArea()), trim(payload.getGraveNumber()), trim(payload.getSalesArea()),
-                trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
+                trim(payload.getInstallationDirections()), trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
                 payload.getDiscountCents() == null ? 0L : payload.getDiscountCents(),
                 json(payload.getItems()), json(payload.getSelectedCovers() == null ? List.of() : payload.getSelectedCovers()), actor(actor), actor(actor));
         return get(id);
@@ -84,7 +84,7 @@ public class TombstoneInstallationRequestService {
                 deceased_name=?, deceased_identity_number=?, date_of_death=?, cause_of_death=?,
                 death_certificate_no=?, family_representative_partner_id=?, family_representative_name=?,
                 family_representative_contact=?, cemetery_name=?, cemetery_area=?, grave_number=?,
-                sales_area=?, workcenter_id=?, expected_installation_date=?, notes=?, discount_cents=?,
+                sales_area=?, installation_directions=?, workcenter_id=?, expected_installation_date=?, notes=?, discount_cents=?,
                 items_json=?, covers_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
             """, required(payload.getCustomerPartnerId(), "customerPartnerId"),
                 trim(payload.getDeceasedPartnerId()),
@@ -93,7 +93,7 @@ public class TombstoneInstallationRequestService {
                 trim(payload.getFamilyRepresentativePartnerId()), trim(payload.getFamilyRepresentativeName()),
                 trim(payload.getFamilyRepresentativeContact()), trim(payload.getCemeteryName()),
                 trim(payload.getCemeteryArea()), trim(payload.getGraveNumber()), trim(payload.getSalesArea()),
-                trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
+                trim(payload.getInstallationDirections()), trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
                 payload.getDiscountCents() == null ? 0L : payload.getDiscountCents(),
                 json(payload.getItems()), json(payload.getSelectedCovers() == null ? List.of() : payload.getSelectedCovers()), actor(actor), id);
         return get(id);
@@ -336,7 +336,10 @@ public class TombstoneInstallationRequestService {
         order.setExpectedInstallationDate(toDate(request.get("expected_installation_date")));
         order.setFundingMethod(claimingBenefit ? "FUNERAL_COVER" : "CASH");
         order.setDiscountCents(((Number) request.get("discount_cents")).longValue());
-        order.setNotes("Installation request " + request.get("request_no") + ". " + Objects.toString(request.get("notes"), ""));
+        String directions = trim(asString(request.get("installation_directions")));
+        order.setNotes("Installation request " + request.get("request_no") + ". "
+                + Objects.toString(request.get("notes"), "")
+                + (directions == null ? "" : "\nInstallation directions: " + directions));
         try {
             order.setItems(mapper.readValue(asString(request.get("items_json")),
                     new TypeReference<List<TombstoneDtos.ItemRequest>>() {}));
@@ -439,13 +442,19 @@ public class TombstoneInstallationRequestService {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new IllegalArgumentException("At least one tombstone product or installation service is required");
         }
+        long tombstoneCount = request.getItems().stream()
+                .filter(item -> "TOMBSTONE".equalsIgnoreCase(item.getItemType())).count();
+        if (tombstoneCount != 1) {
+            throw new IllegalArgumentException("Select exactly one Tombstone package per deceased");
+        }
         requireCoverLimit(request.getSelectedCovers() == null ? 0 : request.getSelectedCovers().size());
         if (request.getDiscountCents() != null && request.getDiscountCents() < 0) throw new IllegalArgumentException("Discount cannot be negative");
         for (TombstoneDtos.ItemRequest item : request.getItems()) {
             required(item.getDescription(), "item.description");
             if (item.getUnitPriceCents() == null || item.getUnitPriceCents() < 0) throw new IllegalArgumentException("Invalid item unit price");
-            if (item.getQuantity() != null && item.getQuantity().signum() <= 0) {
-                throw new IllegalArgumentException("Item quantity must be greater than zero");
+            if (item.getQuantity() != null
+                    && item.getQuantity().compareTo(java.math.BigDecimal.ONE) != 0) {
+                throw new IllegalArgumentException("Tombstone installation item quantity must be one");
             }
         }
     }

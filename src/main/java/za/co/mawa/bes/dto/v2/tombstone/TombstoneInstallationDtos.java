@@ -38,6 +38,7 @@ public final class TombstoneInstallationDtos {
         private String cemeteryArea;
         private String graveNumber;
         private String salesArea;
+        private String installationDirections;
         private String workcenterId;
         private LocalDate expectedInstallationDate;
         private String notes;

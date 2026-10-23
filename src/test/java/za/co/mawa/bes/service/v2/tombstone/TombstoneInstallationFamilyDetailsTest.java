@@ -23,6 +23,7 @@ import za.co.mawa.bes.service.v2.NumberAllocationService;
 import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +55,8 @@ class TombstoneInstallationFamilyDetailsTest {
         request.setDeceasedName("Family-Supplied Deceased Name");
         TombstoneDtos.ItemRequest item = new TombstoneDtos.ItemRequest();
         item.setDescription("Tombstone and inscription");
+        item.setItemType("TOMBSTONE");
+        item.setQuantity(BigDecimal.ONE);
         item.setUnitPriceCents(250000L);
         request.setItems(List.of(item));
         request.setSelectedCovers(new ArrayList<>());
@@ -90,6 +93,29 @@ class TombstoneInstallationFamilyDetailsTest {
     }
 
     @Test
+    void onlyOneTombstonePackagePerDeceasedIsAccepted() {
+        TombstoneInstallationDtos.Request request = familyRequest();
+        TombstoneDtos.ItemRequest duplicate = new TombstoneDtos.ItemRequest();
+        duplicate.setItemType("TOMBSTONE");
+        duplicate.setDescription("Second tombstone");
+        duplicate.setUnitPriceCents(150000L);
+        request.setItems(List.of(request.getItems().get(0), duplicate));
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> ReflectionTestUtils.invokeMethod(service, "validate", request));
+        assertTrue(error.getMessage().contains("exactly one"));
+    }
+
+    @Test
+    void rejectsQuantitiesOtherThanOne() {
+        TombstoneInstallationDtos.Request request = familyRequest();
+        request.getItems().get(0).setQuantity(BigDecimal.valueOf(2));
+        setCoverLimit();
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> ReflectionTestUtils.invokeMethod(service, "validate", request));
+        assertTrue(error.getMessage().contains("quantity must be one"));
+    }
+
+    @Test
     void customerFundedInstallationGeneratesCashOrderWithoutClaim() {
         Map<String, Object> row = new HashMap<>();
         row.put("id", "REQ-1");
@@ -99,6 +125,7 @@ class TombstoneInstallationFamilyDetailsTest {
         row.put("deceased_partner_id", null);
         row.put("deceased_name", "Family-Supplied Deceased Name");
         row.put("discount_cents", 0L);
+        row.put("installation_directions", "Left after the community hall, blue gate");
         row.put("items_json", "[{\"description\":\"Memorial\",\"quantity\":1,\"unitPriceCents\":250000}]");
         row.put("covers_json", "[]");
         when(jdbc.queryForList(anyString(), eq("REQ-1"))).thenAnswer(invocation -> {
@@ -116,6 +143,7 @@ class TombstoneInstallationFamilyDetailsTest {
         assertEquals("CASH", order.getValue().getFundingMethod());
         assertNull(order.getValue().getDeceasedPartnerId());
         assertEquals("Family-Supplied Deceased Name", order.getValue().getDeceasedName());
+        assertTrue(order.getValue().getNotes().contains("Left after the community hall, blue gate"));
         verifyNoInteractions(claims);
     }
 }
