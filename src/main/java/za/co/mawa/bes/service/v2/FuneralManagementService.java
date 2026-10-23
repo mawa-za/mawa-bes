@@ -2503,7 +2503,7 @@ public class FuneralManagementService {
                     || (isPrimaryFuneralClaimType(claimType) && "GROCERY".equalsIgnoreCase(priorType)));
             boolean independentTombstone = "TOMBSTONE".equalsIgnoreCase(priorType)
                     && (isPrimaryFuneralClaimType(claimType) || "GROCERY".equalsIgnoreCase(claimType));
-            if (!paired && !independentTomb) {
+            if (!paired && !independentTombstone) {
                 throw new IllegalStateException("A claim already exists for the selected deceased on this membership. "
                         + "Cancel the previous claim before creating a new one.");
             }
