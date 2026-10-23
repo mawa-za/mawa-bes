@@ -16,6 +16,10 @@ public interface MembershipClaimRepository extends JpaRepository<MembershipClaim
 
     Optional<MembershipClaimEntity> findByClaimNo(String claimNo);
 
+    Optional<MembershipClaimEntity> findByTombstoneInstallationRequestIdAndMembershipId(String requestId, String membershipId);
+
+    List<MembershipClaimEntity> findByMembershipIdAndDeceasedPartnerIdAndStatusNot(String membershipId, String deceasedPartnerId, MembershipClaimStatus status);
+
     List<MembershipClaimEntity> findByMembershipIdOrderByCreatedAtDesc(String membershipId);
 
     List<MembershipClaimEntity> findByStatusOrderByCreatedAtDesc(MembershipClaimStatus status);

@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
+import za.co.mawa.bes.configuration.context.TenantContext;
+import za.co.mawa.bes.service.v2.FuneralManagementService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import za.co.mawa.bes.dto.v2.payment.PaymentRequestCreateRequest;
@@ -86,6 +89,8 @@ public class TombstoneManagementService {
     private final NumberAllocationService numberAllocationService;
     private final ReferenceDataValidationService referenceDataValidationService;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
+    private final FuneralManagementService funeralManagementService;
 
     @Transactional
     public TombstoneDtos.OrderResponse createOrder(TombstoneDtos.CreateOrderRequest request, String actor) {
@@ -931,7 +936,22 @@ public class TombstoneManagementService {
         orderRepository.save(order);
         for (TombstoneFundingAllocationEntity allocation : fundingRepository.findByTombstoneOrderIdOrderByCreatedAtAsc(orderId)) {
             if ("MEMBERSHIP_CLAIM".equals(allocation.getSourceType()) && StringUtils.hasText(allocation.getSourceId())) {
-                claimRepository.findById(allocation.getSourceId()).ifPresent(claim -> {
+                String allocationTenant = trimToNull(allocation.getSourceTenantId());
+                if (allocationTenant != null && !allocationTenant.equals(Objects.toString(TenantContext.getCurrentTenant(), "mawa"))) {
+                    if (!allocationTenant.matches("[A-Za-z0-9_-]{1,128}")) {
+                        throw new IllegalStateException("Invalid source tenant on Tombstone funding allocation");
+                    }
+                    funeralManagementService.requireTrustedTombstoneClaimTenant(allocationTenant);
+                    int released = jdbcTemplate.update("UPDATE `" + allocationTenant + "`.`membership_claim` "
+                            + "SET tombstone_order_id=NULL, settlement_method=NULL, settlement_reference=NULL, "
+                            + "settled_at=NULL, status='APPROVED', updated_by=? "
+                            + "WHERE id=? AND tombstone_order_id=? AND status='PAID'",
+                            systemActor(actor), allocation.getSourceId(), orderId);
+                    if (released != 1) {
+                        throw new IllegalStateException("External Tombstone Claim could not be released; order cancellation rolled back");
+                    }
+                } else {
+                    claimRepository.findById(allocation.getSourceId()).ifPresent(claim -> {
                     if (orderId.equals(claim.getTombstoneOrderId())) {
                         claim.setTombstoneOrderId(null);
                         claim.setSettlementMethod(null);
@@ -941,7 +961,8 @@ public class TombstoneManagementService {
                         claim.setUpdatedBy(systemActor(actor));
                         claimRepository.save(claim);
                     }
-                });
+                    });
+                }
                 allocation.setStatus("RELEASED");
                 allocation.setConfirmedAmountCents(0L);
                 allocation.setConfirmedAt(null);
@@ -959,6 +980,10 @@ public class TombstoneManagementService {
             agreement.setUpdatedBy(systemActor(actor));
             laybyRepository.save(agreement);
         });
+        jdbcTemplate.update("UPDATE tombstone_installation_request "
+                + "SET status='CANCELLED', cancellation_reason=?, updated_at=CURRENT_TIMESTAMP, updated_by=? "
+                + "WHERE tombstone_order_id=? AND status <> 'CANCELLED'",
+                reason.trim(), systemActor(actor), orderId);
         saveHistory(orderId, "ORDER", old, "CANCELLED", reason, actor);
         return cancellationSummary(order);
     }
@@ -1009,6 +1034,10 @@ public class TombstoneManagementService {
                                                                      TombstoneDtos.FundingAllocationRequest request,
                                                                      long amount, String actor) {
         requireText(request.getSourceId(), "sourceId (membershipClaimId)");
+        String sourceTenant = trimToNull(request.getSourceTenantId());
+        if (sourceTenant != null && !sourceTenant.equals(Objects.toString(TenantContext.getCurrentTenant(), "mawa"))) {
+            return addExternalTombstoneClaimFunding(order, request, amount, actor, sourceTenant);
+        }
         MembershipClaimEntity claim = claimRepository.findById(request.getSourceId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership claim not found: " + request.getSourceId()));
         if (!Set.of(MembershipClaimType.TOMBSTONE, MembershipClaimType.COMBINATION).contains(claim.getClaimType())) {
@@ -1037,6 +1066,54 @@ public class TombstoneManagementService {
         return TombstoneFundingAllocationEntity.builder()
                 .tombstoneOrderId(order.getId()).fundingType("FUNERAL_COVER").sourceType("MEMBERSHIP_CLAIM")
                 .sourceId(claim.getId()).sourceNo(claim.getClaimNo())
+                .sourceTenantId(Objects.toString(TenantContext.getCurrentTenant(), "mawa"))
+                .allocatedAmountCents(amount).confirmedAmountCents(amount).status("CONFIRMED")
+                .confirmedAt(LocalDateTime.now()).notes(trimToNull(request.getNotes()))
+                .createdBy(systemActor(actor)).updatedBy(systemActor(actor)).build();
+    }
+
+    /** Source and provider schemas share one MySQL transaction. Row locks protect against double settlement. */
+    private TombstoneFundingAllocationEntity addExternalTombstoneClaimFunding(
+            TombstoneOrderEntity order, TombstoneDtos.FundingAllocationRequest request,
+            long amount, String actor, String sourceTenant) {
+        if (!sourceTenant.matches("[A-Za-z0-9_-]{1,128}")) {
+            throw new IllegalArgumentException("Invalid claim-owning tenant");
+        }
+        funeralManagementService.requireTrustedTombstoneClaimTenant(sourceTenant);
+        Integer linked = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM tombstone_installation_request_claim l
+                  JOIN tombstone_installation_request r ON r.id = l.request_id
+                 WHERE r.tombstone_order_id = ? AND l.claim_tenant_id = ?
+                   AND l.membership_claim_id = ?
+                """, Integer.class, order.getId(), sourceTenant, request.getSourceId());
+        if (linked == null || linked != 1) {
+            throw new IllegalArgumentException("External claim is not linked to this installation request and order");
+        }
+        String table = "`" + sourceTenant + "`.`membership_claim`";
+        List<Map<String, Object>> claims = jdbcTemplate.queryForList(
+                "SELECT id, claim_no, claim_type, status, tombstone_order_id, approved_amount_cents, claim_amount_cents "
+                        + "FROM " + table + " WHERE id=? FOR UPDATE", request.getSourceId());
+        if (claims.size() != 1) throw new IllegalArgumentException("External Tombstone Claim was not found");
+        Map<String, Object> claim = claims.get(0);
+        if (!"TOMBSTONE".equalsIgnoreCase(Objects.toString(claim.get("claim_type"), ""))) {
+            throw new IllegalArgumentException("Only TOMBSTONE claims fund an installation request");
+        }
+        if (!Set.of("APPROVED", "PAYMENT_PENDING").contains(Objects.toString(claim.get("status"), ""))) {
+            throw new IllegalStateException("External claim must be approved and not already settled");
+        }
+        if (StringUtils.hasText(Objects.toString(claim.get("tombstone_order_id"), ""))) {
+            throw new IllegalStateException("The source claim already has a tombstone settlement");
+        }
+        long approved = claim.get("approved_amount_cents") instanceof Number n && n.longValue() > 0
+                ? n.longValue() : ((Number) claim.get("claim_amount_cents")).longValue();
+        if (amount > approved) throw new IllegalArgumentException("Funding allocation exceeds approved tombstone benefit");
+        jdbcTemplate.update("UPDATE " + table + " SET tombstone_order_id=?, settlement_method='EXTERNAL_TOMBSTONE_ORDER', "
+                        + "settlement_reference=?, settled_at=CURRENT_TIMESTAMP, status='PAID', updated_by=? WHERE id=?",
+                order.getId(), order.getOrderNo(), systemActor(actor), request.getSourceId());
+        return TombstoneFundingAllocationEntity.builder()
+                .tombstoneOrderId(order.getId()).fundingType("FUNERAL_COVER").sourceType("MEMBERSHIP_CLAIM")
+                .sourceTenantId(sourceTenant).sourceId(request.getSourceId())
+                .sourceNo(Objects.toString(claim.get("claim_no"), request.getSourceId()))
                 .allocatedAmountCents(amount).confirmedAmountCents(amount).status("CONFIRMED")
                 .confirmedAt(LocalDateTime.now()).notes(trimToNull(request.getNotes()))
                 .createdBy(systemActor(actor)).updatedBy(systemActor(actor)).build();
@@ -1343,7 +1420,7 @@ public class TombstoneManagementService {
             "taxCents", e.getTaxCents(), "totalCents", e.getTotalCents()); }
     private Map<String, Object> fundingMap(TombstoneFundingAllocationEntity e) { return map(
             "id", e.getId(), "fundingType", e.getFundingType(), "sourceType", e.getSourceType(), "sourceId", e.getSourceId(),
-            "sourceNo", e.getSourceNo(), "allocatedAmountCents", e.getAllocatedAmountCents(), "confirmedAmountCents", e.getConfirmedAmountCents(),
+            "sourceNo", e.getSourceNo(), "sourceTenantId", e.getSourceTenantId(), "allocatedAmountCents", e.getAllocatedAmountCents(), "confirmedAmountCents", e.getConfirmedAmountCents(),
             "status", e.getStatus(), "confirmedAt", e.getConfirmedAt(), "notes", e.getNotes(), "createdAt", e.getCreatedAt()); }
     private Map<String, Object> laybyMap(TombstoneLaybyAgreementEntity e) { return map(
             "id", e.getId(), "agreementNo", e.getAgreementNo(), "tombstoneOrderId", e.getTombstoneOrderId(),

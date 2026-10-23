@@ -118,14 +118,16 @@ public class MembershipClaimService {
                 request.getDeceasedPartnerId()
         );
 
-        // A cancelled claim may be re-captured, including if approvedAt was set
-        // before cancellation. Any other existing claim (DRAFT included) blocks it.
-        boolean hasOpenClaim = claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+        // A deceased may have separate FUNERAL and TOMBSTONE entitlements.
+        // Still reject a second claim against the same benefit, including drafts.
+        var existingClaims = claimRepository.findByMembershipIdAndDeceasedPartnerIdAndStatusNot(
                 request.getMembershipId(), request.getDeceasedPartnerId(), MembershipClaimStatus.CANCELLED);
-        if (hasOpenClaim) {
-            throw new IllegalStateException(
-                    "A claim already exists for this deceased member/dependent on the selected membership. "
-                            + "The previous claim must be cancelled before another can be captured.");
+        boolean separateTombstoneBenefit = request.getClaimType() == MembershipClaimType.TOMBSTONE;
+        boolean hasExistingDeathClaim = !existingClaims.isEmpty();
+        for (MembershipClaimEntity previous : existingClaims) {
+            if (isSameBenefitCategory(previous.getClaimType(), request.getClaimType())) {
+                throw new IllegalStateException("A claim already exists for the selected deceased and benefit on this membership.");
+            }
         }
         boolean alreadyDeceased = request.getDeceasedType() == MembershipClaimDeceasedType.MAIN_MEMBER
                 ? "DECEASED".equalsIgnoreCase(membership.getMemberStatus())
@@ -133,16 +135,26 @@ public class MembershipClaimService {
                         request.getMembershipId(), request.getDeceasedPartnerId())
                         .map(d -> d.getStatus() == MembershipDependentStatus.DECEASED)
                         .orElse(false);
-        if (alreadyDeceased && !claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatus(
+        if (alreadyDeceased && !hasExistingDeathClaim
+                && !claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatus(
                 request.getMembershipId(), request.getDeceasedPartnerId(), MembershipClaimStatus.CANCELLED)) {
             throw new IllegalStateException(
-                    "This member/dependent is deceased on this membership and has no cancelled claim allowing re-capture.");
+                    "This deceased relationship has no previous or cancelled claim allowing re-capture.");
         }
-
+        if (request.getTombstoneInstallationRequestId() != null) {
+            if (!separateTombstoneBenefit) {
+                throw new IllegalArgumentException("Installation requests may only generate TOMBSTONE claims");
+            }
+            claimRepository.findByTombstoneInstallationRequestIdAndMembershipId(
+                    request.getTombstoneInstallationRequestId(), request.getMembershipId()).ifPresent(existing -> {
+                throw new IllegalStateException("This tombstone installation request already generated a claim for the membership");
+            });
+        }
         MembershipClaimEntity entity = new MembershipClaimEntity();
         entity.setClaimNo(generateMembershipClaimNo());
         entity.setMembershipId(request.getMembershipId());
         entity.setClaimType(request.getClaimType());
+        entity.setTombstoneInstallationRequestId(request.getTombstoneInstallationRequestId());
         if (request.getDeceasedType() == MembershipClaimDeceasedType.DEPENDENT) {
             MembershipDependentEntity dependent = membershipDependentRepository
                     .findFirstByMembershipIdAndDependentPartnerIdOrderByCreatedAtDesc(
@@ -193,7 +205,9 @@ public class MembershipClaimService {
         entity.setCreatedBy(userId);
 
         MembershipClaimEntity saved = claimRepository.save(entity);
-        markDeceasedOnMembership(saved, userId);
+        if (!(saved.getClaimType() == MembershipClaimType.TOMBSTONE && hasExistingDeathClaim)) {
+            markDeceasedOnMembership(saved, userId);
+        }
 
         if (saved.getStatus() == MembershipClaimStatus.SUBMITTED
                 && saved.getClaimType() != MembershipClaimType.CASH) {
@@ -207,6 +221,11 @@ public class MembershipClaimService {
         }
 
         return getById(saved.getId());
+    }
+
+    /** A Tombstone entitlement is independent of Funeral/Grocery/Combination benefits. */
+    static boolean isSameBenefitCategory(MembershipClaimType previous, MembershipClaimType next) {
+        return (previous == MembershipClaimType.TOMBSTONE) == (next == MembershipClaimType.TOMBSTONE);
     }
 
     private void validateCashClaimPaymentDetails(MembershipClaimCreateRequest request) {
@@ -349,11 +368,13 @@ public class MembershipClaimService {
     public MembershipClaimResponse recordClaimFormDownload(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
         membershipActionGuardService.requireActionable(entity.getMembershipId());
-        if (entity.getClaimType() != MembershipClaimType.CASH) {
+        boolean installationClaim = entity.getClaimType() == MembershipClaimType.TOMBSTONE
+                && StringUtils.hasText(entity.getTombstoneInstallationRequestId());
+        if (entity.getClaimType() != MembershipClaimType.CASH && !installationClaim) {
             return toResponse(entity);
         }
         if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
-            throw new IllegalArgumentException("The CASH claim form can only be generated while the claim is DRAFT");
+            throw new IllegalArgumentException("The claim form can only be downloaded while the claim is DRAFT");
         }
         entity.setClaimFormDownloadCount((entity.getClaimFormDownloadCount() == null ? 0 : entity.getClaimFormDownloadCount()) + 1);
         entity.setClaimFormDownloadedAt(LocalDateTime.now());

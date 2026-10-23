@@ -109,6 +109,9 @@ public class MembershipClaimEntity {
     @Column(name = "payment_request_id", length = 255)
     private String paymentRequestId;
 
+    @Column(name = "tombstone_installation_request_id", length = 255)
+    private String tombstoneInstallationRequestId;
+
     @Column(name = "tombstone_order_id", length = 255)
     private String tombstoneOrderId;
 

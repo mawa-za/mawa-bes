@@ -17,6 +17,8 @@ public class MembershipClaimCreateRequest {
 
     private String membershipId;
 
+    private String tombstoneInstallationRequestId;
+
     private MembershipClaimType claimType;
 
     private MembershipClaimDeceasedType deceasedType;

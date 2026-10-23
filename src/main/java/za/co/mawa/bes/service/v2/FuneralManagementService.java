@@ -2501,17 +2501,20 @@ public class FuneralManagementService {
             boolean paired = sameService && (
                     ("GROCERY".equalsIgnoreCase(claimType) && isPrimaryFuneralClaimType(priorType))
                     || (isPrimaryFuneralClaimType(claimType) && "GROCERY".equalsIgnoreCase(priorType)));
-            if (!paired) {
+            boolean independentTombstone = "TOMBSTONE".equalsIgnoreCase(priorType)
+                    && (isPrimaryFuneralClaimType(claimType) || "GROCERY".equalsIgnoreCase(claimType));
+            if (!paired && !independentTomb) {
                 throw new IllegalStateException("A claim already exists for the selected deceased on this membership. "
                         + "Cancel the previous claim before creating a new one.");
             }
-            hasCompanion = true;
+            if (paired) hasCompanion = true;
         }
         boolean deceased = mainMember
                 ? "DECEASED".equalsIgnoreCase(Objects.toString(memberships.get(0).get("member_status"), ""))
                 : !dependentRows.isEmpty()
                     && "DECEASED".equalsIgnoreCase(Objects.toString(dependentRows.get(0).get("status"), ""));
-        if (deceased && !hasCompanion) {
+        if (deceased && !hasCompanion && priorClaims.stream().noneMatch(
+                prior -> "TOMBSTONE".equalsIgnoreCase(Objects.toString(prior.get("claim_type"), "")))) {
             Integer cancelledCount = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM " + claimTable
                             + " WHERE membership_id = ? AND deceased_partner_id = ? AND status = 'CANCELLED'",
@@ -3229,6 +3232,11 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("External tenant schema is not available: " + tenantId);
         }
         return tenantId;
+    }
+
+    /** Reuse the funeral integration trust boundary for tombstone claims. */
+    public void requireTrustedTombstoneClaimTenant(String tenantId) {
+        ensureExternalClaimCreationAllowed(tenantId);
     }
 
     private void ensureExternalClaimCreationAllowed(String tenantId) {
