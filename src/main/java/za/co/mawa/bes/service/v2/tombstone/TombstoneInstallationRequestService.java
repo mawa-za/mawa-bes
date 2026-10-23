@@ -62,7 +62,7 @@ public class TombstoneInstallationRequestService {
                expected_installation_date, notes, discount_cents, items_json, covers_json, created_by, updated_by)
             VALUES (?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, id, number, required(payload.getCustomerPartnerId(), "customerPartnerId"),
-                required(payload.getDeceasedPartnerId(), "deceasedPartnerId"),
+                trim(payload.getDeceasedPartnerId()),
                 required(payload.getDeceasedName(), "deceasedName"), trim(payload.getDeceasedIdentityNumber()),
                 payload.getDateOfDeath(), trim(payload.getCauseOfDeath()), trim(payload.getDeathCertificateNo()),
                 trim(payload.getFamilyRepresentativePartnerId()), trim(payload.getFamilyRepresentativeName()),
@@ -70,7 +70,7 @@ public class TombstoneInstallationRequestService {
                 trim(payload.getCemeteryArea()), trim(payload.getGraveNumber()), trim(payload.getSalesArea()),
                 trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
                 payload.getDiscountCents() == null ? 0L : payload.getDiscountCents(),
-                json(payload.getItems()), json(payload.getSelectedCovers()), actor(actor), actor(actor));
+                json(payload.getItems()), json(payload.getSelectedCovers() == null ? List.of() : payload.getSelectedCovers()), actor(actor), actor(actor));
         return get(id);
     }
 
@@ -87,7 +87,7 @@ public class TombstoneInstallationRequestService {
                 sales_area=?, workcenter_id=?, expected_installation_date=?, notes=?, discount_cents=?,
                 items_json=?, covers_json=?, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
             """, required(payload.getCustomerPartnerId(), "customerPartnerId"),
-                required(payload.getDeceasedPartnerId(), "deceasedPartnerId"),
+                trim(payload.getDeceasedPartnerId()),
                 required(payload.getDeceasedName(), "deceasedName"), trim(payload.getDeceasedIdentityNumber()),
                 payload.getDateOfDeath(), trim(payload.getCauseOfDeath()), trim(payload.getDeathCertificateNo()),
                 trim(payload.getFamilyRepresentativePartnerId()), trim(payload.getFamilyRepresentativeName()),
@@ -95,7 +95,7 @@ public class TombstoneInstallationRequestService {
                 trim(payload.getCemeteryArea()), trim(payload.getGraveNumber()), trim(payload.getSalesArea()),
                 trim(payload.getWorkcenterId()), payload.getExpectedInstallationDate(), trim(payload.getNotes()),
                 payload.getDiscountCents() == null ? 0L : payload.getDiscountCents(),
-                json(payload.getItems()), json(payload.getSelectedCovers()), actor(actor), id);
+                json(payload.getItems()), json(payload.getSelectedCovers() == null ? List.of() : payload.getSelectedCovers()), actor(actor), id);
         return get(id);
     }
 
@@ -151,7 +151,10 @@ public class TombstoneInstallationRequestService {
             throw new IllegalStateException("Claims cannot be initiated in the request's current status");
         }
         List<TombstoneInstallationDtos.SelectedCover> covers = readCovers(request.get("covers_json"));
-        if (covers.isEmpty()) throw new IllegalArgumentException("Select at least one tombstone membership cover");
+        if (covers.isEmpty()) throw new IllegalArgumentException("No Tombstone Claim is required for this customer-funded request");
+        if (toDate(request.get("date_of_death")) == null) {
+            throw new IllegalArgumentException("Date of death is required to initiate Tombstone Claims");
+        }
         requireCoverLimit(covers.size());
         Set<String> unique = new HashSet<>();
         String providerTenant = currentTenant();
@@ -201,7 +204,8 @@ public class TombstoneInstallationRequestService {
         create.setDateOfDeath(toDate(request.get("date_of_death")));
         create.setClaimDate(LocalDate.now());
         create.setCauseOfDeath(asString(request.get("cause_of_death")));
-        create.setDeathCertificateNo(asString(request.get("death_certificate_no")));
+        // A death certificate is not collected for a Tombstone Installation Request.
+        // Supporting information is supplied by the family or the membership-owning tenant.
         create.setNotes("Tombstone Installation Request: " + requestId);
         create.setSubmit(false);
         if (StringUtils.hasText(asString(request.get("deceased_identity_number")))) {
@@ -303,12 +307,22 @@ public class TombstoneInstallationRequestService {
     public Map<String, Object> generate(String id, String actor) {
         Map<String, Object> request = locked(id);
         if (StringUtils.hasText(asString(request.get("tombstone_order_id")))) return get(id);
-        if (!"CLAIMS_INITIATED".equals(asString(request.get("status")))) {
+        List<TombstoneInstallationDtos.SelectedCover> covers = readCovers(request.get("covers_json"));
+        boolean claimingBenefit = !covers.isEmpty();
+        if (claimingBenefit && !"CLAIMS_INITIATED".equals(asString(request.get("status")))) {
             throw new IllegalStateException("Initiate the selected Tombstone Claims before generating an order");
+        }
+        if (!claimingBenefit && !"DRAFT".equals(asString(request.get("status")))) {
+            throw new IllegalStateException("This request cannot generate a customer-funded order in its current status");
         }
         List<Map<String, Object>> selected = jdbc.queryForList(
                 "SELECT membership_claim_id FROM tombstone_installation_request_claim WHERE request_id=?", id);
-        if (selected.isEmpty()) throw new IllegalStateException("No Tombstone Claims linked to request");
+        if (claimingBenefit && selected.size() != covers.size()) {
+            throw new IllegalStateException("Initiate every selected Tombstone Claim before generating an order");
+        }
+        if (!claimingBenefit && !selected.isEmpty()) {
+            throw new IllegalStateException("A request with linked claims cannot generate a customer-funded order");
+        }
         TombstoneDtos.CreateOrderRequest order = new TombstoneDtos.CreateOrderRequest();
         order.setCustomerPartnerId(asString(request.get("customer_partner_id")));
         order.setMembershipId(selected.size() == 1 ? findSingleLocalMembership(id) : null);
@@ -320,7 +334,7 @@ public class TombstoneInstallationRequestService {
         order.setSalesArea(asString(request.get("sales_area")));
         order.setWorkcenterId(asString(request.get("workcenter_id")));
         order.setExpectedInstallationDate(toDate(request.get("expected_installation_date")));
-        order.setFundingMethod("FUNERAL_COVER");
+        order.setFundingMethod(claimingBenefit ? "FUNERAL_COVER" : "CASH");
         order.setDiscountCents(((Number) request.get("discount_cents")).longValue());
         order.setNotes("Installation request " + request.get("request_no") + ". " + Objects.toString(request.get("notes"), ""));
         try {
@@ -412,18 +426,20 @@ public class TombstoneInstallationRequestService {
     private void validate(TombstoneInstallationDtos.Request request) {
         if (request == null) throw new IllegalArgumentException("Request is required");
         required(request.getCustomerPartnerId(), "customerPartnerId");
-        required(request.getDeceasedPartnerId(), "deceasedPartnerId");
         required(request.getDeceasedName(), "deceasedName");
-        if (request.getDateOfDeath() == null || request.getDateOfDeath().isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("A valid past or current date of death is required");
+        // Families may commission a tombstone without having used our funeral or membership services.
+        // Their supplied deceased details are sufficient: an internal partner record is optional.
+        if (request.getDateOfDeath() != null && request.getDateOfDeath().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Date of death cannot be in the future");
+        }
+        if (request.getSelectedCovers() != null && !request.getSelectedCovers().isEmpty()
+                && request.getDateOfDeath() == null) {
+            throw new IllegalArgumentException("Date of death is required only when claiming a membership benefit");
         }
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new IllegalArgumentException("At least one tombstone product or installation service is required");
         }
-        if (request.getSelectedCovers() == null || request.getSelectedCovers().isEmpty()) {
-            throw new IllegalArgumentException("Select at least one membership with a Tombstone benefit");
-        }
-        requireCoverLimit(request.getSelectedCovers().size());
+        requireCoverLimit(request.getSelectedCovers() == null ? 0 : request.getSelectedCovers().size());
         if (request.getDiscountCents() != null && request.getDiscountCents() < 0) throw new IllegalArgumentException("Discount cannot be negative");
         for (TombstoneDtos.ItemRequest item : request.getItems()) {
             required(item.getDescription(), "item.description");
@@ -444,8 +460,13 @@ public class TombstoneInstallationRequestService {
         }
     }
     private List<TombstoneInstallationDtos.SelectedCover> readCovers(Object json) {
-        try { return mapper.readValue(asString(json), new TypeReference<>() {}); }
-        catch (JsonProcessingException exception) { throw new IllegalStateException("Invalid saved membership selections", exception); }
+        try {
+            if (json == null) return List.of();
+            List<TombstoneInstallationDtos.SelectedCover> covers = mapper.readValue(asString(json), new TypeReference<>() {});
+            return covers == null ? List.of() : covers;
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Invalid saved membership selections", exception);
+        }
     }
     private Object readJson(Object json) {
         try { return mapper.readValue(asString(json), Object.class); }
