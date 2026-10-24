@@ -115,6 +115,73 @@ class TombstoneInstallationFamilyDetailsTest {
         assertTrue(error.getMessage().contains("quantity must be one"));
     }
 
+    private String validOrderItems() {
+        return "[{\"productId\":\"TS-PRODUCT-1\",\"itemType\":\"TOMBSTONE\","
+                + "\"description\":\"Memorial\",\"material\":\"Granite\","
+                + "\"colour\":\"Black\",\"dimensions\":\"1200 x 900 mm\","
+                + "\"inscriptionText\":\"In loving memory\",\"quantity\":1,"
+                + "\"unitPriceCents\":250000}]";
+    }
+
+    private Map<String, Object> readyOrder() {
+        Map<String, Object> row = new HashMap<>();
+        row.put("deceased_name", "Family-Supplied Deceased Name");
+        row.put("customer_partner_id", "FAMILY-REP-1");
+        row.put("family_representative_name", "Family Representative");
+        row.put("family_representative_contact", "082 123 4567");
+        row.put("sales_area", "MAWA-SALES-AREA");
+        row.put("installation_directions", "Left after the community hall");
+        row.put("discount_cents", 0L);
+        row.put("items_json", validOrderItems());
+        return row;
+    }
+
+    @Test
+    void completeInvoiceEngravingAndInstallationDetailsPassWithoutCemeteryOrGraveNumber() {
+        assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(service,
+                "validateOrderReadiness", readyOrder()));
+    }
+
+    @Test
+    void missingCustomerContactInstallationAreaOrDirectionsBlocksOrderGeneration() {
+        for (String key : List.of("family_representative_contact", "sales_area", "installation_directions")) {
+            Map<String, Object> row = readyOrder();
+            row.remove(key);
+            IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                    () -> ReflectionTestUtils.invokeMethod(service, "validateOrderReadiness", row));
+            assertTrue(error.getMessage().contains("required"), key);
+        }
+    }
+
+    @Test
+    void missingEngravingAndProductionSpecificationsBlockOrderGeneration() throws Exception {
+        for (String field : List.of("inscriptionText", "material", "colour", "dimensions")) {
+            Map<String, Object> row = readyOrder();
+            var items = mapper.readTree(validOrderItems());
+            ((com.fasterxml.jackson.databind.node.ObjectNode) items.get(0)).remove(field);
+            row.put("items_json", mapper.writeValueAsString(items));
+            IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                    () -> ReflectionTestUtils.invokeMethod(service, "validateOrderReadiness", row));
+            assertTrue(error.getMessage().contains("required"), field);
+        }
+    }
+
+    @Test
+    void missingProductOrInvalidPricesCannotCreateInvoice() throws Exception {
+        for (String field : List.of("productId", "description", "unitPriceCents")) {
+            Map<String, Object> row = readyOrder();
+            var items = mapper.readTree(validOrderItems());
+            ((com.fasterxml.jackson.databind.node.ObjectNode) items.get(0)).remove(field);
+            row.put("items_json", mapper.writeValueAsString(items));
+            assertThrows(IllegalArgumentException.class,
+                    () -> ReflectionTestUtils.invokeMethod(service, "validateOrderReadiness", row));
+        }
+        Map<String, Object> overDiscounted = readyOrder();
+        overDiscounted.put("discount_cents", 250001L);
+        assertThrows(IllegalArgumentException.class,
+                () -> ReflectionTestUtils.invokeMethod(service, "validateOrderReadiness", overDiscounted));
+    }
+
     @Test
     void customerFundedInstallationGeneratesCashOrderWithoutClaim() {
         Map<String, Object> row = new HashMap<>();
@@ -125,8 +192,11 @@ class TombstoneInstallationFamilyDetailsTest {
         row.put("deceased_partner_id", null);
         row.put("deceased_name", "Family-Supplied Deceased Name");
         row.put("discount_cents", 0L);
+        row.put("family_representative_name", "Family Representative");
+        row.put("family_representative_contact", "082 123 4567");
+        row.put("sales_area", "MAWA-SALES-AREA");
         row.put("installation_directions", "Left after the community hall, blue gate");
-        row.put("items_json", "[{\"description\":\"Memorial\",\"quantity\":1,\"unitPriceCents\":250000}]");
+        row.put("items_json", validOrderItems());
         row.put("covers_json", "[]");
         when(jdbc.queryForList(anyString(), eq("REQ-1"))).thenAnswer(invocation -> {
             String sql = invocation.getArgument(0);

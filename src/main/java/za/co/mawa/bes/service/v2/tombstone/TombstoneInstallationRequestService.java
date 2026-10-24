@@ -150,6 +150,7 @@ public class TombstoneInstallationRequestService {
         if (!Set.of("DRAFT", "CLAIMS_INITIATED").contains(asString(request.get("status")))) {
             throw new IllegalStateException("Claims cannot be initiated in the request's current status");
         }
+        validateOrderReadiness(request);
         List<TombstoneInstallationDtos.SelectedCover> covers = readCovers(request.get("covers_json"));
         if (covers.isEmpty()) throw new IllegalArgumentException("No Tombstone Claim is required for this customer-funded request");
         if (toDate(request.get("date_of_death")) == null) {
@@ -307,6 +308,9 @@ public class TombstoneInstallationRequestService {
     public Map<String, Object> generate(String id, String actor) {
         Map<String, Object> request = locked(id);
         if (StringUtils.hasText(asString(request.get("tombstone_order_id")))) return get(id);
+        // A draft may be incomplete, but no invoice or production order may be
+        // created until billing, engraving and site details are complete.
+        validateOrderReadiness(request);
         List<TombstoneInstallationDtos.SelectedCover> covers = readCovers(request.get("covers_json"));
         boolean claimingBenefit = !covers.isEmpty();
         if (claimingBenefit && !"CLAIMS_INITIATED".equals(asString(request.get("status")))) {
@@ -426,6 +430,60 @@ public class TombstoneInstallationRequestService {
             throw new IllegalStateException("Only draft requests may be edited");
         }
     }
+    /** Guarded on the backend as well as in the wizard: direct API requests and
+     * old, incomplete drafts must not generate incomplete invoices or engraving jobs.
+     * Cemetery, cemetery section, grave number and installation date remain optional.
+     */
+    private void validateOrderReadiness(Map<String, Object> row) {
+        required(asString(row.get("deceased_name")), "deceased full name");
+        required(asString(row.get("customer_partner_id")), "invoice customer partner");
+        required(asString(row.get("family_representative_name")), "family representative name");
+        required(asString(row.get("family_representative_contact")), "family representative contact details");
+        required(asString(row.get("sales_area")), "installation area");
+        required(asString(row.get("installation_directions")), "directions to installation site");
+        List<TombstoneDtos.ItemRequest> items;
+        try {
+            items = mapper.readValue(required(asString(row.get("items_json")), "items"), new TypeReference<>() {});
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Invalid tombstone order items", exception);
+        }
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Select exactly one Tombstone package");
+        }
+        List<TombstoneDtos.ItemRequest> packages = items.stream()
+                .filter(item -> "TOMBSTONE".equalsIgnoreCase(item.getItemType())).toList();
+        if (packages.size() != 1) {
+            throw new IllegalArgumentException("Select exactly one Tombstone package per deceased");
+        }
+        TombstoneDtos.ItemRequest memorial = packages.get(0);
+        required(memorial.getProductId(), "Tombstone product for invoice");
+        required(memorial.getDescription(), "Tombstone invoice description");
+        required(memorial.getInscriptionText(), "exact inscription / engraving wording");
+        required(memorial.getMaterial(), "Tombstone material");
+        required(memorial.getColour(), "Tombstone colour");
+        required(memorial.getDimensions(), "Tombstone dimensions");
+        if (memorial.getUnitPriceCents() == null || memorial.getUnitPriceCents() <= 0) {
+            throw new IllegalArgumentException("Tombstone package must have a positive price for invoicing");
+        }
+        long subtotal = 0;
+        for (TombstoneDtos.ItemRequest item : items) {
+            required(item.getItemType(), "item type");
+            required(item.getProductId(), "item product for invoice");
+            required(item.getDescription(), "item invoice description");
+            if (item.getUnitPriceCents() == null || item.getUnitPriceCents() < 0) {
+                throw new IllegalArgumentException("Every invoice item must have a valid price");
+            }
+            if (item.getQuantity() != null && item.getQuantity().compareTo(java.math.BigDecimal.ONE) != 0) {
+                throw new IllegalArgumentException("Tombstone installation item quantity must be one");
+            }
+            subtotal = Math.addExact(subtotal, item.getUnitPriceCents());
+        }
+        long discount = row.get("discount_cents") instanceof Number number ? number.longValue() : 0L;
+        if (discount < 0 || discount > subtotal) {
+            throw new IllegalArgumentException("Order discount must not exceed the total item price");
+        }
+    }
+
     private void validate(TombstoneInstallationDtos.Request request) {
         if (request == null) throw new IllegalArgumentException("Request is required");
         required(request.getCustomerPartnerId(), "customerPartnerId");
