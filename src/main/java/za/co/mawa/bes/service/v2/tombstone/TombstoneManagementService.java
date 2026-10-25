@@ -125,7 +125,14 @@ public class TombstoneManagementService {
                 .fundingStatus("UNFUNDED")
                 .productionStatus("NOT_STARTED")
                 .installationStatus("NOT_READY")
+                // The initial save occurs before items are calculated. All NOT NULL
+                // financial columns must therefore be initialized immediately.
+                .subtotalCents(0L)
+                .taxCents(0L)
                 .discountCents(nonNegative(request.getDiscountCents()))
+                .totalCents(0L)
+                .confirmedFundingCents(0L)
+                .balanceCents(0L)
                 .notes(trimToNull(request.getNotes()))
                 .createdBy(systemActor(actor))
                 .updatedBy(systemActor(actor))
