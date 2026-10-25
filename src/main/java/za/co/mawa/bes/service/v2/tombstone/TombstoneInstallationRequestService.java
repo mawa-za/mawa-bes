@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimCreateRequest;
 import za.co.mawa.bes.dto.v2.membership.claim.MembershipClaimResponse;
 import za.co.mawa.bes.dto.v2.tombstone.TombstoneDtos;
 import za.co.mawa.bes.dto.v2.funeral.FuneralMembershipCoverDto;
+import za.co.mawa.bes.dto.v2.funeral.FuneralTenantIntegrationConfigDto;
 import za.co.mawa.bes.dto.v2.tombstone.TombstoneInstallationDtos;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.MembershipClaimDeceasedType;
@@ -36,6 +39,7 @@ import java.util.function.Supplier;
 @Service
 @RequiredArgsConstructor
 public class TombstoneInstallationRequestService {
+    private static final Logger log = LoggerFactory.getLogger(TombstoneInstallationRequestService.class);
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final NumberAllocationService numbers;
@@ -115,33 +119,86 @@ public class TombstoneInstallationRequestService {
         return result;
     }
 
-    /** Uses the same trusted local/external membership lookup as Funeral Service Requests. */
+    /**
+     * Discover memberships through the approved local/external funeral integration,
+     * but evaluate TOMBSTONE entitlements in the membership-owning tenant.
+     *
+     * A previously swallowed error could make a valid external membership look
+     * like it did not exist. Never advertise an unverified benefit, but return a
+     * useful error when memberships are found and entitlement checks fail.
+     */
     public List<Map<String, Object>> checkMembership(String identityNumber, LocalDate eventDate) {
         required(identityNumber, "identityNumber");
+        List<FuneralMembershipCoverDto> matched = funeral.checkMembership(identityNumber);
         List<Map<String, Object>> result = new ArrayList<>();
-        for (FuneralMembershipCoverDto cover : funeral.checkMembership(identityNumber)) {
+        List<String> failures = new ArrayList<>();
+        Set<String> processed = new HashSet<>();
+        for (FuneralMembershipCoverDto cover : matched) {
             String owner = StringUtils.hasText(cover.getSourceTenantId())
                     ? cover.getSourceTenantId() : currentTenant();
+            String membershipId = cover.getSourceMembershipId();
+            String deceasedPartner = cover.getDeceasedPartnerId();
+            if (!StringUtils.hasText(membershipId) || !StringUtils.hasText(deceasedPartner)) {
+                log.warn("TOMBSTONE cover lookup received an incomplete candidate from source tenant {}", owner);
+                failures.add("A membership source returned incomplete deceased or membership details");
+                continue;
+            }
+            if (!processed.add(owner + ":" + membershipId + ":" + deceasedPartner)) continue;
             try {
-                long amount = ((Number) inOwner(owner, null, () -> claims.resolveBenefit(
-                        cover.getSourceMembershipId(), MembershipClaimType.TOMBSTONE,
-                        cover.getDeceasedPartnerId(), eventDate == null ? LocalDate.now() : eventDate, null).get("claimAmountCents"))).longValue();
-                if (amount <= 0) continue;
+                Map<String, Object> entitlement = inOwner(owner, null, () -> claims.resolveBenefit(
+                        membershipId, MembershipClaimType.TOMBSTONE, deceasedPartner,
+                        eventDate == null ? LocalDate.now() : eventDate, null));
+                Object rawAmount = entitlement.get("claimAmountCents");
+                long amount = rawAmount instanceof Number ? ((Number) rawAmount).longValue() : 0L;
+                if (amount <= 0L) {
+                    failures.add("The membership has no positive TOMBSTONE payout for this deceased");
+                    continue;
+                }
                 Map<String, Object> item = new LinkedHashMap<>();
-                item.put("membershipId", cover.getSourceMembershipId());
+                item.put("membershipId", membershipId);
                 item.put("membershipNumber", cover.getMembershipNumber());
                 item.put("burialSocietyName", cover.getBurialSocietyName());
                 item.put("tenantId", owner);
                 item.put("sourceTenantName", cover.getSourceTenantName());
-                item.put("deceasedPartnerId", cover.getDeceasedPartnerId());
+                item.put("deceasedPartnerId", deceasedPartner);
                 item.put("deceasedType", cover.getDeceasedType());
                 item.put("tombstoneAmountCents", amount);
                 result.add(item);
-            } catch (RuntimeException ignored) {
-                // Do not advertise an unverified benefit from an unavailable source tenant.
+            } catch (RuntimeException exception) {
+                // Log the technical cause for administrators without logging the identity number.
+                log.warn("TOMBSTONE entitlement lookup failed in source tenant {} for membership {}: {}",
+                        owner, membershipId, exception.getMessage(), exception);
+                failures.add(explainCoverFailure(exception));
             }
         }
+        if (result.isEmpty() && !failures.isEmpty()) {
+            // Preserve the safety boundary: never claim another tenant's unverified benefit.
+            throw new IllegalArgumentException(
+                    "Membership found, but the TOMBSTONE benefit cannot be used: " +
+                    String.join("; ", new LinkedHashSet<>(failures)));
+        }
+        if (matched.isEmpty()) {
+            log.info("TOMBSTONE cover lookup returned no memberships in enabled local/external sources for tenant {}",
+                    currentTenant());
+        }
         return result;
+    }
+
+    private String explainCoverFailure(RuntimeException exception) {
+        String message = Objects.toString(exception.getMessage(), "").toLowerCase(Locale.ROOT);
+        if (message.contains("claim type") && message.contains("not enabled")) {
+            return "Enable TOMBSTONE in Claim Type Configuration of the membership-owning tenant";
+        }
+        if (message.contains("no payout rule configured")) {
+            return "Configure an active TOMBSTONE payout rule for the deceased's membership plan and dependent type in the membership-owning tenant";
+        }
+        if (message.contains("not linked to the membership")) {
+            return "The deceased is not linked to the source membership";
+        }
+        if (message.contains("membership not found")) {
+            return "The membership could not be resolved in its owning tenant";
+        }
+        return "The membership-owning tenant could not verify the TOMBSTONE entitlement (check backend logs)";
     }
 
     /** Requests are separately persisted before creating claims in a source tenant. */
@@ -518,7 +575,21 @@ public class TombstoneInstallationRequestService {
     }
     public Map<String, Object> configuration() {
         int maximum = funeral.getServiceConfiguration().getMaxSelectableCovers();
-        return Map.of("maxSelectedCovers", maximum, "coverLimitEnabled", maximum > 0);
+        FuneralTenantIntegrationConfigDto integration = funeral.getTenantIntegrationConfiguration();
+        String mode = integration == null || !StringUtils.hasText(integration.getMembershipSourceMode())
+                ? "LOCAL_ONLY" : integration.getMembershipSourceMode();
+        boolean externalSource = "EXTERNAL_ONLY".equalsIgnoreCase(mode)
+                || "LOCAL_AND_EXTERNAL".equalsIgnoreCase(mode);
+        boolean externalLookupEnabled = externalSource && integration != null
+                && Boolean.TRUE.equals(integration.getActive())
+                && Boolean.TRUE.equals(integration.getMembershipLookupEnabled())
+                && StringUtils.hasText(integration.getExternalTenantId());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("maxSelectedCovers", maximum);
+        result.put("coverLimitEnabled", maximum > 0);
+        result.put("membershipSourceMode", mode);
+        result.put("externalLookupEnabled", externalLookupEnabled);
+        return result;
     }
     private void requireCoverLimit(int selected) {
         int maximum = funeral.getServiceConfiguration().getMaxSelectableCovers();
