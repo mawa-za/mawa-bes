@@ -86,16 +86,16 @@ class TombstoneExternalCoverLookupTest {
         assertEquals(180000L, covers.get(0).get("tombstoneAmountCents"));
     }
 
-    @Test void disabledTombstoneClaimTypeIsExplained() {
+    @Test void externalSourceFailureIsExplainedRatherThanSilentlyDiscardingCover() {
         when(funeral.checkMembership("3409067676080")).thenReturn(List.of(externalCover()));
         executeSourceTenantOperation();
         when(claims.resolveBenefit(anyString(), eq(MembershipClaimType.TOMBSTONE),
                 anyString(), eq(death), isNull()))
-                .thenThrow(new IllegalArgumentException("Claim type TOMBSTONE is not enabled in Claim Type Configuration"));
+                .thenThrow(new IllegalStateException("Source tenant unavailable"));
         var error = assertThrows(IllegalArgumentException.class,
                 () -> service.checkMembership("3409067676080", death));
-        assertTrue(error.getMessage().contains("Enable TOMBSTONE"));
         assertTrue(error.getMessage().contains("membership-owning tenant"));
+        assertFalse(error.getMessage().contains("Enable TOMBSTONE"));
     }
 
     @Test void missingTombstonePayoutIsExplained() {

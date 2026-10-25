@@ -187,7 +187,7 @@ public class TombstoneInstallationRequestService {
     private String explainCoverFailure(RuntimeException exception) {
         String message = Objects.toString(exception.getMessage(), "").toLowerCase(Locale.ROOT);
         if (message.contains("claim type") && message.contains("not enabled")) {
-            return "Enable TOMBSTONE in Claim Type Configuration of the membership-owning tenant";
+            return "The membership source uses direct-claim configuration when resolving a benefit; update the backend benefit validation";
         }
         if (message.contains("no payout rule configured")) {
             return "Configure an active TOMBSTONE payout rule for the deceased's membership plan and dependent type in the membership-owning tenant";
@@ -283,7 +283,7 @@ public class TombstoneInstallationRequestService {
         if (((Number) entitlement.get("claimAmountCents")).longValue() <= 0L) {
             throw new IllegalArgumentException("The selected membership has no TOMBSTONE benefit for the deceased");
         }
-        MembershipClaimResponse result = claims.create(create, actor);
+        MembershipClaimResponse result = claims.createFromTombstoneInstallationRequest(create, actor);
         return result;
     }
 

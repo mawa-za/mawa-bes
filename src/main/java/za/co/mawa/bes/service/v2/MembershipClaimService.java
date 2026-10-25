@@ -87,10 +87,42 @@ public class MembershipClaimService {
         this.membershipActionGuardService = membershipActionGuardService;
     }
 
+    /**
+     * Direct claim capture from the Claim Creation screen/API. Claim Type Configuration
+     * controls which types users may initiate here; it is not a policy benefit switch.
+     */
     @Transactional
     public MembershipClaimResponse create(MembershipClaimCreateRequest request, String userId) {
+        if (request != null && StringUtils.hasText(request.getTombstoneInstallationRequestId())) {
+            throw new IllegalArgumentException(
+                    "Tombstone Installation Request claims must be initiated through the installation workflow");
+        }
+        return createValidated(request, userId, true);
+    }
+
+    /**
+     * System-initiated claim from an authorised Tombstone Installation Request.
+     * The caller verifies tenant trust and the source relationship before invoking
+     * this method. Only the direct capture visibility toggle is bypassed.
+     * All membership eligibility, payout and duplicate-benefit checks still run.
+     */
+    @Transactional
+    public MembershipClaimResponse createFromTombstoneInstallationRequest(
+            MembershipClaimCreateRequest request, String userId) {
+        if (request == null || request.getClaimType() != MembershipClaimType.TOMBSTONE
+                || !StringUtils.hasText(request.getTombstoneInstallationRequestId())) {
+            throw new IllegalArgumentException(
+                    "A Tombstone Installation Request reference and TOMBSTONE claim type are required");
+        }
+        return createValidated(request, userId, false);
+    }
+
+    private MembershipClaimResponse createValidated(
+            MembershipClaimCreateRequest request, String userId, boolean directCapture) {
         validateCreateRequest(request);
-        claimTypeConfigurationService.requireEnabled(request.getClaimType());
+        if (directCapture) {
+            claimTypeConfigurationService.requireEnabled(request.getClaimType());
+        }
         if (request.getClaimType() == MembershipClaimType.CASH && Boolean.TRUE.equals(request.getSubmit())) {
             throw new IllegalArgumentException("CASH claims must be saved as DRAFT, the claim form downloaded, signed and attached before submission");
         }
@@ -886,7 +918,8 @@ public class MembershipClaimService {
             LocalDate eventDate,
             String userId
     ) {
-        claimTypeConfigurationService.requireEnabled(claimType);
+        // The benefit belongs to the plan and deceased relationship. Claim Type
+        // Configuration only restricts direct manual claim capture, not payout lookup.
         MembershipEntity membership = membershipRepository.findById(membershipId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId));
         String deceased = StringUtils.hasText(deceasedPartnerId) ? deceasedPartnerId : membership.getMemberId();
