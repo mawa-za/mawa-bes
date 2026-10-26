@@ -18,6 +18,8 @@ import za.co.mawa.bes.dto.v2.membership.change.MembershipChangeResponse;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentAddRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentRemoveRequest;
 import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentReplaceRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentDeceasedRequest;
+import za.co.mawa.bes.dto.v2.membership.change.MembershipDependentEligibilityRequest;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataSnapshotResponse;
 import za.co.mawa.bes.dto.v2.payapp.PayAppMasterDataChangesResponse;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
@@ -253,6 +255,22 @@ public class MembershipControllerV2 {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(membershipChangeService.requestDependentAdd(
                         membershipId, request, actor(principal)));
+    }
+
+    @PostMapping("/{membershipId}/dependents/{dependentId}/deceased")
+    public ResponseEntity<MembershipChangeResponse> markDependentDeceased(
+            @PathVariable String membershipId, @PathVariable String dependentId,
+            @RequestBody MembershipDependentDeceasedRequest request, Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(membershipChangeService
+                .requestDependentDeceased(membershipId, dependentId, request, actor(principal)));
+    }
+
+    @PostMapping("/{membershipId}/dependents/{dependentId}/claim-eligibility")
+    public ResponseEntity<MembershipChangeResponse> overrideDependentWaitingPeriod(
+            @PathVariable String membershipId, @PathVariable String dependentId,
+            @RequestBody MembershipDependentEligibilityRequest request, Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(membershipChangeService
+                .requestDependentEligibility(membershipId, dependentId, request, actor(principal)));
     }
 
     @PutMapping("/{membershipId}/dependents/{dependentId}")

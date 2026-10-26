@@ -221,6 +221,12 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
             throw new RuntimeException("Approval type is required");
         }
 
+        if ((request.getApprovalType() == ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED
+                || request.getApprovalType() == ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY)
+                && Boolean.TRUE.equals(request.getAutoApprove())) {
+            throw new IllegalArgumentException("Automatic approval is prohibited for dependent death and claim-eligibility overrides");
+        }
+
         if (request.getName() == null || request.getName().isBlank()) {
             throw new RuntimeException("Workflow name is required");
         }

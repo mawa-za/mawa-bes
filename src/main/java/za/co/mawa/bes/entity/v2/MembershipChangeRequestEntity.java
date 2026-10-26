@@ -25,7 +25,7 @@ public class MembershipChangeRequestEntity {
     private String sourceMembershipId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "change_type", nullable = false, length = 30)
+    @Column(name = "change_type", nullable = false, length = 80)
     private MembershipChangeType changeType;
 
     @Enumerated(EnumType.STRING)
@@ -52,6 +52,9 @@ public class MembershipChangeRequestEntity {
 
     @Column(name = "new_dependent_partner_id", length = 255)
     private String newDependentPartnerId;
+
+    @Column(name = "old_dependent_effective_from")
+    private LocalDate oldDependentEffectiveFrom;
 
     @Column(name = "old_dependent_type", length = 50)
     private String oldDependentType;

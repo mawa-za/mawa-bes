@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.inOrder;
@@ -31,6 +32,21 @@ class ApprovalWorkflowConfigServiceImplTest {
 
     @Mock
     private ApprovalWorkflowRepository workflowRepository;
+
+    @Test
+    void cannotConfigureAutomaticApprovalForEitherSensitiveDependentWorkflow() {
+        ApprovalWorkflowConfigServiceImpl service = new ApprovalWorkflowConfigServiceImpl(workflowRepository);
+        for (ApprovalType type : List.of(ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED,
+                ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY)) {
+            ApprovalWorkflowRequestDto request = new ApprovalWorkflowRequestDto();
+            request.setApprovalType(type);
+            request.setName("Sensitive approval");
+            request.setAutoApprove(true);
+            assertTrue(assertThrows(IllegalArgumentException.class,
+                    () -> service.create(request)).getMessage().contains("prohibited"));
+        }
+        verify(workflowRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
 
     @Test
     void activationRequiresEnoughActiveApprovers() {

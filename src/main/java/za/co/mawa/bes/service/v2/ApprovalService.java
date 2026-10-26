@@ -34,6 +34,7 @@ public class ApprovalService {
     private final MembershipClaimService membershipClaimService;
     private final ApprovalApproverScopeService approverScopeService;
     private final ApprovalAccessService approvalAccessService;
+    private final MembershipDateApprovalPayloadResolver membershipDateApprovalPayloadResolver;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -73,6 +74,28 @@ public class ApprovalService {
 //
 //        return workflow;
 //    }
+
+    /** Sensitive actions must never be silently auto-approved by an inactive or automatic workflow. */
+    @Transactional
+    public ApprovalRequestResponse submitForMandatoryApproval(ApprovalSubmitRequest request) {
+        ApprovalWorkflowEntity workflow = resolveWorkflow(request.getApprovalType())
+                .orElseThrow(() -> new IllegalStateException("No manual approval workflow configured for "
+                        + request.getApprovalType()));
+        List<ApprovalWorkflowStepEntity> activeSteps =
+                workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
+        if (!Boolean.TRUE.equals(workflow.getActive()) || Boolean.TRUE.equals(workflow.getAutoApprove())
+                || activeSteps.isEmpty()) {
+            throw new IllegalStateException("An active manual approval workflow is required for "
+                    + request.getApprovalType());
+        }
+        if (activeSteps.stream().anyMatch(step ->
+                step.getApprovers() == null || step.getApprovers().stream()
+                        .noneMatch(approver -> Boolean.TRUE.equals(approver.getActive())))) {
+            throw new IllegalStateException("Every active approval step must have a configured active approver for "
+                    + request.getApprovalType());
+        }
+        return submitForApproval(request);
+    }
 
     @Transactional
     public ApprovalRequestResponse submitForApproval(ApprovalSubmitRequest request) {
@@ -642,6 +665,11 @@ public class ApprovalService {
     }
 
     private ApprovalRequestResponse toResponse(ApprovalRequestEntity entity) {
+        String payloadJson = entity.getPayloadJson();
+        if (entity.getApprovalType() == ApprovalType.MEMBERSHIP_DATE_CHANGE
+                && membershipDateApprovalPayloadResolver != null) {
+            payloadJson = membershipDateApprovalPayloadResolver.resolve(entity.getReferenceId(), payloadJson);
+        }
         return ApprovalRequestResponse.builder()
                 .id(entity.getId())
                 .approvalType(entity.getApprovalType())
@@ -653,7 +681,7 @@ public class ApprovalService {
                 .workflowId(entity.getWorkflowId())
                 .currentStepNo(entity.getCurrentStepNo())
                 .status(entity.getStatus())
-                .payloadJson(entity.getPayloadJson())
+                .payloadJson(payloadJson)
                 .finalActionBy(entity.getFinalActionBy())
                 .finalActionAt(entity.getFinalActionAt())
                 .createdAt(entity.getCreatedAt())
