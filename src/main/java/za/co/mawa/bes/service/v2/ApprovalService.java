@@ -34,6 +34,7 @@ public class ApprovalService {
     private final MembershipClaimService membershipClaimService;
     private final ApprovalApproverScopeService approverScopeService;
     private final ApprovalAccessService approvalAccessService;
+    private final MembershipDateApprovalPayloadResolver membershipDateApprovalPayloadResolver;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -664,6 +665,11 @@ public class ApprovalService {
     }
 
     private ApprovalRequestResponse toResponse(ApprovalRequestEntity entity) {
+        String payloadJson = entity.getPayloadJson();
+        if (entity.getApprovalType() == ApprovalType.MEMBERSHIP_DATE_CHANGE
+                && membershipDateApprovalPayloadResolver != null) {
+            payloadJson = membershipDateApprovalPayloadResolver.resolve(entity.getReferenceId(), payloadJson);
+        }
         return ApprovalRequestResponse.builder()
                 .id(entity.getId())
                 .approvalType(entity.getApprovalType())
@@ -675,7 +681,7 @@ public class ApprovalService {
                 .workflowId(entity.getWorkflowId())
                 .currentStepNo(entity.getCurrentStepNo())
                 .status(entity.getStatus())
-                .payloadJson(entity.getPayloadJson())
+                .payloadJson(payloadJson)
                 .finalActionBy(entity.getFinalActionBy())
                 .finalActionAt(entity.getFinalActionAt())
                 .createdAt(entity.getCreatedAt())
