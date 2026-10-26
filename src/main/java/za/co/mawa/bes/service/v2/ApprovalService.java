@@ -74,6 +74,20 @@ public class ApprovalService {
 //        return workflow;
 //    }
 
+    /** Sensitive actions must never be silently auto-approved by an inactive or automatic workflow. */
+    @Transactional
+    public ApprovalRequestResponse submitForMandatoryApproval(ApprovalSubmitRequest request) {
+        ApprovalWorkflowEntity workflow = resolveWorkflow(request.getApprovalType())
+                .orElseThrow(() -> new IllegalStateException("No manual approval workflow configured for "
+                        + request.getApprovalType()));
+        if (!Boolean.TRUE.equals(workflow.getActive()) || Boolean.TRUE.equals(workflow.getAutoApprove())
+                || workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId()).isEmpty()) {
+            throw new IllegalStateException("An active manual approval workflow is required for "
+                    + request.getApprovalType());
+        }
+        return submitForApproval(request);
+    }
+
     @Transactional
     public ApprovalRequestResponse submitForApproval(ApprovalSubmitRequest request) {
         if (request.getApprovalType() != null && request.getApprovalType().isMembershipClaimApproval()) {

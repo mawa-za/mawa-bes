@@ -34,6 +34,7 @@ public class MembershipChangeResponse {
     private String newDependentPartnerId;
     private String newDependentName;
     private String oldDependentType;
+    private LocalDate oldDependentEffectiveFrom;
     private String newDependentType;
 
     private Integer waitingPeriodMonths;

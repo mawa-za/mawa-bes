@@ -277,10 +277,13 @@ public class MembershipChangeService {
         MembershipPlanEntity plan = membershipPlanRepository.findById(membership.getPlanId())
                 .orElseThrow(() -> new IllegalArgumentException("Membership plan not found"));
         int maximum = plan.getMaxDependents() == null ? 0 : plan.getMaxDependents();
-        long current = dependentCapacityCount(membershipId);
+        long current = dependentCapacityCount(membershipId)
+                + changeRequestRepository.countByMembershipIdAndChangeTypeAndStatusIn(
+                    membershipId, MembershipChangeType.ADD_DEPENDENT,
+                    List.of(MembershipChangeStatus.PENDING_APPROVAL, MembershipChangeStatus.APPROVED_SCHEDULED));
         if (maximum > 0 && current >= maximum) {
             throw new IllegalStateException("The plan allows a maximum of " + maximum
-                    + " dependents. Deceased dependents with finalised claims remain part of this count.");
+                    + " dependents. Deceased dependents remain part of this count.");
         }
 
         String actionBy = actor(actor);
@@ -416,6 +419,102 @@ public class MembershipChangeService {
         return submitOrApplyDependentChange(change, membership, actionBy);
     }
 
+    /** Historic death is recorded on this membership only, after final approval. */
+    @Transactional
+    public MembershipChangeResponse requestDependentDeceased(
+            String membershipId, String dependentId,
+            MembershipDependentDeceasedRequest request, String actor) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
+        MembershipDependentEntity dependent = getVisibleDependent(membershipId, dependentId);
+        if (dependent.getStatus() != MembershipDependentStatus.ACTIVE) {
+            throw new IllegalArgumentException("Only active dependents may be marked deceased");
+        }
+        if (request == null || request.getDeceasedDate() == null) {
+            throw new IllegalArgumentException("Date of death is required");
+        }
+        LocalDate deathDate = request.getDeceasedDate();
+        if (deathDate.isAfter(LocalDate.now()) || (membership.getStartDate() != null
+                && deathDate.isBefore(membership.getStartDate()))) {
+            throw new IllegalArgumentException("Date of death must be between membership start and today");
+        }
+        if (membershipClaimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                membershipId, dependent.getDependentPartnerId(), MembershipClaimStatus.CANCELLED)) {
+            throw new IllegalArgumentException("An existing claim must be reviewed before recording historic death");
+        }
+        requireNoConflictingDependentChange(membershipId, dependentId, null);
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = dependentActionRequest(
+                membership, dependent, MembershipChangeType.MARK_DEPENDENT_DECEASED,
+                requireReason(request.getReason()), actionBy);
+        change.setEffectiveDate(deathDate);
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED", dependentOldValue(change),
+                Map.of("status", "DECEASED", "deceasedDate", deathDate.toString()), change.getReason(), actionBy);
+        return submitRequiredDependentApproval(change, membership, actionBy);
+    }
+
+    /** Waive only the dependent's waiting period; other claim guards stay in force. */
+    @Transactional
+    public MembershipChangeResponse requestDependentEligibility(
+            String membershipId, String dependentId,
+            MembershipDependentEligibilityRequest request, String actor) {
+        MembershipEntity membership = getMembershipForUpdate(membershipId);
+        membershipActionGuardService.requireActionable(membership);
+        MembershipDependentEntity dependent = getVisibleDependent(membershipId, dependentId);
+        if (dependent.getStatus() != MembershipDependentStatus.ACTIVE) {
+            throw new IllegalArgumentException("Only active dependents may receive an eligibility override");
+        }
+        if (dependent.getEffectiveFrom() == null || !dependent.getEffectiveFrom().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("This dependent is already eligible under the dependent waiting-period rule");
+        }
+        LocalDate eligibleFrom = request == null || request.getEligibleFrom() == null
+                ? LocalDate.now() : request.getEligibleFrom();
+        if (eligibleFrom.isAfter(LocalDate.now())
+                || (membership.getStartDate() != null && eligibleFrom.isBefore(membership.getStartDate()))
+                || !eligibleFrom.isBefore(dependent.getEffectiveFrom())) {
+            throw new IllegalArgumentException("Requested eligibility date must be within the membership's coverage "
+                    + "period, no later than today, and before the existing dependent benefit date");
+        }
+        requireNoConflictingDependentChange(membershipId, dependentId, null);
+        String actionBy = actor(actor);
+        MembershipChangeRequestEntity change = dependentActionRequest(
+                membership, dependent, MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD,
+                requireReason(request == null ? null : request.getReason()), actionBy);
+        // No effect until final approval; approvers can review any requested backdating.
+        change.setEffectiveDate(eligibleFrom);
+        change = changeRequestRepository.save(change);
+        audit(change, "REQUESTED", dependentOldValue(change),
+                Map.of("benefitEffectiveDate", eligibleFrom.toString()), change.getReason(), actionBy);
+        return submitRequiredDependentApproval(change, membership, actionBy);
+    }
+
+    private MembershipChangeRequestEntity dependentActionRequest(
+            MembershipEntity membership, MembershipDependentEntity dependent,
+            MembershipChangeType type, String reason, String actor) {
+        return MembershipChangeRequestEntity.builder()
+                .membershipId(membership.getId()).changeType(type)
+                .status(MembershipChangeStatus.PENDING_APPROVAL)
+                .oldMemberId(membership.getMemberId()).newMemberId(membership.getMemberId())
+                .oldPlanId(membership.getPlanId()).newPlanId(membership.getPlanId())
+                .oldDependentId(dependent.getId())
+                .oldDependentPartnerId(dependent.getDependentPartnerId())
+                .oldDependentType(dependent.getDependentType() == null ? null : dependent.getDependentType().name())
+                .oldDependentEffectiveFrom(dependent.getEffectiveFrom())
+                .waitingPeriodMonths(0).reason(reason)
+                .requestedAt(LocalDateTime.now()).requestedBy(actor)
+                .updatedAt(LocalDateTime.now()).updatedBy(actor).build();
+    }
+
+    /** Unlike ordinary dependent additions, these sensitive actions ALWAYS require approval. */
+    private MembershipChangeResponse submitRequiredDependentApproval(
+            MembershipChangeRequestEntity change, MembershipEntity membership, String actor) {
+        ApprovalRequestResponse approval = submit(change, membership, ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE, actor);
+        MembershipChangeRequestEntity persisted = changeRequestRepository.findById(change.getId()).orElseThrow();
+        persisted.setApprovalRequestId(approval.getId());
+        return toResponse(changeRequestRepository.save(persisted));
+    }
+
     @Transactional(readOnly = true)
     public List<MembershipChangeResponse> listChanges(String membershipId) {
         return changeRequestRepository.findByMembershipIdOrderByRequestedAtDesc(membershipId).stream().map(this::toResponse).toList();
@@ -452,7 +551,15 @@ public class MembershipChangeService {
                     actor);
             applyTransfer(change, actor);
         } else if (isDependentChange(change.getChangeType())) {
-            change.setEffectiveDate(LocalDate.now());
+            if (change.getChangeType() == MembershipChangeType.ADD_DEPENDENT) {
+                // A pending add starts its waiting period on approval, not submission.
+                int months = change.getWaitingPeriodMonths() == null ? DEFAULT_WAITING_PERIOD_MONTHS
+                        : change.getWaitingPeriodMonths();
+                change.setEffectiveDate(LocalDate.now().plusMonths(months));
+            } else if (change.getChangeType() != MembershipChangeType.MARK_DEPENDENT_DECEASED
+                    && change.getChangeType() != MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
+                change.setEffectiveDate(LocalDate.now());
+            }
             changeRequestRepository.save(change);
             audit(change, "APPROVED", dependentOldValue(change), dependentNewValue(change),
                     "Membership dependent change approved", actor);
@@ -816,19 +923,64 @@ public class MembershipChangeService {
         MembershipDependentEntity affected;
 
         switch (change.getChangeType()) {
-            case ADD_DEPENDENT -> affected = activateDependent(
+            case ADD_DEPENDENT -> {
+                MembershipEntity membership = getMembershipForUpdate(change.getMembershipId());
+                MembershipPlanEntity plan = membershipPlanRepository.findById(membership.getPlanId())
+                        .orElseThrow(() -> new IllegalStateException("Membership plan was not found"));
+                int maximum = plan.getMaxDependents() == null ? 0 : plan.getMaxDependents();
+                if (maximum > 0 && dependentCapacityCount(change.getMembershipId()) >= maximum) {
+                    throw new IllegalStateException("Membership dependent limit reached before approval was applied");
+                }
+                affected = activateDependent(
                     change.getMembershipId(),
                     change.getNewDependentPartnerId(),
                     DependentType.valueOf(change.getNewDependentType()),
                     change,
                     effectiveDate,
                     actor
-            );
+                );
+            }
             case REMOVE_DEPENDENT -> {
                 affected = getVisibleDependent(change.getMembershipId(), change.getOldDependentId());
                 affected.setActive(false);
                 affected.setStatus(MembershipDependentStatus.REMOVED);
                 affected.setEffectiveTo(effectiveDate);
+                affected.setStatusReason(change.getReason());
+                affected.setSourceChangeRequestId(change.getId());
+                affected.setUpdatedBy(actor);
+                membershipDependentRepository.save(affected);
+            }
+            case MARK_DEPENDENT_DECEASED -> {
+                affected = getVisibleDependent(change.getMembershipId(), change.getOldDependentId());
+                if (affected.getStatus() != MembershipDependentStatus.ACTIVE) {
+                    throw new IllegalStateException("Dependent is no longer active; review the death request");
+                }
+                if (effectiveDate.isAfter(LocalDate.now())) {
+                    throw new IllegalStateException("Date of death cannot be in the future");
+                }
+                affected.setActive(false);
+                affected.setStatus(MembershipDependentStatus.DECEASED);
+                affected.setDeceasedDate(effectiveDate);
+                affected.setEffectiveTo(effectiveDate);
+                affected.setStatusReason(change.getReason());
+                affected.setSourceChangeRequestId(change.getId());
+                affected.setUpdatedBy(actor);
+                membershipDependentRepository.save(affected);
+            }
+            case OVERRIDE_DEPENDENT_WAITING_PERIOD -> {
+                affected = getVisibleDependent(change.getMembershipId(), change.getOldDependentId());
+                if (affected.getStatus() != MembershipDependentStatus.ACTIVE
+                        || !java.util.Objects.equals(affected.getEffectiveFrom(), change.getOldDependentEffectiveFrom())) {
+                    throw new IllegalStateException("Dependent waiting period changed; review the eligibility request");
+                }
+                MembershipEntity membership = getMembership(change.getMembershipId());
+                if (effectiveDate.isAfter(LocalDate.now())
+                        || (membership.getStartDate() != null && effectiveDate.isBefore(membership.getStartDate()))
+                        || !effectiveDate.isBefore(affected.getEffectiveFrom())) {
+                    throw new IllegalStateException("Requested dependent eligibility date is no longer valid");
+                }
+                // Explicit approval is required for historical effective dates.
+                affected.setEffectiveFrom(effectiveDate);
                 affected.setStatusReason(change.getReason());
                 affected.setSourceChangeRequestId(change.getId());
                 affected.setUpdatedBy(actor);
@@ -911,19 +1063,29 @@ public class MembershipChangeService {
     private boolean isDependentChange(MembershipChangeType type) {
         return type == MembershipChangeType.ADD_DEPENDENT
                 || type == MembershipChangeType.REMOVE_DEPENDENT
-                || type == MembershipChangeType.REPLACE_DEPENDENT;
+                || type == MembershipChangeType.REPLACE_DEPENDENT
+                || type == MembershipChangeType.MARK_DEPENDENT_DECEASED
+                || type == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD;
     }
 
     private Object dependentOldValue(MembershipChangeRequestEntity change) {
         if (clean(change.getOldDependentPartnerId()) == null) return null;
-        return Map.of(
-                "dependentId", change.getOldDependentId() == null ? "" : change.getOldDependentId(),
-                "dependentPartnerId", change.getOldDependentPartnerId(),
-                "dependentType", change.getOldDependentType() == null ? "" : change.getOldDependentType()
-        );
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("dependentId", change.getOldDependentId() == null ? "" : change.getOldDependentId());
+        values.put("dependentPartnerId", change.getOldDependentPartnerId());
+        values.put("dependentType", change.getOldDependentType());
+        values.put("benefitEffectiveDate", change.getOldDependentEffectiveFrom());
+        return values;
+
     }
 
     private Object dependentNewValue(MembershipChangeRequestEntity change) {
+        if (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED) {
+            return Map.of("status", "DECEASED", "deceasedDate", change.getEffectiveDate().toString());
+        }
+        if (change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
+            return Map.of("benefitEffectiveDate", change.getEffectiveDate().toString());
+        }
         if (clean(change.getNewDependentPartnerId()) == null) return null;
         return Map.of(
                 "dependentPartnerId", change.getNewDependentPartnerId(),
@@ -1056,8 +1218,11 @@ public class MembershipChangeService {
             case MEMBERSHIP_PLAN_CHANGE -> "Membership plan change - " + membership.getMembershipNo()
                     + " - " + membershipHolder + " - " + planName(change.getOldPlanId())
                     + " to " + planName(change.getNewPlanId());
-            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership dependent "
-                    + changeLabel
+            case MEMBERSHIP_DEPENDENT_CHANGE -> (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED
+                    ? "Mark historic dependent deceased"
+                    : change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD
+                        ? "Request dependent claim eligibility"
+                        : "Membership dependent " + changeLabel)
                     + " - " + membership.getMembershipNo() + " - "
                     + firstNonBlank(
                     partnerName(change.getNewDependentPartnerId()),
@@ -1070,6 +1235,10 @@ public class MembershipChangeService {
         request.setDescription(approvalDescription(change, membership, approvalType));
         request.setRequesterId(actor);
         request.setPayloadJson(toJson(buildApprovalPayload(change, membership, approvalType)));
+        if (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED
+                || change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
+            return approvalServiceProvider.getObject().submitForMandatoryApproval(request);
+        }
         return approvalServiceProvider.getObject().submitForApproval(request);
     }
 
@@ -1087,6 +1256,14 @@ public class MembershipChangeService {
             return "Review the current and proposed membership holders before actioning. Reason: " + change.getReason();
         }
         if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
+            if (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED) {
+                return "Verify the identity, historical date of death and supporting reason. Approval records the death on this membership only; it does not create a claim. Reason: "
+                        + change.getReason();
+            }
+            if (change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
+                return "Verify the dependent and explicitly requested benefit-effective date, including any backdating. This waives only the dependent waiting period and requires manual approval. Reason: "
+                        + change.getReason();
+            }
             return "Review the dependent change, relationship, effective date, and request reason before actioning. " +
                     "Reason: " + change.getReason();
         }
@@ -1168,7 +1345,21 @@ public class MembershipChangeService {
             proposed.put("dependentPartnerId", change.getNewDependentPartnerId());
             proposed.put("dependentName", partnerName(change.getNewDependentPartnerId()));
             proposed.put("dependentType", change.getNewDependentType());
-            impact.put("effectiveDate", change.getEffectiveDate() == null ? "On final approval" : change.getEffectiveDate());
+            if (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED) {
+                current.put("status", "ACTIVE");
+                current.put("benefitEffectiveDate", change.getOldDependentEffectiveFrom());
+                proposed.put("status", "DECEASED");
+                proposed.put("deceasedDate", change.getEffectiveDate());
+                impact.put("claimEligibility", "Historical death recorded; this action does not create or authorise a claim");
+            } else if (change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
+                current.put("benefitEffectiveDate", change.getOldDependentEffectiveFrom());
+                proposed.put("benefitEffectiveDate", change.getEffectiveDate());
+                impact.put("claimEligibility", "Only the dependent waiting period is waived; all other checks remain");
+                impact.put("retroactiveEligibility", change.getEffectiveDate() != null
+                        && change.getEffectiveDate().isBefore(LocalDate.now()));
+            } else {
+                impact.put("effectiveDate", change.getEffectiveDate() == null ? "On final approval" : change.getEffectiveDate());
+            }
         } else if (approvalType == ApprovalType.MEMBERSHIP_MERGE) {
             MembershipEntity source = membershipRepository.findById(change.getSourceMembershipId()).orElse(null);
             current.put("sourceMembershipId", change.getSourceMembershipId());
@@ -1186,7 +1377,30 @@ public class MembershipChangeService {
         } else if (approvalType == ApprovalType.MEMBERSHIP_DATE_CHANGE) {
             current.putAll(dateValues(change, false));
             proposed.putAll(dateValues(change, true));
-            impact.put("preStartOutstandingPremiums", "Removed on final approval");
+            current.put("membershipNumber", membership.getMembershipNo());
+            current.put("membershipHolder", partnerName(membership.getMemberId()));
+            current.put("planName", planName(membership.getPlanId()));
+            current.put("joinDate", membership.getJoinDate());
+            proposed.put("membershipNumber", membership.getMembershipNo());
+            proposed.put("membershipHolder", partnerName(membership.getMemberId()));
+            proposed.put("planName", planName(membership.getPlanId()));
+            proposed.put("joinDate", membership.getJoinDate());
+            String firstPeriod = YearMonth.from(change.getNewStartDate())
+                    .format(DateTimeFormatter.ofPattern("yyyyMM"));
+            Map<String, Object> adjustment = jdbcTemplate.queryForMap("""
+                    SELECT COUNT(*) AS premiumRecordsBeforeNewStart,
+                           COALESCE(SUM(CASE WHEN COALESCE(paid_amount_cents,0)=0 THEN 1 ELSE 0 END),0) AS unpaidPremiumRecordsToRemove,
+                           COALESCE(SUM(CASE WHEN COALESCE(paid_amount_cents,0)>0 AND COALESCE(balance_cents,0)>0 THEN 1 ELSE 0 END),0) AS paidPremiumRecordsToAdjust,
+                           COALESCE(SUM(CASE WHEN COALESCE(balance_cents,0)>0 THEN balance_cents ELSE 0 END),0) AS outstandingBalanceCentsBeforeNewStart
+                    FROM membership_premium
+                    WHERE membership_id = ? AND period_yyyymm < ?
+                    """, membership.getId(), firstPeriod);
+            impact.put("premiumAdjustmentPreview", adjustment);
+            impact.put("premiumAdjustmentRule", "On final approval, delete unpaid pre-start premiums and retain paid amounts as history");
+            impact.put("membershipEffectiveDateRule", "Membership benefit eligibility continues to apply to claims");
+            summary.put("membershipPlan", planName(membership.getPlanId()));
+            summary.put("membershipJoinDate", membership.getJoinDate());
+            summary.put("paidUpToPeriod", membership.getPaidUpToPeriod());
         } else {
             payload.put("change", toResponse(change));
         }
@@ -1267,7 +1481,9 @@ public class MembershipChangeService {
         List<MembershipChangeType> dependentChanges = List.of(
                 MembershipChangeType.ADD_DEPENDENT,
                 MembershipChangeType.REMOVE_DEPENDENT,
-                MembershipChangeType.REPLACE_DEPENDENT
+                MembershipChangeType.REPLACE_DEPENDENT,
+                MembershipChangeType.MARK_DEPENDENT_DECEASED,
+                MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD
         );
 
         if (newDependentPartnerId != null
@@ -1279,9 +1495,11 @@ public class MembershipChangeService {
         if (oldDependentId != null
                 && changeRequestRepository.existsByMembershipIdAndOldDependentIdAndChangeTypeInAndStatusIn(
                         membershipId, oldDependentId,
-                        List.of(MembershipChangeType.REMOVE_DEPENDENT, MembershipChangeType.REPLACE_DEPENDENT),
+                        List.of(MembershipChangeType.REMOVE_DEPENDENT, MembershipChangeType.REPLACE_DEPENDENT,
+                                MembershipChangeType.MARK_DEPENDENT_DECEASED,
+                                MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD),
                         openStatuses)) {
-            throw new IllegalStateException("The selected dependent already has a pending removal or replacement");
+            throw new IllegalStateException("The selected dependent already has a pending change requiring approval");
         }
     }
 
@@ -1361,6 +1579,7 @@ public class MembershipChangeService {
                 .newDependentPartnerId(e.getNewDependentPartnerId())
                 .newDependentName(partnerName(e.getNewDependentPartnerId()))
                 .oldDependentType(e.getOldDependentType())
+                .oldDependentEffectiveFrom(e.getOldDependentEffectiveFrom())
                 .newDependentType(e.getNewDependentType())
                 .waitingPeriodMonths(e.getWaitingPeriodMonths())
                 .effectiveDate(e.getEffectiveDate())
@@ -1387,14 +1606,9 @@ public class MembershipChangeService {
     }
 
     private long dependentCapacityCount(String membershipId) {
-        long active = membershipDependentRepository.countByMembershipIdAndStatusIn(
-                membershipId, Set.of(MembershipDependentStatus.ACTIVE));
-        long deceasedWithFinalisedClaims = membershipDependentRepository
-                .findByMembershipIdAndStatus(membershipId, MembershipDependentStatus.DECEASED)
-                .stream()
-                .filter(dependent -> hasFinalisedClaim(membershipId, dependent.getDependentPartnerId()))
-                .count();
-        return active + deceasedWithFinalisedClaims;
+        // Historical deceased relationships consume plan capacity whether or not a claim exists.
+        return membershipDependentRepository.countByMembershipIdAndStatusIn(
+                membershipId, Set.of(MembershipDependentStatus.ACTIVE, MembershipDependentStatus.DECEASED));
     }
 
     private boolean hasFinalisedClaim(String membershipId, String dependentPartnerId) {
