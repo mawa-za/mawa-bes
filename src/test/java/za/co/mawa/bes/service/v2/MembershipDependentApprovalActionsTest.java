@@ -21,6 +21,7 @@ import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.MembershipChangeStatus;
 import za.co.mawa.bes.enums.MembershipChangeType;
 import za.co.mawa.bes.enums.MembershipDependentStatus;
+import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.v2.MembershipChangeAuditRepository;
 import za.co.mawa.bes.repository.v2.MembershipChangeRequestRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.*;
 class MembershipDependentApprovalActionsTest {
     @Mock ObjectProvider<ApprovalService> approvalServiceProvider;
     @Mock ApprovalService approvals;
+    @Mock PartnerRepository partnerRepository;
     @Mock MembershipDependentRepository dependents;
     @Mock MembershipClaimRepository claims;
     @Mock MembershipRepository memberships;
