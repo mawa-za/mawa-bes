@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service.v2;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,10 @@ class MembershipDependentApprovalActionsTest {
     @Mock MembershipChangeRequestRepository changes;
     @Mock MembershipChangeAuditRepository audit;
     @Mock MembershipUpdateHandlerRegistry membershipUpdates;
-    @Spy ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    // Match Spring Boot's ISO-8601 date serialization in approval payloads.
+    @Spy ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     @InjectMocks MembershipChangeService service;
 
     @Test
