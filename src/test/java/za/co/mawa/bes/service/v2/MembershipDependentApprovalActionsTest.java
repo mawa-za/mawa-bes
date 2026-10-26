@@ -1,17 +1,23 @@
 package za.co.mawa.bes.service.v2;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.beans.factory.ObjectProvider;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
+import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.entity.v2.MembershipChangeRequestEntity;
 import za.co.mawa.bes.entity.v2.MembershipDependentEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.MembershipChangeStatus;
 import za.co.mawa.bes.enums.MembershipChangeType;
 import za.co.mawa.bes.enums.MembershipDependentStatus;
@@ -31,6 +37,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MembershipDependentApprovalActionsTest {
+    @Mock ObjectProvider<ApprovalService> approvalServiceProvider;
+    @Mock ApprovalService approvals;
     @Mock MembershipDependentRepository dependents;
     @Mock MembershipClaimRepository claims;
     @Mock MembershipRepository memberships;
@@ -93,6 +101,48 @@ class MembershipDependentApprovalActionsTest {
         assertEquals(LocalDate.of(2025, 1, 1), membership.getStartDate());
         assertEquals(MembershipChangeStatus.APPLIED, request.getStatus());
         verify(membershipUpdates).handleUpdate("m1");
+    }
+
+    @Test
+    void historicDeathGoesOnlyToDedicatedManualApprovalWorkflow() throws Exception {
+        assertDedicatedApprovalRoute(MembershipChangeType.MARK_DEPENDENT_DECEASED,
+                ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED);
+    }
+
+    @Test
+    void claimEligibilityGoesOnlyToDedicatedManualApprovalWorkflow() throws Exception {
+        assertDedicatedApprovalRoute(MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD,
+                ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY);
+    }
+
+    private void assertDedicatedApprovalRoute(MembershipChangeType changeType, ApprovalType expected) throws Exception {
+        MembershipChangeRequestEntity change = request(changeType, LocalDate.of(2026, 10, 20));
+        MembershipEntity membership = new MembershipEntity();
+        membership.setId("m1");
+        membership.setMembershipNo("MBR-001");
+        when(approvalServiceProvider.getObject()).thenReturn(approvals);
+        when(approvals.submitForMandatoryApproval(any())).thenReturn(
+                ApprovalRequestResponse.builder().id("approval-1").approvalType(expected).build());
+        when(changes.findById("r1")).thenReturn(Optional.of(change));
+        when(changes.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ReflectionTestUtils.invokeMethod(service, "submitRequiredDependentApproval", change, membership, "requester");
+
+        ArgumentCaptor<ApprovalSubmitRequest> submitted = ArgumentCaptor.forClass(ApprovalSubmitRequest.class);
+        verify(approvals).submitForMandatoryApproval(submitted.capture());
+        verify(approvals, never()).submitForApproval(any());
+        assertEquals(expected, submitted.getValue().getApprovalType());
+        assertEquals("r1", submitted.getValue().getReferenceId());
+        assertEquals("approval-1", change.getApprovalRequestId());
+        JsonNode payload = objectMapper.readTree(submitted.getValue().getPayloadJson());
+        assertEquals("m1", payload.path("requestSummary").path("membershipId").asText());
+        assertEquals("MBR-001", payload.path("requestSummary").path("membershipNumber").asText());
+        if (changeType == MembershipChangeType.MARK_DEPENDENT_DECEASED) {
+            assertEquals("DECEASED", payload.path("proposedValues").path("status").asText());
+            assertEquals("2026-10-20", payload.path("proposedValues").path("deceasedDate").asText());
+        } else {
+            assertEquals("2026-10-20", payload.path("proposedValues").path("benefitEffectiveDate").asText());
+        }
     }
 
     private MembershipDependentEntity activeDependent(LocalDate from) {

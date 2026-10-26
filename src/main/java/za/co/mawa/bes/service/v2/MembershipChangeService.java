@@ -509,7 +509,12 @@ public class MembershipChangeService {
     /** Unlike ordinary dependent additions, these sensitive actions ALWAYS require approval. */
     private MembershipChangeResponse submitRequiredDependentApproval(
             MembershipChangeRequestEntity change, MembershipEntity membership, String actor) {
-        ApprovalRequestResponse approval = submit(change, membership, ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE, actor);
+        ApprovalType approvalType = switch (change.getChangeType()) {
+            case MARK_DEPENDENT_DECEASED -> ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED;
+            case OVERRIDE_DEPENDENT_WAITING_PERIOD -> ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY;
+            default -> throw new IllegalArgumentException("Not a dedicated dependent approval action: " + change.getChangeType());
+        };
+        ApprovalRequestResponse approval = submit(change, membership, approvalType, actor);
         MembershipChangeRequestEntity persisted = changeRequestRepository.findById(change.getId()).orElseThrow();
         persisted.setApprovalRequestId(approval.getId());
         return toResponse(changeRequestRepository.save(persisted));
@@ -1218,11 +1223,13 @@ public class MembershipChangeService {
             case MEMBERSHIP_PLAN_CHANGE -> "Membership plan change - " + membership.getMembershipNo()
                     + " - " + membershipHolder + " - " + planName(change.getOldPlanId())
                     + " to " + planName(change.getNewPlanId());
-            case MEMBERSHIP_DEPENDENT_CHANGE -> (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED
-                    ? "Mark historic dependent deceased"
-                    : change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD
-                        ? "Request dependent claim eligibility"
-                        : "Membership dependent " + changeLabel)
+            case MEMBERSHIP_DEPENDENT_DECEASED -> "Mark historic dependent deceased - "
+                    + membership.getMembershipNo() + " - "
+                    + firstNonBlank(partnerName(change.getOldDependentPartnerId()), membershipHolder);
+            case MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY -> "Request dependent claim eligibility - "
+                    + membership.getMembershipNo() + " - "
+                    + firstNonBlank(partnerName(change.getOldDependentPartnerId()), membershipHolder);
+            case MEMBERSHIP_DEPENDENT_CHANGE -> "Membership dependent " + changeLabel
                     + " - " + membership.getMembershipNo() + " - "
                     + firstNonBlank(
                     partnerName(change.getNewDependentPartnerId()),
@@ -1255,15 +1262,15 @@ public class MembershipChangeService {
         if (approvalType == ApprovalType.MEMBERSHIP_TRANSFER) {
             return "Review the current and proposed membership holders before actioning. Reason: " + change.getReason();
         }
+        if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED) {
+            return "Verify the identity, historical date of death and supporting reason. Approval records the death on this membership only; it does not create a claim. Reason: "
+                    + change.getReason();
+        }
+        if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY) {
+            return "Verify the dependent and explicitly requested benefit-effective date, including any backdating. This waives only the dependent waiting period and requires manual approval. Reason: "
+                    + change.getReason();
+        }
         if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
-            if (change.getChangeType() == MembershipChangeType.MARK_DEPENDENT_DECEASED) {
-                return "Verify the identity, historical date of death and supporting reason. Approval records the death on this membership only; it does not create a claim. Reason: "
-                        + change.getReason();
-            }
-            if (change.getChangeType() == MembershipChangeType.OVERRIDE_DEPENDENT_WAITING_PERIOD) {
-                return "Verify the dependent and explicitly requested benefit-effective date, including any backdating. This waives only the dependent waiting period and requires manual approval. Reason: "
-                        + change.getReason();
-            }
             return "Review the dependent change, relationship, effective date, and request reason before actioning. " +
                     "Reason: " + change.getReason();
         }
@@ -1337,7 +1344,9 @@ public class MembershipChangeService {
             proposed.put("memberId", change.getNewMemberId());
             proposed.put("memberName", partnerName(change.getNewMemberId()));
             impact.put("effectiveDate", "On final approval");
-        } else if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE) {
+        } else if (approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CHANGE
+                || approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_DECEASED
+                || approvalType == ApprovalType.MEMBERSHIP_DEPENDENT_CLAIM_ELIGIBILITY) {
             current.put("dependentId", change.getOldDependentId());
             current.put("dependentPartnerId", change.getOldDependentPartnerId());
             current.put("dependentName", partnerName(change.getOldDependentPartnerId()));

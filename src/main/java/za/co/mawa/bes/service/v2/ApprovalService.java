@@ -80,9 +80,17 @@ public class ApprovalService {
         ApprovalWorkflowEntity workflow = resolveWorkflow(request.getApprovalType())
                 .orElseThrow(() -> new IllegalStateException("No manual approval workflow configured for "
                         + request.getApprovalType()));
+        List<ApprovalWorkflowStepEntity> activeSteps =
+                workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId());
         if (!Boolean.TRUE.equals(workflow.getActive()) || Boolean.TRUE.equals(workflow.getAutoApprove())
-                || workflowStepRepository.findByWorkflowIdAndActiveTrueOrderByStepNoAsc(workflow.getId()).isEmpty()) {
+                || activeSteps.isEmpty()) {
             throw new IllegalStateException("An active manual approval workflow is required for "
+                    + request.getApprovalType());
+        }
+        if (activeSteps.stream().anyMatch(step ->
+                step.getApprovers() == null || step.getApprovers().stream()
+                        .noneMatch(approver -> Boolean.TRUE.equals(approver.getActive())))) {
+            throw new IllegalStateException("Every active approval step must have a configured active approver for "
                     + request.getApprovalType());
         }
         return submitForApproval(request);
