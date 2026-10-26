@@ -35,15 +35,25 @@ public class TombstoneOrderEntity {
     @Column(name="workcenter_id") private String workcenterId;
     @Column(name="expected_installation_date") private LocalDate expectedInstallationDate;
     @Column(name="funding_method", nullable=false, length=30) private String fundingMethod;
+    @Builder.Default
     @Column(name="status", nullable=false, length=40) private String status = "DRAFT";
+    @Builder.Default
     @Column(name="funding_status", nullable=false, length=30) private String fundingStatus = "UNFUNDED";
+    @Builder.Default
     @Column(name="production_status", nullable=false, length=40) private String productionStatus = "NOT_STARTED";
+    @Builder.Default
     @Column(name="installation_status", nullable=false, length=40) private String installationStatus = "NOT_READY";
+    @Builder.Default
     @Column(name="subtotal_cents", nullable=false) private Long subtotalCents = 0L;
+    @Builder.Default
     @Column(name="tax_cents", nullable=false) private Long taxCents = 0L;
+    @Builder.Default
     @Column(name="discount_cents", nullable=false) private Long discountCents = 0L;
+    @Builder.Default
     @Column(name="total_cents", nullable=false) private Long totalCents = 0L;
+    @Builder.Default
     @Column(name="confirmed_funding_cents", nullable=false) private Long confirmedFundingCents = 0L;
+    @Builder.Default
     @Column(name="balance_cents", nullable=false) private Long balanceCents = 0L;
     @Column(name="invoice_id") private String invoiceId;
     @Column(name="notes", columnDefinition="TEXT") private String notes;

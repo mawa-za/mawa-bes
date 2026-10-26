@@ -78,12 +78,13 @@ class MembershipClaimDeceasedRelationshipTest {
     void newClaimIsBlockedEvenWhileEarlierClaimIsDraft() {
         MembershipEntity membership = membership("ACTIVE");
         when(membershipRepository.findByIdForUpdate("MEM-1")).thenReturn(Optional.of(membership));
-        when(claimRepository.existsByMembershipIdAndDeceasedPartnerIdAndStatusNot(
-                "MEM-1", "PARTNER-1", MembershipClaimStatus.CANCELLED)).thenReturn(true);
+        when(claimRepository.findByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                "MEM-1", "PARTNER-1", MembershipClaimStatus.CANCELLED))
+                .thenReturn(java.util.List.of(existingClaim(MembershipClaimType.FUNERAL)));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> service.create(request(), "actor"));
-        assertTrue(ex.getMessage().contains("cancelled"));
+        assertTrue(ex.getMessage().contains("already exists"));
         verifyNoInteractions(numberAllocationService);
     }
 
@@ -91,9 +92,48 @@ class MembershipClaimDeceasedRelationshipTest {
     void deceasedMemberWithoutCancelledClaimCannotBeClaimedAgain() {
         when(membershipRepository.findByIdForUpdate("MEM-1"))
                 .thenReturn(Optional.of(membership("DECEASED")));
+        when(claimRepository.findByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                "MEM-1", "PARTNER-1", MembershipClaimStatus.CANCELLED))
+                .thenReturn(java.util.List.of());
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> service.create(request(), "actor"));
-        assertTrue(ex.getMessage().contains("no cancelled claim"));
+        assertTrue(ex.getMessage().contains("no previous or cancelled claim"));
+    }
+
+    @Test
+    void funeralAndTombstoneAreSeparateBenefitsForSameDeceased() {
+        assertFalse(MembershipClaimService.isSameBenefitCategory(
+                MembershipClaimType.FUNERAL, MembershipClaimType.TOMBSTONE));
+        assertFalse(MembershipClaimService.isSameBenefitCategory(
+                MembershipClaimType.TOMBSTONE, MembershipClaimType.FUNERAL));
+        assertFalse(MembershipClaimService.isSameBenefitCategory(
+                MembershipClaimType.GROCERY, MembershipClaimType.TOMBSTONE));
+        assertTrue(MembershipClaimService.isSameBenefitCategory(
+                MembershipClaimType.FUNERAL, MembershipClaimType.COMBINATION));
+        assertTrue(MembershipClaimService.isSameBenefitCategory(
+                MembershipClaimType.TOMBSTONE, MembershipClaimType.TOMBSTONE));
+    }
+
+    @Test
+    void secondTombstoneClaimIsBlocked() {
+        when(membershipRepository.findByIdForUpdate("MEM-1"))
+                .thenReturn(Optional.of(membership("DECEASED")));
+        when(claimRepository.findByMembershipIdAndDeceasedPartnerIdAndStatusNot(
+                "MEM-1", "PARTNER-1", MembershipClaimStatus.CANCELLED))
+                .thenReturn(java.util.List.of(existingClaim(MembershipClaimType.TOMBSTONE)));
+        var duplicate = request();
+        duplicate.setClaimType(MembershipClaimType.TOMBSTONE);
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.create(duplicate, "actor"));
+        assertTrue(error.getMessage().contains("already exists"));
+        verifyNoInteractions(numberAllocationService);
+    }
+
+    private MembershipClaimEntity existingClaim(MembershipClaimType type) {
+        MembershipClaimEntity claim = claim(MembershipClaimDeceasedType.MAIN_MEMBER);
+        claim.setClaimType(type);
+        claim.setStatus(MembershipClaimStatus.APPROVED);
+        return claim;
     }
 
     private MembershipEntity membership(String memberStatus) {

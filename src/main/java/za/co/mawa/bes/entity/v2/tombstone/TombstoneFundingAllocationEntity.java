@@ -23,6 +23,7 @@ public class TombstoneFundingAllocationEntity {
     @Column(name="tombstone_order_id", nullable=false) private String tombstoneOrderId;
     @Column(name="funding_type", nullable=false, length=30) private String fundingType;
     @Column(name="source_type", nullable=false, length=50) private String sourceType;
+    @Column(name="source_tenant_id", length=128) private String sourceTenantId;
     @Column(name="source_id") private String sourceId;
     @Column(name="source_no", length=150) private String sourceNo;
     @Column(name="allocated_amount_cents", nullable=false) private Long allocatedAmountCents = 0L;

@@ -71,6 +71,7 @@ public final class TombstoneDtos {
 
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
     public static class FundingAllocationRequest {
+        private String sourceTenantId;
         private String fundingType;
         private String sourceType;
         private String sourceId;
