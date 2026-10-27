@@ -30,6 +30,11 @@ public class CaseEventControllerV2 {
         return caseEventService.findByCaseId(caseId);
     }
 
+    @PutMapping("/events/{eventId}")
+    public CaseEventEntity update(@PathVariable String eventId, @RequestBody CaseEventCreateRequest request) {
+        return caseEventService.update(eventId, request);
+    }
+
     @PatchMapping("/events/{eventId}/status")
     public CaseEventEntity updateStatus(
             @PathVariable String eventId,

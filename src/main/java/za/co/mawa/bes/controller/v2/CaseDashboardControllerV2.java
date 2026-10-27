@@ -8,6 +8,7 @@ import za.co.mawa.bes.entity.v2.CaseDisbursementEntity;
 import za.co.mawa.bes.entity.v2.CaseEventEntity;
 import za.co.mawa.bes.entity.v2.CaseTaskEntity;
 import za.co.mawa.bes.entity.v2.CaseTimeEntryEntity;
+import za.co.mawa.bes.entity.v2.LegalCaseEntity;
 import za.co.mawa.bes.service.v2.CaseDashboardService;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,11 @@ public class CaseDashboardControllerV2 {
         LocalDateTime start = from != null ? from : LocalDateTime.now();
         LocalDateTime end = to != null ? to : start.plusDays(14);
         return caseDashboardService.getUpcomingEvents(start, end);
+    }
+
+    @GetMapping("/billing/unbilled")
+    public List<LegalCaseEntity> unbilledCases() {
+        return caseDashboardService.getUnbilledCases();
     }
 
     @GetMapping("/billing/unbilled/time-entries")

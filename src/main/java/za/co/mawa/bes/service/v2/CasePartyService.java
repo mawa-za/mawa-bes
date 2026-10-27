@@ -40,6 +40,26 @@ public class CasePartyService {
         return casePartyRepository.save(entity);
     }
 
+    @Transactional
+    public CasePartyEntity update(String partyId, CasePartyCreateRequest request) {
+        CasePartyEntity entity = casePartyRepository.findById(partyId)
+                .orElseThrow(() -> new IllegalArgumentException("Case party not found"));
+        if (request.getPartyName() == null || request.getPartyName().isBlank()
+                || request.getPartyType() == null) {
+            throw new IllegalArgumentException("Party name and type are required");
+        }
+        entity.setPartnerId(request.getPartnerId());
+        entity.setPartyName(request.getPartyName());
+        entity.setPartyType(request.getPartyType());
+        entity.setIdNumber(request.getIdNumber());
+        entity.setEmail(request.getEmail());
+        entity.setPhoneNumber(referenceDataValidationService.optionalContactNumber(request.getPhoneNumber()));
+        entity.setAttorneyFirm(request.getAttorneyFirm());
+        entity.setAttorneyName(request.getAttorneyName());
+        entity.setNotes(request.getNotes());
+        return casePartyRepository.save(entity);
+    }
+
     public List<CasePartyEntity> findByCaseId(String caseId, CasePartyType partyType) {
         if (partyType != null) {
             return casePartyRepository.findByCaseIdAndPartyTypeOrderByPartyNameAsc(caseId, partyType);

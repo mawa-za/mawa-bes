@@ -7,6 +7,7 @@ import za.co.mawa.bes.entity.v2.CaseDisbursementEntity;
 import za.co.mawa.bes.entity.v2.CaseEventEntity;
 import za.co.mawa.bes.entity.v2.CaseTaskEntity;
 import za.co.mawa.bes.entity.v2.CaseTimeEntryEntity;
+import za.co.mawa.bes.entity.v2.LegalCaseEntity;
 import za.co.mawa.bes.enums.CaseEventStatus;
 import za.co.mawa.bes.enums.CaseTaskStatus;
 import za.co.mawa.bes.enums.LegalCaseStatus;
@@ -75,6 +76,14 @@ public class CaseDashboardService {
                 from,
                 to
         );
+    }
+
+    /** Cases with a positive amount remaining to be invoiced. */
+    public List<LegalCaseEntity> getUnbilledCases() {
+        return legalCaseRepository.findAll().stream()
+                .filter(c -> Boolean.TRUE.equals(c.getBillable())
+                        && c.getBalanceCents() != null && c.getBalanceCents() > 0)
+                .toList();
     }
 
     public List<CaseTimeEntryEntity> getUnbilledTimeEntries(String caseId) {
