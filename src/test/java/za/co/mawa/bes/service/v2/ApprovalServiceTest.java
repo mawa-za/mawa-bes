@@ -8,6 +8,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
+import za.co.mawa.bes.dto.v2.ApprovalDecisionRequest;
+import za.co.mawa.bes.entity.v2.ApprovalWorkflowStepEntity;
 import za.co.mawa.bes.entity.v2.ApprovalActionEntity;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.entity.v2.ApprovalWorkflowEntity;
@@ -22,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,6 +41,8 @@ class ApprovalServiceTest {
     @Mock private ApprovalSubmissionHandlerRegistry submissionHandlerRegistry;
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private UserInboxService userInboxService;
+    @Mock private ApprovalUserLabelService userLabelService;
+    @Mock private ApprovalDecisionContextService decisionContextService;
 
     @InjectMocks
     private ApprovalService service;
@@ -88,4 +93,33 @@ class ApprovalServiceTest {
         verify(workflowStepRepository, never())
                 .findByWorkflowIdAndActiveTrueOrderByStepNoAsc(any());
     }
+    @Test
+    void requesterCannotApproveOrRejectOwnRequestByDefault() {
+        ApprovalWorkflowEntity workflow = ApprovalWorkflowEntity.builder()
+                .id("workflow-1")
+                .allowRequesterApproval(false)
+                .build();
+        ApprovalRequestEntity request = ApprovalRequestEntity.builder()
+                .id("request-1")
+                .workflowId("workflow-1")
+                .requesterId("requester-1")
+                .currentStepNo(1)
+                .status(ApprovalStatus.IN_PROGRESS)
+                .build();
+        ApprovalWorkflowStepEntity step = new ApprovalWorkflowStepEntity();
+        when(approvalRequestRepository.findByIdForUpdate("request-1"))
+                .thenReturn(Optional.of(request));
+        when(workflowStepRepository.findByWorkflowIdAndStepNoAndActiveTrue("workflow-1", 1))
+                .thenReturn(Optional.of(step));
+        when(workflowRepository.findById("workflow-1")).thenReturn(Optional.of(workflow));
+        when(userInboxService.canonicalUserId("requester-1")).thenReturn("requester-1");
+
+        ApprovalDecisionRequest decision = new ApprovalDecisionRequest();
+        decision.setActionBy("requester-1");
+
+        assertThrows(SecurityException.class, () -> service.approve("request-1", decision));
+        assertThrows(SecurityException.class, () -> service.reject("request-1", decision));
+        verify(approvalActionRepository, never()).save(any(ApprovalActionEntity.class));
+    }
+
 }

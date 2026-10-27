@@ -23,6 +23,8 @@ public class ApprovalWorkflowRequestDto {
 
     private Boolean active = true;
 
+    private Boolean allowRequesterApproval;
+
     private Boolean autoApprove = false;
 
     private List<ApprovalWorkflowStepRequestDto> steps;

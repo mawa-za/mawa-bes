@@ -35,6 +35,8 @@ public class ApprovalService {
     private final ApprovalApproverScopeService approverScopeService;
     private final ApprovalAccessService approvalAccessService;
     private final MembershipDateApprovalPayloadResolver membershipDateApprovalPayloadResolver;
+    private final ApprovalUserLabelService userLabelService;
+    private final ApprovalDecisionContextService decisionContextService;
 
 //    @Transactional
 //    public ApprovalWorkflowEntity createWorkflow(ApprovalWorkflowCreateRequest request, String createdBy) {
@@ -237,7 +239,8 @@ public class ApprovalService {
         entity.setWorkflowId(workflow.getId());
         entity.setCurrentStepNo(currentStepNo);
         entity.setStatus(ApprovalStatus.IN_PROGRESS);
-        entity.setPayloadJson(request.getPayloadJson());
+        entity.setPayloadJson(decisionContextService == null ? request.getPayloadJson()
+                : decisionContextService.snapshot(request));
         entity.setCreatedBy(request.getRequesterId());
         return entity;
     }
@@ -256,6 +259,7 @@ public class ApprovalService {
                         approvalRequest.getCurrentStepNo()
                 ).orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
+        validateNoSelfDecision(approvalRequest, request.getActionBy());
         validateApprover(currentStep, request.getActionBy(), approvalRequest);
 
         boolean alreadyActioned = approvalActionRepository
@@ -314,6 +318,7 @@ public class ApprovalService {
                 )
                 .orElseThrow(() -> new RuntimeException("Current approval step not found"));
 
+        validateNoSelfDecision(approvalRequest, request.getActionBy());
         validateApprover(currentStep, request.getActionBy(), approvalRequest);
 
         boolean alreadyActioned = approvalActionRepository
@@ -394,9 +399,13 @@ public class ApprovalService {
         return approvalActionRepository.findByApprovalRequestIdOrderByActionAtAsc(approvalRequestId);
     }
 
-    public List<ApprovalActionEntity> getAuditTrailForViewer(String approvalRequestId, String viewer) {
+    public List<ApprovalActionView> getAuditTrailForViewer(String approvalRequestId, String viewer) {
         getByIdForViewer(approvalRequestId, viewer);
-        return getAuditTrail(approvalRequestId);
+        return getAuditTrail(approvalRequestId).stream()
+                .map(action -> new ApprovalActionView(action.getId(), action.getApprovalRequestId(),
+                        action.getStepNo(), action.getAction(), action.getActionBy(),
+                        userLabelService.displayName(action.getActionBy()), action.getActionAt(), action.getComments()))
+                .toList();
     }
 
     public List<ApprovalRequestEntity> getByStatus(ApprovalStatus status) {
@@ -499,6 +508,16 @@ public class ApprovalService {
      * - if approverType = GROUP, user must belong to group
      * - if approverType = MANAGER, user must be manager of requester
      */
+    private void validateNoSelfDecision(ApprovalRequestEntity request, String actor) {
+        ApprovalWorkflowEntity workflow = workflowRepository.findById(request.getWorkflowId())
+                .orElseThrow(() -> new IllegalStateException("Approval workflow was not found"));
+        if (Boolean.TRUE.equals(workflow.getAllowRequesterApproval())) return;
+        String requester = userInboxService.canonicalUserId(request.getRequesterId());
+        if (actor.equals(requester)) {
+            throw new SecurityException("Requesters cannot approve or reject their own requests. Assign a different approver.");
+        }
+    }
+
     private void validateApprover(ApprovalWorkflowStepEntity step, String actionBy, ApprovalRequestEntity request) {
         if (step == null) {
             throw new RuntimeException("Approval step is required");
@@ -664,6 +683,21 @@ public class ApprovalService {
         return value.substring(0, Math.max(0, maxLength - 3)).trim() + "...";
     }
 
+    public List<ApprovalRequestResponse> searchViews(ApprovalStatus status, ApprovalType type,
+            String requesterId, String viewer) {
+        return search(status, type, requesterId, viewer).stream().map(this::toResponse).toList();
+    }
+
+    public List<ApprovalRequestResponse> historyByReference(String referenceId, String objectType, String viewer) {
+        if (referenceId == null || referenceId.isBlank()) throw new IllegalArgumentException("Reference is required");
+        List<ApprovalRequestEntity> requests = "MEMBERSHIP".equalsIgnoreCase(objectType)
+                ? approvalRequestRepository.findHistoryForMembership(referenceId)
+                : approvalRequestRepository.findByReferenceId(referenceId);
+        return requests.stream()
+                .filter(request -> approvalAccessService.canView(request, viewer))
+                .map(this::toResponse).toList();
+    }
+
     private ApprovalRequestResponse toResponse(ApprovalRequestEntity entity) {
         String payloadJson = entity.getPayloadJson();
         if (entity.getApprovalType() == ApprovalType.MEMBERSHIP_DATE_CHANGE
@@ -678,11 +712,16 @@ public class ApprovalService {
                 .title(entity.getTitle())
                 .description(entity.getDescription())
                 .requesterId(entity.getRequesterId())
+                .requesterName(userLabelService == null ? "Unknown user" : userLabelService.displayName(entity.getRequesterId()))
+                .canSelfApprove(workflowRepository.findById(entity.getWorkflowId())
+                        .map(workflow -> Boolean.TRUE.equals(workflow.getAllowRequesterApproval())).orElse(false))
                 .workflowId(entity.getWorkflowId())
                 .currentStepNo(entity.getCurrentStepNo())
                 .status(entity.getStatus())
                 .payloadJson(payloadJson)
                 .finalActionBy(entity.getFinalActionBy())
+                .finalActionByName(entity.getFinalActionBy() == null ? null
+                        : userLabelService.displayName(entity.getFinalActionBy()))
                 .finalActionAt(entity.getFinalActionAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

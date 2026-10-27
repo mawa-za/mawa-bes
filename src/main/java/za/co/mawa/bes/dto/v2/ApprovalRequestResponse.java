@@ -22,6 +22,8 @@ public class ApprovalRequestResponse {
     private String description;
 
     private String requesterId;
+    private String requesterName;
+    private Boolean canSelfApprove;
 
     private String workflowId;
     private Integer currentStepNo;
@@ -31,6 +33,7 @@ public class ApprovalRequestResponse {
     private String payloadJson;
 
     private String finalActionBy;
+    private String finalActionByName;
     private Date finalActionAt;
 
     private Date createdAt;
