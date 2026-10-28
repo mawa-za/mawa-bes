@@ -1,5 +1,7 @@
 package za.co.mawa.bes.billing;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
@@ -20,6 +22,8 @@ import java.util.Set;
 
 @Component
 public class BillingEntitlementClient {
+
+    private static final Logger log = LoggerFactory.getLogger(BillingEntitlementClient.class);
 
     private static final String INTERNAL_TOKEN_HEADER = "X-Mawa-Internal-Token";
 
@@ -82,13 +86,17 @@ public class BillingEntitlementClient {
     }
 
     private boolean refresh(String cacheKey, String tenantId, String moduleCode, boolean failOpenWhenMissing) {
-        HttpHeaders headers = new HttpHeaders();
-        cloudRunIdTokenProvider.apply(headers);
-        if (StringUtils.hasText(internalServiceToken)) {
-            headers.set(INTERNAL_TOKEN_HEADER, internalServiceToken);
-        }
-
+        // Token acquisition can fail before the HTTP request (e.g. if the
+        // Cloud Run metadata service is temporarily unavailable). Keep it
+        // inside the same catch/fallback path as other billing transport
+        // failures so an entitlement outage cannot break ERP requests.
         try {
+            HttpHeaders headers = new HttpHeaders();
+            cloudRunIdTokenProvider.apply(headers);
+            if (StringUtils.hasText(internalServiceToken)) {
+                headers.set(INTERNAL_TOKEN_HEADER, internalServiceToken);
+            }
+
             String tenant = UriUtils.encodePathSegment(tenantId, StandardCharsets.UTF_8);
             String module = UriUtils.encodePathSegment(moduleCode, StandardCharsets.UTF_8);
             Map<?, ?> body = restTemplate.exchange(
@@ -101,6 +109,9 @@ public class BillingEntitlementClient {
             cache.put(cacheKey, new CacheEntry(enabled, Instant.now().plus(cacheDuration)));
             return enabled;
         } catch (Exception exception) {
+            // Preserve the existing fail-open-on-first-lookup and stale-cache
+            // behaviour, but retain the actual cause for Cloud Logging.
+            log.warn("Billing entitlement lookup unavailable for tenant {} and module {}", tenantId, moduleCode, exception);
             CacheEntry previous = cache.get(cacheKey);
             return previous != null ? previous.enabled() : failOpenWhenMissing;
         }
