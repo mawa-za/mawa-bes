@@ -46,6 +46,10 @@ public class ApprovalWorkflowEntity {
     @Column(name = "auto_approve", nullable = false)
     private Boolean autoApprove = false;
 
+    /** Explicit workflow exception; default is separation of duties. */
+    @Column(name = "allow_requester_approval", nullable = false)
+    private Boolean allowRequesterApproval = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

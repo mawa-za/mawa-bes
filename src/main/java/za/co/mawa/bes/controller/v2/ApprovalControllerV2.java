@@ -7,8 +7,8 @@ import za.co.mawa.bes.dto.v2.ApprovalDecisionRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.dto.v2.ApprovalSubmitRequest;
 import za.co.mawa.bes.dto.v2.ApprovalWorkflowCreateRequest;
-import za.co.mawa.bes.entity.v2.ApprovalActionEntity;
-import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
+import za.co.mawa.bes.dto.v2.ApprovalActionView;
+
 import za.co.mawa.bes.entity.v2.ApprovalWorkflowEntity;
 import za.co.mawa.bes.enums.ApprovalStatus;
 import za.co.mawa.bes.enums.ApprovalType;
@@ -83,7 +83,7 @@ public class ApprovalControllerV2 {
     }
 
     @GetMapping("/{approvalRequestId}/audit")
-    public List<ApprovalActionEntity> getAuditTrail(
+    public List<ApprovalActionView> getAuditTrail(
             @PathVariable String approvalRequestId,
             @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
@@ -91,13 +91,21 @@ public class ApprovalControllerV2 {
     }
 
     @GetMapping
-    public List<ApprovalRequestEntity> search(
+    public List<ApprovalRequestResponse> search(
             @RequestParam(required = false) ApprovalStatus status,
             @RequestParam(required = false) ApprovalType approvalType,
             @RequestParam(required = false) String requesterId,
             @RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
-        return approvalService.search(status, approvalType, requesterId, currentUser(headerUserId, null));
+        return approvalService.searchViews(status, approvalType, requesterId, currentUser(headerUserId, null));
+    }
+
+    @GetMapping("/history")
+    public List<ApprovalRequestResponse> history(
+            @RequestParam String referenceId,
+            @RequestParam(required = false) String objectType,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
+        return approvalService.historyByReference(referenceId, objectType, currentUser(headerUserId, null));
     }
 
     @GetMapping("/assigned-types")

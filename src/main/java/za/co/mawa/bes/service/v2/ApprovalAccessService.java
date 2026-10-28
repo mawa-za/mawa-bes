@@ -62,10 +62,16 @@ public class ApprovalAccessService {
 
     public boolean canView(ApprovalRequestEntity request, String user) {
         if (request == null || user == null || user.isBlank() || request.getCurrentStepNo() == null) return false;
-        var step = workflowStepRepository.findByWorkflowIdAndStepNoAndActiveTrue(
-                request.getWorkflowId(), request.getCurrentStepNo()).orElse(null);
-        if (step == null) return false;
-        return approverRepository.findByWorkflowStepIdAndActiveTrue(step.getId()).stream()
+        if (user.equals(request.getRequesterId()) || identityMatches(user, request.getRequesterId())) return true;
+        Boolean wasActor = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) > 0 FROM approval_action aa
+             WHERE aa.approval_request_id = ? AND aa.action_by IN
+                   (SELECT id FROM `user` WHERE id = ? OR username = ? OR email = ?)
+            """, Boolean.class, request.getId(), user, user, user);
+        if (Boolean.TRUE.equals(wasActor)) return true;
+        // A completed request must remain visible to the earlier-step approvers.
+        return workflowStepRepository.findByWorkflowIdOrderByStepNoAsc(request.getWorkflowId()).stream()
+                .flatMap(step -> approverRepository.findByWorkflowStepIdAndActiveTrue(step.getId()).stream())
                 .filter(a -> a.getActive() == null || a.getActive())
                 .filter(a -> approverScopeService.appliesToRequest(a, request))
                 .anyMatch(a -> matches(a, user, request));

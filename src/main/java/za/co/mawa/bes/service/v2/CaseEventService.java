@@ -54,6 +54,25 @@ public class CaseEventService {
     }
 
     @Transactional
+    public CaseEventEntity update(String eventId, CaseEventCreateRequest request) {
+        CaseEventEntity entity = caseEventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Case event not found"));
+        if (request.getEventType() == null || request.getTitle() == null
+                || request.getTitle().isBlank() || request.getStartAt() == null) {
+            throw new IllegalArgumentException("Event type, title and start date are required");
+        }
+        entity.setEventType(request.getEventType());
+        entity.setTitle(request.getTitle());
+        entity.setDescription(request.getDescription());
+        entity.setStartAt(request.getStartAt());
+        entity.setEndAt(request.getEndAt());
+        entity.setLocation(request.getLocation());
+        entity.setReminderAt(request.getReminderAt());
+        entity.setUpdatedAt(LocalDateTime.now());
+        return caseEventRepository.save(entity);
+    }
+
+    @Transactional
     public CaseEventEntity updateStatus(String eventId, CaseEventStatusUpdateRequest request) {
         CaseEventEntity entity = caseEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Case event not found"));

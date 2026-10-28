@@ -33,6 +33,11 @@ public class CasePartyControllerV2 {
         return casePartyService.findByCaseId(caseId, partyType);
     }
 
+    @PutMapping("/parties/{partyId}")
+    public CasePartyEntity update(@PathVariable String partyId, @RequestBody CasePartyCreateRequest request) {
+        return casePartyService.update(partyId, request);
+    }
+
     @DeleteMapping("/parties/{partyId}")
     public void delete(@PathVariable String partyId) {
         casePartyService.delete(partyId);

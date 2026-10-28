@@ -171,6 +171,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         entity.setMaxAmount(request.getMaxAmount());
         entity.setActive(request.getActive() == null || request.getActive());
         entity.setAutoApprove(Boolean.TRUE.equals(request.getAutoApprove()));
+        entity.setAllowRequesterApproval(Boolean.TRUE.equals(request.getAllowRequesterApproval()));
     }
 
     private void applySteps(ApprovalWorkflowEntity workflow, List<ApprovalWorkflowStepRequestDto> stepRequests) {
@@ -354,6 +355,7 @@ public class ApprovalWorkflowConfigServiceImpl implements ApprovalWorkflowConfig
         dto.setMaxAmount(entity.getMaxAmount());
         dto.setActive(entity.getActive());
         dto.setAutoApprove(Boolean.TRUE.equals(entity.getAutoApprove()));
+        dto.setAllowRequesterApproval(Boolean.TRUE.equals(entity.getAllowRequesterApproval()));
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
 

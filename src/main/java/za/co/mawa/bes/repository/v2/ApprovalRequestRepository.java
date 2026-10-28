@@ -26,6 +26,16 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
 
     List<ApprovalRequestEntity> findByReferenceId(String referenceId);
 
+    @Query(value = """
+        SELECT ar.* FROM approval_request ar
+         WHERE ar.reference_id = :membershipId
+            OR ar.reference_id IN (SELECT mc.id FROM membership_change_request mc
+                                   WHERE mc.membership_id = :membershipId)
+            OR JSON_UNQUOTE(JSON_EXTRACT(ar.payload_json, '$.membershipId')) = :membershipId
+         ORDER BY ar.created_at DESC
+        """, nativeQuery = true)
+    List<ApprovalRequestEntity> findHistoryForMembership(@Param("membershipId") String membershipId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select request from ApprovalRequestEntity request where request.id = :id")
     Optional<ApprovalRequestEntity> findByIdForUpdate(@Param("id") String id);
