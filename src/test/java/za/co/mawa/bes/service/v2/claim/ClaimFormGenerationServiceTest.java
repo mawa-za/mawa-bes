@@ -13,14 +13,17 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
+import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.CompanyPdfBrandingService;
 import za.co.mawa.bes.service.v2.UserTimeZoneService;
@@ -37,6 +40,8 @@ class ClaimFormGenerationServiceTest {
     @Mock MembershipClaimRepository claims;
     @Mock MembershipRepository memberships;
     @Mock PartnerRepository partners;
+    @Mock UserRepository users;
+    @Mock MembershipPlanRepository plans;
     @Mock AttachmentRepository attachments;
     @Mock AttachmentService storage;
     @Mock CompanyPdfBrandingService branding;
@@ -58,6 +63,7 @@ class ClaimFormGenerationServiceTest {
         claim.setClaimDate(LocalDate.of(2026, 10, 21));
         claim.setClaimAmountCents(1000000L);
         claim.setApprovedAmountCents(1000000L);
+        claim.setCreatedBy("capturer-1");
         claim.setFuneralDetailsJson("""
                 {"serviceRequestNo":"FSR-123","funeralProviderTenantId":"provider-tenant",
                 "deceasedName":"Jane Deceased", "familyRepresentative":"Family Representative",
@@ -75,6 +81,8 @@ class ClaimFormGenerationServiceTest {
         when(partners.findById("deceased-1")).thenReturn(Optional.empty());
         when(partners.findById("claimant-1")).thenReturn(Optional.empty());
         when(attachments.findByObjectId("claim-id")).thenReturn(List.of());
+        when(users.findById("capturer-1")).thenReturn(Optional.of(
+                UserEntity.builder().id("capturer-1").username("Funeral processor").email("processor@mawa.test").build()));
         when(branding.drawPdfBoxHeader(any(PDDocument.class), any(PDPageContentStream.class),
                 any(PDFont.class), any(PDFont.class), anyFloat(), anyFloat(), anyFloat())).thenReturn(735f);
         when(time.now()).thenReturn(LocalDateTime.of(2026, 10, 29, 12, 0));
@@ -89,7 +97,78 @@ class ClaimFormGenerationServiceTest {
             assertTrue(text.contains("Ga-Makapan"));
             assertTrue(text.contains("Gold"));
             assertTrue(text.contains("MEM-001"));
+            assertTrue(text.contains("FUNERAL ARRANGEMENT"));
+            assertTrue(text.contains("CLAIM PROCESSING DETAILS"));
+            assertTrue(text.contains("Funeral processor"));
+            assertTrue(text.contains("processor@mawa.test"));
+            assertFalse(text.toUpperCase().contains("CLAIM STATUS"));
             assertFalse(text.toUpperCase().contains("APPROVAL HISTORY"));
         }
     }
+
+    @Test
+    void cashClaimOmitsFuneralArrangementAndFamilyRepresentative() throws Exception {
+        MembershipClaimEntity claim = new MembershipClaimEntity();
+        claim.setId("cash-claim");
+        claim.setMembershipId("member-1");
+        claim.setClaimNo("CASH-0001");
+        claim.setClaimType(MembershipClaimType.CASH);
+        claim.setStatus(MembershipClaimStatus.DRAFT);
+        claim.setDeceasedPartnerId("deceased-1");
+        claim.setDateOfDeath(LocalDate.of(2026, 10, 20));
+        claim.setClaimDate(LocalDate.of(2026, 10, 21));
+        claim.setClaimAmountCents(190000L);
+        MembershipEntity membership = new MembershipEntity();
+        membership.setId("member-1");
+        membership.setMemberId("holder-1");
+        membership.setMembershipNo("MEM-002");
+        when(claims.findById("cash-claim")).thenReturn(Optional.of(claim));
+        when(memberships.findById("member-1")).thenReturn(Optional.of(membership));
+        when(partners.findById("holder-1")).thenReturn(Optional.empty());
+        when(partners.findById("deceased-1")).thenReturn(Optional.empty());
+        when(attachments.findByObjectId("cash-claim")).thenReturn(List.of());
+        when(branding.drawPdfBoxHeader(any(PDDocument.class), any(PDPageContentStream.class),
+                any(PDFont.class), any(PDFont.class), anyFloat(), anyFloat(), anyFloat())).thenReturn(735f);
+        when(time.now()).thenReturn(LocalDateTime.of(2026, 10, 29, 12, 0));
+
+        try (PDDocument parsed = Loader.loadPDF(forms.generatePdf("cash-claim"))) {
+            String text = new PDFTextStripper().getText(parsed);
+            assertTrue(text.contains("CLAIMANT DETAILS"));
+            assertTrue(text.contains("CLAIM PROCESSING DETAILS"));
+            assertFalse(text.contains("FUNERAL ARRANGEMENT"));
+            assertFalse(text.contains("FAMILY REPRESENTATIVE"));
+            assertFalse(text.toUpperCase().contains("CLAIM STATUS"));
+        }
+    }
+
+    @Test
+    void combinationClaimIncludesFuneralArrangement() throws Exception {
+        MembershipClaimEntity claim = new MembershipClaimEntity();
+        claim.setId("combo-claim");
+        claim.setMembershipId("member-1");
+        claim.setClaimNo("COMBO-0001");
+        claim.setClaimType(MembershipClaimType.COMBINATION);
+        claim.setDeceasedPartnerId("deceased-1");
+        claim.setDateOfDeath(LocalDate.of(2026, 10, 20));
+        claim.setClaimAmountCents(2500000L);
+        claim.setFuneralDetailsJson("{\"serviceRequestNo\":\"FSR-321\"}");
+        MembershipEntity membership = new MembershipEntity();
+        membership.setId("member-1");
+        membership.setMemberId("holder-1");
+        when(claims.findById("combo-claim")).thenReturn(Optional.of(claim));
+        when(memberships.findById("member-1")).thenReturn(Optional.of(membership));
+        when(partners.findById("holder-1")).thenReturn(Optional.empty());
+        when(partners.findById("deceased-1")).thenReturn(Optional.empty());
+        when(attachments.findByObjectId("combo-claim")).thenReturn(List.of());
+        when(branding.drawPdfBoxHeader(any(PDDocument.class), any(PDPageContentStream.class),
+                any(PDFont.class), any(PDFont.class), anyFloat(), anyFloat(), anyFloat())).thenReturn(735f);
+        when(time.now()).thenReturn(LocalDateTime.of(2026, 10, 29, 12, 0));
+
+        try (PDDocument parsed = Loader.loadPDF(forms.generatePdf("combo-claim"))) {
+            String text = new PDFTextStripper().getText(parsed);
+            assertTrue(text.contains("FUNERAL ARRANGEMENT"));
+            assertTrue(text.contains("FSR-321"));
+        }
+    }
+
 }

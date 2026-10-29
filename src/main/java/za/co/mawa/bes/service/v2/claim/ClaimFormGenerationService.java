@@ -14,13 +14,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.co.mawa.bes.entity.AttachmentEntity;
 import za.co.mawa.bes.entity.PartnerEntity;
+import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
+import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
 import za.co.mawa.bes.exception.ClaimFormGenerationException;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
+import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
+import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.CompanyPdfBrandingService;
 import za.co.mawa.bes.service.v2.UserTimeZoneService;
@@ -45,6 +49,8 @@ public class ClaimFormGenerationService {
     private final MembershipClaimRepository claimRepository;
     private final MembershipRepository membershipRepository;
     private final PartnerRepository partnerRepository;
+    private final UserRepository userRepository;
+    private final MembershipPlanRepository membershipPlanRepository;
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
@@ -87,7 +93,7 @@ public class ClaimFormGenerationService {
                                      String dateOfDeath, String causeOfDeath,
                                      String deathCertificateNo, String notes) {
         return renderClaimForm(new ClaimFormData(
-                claimNo, claimType, "DRAFT", membershipNumber, "", deceasedName, claimantName,
+                claimNo, claimType, membershipNumber, "", deceasedName, claimantName,
                 dateOfDeath, causeOfDeath, deathCertificateNo, amountCents, notes, Map.of()));
     }
 
@@ -128,7 +134,11 @@ public class ClaimFormGenerationService {
         extra.put("bankName", claim.getBankName());
         extra.put("maskedAccount", maskAccount(claim.getAccountNumber()));
         extra.put("relationship", display(claim.getDeceasedType()));
-        extra.put("memberPlan", membership == null ? "" : membership.getPlanId());
+        String planId = claim.getCoveragePlanId() != null && !claim.getCoveragePlanId().isBlank()
+                ? claim.getCoveragePlanId() : membership == null ? null : membership.getPlanId();
+        MembershipPlanEntity plan = planId == null ? null : membershipPlanRepository.findById(planId).orElse(null);
+        extra.put("memberPlan", plan == null ? "" : firstNonblank(plan.getName(), plan.getPlanCode()));
+        populateProcessorDetails(claim, extra);
         extra.put("memberNo", member == null ? "" : member.getNo());
         extra.put("claimantNo", claimant == null ? "" : claimant.getNo());
         extra.put("supportingDocuments", attachmentRepository.findByObjectId(claim.getId()).stream()
@@ -137,7 +147,7 @@ public class ClaimFormGenerationService {
                 .collect(java.util.stream.Collectors.joining(", ")));
         extra.put("deceasedNo", deceased == null ? "" : deceased.getNo());
         return renderClaimForm(new ClaimFormData(
-                claim.getClaimNo(), display(claim.getClaimType()), display(claim.getStatus()),
+                claim.getClaimNo(), display(claim.getClaimType()),
                 membership == null ? "" : membership.getMembershipNo(), partnerName(member),
                 firstNonblank(extra.get("deceasedName"), partnerName(deceased)),
                 firstNonblank(partnerName(claimant), extra.get("familyRepresentative")),
@@ -145,6 +155,35 @@ public class ClaimFormGenerationService {
                 firstNonblank(claim.getCauseOfDeath(), extra.get("causeOfDeath")),
                 firstNonblank(claim.getDeathCertificateNo(), extra.get("deathCertificateNo")),
                 claim.getClaimAmountCents(), claim.getNotes(), extra));
+    }
+
+    /** Resolve staff identities in the claim-owning tenant without exposing internal UUIDs. */
+    private void populateProcessorDetails(MembershipClaimEntity claim, Map<String, String> extra) {
+        UserEntity captured = resolveUser(claim.getCreatedBy());
+        UserEntity handled = resolveUser(claim.getUpdatedBy());
+        extra.put("capturedBy", firstNonblank(userDisplayName(captured), extra.get("claimCapturedBy")));
+        extra.put("processedBy", userDisplayName(handled));
+        extra.put("processedAt", handled == null || claim.getUpdatedAt() == null ? ""
+                : userTimeZoneService.display(claim.getUpdatedAt())
+                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")));
+        UserEntity contactUser = handled == null ? captured : handled;
+        String contact = contactUser == null ? "" : firstNonblank(contactUser.getEmail(), contactUser.getCellphone());
+        extra.put("processorContact", firstNonblank(contact, extra.get("claimProcessorContact")));
+    }
+
+    private UserEntity resolveUser(String userId) {
+        if (userId == null || userId.isBlank()) return null;
+        return userRepository.findById(userId).orElse(null);
+    }
+
+    private String userDisplayName(UserEntity user) {
+        if (user == null) return "";
+        String partnerId = user.getPartner();
+        if (partnerId != null && !partnerId.isBlank()) {
+            String partnerName = partnerRepository.findById(partnerId).map(this::partnerName).orElse("");
+            if (!partnerName.isBlank()) return partnerName;
+        }
+        return display(user.getUsername());
     }
 
     private String maskAccount(String account) {
@@ -170,12 +209,12 @@ public class ClaimFormGenerationService {
                 float y = drawHeader(document, content, 794, data);
                 y = drawSection(content, "CLAIM IDENTIFICATION", y, new String[][]{
                         {"Claim number", data.claimNo}, {"Claim type", data.claimType},
-                        {"Claim status", data.status}, {"Claim date", extra(data, "claimDate")},
+                        {"Claim date", extra(data, "claimDate")},
                         {"Membership number", data.membershipNumber}
                 });
                 y = drawSection(content, "MEMBERSHIP DETAILS", y, new String[][]{
                         {"Main member", data.memberName}, {"Member reference", extra(data, "memberNo")},
-                        {"Coverage plan reference", extra(data, "memberPlan")},
+                        {"Coverage plan", extra(data, "memberPlan")},
                         {"Benefit / deceased type", extra(data, "deceasedType")}
                 });
                 y = drawSection(content, "DECEASED DETAILS", y, new String[][]{
@@ -194,20 +233,26 @@ public class ClaimFormGenerationService {
                 write(content, "MEMBERSHIP CLAIM FORM - CONTINUED", LEFT, y, 15, true);
                 writeRight(content, clean(data.claimNo), RIGHT, y, 11, true);
                 y -= 30;
-                y = drawSection(content, "FUNERAL ARRANGEMENT", y, new String[][]{
-                        {"FSR reference", extra(data, "serviceRequestNo")},
-                        {"Funeral provider tenant", extra(data, "funeralProviderTenantId")},
-                        {"Funeral date", extra(data, "funeralDate")},
-                        {"Funeral area", extra(data, "funeralArea")},
-                        {"Selected package", extra(data, "funeralPackageName")},
-                        {"Arrangement total", arrangementTotal(data)}
-                });
-                y = drawSection(content, "CLAIMANT AND FAMILY REPRESENTATIVE", y, new String[][]{
-                        {"Claimant", data.claimantName}, {"Claimant reference", extra(data, "claimantNo")},
-                        {"Family representative", extra(data, "familyRepresentative")},
-                        {"Representative contact", extra(data, "familyRepresentativeContact")},
-                        {"Funeral directions", extra(data, "funeralAddressDirections")}
-                });
+                if (hasFuneralArrangement(data.claimType)) {
+                    y = drawSection(content, "FUNERAL ARRANGEMENT", y, new String[][]{
+                            {"FSR reference", extra(data, "serviceRequestNo")},
+                            {"Funeral provider tenant", extra(data, "funeralProviderTenantId")},
+                            {"Funeral date", extra(data, "funeralDate")},
+                            {"Funeral area", extra(data, "funeralArea")},
+                            {"Selected package", extra(data, "funeralPackageName")},
+                            {"Arrangement total", arrangementTotal(data)}
+                    });
+                    y = drawSection(content, "CLAIMANT AND FAMILY REPRESENTATIVE", y, new String[][]{
+                            {"Claimant", data.claimantName}, {"Claimant reference", extra(data, "claimantNo")},
+                            {"Family representative", extra(data, "familyRepresentative")},
+                            {"Representative contact", extra(data, "familyRepresentativeContact")},
+                            {"Funeral directions", extra(data, "funeralAddressDirections")}
+                    });
+                } else {
+                    y = drawSection(content, "CLAIMANT DETAILS", y, new String[][]{
+                            {"Claimant", data.claimantName}, {"Claimant reference", extra(data, "claimantNo")}
+                    });
+                }
                 y = drawSection(content, "CLAIM FINANCIALS", y, new String[][]{
                         {"Requested amount", formatCents(data.amountCents)},
                         {"Approved amount", extra(data, "approved")},
@@ -234,6 +279,12 @@ public class ClaimFormGenerationService {
                         {"Recorded document types", extra(data, "supportingDocuments")}
                 });
                 y = drawChecklist(content, y);
+                y = drawSection(content, "CLAIM PROCESSING DETAILS", y, new String[][]{
+                        {"Captured by", extra(data, "capturedBy")},
+                        {"Last processed by", extra(data, "processedBy")},
+                        {"Last processed on", extra(data, "processedAt")},
+                        {"Processor contact", extra(data, "processorContact")}
+                });
                 drawDeclaration(content, y);
             }
             document.save(out);
@@ -244,6 +295,10 @@ public class ClaimFormGenerationService {
                     claimReference.isBlank() ? "Failed to generate claim form" :
                             "Failed to generate claim form for claim " + claimReference, e);
         }
+    }
+
+    private boolean hasFuneralArrangement(String claimType) {
+        return "FUNERAL".equalsIgnoreCase(claimType) || "COMBINATION".equalsIgnoreCase(claimType);
     }
 
     private String arrangementTotal(ClaimFormData data) {
@@ -276,8 +331,14 @@ public class ClaimFormGenerationService {
     }
 
     private float drawSection(PDPageContentStream content, String title, float y, String[][] rows) throws Exception {
-        float rowHeight = 25;
-        float height = 24 + rows.length * rowHeight;
+        // Longer fields (for example, claim notes) must not be silently truncated after one line.
+        java.util.List<java.util.List<String>> values = new java.util.ArrayList<>();
+        float height = 24;
+        for (String[] row : rows) {
+            java.util.List<String> lines = wrapValue(present(row[1]), 55, 3);
+            values.add(lines);
+            height += 25 + (lines.size() - 1) * 13;
+        }
         content.setLineWidth(.8f);
         content.addRect(LEFT, y - height, RIGHT - LEFT, height);
         content.stroke();
@@ -287,14 +348,41 @@ public class ClaimFormGenerationService {
         content.setNonStrokingColor(0f, 0f, 0f);
         write(content, title, LEFT + 9, y - 17, 10, true);
         float rowY = y - 24;
-        for (String[] row : rows) {
+        for (int i = 0; i < rows.length; i++) {
+            String[] row = rows[i];
+            java.util.List<String> lines = values.get(i);
+            float rowHeight = 25 + (lines.size() - 1) * 13;
             content.moveTo(LEFT, rowY - rowHeight); content.lineTo(RIGHT, rowY - rowHeight); content.stroke();
             content.moveTo(LEFT + 170, rowY); content.lineTo(LEFT + 170, rowY - rowHeight); content.stroke();
             write(content, row[0], LEFT + 9, rowY - 17, 9, true);
-            write(content, truncate(present(row[1]), 55), LEFT + 180, rowY - 17, 9, false);
+            for (int j = 0; j < lines.size(); j++) {
+                write(content, lines.get(j), LEFT + 180, rowY - 17 - j * 13, 9, false);
+            }
             rowY -= rowHeight;
         }
         return y - height - 13;
+    }
+
+    private java.util.List<String> wrapValue(String value, int width, int maxLines) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String remaining = clean(value);
+        while (!remaining.isEmpty() && lines.size() < maxLines) {
+            if (remaining.length() <= width) {
+                lines.add(remaining);
+                break;
+            }
+            int boundary = remaining.lastIndexOf(' ', width);
+            if (boundary < width / 2) boundary = width;
+            String line = remaining.substring(0, boundary).trim();
+            remaining = remaining.substring(boundary).trim();
+            if (lines.size() == maxLines - 1) {
+                line = truncate((line + " " + remaining).trim(), width);
+                remaining = "";
+            }
+            lines.add(line);
+        }
+        if (lines.isEmpty()) lines.add("Not supplied");
+        return lines;
     }
 
     private float drawDeclaration(PDPageContentStream content, float y) throws Exception {
@@ -319,18 +407,6 @@ public class ClaimFormGenerationService {
         write(content, "[  ] Identity documents", LEFT + 12, y - 60, 9, false);
         write(content, "[  ] Other required claim evidence", LEFT + 190, y - 60, 9, false);
         return y - height - 13;
-    }
-
-    private void drawOfficeUse(PDPageContentStream content, float y, ClaimFormData data) throws Exception {
-        float height = 76;
-        content.addRect(LEFT, y - height, RIGHT - LEFT, height); content.stroke();
-        write(content, "OFFICE USE", LEFT + 9, y - 18, 10, true);
-        write(content, "Received by", LEFT + 9, y - 43, 9, true);
-        content.moveTo(LEFT + 82, y - 45); content.lineTo(LEFT + 235, y - 45); content.stroke();
-        write(content, "Date", LEFT + 255, y - 43, 9, true);
-        content.moveTo(LEFT + 286, y - 45); content.lineTo(LEFT + 380, y - 45); content.stroke();
-        write(content, "Status", LEFT + 397, y - 43, 9, true);
-        write(content, clean(data.status), LEFT + 440, y - 43, 9, false);
     }
 
     private void write(PDPageContentStream content, String text, float x, float y, int size, boolean bold) throws Exception {
@@ -373,7 +449,7 @@ public class ClaimFormGenerationService {
         return "R " + String.format("%,.2f", amount / 100.0);
     }
 
-    private record ClaimFormData(String claimNo, String claimType, String status, String membershipNumber,
+    private record ClaimFormData(String claimNo, String claimType, String membershipNumber,
                                  String memberName, String deceasedName, String claimantName,
                                  String dateOfDeath, String causeOfDeath, String deathCertificateNo,
                                  Long amountCents, String notes, Map<String, String> extra) {}

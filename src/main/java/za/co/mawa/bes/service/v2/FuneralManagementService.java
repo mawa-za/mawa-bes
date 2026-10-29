@@ -847,7 +847,7 @@ public class FuneralManagementService {
                     service.getId(),
                     TenantContext.getCurrentTenant(),
                     buildClaimNotes(service, request.getNotes(), externalClaim));
-            captureFuneralClaimContext(service, externalClaim ? claimTenantId : null, membershipClaimId);
+            captureFuneralClaimContext(service, externalClaim ? claimTenantId : null, membershipClaimId, true);
             markFuneralDeceasedOnMembership(externalClaim ? claimTenantId : null,
                     membershipId, claimDeceasedPartnerId,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
@@ -2616,7 +2616,7 @@ public class FuneralManagementService {
             defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),deceasedPartnerId,coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),claimantPartnerId,groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
-        captureFuneralClaimContext(service, tenantId, groceryId);
+        captureFuneralClaimContext(service, tenantId, groceryId, true);
         markFuneralDeceasedOnMembership(tenantId, cover.getSourceMembershipId(), deceasedPartnerId,
                 defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
                 coverageEventDate, isNoIdentityCoverSelection(cover));
@@ -2729,10 +2729,15 @@ public class FuneralManagementService {
     }
 
     /** Copy the funeral details into the claim-owner's schema; no cross-schema attachment ID is reused. */
-    private boolean captureFuneralClaimContext(FuneralServiceEntity service, String claimTenantId, String claimId) {
+    private boolean captureFuneralClaimContext(FuneralServiceEntity service, String claimTenantId, String claimId,
+                                               boolean newlyCreated) {
         Map<String, Object> details = new LinkedHashMap<>();
         FuneralPackageEntity selectedPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
         details.put("serviceRequestNo", service.getServiceRequestNo());
+        // Capture the originating operator only during initial creation; a later repair is not claim processing.
+        if (newlyCreated) {
+            details.put("claimCapturedBy", UserContext.getCurrentUser());
+        }
         details.put("funeralPackageName", selectedPackage == null ? "" : selectedPackage.getName());
         details.put("arrangementTotalCents", service.getTotalAmountCents());
         details.put("funeralProviderTenantId", TenantContext.getCurrentTenant());
@@ -2774,7 +2779,7 @@ public class FuneralManagementService {
         for (FuneralServiceClaimEntity link : funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)) {
             String ownerTenant = "EXTERNAL".equalsIgnoreCase(link.getClaimStorageScope())
                     ? link.getClaimOwnerTenantId() : null;
-            if (captureFuneralClaimContext(service, ownerTenant, link.getMembershipClaimId())) repaired++;
+            if (captureFuneralClaimContext(service, ownerTenant, link.getMembershipClaimId(), false)) repaired++;
         }
         return repaired;
     }
