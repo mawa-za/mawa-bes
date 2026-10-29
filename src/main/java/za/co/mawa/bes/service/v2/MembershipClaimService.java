@@ -399,15 +399,17 @@ public class MembershipClaimService {
     @Transactional
     public MembershipClaimResponse recordClaimFormDownload(String id, String userId) {
         MembershipClaimEntity entity = getClaimEntity(id);
-        membershipActionGuardService.requireActionable(entity.getMembershipId());
         boolean installationClaim = entity.getClaimType() == MembershipClaimType.TOMBSTONE
                 && StringUtils.hasText(entity.getTombstoneInstallationRequestId());
-        if (entity.getClaimType() != MembershipClaimType.CASH && !installationClaim) {
+        // Only DRAFT CASH/installation forms need download tracking as a
+        // submission prerequisite. Reprinting any finalised claim (including
+        // PAID) is read-only and must not be blocked by membership action guards,
+        // change its updatedBy field or affect payment/approval status.
+        if ((entity.getClaimType() != MembershipClaimType.CASH && !installationClaim)
+                || entity.getStatus() != MembershipClaimStatus.DRAFT) {
             return toResponse(entity);
         }
-        if (entity.getStatus() != MembershipClaimStatus.DRAFT) {
-            throw new IllegalArgumentException("The claim form can only be downloaded while the claim is DRAFT");
-        }
+        membershipActionGuardService.requireActionable(entity.getMembershipId());
         entity.setClaimFormDownloadCount((entity.getClaimFormDownloadCount() == null ? 0 : entity.getClaimFormDownloadCount()) + 1);
         entity.setClaimFormDownloadedAt(LocalDateTime.now());
         entity.setUpdatedBy(userId);
