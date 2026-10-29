@@ -111,6 +111,13 @@ public class MembershipClaimControllerV2 {
         return ResponseEntity.ok(membershipClaimService.update(id, request, userId));
     }
 
+    @PostMapping("/{id}/claim-form/regenerate")
+    public ResponseEntity<?> regenerateStoredClaimForm(@PathVariable String id) {
+        var attachment = claimFormGenerationService.regenerateStoredForm(id);
+        return ResponseEntity.ok(java.util.Map.of("id", attachment.getId(),
+                "documentType", "CLAIM-FORM", "claimId", id));
+    }
+
     @PostMapping("/{id}/claim-form")
     public ResponseEntity<byte[]> generateClaimForm(
             @PathVariable String id,

@@ -1,6 +1,8 @@
 package za.co.mawa.bes.service.v2.claim;
 
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -27,6 +29,9 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
+import java.util.Objects;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +49,7 @@ public class ClaimFormGenerationService {
     private final AttachmentService attachmentService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
     private final UserTimeZoneService userTimeZoneService;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public AttachmentEntity generateForSubmittedClaim(String claimId) {
@@ -54,16 +60,19 @@ public class ClaimFormGenerationService {
         return attachmentService.saveBytes(generatePdf(claim), "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
     }
 
+    /** Compatibility entry point: never produce the old incomplete funeral-specific draft. */
     @Transactional
     public AttachmentEntity generateForFuneralClaim(String claimId, String claimNo, String claimType,
                                                      String deceasedName, String claimantName, Long amountCents) {
-        AttachmentEntity existing = latestGeneratedClaimForm(claimId);
-        if (existing != null) return existing;
-        byte[] pdf = generateFuneralPdf(claimNo, claimType, "", deceasedName, claimantName, amountCents,
-                "", "", "", "");
-        return attachmentService.saveBytes(pdf, "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+        return generateForSubmittedClaim(claimId);
     }
 
+
+    /** Save a new version without overwriting the originally issued attachment. */
+    @Transactional
+    public AttachmentEntity regenerateStoredForm(String claimId) {
+        return attachmentService.saveBytes(generatePdf(claimId), "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+    }
 
     private AttachmentEntity latestGeneratedClaimForm(String claimId) {
         return attachmentRepository
@@ -79,7 +88,7 @@ public class ClaimFormGenerationService {
                                      String deathCertificateNo, String notes) {
         return renderClaimForm(new ClaimFormData(
                 claimNo, claimType, "DRAFT", membershipNumber, "", deceasedName, claimantName,
-                dateOfDeath, causeOfDeath, deathCertificateNo, amountCents, notes));
+                dateOfDeath, causeOfDeath, deathCertificateNo, amountCents, notes, Map.of()));
     }
 
     public byte[] generatePdf(String claimId) {
@@ -93,45 +102,160 @@ public class ClaimFormGenerationService {
         PartnerEntity member = membership == null ? null : partnerRepository.findById(membership.getMemberId()).orElse(null);
         PartnerEntity deceased = partnerRepository.findById(claim.getDeceasedPartnerId()).orElse(null);
         PartnerEntity claimant = Optional.ofNullable(claim.getClaimantPartnerId()).flatMap(partnerRepository::findById).orElse(null);
+        Map<String, String> extra = new LinkedHashMap<>();
+        if (claim.getFuneralDetailsJson() != null && !claim.getFuneralDetailsJson().isBlank()) {
+            try {
+                Map<String, Object> snapshot = objectMapper.readValue(claim.getFuneralDetailsJson(),
+                        new TypeReference<Map<String, Object>>() {});
+                snapshot.forEach((key, value) -> extra.put(key, value == null ? "" : value.toString()));
+            } catch (Exception ex) {
+                throw new ClaimFormGenerationException("Invalid saved funeral context for " + claim.getClaimNo(), ex);
+            }
+        }
+        extra.put("claimDate", display(claim.getClaimDate()));
+        extra.put("burialDate", display(claim.getBurialDate()));
+        extra.put("deceasedType", display(claim.getDeceasedType()));
+        extra.put("coveragePlan", claim.getCoveragePlanId());
+        extra.put("requested", formatCents(claim.getClaimAmountCents()));
+        extra.put("approved", claim.getApprovedAmountCents() == null ? "Not yet approved" : formatCents(claim.getApprovedAmountCents()));
+        extra.put("arrearsMonths", display(claim.getArrearsMonths()));
+        extra.put("arrearsFine", formatCents(claim.getArrearsFineCents()));
+        extra.put("payoutMethod", display(claim.getPayoutMethod()));
+        extra.put("settlementMethod", claim.getSettlementMethod());
+        extra.put("settlementReference", claim.getSettlementReference());
+        extra.put("settledAt", display(claim.getSettledAt()));
+        extra.put("accountHolder", claim.getAccountHolderName());
+        extra.put("bankName", claim.getBankName());
+        extra.put("maskedAccount", maskAccount(claim.getAccountNumber()));
+        extra.put("relationship", display(claim.getDeceasedType()));
+        extra.put("memberPlan", membership == null ? "" : membership.getPlanId());
+        extra.put("memberNo", member == null ? "" : member.getNo());
+        extra.put("claimantNo", claimant == null ? "" : claimant.getNo());
+        extra.put("supportingDocuments", attachmentRepository.findByObjectId(claim.getId()).stream()
+                .map(AttachmentEntity::getDocumentType).filter(Objects::nonNull)
+                .filter(type -> !DOCUMENT_TYPE.equalsIgnoreCase(type)).distinct()
+                .collect(java.util.stream.Collectors.joining(", ")));
+        extra.put("deceasedNo", deceased == null ? "" : deceased.getNo());
         return renderClaimForm(new ClaimFormData(
-                claim.getClaimNo(), String.valueOf(claim.getClaimType()), String.valueOf(claim.getStatus()),
-                membership == null ? "" : membership.getMembershipNo(), partnerName(member), partnerName(deceased),
-                partnerName(claimant), String.valueOf(claim.getDateOfDeath()), claim.getCauseOfDeath(),
-                claim.getDeathCertificateNo(), claim.getClaimAmountCents(), claim.getNotes()));
+                claim.getClaimNo(), display(claim.getClaimType()), display(claim.getStatus()),
+                membership == null ? "" : membership.getMembershipNo(), partnerName(member),
+                firstNonblank(extra.get("deceasedName"), partnerName(deceased)),
+                firstNonblank(partnerName(claimant), extra.get("familyRepresentative")),
+                firstNonblank(extra.get("dateOfDeath"), display(claim.getDateOfDeath())),
+                firstNonblank(claim.getCauseOfDeath(), extra.get("causeOfDeath")),
+                firstNonblank(claim.getDeathCertificateNo(), extra.get("deathCertificateNo")),
+                claim.getClaimAmountCents(), claim.getNotes(), extra));
+    }
+
+    private String maskAccount(String account) {
+        if (account == null || account.isBlank()) return "";
+        String value = account.trim();
+        return "****" + value.substring(Math.max(0, value.length() - 4));
+    }
+
+    private String firstNonblank(String primary, String fallback) {
+        return primary == null || primary.isBlank() ? fallback : primary;
+    }
+
+    private String display(Object value) {
+        return value == null ? "" : value.toString();
     }
 
     private byte[] renderClaimForm(ClaimFormData data) {
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            PDPage page = new PDPage(PDRectangle.A4);
-            document.addPage(page);
-            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                float y = 794;
-                y = drawHeader(document, content, y, data);
-                y = drawSection(content, "CLAIM DETAILS", y,
-                        new String[][]{
-                                {"Claim number", data.claimNo}, {"Claim type", data.claimType},
-                                {"Membership number", data.membershipNumber}, {"Claim amount", formatCents(data.amountCents)}
-                        });
-                y = drawSection(content, "MEMBER AND DECEASED", y,
-                        new String[][]{
-                                {"Main member", data.memberName}, {"Deceased", data.deceasedName},
-                                {"Date of death", data.dateOfDeath}, {"Cause of death", data.causeOfDeath},
-                                {"Death certificate no.", data.deathCertificateNo}, {"Claimant", data.claimantName}
-                        });
-                y = drawDeclaration(content, y);
+            // Three pages intentionally: all claim information remains readable, with no truncated sections.
+            PDPage first = new PDPage(PDRectangle.A4);
+            document.addPage(first);
+            try (PDPageContentStream content = new PDPageContentStream(document, first)) {
+                float y = drawHeader(document, content, 794, data);
+                y = drawSection(content, "CLAIM IDENTIFICATION", y, new String[][]{
+                        {"Claim number", data.claimNo}, {"Claim type", data.claimType},
+                        {"Claim status", data.status}, {"Claim date", extra(data, "claimDate")},
+                        {"Membership number", data.membershipNumber}
+                });
+                y = drawSection(content, "MEMBERSHIP DETAILS", y, new String[][]{
+                        {"Main member", data.memberName}, {"Member reference", extra(data, "memberNo")},
+                        {"Coverage plan reference", extra(data, "memberPlan")},
+                        {"Benefit / deceased type", extra(data, "deceasedType")}
+                });
+                y = drawSection(content, "DECEASED DETAILS", y, new String[][]{
+                        {"Deceased", data.deceasedName},
+                        {"Identity / document no.", firstNonblank(extra(data, "deceasedIdentityNumber"), extra(data, "deceasedNo"))},
+                        {"Relationship / cover", extra(data, "relationship")},
+                        {"Date of death", data.dateOfDeath}, {"Cause of death", data.causeOfDeath},
+                        {"Death certificate no.", data.deathCertificateNo}, {"Burial date", extra(data, "burialDate")}
+                });
+
+            }
+            PDPage second = new PDPage(PDRectangle.A4);
+            document.addPage(second);
+            try (PDPageContentStream content = new PDPageContentStream(document, second)) {
+                float y = 793;
+                write(content, "MEMBERSHIP CLAIM FORM - CONTINUED", LEFT, y, 15, true);
+                writeRight(content, clean(data.claimNo), RIGHT, y, 11, true);
+                y -= 30;
+                y = drawSection(content, "FUNERAL ARRANGEMENT", y, new String[][]{
+                        {"FSR reference", extra(data, "serviceRequestNo")},
+                        {"Funeral provider tenant", extra(data, "funeralProviderTenantId")},
+                        {"Funeral date", extra(data, "funeralDate")},
+                        {"Funeral area", extra(data, "funeralArea")},
+                        {"Selected package", extra(data, "funeralPackageName")},
+                        {"Arrangement total", arrangementTotal(data)}
+                });
+                y = drawSection(content, "CLAIMANT AND FAMILY REPRESENTATIVE", y, new String[][]{
+                        {"Claimant", data.claimantName}, {"Claimant reference", extra(data, "claimantNo")},
+                        {"Family representative", extra(data, "familyRepresentative")},
+                        {"Representative contact", extra(data, "familyRepresentativeContact")},
+                        {"Funeral directions", extra(data, "funeralAddressDirections")}
+                });
+                y = drawSection(content, "CLAIM FINANCIALS", y, new String[][]{
+                        {"Requested amount", formatCents(data.amountCents)},
+                        {"Approved amount", extra(data, "approved")},
+                        {"Arrears months", extra(data, "arrearsMonths")},
+                        {"Arrears fine", extra(data, "arrearsFine")},
+                        {"Claim notes", data.notes}
+                });
+                y = drawSection(content, "PAYMENT AND SETTLEMENT", y, new String[][]{
+                        {"Payout method", extra(data, "payoutMethod")},
+                        {"Settlement method", extra(data, "settlementMethod")},
+                        {"Settlement reference", extra(data, "settlementReference")},
+                        {"Settlement date", extra(data, "settledAt")},
+                        {"Recipient / account holder", extra(data, "accountHolder")},
+                        {"Bank / masked account", (extra(data, "bankName") + " " + extra(data, "maskedAccount")).trim()}
+                });
+            }
+            PDPage third = new PDPage(PDRectangle.A4);
+            document.addPage(third);
+            try (PDPageContentStream content = new PDPageContentStream(document, third)) {
+                float y = 793;
+                write(content, "CLAIM SUPPORTING DOCUMENTS AND DECLARATION", LEFT, y, 14, true);
+                writeRight(content, clean(data.claimNo), RIGHT, y, 11, true);
+                y = drawSection(content, "DOCUMENTS ATTACHED", y - 36, new String[][]{
+                        {"Recorded document types", extra(data, "supportingDocuments")}
+                });
                 y = drawChecklist(content, y);
-                drawOfficeUse(content, y, data);
+                drawDeclaration(content, y);
             }
             document.save(out);
             return out.toByteArray();
         } catch (Exception e) {
             String claimReference = clean(data.claimNo);
             throw new ClaimFormGenerationException(
-                    claimReference.isBlank()
-                            ? "Failed to generate claim form"
-                            : "Failed to generate claim form for claim " + claimReference,
-                    e);
+                    claimReference.isBlank() ? "Failed to generate claim form" :
+                            "Failed to generate claim form for claim " + claimReference, e);
         }
+    }
+
+    private String arrangementTotal(ClaimFormData data) {
+        try { return extra(data, "arrangementTotalCents").isBlank() ? ""
+                    : formatCents(Long.parseLong(extra(data, "arrangementTotalCents"))); }
+        catch (NumberFormatException ex) { return ""; }
+    }
+
+    private String extra(ClaimFormData data, String key) {
+        if (data.extra == null) return "";
+        String value = data.extra.get(key);
+        return value == null ? "" : value;
     }
 
     private float drawHeader(PDDocument document, PDPageContentStream content, float y, ClaimFormData data) throws Exception {
@@ -167,7 +291,7 @@ public class ClaimFormGenerationService {
             content.moveTo(LEFT, rowY - rowHeight); content.lineTo(RIGHT, rowY - rowHeight); content.stroke();
             content.moveTo(LEFT + 170, rowY); content.lineTo(LEFT + 170, rowY - rowHeight); content.stroke();
             write(content, row[0], LEFT + 9, rowY - 17, 9, true);
-            write(content, truncate(clean(row[1]), 65), LEFT + 180, rowY - 17, 9, false);
+            write(content, truncate(present(row[1]), 55), LEFT + 180, rowY - 17, 9, false);
             rowY -= rowHeight;
         }
         return y - height - 13;
@@ -232,6 +356,10 @@ public class ClaimFormGenerationService {
         return (clean(partner.getName2()) + " " + clean(partner.getName3()) + " " + clean(partner.getName1())).trim();
     }
 
+    private String present(String value) {
+        return clean(value).isBlank() ? "Not supplied" : clean(value);
+    }
+
     private String clean(String value) {
         return value == null || "null".equalsIgnoreCase(value) ? "" : value.replace('\n', ' ').replace('\r', ' ').trim();
     }
@@ -248,5 +376,5 @@ public class ClaimFormGenerationService {
     private record ClaimFormData(String claimNo, String claimType, String status, String membershipNumber,
                                  String memberName, String deceasedName, String claimantName,
                                  String dateOfDeath, String causeOfDeath, String deathCertificateNo,
-                                 Long amountCents, String notes) {}
+                                 Long amountCents, String notes, Map<String, String> extra) {}
 }

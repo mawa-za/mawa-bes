@@ -24,6 +24,51 @@ public class FuneralManagementControllerV2 {
     private final FuneralManagementService funeralManagementService;
     private final FuneralDocumentService funeralDocumentService;
     private final GroupSocietyFuneralClaimService groupSocietyFuneralClaimService;
+    private final za.co.mawa.bes.service.v2.FuneralPackageAmendmentService packageAmendments;
+    private final za.co.mawa.bes.service.v2.FuneralPackageAmendmentDocumentService amendmentDocuments;
+
+    @PostMapping("/service-request/{id}/claim-documents/restore-context")
+    public ResponseEntity<?> restoreClaimContext(@PathVariable String id) {
+        try { return ResponseEntity.ok(java.util.Map.of(
+                "claimsUpdated", funeralManagementService.refreshFuneralClaimContexts(id)));
+        } catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
+
+    @GetMapping("/service-request/{id}/package-amendments")
+    public ResponseEntity<?> packageAmendmentHistory(@PathVariable String id) {
+        try { return ResponseEntity.ok(packageAmendments.history(id)); }
+        catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
+
+    @GetMapping("/service-request/{id}/package-amendments/preview")
+    public ResponseEntity<?> packageAmendmentPreview(@PathVariable String id,
+                                                     @RequestParam String newPackageId) {
+        try { return ResponseEntity.ok(packageAmendments.preview(id, newPackageId)); }
+        catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
+
+    @PostMapping("/service-request/{id}/package-amendments")
+    public ResponseEntity<?> submitPackageAmendment(@PathVariable String id,
+            @RequestBody FuneralPackageAmendmentRequest request) {
+        try { return ResponseEntity.ok(packageAmendments.request(id, request)); }
+        catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
+
+    @GetMapping(value = "/package-amendments/{amendmentId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<?> packageAmendmentPdf(@PathVariable String amendmentId) {
+        try { return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=funeral-amendment-" + amendmentId + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(amendmentDocuments.generate(amendmentId));
+        } catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
+
+    @PostMapping("/package-amendments/{amendmentId}/apply")
+    public ResponseEntity<?> applyApprovedPackageAmendment(@PathVariable String amendmentId) {
+        try { return ResponseEntity.ok(packageAmendments.apply(amendmentId)); }
+        catch (Exception ex) { return ResponseEntity.badRequest().body(ex.getMessage()); }
+    }
 
     @GetMapping("/pickup-requests")
     public ResponseEntity<?> getPickupRequests() {

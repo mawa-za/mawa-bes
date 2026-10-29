@@ -82,6 +82,10 @@ public class FuneralServiceEntity {
     @Column(name = "total_amount_cents", nullable = false)
     private Long totalAmountCents = 0L;
 
+    /** Agreed package contents and price preserved at final invoicing. */
+    @Column(name = "package_snapshot_json", columnDefinition = "json")
+    private String packageSnapshotJson;
+
     @Column(name = "extras_json", columnDefinition = "json")
     private String extrasJson;
 

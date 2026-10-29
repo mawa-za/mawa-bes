@@ -683,6 +683,11 @@ public class FuneralManagementService {
         }
 
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        if ("INVOICED".equalsIgnoreCase(service.getStatus())
+                || "CANCELLED".equalsIgnoreCase(service.getStatus())) {
+            throw new IllegalStateException("Finalised or cancelled funeral arrangements cannot be edited directly. "
+                    + "Use the funeral package amendment workflow.");
+        }
         validateFuneralDates(
                 request.getDateOfDeath(),
                 request.getFuneralDate() == null ? service.getFuneralDate() : request.getFuneralDate());
@@ -842,6 +847,7 @@ public class FuneralManagementService {
                     service.getId(),
                     TenantContext.getCurrentTenant(),
                     buildClaimNotes(service, request.getNotes(), externalClaim));
+            captureFuneralClaimContext(service, externalClaim ? claimTenantId : null, membershipClaimId);
             markFuneralDeceasedOnMembership(externalClaim ? claimTenantId : null,
                     membershipId, claimDeceasedPartnerId,
                     defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
@@ -1198,6 +1204,13 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Funeral service request not found: " + request.getFuneralServiceId());
         }
         FuneralServiceEntity service = getFuneralServiceOrThrow(request.getFuneralServiceId());
+        Integer amendmentsApplied = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM funeral_package_amendment WHERE funeral_service_id = ? AND status = 'APPLIED'",
+                Integer.class, service.getId());
+        if (amendmentsApplied != null && amendmentsApplied > 0) {
+            throw new IllegalStateException("This funeral has approved package amendments. "
+                    + "Original invoices must not be regenerated; use the amendment documents instead.");
+        }
         List<FuneralInvoiceSplitDto> splits = buildSplitsFromApprovedClaims(service);
         if (splits.isEmpty()) {
             throw new IllegalArgumentException("No invoice splits generated. Resolve claims first or check funeral amount.");
@@ -1272,6 +1285,22 @@ public class FuneralManagementService {
                 .forEach(this::retireUnusedFuneralInvoice);
 
         service.setStatus("INVOICED");
+        // Freeze the agreed package details for future amendments; package masters can change.
+        if (!StringUtils.hasText(service.getPackageSnapshotJson())) {
+            FuneralPackageEntity selected = funeralPackageRepository.findById(service.getPackageId())
+                    .orElseThrow(() -> new IllegalStateException("Funeral package no longer available"));
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("id", selected.getId());
+            snapshot.put("name", selected.getName());
+            snapshot.put("pricingMode", selected.getPricingMode());
+            snapshot.put("basePriceCents", selected.getBasePriceCents());
+            snapshot.put("inclusionsJson", selected.getInclusionsJson());
+            snapshot.put("products", funeralPackageItemRepository
+                    .findByFuneralPackageIdOrderByProductDescriptionAsc(selected.getId()).stream()
+                    .map(item -> Map.of("description", item.getProductDescription(), "quantity", item.getQuantity(),
+                            "unitPriceCents", item.getUnitPriceCents())).toList());
+            service.setPackageSnapshotJson(toJson(snapshot));
+        }
         service.setWizardStep(6);
         funeralServiceRepository.save(service);
 
@@ -2279,12 +2308,12 @@ public class FuneralManagementService {
         FuneralServiceClaimEntity link = funeralServiceClaimRepository.findByMembershipClaimId(membershipClaimId)
                 .orElseThrow(() -> new IllegalArgumentException("Funeral claim not found: " + membershipClaimId));
         FuneralServiceEntity service = getFuneralServiceOrThrow(link.getFuneralServiceId());
-        FuneralClaimDto claim = readClaimDto(membershipClaimId);
-        byte[] pdf = claimFormGenerationService.generateFuneralPdf(
-                claim.getClaimNo(), claim.getClaimType(), claim.getMembershipNumber(),
-                service.getDeceasedName(), familyRepresentativeDisplayName(service),
-                claim.getClaimedAmountCents(), claim.getDateOfDeath() == null ? "" : claim.getDateOfDeath().toString(),
-                service.getCauseOfDeath(), service.getDeathCertificateNo(), "");
+        // Generate from the claim-owning membership tenant, not an incomplete provider-side draft.
+        byte[] pdf = "EXTERNAL".equalsIgnoreCase(link.getClaimStorageScope())
+                ? crossTenantExecutionService.execute(link.getClaimOwnerTenantId(), null,
+                        UserContext.getCurrentUserId(),
+                        () -> claimFormGenerationService.generatePdf(membershipClaimId))
+                : claimFormGenerationService.generatePdf(membershipClaimId);
         link.setClaimFormPrintCount(defaultInt(link.getClaimFormPrintCount()) + 1);
         link.setClaimFormLastPrintedAt(LocalDateTime.now());
         funeralServiceClaimRepository.save(link);
@@ -2587,6 +2616,7 @@ public class FuneralManagementService {
             defaultString(cover.getDeceasedType(),"MAIN_MEMBER"),deceasedPartnerId,coverageEventDate,LocalDate.now(),
             defaultString(request.getCauseOfDeath(),service.getCauseOfDeath()),defaultString(request.getDeathCertificateNo(),service.getDeathCertificateNo()),claimantPartnerId,groceryAmount,service.getId(),TenantContext.getCurrentTenant(),
             "Automatically created from funeral service "+service.getServiceRequestNo());
+        captureFuneralClaimContext(service, tenantId, groceryId);
         markFuneralDeceasedOnMembership(tenantId, cover.getSourceMembershipId(), deceasedPartnerId,
                 defaultString(cover.getDeceasedType(), "MAIN_MEMBER"),
                 coverageEventDate, isNoIdentityCoverSelection(cover));
@@ -2698,11 +2728,64 @@ public class FuneralManagementService {
         return sourcePartnerId;
     }
 
+    /** Copy the funeral details into the claim-owner's schema; no cross-schema attachment ID is reused. */
+    private boolean captureFuneralClaimContext(FuneralServiceEntity service, String claimTenantId, String claimId) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        FuneralPackageEntity selectedPackage = funeralPackageRepository.findById(service.getPackageId()).orElse(null);
+        details.put("serviceRequestNo", service.getServiceRequestNo());
+        details.put("funeralPackageName", selectedPackage == null ? "" : selectedPackage.getName());
+        details.put("arrangementTotalCents", service.getTotalAmountCents());
+        details.put("funeralProviderTenantId", TenantContext.getCurrentTenant());
+        details.put("funeralServiceId", service.getId());
+        details.put("funeralDate", service.getFuneralDate());
+        details.put("funeralArea", service.getFuneralArea());
+        details.put("familyRepresentative", familyRepresentativeDisplayName(service));
+        details.put("familyRepresentativeContact", service.getFamilyRepContactDetails());
+        details.put("deceasedName", service.getDeceasedName());
+        details.put("deceasedIdentityNumber", service.getDeceasedIdentityNumber());
+        details.put("dateOfDeath", service.getDateOfDeath());
+        details.put("causeOfDeath", service.getCauseOfDeath());
+        details.put("deathCertificateNo", service.getDeathCertificateNo());
+        details.put("funeralAddressDirections", service.getDeceasedDeliveryDirections());
+        try {
+            String table = claimTenantId == null ? "membership_claim" : qualifiedTable(claimTenantId, "membership_claim");
+            // Never overwrite the original snapshot after a package amendment or a document regeneration.
+            int updated = jdbcTemplate.update("UPDATE " + table
+                            + " SET funeral_details_json = ? WHERE id = ? AND funeral_details_json IS NULL",
+                    objectMapper.writeValueAsString(details), claimId);
+            if (updated == 0) {
+                Integer found = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM " + table + " WHERE id = ?", Integer.class, claimId);
+                if (found == null || found == 0) {
+                    throw new IllegalStateException("Claim missing in owning membership tenant");
+                }
+            }
+            return updated > 0;
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to preserve funeral claim details in the owning tenant", e);
+        }
+    }
+
+    /** Repair historical local and external funeral claims without altering claim amounts or approval status. */
+    @Transactional
+    public int refreshFuneralClaimContexts(String funeralServiceId) {
+        FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        int repaired = 0;
+        for (FuneralServiceClaimEntity link : funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)) {
+            String ownerTenant = "EXTERNAL".equalsIgnoreCase(link.getClaimStorageScope())
+                    ? link.getClaimOwnerTenantId() : null;
+            if (captureFuneralClaimContext(service, ownerTenant, link.getMembershipClaimId())) repaired++;
+        }
+        return repaired;
+    }
+
     private void prepareFuneralClaimForm(FuneralServiceEntity service, String claimId, String claimNo,
                                          String claimType, long amountCents) {
-        String claimantName = familyRepresentativeDisplayName(service);
-        claimFormGenerationService.generateForFuneralClaim(
-                claimId, claimNo, claimType, service.getDeceasedName(), claimantName, amountCents);
+        // The canonical claim form is generated in the owning membership tenant after commit.
+        // A draft attachment created in the provider tenant is NOT accessible from that tenant.
+        FuneralServiceClaimEntity link = funeralServiceClaimRepository.findByMembershipClaimId(claimId).orElse(null);
+        if (link != null && "EXTERNAL".equalsIgnoreCase(link.getClaimStorageScope())) return;
+        claimFormGenerationService.generateForSubmittedClaim(claimId);
     }
 
     private String familyRepresentativeDisplayName(FuneralServiceEntity service) {

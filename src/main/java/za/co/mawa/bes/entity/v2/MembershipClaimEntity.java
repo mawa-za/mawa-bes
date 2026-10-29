@@ -147,6 +147,16 @@ public class MembershipClaimEntity {
     @Column(name = "account_type", length = 30)
     private BankAccountType accountType;
 
+    /** Immutable funeral arrangement context copied to the claim-owning tenant at creation. */
+    @Column(name = "funeral_details_json", columnDefinition = "json")
+    private String funeralDetailsJson;
+
+    @Column(name = "funeral_service_id", length = 255)
+    private String funeralServiceId;
+
+    @Column(name = "funeral_provider_tenant_id", length = 255)
+    private String funeralProviderTenantId;
+
     @Builder.Default
     @Column(name = "claim_form_download_count", nullable = false)
     private Integer claimFormDownloadCount = 0;

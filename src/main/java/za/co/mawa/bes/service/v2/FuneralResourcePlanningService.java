@@ -106,7 +106,7 @@ public class FuneralResourcePlanningService {
         List<Map<String,Object>> requirements = jdbc.queryForList("SELECT * FROM funeral_resource_requirement WHERE funeral_package_id=? AND active=1", f.get("package_id"));
         for (Map<String,Object> r : requirements) {
             String requirementId = text(r.get("id"));
-            if (count("SELECT COUNT(*) FROM funeral_resource_plan_item WHERE resource_plan_id=? AND source_requirement_id=?", planId, requirementId) > 0) continue;
+            if (count("SELECT COUNT(*) FROM funeral_resource_plan_item WHERE resource_plan_id=? AND source_requirement_id=? AND status <> 'CANCELLED'", planId, requirementId) > 0) continue;
             jdbc.update("INSERT INTO funeral_resource_plan_item(id,resource_plan_id,source_requirement_id,name,resource_type,resource_category,product_id,required_quantity,uom,mandatory,sourcing_mode,start_at,end_at,status,notes,created_by,updated_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'UNPLANNED',?,?,?)",
                     UUID.randomUUID().toString(), planId, requirementId, r.get("name"), r.get("resource_type"), r.get("resource_category"), r.get("product_id"), r.get("quantity"), r.get("uom"), r.get("mandatory"), r.get("sourcing_mode"),
                     Timestamp.valueOf(base.plusMinutes(asInt(r.get("start_offset_minutes"),0))), Timestamp.valueOf(base.plusMinutes(asInt(r.get("end_offset_minutes"),1440))), r.get("notes"), userId, userId);
