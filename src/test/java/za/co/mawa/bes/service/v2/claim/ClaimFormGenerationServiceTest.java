@@ -98,6 +98,8 @@ class ClaimFormGenerationServiceTest {
         when(branding.drawPdfBoxHeader(any(PDDocument.class), any(PDPageContentStream.class),
                 any(PDFont.class), any(PDFont.class), anyFloat(), anyFloat(), anyFloat())).thenReturn(735f);
         when(time.now()).thenReturn(LocalDateTime.of(2026, 10, 29, 12, 0));
+        // Mock the timezone conversion explicitly; an unstubbed Mockito call returns null.
+        when(time.display(claim.getApprovedAt())).thenReturn(LocalDateTime.of(2026, 10, 28, 13, 15));
 
         byte[] pdf = forms.generatePdf("claim-id");
         assertEquals('%', (char) pdf[0]);
@@ -117,6 +119,7 @@ class ClaimFormGenerationServiceTest {
             assertTrue(text.contains("CLAIM PROCESSING DETAILS"));
             assertTrue(text.contains("Funeral processor"));
             assertTrue(text.contains("processor@mawa.test"));
+            assertTrue(text.contains("28 Oct 2026 13:15"));
             assertFalse(text.toUpperCase().contains("CLAIM STATUS"));
             assertFalse(text.toUpperCase().contains("APPROVAL HISTORY"));
         }
