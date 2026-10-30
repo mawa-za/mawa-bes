@@ -18,6 +18,7 @@ import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipPlanEntity;
+import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.exception.ClaimFormGenerationException;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
@@ -25,6 +26,7 @@ import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
+import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.CompanyPdfBrandingService;
 import za.co.mawa.bes.service.v2.UserTimeZoneService;
@@ -51,6 +53,7 @@ public class ClaimFormGenerationService {
     private final PartnerRepository partnerRepository;
     private final UserRepository userRepository;
     private final MembershipPlanRepository membershipPlanRepository;
+    private final PaymentRequestRepository paymentRequestRepository;
     private final AttachmentRepository attachmentRepository;
     private final AttachmentService attachmentService;
     private final CompanyPdfBrandingService companyPdfBrandingService;
@@ -134,6 +137,7 @@ public class ClaimFormGenerationService {
         extra.put("bankName", claim.getBankName());
         extra.put("maskedAccount", maskAccount(claim.getAccountNumber()));
         extra.put("relationship", display(claim.getDeceasedType()));
+        populatePaymentDetails(claim, extra);
         String planId = claim.getCoveragePlanId() != null && !claim.getCoveragePlanId().isBlank()
                 ? claim.getCoveragePlanId() : membership == null ? null : membership.getPlanId();
         MembershipPlanEntity plan = planId == null ? null : membershipPlanRepository.findById(planId).orElse(null);
@@ -157,18 +161,56 @@ public class ClaimFormGenerationService {
                 claim.getClaimAmountCents(), claim.getNotes(), extra));
     }
 
-    /** Resolve staff identities in the claim-owning tenant without exposing internal UUIDs. */
+    /** Never confuse automated record updates with a human claim processor. */
     private void populateProcessorDetails(MembershipClaimEntity claim, Map<String, String> extra) {
-        UserEntity captured = resolveUser(claim.getCreatedBy());
-        UserEntity handled = resolveUser(claim.getUpdatedBy());
-        extra.put("capturedBy", firstNonblank(userDisplayName(captured), extra.get("claimCapturedBy")));
-        extra.put("processedBy", userDisplayName(handled));
-        extra.put("processedAt", handled == null || claim.getUpdatedAt() == null ? ""
-                : userTimeZoneService.display(claim.getUpdatedAt())
-                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")));
-        UserEntity contactUser = handled == null ? captured : handled;
+        UserEntity captured = humanUser(claim.getCreatedBy());
+        UserEntity approved = humanUser(claim.getApprovedBy());
+        UserEntity updated = humanUser(claim.getUpdatedBy());
+        // A real approver is a better attribution than updated_by, which can be BGUSER.
+        UserEntity processor = approved != null ? approved : updated;
+        String sourceCapturer = humanLabel(extra.get("claimCapturedBy"));
+        extra.put("capturedBy", firstNonblank(userDisplayName(captured), sourceCapturer));
+        extra.put("processedBy", userDisplayName(processor));
+        LocalDateTime processedAt = approved != null ? claim.getApprovedAt() :
+                updated != null ? claim.getUpdatedAt() : null;
+        extra.put("processedAt", processedAt == null ? "" :
+                userTimeZoneService.display(processedAt).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")));
+        UserEntity contactUser = processor != null ? processor : captured;
         String contact = contactUser == null ? "" : firstNonblank(contactUser.getEmail(), contactUser.getCellphone());
         extra.put("processorContact", firstNonblank(contact, extra.get("claimProcessorContact")));
+    }
+
+    private UserEntity humanUser(String userId) {
+        if (isAutomatedUser(userId)) return null;
+        UserEntity user = resolveUser(userId);
+        return user == null || isAutomatedUser(user.getUsername()) ? null : user;
+    }
+
+    private String humanLabel(String username) {
+        return isAutomatedUser(username) ? "" : display(username);
+    }
+
+    private boolean isAutomatedUser(String user) {
+        if (user == null || user.isBlank()) return true;
+        String key = user.trim().toUpperCase(java.util.Locale.ROOT);
+        return key.equals("BGUSER") || key.equals("SYSTEM") || key.equals("SCHEDULER")
+                || key.equals("BATCH") || key.startsWith("BGUSER@");
+    }
+
+    /** Payment requests are authoritative for actual payment details where claim fields are empty. */
+    private void populatePaymentDetails(MembershipClaimEntity claim, Map<String, String> extra) {
+        if (claim.getPaymentRequestId() == null || claim.getPaymentRequestId().isBlank()) return;
+        PaymentRequestEntity payment = paymentRequestRepository.findById(claim.getPaymentRequestId()).orElse(null);
+        if (payment == null) return;
+        extra.put("payoutMethod", firstNonblank(extra.get("payoutMethod"), display(payment.getPaymentMethod())));
+        extra.put("settlementMethod", firstNonblank(extra.get("settlementMethod"), display(payment.getPaymentMethod())));
+        extra.put("settlementReference", firstNonblank(extra.get("settlementReference"),
+                firstNonblank(payment.getPaidReference(), payment.getExternalReference())));
+        extra.put("settledAt", firstNonblank(extra.get("settledAt"), display(payment.getPaidDate())));
+        extra.put("accountHolder", firstNonblank(extra.get("accountHolder"),
+                firstNonblank(payment.getAccountHolder(), payment.getPayeeName())));
+        extra.put("bankName", firstNonblank(extra.get("bankName"), payment.getBankName()));
+        extra.put("maskedAccount", firstNonblank(extra.get("maskedAccount"), maskAccount(payment.getAccountNumber())));
     }
 
     private UserEntity resolveUser(String userId) {
@@ -236,7 +278,7 @@ public class ClaimFormGenerationService {
                 if (hasFuneralArrangement(data.claimType)) {
                     y = drawSection(content, "FUNERAL ARRANGEMENT", y, new String[][]{
                             {"FSR reference", extra(data, "serviceRequestNo")},
-                            {"Funeral provider tenant", extra(data, "funeralProviderTenantId")},
+                            {"Funeral provider", extra(data, "funeralProviderName")},
                             {"Funeral date", extra(data, "funeralDate")},
                             {"Funeral area", extra(data, "funeralArea")},
                             {"Selected package", extra(data, "funeralPackageName")},

@@ -1,5 +1,6 @@
 package za.co.mawa.bes.service.v2;
 
+import za.co.mawa.bes.service.CompanyInfoService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -2729,6 +2730,9 @@ public class FuneralManagementService {
     }
 
     /** Copy the funeral details into the claim-owner's schema; no cross-schema attachment ID is reused. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CompanyInfoService claimPdfCompanyInfoService;
+
     private boolean captureFuneralClaimContext(FuneralServiceEntity service, String claimTenantId, String claimId,
                                                boolean newlyCreated) {
         Map<String, Object> details = new LinkedHashMap<>();
@@ -2741,6 +2745,8 @@ public class FuneralManagementService {
         details.put("funeralPackageName", selectedPackage == null ? "" : selectedPackage.getName());
         details.put("arrangementTotalCents", service.getTotalAmountCents());
         details.put("funeralProviderTenantId", TenantContext.getCurrentTenant());
+        details.put("funeralProviderName", claimPdfCompanyInfoService == null ? "" :
+                claimPdfCompanyInfoService.getCompanyName());
         details.put("funeralServiceId", service.getId());
         details.put("funeralDate", service.getFuneralDate());
         details.put("funeralArea", service.getFuneralArea());

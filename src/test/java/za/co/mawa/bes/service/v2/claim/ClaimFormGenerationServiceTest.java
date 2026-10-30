@@ -16,14 +16,17 @@ import za.co.mawa.bes.entity.PartnerEntity;
 import za.co.mawa.bes.entity.UserEntity;
 import za.co.mawa.bes.entity.v2.MembershipEntity;
 import za.co.mawa.bes.entity.v2.MembershipClaimEntity;
+import za.co.mawa.bes.entity.v2.PaymentRequestEntity;
 import za.co.mawa.bes.enums.MembershipClaimStatus;
 import za.co.mawa.bes.enums.MembershipClaimType;
+import za.co.mawa.bes.enums.PaymentMethod;
 import za.co.mawa.bes.repository.AttachmentRepository;
 import za.co.mawa.bes.repository.PartnerRepository;
 import za.co.mawa.bes.repository.UserRepository;
 import za.co.mawa.bes.repository.v2.MembershipClaimRepository;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 import za.co.mawa.bes.repository.v2.MembershipPlanRepository;
+import za.co.mawa.bes.repository.v2.PaymentRequestRepository;
 import za.co.mawa.bes.service.AttachmentService;
 import za.co.mawa.bes.service.CompanyPdfBrandingService;
 import za.co.mawa.bes.service.v2.UserTimeZoneService;
@@ -42,6 +45,7 @@ class ClaimFormGenerationServiceTest {
     @Mock PartnerRepository partners;
     @Mock UserRepository users;
     @Mock MembershipPlanRepository plans;
+    @Mock PaymentRequestRepository payments;
     @Mock AttachmentRepository attachments;
     @Mock AttachmentService storage;
     @Mock CompanyPdfBrandingService branding;
@@ -64,9 +68,13 @@ class ClaimFormGenerationServiceTest {
         claim.setClaimAmountCents(1000000L);
         claim.setApprovedAmountCents(1000000L);
         claim.setCreatedBy("capturer-1");
+        claim.setUpdatedBy("BGUSER");
+        claim.setApprovedBy("capturer-1");
+        claim.setApprovedAt(LocalDateTime.of(2026,10,28,11,15));
+        claim.setPaymentRequestId("payment-1");
         claim.setFuneralDetailsJson("""
                 {"serviceRequestNo":"FSR-123","funeralProviderTenantId":"provider-tenant",
-                "deceasedName":"Jane Deceased", "familyRepresentative":"Family Representative",
+                "funeralProviderName":"Example Funeral Services", "deceasedName":"Jane Deceased", "familyRepresentative":"Family Representative",
                 "funeralDate":"2026-10-31", "funeralArea":"Ga-Makapan", "funeralPackageName":"Gold",
                 "deceasedIdentityNumber":"1234567890", "familyRepresentativeContact":"012 345 6789"}
                 """);
@@ -75,6 +83,10 @@ class ClaimFormGenerationServiceTest {
         membership.setMembershipNo("MEM-001");
         PartnerEntity holder = new PartnerEntity();
         holder.setName2("Main"); holder.setName1("Member");
+        when(payments.findById("payment-1")).thenReturn(Optional.of(PaymentRequestEntity.builder()
+                .payeeName("Funeral supplier").paymentMethod(PaymentMethod.EFT)
+                .paidReference("FNB-REF-123").paidDate(LocalDate.of(2026,10,29))
+                .bankName("FNB").accountNumber("1234567890").build()));
         when(claims.findById("claim-id")).thenReturn(Optional.of(claim));
         when(memberships.findById("member-1")).thenReturn(Optional.of(membership));
         when(partners.findById("holder-1")).thenReturn(Optional.of(holder));
@@ -98,6 +110,10 @@ class ClaimFormGenerationServiceTest {
             assertTrue(text.contains("Gold"));
             assertTrue(text.contains("MEM-001"));
             assertTrue(text.contains("FUNERAL ARRANGEMENT"));
+            assertTrue(text.contains("Example Funeral Services"));
+            assertTrue(text.contains("FNB-REF-123"));
+            assertTrue(text.contains("****7890"));
+            assertFalse(text.contains("BGUSER"));
             assertTrue(text.contains("CLAIM PROCESSING DETAILS"));
             assertTrue(text.contains("Funeral processor"));
             assertTrue(text.contains("processor@mawa.test"));
