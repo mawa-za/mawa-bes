@@ -2,6 +2,7 @@ package za.co.mawa.bes.configuration.jwt;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -40,6 +41,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private JwtTokenUtil jwtTokenUtil;
     @Autowired
     private MawaPayDeviceIdentityService deviceIdentityService;
+    @Autowired
+    private MawaPayEmergencyAccessPolicy emergencyAccessPolicy;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -70,7 +73,21 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String jwtToken = authHeader.substring(7);
 
-                Claims tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
+                Claims tokenClaims;
+                boolean emergencyAccess = false;
+                try {
+                    tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
+                } catch (ExpiredJwtException ex) {
+                    // JJWT has already verified the JWT signature before it
+                    // reports expiration. Unsigned, malformed and bad-signature
+                    // tokens never reach this controlled recovery path.
+                    tokenClaims = ex.getClaims();
+                    if (!emergencyAccessPolicy.permits(
+                            tokenClaims, request.getMethod(), request.getServletPath())) {
+                        throw ex;
+                    }
+                    emergencyAccess = true;
+                }
                 String username = tokenClaims.getSubject();
                 String tenantId = tokenClaims.get(JwtClaim.TENANT_ID.getValue(), String.class);
 
@@ -89,7 +106,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                                 "Device sync identity must be re-enrolled");
                         return;
                     }
-                    if (!isDeviceSyncPath(request.getServletPath())) {
+                    if (!isDeviceSyncRequest(request.getMethod(), request.getServletPath())) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN,
                                 "Device identity is restricted to MawaPay synchronization");
                         return;
@@ -129,11 +146,15 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                             jwtUserDetailsService.loadAccessTokenUser(username);
                     UserDetails userDetails = accessTokenUser.userDetails();
 
-                    if (jwtTokenUtil.validateAccessToken(tokenClaims, userDetails)
+                    if (jwtTokenUtil.validateAccessToken(tokenClaims, userDetails, emergencyAccess)
                             && jwtTokenUtil.isIssuedAfterPasswordChange(
                                     tokenClaims,
                                     accessTokenUser.passwordChangedAt()
                             )) {
+                        if (emergencyAccess) {
+                            log.warn("Temporary MawaPay expired-access grace used: tenant={}, user={}, method={}, path={}",
+                                    tenantId, username, request.getMethod(), request.getServletPath());
+                        }
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
                                         userDetails,
@@ -187,6 +208,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || path.matches("/v2/payment-batches/[^/]+/cancellation-status")
                 || path.startsWith("/v2/receipt")
                 || path.equals("/pay-app/receipt-sync");
+    }
+
+    static boolean isDeviceSyncRequest(String method, String path) {
+        // Master-data reads can use the tenant-bound, revocable device credential,
+        // but never let that credential perform pay-app management writes.
+        return ("GET".equalsIgnoreCase(method) && "/v2/pay-app/members".equals(path))
+                || isDeviceSyncPath(path);
     }
 
     private Boolean booleanClaim(Claims claims, String key) {

@@ -141,11 +141,6 @@ public class JwtTokenUtil implements Serializable {
                 .getBody();
     }
 
-    private boolean isTokenExpired(String token) {
-        final Date expiration = getExpirationDateFromToken(token);
-        return expiration.before(new Date());
-    }
-
     public String generateToken(String username) {
         String tenantId = TenantContext.getCurrentTenant();
         return generateToken(username, tenantId);
@@ -274,6 +269,12 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateAccessToken(Claims claims, UserDetails userDetails) {
+        return validateAccessToken(claims, userDetails, false);
+    }
+
+    /** Expiry bypass is permitted only after MawaPayEmergencyAccessPolicy approves it. */
+    public boolean validateAccessToken(Claims claims, UserDetails userDetails, boolean allowExpired) {
+        if (claims == null || userDetails == null) return false;
         final String username = claims.getSubject();
         final String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
         final String currentTenant = TenantContext.getCurrentTenant();
@@ -281,20 +282,38 @@ public class JwtTokenUtil implements Serializable {
         final Date expiration = claims.getExpiration();
 
         return ACCESS_TOKEN.equals(tokenType)
-                && username.equals(userDetails.getUsername())
+                && username != null && username.equals(userDetails.getUsername())
                 && expiration != null
-                && expiration.after(new Date())
+                && (allowExpired || expiration.after(new Date()))
                 && tokenTenant != null
-                && tokenTenant.equals(currentTenant);
+                && tokenTenant.equals(currentTenant)
+                && tokenTenant.equals(claims.getAudience())
+                && userDetails.isEnabled()
+                && userDetails.isAccountNonExpired()
+                && userDetails.isAccountNonLocked()
+                && userDetails.isCredentialsNonExpired();
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
-        final String tokenTenant = getTenantIdFromToken(token);
+        return validateRefreshTokenClaims(getAllClaimsFromToken(token), userDetails, false);
+    }
 
-        return isRefreshToken(token)
-                && username.equals(userDetails.getUsername())
-                && !isTokenExpired(token)
-                && tokenTenant != null;
+    /** The expiry exception can only be applied by the explicitly gated refresh service. */
+    public boolean validateRefreshTokenClaims(Claims claims, UserDetails userDetails, boolean allowExpired) {
+        if (claims == null || userDetails == null) return false;
+        String username = claims.getSubject();
+        String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
+        Date expiration = claims.getExpiration();
+        return REFRESH_TOKEN.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))
+                && username != null && username.equals(userDetails.getUsername())
+                && userDetails.isEnabled()
+                && userDetails.isAccountNonLocked()
+                && userDetails.isAccountNonExpired()
+                && userDetails.isCredentialsNonExpired()
+                && tokenTenant != null && !tokenTenant.isBlank()
+                && tokenTenant.equals(TenantContext.getCurrentTenant())
+                && tokenTenant.equals(claims.getAudience())
+                && expiration != null
+                && (allowExpired || expiration.after(new Date()));
     }
 }
