@@ -89,7 +89,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                                 "Device sync identity must be re-enrolled");
                         return;
                     }
-                    if (!isDeviceSyncPath(request.getServletPath())) {
+                    if (!isDeviceSyncRequest(request.getMethod(), request.getServletPath())) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN,
                                 "Device identity is restricted to MawaPay synchronization");
                         return;
@@ -187,6 +187,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || path.matches("/v2/payment-batches/[^/]+/cancellation-status")
                 || path.startsWith("/v2/receipt")
                 || path.equals("/pay-app/receipt-sync");
+    }
+
+    static boolean isDeviceSyncRequest(String method, String path) {
+        // Master-data reads can use the tenant-bound, revocable device credential,
+        // but never let that credential perform pay-app management writes.
+        return ("GET".equalsIgnoreCase(method) && "/v2/pay-app/members".equals(path))
+                || isDeviceSyncPath(path);
     }
 
     private Boolean booleanClaim(Claims claims, String key) {
