@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JwtTokenUtilRefreshClaimsTest {
     @AfterEach void clearTenant() { TenantContext.clear(); }
 
-    @Test void expiredClaimsOnlyValidateWithExplicitGraceAndMatchingTenant() {
+    @Test void expiredRefreshClaimsAreAlwaysRejected() {
         JwtTokenUtil tokens = new JwtTokenUtil();
         Claims claims = Jwts.claims();
         claims.setSubject("cashier");
@@ -27,12 +27,24 @@ class JwtTokenUtilRefreshClaimsTest {
         var user = new User("cashier", "", List.of());
         TenantContext.setCurrentTenant("tenant-a");
 
-        assertFalse(tokens.validateRefreshTokenClaims(claims, user, false));
-        assertTrue(tokens.validateRefreshTokenClaims(claims, user, true));
+        assertFalse(tokens.validateRefreshTokenClaims(claims, user));
         TenantContext.setCurrentTenant("tenant-b");
-        assertFalse(tokens.validateRefreshTokenClaims(claims, user, true));
+        assertFalse(tokens.validateRefreshTokenClaims(claims, user));
         TenantContext.setCurrentTenant("tenant-a");
         claims.put("token_type", "access");
-        assertFalse(tokens.validateRefreshTokenClaims(claims, user, true));
+        assertFalse(tokens.validateRefreshTokenClaims(claims, user));
+    }
+
+    @Test void validRefreshClaimsRequireMatchingTenantTypeAndUser() {
+        JwtTokenUtil tokens = new JwtTokenUtil();
+        Claims claims = Jwts.claims();
+        claims.setSubject("cashier");
+        claims.setAudience("tenant-a");
+        claims.put("tenant-id", "tenant-a");
+        claims.put("token_type", "refresh");
+        claims.setExpiration(new Date(System.currentTimeMillis() + 30_000L));
+        TenantContext.setCurrentTenant("tenant-a");
+        assertTrue(tokens.validateRefreshTokenClaims(claims, new User("cashier", "", List.of())));
+        assertFalse(tokens.validateRefreshTokenClaims(claims, new User("other", "", List.of())));
     }
 }

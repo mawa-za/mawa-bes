@@ -1,7 +1,6 @@
 package za.co.mawa.bes.configuration.jwt;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.annotation.PostConstruct;
@@ -124,14 +123,6 @@ public class JwtTokenUtil implements Serializable {
     public <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = getAllClaimsFromToken(token);
         return claimsResolver.apply(claims);
-    }
-
-    public Claims getAllClaimsFromTokenAllowExpired(String token) {
-        try {
-            return getAllClaimsFromToken(token);
-        } catch (ExpiredJwtException ex) {
-            return ex.getClaims();
-        }
     }
 
     private Claims getAllClaimsFromToken(String token) {
@@ -269,11 +260,6 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateAccessToken(Claims claims, UserDetails userDetails) {
-        return validateAccessToken(claims, userDetails, false);
-    }
-
-    /** Expiry bypass is permitted only after MawaPayEmergencyAccessPolicy approves it. */
-    public boolean validateAccessToken(Claims claims, UserDetails userDetails, boolean allowExpired) {
         if (claims == null || userDetails == null) return false;
         final String username = claims.getSubject();
         final String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
@@ -284,7 +270,7 @@ public class JwtTokenUtil implements Serializable {
         return ACCESS_TOKEN.equals(tokenType)
                 && username != null && username.equals(userDetails.getUsername())
                 && expiration != null
-                && (allowExpired || expiration.after(new Date()))
+                && expiration.after(new Date())
                 && tokenTenant != null
                 && tokenTenant.equals(currentTenant)
                 && tokenTenant.equals(claims.getAudience())
@@ -295,11 +281,10 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {
-        return validateRefreshTokenClaims(getAllClaimsFromToken(token), userDetails, false);
+        return validateRefreshTokenClaims(getAllClaimsFromToken(token), userDetails);
     }
 
-    /** The expiry exception can only be applied by the explicitly gated refresh service. */
-    public boolean validateRefreshTokenClaims(Claims claims, UserDetails userDetails, boolean allowExpired) {
+    public boolean validateRefreshTokenClaims(Claims claims, UserDetails userDetails) {
         if (claims == null || userDetails == null) return false;
         String username = claims.getSubject();
         String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
@@ -314,6 +299,6 @@ public class JwtTokenUtil implements Serializable {
                 && tokenTenant.equals(TenantContext.getCurrentTenant())
                 && tokenTenant.equals(claims.getAudience())
                 && expiration != null
-                && (allowExpired || expiration.after(new Date()));
+                && expiration.after(new Date());
     }
 }
