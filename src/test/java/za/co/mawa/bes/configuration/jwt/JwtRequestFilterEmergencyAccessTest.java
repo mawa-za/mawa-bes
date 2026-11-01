@@ -66,6 +66,8 @@ class JwtRequestFilterEmergencyAccessTest {
         ReflectionTestUtils.setField(filter, "jwtUserDetailsService", users);
         ReflectionTestUtils.setField(filter, "emergencyAccessPolicy",
                 new MawaPayEmergencyAccessPolicy(enabled, "tenant-a", SUNSET, 48));
+        ReflectionTestUtils.setField(filter, "emergencyBearerPolicy",
+                new MawaPayEmergencyBearerPolicy(false, "", ""));
         return filter;
     }
 
