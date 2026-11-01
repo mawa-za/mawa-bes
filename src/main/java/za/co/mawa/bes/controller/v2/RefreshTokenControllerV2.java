@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import za.co.mawa.bes.configuration.jwt.JwtRefreshService;
 import za.co.mawa.bes.configuration.jwt.JwtResponse;
+import za.co.mawa.bes.configuration.jwt.MawaPayEmergencyBearerPolicy;
 
 @RestController
 @CrossOrigin
@@ -24,13 +25,13 @@ public class RefreshTokenControllerV2 {
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenControllerV2.class);
     @Autowired
     JwtRefreshService jwtRefreshService;
+    @Autowired
+    MawaPayEmergencyBearerPolicy emergencyBearerPolicy;
     private final ObjectMapper objectMapper = new ObjectMapper();
     @RequestMapping(value = "/refresh-token", method = RequestMethod.POST)
     public ResponseEntity<?> tokenRefresh(HttpServletRequest request) throws Exception {
-
+        String refreshToken = extractRefreshToken(request);
         try {
-            String refreshToken = extractRefreshToken(request);
-
             if (refreshToken == null || refreshToken.isBlank()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("Refresh token is required in Authorization Bearer, Refresh-Token header, or refreshToken request body");
@@ -45,10 +46,24 @@ public class RefreshTokenControllerV2 {
             // The exception class lets operations distinguish expiry from bad
             // signatures and disabled users without logging the token itself.
             log.warn("Refresh session rejected: category={}", ex.getClass().getSimpleName());
+            if (emergencyBearerPolicy.protectRefreshFailure(request, refreshToken)) {
+                // Older APKs irreversibly clear local credentials on 401/403.
+                // 503 is retriable; the next MawaPay API call is separately
+                // allowed under the time-bounded, tenant-scoped Bearer bridge.
+                log.warn("TEMPORARY MawaPay invalid refresh downgraded to 503");
+                return temporaryRefreshUnavailable();
+            }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Refresh session rejected");
         }
     }
+
+    private ResponseEntity<String> temporaryRefreshUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Cache-Control", "no-store")
+                .body("MawaPay emergency refresh temporarily unavailable; retry later");
+    }
+
     private String extractRefreshToken(HttpServletRequest request) {
         final String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
