@@ -18,4 +18,11 @@ class JwtRequestFilterDeviceSyncPathTest {
         assertFalse(JwtRequestFilter.isDeviceSyncPath("/v2/payment-batches/batch-123/cancellation-request"));
         assertFalse(JwtRequestFilter.isDeviceSyncPath("/v2/payment-batches/batch-123/edit-request"));
     }
+
+    @Test void permitsMasterDataReadButNotMasterDataWrites() {
+        assertTrue(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/members"));
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("POST", "/v2/pay-app/members"));
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/manual-actions"));
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/admin"));
+    }
 }

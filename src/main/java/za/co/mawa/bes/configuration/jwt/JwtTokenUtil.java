@@ -141,11 +141,6 @@ public class JwtTokenUtil implements Serializable {
                 .getBody();
     }
 
-    private boolean isTokenExpired(String token) {
-        final Date expiration = getExpirationDateFromToken(token);
-        return expiration.before(new Date());
-    }
-
     public String generateToken(String username) {
         String tenantId = TenantContext.getCurrentTenant();
         return generateToken(username, tenantId);
@@ -289,12 +284,25 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
-        final String tokenTenant = getTenantIdFromToken(token);
+        return validateRefreshTokenClaims(getAllClaimsFromToken(token), userDetails, false);
+    }
 
-        return isRefreshToken(token)
-                && username.equals(userDetails.getUsername())
-                && !isTokenExpired(token)
-                && tokenTenant != null;
+    /** The expiry exception can only be applied by the explicitly gated refresh service. */
+    public boolean validateRefreshTokenClaims(Claims claims, UserDetails userDetails, boolean allowExpired) {
+        if (claims == null || userDetails == null) return false;
+        String username = claims.getSubject();
+        String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
+        Date expiration = claims.getExpiration();
+        return REFRESH_TOKEN.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))
+                && username != null && username.equals(userDetails.getUsername())
+                && userDetails.isEnabled()
+                && userDetails.isAccountNonLocked()
+                && userDetails.isAccountNonExpired()
+                && userDetails.isCredentialsNonExpired()
+                && tokenTenant != null && !tokenTenant.isBlank()
+                && tokenTenant.equals(TenantContext.getCurrentTenant())
+                && tokenTenant.equals(claims.getAudience())
+                && expiration != null
+                && (allowExpired || expiration.after(new Date()));
     }
 }
