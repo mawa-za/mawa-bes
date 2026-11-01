@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import jakarta.servlet.FilterChain;
 
@@ -44,7 +43,8 @@ class JwtRequestFilterEmergencyAccessTest {
         var key = new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8),
                 SignatureAlgorithm.HS512.getJcaName());
         return Jwts.builder()
-                .setClaims(Map.of("tenant-id", "tenant-a", "token_type", "access"))
+                .claim("tenant-id", "tenant-a")
+                .claim("token_type", "access")
                 .setAudience("tenant-a")
                 .setSubject("cashier")
                 .setIssuedAt(Date.from(now.minus(2, ChronoUnit.DAYS)))
