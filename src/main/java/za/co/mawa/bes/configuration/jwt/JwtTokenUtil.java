@@ -269,6 +269,12 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateAccessToken(Claims claims, UserDetails userDetails) {
+        return validateAccessToken(claims, userDetails, false);
+    }
+
+    /** Expiry bypass is permitted only after MawaPayEmergencyAccessPolicy approves it. */
+    public boolean validateAccessToken(Claims claims, UserDetails userDetails, boolean allowExpired) {
+        if (claims == null || userDetails == null) return false;
         final String username = claims.getSubject();
         final String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
         final String currentTenant = TenantContext.getCurrentTenant();
@@ -276,11 +282,16 @@ public class JwtTokenUtil implements Serializable {
         final Date expiration = claims.getExpiration();
 
         return ACCESS_TOKEN.equals(tokenType)
-                && username.equals(userDetails.getUsername())
+                && username != null && username.equals(userDetails.getUsername())
                 && expiration != null
-                && expiration.after(new Date())
+                && (allowExpired || expiration.after(new Date()))
                 && tokenTenant != null
-                && tokenTenant.equals(currentTenant);
+                && tokenTenant.equals(currentTenant)
+                && tokenTenant.equals(claims.getAudience())
+                && userDetails.isEnabled()
+                && userDetails.isAccountNonExpired()
+                && userDetails.isAccountNonLocked()
+                && userDetails.isCredentialsNonExpired();
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {
