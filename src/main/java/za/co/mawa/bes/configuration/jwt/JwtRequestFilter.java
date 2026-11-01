@@ -2,7 +2,6 @@ package za.co.mawa.bes.configuration.jwt;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -41,10 +40,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private JwtTokenUtil jwtTokenUtil;
     @Autowired
     private MawaPayDeviceIdentityService deviceIdentityService;
-    @Autowired
-    private MawaPayEmergencyAccessPolicy emergencyAccessPolicy;
-    @Autowired
-    private MawaPayEmergencyBearerPolicy emergencyBearerPolicy;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -71,36 +66,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         try {
             final String authHeader = request.getHeader("Authorization");
-            // Temporary operator-approved bridge for installed APKs whose
-            // refresh tokens have already been rejected. A tenant header is
-            // not identity verification; this branch requires a Bearer JWT
-            // but accepts expired/invalid ones only on the MawaPay allowlist.
-            // Keep normally-valid tokens on the real user/device path so that
-            // server-side audit and cashier attribution are preserved.
-            String emergencyTenant = emergencyBearerPolicy.approvedTenant(request);
-            if (emergencyTenant != null && !hasValidBearer(authHeader)) {
-                forwardEmergency(request, response, chain, emergencyTenant);
-                return;
-            }
-
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String jwtToken = authHeader.substring(7);
 
-                Claims tokenClaims;
-                boolean emergencyAccess = false;
-                try {
-                    tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
-                } catch (ExpiredJwtException ex) {
-                    // JJWT has already verified the JWT signature before it
-                    // reports expiration. Unsigned, malformed and bad-signature
-                    // tokens never reach this controlled recovery path.
-                    tokenClaims = ex.getClaims();
-                    if (!emergencyAccessPolicy.permits(
-                            tokenClaims, request.getMethod(), request.getServletPath())) {
-                        throw ex;
-                    }
-                    emergencyAccess = true;
-                }
+                Claims tokenClaims = jwtTokenUtil.getClaimFromToken(jwtToken, claims -> claims);
                 String username = tokenClaims.getSubject();
                 String tenantId = tokenClaims.get(JwtClaim.TENANT_ID.getValue(), String.class);
 
@@ -112,10 +81,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     try {
                         deviceIdentityService.requireActive(deviceId, tokenVersion == null ? 0 : tokenVersion);
                     } catch (IllegalArgumentException ex) {
-                        if (emergencyTenant != null) {
-                            forwardEmergency(request, response, chain, emergencyTenant);
-                            return;
-                        }
                         log.warn("Device sync authentication rejected: deviceId={}, path={}, reason={}",
                                 deviceId, request.getServletPath(), ex.getMessage());
                         SecurityContextHolder.clearContext();
@@ -163,15 +128,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                             jwtUserDetailsService.loadAccessTokenUser(username);
                     UserDetails userDetails = accessTokenUser.userDetails();
 
-                    if (jwtTokenUtil.validateAccessToken(tokenClaims, userDetails, emergencyAccess)
+                    if (jwtTokenUtil.validateAccessToken(tokenClaims, userDetails)
                             && jwtTokenUtil.isIssuedAfterPasswordChange(
                                     tokenClaims,
                                     accessTokenUser.passwordChangedAt()
                             )) {
-                        if (emergencyAccess) {
-                            log.warn("Temporary MawaPay expired-access grace used: tenant={}, user={}, method={}, path={}",
-                                    tenantId, username, request.getMethod(), request.getServletPath());
-                        }
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
                                         userDetails,
@@ -190,20 +151,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 }
             }
 
-            if (emergencyTenant != null
-                    && SecurityContextHolder.getContext().getAuthentication() == null) {
-                forwardEmergency(request, response, chain, emergencyTenant);
-                return;
-            }
-
             chain.doFilter(request, response);
 
         } catch (AuthenticationException ex) {
-            String emergencyTenant = emergencyBearerPolicy.approvedTenant(request);
-            if (emergencyTenant != null) {
-                forwardEmergency(request, response, chain, emergencyTenant);
-                return;
-            }
             log.warn("JWT user authentication failed: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired session");
@@ -215,38 +165,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             clearContexts();
         }
     }
-
-    private void forwardEmergency(HttpServletRequest request, HttpServletResponse response,
-                                  FilterChain chain, String tenant)
-            throws ServletException, IOException {
-        // Previous JWT attempts may have set a different tenant/user context.
-        clearContexts();
-        SecurityContextHolder.clearContext();
-        TenantContext.setCurrentTenant(tenant);
-        UserContext.setCurrentUser("mawapay-emergency");
-        UserContext.setBackgroundSession(true);
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        "mawapay-emergency", null,
-                        java.util.List.of(new SimpleGrantedAuthority("ROLE_DEVICE_SYNC")));
-        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        response.setHeader("Cache-Control", "no-store");
-        log.warn("TEMPORARY MawaPay emergency bearer used: tenant={}, method={}, path={}",
-                tenant, request.getMethod(), request.getServletPath());
-        chain.doFilter(request, response);
-    }
-
-    private boolean hasValidBearer(String header) {
-        if (header == null || !header.startsWith("Bearer ")) return false;
-        try {
-            jwtTokenUtil.getClaimFromToken(header.substring(7), claims -> claims);
-            return true;
-        } catch (JwtException | IllegalArgumentException ignored) {
-            return false;
-        }
-    }
-
 
     private String textClaim(Claims claims, String key) {
         Object value = claims.get(key);

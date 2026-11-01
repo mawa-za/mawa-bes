@@ -1,10 +1,7 @@
 package za.co.mawa.bes.configuration.jwt;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.service.JwtUserDetailsService;
@@ -14,20 +11,14 @@ import java.util.Map;
 
 @Service
 public class JwtRefreshService {
-    private static final Logger log = LoggerFactory.getLogger(JwtRefreshService.class);
-
     private final JwtTokenUtil jwtTokenUtil;
     private final JwtUserDetailsService jwtUserDetailsService;
-    private final MawaPayEmergencyRefreshPolicy emergencyRefreshPolicy;
-
     public JwtRefreshService(
             JwtTokenUtil jwtTokenUtil,
-            JwtUserDetailsService jwtUserDetailsService,
-            MawaPayEmergencyRefreshPolicy emergencyRefreshPolicy
+            JwtUserDetailsService jwtUserDetailsService
     ) {
         this.jwtTokenUtil = jwtTokenUtil;
         this.jwtUserDetailsService = jwtUserDetailsService;
-        this.emergencyRefreshPolicy = emergencyRefreshPolicy;
     }
 
     public JwtResponse refresh(String refreshToken) {
@@ -35,19 +26,8 @@ public class JwtRefreshService {
             throw new IllegalArgumentException("Refresh token is required");
         }
 
-        // JJWT checks the signature before reporting expiry. Only a correctly
-        // signed, recently expired refresh JWT can enter the emergency path.
-        Claims existingClaims;
-        boolean emergencyRecovery = false;
-        try {
-            existingClaims = jwtTokenUtil.getClaimFromToken(refreshToken, claims -> claims);
-        } catch (ExpiredJwtException ex) {
-            existingClaims = ex.getClaims();
-            if (!emergencyRefreshPolicy.permits(existingClaims)) {
-                throw ex;
-            }
-            emergencyRecovery = true;
-        }
+        // Expired, malformed and incorrectly signed refresh tokens are rejected.
+        Claims existingClaims = jwtTokenUtil.getClaimFromToken(refreshToken, claims -> claims);
 
         String username = existingClaims.getSubject();
         String tenantId = existingClaims.get("tenant-id", String.class);
@@ -63,16 +43,10 @@ public class JwtRefreshService {
             JwtUserDetailsService.AccessTokenUser authenticatedUser =
                     jwtUserDetailsService.loadAccessTokenUser(username);
             if (!jwtTokenUtil.validateRefreshTokenClaims(
-                            existingClaims, authenticatedUser.userDetails(), emergencyRecovery)
+                            existingClaims, authenticatedUser.userDetails())
                     || !jwtTokenUtil.isIssuedAfterPasswordChange(
                             existingClaims, authenticatedUser.passwordChangedAt())) {
                 throw new JwtException("Invalid refresh token");
-            }
-
-            if (emergencyRecovery) {
-                // Audit metadata only; never log the JWT itself.
-                log.warn("MawaPay emergency refresh grace used: tenant={}, user={}",
-                        tenantId, username);
             }
             Map<String, Object> sessionClaims = new HashMap<>(existingClaims);
             sessionClaims.remove(Claims.SUBJECT);
