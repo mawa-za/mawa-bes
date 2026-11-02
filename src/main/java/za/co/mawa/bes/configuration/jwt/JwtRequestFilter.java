@@ -190,7 +190,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     static boolean isDeviceSyncRequest(String method, String path) {
         // Master-data reads can use the tenant-bound, revocable device credential,
         // but never let that credential perform pay-app management writes.
-        return ("GET".equalsIgnoreCase(method) && "/v2/pay-app/members".equals(path))
+        return ("GET".equalsIgnoreCase(method) && (
+                    "/v2/pay-app/members".equals(path)
+                    || "/v2/pay-app/master-data/members".equals(path)
+                    || "/v2/group-society/master-data".equals(path)
+                    || "/v2/field/option".equals(path)))
                 || isDeviceSyncPath(path);
     }
 

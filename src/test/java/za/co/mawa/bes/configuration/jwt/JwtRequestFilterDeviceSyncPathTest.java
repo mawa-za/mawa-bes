@@ -21,8 +21,17 @@ class JwtRequestFilterDeviceSyncPathTest {
 
     @Test void permitsMasterDataReadButNotMasterDataWrites() {
         assertTrue(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/members"));
+        assertTrue(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/master-data/members"));
+        assertTrue(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/group-society/master-data"));
+        assertTrue(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/field/option"));
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("POST", "/v2/group-society/master-data"));
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("POST", "/v2/pay-app/master-data/members"));
         assertFalse(JwtRequestFilter.isDeviceSyncRequest("POST", "/v2/pay-app/members"));
         assertFalse(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/manual-actions"));
         assertFalse(JwtRequestFilter.isDeviceSyncRequest("GET", "/v2/pay-app/admin"));
+    }
+
+    @Test void manualActionsStillRequireUserAuthentication() {
+        assertFalse(JwtRequestFilter.isDeviceSyncRequest("POST", "/v2/pay-app/manual-actions"));
     }
 }
