@@ -285,20 +285,26 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean validateRefreshTokenClaims(Claims claims, UserDetails userDetails) {
-        if (claims == null || userDetails == null) return false;
+        return refreshTokenValidationFailure(claims, userDetails) == null;
+    }
+
+    /** A log-safe reason code; never include JWTs, claims or account details. */
+    public String refreshTokenValidationFailure(Claims claims, UserDetails userDetails) {
+        if (claims == null) return "MISSING_CLAIMS";
+        if (userDetails == null) return "USER_UNAVAILABLE";
         String username = claims.getSubject();
         String tokenTenant = claims.get(JwtClaim.TENANT_ID.getValue(), String.class);
         Date expiration = claims.getExpiration();
-        return REFRESH_TOKEN.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))
-                && username != null && username.equals(userDetails.getUsername())
-                && userDetails.isEnabled()
-                && userDetails.isAccountNonLocked()
-                && userDetails.isAccountNonExpired()
-                && userDetails.isCredentialsNonExpired()
-                && tokenTenant != null && !tokenTenant.isBlank()
-                && tokenTenant.equals(TenantContext.getCurrentTenant())
-                && tokenTenant.equals(claims.getAudience())
-                && expiration != null
-                && expiration.after(new Date());
+        if (!REFRESH_TOKEN.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) return "WRONG_TOKEN_TYPE";
+        if (username == null || !username.equals(userDetails.getUsername())) return "SUBJECT_MISMATCH";
+        if (!userDetails.isEnabled()) return "USER_DISABLED";
+        if (!userDetails.isAccountNonLocked()) return "ACCOUNT_LOCKED";
+        if (!userDetails.isAccountNonExpired()) return "ACCOUNT_EXPIRED";
+        if (!userDetails.isCredentialsNonExpired()) return "CREDENTIALS_EXPIRED";
+        if (tokenTenant == null || tokenTenant.isBlank()) return "MISSING_TENANT";
+        if (!tokenTenant.equals(TenantContext.getCurrentTenant())) return "TENANT_MISMATCH";
+        if (!tokenTenant.equals(claims.getAudience())) return "AUDIENCE_MISMATCH";
+        if (expiration == null || !expiration.after(new Date())) return "TOKEN_EXPIRED";
+        return null;
     }
 }

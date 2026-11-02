@@ -40,9 +40,12 @@ public class RefreshTokenControllerV2 {
 
         } catch (IllegalArgumentException | JwtException | AuthenticationException ex) {
             // Never return an exception body containing JWT claims or account details.
-            // The exception class lets operations distinguish expiry from bad
-            // signatures and disabled users without logging the token itself.
-            log.warn("Refresh session rejected: category={}", ex.getClass().getSimpleName());
+            // The typed rejection identifies a failed claim/policy check while
+            // parse/signature failures retain their exception class. Neither
+            // credentials nor JWT claims are ever logged or returned.
+            String category = ex instanceof JwtRefreshService.RefreshSessionRejected rejection
+                    ? rejection.reason() : ex.getClass().getSimpleName();
+            log.warn("Refresh session rejected: category={}", category);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Refresh session rejected");
         }

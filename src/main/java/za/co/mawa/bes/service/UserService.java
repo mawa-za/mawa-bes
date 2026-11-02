@@ -40,6 +40,10 @@ import java.util.List;
 
 @Service
 public class UserService implements UserDao {
+    static boolean passwordChangeRequested(String password) {
+        return password != null && !password.isBlank();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     @Autowired
     EntityManager entityManager;
@@ -641,7 +645,9 @@ public class UserService implements UserDao {
                 user.setEnvironmentScope("DEV,ALPHA,BETA");
                 user.setExternalTransactionsBlocked(true);
             }
-            if (edit.getPassword() != null && edit.getPassword() != "") {
+            // An empty password field in a profile edit is not a password change.
+            // Comparing strings with != can unintentionally invalidate JWTs.
+            if (passwordChangeRequested(edit.getPassword())) {
                 user.setPasswordStatus(PasswordStatus.PRODUCTIVE);
                 user.setPassword(encryptionService.encrypt(edit.getPassword(), encryptionSecret).getBytes());
                 user.setPasswordChangedAt(new Date());

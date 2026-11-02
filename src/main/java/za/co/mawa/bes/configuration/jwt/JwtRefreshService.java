@@ -11,6 +11,18 @@ import java.util.Map;
 
 @Service
 public class JwtRefreshService {
+    /** Safe validation category for operations; the API response stays generic. */
+    public static final class RefreshSessionRejected extends JwtException {
+        private final String reason;
+
+        public RefreshSessionRejected(String reason) {
+            super("Refresh session rejected");
+            this.reason = reason;
+        }
+
+        public String reason() { return reason; }
+    }
+
     private final JwtTokenUtil jwtTokenUtil;
     private final JwtUserDetailsService jwtUserDetailsService;
     public JwtRefreshService(
@@ -32,7 +44,7 @@ public class JwtRefreshService {
         String username = existingClaims.getSubject();
         String tenantId = existingClaims.get("tenant-id", String.class);
         if (tenantId == null || tenantId.isBlank()) {
-            throw new JwtException("Refresh token does not contain a tenant");
+            throw new RefreshSessionRejected("MISSING_TENANT");
         }
 
         String previousTenant = TenantContext.getCurrentTenant();
@@ -42,11 +54,14 @@ public class JwtRefreshService {
             TenantContext.setCurrentTenant(tenantId);
             JwtUserDetailsService.AccessTokenUser authenticatedUser =
                     jwtUserDetailsService.loadAccessTokenUser(username);
-            if (!jwtTokenUtil.validateRefreshTokenClaims(
-                            existingClaims, authenticatedUser.userDetails())
-                    || !jwtTokenUtil.isIssuedAfterPasswordChange(
-                            existingClaims, authenticatedUser.passwordChangedAt())) {
-                throw new JwtException("Invalid refresh token");
+            String claimFailure = jwtTokenUtil.refreshTokenValidationFailure(
+                    existingClaims, authenticatedUser.userDetails());
+            if (claimFailure != null) {
+                throw new RefreshSessionRejected(claimFailure);
+            }
+            if (!jwtTokenUtil.isIssuedAfterPasswordChange(
+                    existingClaims, authenticatedUser.passwordChangedAt())) {
+                throw new RefreshSessionRejected("PASSWORD_CHANGED");
             }
             Map<String, Object> sessionClaims = new HashMap<>(existingClaims);
             sessionClaims.remove(Claims.SUBJECT);
