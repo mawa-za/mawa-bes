@@ -695,6 +695,9 @@ public class ApprovalService {
                 : approvalRequestRepository.findByReferenceId(referenceId);
         return requests.stream()
                 .filter(request -> approvalAccessService.canView(request, viewer))
+                .sorted(java.util.Comparator.comparing(ApprovalRequestEntity::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()))
+                        .thenComparing(ApprovalRequestEntity::getId))
                 .map(this::toResponse).toList();
     }
 

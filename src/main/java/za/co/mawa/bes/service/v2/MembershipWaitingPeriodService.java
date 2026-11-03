@@ -21,9 +21,14 @@ public class MembershipWaitingPeriodService {
         jdbcTemplate.update("""
                 UPDATE membership
                    SET status = 'ACTIVE', updated_at = UTC_TIMESTAMP(), updated_by = 'SYSTEM'
-                 WHERE status = 'WAITING_PERIOD'
+                 WHERE UPPER(REPLACE(status, '-', '_')) = 'WAITING_PERIOD'
                    AND benefit_eligible_from IS NOT NULL
                    AND benefit_eligible_from <= ?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM membership_status_change_request pending
+                        WHERE pending.membership_id = membership.id
+                          AND pending.status = 'PENDING_APPROVAL'
+                   )
                 """, LocalDate.now());
     }
 }

@@ -11,6 +11,8 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.entity.v2.MembershipPremiumEntity;
 import za.co.mawa.bes.service.v2.MembershipPremiumService;
 import za.co.mawa.bes.service.v2.MembershipPremiumEditService;
+import za.co.mawa.bes.service.UserAccessService;
+import za.co.mawa.bes.service.v2.MembershipActionGuardService;
 
 import java.security.Principal;
 import java.util.List;
@@ -23,6 +25,8 @@ public class MembershipPremiumControllerV2 {
 
     private final MembershipPremiumService membershipPremiumService;
     private final MembershipPremiumEditService membershipPremiumEditService;
+    private final UserAccessService userAccessService;
+    private final MembershipActionGuardService membershipActionGuardService;
 
     @GetMapping
     public List<MembershipPremiumResponseDto> getPremiums(
@@ -44,7 +48,9 @@ public class MembershipPremiumControllerV2 {
             @PathVariable String membershipId,
             @PathVariable String premiumId,
             @RequestBody MembershipPremiumEditRequest request,
-            Principal principal) {
+            Principal principal,
+            @RequestHeader(value = "X-Role", required = false) String role) {
+        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
         return membershipPremiumEditService.requestEdit(membershipId, premiumId, request, actor(principal));
     }
 
@@ -58,8 +64,11 @@ public class MembershipPremiumControllerV2 {
     @PostMapping("/recalculate")
     public MembershipPremiumRecalculationResponse recalculatePremiums(
             @PathVariable String membershipId,
-            Principal principal
+            Principal principal,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
+        membershipActionGuardService.requireActionable(membershipId);
         return membershipPremiumService.reconcileMembership(membershipId, actor(principal));
     }
 
