@@ -31,8 +31,14 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
          WHERE ar.reference_id = :membershipId
             OR ar.reference_id IN (SELECT mc.id FROM membership_change_request mc
                                    WHERE mc.membership_id = :membershipId)
-            OR JSON_UNQUOTE(JSON_EXTRACT(ar.payload_json, '$.membershipId')) = :membershipId
-         ORDER BY ar.created_at DESC
+            OR ar.reference_id IN (SELECT sc.id FROM membership_status_change_request sc
+                                   WHERE sc.membership_id = :membershipId)
+            OR ar.reference_id IN (SELECT pe.id FROM premium_payment_edit_request pe
+                                   WHERE pe.membership_id = :membershipId)
+            OR ar.reference_id IN (SELECT pb.id FROM payment_batch pb
+                                   WHERE pb.membership_id = :membershipId)
+            OR JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(ar.payload_json), ar.payload_json, '{}'), '$.membershipId')) = :membershipId
+         ORDER BY ar.created_at DESC, ar.id DESC
         """, nativeQuery = true)
     List<ApprovalRequestEntity> findHistoryForMembership(@Param("membershipId") String membershipId);
 

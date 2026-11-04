@@ -62,12 +62,12 @@ public class NumberSequenceEntity {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "created_by", length = 64, updatable = false)
+    @Column(name = "created_by", length = 255, updatable = false)
     private String createdBy;
 
     @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "updated_by", length = 64)
+    @Column(name = "updated_by", length = 255)
     private String updatedBy;
 }

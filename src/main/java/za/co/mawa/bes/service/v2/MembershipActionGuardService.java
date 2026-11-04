@@ -15,6 +15,18 @@ public class MembershipActionGuardService {
     private final MembershipRepository membershipRepository;
     private final JdbcTemplate jdbcTemplate;
 
+    /** Collection does not restore cover or complete a reactivation request. */
+    public void requirePremiumCollectable(String membershipId) {
+        if (membershipId == null || membershipId.isBlank()) {
+            throw new IllegalArgumentException("Membership is required");
+        }
+        MembershipEntity membership = membershipRepository.findById(membershipId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId));
+        if ("MERGED".equalsIgnoreCase(membership.getStatus())) {
+            throw new IllegalStateException("This membership is merged and is read-only.");
+        }
+    }
+
     public void requireActionable(String membershipId) {
         if (membershipId == null || membershipId.isBlank()) return;
         MembershipEntity membership = membershipRepository.findById(membershipId.trim())
@@ -67,6 +79,13 @@ public class MembershipActionGuardService {
         if (isLapsed(membership.getStatus())) {
             throw new IllegalStateException(
                     "This membership is LAPSED. Reactivate the membership and wait for approval before performing any other action.");
+        }
+        Integer pendingReactivation = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM membership_status_change_request
+                 WHERE membership_id=? AND action_type='REACTIVATE' AND status='PENDING_APPROVAL'
+                """, Integer.class, membership.getId());
+        if (pendingReactivation != null && pendingReactivation > 0) {
+            throw new IllegalStateException("Reactivation is awaiting approval. Premiums may be collected, but cover remains restricted.");
         }
     }
 

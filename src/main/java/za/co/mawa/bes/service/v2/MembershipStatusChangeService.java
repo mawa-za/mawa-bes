@@ -13,6 +13,7 @@ import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.repository.v2.MembershipRepository;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -62,7 +63,7 @@ public class MembershipStatusChangeService {
             String fallbackActor
     ) {
         String action = normalizeAction(actionValue);
-        MembershipEntity membership = membershipRepository.findById(membershipId)
+        MembershipEntity membership = membershipRepository.findByIdForUpdate(membershipId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId));
         String currentStatus = normalizeStatus(membership.getStatus());
         String targetStatus = targetStatus(action);
@@ -81,8 +82,7 @@ public class MembershipStatusChangeService {
         if (reason == null) {
             throw new IllegalArgumentException("A reason is required");
         }
-        String actor = clean(request == null ? null : request.getRequestedBy());
-        if (actor == null) actor = clean(fallbackActor);
+        String actor = clean(fallbackActor);
         if (actor == null) actor = "SYSTEM";
 
         String actionId = UUID.randomUUID().toString();
@@ -122,7 +122,7 @@ public class MembershipStatusChangeService {
         approval.setDescription("Review the current and requested membership status before approval.");
         approval.setRequesterId(actor);
         approval.setPayloadJson(toJson(payload));
-        ApprovalRequestResponse response = approvalService.submitForApproval(approval);
+        ApprovalRequestResponse response = approvalService.submitForMandatoryApproval(approval);
 
         jdbcTemplate.update(
                 "UPDATE membership_status_change_request SET approval_request_id=? WHERE id=?",
@@ -138,7 +138,7 @@ public class MembershipStatusChangeService {
         }
 
         String membershipId = Objects.toString(action.get("membership_id"), "");
-        MembershipEntity membership = membershipRepository.findById(membershipId)
+        MembershipEntity membership = membershipRepository.findByIdForUpdate(membershipId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found: " + membershipId));
         String previous = normalizeStatus(Objects.toString(action.get("previous_status"), ""));
         String requested = normalizeStatus(Objects.toString(action.get("requested_status"), ""));
@@ -149,7 +149,11 @@ public class MembershipStatusChangeService {
                 throw new IllegalStateException(
                         "Membership status changed after this request was submitted. Current status is " + current);
             }
-            membership.setStatus(requested);
+            // Reactivation restores access, but cannot waive an outstanding benefit waiting period.
+            membership.setStatus("ACTIVE".equals(requested)
+                    && membership.getBenefitEligibleFrom() != null
+                    && membership.getBenefitEligibleFrom().isAfter(LocalDate.now())
+                    ? "WAITING_PERIOD" : requested);
             membership.setUpdatedAt(LocalDateTime.now());
             membership.setUpdatedBy(clean(actor) == null ? "SYSTEM" : actor.trim());
             membershipRepository.save(membership);
@@ -167,7 +171,7 @@ public class MembershipStatusChangeService {
 
     private Map<String, Object> requireAction(String id) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT * FROM membership_status_change_request WHERE id=?", id);
+                "SELECT * FROM membership_status_change_request WHERE id=? FOR UPDATE", id);
         if (rows.isEmpty()) {
             throw new IllegalArgumentException("Membership status change request not found: " + id);
         }
@@ -211,9 +215,9 @@ public class MembershipStatusChangeService {
         }
         boolean allowed = switch (action) {
             case "REACTIVATE" -> Set.of("INACTIVE", "SUSPENDED", "CANCELLED", "LAPSED").contains(current);
-            case "DEACTIVATE" -> Set.of("ACTIVE", "SUSPENDED").contains(current);
-            case "SUSPEND" -> Set.of("ACTIVE", "INACTIVE").contains(current);
-            case "CANCEL" -> !"CANCELLED".equals(current);
+            case "DEACTIVATE" -> Set.of("ACTIVE", "WAITING_PERIOD", "UPGRADE_WAITING_PERIOD", "SUSPENDED").contains(current);
+            case "SUSPEND" -> Set.of("ACTIVE", "WAITING_PERIOD", "UPGRADE_WAITING_PERIOD", "INACTIVE").contains(current);
+            case "CANCEL" -> Set.of("ACTIVE", "WAITING_PERIOD", "UPGRADE_WAITING_PERIOD", "INACTIVE", "SUSPENDED").contains(current);
             default -> false;
         };
         if (!allowed) {

@@ -61,7 +61,7 @@ public class ApprovalAccessService {
     }
 
     public boolean canView(ApprovalRequestEntity request, String user) {
-        if (request == null || user == null || user.isBlank() || request.getCurrentStepNo() == null) return false;
+        if (request == null || user == null || user.isBlank()) return false;
         if (user.equals(request.getRequesterId()) || identityMatches(user, request.getRequesterId())) return true;
         Boolean wasActor = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) > 0 FROM approval_action aa

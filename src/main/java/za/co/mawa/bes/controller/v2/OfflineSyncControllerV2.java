@@ -11,6 +11,8 @@ import za.co.mawa.bes.dto.v2.payapp.CashupResponse;
 import za.co.mawa.bes.service.v2.MembershipPremiumSyncOfflineService;
 import za.co.mawa.bes.service.v2.GroupSocietyPaymentSyncOfflineService;
 import za.co.mawa.bes.service.v2.CashupService;
+import za.co.mawa.bes.service.UserAccessService;
+import za.co.mawa.bes.configuration.context.UserContext;
 
 @CrossOrigin
 @RestController
@@ -23,11 +25,18 @@ public class OfflineSyncControllerV2 {
     private final GroupSocietyPaymentSyncOfflineService groupSocietyPaymentSyncOfflineService;
 
     private final CashupService cashupService;
+    private final UserAccessService userAccessService;
 
     @PostMapping("/payment-batches/membership-premiums")
     public PaymentSyncOfflineResponseDto syncMembershipPremiumPayment(
-            @RequestBody MembershipPremiumPaymentSyncOfflineRequest request
+            @RequestBody MembershipPremiumPaymentSyncOfflineRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        // Enrolled device credentials have their own revocable sync authorization.
+        // Interactive users must not bypass collection permissions via this route.
+        if (!UserContext.isBackgroundSession()) {
+            userAccessService.assertWorkcentreAccess("premium-payment-create", role);
+        }
         return membershipPremiumSyncOfflineService.sync(request);
     }
 

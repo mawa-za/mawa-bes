@@ -66,7 +66,7 @@ public class MembershipPremiumPaymentService {
     public PaymentBatchResponseDto createPayment(MembershipPremiumPaymentCreateRequest request) {
         validate(request);
         request.setTerminalId(cardTerminalService.resolveForOnlinePayment(request.getPaymentMethod(), request.getTerminalId()));
-        membershipActionGuardService.requireActionable(request.getMembershipId());
+        membershipActionGuardService.requirePremiumCollectable(request.getMembershipId());
         validatePremiumPaymentLimit(request);
         validatePremiumPeriodSelection(request);
 
@@ -103,7 +103,7 @@ public class MembershipPremiumPaymentService {
 
     @Transactional
     public PaymentBatchResponseDto captureManualReceipt(ManualPremiumReceiptCaptureRequest request) {
-        membershipActionGuardService.requireActionable(request == null ? null : request.getMembershipId());
+        membershipActionGuardService.requirePremiumCollectable(request == null ? null : request.getMembershipId());
         applyAuthoritativeLegacyReceiptAmount(request);
         validateManual(request);
         ManualReceiptBookEntity receiptBook = manualReceiptBookService.requireActiveBookForReceipt(

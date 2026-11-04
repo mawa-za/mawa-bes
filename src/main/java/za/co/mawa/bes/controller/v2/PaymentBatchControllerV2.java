@@ -12,6 +12,8 @@ import za.co.mawa.bes.dto.v2.PremiumPaymentTransferRequest;
 import za.co.mawa.bes.dto.v2.ApprovalRequestResponse;
 import za.co.mawa.bes.service.v2.MembershipPremiumPaymentService;
 import za.co.mawa.bes.service.v2.PremiumPaymentEditService;
+import za.co.mawa.bes.service.UserAccessService;
+import java.util.Map;
 
 @CrossOrigin
 @RestController
@@ -21,49 +23,71 @@ public class PaymentBatchControllerV2 {
 
     private final MembershipPremiumPaymentService membershipPremiumPaymentService;
     private final PremiumPaymentEditService premiumPaymentEditService;
+    private final UserAccessService userAccessService;
+
+    @GetMapping("/membership-premiums/permissions")
+    public Map<String, Boolean> permissions(@RequestHeader(value = "X-Role", required = false) String role) {
+        return Map.of(
+                "create", userAccessService.hasWorkcentreAccess("premium-payment-create", role),
+                "edit", userAccessService.hasWorkcentreAccess("premium-payment-edit", role),
+                "cancel", userAccessService.hasWorkcentreAccess("premium-payment-cancel", role),
+                "transfer", userAccessService.hasWorkcentreAccess("premium-payment-transfer", role));
+    }
 
     @PostMapping("/membership-premiums")
     public PaymentBatchResponseDto createMembershipPremiumPayment(
-            @RequestBody MembershipPremiumPaymentCreateRequest request
+            @RequestBody MembershipPremiumPaymentCreateRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-create", role);
         return membershipPremiumPaymentService.createPayment(request);
     }
     @PostMapping("/membership-premiums/manual-receipts")
     public PaymentBatchResponseDto captureManualMembershipPremiumReceipt(
-            @RequestBody ManualPremiumReceiptCaptureRequest request
+            @RequestBody ManualPremiumReceiptCaptureRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-create", role);
         return membershipPremiumPaymentService.captureManualReceipt(request);
     }
 
     @PostMapping("/{paymentBatchId}/deletion-request")
     public ApprovalRequestResponse requestPremiumPaymentDeletion(
             @PathVariable String paymentBatchId,
-            @RequestBody PremiumPaymentDeletionRequest request
+            @RequestBody PremiumPaymentDeletionRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-cancel", role);
         return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
     }
 
     @PostMapping("/{paymentBatchId}/cancellation-request")
     public ApprovalRequestResponse requestPremiumPaymentCancellation(
             @PathVariable String paymentBatchId,
-            @RequestBody PremiumPaymentDeletionRequest request
+            @RequestBody PremiumPaymentDeletionRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-cancel", role);
         return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
     }
 
     @PostMapping("/{paymentBatchId}/edit-request")
     public ApprovalRequestResponse requestPremiumPaymentEdit(
             @PathVariable String paymentBatchId,
-            @RequestBody PremiumPaymentEditRequest request
+            @RequestBody PremiumPaymentEditRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
         return premiumPaymentEditService.requestEdit(paymentBatchId, request);
     }
 
     @PostMapping("/{paymentBatchId}/transfer")
     public PaymentBatchResponseDto transferManualPremiumPayment(
             @PathVariable String paymentBatchId,
-            @RequestBody PremiumPaymentTransferRequest request
+            @RequestBody PremiumPaymentTransferRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        userAccessService.assertWorkcentreAccess("premium-payment-transfer", role);
         return membershipPremiumPaymentService.transferManualPayment(paymentBatchId, request);
     }
 
