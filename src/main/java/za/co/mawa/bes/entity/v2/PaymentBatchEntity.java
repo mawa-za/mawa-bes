@@ -40,6 +40,9 @@ public class PaymentBatchEntity {
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
+    @Column(name = "bank_deposit_id")
+    private Long bankDepositId;
+
     @Column(name = "total_amount_cents", nullable = false)
     private Long totalAmountCents = 0L;
 

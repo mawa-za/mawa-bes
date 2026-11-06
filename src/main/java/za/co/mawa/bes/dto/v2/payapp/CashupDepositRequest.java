@@ -9,6 +9,8 @@ public class CashupDepositRequest {
     private String paymentMethod;
     private String bankName;
     private String referenceNo;
+    /** Bank transaction ID imported from the tenant's statement mailbox. */
+    private String bankDepositId;
     private String notes;
     private String createdBy;
 

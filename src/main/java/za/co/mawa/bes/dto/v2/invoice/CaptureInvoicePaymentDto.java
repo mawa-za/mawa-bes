@@ -11,6 +11,7 @@ public class CaptureInvoicePaymentDto {
     private Long amountCents;
     private LocalDate paymentDate;
     private String paymentMethod; // CASH, EFT, CARD, OTHER
+    private String bankDepositId;
     private String reference;
     private String notes;
     private String createdBy;

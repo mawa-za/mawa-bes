@@ -75,6 +75,7 @@ public class CashupService {
     private final ReferenceDataValidationService referenceDataValidationService;
     private final ManualReceiptBookService manualReceiptBookService;
     private final ObjectMapper objectMapper;
+    private final BankTransactionService bankTransactions;
 
     /**
      * Upserts the cashup received from the offline Flutter app.
@@ -422,6 +423,10 @@ public class CashupService {
 
         deposit = cashupDepositRepository.save(deposit);
 
+        deposit.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
+                request.getAmountCents(), "CASHUP_DEPOSIT", deposit.getId(), request.getCreatedBy()));
+        deposit = cashupDepositRepository.save(deposit);
+
         AttachmentCreateDto attachmentRequest = new AttachmentCreateDto();
         attachmentRequest.setObjectType("CASHUP_DEPOSIT");
         attachmentRequest.setObjectId(deposit.getId());
@@ -472,6 +477,7 @@ public class CashupService {
             }
         }
         cashupDepositRepository.delete(deposit);
+        bankTransactions.release("CASHUP_DEPOSIT", depositId, cashup.getUpdatedBy());
         recalculateDeposits(cashup);
     }
 
@@ -531,6 +537,11 @@ public class CashupService {
         if (!isDepositExempt(cashup) && defaultInt(cashup.getDepositCount()) < 1) {
             throw new IllegalStateException("At least one deposit must be captured before the cashup can be submitted for approval");
         }
+        if (!isDepositExempt(cashup) && cashupDepositRepository
+                .findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId())
+                .stream().anyMatch(deposit -> deposit.getBankDepositId() == null)) {
+            throw new IllegalStateException("Every cashup deposit must have a verified bank Deposit ID before approval");
+        }
         String requesterId = request != null && request.getRequesterId() != null && !request.getRequesterId().isBlank()
                 ? request.getRequesterId()
                 : cashup.getUserId();
@@ -573,6 +584,7 @@ public class CashupService {
         if (!STATUS_SUBMITTED.equalsIgnoreCase(cashup.getStatus())) {
             throw new IllegalStateException("Only submitted cashups can be approved");
         }
+        requireBankDepositIds(cashup);
 
         cashup.setStatus(STATUS_APPROVED);
         cashup.setUpdatedBy(approvedBy);
@@ -839,6 +851,7 @@ public class CashupService {
     public void markApprovedFromApproval(String cashupId, String actionBy) {
         CashupEntity cashup = cashupRepository.findById(cashupId)
                 .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + cashupId));
+        requireBankDepositIds(cashup);
         cashup.setStatus(STATUS_APPROVED);
         cashup.setUpdatedBy(actionBy);
         cashupRepository.save(cashup);
@@ -854,6 +867,7 @@ public class CashupService {
         if (request.getDepositDate() == null || request.getDepositDate().isBlank()) {
             throw new IllegalArgumentException("depositDate is required");
         }
+        BankTransactionService.parseId(request.getBankDepositId());
         if (clean(request.getAttachmentFile()) == null) {
             throw new IllegalArgumentException("A proof-of-deposit attachment is required");
         }
@@ -862,6 +876,15 @@ public class CashupService {
         }
         if (clean(request.getAttachmentDocumentType()) == null) {
             throw new IllegalArgumentException("attachmentDocumentType is required");
+        }
+    }
+
+    private void requireBankDepositIds(CashupEntity cashup) {
+        if (isDepositExempt(cashup)) return;
+        List<CashupDepositEntity> deposits = cashupDepositRepository
+                .findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId());
+        if (deposits.isEmpty() || deposits.stream().anyMatch(deposit -> deposit.getBankDepositId() == null)) {
+            throw new IllegalStateException("A verified bank Deposit ID is required for every cashup deposit");
         }
     }
 
@@ -882,6 +905,7 @@ public class CashupService {
                 .paymentMethod(entity.getPaymentMethod())
                 .bankName(entity.getBankName())
                 .referenceNo(entity.getReferenceNo())
+                .bankDepositId(entity.getBankDepositId() == null ? null : BankTransactionService.formatId(entity.getBankDepositId()))
                 .notes(entity.getNotes())
                 .createdBy(entity.getCreatedBy())
                 .proofAttachmentId(entity.getProofAttachmentId())

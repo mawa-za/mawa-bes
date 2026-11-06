@@ -8,6 +8,7 @@ public class GroupSocietyPaymentRequest {
     private Long amountCents;
     private LocalDate paymentDate;
     private String paymentMethod;
+    private String bankDepositId;
     private String referenceId;
     private String referenceNo;
     private String notes;

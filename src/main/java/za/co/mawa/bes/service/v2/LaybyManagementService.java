@@ -70,6 +70,7 @@ public class LaybyManagementService {
     private final PaymentRequestService paymentRequestService;
     private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
+    private final BankTransactionService bankTransactions;
 
     public Map<String, Object> getConfiguration() {
         ensureConfiguration();
@@ -358,6 +359,11 @@ public class LaybyManagementService {
         batch.setCreatedAt(LocalDateTime.now());
         batch.setCreatedBy(actor);
         batch = paymentBatchRepository.save(batch);
+        if ("EFT".equals(method)) {
+            batch.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
+                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), actor));
+            batch = paymentBatchRepository.save(batch);
+        }
 
         ReceiptEntity receipt = new ReceiptEntity();
         receipt.setReceiptNo(numberAllocationService.allocateNumber("RECEIPT"));

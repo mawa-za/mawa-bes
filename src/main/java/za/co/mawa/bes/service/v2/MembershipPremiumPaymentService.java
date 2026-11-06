@@ -59,6 +59,7 @@ public class MembershipPremiumPaymentService {
     private final SettingService settingService;
     private final MembershipActionGuardService membershipActionGuardService;
     private final CardTerminalService cardTerminalService;
+    private final BankTransactionService bankTransactions;
     @Autowired
     NumberAllocationService numberAllocationService;
 
@@ -71,6 +72,12 @@ public class MembershipPremiumPaymentService {
         validatePremiumPeriodSelection(request);
 
         PaymentBatchEntity batch = createBatch(request);
+
+        if ("EFT".equalsIgnoreCase(request.getPaymentMethod())) {
+            batch.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
+                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), request.getCreatedBy()));
+            batch = paymentBatchRepository.save(batch);
+        }
 
         List<String> preferredPeriods = PeriodUtil.isValidPeriod(request.getPeriodYYYYMM())
                 ? List.of(request.getPeriodYYYYMM())
@@ -564,6 +571,9 @@ public class MembershipPremiumPaymentService {
         }
 
         batch.setStatus(PaymentBatchStatus.CANCELLED);
+        if (batch.getBankDepositId() != null) {
+            bankTransactions.release("PAYMENT_BATCH", batch.getId(), actionBy);
+        }
         batch.setNotes((isBlank(batch.getNotes()) ? "" : batch.getNotes() + "\n")
                 + "Cancelled after approval: " + reversalReason);
         paymentBatchRepository.save(batch);
