@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BankStatementMailboxService {
     private static final ZoneId CAT = ZoneId.of("Africa/Johannesburg");
     private final BankStatementMailConfigurationService config;
+    private final Microsoft365SaasConnectionService microsoftSaas;
     private final BankTransactionService bankTransactions;
     private final ObjectMapper mapper;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
@@ -40,7 +41,8 @@ public class BankStatementMailboxService {
             throw new IllegalStateException("Configure a bank statement mailbox and trusted sender first");
         LocalDate cutoff = LocalDate.now(CAT).minusDays(settings.lookbackDays());
         String bearer = accessToken(settings);
-        List<Attachment> attachments = "MICROSOFT_365".equals(settings.provider())
+        List<Attachment> attachments = ("MICROSOFT_365".equals(settings.provider())
+                || "MICROSOFT_365_SAAS".equals(settings.provider()))
                 ? graphAttachments(settings, bearer, cutoff) : gmailAttachments(settings, bearer, cutoff);
         int imported = 0;
         int failures = 0;
@@ -61,6 +63,8 @@ public class BankStatementMailboxService {
     }
 
     private String accessToken(BankStatementMailConfigurationService.Configuration c) {
+        if ("MICROSOFT_365_SAAS".equals(c.provider()))
+            return microsoftSaas.appTokenForConnectedTenant();
         String secret = config.secret(c.clientSecretRef());
         if (secret == null || secret.isBlank()) throw new IllegalStateException("Mail OAuth client secret not configured");
         String url;

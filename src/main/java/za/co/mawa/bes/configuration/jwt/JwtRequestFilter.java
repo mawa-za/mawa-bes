@@ -54,7 +54,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 || "/v2/company-logo/content".equals(path)
                 || "/v2/admin-handoff/exchange".equals(path)
                 || path.startsWith("/internal/admin/")
-                || "/xero/callback".equals(path);
+                || "/xero/callback".equals(path)
+                || "/v2/bank-transactions/microsoft/callback".equals(path);
     }
 
     @Override

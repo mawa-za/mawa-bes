@@ -13,6 +13,9 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.service.v2.BankStatementMailConfigurationService;
 import za.co.mawa.bes.service.v2.BankStatementMailboxService;
 import za.co.mawa.bes.service.v2.BankTransactionService;
+import za.co.mawa.bes.service.v2.Microsoft365SaasConnectionService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,6 +24,7 @@ public class BankTransactionController {
     private final BankTransactionService transactions;
     private final BankStatementMailConfigurationService settings;
     private final BankStatementMailboxService mailbox;
+    private final Microsoft365SaasConnectionService microsoftSaas;
     private final EntityManager entityManager;
 
     /** Permissions verified against current tenant user-role and workcenter assignments. */
@@ -85,4 +89,45 @@ public class BankTransactionController {
         require("bank-statement-mail-settings");
         return mailbox.sync();
     }
+
+    @GetMapping("/microsoft/info")
+    public Microsoft365SaasConnectionService.ApplicationInfo microsoftInfo() {
+        require("bank-statement-mail-settings");
+        return microsoftSaas.appInfo();
+    }
+
+    @PostMapping("/microsoft/connect")
+    public Microsoft365SaasConnectionService.ConnectionStart connectMicrosoft() {
+        require("bank-statement-mail-settings");
+        return microsoftSaas.start();
+    }
+
+    /** Public Microsoft redirect: the callback filter resolves only the schema from state;
+     * the service verifies the random state, signed ID token, issuer, audience, and nonce. */
+    @GetMapping("/microsoft/callback")
+    public ResponseEntity<Void> microsoftCallback(@RequestParam(required = false) String code,
+                                                    @RequestParam(required = false) String state,
+                                                    @RequestParam(required = false) String error) {
+        if (error != null || code == null || code.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Microsoft authorization was not completed");
+        var result = microsoftSaas.complete(state, code);
+        String suffix = "VERIFIED".equals(result.status()) ? "?ms365=verified" : "?ms365=mailbox-access-required";
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, result.returnUrl() + suffix)
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .build();
+    }
+
+    @PostMapping("/microsoft/verify")
+    public Microsoft365SaasConnectionService.Verification verifyMicrosoft() {
+        require("bank-statement-mail-settings");
+        return microsoftSaas.verifyMailbox();
+    }
+
+    @PostMapping("/microsoft/disconnect")
+    public Microsoft365SaasConnectionService.Verification disconnectMicrosoft() {
+        require("bank-statement-mail-settings");
+        return microsoftSaas.disconnect();
+    }
+
 }
