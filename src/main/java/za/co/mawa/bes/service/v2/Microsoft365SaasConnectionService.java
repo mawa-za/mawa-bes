@@ -2,6 +2,9 @@ package za.co.mawa.bes.service.v2;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.gax.rpc.NotFoundException;
+import org.springframework.core.env.Environment;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -56,6 +59,7 @@ public class Microsoft365SaasConnectionService {
     private final GcpTenantSecretService secrets;
     private final BankStatementMailConfigurationService configuration;
     private final ObjectMapper mapper;
+    private final Environment runtimeEnvironment;
     private final SecureRandom secureRandom = new SecureRandom();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
@@ -88,9 +92,9 @@ public class Microsoft365SaasConnectionService {
         put(STATUS, "AUTHORIZATION_PENDING");
         put("ENABLED", "false");
         String url = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
-                + "?client_id=" + encode(clientId)
+                + "?client_id=" + encode(currentApp().clientId())
                 + "&response_type=code&response_mode=query"
-                + "&redirect_uri=" + encode(redirectUri)
+                + "&redirect_uri=" + encode(currentApp().redirectUri())
                 + "&scope=" + encode("openid profile")
                 + "&prompt=admin_consent"
                 + "&state=" + encode(state)
@@ -118,8 +122,8 @@ public class Microsoft365SaasConnectionService {
         clearPending();
         requireAppConfigured();
         JsonNode tokens = exchangeToken("https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
-                Map.of("client_id", clientId, "client_secret", appSecret(), "code", code,
-                        "redirect_uri", redirectUri, "grant_type", "authorization_code", "scope", "openid profile"));
+                Map.of("client_id", currentApp().clientId(), "client_secret", appSecret(), "code", code,
+                        "redirect_uri", currentApp().redirectUri(), "grant_type", "authorization_code", "scope", "openid profile"));
         String directory = verifiedDirectoryId(tokens.path("id_token").asText(), nonce);
         put(DIRECTORY_ID, directory);
         put(CONNECTED_AT, Instant.now().toString());
@@ -133,7 +137,7 @@ public class Microsoft365SaasConnectionService {
 
     public ApplicationInfo appInfo() {
         requireAppConfigured();
-        return new ApplicationInfo(clientId, redirectUri);
+        return new ApplicationInfo(currentApp().clientId(), currentApp().redirectUri());
     }
 
     public Verification verifyMailbox() {
@@ -197,7 +201,7 @@ public class Microsoft365SaasConnectionService {
     private String appToken(String directory) {
         requireAppConfigured();
         JsonNode tokens = exchangeToken("https://login.microsoftonline.com/" + directory + "/oauth2/v2.0/token",
-                Map.of("client_id", clientId, "client_secret", appSecret(),
+                Map.of("client_id", currentApp().clientId(), "client_secret", appSecret(),
                         "grant_type", "client_credentials", "scope", "https://graph.microsoft.com/.default"));
         String token = tokens.path("access_token").asText();
         if (token.isBlank()) throw new IllegalStateException("Microsoft did not issue an access token");
@@ -218,7 +222,7 @@ public class Microsoft365SaasConnectionService {
                     "https://login.microsoftonline.com/" + tenant + "/discovery/v2.0/keys").build();
             decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer));
             Jwt jwt = decoder.decode(rawToken);
-            if (!tenant.equals(jwt.getClaimAsString("tid")) || !jwt.getAudience().contains(clientId)
+            if (!tenant.equals(jwt.getClaimAsString("tid")) || !jwt.getAudience().contains(currentApp().clientId())
                     || !constantTimeEquals(expectedNonce, jwt.getClaimAsString("nonce")))
                 throw new IllegalArgumentException("Microsoft tenant, audience or nonce does not match");
             return tenant;
@@ -249,16 +253,48 @@ public class Microsoft365SaasConnectionService {
         try { UUID.fromString(value); return value; }
         catch (RuntimeException ex) { throw new IllegalStateException("Connect your Microsoft 365 organization first"); }
     }
+    private record CentralCredentials(String clientId, String redirectUri, String clientSecret) { }
+
+    /** Central credentials are configured in MAWA Admin and stored atomically as a
+     * single environment-specific Secret Manager version, never per customer. */
+    private CentralCredentials currentApp() {
+        String configuredEnv = firstText(runtimeEnvironment.getProperty("MAWA_ENVIRONMENT"),
+                runtimeEnvironment.getProperty("mawa.environment"),
+                runtimeEnvironment.getProperty("spring.profiles.active"), "dev")
+                .split(",")[0].trim().toLowerCase(Locale.ROOT);
+        if (!configuredEnv.matches("[a-z][a-z0-9-]{0,25}"))
+            throw new IllegalStateException("Invalid MAWA runtime environment");
+        try {
+            String raw = secrets.accessSecretReference(
+                    "gcp-secret://mawa-" + configuredEnv + "-ms365-saas-credentials");
+            JsonNode node = mapper.readTree(raw);
+            return new CentralCredentials(node.path("clientId").asText(),
+                    node.path("redirectUri").asText(), node.path("clientSecret").asText());
+        } catch (NotFoundException ex) {
+            // Backward compatible with environments that have not used MAWA Admin setup yet.
+            return new CentralCredentials(clientId, redirectUri, null);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Stored Microsoft application credentials are invalid", ex);
+        }
+    }
+    private String firstText(String... values) {
+        for (String value : values) if (value != null && !value.isBlank()) return value;
+        return "dev";
+    }
     private void requireAppConfigured() {
-        try { UUID.fromString(clientId); } catch (RuntimeException ex) {
+        CentralCredentials app = currentApp();
+        try { UUID.fromString(app.clientId()); } catch (RuntimeException ex) {
             throw new IllegalStateException("MAWA Microsoft 365 application ID is not configured"); }
-        if (redirectUri == null || !redirectUri.startsWith("https://") || !redirectUri.endsWith("/v2/bank-transactions/microsoft/callback"))
+        if (app.redirectUri() == null || !app.redirectUri().startsWith("https://") ||
+                !app.redirectUri().endsWith("/v2/bank-transactions/microsoft/callback"))
             throw new IllegalStateException("MAWA Microsoft 365 HTTPS redirect URI is not configured");
-        if (!secrets.isSecretReference(clientSecretRef))
-            throw new IllegalStateException("MAWA Microsoft 365 client secret reference is missing");
+        if ((app.clientSecret() == null || app.clientSecret().isBlank()) && !secrets.isSecretReference(clientSecretRef))
+            throw new IllegalStateException("MAWA Microsoft 365 client secret is not configured");
     }
     private String appSecret() {
-        String secret = secrets.accessSecretReference(clientSecretRef);
+        CentralCredentials app = currentApp();
+        String secret = app.clientSecret() != null && !app.clientSecret().isBlank() ? app.clientSecret()
+                : secrets.accessSecretReference(clientSecretRef);
         if (secret == null || secret.isBlank())
             throw new IllegalStateException("MAWA Microsoft 365 client secret is unavailable");
         return secret;
