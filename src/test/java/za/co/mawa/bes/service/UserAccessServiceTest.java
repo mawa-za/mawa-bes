@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,6 +28,7 @@ class UserAccessServiceTest {
 
     @Mock private RoleRepository roleRepository;
     @Mock private RoleWorkcenterRepository roleWorkcenterRepository;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     @Test
     void selectedRoleControlsConfigurationAccessEvenWhenAnotherRoleHasFullAccess() {
@@ -56,4 +58,43 @@ class UserAccessServiceTest {
         assertFalse(service.hasWorkcentreAccess("approval-workflow", "LIMITED"));
         assertTrue(service.hasWorkcentreAccess("approval-workflow", "ADMIN"));
     }
+
+    @Test
+    void workcentreAllAccessDoesNotGrantBusinessActionPermission() {
+        UserContext.clear();
+        UserAccessService service = spy(new UserAccessService());
+        ReflectionTestUtils.setField(service, "jdbcTemplate", jdbcTemplate);
+        doReturn(UserAccessProfileDto.builder().roles(List.of("ADMIN"))
+                .allWorkcentres(true).build()).when(service).profile();
+
+        when(jdbcTemplate.queryForObject(any(String.class),
+                org.mockito.ArgumentMatchers.eq(Integer.class),
+                org.mockito.ArgumentMatchers.eq("ADMIN"),
+                org.mockito.ArgumentMatchers.eq("premium-payment-cancel"))).thenReturn(0);
+
+        assertFalse(service.hasPermission("premium-payment-cancel", "ADMIN"));
+    }
+
+    @Test
+    void actionPermissionHonoursSelectedRoleRatherThanOtherAssignedRole() {
+        UserContext.clear();
+        UserAccessService service = spy(new UserAccessService());
+        ReflectionTestUtils.setField(service, "jdbcTemplate", jdbcTemplate);
+        doReturn(UserAccessProfileDto.builder().roles(List.of("CASHIER", "ADMIN"))
+                .allWorkcentres(true).build()).when(service).profile();
+
+        when(jdbcTemplate.queryForObject(any(String.class),
+                org.mockito.ArgumentMatchers.eq(Integer.class),
+                org.mockito.ArgumentMatchers.eq("CASHIER"),
+                org.mockito.ArgumentMatchers.eq("premium-payment-cancel"))).thenReturn(0);
+        when(jdbcTemplate.queryForObject(any(String.class),
+                org.mockito.ArgumentMatchers.eq(Integer.class),
+                org.mockito.ArgumentMatchers.eq("ADMIN"),
+                org.mockito.ArgumentMatchers.eq("premium-payment-cancel"))).thenReturn(1);
+
+        assertFalse(service.hasPermission("premium-payment-cancel", "CASHIER"));
+        assertTrue(service.hasPermission("premium-payment-cancel", "ADMIN"));
+        assertFalse(service.hasPermission("premium-payment-create", "IMPERSONATED_ROLE"));
+    }
+
 }

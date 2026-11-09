@@ -35,7 +35,7 @@ public class OfflineSyncControllerV2 {
         // Enrolled device credentials have their own revocable sync authorization.
         // Interactive users must not bypass collection permissions via this route.
         if (!UserContext.isBackgroundSession()) {
-            userAccessService.assertWorkcentreAccess("premium-payment-create", role);
+            userAccessService.assertPermission("premium-payment-create", role);
         }
         return membershipPremiumSyncOfflineService.sync(request);
     }

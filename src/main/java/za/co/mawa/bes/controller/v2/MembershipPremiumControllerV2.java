@@ -50,7 +50,7 @@ public class MembershipPremiumControllerV2 {
             @RequestBody MembershipPremiumEditRequest request,
             Principal principal,
             @RequestHeader(value = "X-Role", required = false) String role) {
-        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
+        userAccessService.assertPermission("premium-payment-edit", role);
         return membershipPremiumEditService.requestEdit(membershipId, premiumId, request, actor(principal));
     }
 
@@ -67,7 +67,7 @@ public class MembershipPremiumControllerV2 {
             Principal principal,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
+        userAccessService.assertPermission("premium-payment-edit", role);
         membershipActionGuardService.requireActionable(membershipId);
         return membershipPremiumService.reconcileMembership(membershipId, actor(principal));
     }
