@@ -29,7 +29,7 @@ public class RolePermissionService {
         return jdbc.queryForList("""
                 SELECT code, description, details, group_code AS groupCode,
                        group_title AS groupTitle, display_order AS displayOrder,
-                       sensitive
+                       is_sensitive AS `sensitive`
                 FROM permission_catalog WHERE active = TRUE
                 ORDER BY group_title, display_order, description
                 """);
