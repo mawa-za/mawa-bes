@@ -91,15 +91,26 @@ public class Microsoft365SaasConnectionService {
         put(RETURN_URL, returnUrl);
         put(STATUS, "AUTHORIZATION_PENDING");
         put("ENABLED", "false");
-        String url = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
-                + "?client_id=" + encode(currentApp().clientId())
+        CentralCredentials app = currentApp();
+        String url = buildAuthorizationUrl(app.clientId(), app.redirectUri(), state, nonce);
+        return new ConnectionStart(url, "AUTHORIZATION_PENDING");
+    }
+
+    /**
+     * Authorization-code sign-in uses the v2 /authorize endpoint. The only supported
+     * interactive prompt values are login, none, consent and select_account.
+     * In particular, admin_consent is NOT valid here (AADSTS901001).
+     * Customer mailbox access is authorized separately through Exchange Online RBAC.
+     */
+    static String buildAuthorizationUrl(String appClientId, String callback, String state, String nonce) {
+        return "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
+                + "?client_id=" + encode(appClientId)
                 + "&response_type=code&response_mode=query"
-                + "&redirect_uri=" + encode(currentApp().redirectUri())
+                + "&redirect_uri=" + encode(callback)
                 + "&scope=" + encode("openid profile")
-                + "&prompt=admin_consent"
+                + "&prompt=consent"
                 + "&state=" + encode(state)
                 + "&nonce=" + encode(nonce);
-        return new ConnectionStart(url, "AUTHORIZATION_PENDING");
     }
 
     /** Invoked only by the unauthenticated Microsoft redirect, after the callback filter has
@@ -356,6 +367,6 @@ public class Microsoft365SaasConnectionService {
     }
     private void put(String key, String value) { settings.upsertSetting(key, GROUP, value); }
     private String get(String key) { return settings.getSetting(key, GROUP); }
-    private String encode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
+    private static String encode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
     private String encodePath(String value) { return encode(value).replace("+", "%20"); }
 }
