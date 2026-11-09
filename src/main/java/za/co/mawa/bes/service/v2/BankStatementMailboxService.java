@@ -31,7 +31,21 @@ public class BankStatementMailboxService {
     private final ObjectMapper mapper;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
-    public record SyncResult(int attachments, int newTransactions, int failures) { }
+    public record SyncResult(int attachments, int newTransactions, int failures,
+                             int candidateMessages, int rejectedSenderOrSubject,
+                             int rejectedDmarc, int unsupportedAttachments,
+                             int unreadableAttachments, int zippedCsvFiles,
+                             int accountMismatchAttachments) { }
+
+    private static final class ScanStats {
+        int candidateMessages;
+        int rejectedSenderOrSubject;
+        int rejectedDmarc;
+        int unsupportedAttachments;
+        int unreadableAttachments;
+        int zippedCsvFiles;
+        int accountMismatchAttachments;
+    }
     private record Attachment(String provider, String messageId, String attachmentId, String fileName, byte[] bytes) { }
 
     public SyncResult sync() {
@@ -41,9 +55,10 @@ public class BankStatementMailboxService {
             throw new IllegalStateException("Configure a bank statement mailbox and trusted sender first");
         LocalDate cutoff = LocalDate.now(CAT).minusDays(settings.lookbackDays());
         String bearer = accessToken(settings);
+        ScanStats scan = new ScanStats();
         List<Attachment> attachments = ("MICROSOFT_365".equals(settings.provider())
                 || "MICROSOFT_365_SAAS".equals(settings.provider()))
-                ? graphAttachments(settings, bearer, cutoff) : gmailAttachments(settings, bearer, cutoff);
+                ? graphAttachments(settings, bearer, cutoff, scan) : gmailAttachments(settings, bearer, cutoff, scan);
         int imported = 0;
         int failures = 0;
         for (Attachment attachment : attachments) {
@@ -52,14 +67,30 @@ public class BankStatementMailboxService {
                         attachment.attachmentId(), attachment.fileName(), attachment.bytes(), settings.accountNumbers());
             } catch (RuntimeException ex) {
                 failures++;
+                if (ex instanceof IllegalArgumentException
+                        && "Statement account is not permitted by tenant configuration".equals(ex.getMessage())) {
+                    scan.accountMismatchAttachments++;
+                }
                 // No mailbox content, bank account numbers or OAuth tokens in application logs.
                 org.slf4j.LoggerFactory.getLogger(getClass()).warn(
                         "Bank statement attachment import failed (provider={}, attachment index={}, error type={})",
                         settings.provider(), imported + failures, ex.getClass().getSimpleName());
             }
         }
+        failures += scan.unreadableAttachments;
         if (failures == 0) config.recordSuccess(LocalDate.now(CAT).toString());
-        return new SyncResult(attachments.size(), imported, failures);
+        // Counts reveal filtering causes without logging mailbox addresses, subjects, or contents.
+        org.slf4j.LoggerFactory.getLogger(getClass()).info(
+                "Bank mail scan summary: candidateMessages={}, senderOrSubjectRejected={}, dmarcRejected={}, "
+                        + "unsupportedAttachments={}, unreadableAttachments={}, zippedCsvFiles={}, "
+                        + "accountMismatchAttachments={}, eligibleCsvFiles={}, newTransactions={}",
+                scan.candidateMessages, scan.rejectedSenderOrSubject, scan.rejectedDmarc,
+                scan.unsupportedAttachments, scan.unreadableAttachments, scan.zippedCsvFiles,
+                scan.accountMismatchAttachments, attachments.size(), imported);
+        return new SyncResult(attachments.size(), imported, failures,
+                scan.candidateMessages, scan.rejectedSenderOrSubject, scan.rejectedDmarc,
+                scan.unsupportedAttachments, scan.unreadableAttachments, scan.zippedCsvFiles,
+                scan.accountMismatchAttachments);
     }
 
     private String accessToken(BankStatementMailConfigurationService.Configuration c) {
@@ -89,7 +120,7 @@ public class BankStatementMailboxService {
     }
 
     private List<Attachment> graphAttachments(BankStatementMailConfigurationService.Configuration c,
-                                               String token, LocalDate cutoff) {
+                                               String token, LocalDate cutoff, ScanStats scan) {
         String mailbox = segment(c.mailbox());
         String base = "https://graph.microsoft.com/v1.0/users/" + mailbox + "/messages";
         String filter = "receivedDateTime ge " + cutoff + "T00:00:00Z and hasAttachments eq true";
@@ -101,24 +132,49 @@ public class BankStatementMailboxService {
                 throw new IllegalStateException("Unexpected Graph pagination host");
             JsonNode messages = getJson(next, token);
             for (JsonNode message : messages.path("value")) {
+                scan.candidateMessages++;
                 String sender = message.path("from").path("emailAddress").path("address").asText();
-                if (!trusted(c, sender, message.path("subject").asText())) continue;
+                if (!trusted(c, sender, message.path("subject").asText())) {
+                    scan.rejectedSenderOrSubject++;
+                    continue;
+                }
                 String id = message.path("id").asText();
                 if (id.isBlank()) continue;
                 if (Boolean.TRUE.equals(c.requireDmarc())) {
                     JsonNode messageWithHeaders = getJson(base + "/" + segment(id) + "?$select=internetMessageHeaders", token);
-                    if (!dmarcPassed(messageWithHeaders.path("internetMessageHeaders"))) continue;
+                    if (!dmarcPassed(messageWithHeaders.path("internetMessageHeaders"))) {
+                        scan.rejectedDmarc++;
+                        continue;
+                    }
                 }
                 String attachmentUrl = base + "/" + segment(id) + "/attachments?$top=100";
                 JsonNode details = getJson(attachmentUrl, token);
                 for (JsonNode file : details.path("value")) {
-                    if (!file.path("@odata.type").asText().endsWith("fileAttachment")) continue;
                     String name = file.path("name").asText();
-                    if (!csv(name)) continue;
+                    if (!file.path("@odata.type").asText().endsWith("fileAttachment")
+                            || !BankStatementAttachmentExtractor.supported(name)) {
+                        scan.unsupportedAttachments++;
+                        continue;
+                    }
                     String fileId = file.path("id").asText();
                     String content = file.path("contentBytes").asText();
-                    if (!fileId.isBlank() && !content.isBlank() && content.length() < 7_000_000)
-                        result.add(new Attachment("MICROSOFT_365", id, fileId, name, Base64.getDecoder().decode(content)));
+                    if (fileId.isBlank() || content.isBlank() || content.length() >= 7_000_000) {
+                        scan.unreadableAttachments++;
+                        continue;
+                    }
+                    try {
+                        List<BankStatementAttachmentExtractor.CsvFile> csvFiles =
+                                BankStatementAttachmentExtractor.extract(name, Base64.getDecoder().decode(content));
+                        if (csvFiles.isEmpty()) scan.unsupportedAttachments++;
+                        if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) scan.zippedCsvFiles += csvFiles.size();
+                        for (var csvFile : csvFiles) {
+                            result.add(new Attachment("MICROSOFT_365", id,
+                                    BankStatementAttachmentExtractor.attachmentIdentity(fileId, csvFile),
+                                    csvFile.fileName(), csvFile.bytes()));
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        scan.unreadableAttachments++;
+                    }
                 }
             }
             next = messages.hasNonNull("@odata.nextLink") ? messages.path("@odata.nextLink").asText() : null;
@@ -127,7 +183,7 @@ public class BankStatementMailboxService {
     }
 
     private List<Attachment> gmailAttachments(BankStatementMailConfigurationService.Configuration c,
-                                               String token, LocalDate cutoff) {
+                                               String token, LocalDate cutoff, ScanStats scan) {
         String base = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
         String mailbox = getJson("https://gmail.googleapis.com/gmail/v1/users/me/profile", token)
                 .path("emailAddress").asText();
@@ -142,14 +198,21 @@ public class BankStatementMailboxService {
                     + (pageToken == null ? "" : "&pageToken=" + encode(pageToken));
             JsonNode messageIds = getJson(url, token);
             for (JsonNode summary : messageIds.path("messages")) {
+                scan.candidateMessages++;
                 String id = summary.path("id").asText();
                 if (id.isBlank()) continue;
                 JsonNode message = getJson(base + "/" + segment(id) + "?format=full", token);
                 String sender = header(message, "From");
-                if (!trusted(c, extractEmail(sender), header(message, "Subject"))) continue;
+                if (!trusted(c, extractEmail(sender), header(message, "Subject"))) {
+                    scan.rejectedSenderOrSubject++;
+                    continue;
+                }
                 if (Boolean.TRUE.equals(c.requireDmarc()) &&
-                    !dmarcPassed(message.path("payload").path("headers"))) continue;
-                collectGmailParts(base, id, message.path("payload"), token, found);
+                    !dmarcPassed(message.path("payload").path("headers"))) {
+                    scan.rejectedDmarc++;
+                    continue;
+                }
+                collectGmailParts(base, id, message.path("payload"), token, found, scan);
             }
             pageToken = messageIds.path("nextPageToken").asText(null);
             if (pageToken == null || pageToken.isBlank()) break;
@@ -158,9 +221,9 @@ public class BankStatementMailboxService {
     }
 
     private void collectGmailParts(String base, String messageId, JsonNode part,
-                                   String token, List<Attachment> found) {
+                                   String token, List<Attachment> found, ScanStats scan) {
         String name = part.path("filename").asText();
-        if (csv(name)) {
+        if (BankStatementAttachmentExtractor.supported(name)) {
             JsonNode body = part.path("body");
             String attachmentId = body.path("attachmentId").asText();
             String data = body.path("data").asText();
@@ -170,10 +233,20 @@ public class BankStatementMailboxService {
             }
             if (!data.isBlank() && data.length() < 7_000_000) {
                 String identity = attachmentId.isBlank() ? "inline:" + name : attachmentId;
-                found.add(new Attachment("GMAIL", messageId, identity, name, Base64.getUrlDecoder().decode(data)));
-            }
-        }
-        for (JsonNode child : part.path("parts")) collectGmailParts(base, messageId, child, token, found);
+                try {
+                    List<BankStatementAttachmentExtractor.CsvFile> csvFiles =
+                            BankStatementAttachmentExtractor.extract(name, Base64.getUrlDecoder().decode(data));
+                    if (csvFiles.isEmpty()) scan.unsupportedAttachments++;
+                    if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) scan.zippedCsvFiles += csvFiles.size();
+                    for (var csvFile : csvFiles) found.add(new Attachment("GMAIL", messageId,
+                            BankStatementAttachmentExtractor.attachmentIdentity(identity, csvFile),
+                            csvFile.fileName(), csvFile.bytes()));
+                } catch (IllegalArgumentException ex) {
+                    scan.unreadableAttachments++;
+                }
+            } else scan.unreadableAttachments++;
+        } else if (!name.isBlank()) scan.unsupportedAttachments++;
+        for (JsonNode child : part.path("parts")) collectGmailParts(base, messageId, child, token, found, scan);
     }
 
     private String header(JsonNode message, String key) {
@@ -205,7 +278,6 @@ public class BankStatementMailboxService {
         return false;
     }
 
-    private boolean csv(String fileName) { return fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".csv"); }
     private String segment(String value) { return encode(value).replace("+", "%20"); }
     private String encode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
     private String form(Map<String, String> fields) {
