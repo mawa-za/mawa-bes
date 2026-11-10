@@ -26,6 +26,8 @@ public class GroupSocietyPaymentService {
     private final OnlineCashupService onlineCashupService;
     private final NumberAllocationService numberAllocationService;
     private final CardTerminalService cardTerminalService;
+    private final BankTransactionService bankTransactions;
+    private final BankDepositVerificationPolicyService depositPolicy;
 
     @Transactional
     public PaymentBatchResponseDto createPayment(String groupSocietyId, GroupSocietyPaymentRequest request) {
@@ -57,6 +59,11 @@ public class GroupSocietyPaymentService {
         batch.setCreatedBy(actor);
         batch.setCreatedAt(LocalDateTime.now());
         batch = paymentBatchRepository.save(batch);
+        if ("EFT".equals(batch.getPaymentMethod())) {
+            batch.setBankDepositId(depositPolicy.allocateIfProvided(request.getBankDepositId(),
+                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), actor, batch.getCreatedAt()));
+            batch = paymentBatchRepository.save(batch);
+        }
 
         ReceiptEntity receipt = new ReceiptEntity();
         receipt.setReceiptNo(numberAllocationService.allocateNumber("RECEIPT"));

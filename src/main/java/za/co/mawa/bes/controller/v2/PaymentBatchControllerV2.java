@@ -28,10 +28,10 @@ public class PaymentBatchControllerV2 {
     @GetMapping("/membership-premiums/permissions")
     public Map<String, Boolean> permissions(@RequestHeader(value = "X-Role", required = false) String role) {
         return Map.of(
-                "create", userAccessService.hasWorkcentreAccess("premium-payment-create", role),
-                "edit", userAccessService.hasWorkcentreAccess("premium-payment-edit", role),
-                "cancel", userAccessService.hasWorkcentreAccess("premium-payment-cancel", role),
-                "transfer", userAccessService.hasWorkcentreAccess("premium-payment-transfer", role));
+                "create", userAccessService.hasPermission("premium-payment-create", role),
+                "edit", userAccessService.hasPermission("premium-payment-edit", role),
+                "cancel", userAccessService.hasPermission("premium-payment-cancel", role),
+                "transfer", userAccessService.hasPermission("premium-payment-transfer", role));
     }
 
     @PostMapping("/membership-premiums")
@@ -39,7 +39,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody MembershipPremiumPaymentCreateRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-create", role);
+        userAccessService.assertPermission("premium-payment-create", role);
         return membershipPremiumPaymentService.createPayment(request);
     }
     @PostMapping("/membership-premiums/manual-receipts")
@@ -47,7 +47,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody ManualPremiumReceiptCaptureRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-create", role);
+        userAccessService.assertPermission("premium-payment-create", role);
         return membershipPremiumPaymentService.captureManualReceipt(request);
     }
 
@@ -57,7 +57,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody PremiumPaymentDeletionRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-cancel", role);
+        userAccessService.assertPermission("premium-payment-cancel", role);
         return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
     }
 
@@ -67,7 +67,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody PremiumPaymentDeletionRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-cancel", role);
+        userAccessService.assertPermission("premium-payment-cancel", role);
         return membershipPremiumPaymentService.requestDeletion(paymentBatchId, request);
     }
 
@@ -77,7 +77,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody PremiumPaymentEditRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-edit", role);
+        userAccessService.assertPermission("premium-payment-edit", role);
         return premiumPaymentEditService.requestEdit(paymentBatchId, request);
     }
 
@@ -87,7 +87,7 @@ public class PaymentBatchControllerV2 {
             @RequestBody PremiumPaymentTransferRequest request,
             @RequestHeader(value = "X-Role", required = false) String role
     ) {
-        userAccessService.assertWorkcentreAccess("premium-payment-transfer", role);
+        userAccessService.assertPermission("premium-payment-transfer", role);
         return membershipPremiumPaymentService.transferManualPayment(paymentBatchId, request);
     }
 

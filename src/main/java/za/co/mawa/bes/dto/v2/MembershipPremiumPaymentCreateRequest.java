@@ -12,6 +12,7 @@ public class MembershipPremiumPaymentCreateRequest {
     private String membershipId;
 
     private String paymentMethod;
+    private String bankDepositId;
 
     private Long amountCents;
 

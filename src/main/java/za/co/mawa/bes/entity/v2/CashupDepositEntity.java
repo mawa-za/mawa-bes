@@ -41,6 +41,9 @@ public class CashupDepositEntity {
     @Column(name = "reference_no", length = 120)
     private String referenceNo;
 
+    @Column(name = "bank_deposit_id")
+    private Long bankDepositId;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

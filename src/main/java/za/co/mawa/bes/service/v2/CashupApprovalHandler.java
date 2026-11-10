@@ -6,12 +6,15 @@ import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.repository.v2.CashupRepository;
+import za.co.mawa.bes.repository.v2.CashupDepositRepository;
 
 @Component
 @RequiredArgsConstructor
 public class CashupApprovalHandler implements ApprovalCompletionHandler, ApprovalSubmissionHandler {
 
     private final CashupRepository cashupRepository;
+    private final CashupDepositRepository deposits;
+    private final BankDepositVerificationPolicyService depositPolicy;
 
     @Override
     public ApprovalType supports() {
@@ -32,6 +35,14 @@ public class CashupApprovalHandler implements ApprovalCompletionHandler, Approva
     public void onApproved(ApprovalRequestEntity approvalRequest, String actionBy) {
         CashupEntity cashup = cashupRepository.findById(approvalRequest.getReferenceId())
                 .orElseThrow(() -> new IllegalArgumentException("Cashup not found: " + approvalRequest.getReferenceId()));
+        String source = cashup.getSource() == null ? "" : cashup.getSource().trim().toUpperCase();
+        if (!"MAWA_PAY_EFT".equals(source) && !"ERP_ONLINE_EFT".equals(source)) {
+            var linked = deposits.findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId());
+            if (linked.isEmpty() || linked.stream().anyMatch(d -> d.getBankDepositId() == null
+                    && depositPolicy.requiredAt(d.getCreatedAt() == null ? cashup.getCreatedAt() : d.getCreatedAt()))) {
+                throw new IllegalStateException("Cashup approval requires verified Deposit IDs for all bank deposits");
+            }
+        }
         cashup.setStatus("APPROVED");
         cashup.setUpdatedBy(actionBy);
         cashupRepository.save(cashup);

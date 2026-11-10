@@ -50,7 +50,8 @@ public class WebSecurityConfig {
             "/v2/platform-print-agents/**",
             "/error",
             "/internal/admin/**",
-            "/xero/callback"
+            "/xero/callback",
+            "/v2/bank-transactions/microsoft/callback"
             // other public endpoints of your API may be appended to this array
     };
     public static final String[] LOG_EXCLUSION = {

@@ -9,5 +9,12 @@ public interface CashupDepositRepository extends JpaRepository<CashupDepositEnti
 
     List<CashupDepositEntity> findByCashupIdOrderByDepositDateDescCreatedAtDesc(String cashupId);
 
+    @org.springframework.data.jpa.repository.Query("select d from CashupDepositEntity d where d.bankDepositId is null "
+            + "and (:query = '' or lower(coalesce(d.referenceNo,'')) like lower(concat('%',:query,'%'))) "
+            + "order by d.createdAt desc")
+    org.springframework.data.domain.Page<CashupDepositEntity> pendingBankVerification(
+            @org.springframework.data.repository.query.Param("query") String query,
+            org.springframework.data.domain.Pageable page);
+
     long countByCashupId(String cashupId);
 }

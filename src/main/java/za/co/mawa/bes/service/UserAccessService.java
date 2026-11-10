@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +28,7 @@ public class UserAccessService {
     @Autowired private UserRoleRepository userRoleRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private RoleWorkcenterRepository roleWorkcenterRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private UserAccessAuditRepository auditRepository;
     @Value("${spring.profiles.active:local}") private String environment;
 
@@ -147,6 +149,35 @@ public class UserAccessService {
             if (roleWorkcenterRepository.existsById(key)) return true;
         }
         return false;
+    }
+
+    /** Business action permissions are explicit grants, independent of workcentre navigation. */
+    public boolean hasPermission(String permissionCode, String selectedRoleId) {
+        if (!StringUtils.hasText(permissionCode)) return false;
+        UserAccessProfileDto accessProfile = profile();
+        if (UserContext.isPlatformSession()
+                && "PLATFORM_ALL".equalsIgnoreCase(UserContext.getAccessScope())) return true;
+        List<String> assignedRoles = accessProfile.getRoles() == null ? List.of() : accessProfile.getRoles();
+        List<String> rolesToCheck = assignedRoles;
+        if (StringUtils.hasText(selectedRoleId)) {
+            String chosen = selectedRoleId.trim();
+            rolesToCheck = assignedRoles.stream().filter(id -> id.equalsIgnoreCase(chosen)).toList();
+        }
+        for (String roleId : rolesToCheck) {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM role_permission rp
+                    JOIN permission_catalog p ON p.code = rp.permission_code
+                    WHERE rp.role_id = ? AND rp.permission_code = ? AND p.active = TRUE
+                    """, Integer.class, roleId, permissionCode.trim());
+            if (count != null && count > 0) return true;
+        }
+        return false;
+    }
+
+    public void assertPermission(String permissionCode, String selectedRoleId) {
+        if (!hasPermission(permissionCode, selectedRoleId)) {
+            throw new SecurityException("You do not have permission to " + permissionCode.replace('-', ' '));
+        }
     }
 
     public void assertWorkcentreAccess(String workcentreId, String selectedRoleId) {

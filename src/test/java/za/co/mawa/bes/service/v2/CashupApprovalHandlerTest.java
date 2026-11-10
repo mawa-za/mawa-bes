@@ -7,6 +7,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import za.co.mawa.bes.entity.v2.ApprovalRequestEntity;
 import za.co.mawa.bes.entity.v2.CashupEntity;
+import za.co.mawa.bes.entity.v2.CashupDepositEntity;
+import za.co.mawa.bes.repository.v2.CashupDepositRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import za.co.mawa.bes.repository.v2.CashupRepository;
 
 import java.util.Optional;
@@ -20,6 +25,8 @@ import static org.mockito.Mockito.when;
 class CashupApprovalHandlerTest {
 
     @Mock private CashupRepository cashupRepository;
+    @Mock private CashupDepositRepository deposits;
+    @Mock private BankDepositVerificationPolicyService depositPolicy;
     @InjectMocks private CashupApprovalHandler handler;
 
     @Test
@@ -42,5 +49,40 @@ class CashupApprovalHandlerTest {
         assertEquals("Attach the correct deposit proof", cashup.getNotes());
         assertEquals("approver-1", cashup.getUpdatedBy());
         verify(cashupRepository).save(cashup);
+    }
+
+    @Test
+    void oldUnverifiedDepositCanBeApprovedDuringTransition() {
+        CashupEntity cashup = CashupEntity.builder().id("cashup-legacy")
+                .source("MAWA_PAY_CARD").status("SUBMITTED").build();
+        CashupDepositEntity deposit = new CashupDepositEntity();
+        deposit.setId("deposit-legacy");
+        deposit.setCreatedBy("cashier");
+        LocalDateTime captureTime = LocalDateTime.of(2026, 11, 1, 12, 0);
+        // createdAt comes from the database and is read-only in JPA; set via reflection for the test.
+        org.springframework.test.util.ReflectionTestUtils.setField(deposit, "createdAt", captureTime);
+        ApprovalRequestEntity approval = ApprovalRequestEntity.builder().referenceId("cashup-legacy").build();
+        when(cashupRepository.findById("cashup-legacy")).thenReturn(Optional.of(cashup));
+        when(deposits.findByCashupIdOrderByDepositDateDescCreatedAtDesc("cashup-legacy"))
+                .thenReturn(List.of(deposit));
+        when(depositPolicy.requiredAt(captureTime)).thenReturn(false);
+        handler.onApproved(approval, "approver");
+        assertEquals("APPROVED", cashup.getStatus());
+        verify(cashupRepository).save(cashup);
+    }
+
+    @Test
+    void newlyCapturedUnverifiedDepositCannotBeApprovedAfterEnforcement() {
+        CashupEntity cashup = CashupEntity.builder().id("cashup-new")
+                .source("MAWA_PAY_CARD").status("SUBMITTED").build();
+        CashupDepositEntity deposit = new CashupDepositEntity();
+        LocalDateTime captureTime = LocalDateTime.of(2026, 11, 30, 12, 0);
+        org.springframework.test.util.ReflectionTestUtils.setField(deposit, "createdAt", captureTime);
+        ApprovalRequestEntity approval = ApprovalRequestEntity.builder().referenceId("cashup-new").build();
+        when(cashupRepository.findById("cashup-new")).thenReturn(Optional.of(cashup));
+        when(deposits.findByCashupIdOrderByDepositDateDescCreatedAtDesc("cashup-new"))
+                .thenReturn(List.of(deposit));
+        when(depositPolicy.requiredAt(captureTime)).thenReturn(true);
+        assertThrows(IllegalStateException.class, () -> handler.onApproved(approval, "approver"));
     }
 }

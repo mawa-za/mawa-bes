@@ -60,6 +60,7 @@ public final class LaybyDtos {
     public static class PaymentRequest {
         private Long amountCents;
         private String paymentMethod;
+        private String bankDepositId;
         private LocalDate paymentDate;
         private String reference;
         private String location;
