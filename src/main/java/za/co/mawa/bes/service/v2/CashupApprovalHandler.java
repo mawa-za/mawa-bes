@@ -14,6 +14,7 @@ public class CashupApprovalHandler implements ApprovalCompletionHandler, Approva
 
     private final CashupRepository cashupRepository;
     private final CashupDepositRepository deposits;
+    private final BankDepositVerificationPolicyService depositPolicy;
 
     @Override
     public ApprovalType supports() {
@@ -37,7 +38,8 @@ public class CashupApprovalHandler implements ApprovalCompletionHandler, Approva
         String source = cashup.getSource() == null ? "" : cashup.getSource().trim().toUpperCase();
         if (!"MAWA_PAY_EFT".equals(source) && !"ERP_ONLINE_EFT".equals(source)) {
             var linked = deposits.findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId());
-            if (linked.isEmpty() || linked.stream().anyMatch(d -> d.getBankDepositId() == null)) {
+            if (linked.isEmpty() || linked.stream().anyMatch(d -> d.getBankDepositId() == null
+                    && depositPolicy.requiredAt(d.getCreatedAt() == null ? cashup.getCreatedAt() : d.getCreatedAt()))) {
                 throw new IllegalStateException("Cashup approval requires verified Deposit IDs for all bank deposits");
             }
         }

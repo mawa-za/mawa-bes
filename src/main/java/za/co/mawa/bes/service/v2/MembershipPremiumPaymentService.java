@@ -60,6 +60,7 @@ public class MembershipPremiumPaymentService {
     private final MembershipActionGuardService membershipActionGuardService;
     private final CardTerminalService cardTerminalService;
     private final BankTransactionService bankTransactions;
+    private final BankDepositVerificationPolicyService depositPolicy;
     @Autowired
     NumberAllocationService numberAllocationService;
 
@@ -74,8 +75,8 @@ public class MembershipPremiumPaymentService {
         PaymentBatchEntity batch = createBatch(request);
 
         if ("EFT".equalsIgnoreCase(request.getPaymentMethod())) {
-            batch.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
-                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), request.getCreatedBy()));
+            batch.setBankDepositId(depositPolicy.allocateIfProvided(request.getBankDepositId(),
+                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), request.getCreatedBy(), batch.getCreatedAt()));
             batch = paymentBatchRepository.save(batch);
         }
 

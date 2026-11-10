@@ -76,6 +76,7 @@ public class CashupService {
     private final ManualReceiptBookService manualReceiptBookService;
     private final ObjectMapper objectMapper;
     private final BankTransactionService bankTransactions;
+    private final BankDepositVerificationPolicyService depositPolicy;
 
     /**
      * Upserts the cashup received from the offline Flutter app.
@@ -423,8 +424,9 @@ public class CashupService {
 
         deposit = cashupDepositRepository.save(deposit);
 
-        deposit.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
-                request.getAmountCents(), "CASHUP_DEPOSIT", deposit.getId(), request.getCreatedBy()));
+        deposit.setBankDepositId(depositPolicy.allocateIfProvided(request.getBankDepositId(),
+                request.getAmountCents(), "CASHUP_DEPOSIT", deposit.getId(), request.getCreatedBy(),
+                deposit.getCreatedAt()));
         deposit = cashupDepositRepository.save(deposit);
 
         AttachmentCreateDto attachmentRequest = new AttachmentCreateDto();
@@ -537,11 +539,7 @@ public class CashupService {
         if (!isDepositExempt(cashup) && defaultInt(cashup.getDepositCount()) < 1) {
             throw new IllegalStateException("At least one deposit must be captured before the cashup can be submitted for approval");
         }
-        if (!isDepositExempt(cashup) && cashupDepositRepository
-                .findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId())
-                .stream().anyMatch(deposit -> deposit.getBankDepositId() == null)) {
-            throw new IllegalStateException("Every cashup deposit must have a verified bank Deposit ID before approval");
-        }
+        requireBankDepositIds(cashup);
         String requesterId = request != null && request.getRequesterId() != null && !request.getRequesterId().isBlank()
                 ? request.getRequesterId()
                 : cashup.getUserId();
@@ -867,7 +865,7 @@ public class CashupService {
         if (request.getDepositDate() == null || request.getDepositDate().isBlank()) {
             throw new IllegalArgumentException("depositDate is required");
         }
-        BankTransactionService.parseId(request.getBankDepositId());
+        depositPolicy.validateProvidedOrOptional(request.getBankDepositId(), LocalDateTime.now());
         if (clean(request.getAttachmentFile()) == null) {
             throw new IllegalArgumentException("A proof-of-deposit attachment is required");
         }
@@ -883,7 +881,9 @@ public class CashupService {
         if (isDepositExempt(cashup)) return;
         List<CashupDepositEntity> deposits = cashupDepositRepository
                 .findByCashupIdOrderByDepositDateDescCreatedAtDesc(cashup.getId());
-        if (deposits.isEmpty() || deposits.stream().anyMatch(deposit -> deposit.getBankDepositId() == null)) {
+        if (deposits.isEmpty() || deposits.stream().anyMatch(deposit -> deposit.getBankDepositId() == null
+                && depositPolicy.requiredAt(deposit.getCreatedAt() == null
+                    ? cashup.getCreatedAt() : deposit.getCreatedAt()))) {
             throw new IllegalStateException("A verified bank Deposit ID is required for every cashup deposit");
         }
     }

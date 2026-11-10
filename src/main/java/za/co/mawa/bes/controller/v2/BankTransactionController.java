@@ -13,6 +13,9 @@ import za.co.mawa.bes.configuration.context.UserContext;
 import za.co.mawa.bes.service.v2.BankStatementMailConfigurationService;
 import za.co.mawa.bes.service.v2.BankStatementMailboxService;
 import za.co.mawa.bes.service.v2.BankTransactionService;
+import za.co.mawa.bes.service.v2.BankDepositVerificationPolicyService;
+import za.co.mawa.bes.service.v2.BankDepositReconciliationService;
+import za.co.mawa.bes.service.UserAccessService;
 import za.co.mawa.bes.service.v2.Microsoft365SaasConnectionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
@@ -26,6 +29,9 @@ public class BankTransactionController {
     private final BankStatementMailboxService mailbox;
     private final Microsoft365SaasConnectionService microsoftSaas;
     private final EntityManager entityManager;
+    private final BankDepositVerificationPolicyService policy;
+    private final BankDepositReconciliationService reconciliation;
+    private final UserAccessService userAccessService;
 
     /** Permissions verified against current tenant user-role and workcenter assignments. */
     private void require(String workcenter) {
@@ -69,6 +75,62 @@ public class BankTransactionController {
     public List<BankTransactionService.Allocation> allocations(@PathVariable String depositId) {
         require("bank-transactions");
         return transactions.allocations(depositId);
+    }
+
+    /** Lightweight read for every signed-in cashier, not tied to the bank navigation workcenter. */
+    @GetMapping("/deposit-policy")
+    public BankDepositVerificationPolicyService.Policy depositPolicy() {
+        authenticatedUser();
+        return policy.get();
+    }
+
+    @PutMapping("/deposit-policy")
+    public BankDepositVerificationPolicyService.Policy saveDepositPolicy(
+            @RequestBody BankDepositVerificationPolicyService.Update change) {
+        require("bank-statement-mail-settings");
+        if (!userAccessService.isProtectedAdministrator())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only a protected tenant administrator can configure deposit enforcement");
+        return policy.save(change);
+    }
+
+    @GetMapping("/pending-verification")
+    public Page<BankDepositReconciliationService.PendingItem> pendingVerification(
+            @RequestParam(defaultValue = "PAYMENT_BATCH") String type,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        require("bank-transactions");
+        return reconciliation.pending(type, search, PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 100))));
+    }
+
+    @GetMapping("/reconcile-permission")
+    public java.util.Map<String, Boolean> reconcilePermission(
+            @RequestHeader(value = "X-Role", required = false) String role) {
+        require("bank-transactions");
+        return java.util.Map.of("allowed", userAccessService.hasPermission("bank-deposit-reconcile", role));
+    }
+
+    @PostMapping("/reconcile")
+    public BankDepositReconciliationService.ReconcileResult reconcile(
+            @RequestBody BankDepositReconciliationService.ReconcileRequest request,
+            @RequestHeader(value = "X-Role", required = false) String role) {
+        require("bank-transactions");
+        userAccessService.assertPermission("bank-deposit-reconcile", role);
+        try {
+            return reconciliation.reconcile(request);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            // The financial transaction has rolled back. Keep the mismatch for review.
+            try { reconciliation.recordException(request, failure); }
+            catch (RuntimeException ignored) { /* Do not replace the original allocation error. */ }
+            throw failure;
+        }
+    }
+
+    private void authenticatedUser() {
+        if (UserContext.getCurrentUserId() == null || UserContext.getCurrentUserId().isBlank()
+                || UserContext.isBackgroundSession())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Authenticated ERP user required");
     }
 
     @GetMapping("/config")

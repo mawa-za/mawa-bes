@@ -41,6 +41,7 @@ public class InvoicePaymentService {
     private final NumberAllocationService numberAllocationService;
     private final XeroInvoiceQueueService xeroInvoiceQueueService;
     private final BankTransactionService bankTransactions;
+    private final BankDepositVerificationPolicyService depositPolicy;
 
     @Transactional
     public PaymentBatchResponseDto capturePayment(String invoiceId, CaptureInvoicePaymentDto request) {
@@ -97,8 +98,8 @@ public class InvoicePaymentService {
         batch.setCreatedBy(actor);
         batch = paymentBatchRepository.save(batch);
         if ("EFT".equals(paymentMethod)) {
-            batch.setBankDepositId(bankTransactions.allocate(request.getBankDepositId(),
-                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), actor));
+            batch.setBankDepositId(depositPolicy.allocateIfProvided(request.getBankDepositId(),
+                    request.getAmountCents(), "PAYMENT_BATCH", batch.getId(), actor, batch.getCreatedAt()));
             batch = paymentBatchRepository.save(batch);
         }
 
