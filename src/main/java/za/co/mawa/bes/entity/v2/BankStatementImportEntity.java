@@ -13,6 +13,7 @@ public class BankStatementImportEntity {
     @Column(name = "attachment_id", nullable = false) private String attachmentId;
     @Column(name = "file_name", nullable = false) private String fileName;
     @Column(nullable = false, length = 64) private String sha256;
+    @Column(name = "source_file_id") private Long sourceFileId;
     @Column(name = "imported_count", nullable = false) private Integer importedCount = 0;
     @Column(name = "imported_at", nullable = false) private LocalDateTime importedAt = LocalDateTime.now();
 }

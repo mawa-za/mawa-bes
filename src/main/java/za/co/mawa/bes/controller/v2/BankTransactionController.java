@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import za.co.mawa.bes.configuration.context.UserContext;
@@ -27,6 +28,7 @@ public class BankTransactionController {
     private final BankTransactionService transactions;
     private final BankStatementMailConfigurationService settings;
     private final BankStatementMailboxService mailbox;
+    private final za.co.mawa.bes.service.v2.BankStatementFileService statementFiles;
     private final Microsoft365SaasConnectionService microsoftSaas;
     private final EntityManager entityManager;
     private final BankDepositVerificationPolicyService policy;
@@ -63,6 +65,70 @@ public class BankTransactionController {
         return transactions.search(search, creditsOnly, fromDate, toDate, amountCents,
                 PageRequest.of(Math.max(0, page), Math.max(1, Math.min(100, size)),
                         Sort.by(Sort.Direction.DESC, "transactionDate", "id")));
+    }
+
+    /** File history is visible to bank-transactions users; upload/retry requires its own permission. */
+    @GetMapping("/imports")
+    public Page<za.co.mawa.bes.service.v2.BankStatementFileService.FileView> imports(
+            @RequestParam(defaultValue = "") String source,
+            @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        require("bank-transactions");
+        return statementFiles.search(source, status, search,
+                PageRequest.of(Math.max(0, page), Math.max(1, Math.min(100, size)),
+                        Sort.by(Sort.Direction.DESC, "createdAt", "id")));
+    }
+
+    @GetMapping("/imports/{id}/history")
+    public List<za.co.mawa.bes.service.v2.BankStatementFileService.AttemptView> importHistory(@PathVariable Long id) {
+        require("bank-transactions");
+        return statementFiles.history(id);
+    }
+
+    @GetMapping("/imports/{id}/download")
+    public ResponseEntity<byte[]> downloadSource(@PathVariable Long id) {
+        require("bank-transactions");
+        var file = statementFiles.get(id);
+        byte[] bytes = statementFiles.originalFile(id);
+        var disposition = org.springframework.http.ContentDisposition.attachment()
+                .filename(file.fileName(), java.nio.charset.StandardCharsets.UTF_8).build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    @PostMapping(value = "/imports/upload", consumes = "multipart/form-data")
+    public za.co.mawa.bes.service.v2.BankStatementFileService.FileView manualUpload(
+            @RequestPart("file") MultipartFile file,
+            @RequestHeader(value = "X-Role", required = false) String role) throws java.io.IOException {
+        require("bank-transactions");
+        userAccessService.assertPermission("bank-statement-import-upload", role);
+        if (file.isEmpty() || file.getSize() > 5_000_000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File must be between 1 byte and 5 MB");
+        var received = statementFiles.manualUpload(file.getOriginalFilename(), file.getBytes(),
+                UserContext.getCurrentUserId());
+        return statementFiles.process(received.file().id(), UserContext.getCurrentUserId());
+    }
+
+    @PostMapping("/imports/{id}/retry")
+    public za.co.mawa.bes.service.v2.BankStatementFileService.FileView retryImport(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Role", required = false) String role) {
+        require("bank-transactions");
+        userAccessService.assertPermission("bank-statement-import-upload", role);
+        return statementFiles.process(id, UserContext.getCurrentUserId());
+    }
+
+    @GetMapping("/imports/upload-permission")
+    public java.util.Map<String, Boolean> uploadPermission(
+            @RequestHeader(value = "X-Role", required = false) String role) {
+        require("bank-transactions");
+        return java.util.Map.of("allowed", userAccessService.hasPermission("bank-statement-import-upload", role));
     }
 
     @GetMapping("/{depositId}")

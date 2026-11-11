@@ -27,7 +27,7 @@ public class BankStatementMailboxService {
     private static final ZoneId CAT = ZoneId.of("Africa/Johannesburg");
     private final BankStatementMailConfigurationService config;
     private final Microsoft365SaasConnectionService microsoftSaas;
-    private final BankTransactionService bankTransactions;
+    private final BankStatementFileService statementFiles;
     private final ObjectMapper mapper;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
@@ -63,8 +63,20 @@ public class BankStatementMailboxService {
         int failures = 0;
         for (Attachment attachment : attachments) {
             try {
-                imported += bankTransactions.importCsv(attachment.provider(), attachment.messageId(),
-                        attachment.attachmentId(), attachment.fileName(), attachment.bytes(), settings.accountNumbers());
+                var received = statementFiles.emailAttachment(attachment.provider(), attachment.messageId(),
+                        attachment.attachmentId(), attachment.fileName(), attachment.bytes());
+                // The same mailbox message is a single immutable file; retries are explicit from ERP.
+                if (received.alreadyReceived()) continue;
+                var processed = statementFiles.process(received.file().id(), "SYSTEM:MAIL");
+                imported += processed.importedCount();
+                if (attachment.fileName().toLowerCase(Locale.ROOT).endsWith(".zip"))
+                    scan.zippedCsvFiles += processed.csvCount();
+                if (!"COMPLETED".equals(processed.status())) {
+                    failures++;
+                    if (processed.lastError() != null && processed.lastError().startsWith(
+                            "Statement contains a bank account that is not permitted"))
+                        scan.accountMismatchAttachments++;
+                }
             } catch (RuntimeException ex) {
                 failures++;
                 if (ex instanceof IllegalArgumentException
@@ -83,7 +95,7 @@ public class BankStatementMailboxService {
         org.slf4j.LoggerFactory.getLogger(getClass()).info(
                 "Bank mail scan summary: candidateMessages={}, senderOrSubjectRejected={}, dmarcRejected={}, "
                         + "unsupportedAttachments={}, unreadableAttachments={}, zippedCsvFiles={}, "
-                        + "accountMismatchAttachments={}, eligibleCsvFiles={}, newTransactions={}",
+                        + "accountMismatchAttachments={}, eligibleSourceFiles={}, newTransactions={}",
                 scan.candidateMessages, scan.rejectedSenderOrSubject, scan.rejectedDmarc,
                 scan.unsupportedAttachments, scan.unreadableAttachments, scan.zippedCsvFiles,
                 scan.accountMismatchAttachments, attachments.size(), imported);
@@ -163,14 +175,11 @@ public class BankStatementMailboxService {
                         continue;
                     }
                     try {
-                        List<BankStatementAttachmentExtractor.CsvFile> csvFiles =
-                                BankStatementAttachmentExtractor.extract(name, Base64.getDecoder().decode(content));
-                        if (csvFiles.isEmpty()) scan.unsupportedAttachments++;
-                        if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) scan.zippedCsvFiles += csvFiles.size();
-                        for (var csvFile : csvFiles) {
-                            result.add(new Attachment("MICROSOFT_365", id,
-                                    BankStatementAttachmentExtractor.attachmentIdentity(fileId, csvFile),
-                                    csvFile.fileName(), csvFile.bytes()));
+                        byte[] original = Base64.getDecoder().decode(content);
+                        if (original.length == 0 || original.length > 5_000_000) {
+                            scan.unreadableAttachments++;
+                        } else {
+                            result.add(new Attachment("MICROSOFT_365", id, fileId, name, original));
                         }
                     } catch (IllegalArgumentException ex) {
                         scan.unreadableAttachments++;
@@ -234,13 +243,12 @@ public class BankStatementMailboxService {
             if (!data.isBlank() && data.length() < 7_000_000) {
                 String identity = attachmentId.isBlank() ? "inline:" + name : attachmentId;
                 try {
-                    List<BankStatementAttachmentExtractor.CsvFile> csvFiles =
-                            BankStatementAttachmentExtractor.extract(name, Base64.getUrlDecoder().decode(data));
-                    if (csvFiles.isEmpty()) scan.unsupportedAttachments++;
-                    if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) scan.zippedCsvFiles += csvFiles.size();
-                    for (var csvFile : csvFiles) found.add(new Attachment("GMAIL", messageId,
-                            BankStatementAttachmentExtractor.attachmentIdentity(identity, csvFile),
-                            csvFile.fileName(), csvFile.bytes()));
+                    byte[] original = Base64.getUrlDecoder().decode(data);
+                    if (original.length == 0 || original.length > 5_000_000) {
+                        scan.unreadableAttachments++;
+                    } else {
+                        found.add(new Attachment("GMAIL", messageId, identity, name, original));
+                    }
                 } catch (IllegalArgumentException ex) {
                     scan.unreadableAttachments++;
                 }
