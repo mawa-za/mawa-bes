@@ -19,11 +19,24 @@ public class BankTransactionService {
     private final BankTransactionRepository transactions;
     private final BankTransactionAllocationRepository allocations;
 
-    public record BankDeposit(String depositId, LocalDate date, long amountCents, String reference,
+    public record BankDeposit(String depositId, String transactionId, LocalDate date, long amountCents, String reference,
                               String accountNumber, Long balanceCents, long allocatedCents,
                               long availableCents, String status) { }
 
+    /** Bank Deposit IDs are valid only for incoming credits; existing IDs remain stable. */
     public static String formatId(Long id) { return "DEP-" + String.format(Locale.ROOT, "%08d", id); }
+
+    /** A neutral reference for all bank statement rows, including outgoing debits. */
+    public static String formatTransactionId(Long id) {
+        return "TXN-" + String.format(Locale.ROOT, "%08d", id);
+    }
+
+    private static Long parseTransactionId(String reference) {
+        if (reference == null || !reference.trim().toUpperCase(Locale.ROOT).matches("TXN-[0-9]{1,18}")) {
+            throw new IllegalArgumentException("A valid bank Transaction ID (TXN-00000123) is required");
+        }
+        return Long.parseLong(reference.trim().substring(4));
+    }
 
     public static Long parseId(String depositId) {
         if (depositId == null || !depositId.trim().toUpperCase(Locale.ROOT).matches("DEP-[0-9]{1,18}")) {
@@ -36,22 +49,37 @@ public class BankTransactionService {
     public Page<BankDeposit> search(String search, boolean creditsOnly, LocalDate fromDate,
                                     LocalDate toDate, Long amountCents, Pageable pageable) {
         String normalized = search == null ? "" : search.trim();
-        if (normalized.toUpperCase(Locale.ROOT).startsWith("DEP-")) {
-            normalized = String.valueOf(parseId(normalized));
+        String upper = normalized.toUpperCase(Locale.ROOT);
+        if (upper.startsWith("DEP-")) {
+            // An invented DEP- reference must never resolve to an outgoing transaction.
+            return transactions.searchById(parseId(normalized), true, fromDate, toDate, amountCents, pageable)
+                    .map(this::toDto);
+        }
+        if (upper.startsWith("TXN-")) {
+            return transactions.searchById(parseTransactionId(normalized), creditsOnly,
+                    fromDate, toDate, amountCents, pageable).map(this::toDto);
         }
         return transactions.search(normalized, creditsOnly, fromDate, toDate, amountCents, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)
-    public BankDeposit get(String depositId) {
-        return toDto(transactions.findById(parseId(depositId))
-                .orElseThrow(() -> new IllegalArgumentException("Bank deposit was not found")));
+    public BankDeposit get(String referenceId) {
+        boolean depositRequest = referenceId != null
+                && referenceId.trim().toUpperCase(Locale.ROOT).startsWith("DEP-");
+        Long id = depositRequest ? parseId(referenceId) : parseTransactionId(referenceId);
+        BankTransactionEntity transaction = transactions.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank transaction was not found"));
+        if (depositRequest && transaction.getAmountCents() <= 0) {
+            throw new IllegalArgumentException("A debit does not have a bank Deposit ID");
+        }
+        return toDto(transaction);
     }
 
     private BankDeposit toDto(BankTransactionEntity t) {
         long allocated = allocations.usedAmount(t.getId());
         long available = Math.max(0, t.getAmountCents() - allocated);
-        return new BankDeposit(formatId(t.getId()), t.getTransactionDate(), t.getAmountCents(),
+        return new BankDeposit(t.getAmountCents() > 0 ? formatId(t.getId()) : null,
+                formatTransactionId(t.getId()), t.getTransactionDate(), t.getAmountCents(),
                 t.getReferenceText(), t.getAccountNumber(), t.getBalanceCents(), allocated, available,
                 t.getAmountCents() <= 0 ? "DEBIT" : available == 0 ? "ALLOCATED" : allocated > 0 ? "PARTIAL" : "AVAILABLE");
     }
@@ -97,7 +125,11 @@ public class BankTransactionService {
     @Transactional(readOnly = true)
     public List<Allocation> allocations(String depositId) {
         Long id = parseId(depositId);
-        if (!transactions.existsById(id)) throw new IllegalArgumentException("Bank deposit was not found");
+        BankTransactionEntity transaction = transactions.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Bank deposit was not found"));
+        if (transaction.getAmountCents() <= 0) {
+            throw new IllegalArgumentException("A debit does not have a bank Deposit ID");
+        }
         return allocations.findByBankTransactionIdOrderByCreatedAtDesc(id).stream()
                 .map(a -> new Allocation(a.getAllocationType(), a.getObjectId(), a.getAmountCents(),
                         a.getCreatedBy(), a.getCreatedAt(), a.getReleasedAt())).toList();
