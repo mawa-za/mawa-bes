@@ -103,10 +103,17 @@ public class BankTransactionService {
                         a.getCreatedBy(), a.getCreatedAt(), a.getReleasedAt())).toList();
     }
 
-    /** A failed import rolls back both the import envelope and all inserted rows. */
+    /** Backward-compatible entry point for any existing callers. */
     @Transactional
     public int importCsv(String provider, String messageId, String attachmentId, String fileName, byte[] bytes,
                          String allowedAccounts) {
+        return importCsv(provider, messageId, attachmentId, fileName, bytes, allowedAccounts, null);
+    }
+
+    /** A failed CSV import rolls back its envelope and all its rows. */
+    @Transactional
+    public int importCsv(String provider, String messageId, String attachmentId, String fileName, byte[] bytes,
+                         String allowedAccounts, Long sourceFileId) {
         if (imports.existsByProviderAndMessageIdAndAttachmentId(provider, messageId, attachmentId)) return 0;
         List<BankStatementCsvParser.Transaction> rows = parser.parse(bytes);
         if (allowedAccounts == null || allowedAccounts.isBlank())
@@ -121,6 +128,7 @@ public class BankTransactionService {
         envelope.setAttachmentId(attachmentId);
         envelope.setFileName(fileName);
         envelope.setSha256(BankStatementCsvParser.sha256(bytes));
+        envelope.setSourceFileId(sourceFileId);
         envelope = imports.saveAndFlush(envelope);
         int count = 0;
         for (var row : rows) {

@@ -48,17 +48,19 @@ final class BankStatementAttachmentExtractor {
                 if (entry.isDirectory()) continue;
                 String name = entry.getName().replace('\\', '/');
                 name = name.substring(name.lastIndexOf('/') + 1);
-                if (!name.toLowerCase(Locale.ROOT).endsWith(".csv") || name.length() > 250) continue;
-                ByteArrayOutputStream csv = new ByteArrayOutputStream();
+                boolean isCsv = name.toLowerCase(Locale.ROOT).endsWith(".csv") && name.length() <= 250;
+                ByteArrayOutputStream csv = isCsv ? new ByteArrayOutputStream() : null;
                 byte[] buffer = new byte[8192];
                 int length;
+                // Bound every entry, including ignored files (otherwise a ZIP bomb in
+                // notes.txt could be decompressed without accounting for its size).
                 while ((length = archive.read(buffer)) != -1) {
                     totalUncompressed += length;
                     if (totalUncompressed > MAX_FILE_BYTES)
                         throw new IllegalArgumentException("Bank statement ZIP exceeds maximum extracted size");
-                    csv.write(buffer, 0, length);
+                    if (isCsv) csv.write(buffer, 0, length);
                 }
-                if (csv.size() > 0) files.add(new CsvFile(name, "zip:" + entryCount, csv.toByteArray()));
+                if (isCsv && csv.size() > 0) files.add(new CsvFile(name, "zip:" + entryCount, csv.toByteArray()));
                 archive.closeEntry();
             }
         } catch (IOException ex) {

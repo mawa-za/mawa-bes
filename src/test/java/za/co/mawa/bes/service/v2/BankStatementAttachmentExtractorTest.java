@@ -44,6 +44,13 @@ class BankStatementAttachmentExtractorTest {
         assertThrows(IllegalArgumentException.class, () -> BankStatementAttachmentExtractor.extract("statement.zip", zip));
     }
 
+    @Test
+    void oversizedNonCsvEntryInZipIsRejectedToo() throws Exception {
+        byte[] zip = archive("notes.txt", "x".repeat(5_000_001), "statement.csv", "csv");
+        assertThrows(IllegalArgumentException.class,
+                () -> BankStatementAttachmentExtractor.extract("bank.zip", zip));
+    }
+
     private static byte[] archive(String name1, String value1, String name2, String value2) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream out = new ZipOutputStream(bytes)) {
