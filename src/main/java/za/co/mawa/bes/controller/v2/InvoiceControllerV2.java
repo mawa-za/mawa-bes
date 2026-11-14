@@ -14,6 +14,9 @@ import za.co.mawa.bes.entity.InvoiceEntity;
 import za.co.mawa.bes.entity.InvoiceLineEntity;
 import za.co.mawa.bes.entity.InvoicePaymentEntity;
 import za.co.mawa.bes.service.InvoiceService;
+import za.co.mawa.bes.service.InvoiceOutboundEmailService;
+import java.util.NoSuchElementException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
@@ -27,6 +30,9 @@ public class InvoiceControllerV2 {
 
     @Autowired
     private InvoiceService invoiceService;
+
+    @Autowired
+    private InvoiceOutboundEmailService invoiceOutboundEmailService;
 
     @PostMapping
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceEntity invoice) {
@@ -110,6 +116,34 @@ public class InvoiceControllerV2 {
         invoiceService.deleteInvoice(id);
         return ResponseEntity.ok("Invoice deleted successfully");
     }
+
+    /** Frontend invoice-email action. Outbound transport is shared by all MAWA services. */
+    @PostMapping(value = "{id}/send-email")
+    public ResponseEntity<?> sendInvoiceEmail(@PathVariable String id,
+                                              @RequestBody(required = false) SendEmailRequest request) {
+        try {
+            String email = request == null ? null : request.email();
+            return ResponseEntity.ok(invoiceOutboundEmailService.submit(id, email));
+        } catch (SecurityException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_FORBIDDEN", "message", "Not authorised to email this invoice"));
+        } catch (NoSuchElementException exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of(
+                    "code", "INVOICE_NOT_FOUND", "message", "Invoice not found"));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "INVALID_INVOICE_EMAIL", "message", exception.getMessage()));
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_UNAVAILABLE", "message", "Invoice email is unavailable"));
+        } catch (Exception exception) {
+            log.error("Invoice email submission failed for invoice {}", id, exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_FAILED", "message", "Unable to submit invoice email"));
+        }
+    }
+
+    public record SendEmailRequest(String email) {}
 
     @PostMapping(value = "{id}/send-to-xero")
     public ResponseEntity<?> sendInvoiceToXero(@PathVariable String id) {
