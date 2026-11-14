@@ -126,7 +126,8 @@ public class TenantOutgoingEmailOutboxStore {
     public record Lease(String id, String source, byte[] mime, int attempt, String token) {}
     public record EmailStatus(String requestId, String status, int attempts,
                               String createdAt, String acceptedAt, String deliveredAt,
-                              String lastFeedbackAt) {}
+                              String lastFeedbackAt, String exchangeTraceStatus,
+                              String lastTraceCheckedAt) {}
 
     /** Claim with MySQL 8 SKIP LOCKED; a crashed lease can be reclaimed. */
     @Transactional
@@ -267,7 +268,8 @@ public class TenantOutgoingEmailOutboxStore {
     public Optional<EmailStatus> findInvoiceStatus(String invoiceId, String requestId) {
         return session().doReturningWork(connection -> {
             try (PreparedStatement find = connection.prepareStatement("""
-                    SELECT state, attempt_count, created_at, accepted_at, delivered_at, last_feedback_at
+                    SELECT state, attempt_count, created_at, accepted_at, delivered_at, last_feedback_at,
+                           exchange_trace_status, last_trace_checked_at
                       FROM outbound_email_message
                      WHERE id=? AND source='invoice' AND resource_id=?
                     """)) {
@@ -276,7 +278,8 @@ public class TenantOutgoingEmailOutboxStore {
                 try (ResultSet rows = find.executeQuery()) {
                     if (!rows.next()) return Optional.empty();
                     return Optional.of(new EmailStatus(requestId, rows.getString(1), rows.getInt(2),
-                            rows.getString(3), rows.getString(4), rows.getString(5), rows.getString(6)));
+                            rows.getString(3), rows.getString(4), rows.getString(5), rows.getString(6),
+                            rows.getString(7), rows.getString(8)));
                 }
             }
         });
@@ -368,6 +371,78 @@ public class TenantOutgoingEmailOutboxStore {
                 }
             }
             return true;
+        });
+    }
+
+    /** Tenant-local candidates; no recipient email or MIME is exposed to the trace poller. */
+    public record TraceCandidate(String requestId, String messageId, String recipientHash,
+                                 java.time.Instant acceptedAt) {}
+
+    @Transactional
+    public java.util.List<TraceCandidate> findTraceCandidates(int limit) {
+        return session().doReturningWork(connection -> {
+            java.util.List<TraceCandidate> result = new java.util.ArrayList<>();
+            try (PreparedStatement find = connection.prepareStatement("""
+                    SELECT id, smtp_message_id, recipient_hash, accepted_at
+                      FROM outbound_email_message
+                     WHERE state='ACCEPTED' AND smtp_message_id IS NOT NULL
+                       AND recipient_hash IS NOT NULL
+                       AND accepted_at >= DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 7 DAY)
+                       AND (last_trace_checked_at IS NULL
+                            OR last_trace_checked_at < DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 30 MINUTE))
+                     ORDER BY COALESCE(last_trace_checked_at, accepted_at), id
+                     LIMIT ? FOR UPDATE SKIP LOCKED
+                    """)) {
+                find.setInt(1, Math.max(1, Math.min(limit, 10)));
+                try (ResultSet rows = find.executeQuery()) {
+                    while (rows.next()) {
+                        java.sql.Timestamp accepted = rows.getTimestamp(4,
+                                java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")));
+                        if (accepted != null) {
+                            result.add(new TraceCandidate(rows.getString(1), rows.getString(2),
+                                    rows.getString(3), accepted.toInstant()));
+                        }
+                    }
+                }
+            }
+            // Claim at selection time to avoid multiple Cloud Run instances tracing
+            // the same candidate in parallel. A failed query can retry after 30 minutes.
+            try (PreparedStatement claim = connection.prepareStatement("""
+                    UPDATE outbound_email_message
+                       SET last_trace_checked_at=UTC_TIMESTAMP(6)
+                     WHERE id=? AND state='ACCEPTED'
+                    """)) {
+                for (TraceCandidate candidate : result) {
+                    claim.setString(1, candidate.requestId());
+                    claim.addBatch();
+                }
+                if (!result.isEmpty()) claim.executeBatch();
+            }
+            return result;
+        });
+    }
+
+    /** Store Exchange transport diagnostics separately; only verified delivered events change state. */
+    @Transactional
+    public boolean recordTraceObservation(String requestId, String status, String traceId) {
+        if (requestId == null || !requestId.matches("[0-9a-fA-F-]{36}")
+                || !java.util.Set.of("NOT_FOUND", "AMBIGUOUS", "PENDING", "DELIVERED", "FAILED",
+                        "QUARANTINED", "FILTERED_AS_SPAM", "EXPANDED", "UNKNOWN").contains(status)
+                || (traceId != null && (traceId.length() > 80 || !traceId.matches("[A-Za-z0-9-]+")))) {
+            throw new IllegalArgumentException("Invalid Exchange trace observation");
+        }
+        return session().doReturningWork(connection -> {
+            try (PreparedStatement update = connection.prepareStatement("""
+                    UPDATE outbound_email_message
+                       SET exchange_trace_status=?, exchange_trace_id=?,
+                           last_trace_checked_at=UTC_TIMESTAMP(6)
+                     WHERE id=? AND state='ACCEPTED'
+                    """)) {
+                update.setString(1, status);
+                update.setString(2, traceId);
+                update.setString(3, requestId);
+                return update.executeUpdate() == 1;
+            }
         });
     }
 
