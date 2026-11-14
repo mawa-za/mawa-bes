@@ -67,6 +67,22 @@ public class BankTransactionController {
                         Sort.by(Sort.Direction.DESC, "transactionDate", "id")));
     }
 
+    /** Narrow Deposit ID picker for authenticated payment users (not statement administration). */
+    @GetMapping("/deposit-lookup")
+    public Page<BankTransactionService.BankDeposit> depositLookup(
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        authenticatedUser();
+        if (search.trim().length() < 5) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Enter at least 5 characters to search bank credits");
+        }
+        return transactions.lookupAvailableCredits(search,
+                PageRequest.of(Math.max(0, page), Math.max(1, Math.min(30, size)),
+                        Sort.by(Sort.Direction.DESC, "transactionDate", "id")));
+    }
+
     /** File history is visible to bank-transactions users; upload/retry requires its own permission. */
     @GetMapping("/imports")
     public Page<za.co.mawa.bes.service.v2.BankStatementFileService.FileView> imports(

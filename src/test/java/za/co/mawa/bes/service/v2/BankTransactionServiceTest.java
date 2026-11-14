@@ -115,4 +115,57 @@ class BankTransactionServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.search("TXN-notanumber", false, null, null, null, firstPage));
     }
+
+    @Test
+    void depositPickerRejectsEmptyAndShortQueriesWithoutHittingRepository() {
+        for (String term : List.of("", "ab", " abcd ", "DEP-")) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.lookupAvailableCredits(term, firstPage));
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> service.lookupAvailableCredits(null, firstPage));
+        verify(transactions, never()).searchAvailableCredits(anyString(), any());
+        verify(transactions, never()).findAvailableCreditById(anyLong(), any());
+    }
+
+    @Test
+    void depositPickerSearchesOnlyAvailableCreditRecordsMatchingQuery() {
+        var credit = transaction(123L, 100_00L);
+        when(transactions.searchAvailableCredits("PREMIUM", firstPage))
+                .thenReturn(new PageImpl<>(List.of(credit), firstPage, 1));
+        when(allocations.usedAmount(123L)).thenReturn(25_00L);
+        var matched = service.lookupAvailableCredits(" PREMIUM ", firstPage).getContent();
+        assertEquals(1, matched.size());
+        assertEquals("DEP-00000123", matched.get(0).depositId());
+        assertEquals(75_00L, matched.get(0).availableCents());
+        verify(transactions).searchAvailableCredits("PREMIUM", firstPage);
+        verify(transactions, never()).search(anyString(), anyBoolean(), any(), any(), any(), any());
+    }
+
+    @Test
+    void depositPickerLooksUpFullDepositIdButNotNeutralTransactionReferences() {
+        var credit = transaction(123L, 100_00L);
+        when(transactions.findAvailableCreditById(123L, firstPage))
+                .thenReturn(new PageImpl<>(List.of(credit), firstPage, 1));
+        var matched = service.lookupAvailableCredits("dep-00000123", firstPage).getContent();
+        assertEquals("DEP-00000123", matched.get(0).depositId());
+        assertTrue(service.lookupAvailableCredits("TXN-00000124", firstPage).isEmpty());
+        assertTrue(service.lookupAvailableCredits("DEP-badref", firstPage).isEmpty());
+        verify(transactions).findAvailableCreditById(123L, firstPage);
+    }
+
+    @Test
+    void depositPickerEscapesSqlLikeWildcardsSoTheyCannotReturnUnrelatedRows() {
+        when(transactions.searchAvailableCredits("AB!_!%!!", firstPage))
+                .thenReturn(new PageImpl<>(List.of(), firstPage, 0));
+        assertTrue(service.lookupAvailableCredits("AB_%!", firstPage).isEmpty());
+        verify(transactions).searchAvailableCredits("AB!_!%!!", firstPage);
+    }
+
+    @Test
+    void depositPickerReturnsNoAvailableCreditsWhenNoRecordsMatch() {
+        when(transactions.searchAvailableCredits("UNKNOWN", firstPage))
+                .thenReturn(new PageImpl<>(List.of(), firstPage, 0));
+        assertTrue(service.lookupAvailableCredits("UNKNOWN", firstPage).isEmpty());
+    }
 }
