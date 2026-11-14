@@ -1,6 +1,7 @@
 package za.co.mawa.bes.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import za.co.mawa.bes.dto.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -16,10 +17,19 @@ public class QueuedOutgoingEmailService {
     private static final int MAX_MIME_BYTES = 10 * 1024 * 1024;
     private final SharedOutgoingEmailService transport;
     private final TenantOutgoingEmailOutboxStore store;
+    private final EmailRecipientIdentity recipientIdentity;
 
-    public QueuedOutgoingEmailService(SharedOutgoingEmailService transport, TenantOutgoingEmailOutboxStore store) {
+    @Autowired
+    public QueuedOutgoingEmailService(SharedOutgoingEmailService transport, TenantOutgoingEmailOutboxStore store,
+                                      EmailRecipientIdentity recipientIdentity) {
         this.transport = transport;
         this.store = store;
+        this.recipientIdentity = recipientIdentity;
+    }
+
+    /** Test/backwards-compatible constructor when recipient fingerprinting is not configured. */
+    QueuedOutgoingEmailService(SharedOutgoingEmailService transport, TenantOutgoingEmailOutboxStore store) {
+        this(transport, store, null);
     }
 
     /**
@@ -46,7 +56,10 @@ public class QueuedOutgoingEmailService {
             }
         }
         String fingerprint = hash(stable.append('\n').append(Instant.now().getEpochSecond() / 300).toString());
-        return store.enqueue(source, resourceId, fingerprint, mime);
+        String recipientHash = recipientIdentity == null ? null : recipientIdentity.fingerprint(to);
+        return recipientHash == null
+                ? store.enqueue(source, resourceId, fingerprint, mime)
+                : store.enqueue(source, resourceId, fingerprint, mime, recipientHash);
     }
 
     public Optional<TenantOutgoingEmailOutboxStore.EmailStatus> invoiceStatus(String invoiceId, String requestId) {

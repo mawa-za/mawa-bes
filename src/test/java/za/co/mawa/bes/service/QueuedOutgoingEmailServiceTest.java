@@ -41,4 +41,23 @@ class QueuedOutgoingEmailServiceTest {
         assertEquals(QueuedOutgoingEmailService.hash("a"), QueuedOutgoingEmailService.hash("a"));
         assertNotEquals(QueuedOutgoingEmailService.hash("a"), QueuedOutgoingEmailService.hash("b"));
     }
+    @Test void queueStoresTenantScopedHmacWhenKeyConfigured() {
+        TenantContext.setCurrentTenant("qa_tenant");
+        JavaMailSender mail = mock(JavaMailSender.class);
+        when(mail.createMimeMessage()).thenAnswer(inv -> new MimeMessage(Session.getInstance(new Properties())));
+        CompanyInfoService info = mock(CompanyInfoService.class);
+        when(info.getCompanyName()).thenReturn("QA Tenant");
+        SharedOutgoingEmailService transport = new SharedOutgoingEmailService(
+                mail, info, "noreply@mawa.co.za", "MAWA");
+        TenantOutgoingEmailOutboxStore store = mock(TenantOutgoingEmailOutboxStore.class);
+        when(store.enqueue(eq("invoice"), eq("invoice1"), anyString(), any(byte[].class), anyString()))
+                .thenReturn("queued-with-recipient");
+        EmailRecipientIdentity identity = new EmailRecipientIdentity("0123456789abcdef0123456789abcdef");
+        QueuedOutgoingEmailService service = new QueuedOutgoingEmailService(transport, store, identity);
+        assertEquals("queued-with-recipient", service.queue("Buyer@example.com", "Invoice A",
+                "<p>Hi</p>", List.of(), "invoice", "invoice1"));
+        verify(store).enqueue(eq("invoice"), eq("invoice1"), anyString(), any(byte[].class),
+                eq(identity.fingerprint("buyer@example.com")));
+        verify(mail, never()).send(any(MimeMessage.class));
+    }
 }
