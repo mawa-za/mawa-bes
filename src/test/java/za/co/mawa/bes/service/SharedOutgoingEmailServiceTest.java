@@ -44,7 +44,7 @@ class SharedOutgoingEmailServiceTest {
         SharedOutgoingEmailService sender = new SharedOutgoingEmailService(mail, company, "noreply@mawa.co.za", "MAWA");
         String requestId = sender.submit("test@example.com", "Invoice", "<p>Test</p>", null, "invoice");
         assertNotNull(requestId);
-        verify(mail).send(mime);
+        verify(mail).send(any(MimeMessage.class));
         assertEquals("noreply@mawa.co.za", ((jakarta.mail.internet.InternetAddress) mime.getFrom()[0]).getAddress());
         assertEquals("accounts@example.com", ((jakarta.mail.internet.InternetAddress) mime.getReplyTo()[0]).getAddress());
     }

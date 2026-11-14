@@ -14,7 +14,11 @@ import org.springframework.util.StringUtils;
 import za.co.mawa.bes.configuration.context.TenantContext;
 import za.co.mawa.bes.dto.File;
 
-import java.io.UnsupportedEncodingException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Properties;
+import jakarta.mail.Session;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -54,8 +58,24 @@ public class SharedOutgoingEmailService {
         if (!StringUtils.hasText(subject) || !StringUtils.hasText(html)) {
             throw new IllegalArgumentException("Email subject and content are required");
         }
-        String[] parsedRecipients = validateRecipients(recipients);
+        validateRecipients(recipients);
         String requestId = UUID.randomUUID().toString();
+        sendPrepared(compose(recipients, subject, html, attachments), source, requestId);
+        return requestId;
+    }
+
+    /** Produce an immutable MIME snapshot for durable dispatch; this does NOT send it. */
+    public byte[] compose(String recipients, String subject, String html, List<File> attachments) {
+        if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
+            throw new IllegalStateException("Tenant context is required for outgoing email");
+        }
+        if (!StringUtils.hasText(fromAddress)) {
+            throw new IllegalStateException("Central outgoing email sender is not configured");
+        }
+        if (!StringUtils.hasText(subject) || !StringUtils.hasText(html)) {
+            throw new IllegalArgumentException("Email subject and content are required");
+        }
+        String[] parsedRecipients = validateRecipients(recipients);
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -75,18 +95,34 @@ public class SharedOutgoingEmailService {
                 byte[] data = Base64.getDecoder().decode(attachment.getContent());
                 helper.addAttachment(name, new ByteArrayResource(data));
             }
+            message.saveChanges();
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            message.writeTo(bytes);
+            return bytes.toByteArray();
+        } catch (MessagingException | IOException e) {
+            throw new IllegalStateException("Unable to compose outgoing email", e);
+        }
+    }
+
+    /** Dispatch exactly the MIME snapshot held by the outbox; SMTP acceptance != delivery. */
+    public String sendPrepared(byte[] mime, String source, String requestId) {
+        if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
+            throw new IllegalStateException("Tenant context is required for outgoing email");
+        }
+        if (mime == null || mime.length == 0) throw new IllegalArgumentException("Email content is missing");
+        try {
+            MimeMessage message = new MimeMessage(Session.getInstance(new Properties()),
+                    new ByteArrayInputStream(mime));
             mailSender.send(message);
-            log.info("Outgoing mail accepted by SMTP tenant={} source={} requestId={}",
+            log.info("Outgoing SMTP accepted tenant={} source={} requestId={}",
                     TenantContext.getCurrentTenant(), source, requestId);
-            return requestId;
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            log.warn("Outgoing mail submission failed tenant={} source={} requestId={}",
-                    TenantContext.getCurrentTenant(), source, requestId);
-            throw new IllegalStateException("Outgoing email could not be submitted", e);
+            return message.getMessageID();
+        } catch (MessagingException e) {
+            throw new IllegalStateException("Unable to read outgoing email", e);
         } catch (org.springframework.mail.MailException e) {
-            log.warn("Outgoing mail transport failed tenant={} source={} requestId={}",
+            log.warn("Outgoing SMTP failed tenant={} source={} requestId={}",
                     TenantContext.getCurrentTenant(), source, requestId);
-            throw new IllegalStateException("Outgoing email provider is unavailable", e);
+            throw e;
         }
     }
 

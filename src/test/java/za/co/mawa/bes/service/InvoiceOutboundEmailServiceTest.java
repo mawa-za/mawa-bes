@@ -79,4 +79,38 @@ class InvoiceOutboundEmailServiceTest {
                         && "%PDF-test".equals(new String(java.util.Base64.getDecoder().decode(files.get(0).getContent()),
                         StandardCharsets.UTF_8))), eq("invoice"));
     }
+    @Test void queuesIssuedInvoiceWhenOutboxEnabledAndDoesNotSendSynchronously() {
+        TenantContext.setCurrentTenant("qa_tenant");
+        UserContext.setCurrentUserId("cashier");
+        UserAccessService access = mock(UserAccessService.class);
+        when(access.hasWorkcentreAccess("invoice", null)).thenReturn(true);
+        InvoiceService invoices = mock(InvoiceService.class);
+        InvoiceEntity issued = new InvoiceEntity();
+        issued.setId("invoice1"); issued.setInvoiceNo("INV-556");
+        issued.setPartnerId("partner1"); issued.setStatus("ISSUED");
+        when(invoices.getInvoice("invoice1")).thenReturn(Optional.of(issued));
+        ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+        pdf.writeBytes("%PDF-test".getBytes(StandardCharsets.UTF_8));
+        when(invoices.generateInvoicePdf("invoice1")).thenReturn(pdf);
+        QueuedOutgoingEmailService queue = mock(QueuedOutgoingEmailService.class);
+        when(queue.queue(eq("buyer@example.com"), eq("Invoice INV-556"), anyString(),
+                anyList(), eq("invoice"), eq("invoice1"))).thenReturn("queued-1");
+        SharedOutgoingEmailService sender = mock(SharedOutgoingEmailService.class);
+        var service = new InvoiceOutboundEmailService(invoices, sender, access, queue, true, true);
+        var result = service.submit("invoice1", "buyer@example.com");
+        assertEquals("QUEUED", result.status());
+        assertEquals("queued-1", result.requestId());
+        verifyNoInteractions(sender);
+    }
+
+    @Test void invoiceStatusRequiresAuthorisedInteractiveTenantUser() {
+        UserAccessService access = mock(UserAccessService.class);
+        var service = new InvoiceOutboundEmailService(mock(InvoiceService.class),
+                mock(SharedOutgoingEmailService.class), access,
+                mock(QueuedOutgoingEmailService.class), true, true);
+        assertThrows(SecurityException.class, () -> service.status("invoice1", "req1"));
+        TenantContext.setCurrentTenant("qa_tenant");
+        UserContext.setCurrentUserId("cashier");
+        assertThrows(SecurityException.class, () -> service.status("invoice1", "req1"));
+    }
 }

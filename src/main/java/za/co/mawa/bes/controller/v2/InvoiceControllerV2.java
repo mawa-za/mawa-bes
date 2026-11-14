@@ -143,6 +143,24 @@ public class InvoiceControllerV2 {
         }
     }
 
+    /** Tenant-scoped invoice email status; ACCEPTED means SMTP acceptance, not recipient delivery. */
+    @GetMapping(value = "{id}/email-status/{requestId}")
+    public ResponseEntity<?> getInvoiceEmailStatus(@PathVariable String id,
+                                                   @PathVariable String requestId) {
+        try {
+            return ResponseEntity.ok(invoiceOutboundEmailService.status(id, requestId));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_FORBIDDEN", "message", "Not authorised"));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_STATUS_NOT_FOUND", "message", "Email request not found"));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(java.util.Map.of(
+                    "code", "INVOICE_EMAIL_QUEUE_UNAVAILABLE", "message", "Email status is unavailable"));
+        }
+    }
+
     public record SendEmailRequest(String email) {}
 
     @PostMapping(value = "{id}/send-to-xero")
