@@ -6,6 +6,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -31,6 +32,17 @@ import java.util.UUID;
 @Service
 public class SharedOutgoingEmailService {
     private static final Logger log = LoggerFactory.getLogger(SharedOutgoingEmailService.class);
+
+    // Graph is opt-in until the MAWA Microsoft 365 mailbox and scoped Mail.Send are verified.
+    // The existing M365 SMTP path remains the compatibility fallback.
+    @Autowired(required = false)
+    private Microsoft365GraphOutgoingTransport graphTransport;
+
+    @Value("${mawa.outgoing.m365.graph.enabled:false}")
+    private boolean graphEnabled;
+
+    @Value("${spring.mail.host:smtp.office365.com}")
+    private String configuredSmtpHost = "smtp.office365.com";
 
     private final JavaMailSender mailSender;
     private final CompanyInfoService companyInfoService;
@@ -104,12 +116,27 @@ public class SharedOutgoingEmailService {
         }
     }
 
-    /** Dispatch exactly the MIME snapshot held by the outbox; SMTP acceptance != delivery. */
+    /** Dispatch the tenant-local MIME snapshot via Microsoft 365. Acceptance is NOT delivery. */
     public String sendPrepared(byte[] mime, String source, String requestId) {
         if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
             throw new IllegalStateException("Tenant context is required for outgoing email");
         }
         if (mime == null || mime.length == 0) throw new IllegalArgumentException("Email content is missing");
+        if (graphEnabled) {
+            if (graphTransport == null) {
+                throw new IllegalStateException("Microsoft 365 Graph transport is unavailable");
+            }
+            String clientMessageId = graphTransport.submitMime(mime, requestId);
+            log.info("Microsoft 365 Graph accepted outgoing mail tenant={} source={} requestId={}",
+                    TenantContext.getCurrentTenant(), source, requestId);
+            return clientMessageId;
+        }
+        // Compatibility mode is EXCHANGE ONLINE ONLY; never send via an unapproved provider.
+        if (!"smtp.office365.com".equalsIgnoreCase(
+                configuredSmtpHost == null ? "" : configuredSmtpHost.trim())) {
+            throw new IllegalStateException("Only Microsoft 365 Exchange Online SMTP is approved for MAWA");
+        }
+        // Migrate to Graph before Microsoft disables SMTP Basic authentication by default.
         try {
             MimeMessage message = new MimeMessage(Session.getInstance(new Properties()),
                     new ByteArrayInputStream(mime));

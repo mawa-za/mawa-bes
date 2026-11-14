@@ -7,6 +7,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import za.co.mawa.bes.configuration.context.TenantContext;
 
 import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.test.util.ReflectionTestUtils;
 import static org.mockito.Mockito.*;
 
 class SharedOutgoingEmailServiceTest {
@@ -21,6 +22,30 @@ class SharedOutgoingEmailServiceTest {
         TenantContext.setCurrentTenant("qa_tenant");
         assertThrows(IllegalArgumentException.class,
                 () -> sender.submit("bad-address", "Hello", "<p>Hello</p>", null, "test"));
+        verifyNoInteractions(mail);
+    }
+
+    @Test void graphSwitchDoesNotSilentlyFallBackToSmtp() throws Exception {
+        TenantContext.setCurrentTenant("qa_tenant");
+        JavaMailSender mail = mock(JavaMailSender.class);
+        SharedOutgoingEmailService sender = new SharedOutgoingEmailService(
+                mail, mock(CompanyInfoService.class), "noreply@mawa.co.za", "MAWA");
+        ReflectionTestUtils.setField(sender, "graphEnabled", true);
+        assertThrows(IllegalStateException.class,
+                () -> sender.sendPrepared("dummy".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "invoice", java.util.UUID.randomUUID().toString()));
+        verifyNoInteractions(mail);
+    }
+
+    @Test void smtpTransportRejectsNonMicrosoftProvider() {
+        TenantContext.setCurrentTenant("qa_tenant");
+        JavaMailSender mail = mock(JavaMailSender.class);
+        SharedOutgoingEmailService sender = new SharedOutgoingEmailService(
+                mail, mock(CompanyInfoService.class), "noreply@mawa.co.za", "MAWA");
+        ReflectionTestUtils.setField(sender, "configuredSmtpHost", "smtp.sendgrid.net");
+        assertThrows(IllegalStateException.class,
+                () -> sender.sendPrepared("dummy".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "invoice", java.util.UUID.randomUUID().toString()));
         verifyNoInteractions(mail);
     }
 
