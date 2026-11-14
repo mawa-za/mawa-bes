@@ -62,6 +62,28 @@ public class BankTransactionService {
         return transactions.search(normalized, creditsOnly, fromDate, toDate, amountCents, pageable).map(this::toDto);
     }
 
+    /**
+     * Payment-form Deposit ID picker. This deliberately does not use the broad
+     * bank-transactions search: short/blank searches and fully spent credits
+     * must not return selectable records.
+     */
+    @Transactional(readOnly = true)
+    public Page<BankDeposit> lookupAvailableCredits(String search, Pageable pageable) {
+        String term = search == null ? "" : search.trim();
+        if (term.length() < 5) {
+            throw new IllegalArgumentException("Enter at least 5 characters to search bank credits");
+        }
+        String upper = term.toUpperCase(Locale.ROOT);
+        if (upper.startsWith("TXN-")) return Page.empty(pageable);
+        if (upper.startsWith("DEP-")) {
+            if (!upper.matches("DEP-[0-9]{1,18}")) return Page.empty(pageable);
+            return transactions.findAvailableCreditById(parseId(term), pageable).map(this::toDto);
+        }
+        // Treat % and _ literally; a wildcard-only query must not list all bank credits.
+        String literalTerm = term.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        return transactions.searchAvailableCredits(literalTerm, pageable).map(this::toDto);
+    }
+
     @Transactional(readOnly = true)
     public BankDeposit get(String referenceId) {
         boolean depositRequest = referenceId != null

@@ -31,6 +31,21 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
                                        @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
                                        @Param("amountCents") Long amountCents, Pageable pageable);
 
+    /** Credit-only picker search: never expose spent funds as selectable deposits. */
+    @Query("select t from BankTransactionEntity t where t.amountCents > 0 "
+            + "and t.amountCents > (select coalesce(sum(a.amountCents), 0) "
+            + "from BankTransactionAllocationEntity a where a.bankTransactionId = t.id and a.releasedAt is null) "
+            + "and (lower(t.referenceText) like lower(concat('%', :search, '%')) escape '!' "
+            + "or t.accountNumber like concat('%', :search, '%') escape '!' "
+            + "or cast(t.id as string) = :search)")
+    Page<BankTransactionEntity> searchAvailableCredits(@Param("search") String search, Pageable pageable);
+
+    /** Exact full Deposit ID lookup; a debit or exhausted credit can never be picked. */
+    @Query("select t from BankTransactionEntity t where t.id = :id and t.amountCents > 0 "
+            + "and t.amountCents > (select coalesce(sum(a.amountCents), 0) "
+            + "from BankTransactionAllocationEntity a where a.bankTransactionId = t.id and a.releasedAt is null)")
+    Page<BankTransactionEntity> findAvailableCreditById(@Param("id") Long id, Pageable pageable);
+
     /** Exact ID search avoids matching digits inside another transaction's free-text reference. */
     @Query("select t from BankTransactionEntity t where t.id = :id "
             + "and (:creditsOnly = false or t.amountCents > 0) "
