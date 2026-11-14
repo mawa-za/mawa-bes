@@ -62,6 +62,24 @@ public class QueuedOutgoingEmailService {
                 : store.enqueue(source, resourceId, fingerprint, mime, recipientHash);
     }
 
+    /** Cross-service event ID provides durable idempotency, not a five-minute click window. */
+    public String queueWithStableKey(String to, String subject, String html, List<File> attachments,
+                                     String source, String resourceId, String eventId) {
+        if (resourceId == null || resourceId.isBlank() || eventId == null
+                || !eventId.matches("[A-Za-z0-9_-]{8,100}")) {
+            throw new IllegalArgumentException("Resource/event ID is required");
+        }
+        byte[] mime = transport.compose(to, subject, html, attachments);
+        if (mime.length > MAX_MIME_BYTES) {
+            throw new IllegalArgumentException("Email exceeds attachment size limit");
+        }
+        String fingerprint = hash(source + "\n" + resourceId + "\n" + eventId);
+        String recipientHash = recipientIdentity == null ? null : recipientIdentity.fingerprint(to);
+        return recipientHash == null
+                ? store.enqueue(source, resourceId, fingerprint, mime)
+                : store.enqueue(source, resourceId, fingerprint, mime, recipientHash);
+    }
+
     public Optional<TenantOutgoingEmailOutboxStore.EmailStatus> invoiceStatus(String invoiceId, String requestId) {
         return store.findInvoiceStatus(invoiceId, requestId);
     }
