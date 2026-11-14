@@ -30,4 +30,16 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
                                        @Param("creditsOnly") boolean creditsOnly,
                                        @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
                                        @Param("amountCents") Long amountCents, Pageable pageable);
+
+    /** Exact ID search avoids matching digits inside another transaction's free-text reference. */
+    @Query("select t from BankTransactionEntity t where t.id = :id "
+            + "and (:creditsOnly = false or t.amountCents > 0) "
+            + "and (:fromDate is null or t.transactionDate >= :fromDate) "
+            + "and (:toDate is null or t.transactionDate <= :toDate) "
+            + "and (:amountCents is null or t.amountCents = :amountCents)")
+    Page<BankTransactionEntity> searchById(@Param("id") Long id,
+                                           @Param("creditsOnly") boolean creditsOnly,
+                                           @Param("fromDate") LocalDate fromDate,
+                                           @Param("toDate") LocalDate toDate,
+                                           @Param("amountCents") Long amountCents, Pageable pageable);
 }
