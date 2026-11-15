@@ -59,7 +59,7 @@ public class InternalOutgoingEmailController {
                     .body("Outgoing email submission limit reached; try again after UTC midnight");
         } catch (SecurityException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorised outgoing mail request");
-        } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ex) {
+        } catch (java.io.IOException | IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body("Invalid outgoing mail request");
         }
         // Do not catch and disguise data-layer failures: they must roll back the nonce + outbox.
@@ -91,7 +91,7 @@ public class InternalOutgoingEmailController {
             return ResponseEntity.ok(found.get());
         } catch (SecurityException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorised outgoing mail request");
-        } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ex) {
+        } catch (java.io.IOException | IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body("Invalid outgoing mail status request");
         }
     }
