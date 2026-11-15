@@ -13,6 +13,7 @@ import za.co.mawa.bes.service.v2.BackgroundExecutionContextService;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Polls tenant-local MySQL outboxes with a safe background identity. Never runs SMTP in a DB transaction. */
 @Service
@@ -24,6 +25,10 @@ public class OutgoingEmailQueueWorker {
     private final SharedOutgoingEmailService transport;
     private final boolean enabled;
     private final int maxAttempts;
+    // Instance-local circuit breaker. A cross-Cloud-Run-instance global throttle is a separate feature.
+    private final AtomicLong graphPausedUntilMillis = new AtomicLong(0L);
+
+    boolean graphPaused() { return System.currentTimeMillis() < graphPausedUntilMillis.get(); }
 
     public OutgoingEmailQueueWorker(TenantAdminService tenants,
                                     BackgroundExecutionContextService background,
@@ -41,7 +46,7 @@ public class OutgoingEmailQueueWorker {
 
     @Scheduled(fixedDelayString = "${mawa.outgoing.queue.poll-ms:15000}", initialDelay = 15000)
     public void dispatch() {
-        if (!enabled) return;
+        if (!enabled || graphPaused()) return;
         final List<TenantDto> all;
         try {
             all = tenants.getAll();
@@ -50,12 +55,14 @@ public class OutgoingEmailQueueWorker {
             return;
         }
         for (TenantDto tenant : all) {
+            if (graphPaused()) break;
             if (tenant == null || tenant.getId() == null ||
                     !tenant.getId().matches("[A-Za-z0-9_-]{1,128}")) continue;
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
                 background.establish();
                 for (int i = 0; i < 5; i++) {
+                    if (graphPaused()) break;
                     Optional<TenantOutgoingEmailOutboxStore.Lease> lease = store.claimNext(maxAttempts);
                     if (lease.isEmpty()) break;
                     deliver(lease.get());
@@ -80,7 +87,14 @@ public class OutgoingEmailQueueWorker {
             boolean permanent = ex instanceof MailAuthenticationException
                     || ex instanceof MailParseException || ex instanceof IllegalArgumentException;
             try {
-                store.failed(item, permanent, maxAttempts, ex.getClass().getSimpleName());
+                if (ex instanceof Microsoft365GraphOutgoingTransport.Microsoft365ThrottleException throttle) {
+                    int seconds = Math.max(1, Math.min(throttle.retryAfterSeconds(), 86_400));
+                    long untilMillis = System.currentTimeMillis() + seconds * 1000L;
+                    graphPausedUntilMillis.accumulateAndGet(untilMillis, Math::max);
+                    store.failed(item, false, maxAttempts, ex.getClass().getSimpleName(), seconds);
+                } else {
+                    store.failed(item, permanent, maxAttempts, ex.getClass().getSimpleName());
+                }
             } catch (Exception persistenceError) {
                 // Lease expires and message becomes claimable. Delivery could have been accepted already:
                 // SMTP cannot guarantee exactly-once in this crash window.

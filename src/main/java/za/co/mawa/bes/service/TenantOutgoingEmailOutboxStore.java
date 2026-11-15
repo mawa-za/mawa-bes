@@ -220,9 +220,16 @@ public class TenantOutgoingEmailOutboxStore {
 
     @Transactional
     public boolean failed(Lease lease, boolean permanent, int maxAttempts, String safeCode) {
+        return failed(lease, permanent, maxAttempts, safeCode, 0);
+    }
+
+    /** Honour provider backoff in this tenant's outbox without shortening normal exponential retry. */
+    @Transactional
+    public boolean failed(Lease lease, boolean permanent, int maxAttempts, String safeCode,
+                          int providerRetryAfterSeconds) {
         return session().doReturningWork(connection -> {
             boolean terminal = permanent || lease.attempt() >= maxAttempts;
-            int delaySeconds = retryDelaySeconds(lease.attempt());
+            int delaySeconds = effectiveRetryDelaySeconds(lease.attempt(), providerRetryAfterSeconds);
             try (PreparedStatement update = connection.prepareStatement("""
                     UPDATE outbound_email_message
                        SET state=?, lease_token=NULL, lease_until=NULL, last_error=?,
@@ -245,6 +252,12 @@ public class TenantOutgoingEmailOutboxStore {
     private static String sanitizedCode(String code) {
         String safe = (code == null ? "Unknown" : code).replaceAll("[^A-Za-z0-9_]", "_");
         return safe.substring(0, Math.min(64, safe.length()));
+    }
+
+    /** Never shorten the normal retry delay; cap remote hints to one day. */
+    static int effectiveRetryDelaySeconds(int attempt, int retryAfterSeconds) {
+        return Math.max(retryDelaySeconds(attempt),
+                Math.min(86_400, Math.max(0, retryAfterSeconds)));
     }
 
     static int retryDelaySeconds(int attempt) {

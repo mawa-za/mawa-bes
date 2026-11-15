@@ -38,4 +38,11 @@ class TenantOutgoingEmailOutboxStoreTest {
         assertEquals(120, TenantOutgoingEmailOutboxStore.retryDelaySeconds(3));
         assertEquals(3600, TenantOutgoingEmailOutboxStore.retryDelaySeconds(30));
     }
+    @Test void providerRetryHintCannotShortenNormalBackoffOrExceedOneDay() {
+        assertEquals(300, TenantOutgoingEmailOutboxStore.effectiveRetryDelaySeconds(1, 300));
+        assertEquals(30, TenantOutgoingEmailOutboxStore.effectiveRetryDelaySeconds(1, 1));
+        assertEquals(120, TenantOutgoingEmailOutboxStore.effectiveRetryDelaySeconds(3, -5));
+        assertEquals(86_400, TenantOutgoingEmailOutboxStore.effectiveRetryDelaySeconds(1, Integer.MAX_VALUE));
+    }
+
 }

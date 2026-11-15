@@ -21,6 +21,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Properties;
 
@@ -48,7 +50,44 @@ public class Microsoft365GraphOutgoingTransport {
     interface HttpSender {
         Response send(HttpRequest request) throws IOException, InterruptedException;
     }
-    record Response(int status, String body) {}
+    record Response(int status, String body, String retryAfter) {
+        Response(int status, String body) { this(status, body, null); }
+    }
+
+    /** Retryable Microsoft 365 throttle. Delay is bounded and never includes Graph's response body. */
+    public static final class Microsoft365ThrottleException extends IllegalStateException {
+        private final int retryAfterSeconds;
+        public Microsoft365ThrottleException(int status, int retryAfterSeconds) {
+            super("Microsoft 365 throttled outgoing email (HTTP " + status + ")");
+            this.retryAfterSeconds = retryAfterSeconds;
+        }
+        public int retryAfterSeconds() { return retryAfterSeconds; }
+    }
+
+    /** Microsoft may send Retry-After as seconds or RFC 1123 HTTP date. Reject untrusted extremes. */
+    static int parseRetryAfterSeconds(String retryAfter, Instant now) {
+        if (retryAfter == null || retryAfter.isBlank()) return 0;
+        String value = retryAfter.trim();
+        try {
+            long seconds;
+            if (value.matches("[0-9]{1,12}")) {
+                seconds = Long.parseLong(value);
+            } else {
+                Instant deadline = ZonedDateTime.parse(value,
+                        DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+                long millis = Duration.between(now, deadline).toMillis();
+                seconds = millis <= 0 ? 0 : (millis + 999L) / 1000L;
+            }
+            return seconds <= 0 ? 0 : (int) Math.min(seconds, 86_400L);
+        } catch (RuntimeException invalidHeader) {
+            return 0;
+        }
+    }
+
+    private static Microsoft365ThrottleException throttle(Response response) {
+        int seconds = parseRetryAfterSeconds(response.retryAfter(), Instant.now());
+        return new Microsoft365ThrottleException(response.status(), seconds == 0 ? 60 : seconds);
+    }
     /** Permanent mistakes must not be retried by the outbox worker. */
     public static final class PermanentMailConfigurationException extends IllegalArgumentException {
         public PermanentMailConfigurationException(String message) { super(message); }
@@ -66,7 +105,8 @@ public class Microsoft365GraphOutgoingTransport {
             ObjectMapper mapper) {
         this(directoryId, clientId, secret, mailbox, mapper, request -> {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-            return new Response(response.statusCode(), response.body());
+            return new Response(response.statusCode(), response.body(),
+                    response.headers().firstValue("Retry-After").orElse(null));
         });
     }
 
@@ -122,6 +162,9 @@ public class Microsoft365GraphOutgoingTransport {
                 .build();
         Response response = exchange(request);
         if (response.status() == 202) return clientMessageId;
+        if (response.status() == 429 || response.status() == 503) {
+            throw throttle(response);
+        }
         if (response.status() == 400 || response.status() == 401 || response.status() == 403
                 || response.status() == 404 || response.status() == 413 || response.status() == 422) {
             // Never log Graph's response body; it may include recipient or mailbox information.
@@ -156,7 +199,10 @@ public class Microsoft365GraphOutgoingTransport {
                 .build();
         Response response = exchange(request);
         if (response.status() != 200) {
-            if (response.status() >= 400 && response.status() < 500 && response.status() != 429) {
+            if (response.status() == 429 || response.status() == 503) {
+                throw throttle(response);
+            }
+            if (response.status() >= 400 && response.status() < 500) {
                 throw new PermanentMailConfigurationException(
                         "Microsoft 365 token request rejected (HTTP " + response.status() + ")");
             }

@@ -61,4 +61,29 @@ class OutgoingEmailQueueWorkerTest {
         worker.dispatch();
         verify(store).accepted(lease, "<mime1@example.com>");
     }
+    @Test void m365ThrottlingPausesThisWorkerAcrossTenantsAndPersistsDelay() {
+        TenantDto tenantA = mock(TenantDto.class);
+        TenantDto tenantB = mock(TenantDto.class);
+        when(tenantA.getId()).thenReturn("qa_tenant_a");
+        when(tenantB.getId()).thenReturn("qa_tenant_b");
+        TenantAdminService tenants = mock(TenantAdminService.class);
+        when(tenants.getAll()).thenReturn(List.of(tenantA, tenantB));
+        var store = mock(TenantOutgoingEmailOutboxStore.class);
+        var background = mock(BackgroundExecutionContextService.class);
+        var mail = mock(SharedOutgoingEmailService.class);
+        var lease = new TenantOutgoingEmailOutboxStore.Lease("req1", "billing", new byte[]{1}, 1, "token1");
+        when(store.claimNext(5)).thenReturn(Optional.of(lease));
+        when(mail.sendPrepared(any(byte[].class), eq("billing"), eq("req1")))
+                .thenThrow(new Microsoft365GraphOutgoingTransport.Microsoft365ThrottleException(429, 300));
+        var worker = new OutgoingEmailQueueWorker(tenants, background, store, mail, true, 5);
+        worker.dispatch();
+        assertTrue(worker.graphPaused());
+        verify(store).failed(eq(lease), eq(false), eq(5),
+                eq("Microsoft365ThrottleException"), eq(300));
+        verify(store, times(1)).claimNext(5); // Does not burn tenant B's delivery attempts.
+        worker.dispatch();
+        verify(tenants, times(1)).getAll(); // No fresh provider attempts until the pause expires.
+        assertNull(TenantContext.getCurrentTenant());
+    }
+
 }

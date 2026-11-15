@@ -101,4 +101,44 @@ class Microsoft365GraphOutgoingTransportTest {
                     () -> transport.submitMime(mime, UUID.randomUUID().toString()));
         }
     }
+    @Test void honoursRetryAfterSecondsAndDateForGraph429() throws Exception {
+        TenantContext.setCurrentTenant("qa_tenant");
+        byte[] mime = sample(MAILBOX);
+        for (String hint : List.of("300", "bad-value", "999999999999")) {
+            Microsoft365GraphOutgoingTransport transport = new Microsoft365GraphOutgoingTransport(
+                    DIRECTORY, CLIENT, "test-secret", MAILBOX, new ObjectMapper(), request -> {
+                        if (request.uri().getHost().equals("login.microsoftonline.com")) {
+                            return new Microsoft365GraphOutgoingTransport.Response(200,
+                                    "{\"access_token\":\"token\",\"expires_in\":3600}");
+                        }
+                        return new Microsoft365GraphOutgoingTransport.Response(429, "", hint);
+                    });
+            var exception = assertThrows(
+                    Microsoft365GraphOutgoingTransport.Microsoft365ThrottleException.class,
+                    () -> transport.submitMime(mime, UUID.randomUUID().toString()));
+            assertEquals(hint.equals("300") ? 300 : hint.equals("bad-value") ? 60 : 86_400,
+                    exception.retryAfterSeconds());
+            assertFalse(exception.getMessage().contains("token"));
+        }
+        var now = java.time.Instant.parse("2026-11-15T10:00:00Z");
+        String date = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.format(
+                java.time.ZonedDateTime.ofInstant(now.plusSeconds(120), java.time.ZoneOffset.UTC));
+        assertEquals(120, Microsoft365GraphOutgoingTransport.parseRetryAfterSeconds(date, now));
+        assertEquals(0, Microsoft365GraphOutgoingTransport.parseRetryAfterSeconds("bogus", now));
+        assertEquals(0, Microsoft365GraphOutgoingTransport.parseRetryAfterSeconds("0", now));
+    }
+
+    @Test void tokenEndpointThrottlingUsesRetryAfterWithoutSendingMail() throws Exception {
+        TenantContext.setCurrentTenant("qa_tenant");
+        Microsoft365GraphOutgoingTransport transport = new Microsoft365GraphOutgoingTransport(
+                DIRECTORY, CLIENT, "test-secret", MAILBOX, new ObjectMapper(), request -> {
+                    assertEquals("login.microsoftonline.com", request.uri().getHost());
+                    return new Microsoft365GraphOutgoingTransport.Response(503, "", "150");
+                });
+        var exception = assertThrows(
+                Microsoft365GraphOutgoingTransport.Microsoft365ThrottleException.class,
+                () -> transport.submitMime(sample(MAILBOX), UUID.randomUUID().toString()));
+        assertEquals(150, exception.retryAfterSeconds());
+    }
+
 }
