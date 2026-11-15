@@ -2,6 +2,7 @@ package za.co.mawa.bes.controller;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.security.Principal;
 
 import com.nimbusds.jose.shaded.gson.Gson;
 import io.jsonwebtoken.JwtException;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -31,6 +33,7 @@ import za.co.mawa.bes.service.JwtUserDetailsService;
 import za.co.mawa.bes.service.UserService;
 import za.co.mawa.bes.service.v2.CardTerminalService;
 import za.co.mawa.bes.dto.user.UserDto;
+import za.co.mawa.bes.dto.user.ChangePasswordRequestDto;
 import za.co.mawa.bes.dto.user.UserUpdateDto;
 
 
@@ -97,6 +100,17 @@ public class AuthenticationController {
     @RequestMapping(value = "/resetPassword", method = RequestMethod.POST)
     public ResponseEntity<?> resetPassword(@RequestBody UserDto userDto) throws Exception {
         userService.reset(userDto);
+        return ResponseEntity.ok().build();
+    }
+
+    /** Change only the password belonging to the authenticated tenant user. */
+    @PostMapping("/v2/update-password")
+    public ResponseEntity<Void> updateOwnPassword(
+            @RequestBody ChangePasswordRequestDto request, Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        userService.changeOwnPassword(principal.getName(), request);
         return ResponseEntity.ok().build();
     }
 
