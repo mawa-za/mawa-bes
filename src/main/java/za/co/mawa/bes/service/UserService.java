@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.slf4j.Logger;
@@ -34,6 +36,8 @@ import za.co.mawa.bes.service.v2.ReferenceDataValidationService;
 import za.co.mawa.bes.service.v2.CardTerminalService;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -234,6 +238,45 @@ public class UserService implements UserDao {
             return null;
         }
         //Utils.generateRandomPassword();
+    }
+
+    /**
+     * Change only the password of the user identified by the authenticated principal.
+     * Repository access is already scoped to the request's tenant.
+     * Keep the existing deterministic AES password format for login compatibility.
+     */
+    @Transactional
+    public void changeOwnPassword(String username, ChangePasswordRequestDto request) {
+        if (username == null || username.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        if (request == null || request.getOldPassword() == null || request.getOldPassword().isBlank()
+                || request.getNewPassword() == null || request.getNewPassword().isBlank()
+                || request.getNewPassword().length() < 6) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Current password and a new password of at least 6 characters are required");
+        }
+        if (request.getOldPassword().equals(request.getNewPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "New password must differ from current password");
+        }
+
+        UserEntity user = userRepository.getByName(username);
+        if (user == null || user.getPassword() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found");
+        }
+        String encryptedOldPassword = encryptionService.encrypt(request.getOldPassword(), encryptionSecret);
+        if (!MessageDigest.isEqual(encryptedOldPassword.getBytes(StandardCharsets.UTF_8), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        String encryptedNewPassword = encryptionService.encrypt(request.getNewPassword(), encryptionSecret);
+        user.setPassword(encryptedNewPassword.getBytes(StandardCharsets.UTF_8));
+        user.setPasswordStatus(PasswordStatus.PRODUCTIVE);
+        // The JWT filter uses this timestamp to invalidate access tokens issued before the change.
+        user.setPasswordChangedAt(new Date());
+        userRepository.save(user);
+        // No user DTO is returned: legacy DTO mappings may contain an encrypted credential.
     }
 
     @Override
