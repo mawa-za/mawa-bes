@@ -54,6 +54,9 @@ public class InternalOutgoingEmailController {
             var request = mapper.readValue(payload, OutgoingGatewaySubmissionService.Request.class);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(submission.submit(verified, nonce, request));
+        } catch (za.co.mawa.bes.service.OutgoingGatewayQuotaService.QuotaExceededException ex) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Outgoing email submission limit reached; try again after UTC midnight");
         } catch (SecurityException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorised outgoing mail request");
         } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ex) {

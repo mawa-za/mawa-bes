@@ -13,7 +13,7 @@ class OutgoingGatewaySubmissionServiceTest {
 
     @Test void statusDelegatesWithAuthenticatedCallerAsSource() {
         var queue = mock(QueuedOutgoingEmailService.class);
-        var service = new OutgoingGatewaySubmissionService(mock(EntityManager.class), queue);
+        var service = new OutgoingGatewaySubmissionService(mock(EntityManager.class), queue, mock(OutgoingGatewayQuotaService.class));
         TenantContext.setCurrentTenant("qa_tenant");
         var request = new OutgoingGatewaySubmissionService.StatusRequest(
                 "BILL-100", "12345678-1234-1234-1234-123456789abc");
@@ -26,7 +26,7 @@ class OutgoingGatewaySubmissionServiceTest {
 
     @Test void deniesStatusWithoutTenantAndInvalidSource() {
         var queue = mock(QueuedOutgoingEmailService.class);
-        var service = new OutgoingGatewaySubmissionService(mock(EntityManager.class), queue);
+        var service = new OutgoingGatewaySubmissionService(mock(EntityManager.class), queue, mock(OutgoingGatewayQuotaService.class));
         var request = new OutgoingGatewaySubmissionService.StatusRequest(
                 "BILL-100", "12345678-1234-1234-1234-123456789abc");
         assertThrows(SecurityException.class, () -> service.status("billing", request));

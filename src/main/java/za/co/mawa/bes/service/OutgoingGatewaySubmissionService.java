@@ -17,10 +17,13 @@ import java.util.List;
 public class OutgoingGatewaySubmissionService {
     private final EntityManager entityManager;
     private final QueuedOutgoingEmailService queue;
+    private final OutgoingGatewayQuotaService quota;
 
-    public OutgoingGatewaySubmissionService(EntityManager entityManager, QueuedOutgoingEmailService queue) {
+    public OutgoingGatewaySubmissionService(EntityManager entityManager, QueuedOutgoingEmailService queue,
+                                             OutgoingGatewayQuotaService quota) {
         this.entityManager = entityManager;
         this.queue = queue;
+        this.quota = quota;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = false)
@@ -98,6 +101,8 @@ public class OutgoingGatewaySubmissionService {
                 }
             }
         });
+        // A charge and the outbox insert commit or roll back together; duplicate eventIds are free.
+        quota.reserve(client, request.reference(), request.eventId());
         String id = queue.queueWithStableKey(recipient, subject, html, List.of(), client,
                 request.reference(), request.eventId());
         return new Accepted("QUEUED", id);
