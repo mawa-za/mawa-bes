@@ -132,7 +132,8 @@ public class ApiEndpointLoggingFilter extends OncePerRequestFilter {
     }
 
     private boolean shouldHideBody(String path) {
-        return path.contains("/authenticate")
+        return path.contains("/outgoing-email")
+                || path.contains("/authenticate")
                 || path.contains("/change-password")
                 || path.contains("/bank")
                 || path.contains("/payment");

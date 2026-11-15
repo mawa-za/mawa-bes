@@ -114,7 +114,8 @@ public class ApiEndpointLoggingInterceptor implements HandlerInterceptor {
     }
 
     private boolean shouldHideBody(String path) {
-        return path.contains("/auth")
+        return path.contains("/outgoing-email")
+                || path.contains("/auth")
                 || path.contains("/authenticate")
                 || path.contains("/forgot-password")
                 || path.contains("/refresh-token")

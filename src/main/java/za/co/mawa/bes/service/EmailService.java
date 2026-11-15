@@ -1,79 +1,39 @@
 package za.co.mawa.bes.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import za.co.mawa.bes.dao.EmailDao;
 import za.co.mawa.bes.dto.EmailDto;
-import za.co.mawa.bes.dto.File;
 import za.co.mawa.bes.dto.PropertyDto;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Base64;
+import java.util.List;
 
+/** Compatibility adapter for existing MAWA email templates. All transport uses the shared gateway. */
 @Service
 public class EmailService implements EmailDao {
-
-    private final Environment environment;
-
-    private final JavaMailSender mailSender;
-
+    private final SharedOutgoingEmailService outgoing;
     private final TemplateEngine htmlTemplateEngine;
 
-    public EmailService(Environment environment, JavaMailSender mailSender, TemplateEngine htmlTemplateEngine) {
-        this.environment = environment;
-        this.mailSender = mailSender;
+    public EmailService(SharedOutgoingEmailService outgoing, TemplateEngine htmlTemplateEngine) {
+        this.outgoing = outgoing;
         this.htmlTemplateEngine = htmlTemplateEngine;
     }
 
     @Override
     public String build(EmailDto emailDto) {
-        return null;
+        Context context = new Context(LocaleContextHolder.getLocale());
+        for (PropertyDto property : emailDto.getProperties() == null
+                ? List.<PropertyDto>of() : emailDto.getProperties()) {
+            context.setVariable(property.getKey(), property.getValue());
+        }
+        return htmlTemplateEngine.process(emailDto.getTemplate(), context);
     }
 
     @Override
     public void send(EmailDto emailDto) {
-        try {
-            String mailFrom = environment.getProperty("spring.mail.properties.mail.smtp.from");
-            String mailFromName = environment.getProperty("mail.from.name", "Identity");
-            final MimeMessage mimeMessage = this.mailSender.createMimeMessage();
-            final MimeMessageHelper email;
-            email = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            String[] recipients = emailDto.getTo().split(";");
-            email.setTo(recipients);
-            email.setSubject(emailDto.getSubject());
-            email.setFrom(new InternetAddress(mailFrom, mailFromName));
-            final Context ctx = new Context(LocaleContextHolder.getLocale());
-
-            for (PropertyDto props : emailDto.getProperties()){
-                ctx.setVariable(props.getKey(), props.getValue());
-            }
-
-            final String htmlContent = this.htmlTemplateEngine.process(emailDto.getTemplate(), ctx);
-            email.setText(htmlContent, true);
-            for(File file: emailDto.getFiles()){
-                byte[] doc = Base64.getDecoder().decode(file.getContent());
-                email.addAttachment(file.getName()+"."+file.getType(), new ByteArrayResource(doc));
-            }
-
-
-//            ClassPathResource clr = new ClassPathResource(SPRING_LOGO_IMAGE);
-//            email.addInline("springLogo", clr, PNG_MIME);
-
-            mailSender.send(mimeMessage);
-
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+        outgoing.submit(emailDto.getTo(), emailDto.getSubject(), build(emailDto),
+                emailDto.getFiles(), "template:" + emailDto.getTemplate());
     }
 }
