@@ -61,4 +61,36 @@ public class InternalOutgoingEmailController {
         }
         // Do not catch and disguise data-layer failures: they must roll back the nonce + outbox.
     }
+
+    /** Signed read-only status request; source is never client-supplied. */
+    @PostMapping(value = "/internal/admin/tenant/{tenant}/outgoing-email/status",
+                 consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> status(@PathVariable String tenant, @RequestBody byte[] payload,
+                                    HttpServletRequest httpRequest,
+                                    @RequestHeader(value = "X-Mawa-Mail-Client", required = false) String client,
+                                    @RequestHeader(value = "X-Mawa-Mail-Timestamp", required = false) String timestamp,
+                                    @RequestHeader(value = "X-Mawa-Mail-Nonce", required = false) String nonce,
+                                    @RequestHeader(value = "X-Mawa-Mail-Signature", required = false) String signature) {
+        if (!enabled || !queueEnabled) return ResponseEntity.notFound().build();
+        if (payload == null || payload.length == 0 || payload.length > 1_024) {
+            return ResponseEntity.badRequest().body("Invalid status request size");
+        }
+        try {
+            String verified = authenticator.authenticate(client, timestamp, nonce, signature,
+                    httpRequest.getMethod(), httpRequest.getRequestURI(), tenant, payload);
+            if (!tenant.equals(TenantContext.getCurrentTenant())) {
+                throw new SecurityException("Tenant context mismatch");
+            }
+            var request = mapper.readValue(payload, OutgoingGatewaySubmissionService.StatusRequest.class);
+            var found = submission.status(verified, request);
+            if (found.isEmpty()) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(found.get());
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorised outgoing mail request");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body("Invalid outgoing mail status request");
+        }
+    }
+
 }

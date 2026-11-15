@@ -84,6 +84,12 @@ public class QueuedOutgoingEmailService {
         return store.findInvoiceStatus(invoiceId, requestId);
     }
 
+    /** Only the authenticated gateway may supply the service-specific source. */
+    public Optional<TenantOutgoingEmailOutboxStore.EmailStatus> sourceStatus(
+            String source, String resourceId, String requestId) {
+        return store.findSourceStatus(source, resourceId, requestId);
+    }
+
     static String hash(String value) {
         return HexFormat.of().formatHex(hashBytes(value.getBytes(StandardCharsets.UTF_8)));
     }

@@ -25,7 +25,28 @@ public class OutgoingGatewaySubmissionService {
 
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record Request(String recipient, String reference, String eventId) {}
+    @JsonIgnoreProperties(ignoreUnknown = false)
+    public record StatusRequest(String reference, String requestId) {}
     public record Accepted(String status, String requestId) {}
+
+    /** Read-only lookup bound to the authenticated caller's tenant and source. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<TenantOutgoingEmailOutboxStore.EmailStatus> status(
+            String client, StatusRequest request) {
+        if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
+            throw new SecurityException("Tenant context is required");
+        }
+        if (!java.util.Set.of("admin", "billing", "reporting").contains(client)) {
+            throw new SecurityException("Unknown mail client");
+        }
+        if (request == null || request.reference() == null
+                || !request.reference().matches("[A-Za-z0-9._/-]{1,100}")
+                || request.requestId() == null
+                || !request.requestId().matches("[0-9a-fA-F-]{36}")) {
+            throw new IllegalArgumentException("Invalid outgoing mail status reference");
+        }
+        return queue.sourceStatus(client, request.reference(), request.requestId());
+    }
 
     @Transactional
     public Accepted submit(String client, String nonce, Request request) {

@@ -31,6 +31,24 @@ class OutgoingGatewaySecurityTest {
         assertThrows(SecurityException.class, () -> verifier().authenticate("admin", Long.toString(Instant.now().minusSeconds(600).getEpochSecond()), NONCE, signature, "POST", PATH, TENANT, BODY));
     }
 
+    @Test void acceptsOnlySignedReadOnlyStatusEndpointAndBindsTenant() {
+        String timestamp = Long.toString(Instant.now().getEpochSecond());
+        String statusPath = PATH + "/status";
+        byte[] body = "{\"reference\":\"INV-100\",\"requestId\":\"12345678-1234-1234-1234-123456789abc\"}"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String signature = OutgoingGatewaySecurity.sign(SECRET, "admin", timestamp, NONCE, statusPath, body);
+        assertEquals("admin", verifier().authenticate("admin", timestamp, NONCE, signature,
+                "POST", statusPath, TENANT, body));
+        assertThrows(SecurityException.class, () -> verifier().authenticate("admin", timestamp,
+                NONCE, signature, "GET", statusPath, TENANT, body));
+        assertThrows(SecurityException.class, () -> verifier().authenticate("admin", timestamp,
+                NONCE, signature, "POST", PATH, TENANT, body));
+        assertThrows(SecurityException.class, () -> verifier().authenticate("admin", timestamp,
+                NONCE, signature, "POST", statusPath, "wrong_tenant", body));
+        assertThrows(SecurityException.class, () -> verifier().authenticate("billing", timestamp,
+                NONCE, signature, "POST", statusPath, TENANT, body));
+    }
+
     @Test void rejectsMissingConfigurationAndWeakSecrets() {
         var insecure = new OutgoingGatewaySecurity("short", "", "", TENANT, "", "");
         String timestamp = Long.toString(Instant.now().getEpochSecond());

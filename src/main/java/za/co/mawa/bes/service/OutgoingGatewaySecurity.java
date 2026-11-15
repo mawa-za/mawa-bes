@@ -40,8 +40,10 @@ public class OutgoingGatewaySecurity {
         if (client == null || !client.matches("admin|billing|reporting")) {
             throw new SecurityException("Unapproved mail service");
         }
+        // Both submission and read-only status lookup use the same signed, tenant-bound protocol.
+        String basePath = "/internal/admin/tenant/" + tenant + "/outgoing-email";
         if (tenant == null || !tenant.matches("[A-Za-z0-9_-]{1,128}")
-                || !requestPath.equals("/internal/admin/tenant/" + tenant + "/outgoing-email")
+                || !(basePath.equals(requestPath) || (basePath + "/status").equals(requestPath))
                 || !"POST".equals(method)) {
             throw new SecurityException("Invalid tenant mail route");
         }

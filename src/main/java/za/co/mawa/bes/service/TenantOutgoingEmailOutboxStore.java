@@ -264,17 +264,27 @@ public class TenantOutgoingEmailOutboxStore {
         }
     }
 
+    /**
+     * Read an outbox status only when its source, resource and ID all match inside the
+     * tenant-bound Hibernate connection. Never include MIME or recipient addresses.
+     */
     @Transactional(readOnly = true)
-    public Optional<EmailStatus> findInvoiceStatus(String invoiceId, String requestId) {
+    public Optional<EmailStatus> findSourceStatus(String source, String resourceId, String requestId) {
+        if (source == null || !source.matches("[a-z0-9-]{1,64}")
+                || resourceId == null || resourceId.isBlank() || resourceId.length() > 128
+                || requestId == null || !requestId.matches("[0-9a-fA-F-]{36}")) {
+            throw new IllegalArgumentException("Invalid outgoing mail status reference");
+        }
         return session().doReturningWork(connection -> {
             try (PreparedStatement find = connection.prepareStatement("""
                     SELECT state, attempt_count, created_at, accepted_at, delivered_at, last_feedback_at,
                            exchange_trace_status, last_trace_checked_at
                       FROM outbound_email_message
-                     WHERE id=? AND source='invoice' AND resource_id=?
+                     WHERE id=? AND source=? AND resource_id=?
                     """)) {
                 find.setString(1, requestId);
-                find.setString(2, invoiceId);
+                find.setString(2, source);
+                find.setString(3, resourceId);
                 try (ResultSet rows = find.executeQuery()) {
                     if (!rows.next()) return Optional.empty();
                     return Optional.of(new EmailStatus(requestId, rows.getString(1), rows.getInt(2),
@@ -283,6 +293,11 @@ public class TenantOutgoingEmailOutboxStore {
                 }
             }
         });
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<EmailStatus> findInvoiceStatus(String invoiceId, String requestId) {
+        return findSourceStatus("invoice", invoiceId, requestId);
     }
 
     /**
