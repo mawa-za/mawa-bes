@@ -38,6 +38,9 @@ public class SharedOutgoingEmailService {
     @Autowired(required = false)
     private Microsoft365GraphOutgoingTransport graphTransport;
 
+    @Autowired(required = false)
+    private OutgoingEmailConfigurationService tenantConfiguration;
+
     @Value("${mawa.outgoing.m365.graph.enabled:false}")
     private boolean graphEnabled;
 
@@ -64,9 +67,7 @@ public class SharedOutgoingEmailService {
         if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
             throw new IllegalStateException("Tenant context is required for outgoing email");
         }
-        if (!StringUtils.hasText(fromAddress)) {
-            throw new IllegalStateException("Central outgoing email sender is not configured");
-        }
+        requireSenderConfigured();
         if (!StringUtils.hasText(subject) || !StringUtils.hasText(html)) {
             throw new IllegalArgumentException("Email subject and content are required");
         }
@@ -81,9 +82,7 @@ public class SharedOutgoingEmailService {
         if (!StringUtils.hasText(TenantContext.getCurrentTenant())) {
             throw new IllegalStateException("Tenant context is required for outgoing email");
         }
-        if (!StringUtils.hasText(fromAddress)) {
-            throw new IllegalStateException("Central outgoing email sender is not configured");
-        }
+        requireSenderConfigured();
         if (!StringUtils.hasText(subject) || !StringUtils.hasText(html)) {
             throw new IllegalArgumentException("Email subject and content are required");
         }
@@ -93,10 +92,13 @@ public class SharedOutgoingEmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(parsedRecipients);
             helper.setSubject(subject);
+            OutgoingEmailConfigurationService.Configuration settings = currentSettings();
             String tenantName = companyInfoService.getCompanyName();
-            String displayName = StringUtils.hasText(tenantName) ? tenantName.trim() : defaultDisplayName;
-            helper.setFrom(new InternetAddress(fromAddress, displayName, "UTF-8"));
-            String replyTo = companyInfoService.getCompanyEmail();
+            String displayName = settings != null && StringUtils.hasText(settings.senderName())
+                    ? settings.senderName() : StringUtils.hasText(tenantName) ? tenantName.trim() : defaultDisplayName;
+            helper.setFrom(new InternetAddress(senderAddress(settings), displayName, "UTF-8"));
+            String replyTo = settings != null && StringUtils.hasText(settings.replyTo())
+                    ? settings.replyTo() : companyInfoService.getCompanyEmail();
             if (StringUtils.hasText(replyTo)) {
                 helper.setReplyTo(validatedSingleAddress(replyTo));
             }
@@ -122,6 +124,17 @@ public class SharedOutgoingEmailService {
             throw new IllegalStateException("Tenant context is required for outgoing email");
         }
         if (mime == null || mime.length == 0) throw new IllegalArgumentException("Email content is missing");
+        OutgoingEmailConfigurationService.Configuration settings = currentSettings();
+        if (settings != null && !settings.enabled())
+            throw new IllegalStateException("Outgoing email is disabled for this tenant");
+        if (settings != null && OutgoingEmailConfigurationService.TENANT_GRAPH.equals(settings.provider())) {
+            String secret = tenantConfiguration.tenantGraphSecret();
+            // Graph rejects MIME sender spoofing; sender must match this tenant's configured mailbox.
+            var transport = new Microsoft365GraphOutgoingTransport(
+                    settings.directoryId(), settings.clientId(), secret,
+                    settings.mailbox(), new com.fasterxml.jackson.databind.ObjectMapper());
+            return transport.submitMime(mime, requestId);
+        }
         if (graphEnabled) {
             if (graphTransport == null) {
                 throw new IllegalStateException("Microsoft 365 Graph transport is unavailable");
@@ -140,6 +153,13 @@ public class SharedOutgoingEmailService {
         try {
             MimeMessage message = new MimeMessage(Session.getInstance(new Properties()),
                     new ByteArrayInputStream(mime));
+            // Existing queued messages can outlive configuration changes. Never forward
+            // a MIME From for a different account through the shared SMTP credentials.
+            if (message.getFrom() == null || message.getFrom().length != 1
+                    || !(message.getFrom()[0] instanceof InternetAddress address)
+                    || !fromAddress.equalsIgnoreCase(address.getAddress())) {
+                throw new IllegalStateException("Outgoing MIME sender no longer matches the configured mailbox");
+            }
             mailSender.send(message);
             log.info("Outgoing SMTP accepted tenant={} source={} requestId={}",
                     TenantContext.getCurrentTenant(), source, requestId);
@@ -151,6 +171,23 @@ public class SharedOutgoingEmailService {
                     TenantContext.getCurrentTenant(), source, requestId);
             throw e;
         }
+    }
+
+    private OutgoingEmailConfigurationService.Configuration currentSettings() {
+        return tenantConfiguration == null ? null : tenantConfiguration.get();
+    }
+
+    private String senderAddress(OutgoingEmailConfigurationService.Configuration settings) {
+        return settings != null && OutgoingEmailConfigurationService.TENANT_GRAPH.equals(settings.provider())
+                ? settings.mailbox() : fromAddress;
+    }
+
+    private void requireSenderConfigured() {
+        var settings = currentSettings();
+        if (settings != null && !settings.enabled())
+            throw new IllegalStateException("Outgoing email is disabled for this tenant");
+        if (!StringUtils.hasText(senderAddress(settings)))
+            throw new IllegalStateException("Outgoing email sender is not configured");
     }
 
     public static String[] validateRecipients(String input) {
