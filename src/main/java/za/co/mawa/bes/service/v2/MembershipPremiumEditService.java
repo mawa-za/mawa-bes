@@ -38,6 +38,22 @@ public class MembershipPremiumEditService {
             String premiumId,
             MembershipPremiumEditRequest request,
             String actor) {
+        return submitEdit(membershipId, premiumId, request, actor, null, 0, 0);
+    }
+
+    @Transactional
+    public ApprovalRequestResponse requestBatchEdit(
+            String membershipId, String premiumId, MembershipPremiumEditRequest request,
+            String actor, String batchId, int lineNumber, int totalLines) {
+        if (clean(batchId) == null || lineNumber < 1 || totalLines < 1) {
+            throw new IllegalArgumentException("Bulk premium edit metadata is invalid");
+        }
+        return submitEdit(membershipId, premiumId, request, actor, batchId, lineNumber, totalLines);
+    }
+
+    private ApprovalRequestResponse submitEdit(
+            String membershipId, String premiumId, MembershipPremiumEditRequest request,
+            String actor, String batchId, int lineNumber, int totalLines) {
         validateRequest(request);
         MembershipEntity membership = membershipService.resolveMembership(membershipId);
         membershipActionGuardService.requireActionable(membership);
@@ -46,7 +62,15 @@ public class MembershipPremiumEditService {
 
         long currentAmount = value(premium.getAmountCents());
         long proposedAmount = request.getAmountCents();
+        if (request.getExpectedAmountCents() != null
+                && request.getExpectedAmountCents() != currentAmount) {
+            throw new IllegalStateException("Premium amount has changed since the bulk review. Refresh and try again.");
+        }
         long paidAmount = value(premium.getPaidAmountCents());
+        if (request.getExpectedPaidAmountCents() != null
+                && request.getExpectedPaidAmountCents() != paidAmount) {
+            throw new IllegalStateException("Premium payments have changed since the bulk review. Refresh and try again.");
+        }
         if (currentAmount == proposedAmount) {
             throw new IllegalArgumentException("Enter an amount different from the generated premium amount");
         }
@@ -87,6 +111,11 @@ public class MembershipPremiumEditService {
                 "balanceCents", proposedAmount - paidAmount,
                 "status", proposedAmount == paidAmount ? "PAID" : paidAmount > 0 ? "PARTIALLY_PAID" : "UNPAID"));
         payload.put("reason", request.getReason().trim());
+        if (batchId != null) {
+            payload.put("bulkRequestId", batchId);
+            payload.put("bulkLine", lineNumber);
+            payload.put("bulkTotal", totalLines);
+        }
         payload.put("attachmentObjectIds", List.of(membership.getId()));
 
         ApprovalSubmitRequest approval = new ApprovalSubmitRequest();
@@ -94,10 +123,15 @@ public class MembershipPremiumEditService {
         approval.setReferenceId(id);
         approval.setReferenceNo(membership.getMembershipNo() + "-" + premium.getPeriodYYYYMM());
         approval.setTitle("Edit generated premium " + membership.getMembershipNo() + " - " + premium.getPeriodYYYYMM());
-        approval.setDescription("Review the current and proposed amount for this generated membership premium period.");
+        approval.setDescription(batchId == null
+                ? "Review the current and proposed amount for this generated membership premium period."
+                : "Bulk premium edit " + lineNumber + "/" + totalLines + " (batch " + batchId + "). "
+                    + "Each line requires an independent approval decision.");
         approval.setRequesterId(actionBy);
         approval.setPayloadJson(toJson(payload));
-        ApprovalRequestResponse response = approvalService.submitForApproval(approval);
+        ApprovalRequestResponse response = batchId == null
+                ? approvalService.submitForApproval(approval)
+                : approvalService.submitForMandatoryApproval(approval);
         jdbcTemplate.update("UPDATE membership_premium_edit_request SET approval_request_id=? WHERE id=?", response.getId(), id);
         return response;
     }
@@ -139,7 +173,7 @@ public class MembershipPremiumEditService {
     }
 
     private MembershipPremiumEntity requirePremium(String membershipId, String premiumId) {
-        MembershipPremiumEntity premium = premiumRepository.findById(premiumId)
+        MembershipPremiumEntity premium = premiumRepository.findForPremiumEdit(premiumId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership premium not found: " + premiumId));
         if (!membershipService.membershipIdentifiers(membershipId).contains(premium.getMembershipId())) {
             throw new IllegalArgumentException("Premium does not belong to membership: " + membershipId);
@@ -158,6 +192,9 @@ public class MembershipPremiumEditService {
             throw new IllegalArgumentException("Premium amount must be greater than zero");
         }
         if (clean(request.getReason()) == null) throw new IllegalArgumentException("A reason is required");
+        if (request.getReason().trim().length() > 1000) {
+            throw new IllegalArgumentException("Premium edit reason cannot exceed 1000 characters");
+        }
     }
 
     private Map<String, Object> requireEdit(String id) {

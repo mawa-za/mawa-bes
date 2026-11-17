@@ -14,6 +14,11 @@ import java.util.Optional;
 
 public interface MembershipPremiumRepository extends JpaRepository<MembershipPremiumEntity, String> {
 
+    /** Serializes competing correction requests for the same premium period. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select premium from MembershipPremiumEntity premium where premium.id = :premiumId")
+    Optional<MembershipPremiumEntity> findForPremiumEdit(@Param("premiumId") String premiumId);
+
     Optional<MembershipPremiumEntity> findByMembershipIdAndPeriodYYYYMM(
             String membershipId,
             String periodYYYYMM
