@@ -23,7 +23,9 @@ public class LeaveAccessService {
     private final EmploymentRepository employmentRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(readOnly = true)
+    // A missing employment link is an expected leave-menu outcome, not a transaction failure.
+    // Non-employee accounts may still be permitted as leave approvers.
+    @Transactional(readOnly = true, noRollbackFor = {NoSuchElementException.class, SecurityException.class})
     public EmploymentEntity currentEmployment(LocalDate onDate) {
         String partnerId = currentPartnerId();
         LocalDate date = onDate == null ? LocalDate.now() : onDate;
