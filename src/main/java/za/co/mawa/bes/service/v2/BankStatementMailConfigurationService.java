@@ -9,6 +9,9 @@ import java.util.Locale;
 @Service @RequiredArgsConstructor
 public class BankStatementMailConfigurationService {
     static final String GROUP = "BANK-STATEMENT-MAIL";
+    public static final String DEFAULT_DAILY_RUN_TIME = "04:00";
+    private static final java.util.regex.Pattern RUN_TIME_PATTERN =
+            java.util.regex.Pattern.compile("(?:[01][0-9]|2[0-3]):[0-5][0-9]");
     private final SettingService settings;
     private final GcpTenantSecretService secrets;
 
@@ -17,7 +20,7 @@ public class BankStatementMailConfigurationService {
                                 String clientSecretRef, String refreshTokenRef, int lookbackDays,
                                 String lastSuccessDate, String accountNumbers, Boolean requireDmarc,
                                 String connectionStatus, String connectedDirectoryId,
-                                String verifiedMailbox, String connectedAt) { }
+                                String verifiedMailbox, String connectedAt, String dailyRunTime) { }
 
     public Configuration get() {
         String days = settings.getSetting("LOOKBACK-DAYS", GROUP);
@@ -33,11 +36,16 @@ public class BankStatementMailConfigurationService {
                 value("ACCOUNT-NUMBERS"), !"false".equalsIgnoreCase(value("REQUIRE-DMARC")),
                 nonBlank(value("MS365-CONNECTION-STATUS"), "DISCONNECTED"),
                 value("MS365-CONNECTED-DIRECTORY-ID"), value("MS365-VERIFIED-MAILBOX"),
-                value("MS365-CONNECTED-AT"));
+                value("MS365-CONNECTED-AT"), configuredDailyRunTime(value("DAILY-RUN-TIME")));
     }
 
     public Configuration save(Configuration input) {
         if (input == null) throw new IllegalArgumentException("Configuration is required");
+        // Older clients can omit the new field without resetting a tenant's saved schedule.
+        String dailyRunTime = input.dailyRunTime() == null
+                ? configuredDailyRunTime(value("DAILY-RUN-TIME")) : safe(input.dailyRunTime());
+        if (!RUN_TIME_PATTERN.matcher(dailyRunTime).matches())
+            throw new IllegalArgumentException("Daily import time must be HH:mm (00:00-23:59 CAT)");
         String provider = safe(input.provider()).toUpperCase(Locale.ROOT);
         if (!provider.equals("MICROSOFT_365") && !provider.equals("GMAIL")
                 && !provider.equals("MICROSOFT_365_SAAS")) {
@@ -84,11 +92,17 @@ public class BankStatementMailConfigurationService {
             put("CLIENT-SECRET-REF", safe(input.clientSecretRef()));
         }
         if (!saas) put("REFRESH-TOKEN-REF", safe(input.refreshTokenRef()));
+        put("DAILY-RUN-TIME", dailyRunTime);
         put("LOOKBACK-DAYS", String.valueOf(Math.max(1, Math.min(365, input.lookbackDays()))));
         put("ACCOUNT-NUMBERS", safe(input.accountNumbers()).replaceAll("\\s+", ""));
         put("REQUIRE-DMARC", String.valueOf(!Boolean.FALSE.equals(input.requireDmarc())));
         put("ENABLED", String.valueOf(input.enabled()));
         return get();
+    }
+
+    private String configuredDailyRunTime(String value) {
+        return value != null && RUN_TIME_PATTERN.matcher(value).matches()
+                ? value : DEFAULT_DAILY_RUN_TIME;
     }
 
     String secret(String reference) { return secrets.accessSecretReference(reference); }

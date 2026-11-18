@@ -19,18 +19,20 @@ public class BankStatementDailySyncService {
     private final BankStatementMailboxService mailbox;
     private final BackgroundExecutionContextService background;
 
-    // Catch up after 04:00 CAT if a Cloud Run instance was asleep at the exact time.
-    @Scheduled(fixedDelayString = "${mawa.bank-statements.dispatcher-delay-ms:1800000}",
+    // Poll every minute when the service is running. Catch up if no instance was
+    // available at the selected wall-clock time; the successful scan date is tenant-local.
+    @Scheduled(fixedDelayString = "${mawa.bank-statements.dispatcher-delay-ms:60000}",
                initialDelayString = "${mawa.bank-statements.initial-delay-ms:30000}")
     public void syncAllTenants() {
-        if (LocalTime.now(CAT).isBefore(LocalTime.of(4, 0))) return;
+        LocalDate today = LocalDate.now(CAT);
+        LocalTime now = LocalTime.now(CAT);
         for (TenantDto tenant : tenants.getAll()) {
             if (tenant == null || tenant.getId() == null || tenant.getId().isBlank()) continue;
             try {
                 TenantContext.setCurrentTenant(tenant.getId());
                 background.establish();
                 var configuration = settings.get();
-                if (configuration.enabled() && !LocalDate.now(CAT).toString().equals(configuration.lastSuccessDate())) {
+                if (shouldRun(configuration, today, now)) {
                     var result = mailbox.sync();
                     log.info("Daily bank statement sync: tenant={}, attachments={}, new={}, failures={}",
                             tenant.getId(), result.attachments(), result.newTransactions(), result.failures());
@@ -42,5 +44,15 @@ public class BankStatementDailySyncService {
                 TenantContext.clear();
             }
         }
+    }
+
+    static boolean shouldRun(BankStatementMailConfigurationService.Configuration configuration,
+                             LocalDate today, LocalTime now) {
+        if (!configuration.enabled() || today.toString().equals(configuration.lastSuccessDate()))
+            return false;
+        String configured = configuration.dailyRunTime();
+        LocalTime runTime = LocalTime.parse(configured == null
+                ? BankStatementMailConfigurationService.DEFAULT_DAILY_RUN_TIME : configured);
+        return !now.isBefore(runTime);
     }
 }

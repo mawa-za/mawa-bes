@@ -74,7 +74,7 @@ class BankStatementFileServiceTest {
         when(storage.read("private-bucket", "tenant/17/original.csv")).thenReturn(csv());
         when(config.get()).thenReturn(new BankStatementMailConfigurationService.Configuration(
                 false, null, null, null, null, null, null, null, null,
-                14, null, "000123", true, null, null, null, null));
+                14, null, "000123", true, null, null, null, null, "04:00"));
         when(bank.importCsv(eq("MANUAL"), eq("manual-file-17"), eq("manual-file-17"),
                 eq("statement.csv"), any(byte[].class), eq("000123"), eq(17L))).thenReturn(2);
 

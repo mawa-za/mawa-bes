@@ -12,7 +12,7 @@ class BankStatementMailConfigurationSaasTest {
     private BankStatementMailConfigurationService.Configuration input(boolean enabled, String mailbox) {
         return new BankStatementMailConfigurationService.Configuration(enabled, "MICROSOFT_365_SAAS",
                 mailbox, "bank@example.org", "statement", "", "", "", "", 14, "",
-                "001234567", true, "DISCONNECTED", "", "", "");
+                "001234567", true, "DISCONNECTED", "", "", "", "04:00");
     }
 
     @Test void sharedMicrosoftAppDoesNotRequireCustomerClientCredentials() {
@@ -41,5 +41,59 @@ class BankStatementMailConfigurationSaasTest {
         assertDoesNotThrow(() -> service.save(input(false, "new@example.org")));
         verify(settings).upsertSetting("MS365-VERIFIED-MAILBOX", "BANK-STATEMENT-MAIL", "");
         verify(settings).upsertSetting("MS365-CONNECTION-STATUS", "BANK-STATEMENT-MAIL", "MAILBOX_ACCESS_REQUIRED");
+    }
+
+
+    @Test void missingTenantScheduleDefaultsToFourAmCat() {
+        SettingService settings = mock(SettingService.class);
+        BankStatementMailConfigurationService service = new BankStatementMailConfigurationService(
+                settings, mock(GcpTenantSecretService.class));
+        assertEquals("04:00", service.get().dailyRunTime());
+        when(settings.getSetting("DAILY-RUN-TIME", "BANK-STATEMENT-MAIL")).thenReturn("23:45");
+        assertEquals("23:45", service.get().dailyRunTime());
+    }
+
+    @Test void legacySavePreservesAlreadyConfiguredTenantTime() {
+        SettingService settings = mock(SettingService.class);
+        when(settings.getSetting("DAILY-RUN-TIME", "BANK-STATEMENT-MAIL")).thenReturn("18:20");
+        BankStatementMailConfigurationService service = new BankStatementMailConfigurationService(
+                settings, mock(GcpTenantSecretService.class));
+        var old = input(false, "statements@example.org");
+        var payload = new BankStatementMailConfigurationService.Configuration(
+                old.enabled(), old.provider(), old.mailbox(), old.sender(), old.subjectFilter(),
+                old.tenantId(), old.clientId(), old.clientSecretRef(), old.refreshTokenRef(),
+                old.lookbackDays(), old.lastSuccessDate(), old.accountNumbers(), old.requireDmarc(),
+                old.connectionStatus(), old.connectedDirectoryId(), old.verifiedMailbox(),
+                old.connectedAt(), null);
+        service.save(payload);
+        verify(settings).upsertSetting("DAILY-RUN-TIME", "BANK-STATEMENT-MAIL", "18:20");
+    }
+
+    @Test void persistsValidRunTimeAndRejectsMalformedBeforeMutatingSettings() {
+        SettingService settings = mock(SettingService.class);
+        BankStatementMailConfigurationService service = new BankStatementMailConfigurationService(
+                settings, mock(GcpTenantSecretService.class));
+        var valid = input(false, "statements@example.org");
+        var custom = new BankStatementMailConfigurationService.Configuration(
+                valid.enabled(), valid.provider(), valid.mailbox(), valid.sender(),
+                valid.subjectFilter(), valid.tenantId(), valid.clientId(),
+                valid.clientSecretRef(), valid.refreshTokenRef(), valid.lookbackDays(),
+                valid.lastSuccessDate(), valid.accountNumbers(), valid.requireDmarc(),
+                valid.connectionStatus(), valid.connectedDirectoryId(), valid.verifiedMailbox(),
+                valid.connectedAt(), "00:05");
+        service.save(custom);
+        verify(settings).upsertSetting("DAILY-RUN-TIME", "BANK-STATEMENT-MAIL", "00:05");
+        clearInvocations(settings);
+        for (String invalid : new String[]{"", "24:00", "4:00", "12:60", "12:00:00"}) {
+            var bad = new BankStatementMailConfigurationService.Configuration(
+                    custom.enabled(), custom.provider(), custom.mailbox(), custom.sender(),
+                    custom.subjectFilter(), custom.tenantId(), custom.clientId(),
+                    custom.clientSecretRef(), custom.refreshTokenRef(), custom.lookbackDays(),
+                    custom.lastSuccessDate(), custom.accountNumbers(), custom.requireDmarc(),
+                    custom.connectionStatus(), custom.connectedDirectoryId(), custom.verifiedMailbox(),
+                    custom.connectedAt(), invalid);
+            assertThrows(IllegalArgumentException.class, () -> service.save(bad), invalid);
+        }
+        verify(settings, never()).upsertSetting(anyString(), anyString(), anyString());
     }
 }
