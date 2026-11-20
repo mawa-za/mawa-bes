@@ -11,6 +11,7 @@ import za.co.mawa.bes.dto.v2.funeral.*;
 import za.co.mawa.bes.dto.v2.FuneralPackageCreateRequestDto;
 import za.co.mawa.bes.dto.v2.FuneralPackageUpdateRequestDto;
 import za.co.mawa.bes.service.v2.FuneralManagementService;
+import za.co.mawa.bes.service.v2.FuneralClaimFundingReversalService;
 import za.co.mawa.bes.service.v2.FuneralDocumentService;
 import za.co.mawa.bes.service.v2.GroupSocietyFuneralClaimService;
 
@@ -22,6 +23,7 @@ import za.co.mawa.bes.service.v2.GroupSocietyFuneralClaimService;
 public class FuneralManagementControllerV2 {
 
     private final FuneralManagementService funeralManagementService;
+    private final FuneralClaimFundingReversalService funeralClaimFundingReversalService;
     private final FuneralDocumentService funeralDocumentService;
     private final GroupSocietyFuneralClaimService groupSocietyFuneralClaimService;
 
@@ -302,6 +304,17 @@ public class FuneralManagementControllerV2 {
     @PostMapping(value = "/service-request/{id}/reopen-funding", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> reopenFunding(@PathVariable String id, @RequestBody FuneralFundingReopenRequestDto request) {
         return ResponseEntity.ok(funeralManagementService.reopenFuneralFunding(id, request));
+    }
+
+    @PostMapping(value = "/service-request/{id}/funding-claims/{claimId}/reconcile", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> reconcileFuneralClaimFunding(@PathVariable String id,
+            @PathVariable String claimId, @RequestBody FuneralClaimFundingReversalRequestDto request) {
+        return ResponseEntity.ok(funeralClaimFundingReversalService.reconcile(id, claimId, request));
+    }
+
+    @GetMapping("/service-request/{id}/funding-claim-reversals")
+    public ResponseEntity<?> getFuneralClaimFundingReversals(@PathVariable String id) {
+        return ResponseEntity.ok(funeralClaimFundingReversalService.audit(id));
     }
 
     @GetMapping("/service-request/{id}/group-society-cover")

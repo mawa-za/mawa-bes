@@ -24,7 +24,7 @@ class FuneralClaimDeceasedGuardTest {
     @Test
     void pairedGroceryClaimOnSameFuneralServiceIsPermitted() {
         stubMainMember("DECEASED");
-        when(jdbcTemplate.queryForList(startsWith("SELECT claim_type, funeral_service_id"), eq("M"), eq("P")))
+        when(jdbcTemplate.queryForList(startsWith("SELECT c.claim_type, c.funeral_service_id"), eq("M"), eq("P")))
                 .thenReturn(List.of(Map.of("claim_type", "FUNERAL", "funeral_service_id", "FS-1")));
 
         assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(service,
@@ -34,7 +34,7 @@ class FuneralClaimDeceasedGuardTest {
     @Test
     void unrelatedFuneralServiceCannotClaimAgain() {
         stubMainMember("DECEASED");
-        when(jdbcTemplate.queryForList(startsWith("SELECT claim_type, funeral_service_id"), eq("M"), eq("P")))
+        when(jdbcTemplate.queryForList(startsWith("SELECT c.claim_type, c.funeral_service_id"), eq("M"), eq("P")))
                 .thenReturn(List.of(Map.of("claim_type", "FUNERAL", "funeral_service_id", "FS-1")));
 
         assertThrows(IllegalStateException.class, () -> ReflectionTestUtils.invokeMethod(service,
@@ -44,13 +44,29 @@ class FuneralClaimDeceasedGuardTest {
     @Test
     void cancelledClaimAllowsFreshFuneralRequestOnDeceasedMember() {
         stubMainMember("DECEASED");
-        when(jdbcTemplate.queryForList(startsWith("SELECT claim_type, funeral_service_id"), eq("M"), eq("P")))
+        when(jdbcTemplate.queryForList(startsWith("SELECT c.claim_type, c.funeral_service_id"), eq("M"), eq("P")))
                 .thenReturn(List.of());
         when(jdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM"), eq(Integer.class),
                 eq("M"), eq("P"))).thenReturn(1);
 
         assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(service,
                 "requireFuneralClaimAllowed", null, "M", "P", "MAIN_MEMBER", "FS-2", "FUNERAL", false));
+    }
+
+    @Test
+    void recoveredPaidFuneralClaimAllowsNewClaimDespiteDeceasedStatus() {
+        stubMainMember("DECEASED");
+        // The original PAID claim is excluded from active duplicates by its
+        // reversal record but remains PAID in the historical ledger.
+        when(jdbcTemplate.queryForList(startsWith("SELECT c.claim_type, c.funeral_service_id"),
+                eq("M"), eq("P"))).thenReturn(List.of());
+        when(jdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM"),
+                eq(Integer.class), eq("M"), eq("P"))).thenReturn(1);
+        assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(service,
+                "requireFuneralClaimAllowed", null, "M", "P",
+                "MAIN_MEMBER", "FS-1", "COMBINATION", false));
+        verify(jdbcTemplate).queryForObject(contains("funeral_claim_funding_reversal"),
+                eq(Integer.class), eq("M"), eq("P"));
     }
 
     private void stubMainMember(String status) {

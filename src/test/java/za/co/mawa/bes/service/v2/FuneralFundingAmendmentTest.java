@@ -18,6 +18,7 @@ import za.co.mawa.bes.repository.v2.FuneralServiceClaimRepository;
 import za.co.mawa.bes.repository.v2.FuneralServiceInvoiceRepository;
 import za.co.mawa.bes.repository.v2.FuneralServiceRepository;
 import za.co.mawa.bes.service.CreditNoteService;
+import za.co.mawa.bes.service.UserAccessService;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ class FuneralFundingAmendmentTest {
     @Mock FuneralServiceClaimRepository funeralServiceClaimRepository;
     @Mock InvoiceRepository invoiceRepository;
     @Mock CreditNoteService creditNoteService;
+    @Mock UserAccessService userAccessService;
     @InjectMocks FuneralManagementService service;
 
     @Test
