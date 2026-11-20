@@ -51,6 +51,10 @@ public class FuneralServiceInvoiceEntity {
     @Column(name = "cover_tenant_id") private String coverTenantId;
     @Column(name = "payment_request_id") private String paymentRequestId;
 
+    /** Previous allocation remains linked to the original credited invoice for audit. */
+    @Column(name = "superseded_at")
+    private LocalDateTime supersededAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
