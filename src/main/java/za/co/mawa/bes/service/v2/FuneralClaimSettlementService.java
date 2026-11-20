@@ -72,6 +72,13 @@ public class FuneralClaimSettlementService {
         if (serviceId == null) {
             throw new IllegalStateException("Funeral service reference is missing for claim " + claimId);
         }
+        // Superseded claims keep their historic approved/paid state but must never
+        // cause another payout or mutate replacement family invoices.
+        Long replaced = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM " + qualified(providerTenant, "funeral_service_claim")
+                        + " WHERE membership_claim_id=? AND superseded_at IS NOT NULL",
+                Long.class, claimId);
+        if (replaced != null && replaced > 0) return null;
 
         String providerLinkTable = qualified(providerTenant, "funeral_service_claim");
         if (localLink == null || localLink.getServicePaymentRequestId() == null) {
@@ -180,6 +187,8 @@ public class FuneralClaimSettlementService {
                 SELECT id, claim_type
                   FROM membership_claim
                  WHERE funeral_service_id = ?
+                   AND NOT EXISTS (SELECT 1 FROM funeral_claim_funding_reversal r
+                                    WHERE r.original_claim_id=membership_claim.id)
                    AND status IN ('APPROVED','PAYMENT_PENDING')
                    AND claim_type IN ('FUNERAL','COMBINATION','GROCERY')
                  ORDER BY created_at

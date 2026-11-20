@@ -53,6 +53,8 @@ public class FuneralServiceClaimEntity {
     private String burialSocietyPartnerId;
 
 
+    @Column(name = "superseded_at") private LocalDateTime supersededAt;
+
     @Column(name = "provider_tenant_id") private String providerTenantId;
     @Column(name = "provider_partner_id") private String providerPartnerId;
     @Column(name = "service_invoice_id") private String serviceInvoiceId;

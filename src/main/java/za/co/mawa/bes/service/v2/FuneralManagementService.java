@@ -29,6 +29,7 @@ import za.co.mawa.bes.service.LegacyAttachmentObjectIdResolver;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
 import za.co.mawa.bes.service.CreditNoteService;
+import za.co.mawa.bes.service.UserAccessService;
 import za.co.mawa.bes.dto.creditnote.CreditNoteIssueRequestDto;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
@@ -77,6 +78,8 @@ public class FuneralManagementService {
     private final ExternalFuneralClaimApprovalService externalFuneralClaimApprovalService;
     private final FuneralClaimSettlementService funeralClaimSettlementService;
     private final CreditNoteService creditNoteService;
+    private final FuneralClaimFundingReversalService funeralClaimFundingReversalService;
+    private final UserAccessService userAccessService;
     private final NumberAllocationService numberAllocationService;
     private final NumberRangeService numberRangeService;
     private final SettingService settingService;
@@ -755,6 +758,7 @@ public class FuneralManagementService {
                 || request.getReason().trim().length() > 800) {
             throw new IllegalArgumentException("A funding amendment reason (5 to 800 characters) is required");
         }
+        userAccessService.assertPermission("funeral-funding-reconcile", null);
         List<String> locked = jdbcTemplate.query(
                 "SELECT id FROM funeral_service WHERE id=? FOR UPDATE",
                 (rs, row) -> rs.getString(1), funeralServiceId);
@@ -786,6 +790,7 @@ public class FuneralManagementService {
         List<FuneralServiceClaimEntity> claimLinks = funeralServiceClaimRepository
                 .findByFuneralServiceId(funeralServiceId);
         for (FuneralServiceClaimEntity claimLink : claimLinks) {
+            if (claimLink.getSupersededAt() != null) continue; // reconciled claim's payout retained for audit
             if (supersedingInvoiceIds.contains(claimLink.getServiceInvoiceId())
                     && StringUtils.hasText(claimLink.getServicePaymentRequestId())) {
                 throw new IllegalStateException("Claim " + claimLink.getMembershipClaimId()
@@ -794,8 +799,14 @@ public class FuneralManagementService {
         }
         for (FuneralServiceInvoiceEntity link : invoices) {
             if (StringUtils.hasText(link.getPaymentRequestId())) {
-                throw new IllegalStateException("Invoice " + link.getInvoiceId()
-                        + " has a cover payment request; reconcile/cancel the payment request before reversal");
+                boolean recovered = claimLinks.stream().anyMatch(claimLink ->
+                        Objects.equals(claimLink.getServiceInvoiceId(), link.getInvoiceId())
+                        && Objects.equals(claimLink.getServicePaymentRequestId(), link.getPaymentRequestId())
+                        && claimLink.getSupersededAt() != null);
+                if (!recovered) {
+                    throw new IllegalStateException("Invoice " + link.getInvoiceId()
+                            + " has an unreconciled payment request; reconcile its owning claim before reversal");
+                }
             }
             InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId())
                     .orElseThrow(() -> new IllegalStateException("Linked funeral invoice does not exist"));
@@ -823,8 +834,9 @@ public class FuneralManagementService {
             funeralServiceInvoiceRepository.save(link);
         }
         for (FuneralServiceClaimEntity claimLink : claimLinks) {
-            if (supersedingInvoiceIds.contains(claimLink.getServiceInvoiceId())) {
-                // A replacement settlement must not reuse the original credited invoice.
+            if (claimLink.getSupersededAt() == null
+                    && supersedingInvoiceIds.contains(claimLink.getServiceInvoiceId())) {
+                // Active draft claim only; keep original paid claim's historical invoice link.
                 claimLink.setServiceInvoiceId(null);
                 funeralServiceClaimRepository.save(claimLink);
             }
@@ -886,6 +898,7 @@ public class FuneralManagementService {
         Map<String, FuneralServiceClaimEntity> existingPrimaryByCover = new LinkedHashMap<>();
         boolean existingGrocery = false;
         for (FuneralServiceClaimEntity link : currentLinks) {
+            if (link.getSupersededAt() != null) continue;
             FuneralClaimDto existing = readClaimDto(link.getMembershipClaimId());
             if ("CANCELLED".equalsIgnoreCase(existing.getStatus())) continue;
             if ("GROCERY".equalsIgnoreCase(existing.getClaimType())) {
@@ -1315,6 +1328,7 @@ public class FuneralManagementService {
     public List<FuneralClaimDto> getClaims(String funeralServiceId) {
         List<FuneralClaimDto> claims = funeralServiceClaimRepository.findByFuneralServiceId(funeralServiceId)
                 .stream()
+                .filter(link -> link.getSupersededAt() == null)
                 .map(link -> readClaimDto(link.getMembershipClaimId()))
                 .collect(Collectors.toList());
         try {
@@ -2683,8 +2697,11 @@ public class FuneralManagementService {
             throw new IllegalArgumentException("Deceased dependent is not linked to this membership");
         }
         List<Map<String, Object>> priorClaims = jdbcTemplate.queryForList(
-                "SELECT claim_type, funeral_service_id FROM " + claimTable
-                        + " WHERE membership_id = ? AND deceased_partner_id = ? AND status <> 'CANCELLED'",
+                "SELECT c.claim_type, c.funeral_service_id FROM " + claimTable + " c"
+                        + " WHERE c.membership_id = ? AND c.deceased_partner_id = ? AND c.status <> 'CANCELLED'"
+                        + " AND NOT EXISTS (SELECT 1 FROM "
+                        + (sourceTenant == null ? "funeral_claim_funding_reversal" : qualifiedTable(sourceTenant, "funeral_claim_funding_reversal"))
+                        + " r WHERE r.original_claim_id=c.id)",
                 membershipId, deceasedPartnerId);
         boolean hasCompanion = false;
         for (Map<String, Object> prior : priorClaims) {
@@ -2708,12 +2725,19 @@ public class FuneralManagementService {
                     && "DECEASED".equalsIgnoreCase(Objects.toString(dependentRows.get(0).get("status"), ""));
         if (deceased && !hasCompanion && priorClaims.stream().noneMatch(
                 prior -> "TOMBSTONE".equalsIgnoreCase(Objects.toString(prior.get("claim_type"), "")))) {
-            Integer cancelledCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM " + claimTable
-                            + " WHERE membership_id = ? AND deceased_partner_id = ? AND status = 'CANCELLED'",
+            // A bank-recovered PAID claim stays PAID for audit. Its explicit
+            // reconciliation is equivalent to cancellation *only for this
+            // replacement-claim eligibility check, never for payment history.
+            Integer releasedCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM " + claimTable + " prior"
+                            + " WHERE prior.membership_id = ? AND prior.deceased_partner_id = ?"
+                            + " AND (prior.status = 'CANCELLED' OR EXISTS (SELECT 1 FROM "
+                            + (sourceTenant == null ? "funeral_claim_funding_reversal"
+                                    : qualifiedTable(sourceTenant, "funeral_claim_funding_reversal"))
+                            + " r WHERE r.original_claim_id=prior.id))",
                     Integer.class, membershipId, deceasedPartnerId);
-            if (cancelledCount == null || cancelledCount == 0) {
-                throw new IllegalStateException("This deceased relationship has no cancelled claim allowing re-capture.");
+            if (releasedCount == null || releasedCount == 0) {
+                throw new IllegalStateException("This deceased relationship has no cancelled or reconciled claim allowing re-capture.");
             }
         }
     }
