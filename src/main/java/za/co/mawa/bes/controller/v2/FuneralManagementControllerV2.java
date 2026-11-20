@@ -299,6 +299,11 @@ public class FuneralManagementControllerV2 {
         }
     }
 
+    @PostMapping(value = "/service-request/{id}/reopen-funding", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> reopenFunding(@PathVariable String id, @RequestBody FuneralFundingReopenRequestDto request) {
+        return ResponseEntity.ok(funeralManagementService.reopenFuneralFunding(id, request));
+    }
+
     @GetMapping("/service-request/{id}/group-society-cover")
     public ResponseEntity<?> getGroupSocietyCover(@PathVariable String id) {
         return ResponseEntity.ok(groupSocietyFuneralClaimService.findByFuneralService(id));

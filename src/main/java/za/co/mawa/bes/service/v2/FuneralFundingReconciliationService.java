@@ -50,7 +50,7 @@ public class FuneralFundingReconciliationService {
 
         Long allocated = jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount_cents),0) FROM " + funeralServiceInvoice
-                        + " WHERE funeral_service_id=? AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')",
+                        + " WHERE funeral_service_id=? AND superseded_at IS NULL AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')",
                 Long.class,
                 funeralServiceId);
         long targetFamilyAmount = Math.max(0L, funeralTotal - Math.min(funeralTotal, value(allocated)));
@@ -62,7 +62,7 @@ public class FuneralFundingReconciliationService {
                        i.balance_cents,i.currency,i.xero_invoice_id,i.integration_status
                   FROM %s fsi
                   JOIN %s i ON i.id=fsi.invoice_id
-                 WHERE fsi.funeral_service_id=? AND fsi.entity_type='FAMILY_REP'
+                 WHERE fsi.funeral_service_id=? AND fsi.superseded_at IS NULL AND fsi.entity_type='FAMILY_REP'
                  ORDER BY fsi.created_at,i.invoice_no
                 """.formatted(funeralServiceInvoice, invoice), funeralServiceId);
         if (familyInvoices.isEmpty()) return;

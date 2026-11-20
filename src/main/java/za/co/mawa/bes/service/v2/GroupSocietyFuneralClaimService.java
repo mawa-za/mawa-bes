@@ -259,7 +259,7 @@ public class GroupSocietyFuneralClaimService {
         long funeralTotal = funeralTotal(funeralServiceId);
         Long allocated = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(SUM(amount_cents),0) FROM funeral_service_invoice "
-                        + "WHERE funeral_service_id=? AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')",
+                        + "WHERE funeral_service_id=? AND superseded_at IS NULL AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')",
                 Long.class,
                 funeralServiceId);
         return Math.max(0L, funeralTotal - value(allocated));

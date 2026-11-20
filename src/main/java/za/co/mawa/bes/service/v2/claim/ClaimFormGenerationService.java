@@ -65,6 +65,23 @@ public class ClaimFormGenerationService {
     }
 
 
+    /** Save a new form version when a DRAFT funeral benefit changes from FUNERAL to COMBINATION.
+     * Prior forms remain attached for the claim audit history. */
+    @Transactional
+    public AttachmentEntity regenerateForFuneralClaim(String claimId, String claimNo, String claimType,
+                                                       String deceasedName, String claimantName, Long amountCents) {
+        // Ensure the current form lookup never returns a stale FUNERAL benefit form,
+        // even when DB timestamp precision causes new/old attachments to tie.
+        AttachmentEntity prior = latestGeneratedClaimForm(claimId);
+        if (prior != null) {
+            prior.setDocumentType("CLAIM-FORM-SUPERSEDED");
+            attachmentRepository.save(prior);
+        }
+        byte[] pdf = generateFuneralPdf(claimNo, claimType, "", deceasedName, claimantName, amountCents,
+                "", "", "", "");
+        return attachmentService.saveBytes(pdf, "pdf", OBJECT_TYPE, claimId, DOCUMENT_TYPE);
+    }
+
     private AttachmentEntity latestGeneratedClaimForm(String claimId) {
         return attachmentRepository
                 .findFirstByObjectIdAndDocumentTypeOrderByUploadDateDescUploadTimeDescIdDesc(
