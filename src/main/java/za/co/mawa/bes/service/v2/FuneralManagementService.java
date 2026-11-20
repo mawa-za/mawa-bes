@@ -28,6 +28,8 @@ import za.co.mawa.bes.service.v2.claim.ClaimFormGenerationService;
 import za.co.mawa.bes.service.LegacyAttachmentObjectIdResolver;
 import za.co.mawa.bes.service.NumberRangeService;
 import za.co.mawa.bes.service.SettingService;
+import za.co.mawa.bes.service.CreditNoteService;
+import za.co.mawa.bes.dto.creditnote.CreditNoteIssueRequestDto;
 import za.co.mawa.bes.service.TenantAdminService;
 import za.co.mawa.bes.enums.ApprovalType;
 import za.co.mawa.bes.enums.MembershipClaimType;
@@ -74,6 +76,7 @@ public class FuneralManagementService {
     private final CrossTenantExecutionService crossTenantExecutionService;
     private final ExternalFuneralClaimApprovalService externalFuneralClaimApprovalService;
     private final FuneralClaimSettlementService funeralClaimSettlementService;
+    private final CreditNoteService creditNoteService;
     private final NumberAllocationService numberAllocationService;
     private final NumberRangeService numberRangeService;
     private final SettingService settingService;
@@ -689,6 +692,24 @@ public class FuneralManagementService {
         FuneralPackageEntity packageEntity = funeralPackageRepository.findById(request.getPackageId())
                 .orElseThrow(() -> new IllegalArgumentException("Funeral package not found: " + request.getPackageId()));
 
+        long proposedTotal = defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras());
+        boolean fundingChanged = !Objects.equals(service.getPackageId(), request.getPackageId())
+                || defaultLong(service.getTotalAmountCents()) != proposedTotal;
+        if (fundingChanged) {
+            if (!funeralServiceInvoiceRepository
+                    .findByFuneralServiceIdAndSupersededAtIsNull(funeralServiceId).isEmpty()) {
+                throw new IllegalStateException("This funeral already has issued invoices. Reopen funding with an "
+                        + "audit reason and credit the original invoices before changing the package or funding.");
+            }
+            for (FuneralClaimDto existing : getClaims(funeralServiceId)) {
+                if (isPrimaryFuneralClaimType(existing.getClaimType())
+                        && !List.of("DRAFT", "CANCELLED").contains(
+                                defaultString(existing.getStatus(), "").toUpperCase(Locale.ROOT))) {
+                    throw new IllegalStateException("Claim " + existing.getClaimNo() + " is " + existing.getStatus()
+                            + ". Its approval or payment must be reconciled before modifying funeral funding.");
+                }
+            }
+        }
         service.setPackageId(request.getPackageId());
         service.setFamilyRepId(trimToNull(request.getFamilyRepId()));
         service.setFamilyRepNames(request.getFamilyRepresentativeNames().trim());
@@ -697,7 +718,7 @@ public class FuneralManagementService {
         service.setDateOfDeath(request.getDateOfDeath());
         service.setDeceasedCategory(normaliseDeceasedCategory(request.getDeceasedCategory()));
         service.setExtrasJson(toJson(request.getExtras()));
-        service.setTotalAmountCents(defaultLong(packageEntity.getBasePriceCents()) + calculateExtrasTotal(request.getExtras()));
+        service.setTotalAmountCents(proposedTotal);
         if (request.getFuneralDate() != null) service.setFuneralDate(request.getFuneralDate());
         if (request.getFuneralArea() != null && !request.getFuneralArea().isBlank()) {
             service.setFuneralArea(referenceDataValidationService.requireOption(
@@ -720,8 +741,111 @@ public class FuneralManagementService {
         return toServiceResponse(saved);
     }
 
+    /**
+     * MWE-117: A financial amendment is a new allocation cycle, never an in-place
+     * rewrite/deletion of an issued or paid invoice. Actual refunds and bank payment
+     * reversals remain finance operations, not implied by the credit notes.
+     */
+    @Transactional
+    public FuneralServiceRequestResponseDto reopenFuneralFunding(
+            String funeralServiceId, FuneralFundingReopenRequestDto request) {
+        validateRequired(funeralServiceId, "funeralServiceId");
+        if (request == null || !StringUtils.hasText(request.getReason())
+                || request.getReason().trim().length() < 5
+                || request.getReason().trim().length() > 800) {
+            throw new IllegalArgumentException("A funding amendment reason (5 to 800 characters) is required");
+        }
+        List<String> locked = jdbcTemplate.query(
+                "SELECT id FROM funeral_service WHERE id=? FOR UPDATE",
+                (rs, row) -> rs.getString(1), funeralServiceId);
+        if (locked.isEmpty()) throw new IllegalArgumentException("Funeral service request not found");
+        FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
+        List<FuneralServiceInvoiceEntity> invoices = funeralServiceInvoiceRepository
+                .findByFuneralServiceIdAndSupersededAtIsNull(funeralServiceId);
+        if (invoices.isEmpty()) return toServiceResponse(service); // idempotent retry
+
+        for (FuneralClaimDto claim : getClaims(funeralServiceId)) {
+            if (isPrimaryFuneralClaimType(claim.getClaimType())
+                    && !List.of("DRAFT", "CANCELLED").contains(
+                        defaultString(claim.getStatus(), "").toUpperCase(Locale.ROOT))) {
+                throw new IllegalStateException("Claim " + claim.getClaimNo() + " is " + claim.getStatus()
+                        + ". Reverse/withdraw its approval and reconcile the cover payment in the owning tenant "
+                        + "before reopening this funeral. A paid bank transfer cannot be reversed by a credit note.");
+            }
+        }
+        Long committedSocietyClaims = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM group_society_funeral_claim
+                 WHERE funeral_service_id=? AND status NOT IN ('DRAFT','REJECTED','CANCELLED')
+                """, Long.class, funeralServiceId);
+        if (committedSocietyClaims != null && committedSocietyClaims > 0) {
+            throw new IllegalStateException("Resolve approved or pending group-society settlements before reopening funding");
+        }
+        // Validate ALL linked external money movements before creating any credit note.
+        Set<String> supersedingInvoiceIds = invoices.stream()
+                .map(FuneralServiceInvoiceEntity::getInvoiceId).collect(Collectors.toSet());
+        List<FuneralServiceClaimEntity> claimLinks = funeralServiceClaimRepository
+                .findByFuneralServiceId(funeralServiceId);
+        for (FuneralServiceClaimEntity claimLink : claimLinks) {
+            if (supersedingInvoiceIds.contains(claimLink.getServiceInvoiceId())
+                    && StringUtils.hasText(claimLink.getServicePaymentRequestId())) {
+                throw new IllegalStateException("Claim " + claimLink.getMembershipClaimId()
+                        + " has an active cover payout; settle or reverse it before funding can reopen");
+            }
+        }
+        for (FuneralServiceInvoiceEntity link : invoices) {
+            if (StringUtils.hasText(link.getPaymentRequestId())) {
+                throw new IllegalStateException("Invoice " + link.getInvoiceId()
+                        + " has a cover payment request; reconcile/cancel the payment request before reversal");
+            }
+            InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId())
+                    .orElseThrow(() -> new IllegalStateException("Linked funeral invoice does not exist"));
+            if (defaultLong(invoice.getCreditedCents()) > 0) {
+                throw new IllegalStateException("Invoice " + invoice.getInvoiceNo()
+                        + " has existing credit notes; finance must reconcile these before funding can reopen");
+            }
+        }
+
+        LocalDateTime reversedAt = LocalDateTime.now();
+        String actor = defaultString(UserContext.getCurrentUserId(),
+                defaultString(UserContext.getCurrentUser(), "SYSTEM"));
+        for (FuneralServiceInvoiceEntity link : invoices) {
+            InvoiceEntity invoice = invoiceRepository.findById(link.getInvoiceId()).orElseThrow();
+            long creditable = defaultLong(invoice.getTotalCents()) - defaultLong(invoice.getCreditedCents());
+            if (creditable > 0) {
+                CreditNoteIssueRequestDto credit = new CreditNoteIssueRequestDto();
+                credit.setReason("MWE-117 funeral funding amendment for "
+                        + defaultString(service.getServiceRequestNo(), funeralServiceId)
+                        + ": " + request.getReason().trim());
+                credit.setAmountCents(creditable);
+                creditNoteService.issue(invoice.getId(), credit, actor);
+            }
+            link.setSupersededAt(reversedAt);
+            funeralServiceInvoiceRepository.save(link);
+        }
+        for (FuneralServiceClaimEntity claimLink : claimLinks) {
+            if (supersedingInvoiceIds.contains(claimLink.getServiceInvoiceId())) {
+                // A replacement settlement must not reuse the original credited invoice.
+                claimLink.setServiceInvoiceId(null);
+                funeralServiceClaimRepository.save(claimLink);
+            }
+        }
+        jdbcTemplate.update("""
+                INSERT INTO funeral_funding_amendment
+                (id,funeral_service_id,previous_package_id,previous_total_cents,reason,requested_by,created_at)
+                VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                """, UUID.randomUUID().toString(), service.getId(), service.getPackageId(),
+                defaultLong(service.getTotalAmountCents()), request.getReason().trim(), actor);
+        service.setStatus("ARRANGEMENT_CREATED");
+        service.setWizardStep(3);
+        return toServiceResponse(funeralServiceRepository.save(service));
+    }
+
     @Transactional
     public List<FuneralClaimDto> initiateClaims(String funeralServiceId, InitiateFuneralClaimsDto request) {
+        // Serialize retries and concurrent cover selections for this service request.
+        List<String> locked = jdbcTemplate.query("SELECT id FROM funeral_service WHERE id=? FOR UPDATE",
+                (rs, row) -> rs.getString(1), funeralServiceId);
+        if (locked.isEmpty()) throw new IllegalArgumentException("Funeral service request not found");
         FuneralServiceEntity service = getFuneralServiceOrThrow(funeralServiceId);
         ensureNoIdentityDeceasedPartner(service);
         List<String> selectedMemberships = request.getMemberships();
@@ -757,6 +881,46 @@ public class FuneralManagementService {
         // selected cover already equals/exceeds the funeral arrangement total.
         long remaining = arrangementTotal > 0 ? arrangementTotal : Long.MAX_VALUE;
         List<FuneralClaimDto> response = new ArrayList<>();
+        List<FuneralServiceClaimEntity> currentLinks = funeralServiceClaimRepository
+                .findByFuneralServiceId(funeralServiceId);
+        Map<String, FuneralServiceClaimEntity> existingPrimaryByCover = new LinkedHashMap<>();
+        boolean existingGrocery = false;
+        for (FuneralServiceClaimEntity link : currentLinks) {
+            FuneralClaimDto existing = readClaimDto(link.getMembershipClaimId());
+            if ("CANCELLED".equalsIgnoreCase(existing.getStatus())) continue;
+            if ("GROCERY".equalsIgnoreCase(existing.getClaimType())) {
+                existingGrocery = true;
+                continue;
+            }
+            if (!isPrimaryFuneralClaimType(existing.getClaimType())) continue;
+            String coverKey = funeralCoverKey(
+                    defaultString(link.getSourceTenantId(), TenantContext.getCurrentTenant()),
+                    defaultString(link.getSourceMembershipId(), existing.getMembershipId()),
+                    existing.getDeceasedPartnerId());
+            if (existingPrimaryByCover.putIfAbsent(coverKey, link) != null) {
+                throw new IllegalStateException("More than one active primary funeral claim exists for a selected cover");
+            }
+            if (combinationClaim && !"COMBINATION".equalsIgnoreCase(existing.getClaimType())
+                    && !"DRAFT".equalsIgnoreCase(existing.getStatus())) {
+                throw new IllegalStateException("Claim " + existing.getClaimNo() + " is " + existing.getStatus()
+                        + ". Reverse its approval/settlement before changing FUNERAL to COMBINATION benefits.");
+            }
+        }
+        Set<String> selectedCoverKeys = new HashSet<>();
+        for (String selectionId : selectedMemberships) {
+            FuneralMembershipCoverDto cover = coverMap.get(selectionId);
+            if (cover != null) selectedCoverKeys.add(funeralCoverKey(
+                    defaultString(cover.getSourceTenantId(), TenantContext.getCurrentTenant()),
+                    cover.getSourceMembershipId(), requireClaimDeceasedPartner(cover, service)));
+        }
+        if (!selectedCoverKeys.containsAll(existingPrimaryByCover.keySet())) {
+            throw new IllegalStateException("Removing an existing funeral cover requires a separate cancellation/reversal workflow");
+        }
+        if (combinationClaim && !funeralServiceInvoiceRepository
+                .findByFuneralServiceIdAndSupersededAtIsNull(funeralServiceId).isEmpty()
+                && existingPrimaryByCover.size() < selectedCoverKeys.size()) {
+            throw new IllegalStateException("Reopen funeral funding and reverse issued invoices before adding another cover");
+        }
 
         if (combinationClaim && coverMap.size() != selectedMemberships.size()) {
             throw new IllegalArgumentException(
@@ -797,6 +961,35 @@ public class FuneralManagementService {
             long claimAmount = claimAmountForSelectedCover(
                     claimType, coverAmount, arrangementTotal, remaining);
             if (claimAmount <= 0) continue;
+
+            String coverKey = funeralCoverKey(
+                    defaultString(cover.getSourceTenantId(), TenantContext.getCurrentTenant()),
+                    membershipId, claimDeceasedPartnerId);
+            FuneralServiceClaimEntity existingLink = existingPrimaryByCover.get(coverKey);
+            if (existingLink != null) {
+                FuneralClaimDto existingClaim = readClaimDto(existingLink.getMembershipClaimId());
+                if (!claimType.equalsIgnoreCase(existingClaim.getClaimType())) {
+                    if (!"DRAFT".equalsIgnoreCase(existingClaim.getStatus())) {
+                        throw new IllegalStateException("Claim " + existingClaim.getClaimNo()
+                                + " must be withdrawn/reversed before changing its benefit type");
+                    }
+                    String claimTable = externalClaim
+                            ? qualifiedTable(claimTenantId, "membership_claim") : "membership_claim";
+                    jdbcTemplate.update("UPDATE " + claimTable
+                                    + " SET claim_type=?,claim_amount_cents=?,coverage_plan_id=?,notes=CONCAT(COALESCE(notes,''),?) WHERE id=?",
+                            claimType, claimAmount, coveragePlanId,
+                            "\nMWE-117: amended to combination funding", existingClaim.getMembershipClaimId());
+                    existingLink.setClaimFormPrintCount(0);
+                    existingLink.setClaimFormLastPrintedAt(null);
+                    funeralServiceClaimRepository.save(existingLink);
+                    claimFormGenerationService.regenerateForFuneralClaim(
+                            existingClaim.getMembershipClaimId(), existingClaim.getClaimNo(),
+                            claimType, service.getDeceasedName(), familyRepresentativeDisplayName(service), claimAmount);
+                }
+                response.add(readClaimDto(existingLink.getMembershipClaimId()));
+                if (!combinationClaim) remaining -= claimAmount;
+                continue;
+            }
 
             // This path inserts via JDBC (also into an external source tenant),
             // bypassing MembershipClaimService.create: enforce the same guard here.
@@ -880,7 +1073,7 @@ public class FuneralManagementService {
         if (groceryCover == null) {
             throw new IllegalArgumentException("Select which funeral cover must fund the grocery claim");
         }
-        createGroceryClaimForFuneral(service, groceryCover, request);
+        if (!existingGrocery) createGroceryClaimForFuneral(service, groceryCover, request);
 
         // Funding is independent from the arrangement lifecycle. A late claim
         // may be initiated after final invoices already exist; never move an
@@ -1208,7 +1401,7 @@ public class FuneralManagementService {
         // wizard. Reconcile each logical split with its existing invoice instead of inserting
         // another invoice every time Generate Final Invoices is selected.
         List<FuneralServiceInvoiceEntity> existingLinks = funeralServiceInvoiceRepository
-                .findByFuneralServiceId(service.getId());
+                .findByFuneralServiceIdAndSupersededAtIsNull(service.getId());
         Map<String, Boolean> financiallyActiveLinks = existingLinks.stream()
                 .collect(Collectors.toMap(
                         link -> defaultString(link.getId(), link.getInvoiceId()),
@@ -2209,7 +2402,7 @@ public class FuneralManagementService {
     private List<FuneralInvoiceSplitDto> attachExistingInvoiceReferences(
             String funeralServiceId, List<FuneralInvoiceSplitDto> splits) {
         List<FuneralServiceInvoiceEntity> links = funeralServiceInvoiceRepository
-                .findByFuneralServiceId(funeralServiceId)
+                .findByFuneralServiceIdAndSupersededAtIsNull(funeralServiceId)
                 .stream()
                 .filter(link -> StringUtils.hasText(link.getInvoiceId()))
                 .toList();
@@ -2523,6 +2716,11 @@ public class FuneralManagementService {
                 throw new IllegalStateException("This deceased relationship has no cancelled claim allowing re-capture.");
             }
         }
+    }
+
+    private String funeralCoverKey(String tenantId, String membershipId, String deceasedPartnerId) {
+        return defaultString(tenantId, "") + "|" + defaultString(membershipId, "")
+                + "|" + defaultString(deceasedPartnerId, "");
     }
 
     private boolean isPrimaryFuneralClaimType(String claimType) {

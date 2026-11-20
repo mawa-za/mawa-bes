@@ -400,7 +400,7 @@ public class FuneralClaimSettlementService {
         List<Map<String, Object>> invoices = jdbc.queryForList(
                 "SELECT fsi.invoice_id, fsi.partner_id, fsi.amount_cents, i.invoice_no"
                         + " FROM " + fsi + " fsi JOIN " + invoice + " i ON i.id=fsi.invoice_id"
-                        + " WHERE fsi.funeral_service_id=? AND fsi.membership_claim_id=?"
+                        + " WHERE fsi.funeral_service_id=? AND fsi.superseded_at IS NULL AND fsi.membership_claim_id=?"
                         + " ORDER BY fsi.created_at LIMIT 1",
                 serviceId, claimId);
         if (!invoices.isEmpty()) return invoices.get(0);
@@ -447,7 +447,7 @@ public class FuneralClaimSettlementService {
                 "SELECT COALESCE(SUM(amount_cents),0) FROM "
                         + qualified(providerTenant, "funeral_service_invoice")
                         + " WHERE funeral_service_id=?"
-                        + " AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')"
+                        + " AND superseded_at IS NULL AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY')"
                         + " AND (membership_claim_id IS NULL OR membership_claim_id<>?)",
                 Long.class,
                 serviceId,
@@ -473,7 +473,7 @@ public class FuneralClaimSettlementService {
                 SELECT fsi.invoice_id, fsi.partner_id, fsi.amount_cents, i.invoice_no
                   FROM funeral_service_invoice fsi
                   JOIN invoice i ON i.id = fsi.invoice_id
-                 WHERE fsi.funeral_service_id=? AND fsi.group_society_claim_id=?
+                 WHERE fsi.funeral_service_id=? AND fsi.superseded_at IS NULL AND fsi.group_society_claim_id=?
                  ORDER BY fsi.created_at
                  LIMIT 1
                 """, serviceId, claimId);
@@ -511,7 +511,7 @@ public class FuneralClaimSettlementService {
         Long alreadyAllocated = jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount_cents),0) FROM funeral_service_invoice "
                         + "WHERE funeral_service_id=? "
-                        + "AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY') "
+                        + "AND superseded_at IS NULL AND entity_type IN ('BURIAL_SOCIETY','GROUP_SOCIETY') "
                         + "AND (group_society_claim_id IS NULL OR group_society_claim_id<>?)",
                 Long.class,
                 serviceId,

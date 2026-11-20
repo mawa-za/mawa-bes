@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface FuneralServiceInvoiceRepository extends JpaRepository<FuneralServiceInvoiceEntity, String> {
     Optional<FuneralServiceInvoiceEntity> findFirstByInvoiceId(String invoiceId);
     List<FuneralServiceInvoiceEntity> findByFuneralServiceId(String funeralServiceId);
+    List<FuneralServiceInvoiceEntity> findByFuneralServiceIdAndSupersededAtIsNull(String funeralServiceId);
 }
