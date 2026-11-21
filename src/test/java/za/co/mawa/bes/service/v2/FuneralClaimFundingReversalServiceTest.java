@@ -70,7 +70,7 @@ class FuneralClaimFundingReversalServiceTest {
         var result = service.reconcile("fsr-1", "claim-1",
                 request("Same upgrade retried", "BANK-REC-71", 71L));
         assertEquals(25000L, result.get("paid_amount_cents"));
-        verify(jdbc, never()).queryForList(contains("`bank_transaction`"), any());
+        verify(jdbc, never()).queryForList(contains("`bank_transaction`"), anyLong());
     }
 
     @Test
