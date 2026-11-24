@@ -11,7 +11,7 @@ MAWA supports tenant-level Xero activation from the Settings screen.
 5. Backend stores only secret names in tenant settings.
 6. Backend returns a Xero authentication URL.
 7. User opens the URL and authorises the correct Xero organisation.
-8. Xero redirects back to `/xero/callback` with the MAWA tenant in OAuth `state`.
+8. Xero redirects back to `/xero/callback` with a one-time OAuth `state` containing a tenant-host lookup hint and a 256-bit nonce. The callback verifies its saved SHA-256 hash and 10-minute expiry before exchanging the code.
 9. Backend stores the access token, refresh token and selected Xero tenant ID in Google Secret Manager.
 10. For one organisation, activation completes automatically. For multiple organisations, synchronisation remains disabled until the user selects one in MAWA.
 11. After successful selection, the backend applies the user's invoice-integration preference and queues existing customers and products when synchronisation is enabled.
@@ -146,3 +146,11 @@ mawa-dev-dev-app-mawa-co-za-xero-tenant-id
 ```
 
 Existing tenant-id-based secret names are still supported if they are already saved in Group `XERO` settings. A tenant will move to host-based names the next time Xero is activated or reconnected through MAWA Settings.
+
+## November 2026 connection hardening (MWE-193)
+
+- Only the **current tenant's** OAuth state hash and expiry are persisted in tenant Group `XERO`. Authorisation codes without matching, unexpired, one-time state are rejected. Starting a new connection invalidates any earlier authorisation URL for that tenant.
+- The tenant hostname embedded in state is **not proof of authorisation**: it is only used by the public callback's tenant resolver. The actual state must be validated before any token exchange.
+- The Settings screen can read status before the Xero tenant ID secret has its first version. A pending multi-organisation selection **must return the valid list of connected organisations** (not an empty list); click **Check connection** after returning from Xero to refresh status and make the selection.
+- The legacy `/xero/refreshToken` HTTP endpoint no longer returns bearer tokens. Xero token refresh happens server-side.
+- Invoice sync is not enabled by installing this patch. A Xero demo or sandbox authorisation and read-only configuration verification are required before posting live invoices or payments.

@@ -1,9 +1,9 @@
 package za.co.mawa.bes.xero;
 
 import com.nimbusds.jose.shaded.gson.Gson;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.mawa.bes.configuration.context.TenantContext;
@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.util.StringUtils;
 
-import static io.swagger.v3.core.util.PrimitiveType.createProperty;
 
 @RestController
 @CrossOrigin
@@ -28,6 +27,8 @@ public class XeroAuthController {
 
     @Autowired
     XeroAuthService xeroAuthService;
+    @Autowired
+    XeroOAuthStateService oauthStateService;
     @Autowired
     XeroActivationService xeroActivationService;
     @Autowired
@@ -42,9 +43,6 @@ public class XeroAuthController {
     public ResponseEntity<Map<String, String>> redirectToXero(@RequestBody XeroAuthDto xeroAuthDto) throws IOException {
 
         String tenant = TenantContext.getCurrentTenant();
-        String tenantState = org.springframework.util.StringUtils.hasText(TenantContext.getCurrentTenantURL())
-                ? TenantContext.getCurrentTenantURL()
-                : tenant;
 
         // Activation owns the authoritative callback URL in Group XERO. Do not
         // overwrite it with a competing legacy tenant property.
@@ -61,6 +59,7 @@ public class XeroAuthController {
         }
 
 
+        String tenantState = oauthStateService.issue(TenantContext.getCurrentTenantURL());
         String authUrl = XeroAuthService.getAUTH_URL() + "?response_type=code" +
                 "&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
                 "&redirect_uri=" + URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8) +
@@ -75,8 +74,10 @@ public class XeroAuthController {
     }
 
 
-    @RequestMapping(value="/xero/callback" , method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public String callback(@RequestParam String code, @RequestParam(required = false) String state) {
+    @RequestMapping(value="/xero/callback" , method = RequestMethod.GET, produces = MediaType.TEXT_HTML_VALUE)
+    public String callback(@RequestParam(required = false) String code,
+                           @RequestParam(required = false) String state,
+                           @RequestParam(required = false) String error) {
         // Xero redirects back without Authorization or X-Tenant-Id headers.
         // The tenant is therefore carried in OAuth state from /xero/connect.
         try {
@@ -87,7 +88,14 @@ public class XeroAuthController {
             if (!StringUtils.hasText(resolvedTenant)) {
                 throw new IllegalStateException("Xero callback tenant could not be resolved from state. Please start the connection from /xero/connect again.");
             }
-            TenantContext.setCurrentTenantURL(state);
+            oauthStateService.validateAndConsume(state, TenantContext.getCurrentTenantURL());
+            if (StringUtils.hasText(error)) {
+                return "<html><body><h2>Xero authorisation was not completed</h2>"
+                        + "<p>Return to MAWA Settings &gt; XERO to reconnect.</p></body></html>";
+            }
+            if (!StringUtils.hasText(code)) {
+                throw new IllegalArgumentException("Xero authorisation code is missing");
+            }
             XeroAuthService.XeroOAuthResult result = xeroAuthService.completeInitialAuthorisation(resolvedTenant, code);
             xeroActivationService.completeAuthorisation(result);
 
@@ -109,8 +117,10 @@ public class XeroAuthController {
                     + "<p>You can close this window and return to MAWA.</p>"
                     + "</body></html>";
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            // Never echo OAuth codes, state, tokens or internal exceptions in HTML.
+            return "<html><body><h2>Xero connection could not be completed</h2>"
+                    + "<p>Return to MAWA Settings &gt; XERO and try reconnecting.</p></body></html>";
         }
     }
 
@@ -126,13 +136,10 @@ public class XeroAuthController {
     }
 
     @GetMapping("/xero/refreshToken")
-    public String getToken() throws IOException {
-        try{
-            String tenant = TenantContext.getCurrentTenant();
-            return xeroAuthService.refreshAccessToken(tenant);
-        } catch (Exception e) {
-            return "errer"+ e ;
-        }
+    public ResponseEntity<Map<String, String>> getToken() {
+        // Never return a bearer token to browsers or clients. Refresh is internal.
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(Map.of("message", "The Xero token endpoint is retired. Use MAWA Xero connection status."));
     }
 
 //    @GetMapping("/xero/createInvoice")
