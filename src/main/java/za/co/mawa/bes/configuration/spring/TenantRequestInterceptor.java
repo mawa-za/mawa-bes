@@ -16,6 +16,7 @@ import za.co.mawa.bes.dto.TenantDto;
 import za.co.mawa.bes.exception.TenantNotFound;
 import za.co.mawa.bes.exception.TenantNotProvided;
 import za.co.mawa.bes.service.TenantAdminService;
+import za.co.mawa.bes.xero.XeroOAuthStateService;
 
 @Component
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -63,15 +64,12 @@ public class TenantRequestInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        if (isGet.test(method) && requestURI.contains("/xero/callback")) {
-            String tenantReference = firstNonBlank(
-                    request.getParameter("state"),
-                    request.getHeader("X-TenantID"),
-                    request.getHeader("X-Tenant-Id"),
-                    request.getHeader("Origin"),
-                    request.getHeader("Referer")
-            );
-            setResolvedTenantContext(tenantReference);
+        if (isGet.test(method) && "/xero/callback".equals(requestURI)) {
+            // The host in OAuth state is only a lookup hint. The callback must
+            // validate the full random state against the tenant's stored hash.
+            // Never fall back to spoofable Origin, Referer or X-Tenant headers.
+            String tenantHost = XeroOAuthStateService.tenantHostHint(request.getParameter("state"));
+            setResolvedTenantContext(tenantHost);
             return true;
         }
 
