@@ -54,6 +54,15 @@ public interface MessageQueueRepository  extends JpaRepository<MessageQueueEntit
                           @Param("retryCount") int retryCount,
                           @Param("nextAttemptAt") LocalDateTime nextAttemptAt);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Query("UPDATE MessageQueueEntity m SET m.retryCount = 0, m.nextAttemptAt = :now " +
+            "WHERE m.id = :id AND m.processed = false AND m.retryCount > 0 " +
+            "AND m.nextAttemptAt = :expected AND m.nextAttemptAt > :suspendedAfter " +
+            "AND m.type IN ('XERO-INVOICE', 'XERO-PRODUCT', 'XERO-CUSTOMER')")
+    int retrySuspendedXero(@Param("id") Long id, @Param("expected") LocalDateTime expected,
+                          @Param("now") LocalDateTime now, @Param("suspendedAfter") LocalDateTime suspendedAfter);
+
     boolean existsByTypeAndReferenceId(String type, String referenceId);
     Optional<MessageQueueEntity> findFirstByTypeAndReferenceIdOrderByIdDesc(String type, String referenceId);
 }

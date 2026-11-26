@@ -62,22 +62,37 @@ public class XeroIntegrationSettingsService {
         return status.trim().toUpperCase();
     }
 
+    public XeroAccountingMapping accountingMapping() {
+        return XeroAccountingMapping.parse(settingService.getSetting(XeroAccountingMapping.ATTRIBUTE, XERO_SETTINGS_GROUP));
+    }
+
+    public boolean hasAccountingMapping() { return accountingMapping() != null; }
+
+    public void assertPostingConfiguration(String organisationId) {
+        XeroAccountingMapping mapping = accountingMapping();
+        if (mapping == null || !mapping.matchesOrganisation(organisationId)) {
+            throw new IllegalStateException("Xero accounting configuration is missing or belongs to another organisation. Refresh and save it before posting.");
+        }
+    }
+
     public String invoiceAccountCode() {
+        XeroAccountingMapping mapping = accountingMapping();
+        if (mapping != null) return mapping.invoiceAccountCode();
         JSONObject properties = currentTenantProperties();
         return firstNonBlank(
                 properties.optString(PROP_INVOICE_ACCOUNT_CODE, null),
                 settingService.getSetting("INVOICE-ACCOUNT-CODE", XERO_SETTINGS_GROUP),
-                settingService.getSetting("ACCOUNT-CODE", XERO_SETTINGS_GROUP),
-                "200"
+                settingService.getSetting("ACCOUNT-CODE", XERO_SETTINGS_GROUP)
         );
     }
 
     public String invoiceTaxType() {
+        XeroAccountingMapping mapping = accountingMapping();
+        if (mapping != null) return mapping.invoiceTaxType();
         JSONObject properties = currentTenantProperties();
         return firstNonBlank(
                 properties.optString(PROP_INVOICE_TAX_TYPE, null),
-                settingService.getSetting("INVOICE-TAX-TYPE", XERO_SETTINGS_GROUP),
-                "NONE"
+                settingService.getSetting("INVOICE-TAX-TYPE", XERO_SETTINGS_GROUP)
         );
     }
 
@@ -91,6 +106,8 @@ public class XeroIntegrationSettingsService {
     }
 
     public String paymentAccountCode() {
+        XeroAccountingMapping mapping = accountingMapping();
+        if (mapping != null) return mapping.paymentAccountCode();
         JSONObject properties = currentTenantProperties();
         return firstNonBlank(
                 properties.optString(PROP_PAYMENT_ACCOUNT_CODE, null),

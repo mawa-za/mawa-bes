@@ -17,6 +17,7 @@ import java.util.Map;
 import java.io.IOException;
 import org.springframework.web.bind.annotation.PathVariable;
 import za.co.mawa.bes.xero.XeroReconciliationOperationsService;
+import za.co.mawa.bes.xero.XeroAccountingConfigurationService;
 
 @RestController
 @RequestMapping("/v2/integrations/xero")
@@ -24,15 +25,19 @@ public class XeroIntegrationControllerV2 {
 
     private final XeroActivationService xeroActivationService;
     private final XeroReconciliationOperationsService reconciliationOperations;
+    private final XeroAccountingConfigurationService accountingConfiguration;
 
     public XeroIntegrationControllerV2(XeroActivationService xeroActivationService,
-                                      XeroReconciliationOperationsService reconciliationOperations) {
+                                      XeroReconciliationOperationsService reconciliationOperations,
+                                      XeroAccountingConfigurationService accountingConfiguration) {
         this.xeroActivationService = xeroActivationService;
         this.reconciliationOperations = reconciliationOperations;
+        this.accountingConfiguration = accountingConfiguration;
     }
 
     @PostMapping("/activate")
     public ResponseEntity<?> activate(@RequestBody XeroActivationRequestDto request) {
+        accountingConfiguration.requireConfigurationWriteAccess();
         return ResponseEntity.ok(xeroActivationService.activate(request));
     }
 
@@ -43,11 +48,13 @@ public class XeroIntegrationControllerV2 {
 
     @PostMapping("/deactivate")
     public ResponseEntity<?> deactivate() {
+        accountingConfiguration.requireConfigurationAccess();
         return ResponseEntity.ok(xeroActivationService.deactivate());
     }
 
     @PostMapping("/invoice-integration")
     public ResponseEntity<?> updateInvoiceIntegration(@RequestBody XeroInvoiceIntegrationRequestDto request) {
+        accountingConfiguration.requireConfigurationWriteAccess();
         return ResponseEntity.ok(xeroActivationService.updateInvoiceIntegration(request));
     }
 
@@ -58,7 +65,19 @@ public class XeroIntegrationControllerV2 {
 
     @PostMapping("/select-tenant")
     public ResponseEntity<?> selectTenant(@RequestBody XeroSelectTenantRequestDto request) {
+        accountingConfiguration.requireConfigurationWriteAccess();
         return ResponseEntity.ok(xeroActivationService.selectTenant(request));
+    }
+
+    @GetMapping("/accounting-configuration")
+    public XeroAccountingConfigurationService.Configuration accountingConfiguration() {
+        return accountingConfiguration.read();
+    }
+
+    @PostMapping("/accounting-configuration")
+    public XeroAccountingConfigurationService.Configuration saveAccountingConfiguration(
+            @RequestBody XeroAccountingConfigurationService.SaveRequest request) {
+        return accountingConfiguration.save(request);
     }
 
     /** Local MAWA inventory only; does not query Xero or mutate reconciliation state. */
