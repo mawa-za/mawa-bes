@@ -31,6 +31,7 @@ public class XeroInvoiceQueueService {
         if (invoice == null || isBlank(invoice.getId())) {
             return;
         }
+        if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) return;
         if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
             invoice.setIntegrationStatus("NOT_ENABLED");
             invoiceRepository.save(invoice);
@@ -47,14 +48,31 @@ public class XeroInvoiceQueueService {
         queueInvoice(invoice);
     }
 
+    public void queueExplicitInvoice(InvoiceEntity invoice) {
+        userAccessService.assertExternalTransactionAllowed("XERO-INVOICE");
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled() || !xeroIntegrationSettingsService.hasAccountingMapping()) {
+            throw new IllegalStateException("Save validated Xero accounting configuration and enable invoice integration first");
+        }
+        if (messageQueueRepository.findFirstByTypeAndReferenceIdOrderByIdDesc(MESSAGE_TYPE, invoice.getId())
+                .filter(message -> !message.isProcessed()).isPresent()) {
+            throw new IllegalStateException("Invoice already has a pending or suspended Xero message. Review Message Queue before retrying");
+        }
+        queueInvoice(invoice);
+    }
+
     public void queueInvoice(InvoiceEntity invoice) {
         if (invoice == null || isBlank(invoice.getId())) {
             return;
+        }
+        if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(invoice.getIntegrationStatus())) {
+            throw new IllegalStateException("Invoice requires Xero reconciliation before it can be queued again");
         }
         MessageQueueEntity message = messageQueueRepository
                 .findFirstByTypeAndReferenceIdOrderByIdDesc(MESSAGE_TYPE, invoice.getId())
                 .orElseGet(MessageQueueEntity::new);
 
+        if (message.getId() != null && !message.isProcessed() && message.getRetryCount() > 0
+                && message.getNextAttemptAt() != null && message.getNextAttemptAt().isAfter(LocalDateTime.now().plusDays(1))) return;
         message.setType(MESSAGE_TYPE);
         message.setReferenceId(invoice.getId());
         message.setReferenceNo(invoice.getInvoiceNo());

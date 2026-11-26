@@ -23,6 +23,7 @@ class MessageConsumerXeroOffSafetyTest {
     private XeroIntegrationSettingsService settings;
     private XeroInvoicePushService invoicePush;
     private XeroMasterDataPushService masterDataPush;
+    private za.co.mawa.bes.xero.XeroAccountingConfigurationService config;
 
     @BeforeEach
     void setUp() {
@@ -31,6 +32,8 @@ class MessageConsumerXeroOffSafetyTest {
         settings = mock(XeroIntegrationSettingsService.class);
         invoicePush = mock(XeroInvoicePushService.class);
         masterDataPush = mock(XeroMasterDataPushService.class);
+        config = mock(za.co.mawa.bes.xero.XeroAccountingConfigurationService.class);
+        ReflectionTestUtils.setField(consumer, "xeroAccountingConfigurationService", config);
         ReflectionTestUtils.setField(consumer, "messageQueueRepository", repository);
         ReflectionTestUtils.setField(consumer, "xeroIntegrationSettingsService", settings);
         ReflectionTestUtils.setField(consumer, "xeroInvoicePushService", invoicePush);
@@ -102,6 +105,51 @@ class MessageConsumerXeroOffSafetyTest {
         verify(repository).save(same(eligible));
         verify(repository).findEligibleForDispatch(any(), eq(false), argThat(page ->
                 page.getPageNumber() == 0 && page.getPageSize() == 10));
+        verify(repository, never()).claimXeroMessage(anyLong(), any(), any());
+        verifyNoInteractions(invoicePush, masterDataPush);
+    }
+
+    @Test
+    void enabledButUnconfiguredXeroMessagesRemainPending() {
+        when(settings.isIntegrationEnabled()).thenReturn(true);
+        when(settings.hasAccountingMapping()).thenReturn(false);
+        var invoice = item(1L, "XERO-INVOICE");
+        when(repository.findEligibleForDispatch(any(), eq(false), any())).thenReturn(List.of(invoice));
+        assertEquals(0, consumer.processCurrentTenant());
+        verify(repository, never()).claimXeroMessage(anyLong(), any(), any());
+        verifyNoInteractions(invoicePush, masterDataPush);
+    }
+
+    @Test
+    void leaseUsesWholeSecondsAndExplicitValidationFailureIsSuspended() throws Exception {
+        when(settings.isIntegrationEnabled()).thenReturn(true);
+        when(settings.hasAccountingMapping()).thenReturn(true);
+        var product = item(2L, "XERO-PRODUCT");
+        when(repository.findEligibleForDispatch(any(), eq(true), any())).thenReturn(List.of(product));
+        when(repository.claimXeroMessage(eq(2L), any(), any())).thenReturn(1);
+        when(repository.completeXeroClaim(eq(2L), any(), eq(false), eq(1), any())).thenReturn(1);
+        doThrow(new za.co.mawa.bes.xero.XeroValidationException("Invalid sales account"))
+                .when(masterDataPush).pushProduct("ref-2");
+        assertEquals(1, consumer.processCurrentTenant());
+        var lease = org.mockito.ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(repository).claimXeroMessage(eq(2L), any(), lease.capture());
+        assertEquals(0, lease.getValue().getNano());
+        verify(repository).completeXeroClaim(eq(2L), eq(lease.getValue()), eq(false), eq(1),
+                argThat(next -> next.isAfter(LocalDateTime.now().plusYears(90))));
+    }
+
+    @Test
+    void invalidRemoteMappingDoesNotConsumeXeroQueueOrBlockOtherWork() {
+        when(settings.isIntegrationEnabled()).thenReturn(true);
+        when(settings.hasAccountingMapping()).thenReturn(true);
+        var product = item(3L, "XERO-PRODUCT");
+        var email = item(4L, "INVOICE-EMAIL");
+        when(repository.findEligibleForDispatch(any(), eq(true), any())).thenReturn(List.of(product));
+        when(repository.findEligibleForDispatch(any(), eq(false), any())).thenReturn(List.of(email));
+        doThrow(new IllegalStateException("Archived account")).when(config).validateForDispatch();
+        assertEquals(1, consumer.processCurrentTenant());
+        assertFalse(product.isProcessed());
+        assertEquals(0, product.getRetryCount());
         verify(repository, never()).claimXeroMessage(anyLong(), any(), any());
         verifyNoInteractions(invoicePush, masterDataPush);
     }

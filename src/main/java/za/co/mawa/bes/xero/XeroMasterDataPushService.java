@@ -1,5 +1,6 @@
 package za.co.mawa.bes.xero;
 
+import za.co.mawa.bes.configuration.context.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -44,7 +45,7 @@ public class XeroMasterDataPushService {
     }
 
     public void pushCustomer(String partnerId) throws IOException {
-        if (!settings.isIntegrationEnabled()) return;
+        if (!settings.isIntegrationEnabled()) throw new XeroDispatchPausedException();
         PartnerEntity partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new IllegalArgumentException("Partner not found: " + partnerId));
         ObjectNode contact = mapper.createObjectNode();
@@ -75,7 +76,7 @@ public class XeroMasterDataPushService {
     }
 
     public void pushProduct(String productId) throws IOException {
-        if (!settings.isIntegrationEnabled()) return;
+        if (!settings.isIntegrationEnabled()) throw new XeroDispatchPausedException();
         ProductEntity product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
         if (!text(product.getCode())) throw new IllegalArgumentException("Product code is required for Xero sync");
@@ -107,9 +108,11 @@ public class XeroMasterDataPushService {
     }
 
     private JsonNode post(String endpoint, ObjectNode payload) throws IOException {
-        String tenant = authService.checkXeroInfo();
-        String token = authService.refreshAccessToken(tenant);
+        if (!settings.isIntegrationEnabled()) throw new XeroDispatchPausedException();
+        String tenant = TenantContext.getCurrentTenant();
         String xeroTenant = authService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
+        settings.assertPostingConfiguration(xeroTenant);
+        String token = authService.refreshAccessToken(tenant);
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
         try {
             connection.setRequestMethod("POST");
@@ -129,6 +132,7 @@ public class XeroMasterDataPushService {
                     code >= 300 && connection.getErrorStream() != null ? connection.getErrorStream() : connection.getInputStream(),
                     StandardCharsets.UTF_8))) {
                 String body = reader.lines().reduce("", String::concat);
+                if (code == 400) throw new XeroValidationException("Xero master-data validation failed (400): " + body);
                 if (code >= 300) throw new IOException("Xero master-data request failed (" + code + "): " + body);
                 return mapper.readTree(body);
             }
@@ -136,7 +140,7 @@ public class XeroMasterDataPushService {
     }
 
     private String resolveUrl(String key, String fallback) {
-        String tenant = authService.checkXeroInfo();
+        String tenant = TenantContext.getCurrentTenant();
         return authService.getXeroProperty(tenant, key, fallback);
     }
     private JsonNode firstResult(JsonNode response, String field) {

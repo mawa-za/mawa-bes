@@ -37,7 +37,7 @@ public class XeroOutboundConfigurationPreflightService {
         if (blank(organisationId)) blockers.add("A Xero accounting organisation must be selected");
         String accountCode = settings.invoiceAccountCode();
         if (blank(accountCode)) blockers.add("Invoice revenue account code is missing");
-        if ("200".equals(accountCode)) warnings.add("Invoice revenue account code uses the default 200; verify in Xero");
+        if (!settings.hasAccountingMapping()) blockers.add("Save validated Xero accounting configuration before enabling invoice integration");
         String taxType = settings.invoiceTaxType();
         if (blank(taxType)) blockers.add("Invoice tax type is missing");
         if ("NONE".equalsIgnoreCase(taxType)) warnings.add("Invoice tax type is NONE; confirm VAT treatment for this tenant");

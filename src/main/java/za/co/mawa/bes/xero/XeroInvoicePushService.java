@@ -1,5 +1,6 @@
 package za.co.mawa.bes.xero;
 
+import za.co.mawa.bes.configuration.context.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -87,9 +88,8 @@ public class XeroInvoicePushService {
         }
 
         if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) {
-            // Do not perform external writes while integration is disabled.
-            // Preserve reconciliation quarantine errors even when disabled.
-            return;
+            // Do not acknowledge the queue item if integration was disabled after claim.
+            throw new XeroDispatchPausedException();
         }
 
         boolean update = !isBlank(invoice.getXeroInvoiceId());
@@ -99,17 +99,18 @@ public class XeroInvoicePushService {
         invoiceRepository.save(invoice);
 
         try {
-            String xeroConfigTenant = xeroAuthService.checkXeroInfo();
+            String xeroConfigTenant = TenantContext.getCurrentTenant();
             if (isBlank(xeroConfigTenant)) {
                 throw new IOException("Xero integration is enabled but no Xero refresh token/service provider link is configured");
             }
 
-            String accessToken = xeroAuthService.refreshAccessToken(xeroConfigTenant);
             String xeroTenantId = xeroAuthService.getXeroProperty(xeroConfigTenant, XeroUtils.XERO_TENANT_ID);
             if (isBlank(xeroTenantId)) {
                 throw new IOException("Xero tenant id is not configured");
             }
 
+            xeroIntegrationSettingsService.assertPostingConfiguration(xeroTenantId);
+            String accessToken = xeroAuthService.refreshAccessToken(xeroConfigTenant);
             String invoiceUrl = xeroAuthService.getXeroProperty(xeroConfigTenant, "XERO-BASE-URL", DEFAULT_INVOICE_URL);
 
             xeroMasterDataPushService.pushCustomer(invoice.getPartnerId());
@@ -148,6 +149,11 @@ public class XeroInvoicePushService {
                 syncPayments(invoice, accessToken, xeroTenantId);
             }
         } catch (Exception e) {
+            if (e instanceof XeroDispatchPausedException paused) {
+                invoice.setIntegrationStatus(update ? "UPDATE_QUEUED" : "QUEUED");
+                invoiceRepository.save(invoice);
+                throw paused;
+            }
             if (e instanceof XeroAmbiguousResponseException) {
                 markReconciliationRequired(invoice.getId(), e.getMessage());
             } else {
@@ -243,7 +249,7 @@ public class XeroInvoicePushService {
             throw new IOException("Configure XERO / PAYMENT-ACCOUNT-CODE before synchronising invoice payments");
         }
         String paymentUrl = xeroAuthService.getXeroProperty(
-                xeroAuthService.checkXeroInfo(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL);
+                TenantContext.getCurrentTenant(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL);
 
         for (InvoicePaymentEntity payment : payments) {
             if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
@@ -320,6 +326,7 @@ public class XeroInvoicePushService {
     }
 
     private void deletePayment(String endpoint, String accessToken, String xeroTenantId) throws IOException {
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) throw new XeroDispatchPausedException();
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -353,7 +360,7 @@ public class XeroInvoicePushService {
         if (notes.isEmpty()) return;
 
         String baseUrl = xeroAuthService.getXeroProperty(
-                xeroAuthService.checkXeroInfo(), "XERO-CREDIT-NOTES-URL", DEFAULT_CREDIT_NOTE_URL);
+                TenantContext.getCurrentTenant(), "XERO-CREDIT-NOTES-URL", DEFAULT_CREDIT_NOTE_URL);
         for (Map<String, Object> note : notes) {
             String noteId = String.valueOf(note.get("id"));
             String xeroCreditNoteId = valueAsString(note.get("xero_credit_note_id"));
@@ -480,6 +487,7 @@ public class XeroInvoicePushService {
 
     private JsonNode postInvoice(String invoiceUrl, String accessToken, String xeroTenantId,
                                  ObjectNode payload, String operationIdentity) throws IOException {
+        if (!xeroIntegrationSettingsService.isInvoiceIntegrationEnabled()) throw new XeroDispatchPausedException();
         HttpURLConnection connection = null;
         try {
             URL url = new URL(invoiceUrl);
@@ -513,6 +521,12 @@ public class XeroInvoicePushService {
                 // Do not automatically replay financial operations until reconciled.
                 throw new XeroAmbiguousResponseException(
                         "Xero write outcome unknown; reconcile in Xero before retrying", uncertain);
+            }
+            if (responseCode == 400) {
+                throw new XeroValidationException("Xero invoice validation failed (400): " + responseBody);
+            }
+            if (responseCode >= 500) {
+                throw new XeroAmbiguousResponseException("Xero returned HTTP " + responseCode + " after a write; reconcile before retrying");
             }
             if (responseCode >= 300) {
                 throw new IOException("Xero invoice request failed. Response code: " + responseCode + ". Response: " + responseBody);
