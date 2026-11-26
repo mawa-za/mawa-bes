@@ -86,6 +86,12 @@ public class XeroIntegrationControllerV2 {
         return ResponseEntity.ok(reconciliationOperations.readOnlyAssessment());
     }
 
+    @GetMapping("/reconciliation/capability")
+    public ResponseEntity<?> reconciliationCapability() {
+        accountingConfiguration.requireConfigurationAccess();
+        return ResponseEntity.ok(java.util.Map.of("canCheck", reconciliationOperations.canCheck()));
+    }
+
     @GetMapping("/reconciliation/pending")
     public ResponseEntity<?> pendingReconciliation() {
         return ResponseEntity.ok(reconciliationOperations.pending());

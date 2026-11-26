@@ -51,24 +51,27 @@ public class XeroReconciliationOperationsService {
     }
 
     /** Explicit Xero capability, never implied by broad workcentre access. */
-    private void requireAccountingAdministrator() {
+    public boolean canCheck() {
         String userId = UserContext.getCurrentUserId();
-        if (userId == null || userId.isBlank()) {
-            throw new AccessDeniedException("Xero reconciliation requires an authenticated ERP user");
-        }
+        if (userId == null || userId.isBlank()) return false;
         Integer allowed = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM user_role ur
                 JOIN `role` r ON r.id = ur.role
                 JOIN `user` u ON u.id = ur.user
-                JOIN xero_reconciliation_role_permission xp ON xp.role_id = r.id
-                WHERE ur.user = ? AND xp.can_check = 1
+                JOIN role_permission rp ON rp.role_id = r.id
+                JOIN permission_catalog pc ON pc.code = rp.permission_code
+                WHERE ur.user = ? AND pc.code = 'xero-reconciliation-check' AND pc.active = TRUE
                   AND u.status = 'ACTIVE'
                   AND (u.expires_at IS NULL OR u.expires_at > NOW())
                   AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)
                   AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE)
                 """, Integer.class, userId);
-        if (allowed == null || allowed == 0) {
-            log.warn("Denied Xero reconciliation access for ERP user {}", userId);
+        return allowed != null && allowed > 0;
+    }
+
+    private void requireAccountingAdministrator() {
+        if (!canCheck()) {
+            log.warn("Denied Xero reconciliation access for ERP user {}", UserContext.getCurrentUserId());
             throw new AccessDeniedException("Insufficient Xero reconciliation permission");
         }
     }
