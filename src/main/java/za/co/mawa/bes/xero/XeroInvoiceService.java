@@ -53,12 +53,13 @@ public class XeroInvoiceService {
             String tenant = xeroAuthService.checkXeroInfo();
             String accessToken = xeroAuthService.refreshAccessToken(tenant);
             String XeroTenantId = xeroAuthService.getXeroProperty(tenant, XeroUtils.XERO_TENANT_ID);
-            String XeroBaseURL = xeroAuthService.getXeroProperty(tenant, "XERO-BASE-URL");
+            String XeroBaseURL = XeroAccountingEndpoint.resolve(xeroAuthService.getXeroProperty(tenant, "XERO-BASE-URL"), "Invoices");
 
             URL url = new URL(XeroBaseURL);
             connection = (HttpURLConnection) url.openConnection();
 
             // Configure connection
+            connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Authorization", "Bearer " + accessToken);
             connection.setRequestProperty("Xero-Tenant-Id", XeroTenantId);
@@ -76,7 +77,7 @@ public class XeroInvoiceService {
             // Read and handle response
             int responseCode = connection.getResponseCode();
             if (responseCode >= 300) {
-                String errorResponse = readErrorStream(connection);
+                String errorResponse = XeroAccountingEndpoint.readBody(connection, responseCode);
                 throw new IOException(String.format("Request failed with code: %d. Response: %s",
                         responseCode, errorResponse));
             }
@@ -113,16 +114,4 @@ public class XeroInvoiceService {
         }
     }
 
-    private String readErrorStream(HttpURLConnection connection) throws IOException {
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String responseLine;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
-            }
-            return response.toString();
-        }
-    }
 }
-

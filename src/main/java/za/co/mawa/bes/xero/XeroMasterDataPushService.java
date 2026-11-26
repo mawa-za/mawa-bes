@@ -115,6 +115,7 @@ public class XeroMasterDataPushService {
         String token = authService.refreshAccessToken(tenant);
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
         try {
+            connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(20000);
             connection.setReadTimeout(30000);
@@ -128,20 +129,17 @@ public class XeroMasterDataPushService {
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) { output.write(mapper.writeValueAsBytes(payload)); }
             int code = connection.getResponseCode();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    code >= 300 && connection.getErrorStream() != null ? connection.getErrorStream() : connection.getInputStream(),
-                    StandardCharsets.UTF_8))) {
-                String body = reader.lines().reduce("", String::concat);
-                if (code == 400) throw new XeroValidationException("Xero master-data validation failed (400): " + body);
-                if (code >= 300) throw new IOException("Xero master-data request failed (" + code + "): " + body);
-                return mapper.readTree(body);
-            }
+            String body = XeroAccountingEndpoint.readBody(connection, code);
+            if (code == 400 || code == 404) throw new XeroValidationException("Xero master-data request rejected (" + code + "): " + body);
+            if (code >= 300) throw new IOException("Xero master-data request failed (" + code + "): " + body);
+            return mapper.readTree(body);
         } finally { connection.disconnect(); }
     }
 
     private String resolveUrl(String key, String fallback) {
         String tenant = TenantContext.getCurrentTenant();
-        return authService.getXeroProperty(tenant, key, fallback);
+        return XeroAccountingEndpoint.resolve(authService.getXeroProperty(tenant, key, fallback),
+                fallback.substring(fallback.lastIndexOf('/') + 1));
     }
     private JsonNode firstResult(JsonNode response, String field) {
         JsonNode values = response.path(field);

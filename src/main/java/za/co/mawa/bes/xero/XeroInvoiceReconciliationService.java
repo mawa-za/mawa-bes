@@ -51,12 +51,13 @@ public class XeroInvoiceReconciliationService {
         String tenantId = auth.getXeroProperty(configTenant, XeroUtils.XERO_TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) throw new IOException("Xero organisation is not selected");
         String token = auth.refreshAccessToken(configTenant);
-        String baseUrl = auth.getXeroProperty(configTenant, "XERO-BASE-URL", DEFAULT_URL);
+        String baseUrl = XeroAccountingEndpoint.resolve(auth.getXeroProperty(configTenant, "XERO-BASE-URL", DEFAULT_URL), "Invoices");
         String separator = baseUrl.contains("?") ? "&" : "?";
         String url = baseUrl + separator + "InvoiceNumbers=" +
                 URLEncoder.encode(invoice.getInvoiceNo(), StandardCharsets.UTF_8);
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         try {
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(20000);
             conn.setReadTimeout(30000);
@@ -93,7 +94,7 @@ public class XeroInvoiceReconciliationService {
             throw new IllegalStateException("Xero invoice identifier is missing; run Check Xero first");
         String config = auth.checkXeroInfo();
         if (config == null || config.isBlank()) throw new IOException("Xero is not connected");
-        String base = auth.getXeroProperty(config, "XERO-BASE-URL", DEFAULT_URL).replaceAll("/+$", "");
+        String base = XeroAccountingEndpoint.resolve(auth.getXeroProperty(config, "XERO-BASE-URL", DEFAULT_URL), "Invoices");
         JsonNode body = getXero(base + "/" + URLEncoder.encode(externalId, StandardCharsets.UTF_8));
         JsonNode invoices = body.path("Invoices");
         if (!invoices.isArray() || invoices.size() != 1 ||
@@ -159,8 +160,8 @@ public class XeroInvoiceReconciliationService {
         // must never be inferred from matching amounts or an empty collection.
         if (payments.size() > 100) throw new IllegalStateException("Payment verification exceeds the 100-record review limit");
         java.util.List<Map<String, Object>> paymentEvidence = new java.util.ArrayList<>();
-        String paymentBase = auth.getXeroProperty(config, "XERO-PAYMENTS-URL",
-                "https://api.xero.com/api.xro/2.0/Payments").replaceAll("/+$", "");
+        String paymentBase = XeroAccountingEndpoint.resolve(auth.getXeroProperty(config, "XERO-PAYMENTS-URL",
+                "https://api.xero.com/api.xro/2.0/Payments"), "Payments");
         for (InvoicePaymentEntity payment : payments) {
             Map<String, Object> evidence = new java.util.LinkedHashMap<>();
             evidence.put("mawaPaymentId", payment.getId());
@@ -639,11 +640,12 @@ public class XeroInvoiceReconciliationService {
         String tenantId = auth.getXeroProperty(configTenant, XeroUtils.XERO_TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) throw new IOException("Xero organisation is not selected");
         String token = auth.refreshAccessToken(configTenant);
-        String base = auth.getXeroProperty(configTenant, "XERO-BASE-URL", DEFAULT_URL);
+        String base = XeroAccountingEndpoint.resolve(auth.getXeroProperty(configTenant, "XERO-BASE-URL", DEFAULT_URL), "Invoices");
         String url = base.replaceAll("/+$", "") + "/" +
                 URLEncoder.encode(invoice.getXeroInvoiceId(), StandardCharsets.UTF_8);
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         try {
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(20000);
             conn.setReadTimeout(30000);
@@ -730,7 +732,7 @@ public class XeroInvoiceReconciliationService {
     private String creditNotesBaseUrl() throws IOException {
         String config = auth.checkXeroInfo();
         if (config == null || config.isBlank()) throw new IOException("Xero is not connected");
-        return auth.getXeroProperty(config, "XERO-CREDIT-NOTES-URL", CREDIT_NOTES_URL).replaceAll("/+$", "");
+        return XeroAccountingEndpoint.resolve(auth.getXeroProperty(config, "XERO-CREDIT-NOTES-URL", CREDIT_NOTES_URL), "CreditNotes");
     }
 
     private JsonNode getXero(String url) throws IOException {
@@ -741,6 +743,7 @@ public class XeroInvoiceReconciliationService {
         String token = auth.refreshAccessToken(config);
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         try {
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(20000);
             conn.setReadTimeout(30000);
