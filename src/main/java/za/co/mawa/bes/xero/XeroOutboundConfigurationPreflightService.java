@@ -82,8 +82,9 @@ public class XeroOutboundConfigurationPreflightService {
                 SELECT COUNT(*) FROM user_role ur
                 JOIN `role` r ON r.id = ur.role
                 JOIN `user` u ON u.id = ur.user
-                JOIN xero_reconciliation_role_permission xp ON xp.role_id = r.id
-                WHERE ur.user = ? AND xp.can_check = 1
+                JOIN role_permission rp ON rp.role_id = r.id
+                JOIN permission_catalog pc ON pc.code = rp.permission_code
+                WHERE ur.user = ? AND pc.code = 'xero-reconciliation-check' AND pc.active = TRUE
                   AND u.status = 'ACTIVE'
                   AND (u.expires_at IS NULL OR u.expires_at > NOW())
                   AND (ur.valid_from IS NULL OR ur.valid_from <= CURRENT_DATE)

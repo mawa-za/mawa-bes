@@ -111,7 +111,7 @@ public class XeroInvoicePushService {
 
             xeroIntegrationSettingsService.assertPostingConfiguration(xeroTenantId);
             String accessToken = xeroAuthService.refreshAccessToken(xeroConfigTenant);
-            String invoiceUrl = xeroAuthService.getXeroProperty(xeroConfigTenant, "XERO-BASE-URL", DEFAULT_INVOICE_URL);
+            String invoiceUrl = XeroAccountingEndpoint.resolve(xeroAuthService.getXeroProperty(xeroConfigTenant, "XERO-BASE-URL", DEFAULT_INVOICE_URL), "Invoices");
 
             xeroMasterDataPushService.pushCustomer(invoice.getPartnerId());
             if (invoice.getLines() != null) {
@@ -248,8 +248,8 @@ public class XeroInvoicePushService {
         if (isBlank(accountCode)) {
             throw new IOException("Configure XERO / PAYMENT-ACCOUNT-CODE before synchronising invoice payments");
         }
-        String paymentUrl = xeroAuthService.getXeroProperty(
-                TenantContext.getCurrentTenant(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL);
+        String paymentUrl = XeroAccountingEndpoint.resolve(xeroAuthService.getXeroProperty(
+                TenantContext.getCurrentTenant(), "XERO-PAYMENTS-URL", DEFAULT_PAYMENT_URL), "Payments");
 
         for (InvoicePaymentEntity payment : payments) {
             if ("RECONCILIATION_REQUIRED".equalsIgnoreCase(payment.getXeroSyncStatus())) {
@@ -330,6 +330,7 @@ public class XeroInvoicePushService {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(endpoint).openConnection();
+            connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("DELETE");
             connection.setConnectTimeout(20000);
             connection.setReadTimeout(30000);
@@ -342,7 +343,7 @@ public class XeroInvoicePushService {
             // The external ledger must be checked before we mark it DELETED.
             if (responseCode < 200 || responseCode >= 300) {
                 throw new IOException("Xero payment reversal not confirmed. HTTP " + responseCode
-                        + ". Response: " + readResponse(connection, true));
+                        + ". Response: " + XeroAccountingEndpoint.readBody(connection, responseCode));
             }
         } finally {
             if (connection != null) connection.disconnect();
@@ -359,8 +360,8 @@ public class XeroInvoicePushService {
                 """, invoice.getId());
         if (notes.isEmpty()) return;
 
-        String baseUrl = xeroAuthService.getXeroProperty(
-                TenantContext.getCurrentTenant(), "XERO-CREDIT-NOTES-URL", DEFAULT_CREDIT_NOTE_URL);
+        String baseUrl = XeroAccountingEndpoint.resolve(xeroAuthService.getXeroProperty(
+                TenantContext.getCurrentTenant(), "XERO-CREDIT-NOTES-URL", DEFAULT_CREDIT_NOTE_URL), "CreditNotes");
         for (Map<String, Object> note : notes) {
             String noteId = String.valueOf(note.get("id"));
             String xeroCreditNoteId = valueAsString(note.get("xero_credit_note_id"));
@@ -492,6 +493,7 @@ public class XeroInvoicePushService {
         try {
             URL url = new URL(invoiceUrl);
             connection = (HttpURLConnection) url.openConnection();
+            connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(20000);
             connection.setReadTimeout(30000);
@@ -515,15 +517,15 @@ public class XeroInvoicePushService {
             String responseBody;
             try {
                 responseCode = connection.getResponseCode();
-                responseBody = readResponse(connection, responseCode >= 300);
+                responseBody = XeroAccountingEndpoint.readBody(connection, responseCode);
             } catch (IOException uncertain) {
                 // The request body was already sent. Xero may have committed the write.
                 // Do not automatically replay financial operations until reconciled.
                 throw new XeroAmbiguousResponseException(
                         "Xero write outcome unknown; reconcile in Xero before retrying", uncertain);
             }
-            if (responseCode == 400) {
-                throw new XeroValidationException("Xero invoice validation failed (400): " + responseBody);
+            if (responseCode == 400 || responseCode == 404) {
+                throw new XeroValidationException("Xero write rejected (" + responseCode + "): " + responseBody);
             }
             if (responseCode >= 500) {
                 throw new XeroAmbiguousResponseException("Xero returned HTTP " + responseCode + " after a write; reconcile before retrying");
@@ -569,19 +571,6 @@ public class XeroInvoicePushService {
             return "mawa-" + HexFormat.of().formatHex(digest.digest(bytes));
         } catch (NoSuchAlgorithmException error) {
             throw new IllegalStateException("SHA-256 is required for Xero request deduplication", error);
-        }
-    }
-
-    private String readResponse(HttpURLConnection connection, boolean error) throws IOException {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                error && connection.getErrorStream() != null ? connection.getErrorStream() : connection.getInputStream(),
-                StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String responseLine;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
-            }
-            return response.toString();
         }
     }
 
