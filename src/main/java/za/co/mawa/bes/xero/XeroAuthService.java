@@ -227,6 +227,8 @@ public class XeroAuthService {
         URL url = new URL(TOKEN_URL);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(20_000);
         connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         connection.setDoOutput(true);
@@ -332,6 +334,8 @@ public class XeroAuthService {
             URL url = new URL("https://api.xero.com/connections");
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(20_000);
             connection.setRequestProperty("Authorization", "Bearer " + accessToken);
             connection.setRequestProperty("Accept", "application/json");
 

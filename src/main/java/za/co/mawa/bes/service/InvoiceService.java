@@ -231,7 +231,7 @@ public class InvoiceService {
     public InvoiceEntity queueInvoiceForXero(String invoiceId) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + invoiceId));
-        xeroInvoiceQueueService.queueInvoice(invoice);
+        xeroInvoiceQueueService.queueExplicitInvoice(invoice);
         return invoiceRepository.findById(invoiceId).orElse(invoice);
     }
 

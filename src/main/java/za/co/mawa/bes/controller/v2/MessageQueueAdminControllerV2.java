@@ -48,6 +48,11 @@ public class MessageQueueAdminControllerV2 {
         return ResponseEntity.ok(Map.of("processed", service.processNow()));
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> conflict(IllegalStateException error) {
+        return ResponseEntity.status(409).body(Map.of("message", error.getMessage() == null ? "Queue operation unavailable" : error.getMessage()));
+    }
+
     @GetMapping("/schedule")
     public ResponseEntity<MessageQueueScheduleSettingsDto> getSchedule() {
         return ResponseEntity.ok(service.getScheduleSettings());

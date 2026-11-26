@@ -28,6 +28,7 @@ import za.co.mawa.bes.service.v2.PayrollPaymentBatchService;
 import za.co.mawa.bes.repository.MessageQueueRepository;
 import za.co.mawa.bes.xero.XeroInvoicePushService;
 import za.co.mawa.bes.xero.XeroAmbiguousResponseException;
+import za.co.mawa.bes.xero.XeroValidationException;
 import za.co.mawa.bes.xero.XeroMasterDataPushService;
 
 import java.time.LocalDateTime;
@@ -61,6 +62,8 @@ public class MessageConsumerService {
     XeroInvoicePushService xeroInvoicePushService;
     @Autowired
     za.co.mawa.bes.xero.XeroIntegrationSettingsService xeroIntegrationSettingsService;
+    @Autowired
+    za.co.mawa.bes.xero.XeroAccountingConfigurationService xeroAccountingConfigurationService;
     @Autowired
     XeroMasterDataPushService xeroMasterDataPushService;
     @Autowired
@@ -274,24 +277,44 @@ public class MessageConsumerService {
         // Otherwise ten old disabled Xero messages can indefinitely starve FNB
         // and other unrelated work. Keep the per-message guard below as well,
         // since the integration setting may be changed after this query.
-        boolean includeXero = xeroIntegrationSettingsService.isIntegrationEnabled();
+        boolean includeXero = xeroIntegrationSettingsService.isIntegrationEnabled()
+                && xeroIntegrationSettingsService.hasAccountingMapping();
         List<MessageQueueEntity> messageQueueEntities = messageQueueRepository.findEligibleForDispatch(
                 LocalDateTime.now(), includeXero, PageRequest.of(0, Math.min(10, getBatchSize())));
 
+        if (includeXero && messageQueueEntities.stream().anyMatch(this::isXeroQueueMessage)) {
+            try {
+                xeroAccountingConfigurationService.validateForDispatch();
+            } catch (RuntimeException invalidConfiguration) {
+                // Do not consume retries or starve FNB and unrelated queue messages while account mapping is invalid.
+                log.warn("Xero dispatch paused for tenant {}: {}", TenantContext.getCurrentTenant(), invalidConfiguration.getMessage());
+                includeXero = false;
+                messageQueueEntities = messageQueueRepository.findEligibleForDispatch(
+                        LocalDateTime.now(), false, PageRequest.of(0, Math.min(10, getBatchSize())));
+            }
+        }
         for (MessageQueueEntity msg : messageQueueEntities) {
             // OFF is a hard barrier even for Xero messages queued before deactivation.
             // Do not claim, consume, or acknowledge them while integration is disabled.
-            if (isXeroQueueMessage(msg) && !xeroIntegrationSettingsService.isIntegrationEnabled()) {
+            if (isXeroQueueMessage(msg) && (!includeXero || !xeroIntegrationSettingsService.isIntegrationEnabled()
+                    || !xeroIntegrationSettingsService.hasAccountingMapping())) {
                 continue;
             }
             LocalDateTime xeroLeaseUntil = null;
             if (isXeroQueueMessage(msg)) {
                 LocalDateTime claimTime = LocalDateTime.now();
-                xeroLeaseUntil = claimTime.plusMinutes(15);
+                // message_queue.next_attempt_at is DATETIME (zero fractional precision).
+                // Use the exact persisted value in the fencing comparison.
+                xeroLeaseUntil = claimTime.plusMinutes(15).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
                 // Do not issue any external request unless the shared database granted
                 // this instance the lease. An expired lease is eligible for recovery.
                 if (messageQueueRepository.claimXeroMessage(msg.getId(), claimTime,
                         xeroLeaseUntil) != 1) {
+                    continue;
+                }
+                if (!xeroIntegrationSettingsService.isIntegrationEnabled() || !xeroIntegrationSettingsService.hasAccountingMapping()) {
+                    messageQueueRepository.completeXeroClaim(msg.getId(), xeroLeaseUntil, false,
+                            msg.getRetryCount(), LocalDateTime.now());
                     continue;
                 }
             }
@@ -403,7 +426,10 @@ public class MessageConsumerService {
                     }
                     throw new IllegalStateException("Transient database failure while processing message queue", e);
                 }
-                if (isEftPaymentReportMessage(msg)) {
+                if (isXeroQueueMessage(msg) && hasCause(e, za.co.mawa.bes.xero.XeroDispatchPausedException.class)) {
+                    msg.setProcessed(false);
+                    msg.setNextAttemptAt(LocalDateTime.now().plusSeconds(10));
+                } else if (isEftPaymentReportMessage(msg)) {
                     // Count only unsuccessful report retrievals. A valid response with
                     // PENDING status follows the existing polling path unchanged.
                     msg.setRetryCount(msg.getRetryCount() + 1);
@@ -460,6 +486,11 @@ public class MessageConsumerService {
                         msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
                         log.error("Xero message {} for tenant {} requires reconciliation: "
                                         + "remote write outcome is unknown; automatic retries suspended",
+                                msg.getId(), TenantContext.getCurrentTenant());
+                    } else if (isXeroQueueMessage(msg) && hasCause(e, XeroValidationException.class)) {
+                        msg.setProcessed(false);
+                        msg.setNextAttemptAt(LocalDateTime.now().plusYears(100));
+                        log.warn("Xero validation rejected queue item {} for tenant {}; correct the configuration and explicitly retry",
                                 msg.getId(), TenantContext.getCurrentTenant());
                     } else if (msg.getType() != null && msg.getType().startsWith("XERO-")
                             && msg.getRetryCount() > 3) {

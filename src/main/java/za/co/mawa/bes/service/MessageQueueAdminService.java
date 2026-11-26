@@ -8,6 +8,9 @@ import za.co.mawa.bes.dto.v2.message.MessageQueueAdminListResponse;
 import za.co.mawa.bes.dto.v2.message.MessageQueueScheduleSettingsDto;
 import za.co.mawa.bes.entity.MessageQueueEntity;
 import za.co.mawa.bes.repository.MessageQueueRepository;
+import za.co.mawa.bes.repository.InvoiceRepository;
+import za.co.mawa.bes.xero.XeroAccountingConfigurationService;
+import za.co.mawa.bes.xero.XeroIntegrationSettingsService;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -21,6 +24,10 @@ public class MessageQueueAdminService {
     private final MessageQueueRepository repository;
     private final MessageConsumerService messageConsumerService;
     private final SettingService settingService;
+    private final InvoiceRepository invoiceRepository;
+    private final XeroIntegrationSettingsService xeroSettings;
+    private final XeroAccountingConfigurationService accountingConfiguration;
+    private final UserAccessService userAccessService;
 
     private static final String QUEUE_GROUP = "MESSAGE-QUEUE";
 
@@ -50,6 +57,34 @@ public class MessageQueueAdminService {
     public MessageQueueAdminDto retry(Long id) {
         MessageQueueEntity entity = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Message queue item not found: " + id));
+        if (isXero(entity)) {
+            userAccessService.assertWorkcentreAccess("message-queue-admin", null);
+            userAccessService.assertExternalTransactionAllowed("XERO-QUEUE-RETRY");
+            if (!xeroSettings.isIntegrationEnabled()) throw new IllegalStateException("Enable validated Xero invoice integration first");
+            LocalDateTime now = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+            // The suspension sentinel is far in the future. A normal pending row or active lease
+            // must not be reset by a second worker or an operator.
+            if (entity.isProcessed() || entity.getRetryCount() < 1 || entity.getNextAttemptAt() == null
+                    || !entity.getNextAttemptAt().isAfter(now.plusDays(1))) {
+                throw new IllegalStateException("Only suspended, unprocessed Xero messages can be retried here");
+            }
+            if ("XERO-INVOICE".equals(entity.getType())) {
+                String invoiceId = isBlank(entity.getReferenceId()) ? entity.getPayload() : entity.getReferenceId();
+                var invoice = invoiceRepository.findById(invoiceId)
+                        .orElseThrow(() -> new IllegalStateException("Invoice not found for Xero retry"));
+                if (!"FAILED".equalsIgnoreCase(invoice.getIntegrationStatus())) {
+                    throw new IllegalStateException("Only definitively failed invoices can be retried; reconcile uncertain Xero writes first");
+                }
+            }
+            accountingConfiguration.validateForEnablement();
+            if (repository.retrySuspendedXero(id, entity.getNextAttemptAt(), now, now.plusDays(1)) != 1) {
+                throw new IllegalStateException("Xero queue item changed. Refresh before retrying");
+            }
+            // REQUIRES_NEW commits the fenced reset; return the new DTO without relying on the outer persistence cache.
+            return toDto(MessageQueueEntity.builder().id(entity.getId()).type(entity.getType())
+                    .referenceId(entity.getReferenceId()).referenceNo(entity.getReferenceNo()).payload(entity.getPayload())
+                    .processed(false).retryCount(0).nextAttemptAt(now).build());
+        }
         entity.setProcessed(false);
         entity.setRetryCount(0);
         entity.setNextAttemptAt(LocalDateTime.now());
@@ -60,6 +95,7 @@ public class MessageQueueAdminService {
     public MessageQueueAdminDto markProcessed(Long id) {
         MessageQueueEntity entity = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Message queue item not found: " + id));
+        if (isXero(entity)) throw new IllegalStateException("Xero messages cannot be manually marked processed; reconcile the ledger outcome first");
         entity.setProcessed(true);
         return toDto(repository.save(entity));
     }
@@ -120,7 +156,13 @@ public class MessageQueueAdminService {
                 .build();
     }
 
+    private boolean isXero(MessageQueueEntity entity) {
+        return "XERO-INVOICE".equals(entity.getType()) || "XERO-PRODUCT".equals(entity.getType()) || "XERO-CUSTOMER".equals(entity.getType());
+    }
+
     private String statusOf(MessageQueueEntity entity) {
+        if (isXero(entity) && !entity.isProcessed() && entity.getRetryCount() > 0
+                && entity.getNextAttemptAt() != null && entity.getNextAttemptAt().isAfter(LocalDateTime.now().plusDays(1))) return "FAILED";
         if (entity.isProcessed() && entity.getRetryCount() > 3) return "FAILED";
         if (entity.isProcessed()) return "PROCESSED";
         if (entity.getNextAttemptAt() != null && entity.getNextAttemptAt().isAfter(LocalDateTime.now())) return "RETRY_WAIT";

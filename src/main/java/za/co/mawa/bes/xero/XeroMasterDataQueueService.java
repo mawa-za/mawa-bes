@@ -77,6 +77,9 @@ public class XeroMasterDataQueueService {
         MessageQueueEntity message = queueRepository
                 .findFirstByTypeAndReferenceIdOrderByIdDesc(type, id)
                 .orElseGet(MessageQueueEntity::new);
+        // Do not silently release a suspended failure.
+        if (message.getId() != null && !message.isProcessed() && message.getRetryCount() > 0
+                && message.getNextAttemptAt() != null && message.getNextAttemptAt().isAfter(LocalDateTime.now().plusDays(1))) return;
         message.setType(type);
         message.setReferenceId(id);
         message.setReferenceNo(number);
